@@ -31,7 +31,7 @@ export default function HomeScreen() {
         api.get('/user/me'),
         api.get('/stats/overview'),
         api.get('/transactions?limit=5'),
-        api.get('/money-school/daily'),
+        api.get(`/money-school/daily?lang=${lang}`),
         api.get('/alerts/smart'),
         api.get('/reports/weekly'),
       ]);
@@ -49,7 +49,7 @@ export default function HomeScreen() {
     }
     // Load AI insights separately (slow OpenAI call - don't block UI)
     try {
-      const insightsRes = await api.get('/insights/daily');
+      const insightsRes = await api.get(`/insights/daily?lang=${lang}`);
       setInsights(insightsRes.data);
     } catch (error) {
       console.error('Insights fetch error:', error);

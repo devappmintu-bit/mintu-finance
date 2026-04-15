@@ -157,6 +157,19 @@ def sanitize_phone(phone: str) -> str:
         cleaned = cleaned[-10:]  # Take last 10 digits (remove country code)
     return cleaned
 
+# ============== LANGUAGE SUPPORT FOR AI ==============
+LANG_NAMES = {
+    "en": "English", "hi": "Hindi (हिन्दी)", "ta": "Tamil (தமிழ்)", "te": "Telugu (తెలుగు)",
+    "mr": "Marathi (मराठी)", "bn": "Bengali (বাংলা)", "kn": "Kannada (ಕನ್ನಡ)",
+    "gu": "Gujarati (ગુજરાતી)", "ml": "Malayalam (മലയാളം)", "as": "Assamese (অসমীয়া)"
+}
+
+def get_lang_instruction(lang: str) -> str:
+    """Returns AI instruction for responding in the user's language"""
+    if lang == "en" or lang not in LANG_NAMES:
+        return ""
+    return f"\n\nIMPORTANT: Respond ENTIRELY in {LANG_NAMES[lang]}. Use the native script. Keep ₹ amounts in digits. Do NOT respond in English."
+
 # ============== Models ==============
 class UserCreate(BaseModel):
     phone: str
@@ -360,7 +373,7 @@ async def calculate_money_score(user_id: str) -> int:
         logging.error(f"Money score calculation error: {str(e)}")
         return 50
 
-async def generate_insights_with_ai(user_id: str, money_score: int, spending_summary: Dict[str, float]) -> Dict:
+async def generate_insights_with_ai(user_id: str, money_score: int, spending_summary: Dict[str, float], lang: str = "en") -> Dict:
     """Generate personalized spending insights using AI — Enhanced Engine v2"""
     try:
         # ── DATA PIPELINE: Gather all analysis data ──
@@ -491,7 +504,7 @@ Return ONLY valid JSON:
   "recommendations": ["actionable tip 1", "actionable tip 2", "actionable tip 3"],
   "savings_tip": "One specific way to save money this month",
   "mood": "great" | "good" | "okay" | "concerning" | "alert"
-}"""
+}""" + get_lang_instruction(lang)
 
         user_prompt = f"""FINANCIAL SNAPSHOT:
 - Money Score: {money_score}/100
@@ -909,7 +922,7 @@ async def get_daily_insights(user_id: str = Depends(get_current_user), lang: str
         spending_summary[category] = spending_summary.get(category, 0) + trans["amount"]
     
     # Generate AI insights (enhanced v2) — pass lang for multilingual output
-    ai_insights = await generate_insights_with_ai(user_id, money_score, spending_summary)
+    ai_insights = await generate_insights_with_ai(user_id, money_score, spending_summary, lang=lang)
     
     return {
         "money_score": money_score,
@@ -1498,7 +1511,7 @@ async def get_money_school_lessons():
     return {"lessons": MONEY_SCHOOL_LESSONS, "total": len(MONEY_SCHOOL_LESSONS)}
 
 @api_router.get("/money-school/daily")
-async def get_daily_lesson(user_id: str = Depends(get_current_user)):
+async def get_daily_lesson(user_id: str = Depends(get_current_user), lang: str = "en"):
     """Get today's lesson + AI-personalized tip based on user's spending"""
     from datetime import date
     # Rotate daily lesson based on date
@@ -1515,10 +1528,11 @@ async def get_daily_lesson(user_id: str = Depends(get_current_user)):
             top_cat[t["category"]] = top_cat.get(t["category"], 0) + t["amount"]
         top_category = max(top_cat, key=top_cat.get) if top_cat else "Food"
         
+        lang_instr = get_lang_instruction(lang)
         chat = LlmChat(
             api_key=os.environ['EMERGENT_LLM_KEY'],
             session_id=f"school_{user_id}_{datetime.utcnow().timestamp()}",
-            system_message="You are MintU's financial literacy buddy. Give ONE short personalized tip (1-2 sentences) connecting the lesson topic to user's actual spending. Be warm and specific with numbers. Use ₹."
+            system_message="You are MintU's financial literacy buddy. Give ONE short personalized tip (1-2 sentences) connecting the lesson topic to user's actual spending. Be warm and specific with numbers. Use ₹." + lang_instr
         ).with_model("openai", "gpt-5.2")
         
         msg = f"Lesson: {lesson['title']}. User spent ₹{total_spent:.0f} this month, top category: {top_category}."
@@ -1667,8 +1681,8 @@ class SplitExpenseCreate(BaseModel):
     description: str
     amount: float
     paid_by: str  # user_id of payer
-    split_type: str = "equal"  # "equal", "custom"
-    splits: Optional[Dict[str, float]] = None  # user_id -> amount (for custom)
+    split_type: str = "equal"  # "equal", "custom", "shares"
+    splits: Optional[Dict[str, float]] = None  # user_id -> amount (for custom) or user_id -> share_ratio (for shares)
 
 @api_router.post("/split/groups")
 async def create_split_group(group: SplitGroupCreate, user_id: str = Depends(get_current_user)):
@@ -1717,7 +1731,13 @@ async def add_split_expense(expense: SplitExpenseCreate, user_id: str = Depends(
     if expense.split_type == "equal":
         per_person = round(expense.amount / len(member_ids), 2)
         splits = {mid: per_person for mid in member_ids}
+    elif expense.split_type == "shares":
+        # Splits by ratio: e.g. {"user1": 2, "user2": 1} → user1 pays 2/3, user2 pays 1/3
+        share_ratios = expense.splits or {mid: 1 for mid in member_ids}
+        total_shares = sum(share_ratios.values()) or 1
+        splits = {uid: round(expense.amount * (share / total_shares), 2) for uid, share in share_ratios.items()}
     else:
+        # Custom: exact amounts
         splits = expense.splits or {}
     
     exp_doc = {
@@ -1774,6 +1794,32 @@ async def get_overall_balances(user_id: str = Depends(get_current_user)):
         "owe_you": owe_you,
         "you_owe": you_owe
     }
+
+@api_router.post("/split/groups/{group_id}/members")
+async def add_members_to_group(group_id: str, data: dict, user_id: str = Depends(get_current_user)):
+    """Add new members to an existing split group"""
+    from bson import ObjectId
+    phones = data.get("phones", [])
+    if not phones:
+        raise HTTPException(status_code=400, detail="Provide phone numbers to add")
+    
+    group = await db.split_groups.find_one({"_id": ObjectId(group_id), "members.user_id": user_id})
+    if not group:
+        raise HTTPException(status_code=404, detail="Group not found")
+    
+    existing_ids = {m["user_id"] for m in group["members"]}
+    added = []
+    
+    for phone in phones:
+        p = phone.strip().replace("+91", "")[-10:]
+        member = await db.users.find_one({"phone": p})
+        if member and str(member["_id"]) not in existing_ids:
+            new_member = {"user_id": str(member["_id"]), "name": member["name"], "phone": member["phone"]}
+            await db.split_groups.update_one({"_id": ObjectId(group_id)}, {"$push": {"members": new_member}})
+            existing_ids.add(str(member["_id"]))
+            added.append(new_member["name"])
+    
+    return {"added": added, "message": f"Added {len(added)} member(s)" if added else "No new members found"}
 
 # ============== 1. REFERRAL SYSTEM ==============
 import uuid as uuid_lib
@@ -2569,7 +2615,8 @@ def build_equivalences(monthly_amount: float) -> list:
 # 1. AI FINANCIAL COACH (CHAT)
 class ChatMessage(BaseModel):
     message: str
-    context: Optional[str] = None  # "savings", "budget", "general"
+    context: Optional[str] = None
+    lang: Optional[str] = "en"
 
 @api_router.post("/ai/chat")
 async def ai_financial_coach(msg: ChatMessage, user_id: str = Depends(get_current_user)):
@@ -2629,7 +2676,7 @@ RULES:
 - Give ONE specific actionable tip
 - If they ask about savings, suggest specific Indian instruments (SIP, PPF, FD, NPS)
 - If they ask about budgeting, reference their actual category spending
-- NEVER give generic advice — personalize everything"""
+- NEVER give generic advice — personalize everything""" + get_lang_instruction(msg.lang or "en")
 
     try:
         llm_key = os.environ.get("EMERGENT_LLM_KEY", "")

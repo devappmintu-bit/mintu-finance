@@ -7,6 +7,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import api from '../../utils/api';
 import { useAuthStore } from '../../store/authStore';
+import { useLangStore } from '../../store/langStore';
 import { COLORS, RADIUS, SPACING, CATEGORIES } from '../../utils/theme';
 import { PieChart } from 'react-native-gifted-charts';
 
@@ -22,6 +23,7 @@ const QUICK_CHIPS = [
 
 export default function InsightsScreen() {
   const { user } = useAuthStore();
+  const { lang } = useLangStore();
   const [tab, setTab] = useState<'coach' | 'insights'>('coach');
   const [messages, setMessages] = useState<ChatMsg[]>([]);
   const [input, setInput] = useState('');
@@ -56,7 +58,7 @@ export default function InsightsScreen() {
     } catch (e) { console.error(e); }
 
     try {
-      const insRes = await api.get('/insights/daily');
+      const insRes = await api.get(`/insights/daily?lang=${lang}`);
       setInsights(insRes.data);
     } catch (e) { console.error(e); }
     finally { setDataLoading(false); }
@@ -71,7 +73,7 @@ export default function InsightsScreen() {
     setChatLoading(true);
 
     try {
-      const res = await api.post('/ai/chat', { message: text.trim() });
+      const res = await api.post('/ai/chat', { message: text.trim(), lang });
       setMessages(prev => [
         ...prev.slice(0, -1),
         { role: 'ai', text: res.data.reply },
