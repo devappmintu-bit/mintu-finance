@@ -500,9 +500,16 @@ async def create_budget(budget: BudgetCreate, user_id: str = Depends(get_current
     budget_dict["created_at"] = datetime.utcnow()
     
     result = await db.budgets.insert_one(budget_dict)
-    budget_dict["id"] = str(result.inserted_id)
     
-    return budget_dict
+    return {
+        "id": str(result.inserted_id),
+        "user_id": user_id,
+        "category": budget_dict["category"],
+        "amount": budget_dict["amount"],
+        "period": budget_dict["period"],
+        "spent": 0,
+        "created_at": budget_dict["created_at"]
+    }
 
 @api_router.get("/budgets")
 async def get_budgets(user_id: str = Depends(get_current_user)):

@@ -1,299 +1,255 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
-  View,
-  Text,
-  StyleSheet,
-  ScrollView,
-  RefreshControl,
-  TouchableOpacity,
-  ActivityIndicator,
-  Dimensions,
+  View, Text, StyleSheet, ScrollView, RefreshControl, TouchableOpacity, ActivityIndicator,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuthStore } from '../../store/authStore';
 import api from '../../utils/api';
+import { COLORS, RADIUS, SPACING, CATEGORIES } from '../../utils/theme';
 import { BarChart } from 'react-native-gifted-charts';
-
-const { width } = Dimensions.get('window');
+import { router } from 'expo-router';
 
 export default function HomeScreen() {
   const { user, setUser } = useAuthStore();
   const [insights, setInsights] = useState<any>(null);
+  const [stats, setStats] = useState<any>(null);
+  const [recentTxns, setRecentTxns] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
 
-  useEffect(() => {
-    fetchInsights();
-  }, []);
-
-  const fetchInsights = async () => {
+  const fetchData = useCallback(async () => {
     try {
-      const [insightsRes, profileRes] = await Promise.all([
+      const [insightsRes, profileRes, statsRes, txnRes] = await Promise.all([
         api.get('/insights/daily'),
         api.get('/user/me'),
+        api.get('/stats/overview'),
+        api.get('/transactions?limit=5'),
       ]);
       setInsights(insightsRes.data);
       setUser(profileRes.data);
+      setStats(statsRes.data);
+      setRecentTxns(txnRes.data.slice(0, 4));
     } catch (error) {
-      console.error('Failed to fetch insights:', error);
+      console.error('Dashboard fetch error:', error);
     } finally {
       setLoading(false);
       setRefreshing(false);
     }
-  };
+  }, []);
 
-  const onRefresh = () => {
-    setRefreshing(true);
-    fetchInsights();
-  };
+  useEffect(() => { fetchData(); }, []);
 
-  const getScoreColor = (score: number) => {
-    if (score >= 75) return '#10B981';
-    if (score >= 50) return '#F59E0B';
-    return '#EF4444';
-  };
-
-  const getScoreMessage = (score: number) => {
-    if (score >= 75) return 'Excellent!';
-    if (score >= 50) return 'Good';
-    return 'Needs Attention';
-  };
-
-  if (loading) {
-    return (
-      <SafeAreaView style={styles.container}>
-        <ActivityIndicator size="large" color="#10B981" style={{ marginTop: 100 }} />
-      </SafeAreaView>
-    );
-  }
+  const moneyScore = insights?.money_score || user?.money_score || 50;
+  const scoreColor = moneyScore >= 75 ? COLORS.accent.moneyIn : moneyScore >= 50 ? COLORS.accent.warning : COLORS.accent.moneyOut;
+  const scoreLabel = moneyScore >= 75 ? 'Excellent' : moneyScore >= 50 ? 'Good' : 'Needs Work';
 
   const chartData = Object.entries(insights?.spending_summary || {}).map(
     ([category, amount]: [string, any]) => ({
       value: amount,
-      label: category.slice(0, 3),
-      frontColor: '#4F46E5',
+      label: category.slice(0, 4),
+      frontColor: CATEGORIES[category]?.color || COLORS.accent.secondary,
+      topLabelComponent: () => <Text style={styles.chartLabel}>{'\u20B9'}{Math.round(amount)}</Text>,
     })
   );
 
-  const moneyScore = insights?.money_score || user?.money_score || 50;
+  if (loading) {
+    return (
+      <SafeAreaView style={styles.container}>
+        <ActivityIndicator size="large" color={COLORS.accent.primary} style={{ marginTop: 100 }} />
+      </SafeAreaView>
+    );
+  }
 
   return (
     <SafeAreaView style={styles.container}>
       <ScrollView
+        testID="home-dashboard"
         contentContainerStyle={styles.scrollContent}
-        refreshControl={
-          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#10B981" />
-        }
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); fetchData(); }} tintColor={COLORS.accent.primary} />}
       >
         {/* Header */}
         <View style={styles.header}>
           <View>
-            <Text style={styles.greeting}>Hello, {user?.name}!</Text>
-            <Text style={styles.subtitle}>Here's your financial overview</Text>
+            <Text style={styles.overline}>WELCOME BACK</Text>
+            <Text style={styles.greeting}>Hi, {user?.name || 'there'}!</Text>
           </View>
+          <TouchableOpacity testID="home-notifications-btn" style={styles.notifButton}>
+            <Ionicons name="notifications-outline" size={22} color={COLORS.text.primary} />
+          </TouchableOpacity>
         </View>
 
-        {/* Money Score Card */}
+        {/* Money Score Hero */}
         <View style={styles.scoreCard}>
-          <View style={styles.scoreHeader}>
+          <View style={styles.scoreTop}>
             <View>
-              <Text style={styles.scoreLabel}>Money Score</Text>
-              <Text style={[styles.scoreStatus, { color: getScoreColor(moneyScore) }]}>
-                {getScoreMessage(moneyScore)}
-              </Text>
+              <Text style={styles.scoreOverline}>YOUR MONEY SCORE</Text>
+              <Text style={[styles.scoreStatus, { color: scoreColor }]}>{scoreLabel}</Text>
             </View>
-            <View style={[styles.scoreCircle, { borderColor: getScoreColor(moneyScore) }]}>
-              <Text style={[styles.scoreValue, { color: getScoreColor(moneyScore) }]}>
-                {moneyScore}
-              </Text>
+            <View style={[styles.scoreBadge, { borderColor: scoreColor }]}>
+              <Text style={[styles.scoreBadgeText, { color: scoreColor }]}>{moneyScore}</Text>
+              <Text style={styles.scoreBadgeSub}>/100</Text>
             </View>
           </View>
-          <View style={styles.scoreBar}>
-            <View
-              style={[
-                styles.scoreBarFill,
-                {
-                  width: `${moneyScore}%`,
-                  backgroundColor: getScoreColor(moneyScore),
-                },
-              ]}
-            />
+          <View style={styles.progressTrack}>
+            <View style={[styles.progressFill, { width: `${moneyScore}%`, backgroundColor: scoreColor }]} />
           </View>
         </View>
 
-        {/* AI Insight */}
+        {/* Quick Stats */}
+        {stats && (
+          <View style={styles.statsRow}>
+            <View style={[styles.statCard, { borderLeftColor: COLORS.accent.moneyIn }]}>
+              <Ionicons name="arrow-down-circle" size={20} color={COLORS.accent.moneyIn} />
+              <Text style={styles.statAmount}>{'\u20B9'}{stats.total_income.toFixed(0)}</Text>
+              <Text style={styles.statLabel}>Income</Text>
+            </View>
+            <View style={[styles.statCard, { borderLeftColor: COLORS.accent.moneyOut }]}>
+              <Ionicons name="arrow-up-circle" size={20} color={COLORS.accent.moneyOut} />
+              <Text style={styles.statAmount}>{'\u20B9'}{stats.total_expense.toFixed(0)}</Text>
+              <Text style={styles.statLabel}>Expenses</Text>
+            </View>
+            <View style={[styles.statCard, { borderLeftColor: COLORS.accent.secondary }]}>
+              <Ionicons name="wallet" size={20} color={COLORS.accent.secondary} />
+              <Text style={styles.statAmount}>{'\u20B9'}{stats.balance.toFixed(0)}</Text>
+              <Text style={styles.statLabel}>Balance</Text>
+            </View>
+          </View>
+        )}
+
+        {/* AI Insight Card */}
         {insights?.insight_text && (
           <View style={styles.insightCard}>
-            <View style={styles.insightHeader}>
-              <Ionicons name="bulb" size={24} color="#F59E0B" />
-              <Text style={styles.insightTitle}>Today's Insight</Text>
+            <View style={styles.insightIconWrap}>
+              <Ionicons name="sparkles" size={20} color={COLORS.accent.warning} />
             </View>
-            <Text style={styles.insightText}>{insights.insight_text}</Text>
+            <View style={styles.insightContent}>
+              <Text style={styles.insightTitle}>AI Insight</Text>
+              <Text style={styles.insightText}>{insights.insight_text}</Text>
+            </View>
           </View>
         )}
 
         {/* Spending Chart */}
         {chartData.length > 0 && (
-          <View style={styles.chartCard}>
-            <Text style={styles.cardTitle}>Spending by Category (Last 7 Days)</Text>
-            <View style={styles.chartContainer}>
+          <View style={styles.card}>
+            <Text style={styles.cardTitle}>Spending Breakdown</Text>
+            <Text style={styles.cardSubtitle}>Last 7 days by category</Text>
+            <View style={styles.chartWrap}>
               <BarChart
                 data={chartData}
-                barWidth={32}
-                spacing={24}
+                barWidth={28}
+                spacing={20}
                 roundedTop
-                barBorderRadius={4}
+                barBorderRadius={6}
                 hideRules
                 xAxisThickness={0}
                 yAxisThickness={0}
-                yAxisTextStyle={{ color: '#64748B', fontSize: 10 }}
+                yAxisTextStyle={{ color: COLORS.text.muted, fontSize: 10 }}
+                xAxisLabelTextStyle={{ color: COLORS.text.muted, fontSize: 10 }}
                 noOfSections={3}
-                maxValue={Math.max(...chartData.map((d) => d.value)) * 1.2}
+                maxValue={Math.max(...chartData.map((d) => d.value)) * 1.3}
                 isAnimated
-                animationDuration={500}
               />
             </View>
           </View>
         )}
 
         {/* Recommendations */}
-        {insights?.recommendations && insights.recommendations.length > 0 && (
-          <View style={styles.recommendationsCard}>
-            <Text style={styles.cardTitle}>Smart Recommendations</Text>
-            {insights.recommendations.map((rec: string, index: number) => (
-              <View key={index} style={styles.recommendationItem}>
-                <Ionicons name="checkmark-circle" size={20} color="#10B981" />
-                <Text style={styles.recommendationText}>{rec}</Text>
+        {insights?.recommendations?.length > 0 && (
+          <View style={styles.card}>
+            <Text style={styles.cardTitle}>Smart Tips</Text>
+            {insights.recommendations.map((rec: string, i: number) => (
+              <View key={i} style={styles.tipRow}>
+                <View style={styles.tipIcon}>
+                  <Ionicons name="checkmark" size={14} color={COLORS.accent.primary} />
+                </View>
+                <Text style={styles.tipText}>{rec}</Text>
               </View>
             ))}
           </View>
         )}
+
+        {/* Recent Transactions */}
+        {recentTxns.length > 0 && (
+          <View style={styles.card}>
+            <View style={styles.cardHeader}>
+              <Text style={styles.cardTitle}>Recent Transactions</Text>
+              <TouchableOpacity onPress={() => router.push('/(tabs)/transactions')}>
+                <Text style={styles.seeAll}>See All</Text>
+              </TouchableOpacity>
+            </View>
+            {recentTxns.map((txn: any, i: number) => {
+              const cat = CATEGORIES[txn.category] || CATEGORIES.Other;
+              return (
+                <View key={txn.id || i} style={styles.txnRow}>
+                  <View style={[styles.txnIcon, { backgroundColor: cat.color + '18' }]}>
+                    <Ionicons name={cat.icon as any} size={18} color={cat.color} />
+                  </View>
+                  <View style={styles.txnInfo}>
+                    <Text style={styles.txnDesc} numberOfLines={1}>{txn.description}</Text>
+                    <Text style={styles.txnCat}>{txn.category}</Text>
+                  </View>
+                  <Text style={[styles.txnAmount, { color: txn.type === 'credit' ? COLORS.accent.moneyIn : COLORS.accent.moneyOut }]}>
+                    {txn.type === 'credit' ? '+' : '-'}{'\u20B9'}{txn.amount.toFixed(0)}
+                  </Text>
+                </View>
+              );
+            })}
+          </View>
+        )}
+
+        <View style={{ height: 24 }} />
       </ScrollView>
     </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#0F172A',
-  },
-  scrollContent: {
-    padding: 16,
-  },
-  header: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 24,
-  },
-  greeting: {
-    fontSize: 28,
-    fontWeight: 'bold',
-    color: '#fff',
-  },
-  subtitle: {
-    fontSize: 14,
-    color: '#94A3B8',
-    marginTop: 4,
-  },
-  scoreCard: {
-    backgroundColor: '#1E293B',
-    borderRadius: 16,
-    padding: 20,
-    marginBottom: 16,
-  },
-  scoreHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 16,
-  },
-  scoreLabel: {
-    fontSize: 16,
-    color: '#CBD5E1',
-    marginBottom: 4,
-  },
-  scoreStatus: {
-    fontSize: 14,
-    fontWeight: '600',
-  },
-  scoreCircle: {
-    width: 80,
-    height: 80,
-    borderRadius: 40,
-    borderWidth: 4,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  scoreValue: {
-    fontSize: 32,
-    fontWeight: 'bold',
-  },
-  scoreBar: {
-    height: 8,
-    backgroundColor: '#334155',
-    borderRadius: 4,
-    overflow: 'hidden',
-  },
-  scoreBarFill: {
-    height: '100%',
-    borderRadius: 4,
-  },
-  insightCard: {
-    backgroundColor: '#1E293B',
-    borderRadius: 16,
-    padding: 20,
-    marginBottom: 16,
-  },
-  insightHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 12,
-  },
-  insightTitle: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    color: '#fff',
-    marginLeft: 8,
-  },
-  insightText: {
-    fontSize: 15,
-    color: '#CBD5E1',
-    lineHeight: 22,
-  },
-  chartCard: {
-    backgroundColor: '#1E293B',
-    borderRadius: 16,
-    padding: 20,
-    marginBottom: 16,
-  },
-  cardTitle: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    color: '#fff',
-    marginBottom: 16,
-  },
-  chartContainer: {
-    alignItems: 'center',
-  },
-  recommendationsCard: {
-    backgroundColor: '#1E293B',
-    borderRadius: 16,
-    padding: 20,
-    marginBottom: 24,
-  },
-  recommendationItem: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    marginBottom: 12,
-  },
-  recommendationText: {
-    flex: 1,
-    fontSize: 14,
-    color: '#CBD5E1',
-    marginLeft: 12,
-    lineHeight: 20,
-  },
+  container: { flex: 1, backgroundColor: COLORS.bg.primary },
+  scrollContent: { padding: SPACING.lg },
+  header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: SPACING.xxl },
+  overline: { fontSize: 11, fontWeight: '700', letterSpacing: 1.5, color: COLORS.accent.primary, marginBottom: 4 },
+  greeting: { fontSize: 28, fontWeight: '800', color: COLORS.text.primary, letterSpacing: -0.5 },
+  notifButton: { width: 44, height: 44, borderRadius: 22, backgroundColor: COLORS.bg.secondary, borderWidth: 1, borderColor: COLORS.border.subtle, justifyContent: 'center', alignItems: 'center' },
+  // Score card
+  scoreCard: { backgroundColor: COLORS.bg.card, borderRadius: RADIUS.card, padding: SPACING.xl, marginBottom: SPACING.lg, borderWidth: 1, borderColor: COLORS.border.card },
+  scoreTop: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: SPACING.lg },
+  scoreOverline: { fontSize: 11, fontWeight: '700', letterSpacing: 1.2, color: COLORS.text.muted, marginBottom: 6 },
+  scoreStatus: { fontSize: 18, fontWeight: '700' },
+  scoreBadge: { width: 72, height: 72, borderRadius: 36, borderWidth: 3, justifyContent: 'center', alignItems: 'center' },
+  scoreBadgeText: { fontSize: 28, fontWeight: '800' },
+  scoreBadgeSub: { fontSize: 11, color: COLORS.text.muted, marginTop: -2 },
+  progressTrack: { height: 6, backgroundColor: COLORS.bg.primary, borderRadius: 3, overflow: 'hidden' },
+  progressFill: { height: '100%', borderRadius: 3 },
+  // Stats
+  statsRow: { flexDirection: 'row', gap: SPACING.sm, marginBottom: SPACING.lg },
+  statCard: { flex: 1, backgroundColor: COLORS.bg.card, borderRadius: RADIUS.lg, padding: SPACING.md, borderLeftWidth: 3, borderWidth: 1, borderColor: COLORS.border.card },
+  statAmount: { fontSize: 16, fontWeight: '700', color: COLORS.text.primary, marginTop: 8 },
+  statLabel: { fontSize: 11, color: COLORS.text.muted, marginTop: 2 },
+  // Insight
+  insightCard: { flexDirection: 'row', backgroundColor: COLORS.bg.card, borderRadius: RADIUS.card, padding: SPACING.lg, marginBottom: SPACING.lg, borderWidth: 1, borderColor: COLORS.accent.warning + '20' },
+  insightIconWrap: { width: 40, height: 40, borderRadius: 20, backgroundColor: COLORS.accent.warning + '18', justifyContent: 'center', alignItems: 'center', marginRight: SPACING.md },
+  insightContent: { flex: 1 },
+  insightTitle: { fontSize: 14, fontWeight: '700', color: COLORS.accent.warning, marginBottom: 6 },
+  insightText: { fontSize: 14, color: COLORS.text.secondary, lineHeight: 21 },
+  // Card
+  card: { backgroundColor: COLORS.bg.card, borderRadius: RADIUS.card, padding: SPACING.xl, marginBottom: SPACING.lg, borderWidth: 1, borderColor: COLORS.border.card },
+  cardHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
+  cardTitle: { fontSize: 18, fontWeight: '700', color: COLORS.text.primary, marginBottom: 4 },
+  cardSubtitle: { fontSize: 13, color: COLORS.text.muted, marginBottom: SPACING.lg },
+  seeAll: { fontSize: 14, fontWeight: '600', color: COLORS.accent.primary },
+  chartWrap: { alignItems: 'center', marginTop: 8 },
+  chartLabel: { fontSize: 9, color: COLORS.text.muted, marginBottom: 4 },
+  // Tips
+  tipRow: { flexDirection: 'row', alignItems: 'flex-start', marginTop: SPACING.md },
+  tipIcon: { width: 24, height: 24, borderRadius: 12, backgroundColor: COLORS.accent.primary + '18', justifyContent: 'center', alignItems: 'center', marginRight: SPACING.md },
+  tipText: { flex: 1, fontSize: 14, color: COLORS.text.secondary, lineHeight: 20 },
+  // Transaction rows
+  txnRow: { flexDirection: 'row', alignItems: 'center', paddingVertical: SPACING.md, borderTopWidth: 1, borderTopColor: COLORS.border.subtle },
+  txnIcon: { width: 40, height: 40, borderRadius: 14, justifyContent: 'center', alignItems: 'center', marginRight: SPACING.md },
+  txnInfo: { flex: 1 },
+  txnDesc: { fontSize: 15, fontWeight: '600', color: COLORS.text.primary },
+  txnCat: { fontSize: 12, color: COLORS.text.muted, marginTop: 2 },
+  txnAmount: { fontSize: 16, fontWeight: '700' },
 });

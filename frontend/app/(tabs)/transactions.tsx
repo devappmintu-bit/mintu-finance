@@ -1,34 +1,13 @@
 import React, { useState, useEffect } from 'react';
 import {
-  View,
-  Text,
-  StyleSheet,
-  FlatList,
-  TouchableOpacity,
-  ActivityIndicator,
-  Modal,
-  TextInput,
-  KeyboardAvoidingView,
-  Platform,
-  Alert,
-  ScrollView,
+  View, Text, StyleSheet, FlatList, TouchableOpacity, ActivityIndicator,
+  Modal, TextInput, KeyboardAvoidingView, Platform, Alert, ScrollView,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import api from '../../utils/api';
 import { format } from 'date-fns';
-
-const CATEGORIES = [
-  'Food',
-  'Transport',
-  'Shopping',
-  'Bills',
-  'Entertainment',
-  'Healthcare',
-  'Education',
-  'Investment',
-  'Other',
-];
+import { COLORS, RADIUS, SPACING, CATEGORIES, CATEGORY_LIST } from '../../utils/theme';
 
 export default function TransactionsScreen() {
   const [transactions, setTransactions] = useState<any[]>([]);
@@ -36,262 +15,135 @@ export default function TransactionsScreen() {
   const [modalVisible, setModalVisible] = useState(false);
   const [smsModalVisible, setSmsModalVisible] = useState(false);
   const [smsText, setSmsText] = useState('');
-  const [formData, setFormData] = useState({
-    amount: '',
-    category: 'Food',
-    description: '',
-    type: 'debit',
-  });
+  const [smsLoading, setSmsLoading] = useState(false);
+  const [formData, setFormData] = useState({ amount: '', category: 'Food', description: '', type: 'debit' });
 
-  useEffect(() => {
-    fetchTransactions();
-  }, []);
+  useEffect(() => { fetchTransactions(); }, []);
 
   const fetchTransactions = async () => {
     try {
-      const response = await api.get('/transactions');
-      setTransactions(response.data);
-    } catch (error) {
-      console.error('Failed to fetch transactions:', error);
-    } finally {
-      setLoading(false);
-    }
+      const res = await api.get('/transactions');
+      setTransactions(res.data);
+    } catch (e) { console.error(e); }
+    finally { setLoading(false); }
   };
 
-  const handleAddTransaction = async () => {
-    if (!formData.amount || !formData.description) {
-      Alert.alert('Error', 'Please fill all fields');
-      return;
-    }
-
+  const handleAdd = async () => {
+    if (!formData.amount || !formData.description) { Alert.alert('Oops!', 'Fill all fields'); return; }
     try {
-      await api.post('/transactions', {
-        ...formData,
-        amount: parseFloat(formData.amount),
-      });
+      await api.post('/transactions', { ...formData, amount: parseFloat(formData.amount) });
       setModalVisible(false);
       setFormData({ amount: '', category: 'Food', description: '', type: 'debit' });
       fetchTransactions();
-    } catch (error) {
-      Alert.alert('Error', 'Failed to add transaction');
-    }
+    } catch (e) { Alert.alert('Error', 'Failed to add'); }
   };
 
   const handleParseSMS = async () => {
-    if (!smsText.trim()) {
-      Alert.alert('Error', 'Please paste SMS text');
-      return;
-    }
-
+    if (!smsText.trim()) { Alert.alert('Oops!', 'Paste SMS text'); return; }
+    setSmsLoading(true);
     try {
       await api.post('/transactions/parse-sms', { sms_text: smsText });
       setSmsModalVisible(false);
       setSmsText('');
       fetchTransactions();
-      Alert.alert('Success', 'Transaction added from SMS!');
-    } catch (error: any) {
-      Alert.alert(
-        'Error',
-        error.response?.data?.detail || 'Could not parse SMS. Try manual entry.'
-      );
-    }
+      Alert.alert('Done!', 'Transaction added from SMS');
+    } catch (e: any) { Alert.alert('Error', e.response?.data?.detail || 'Could not parse'); }
+    finally { setSmsLoading(false); }
   };
 
-  const handleDeleteTransaction = async (id: string) => {
-    Alert.alert('Delete Transaction', 'Are you sure?', [
+  const handleDelete = (id: string) => {
+    Alert.alert('Delete?', 'Remove this transaction?', [
       { text: 'Cancel', style: 'cancel' },
-      {
-        text: 'Delete',
-        style: 'destructive',
-        onPress: async () => {
-          try {
-            await api.delete(`/transactions/${id}`);
-            fetchTransactions();
-          } catch (error) {
-            Alert.alert('Error', 'Failed to delete transaction');
-          }
-        },
-      },
+      { text: 'Delete', style: 'destructive', onPress: async () => { await api.delete(`/transactions/${id}`); fetchTransactions(); } },
     ]);
   };
 
-  const renderTransaction = ({ item }: { item: any }) => (
-    <TouchableOpacity
-      style={styles.transactionCard}
-      onLongPress={() => handleDeleteTransaction(item.id)}
-    >
-      <View style={styles.transactionLeft}>
-        <View
-          style={[
-            styles.iconContainer,
-            { backgroundColor: item.type === 'credit' ? '#10B98120' : '#EF444420' },
-          ]}
-        >
-          <Ionicons
-            name={item.type === 'credit' ? 'arrow-down' : 'arrow-up'}
-            size={20}
-            color={item.type === 'credit' ? '#10B981' : '#EF4444'}
-          />
-        </View>
-        <View>
-          <Text style={styles.transactionTitle}>{item.description}</Text>
-          <Text style={styles.transactionCategory}>{item.category}</Text>
-          <Text style={styles.transactionDate}>
-            {format(new Date(item.date), 'MMM dd, yyyy')}
-          </Text>
-        </View>
-      </View>
-      <Text
-        style={[
-          styles.transactionAmount,
-          { color: item.type === 'credit' ? '#10B981' : '#EF4444' },
-        ]}
-      >
-        {item.type === 'credit' ? '+' : '-'}₹{item.amount.toFixed(0)}
-      </Text>
-    </TouchableOpacity>
-  );
-
-  if (loading) {
+  const renderTxn = ({ item }: { item: any }) => {
+    const cat = CATEGORIES[item.category] || CATEGORIES.Other;
     return (
-      <SafeAreaView style={styles.container}>
-        <ActivityIndicator size="large" color="#10B981" style={{ marginTop: 100 }} />
-      </SafeAreaView>
+      <TouchableOpacity testID={`txn-${item.id}`} style={styles.txnCard} onLongPress={() => handleDelete(item.id)} activeOpacity={0.7}>
+        <View style={[styles.txnIcon, { backgroundColor: cat.color + '18' }]}>
+          <Ionicons name={cat.icon as any} size={20} color={cat.color} />
+        </View>
+        <View style={styles.txnInfo}>
+          <Text style={styles.txnDesc} numberOfLines={1}>{item.description}</Text>
+          <Text style={styles.txnMeta}>{item.category} · {format(new Date(item.date), 'MMM dd')}</Text>
+        </View>
+        <Text style={[styles.txnAmount, { color: item.type === 'credit' ? COLORS.accent.moneyIn : COLORS.accent.moneyOut }]}>
+          {item.type === 'credit' ? '+' : '-'}{'\u20B9'}{item.amount.toFixed(0)}
+        </Text>
+      </TouchableOpacity>
     );
-  }
+  };
+
+  if (loading) return <SafeAreaView style={styles.container}><ActivityIndicator size="large" color={COLORS.accent.primary} style={{ marginTop: 100 }} /></SafeAreaView>;
 
   return (
     <SafeAreaView style={styles.container}>
       <View style={styles.header}>
-        <Text style={styles.headerTitle}>Transactions</Text>
-        <View style={styles.headerButtons}>
-          <TouchableOpacity
-            style={styles.headerButton}
-            onPress={() => setSmsModalVisible(true)}
-          >
-            <Ionicons name="mail" size={20} color="#10B981" />
+        <View>
+          <Text style={styles.pageTitle}>Transactions</Text>
+          <Text style={styles.pageSubtitle}>{transactions.length} entries</Text>
+        </View>
+        <View style={styles.headerActions}>
+          <TouchableOpacity testID="sms-parse-btn" style={styles.actionBtn} onPress={() => setSmsModalVisible(true)}>
+            <Ionicons name="scan-outline" size={20} color={COLORS.accent.primary} />
           </TouchableOpacity>
-          <TouchableOpacity style={styles.addButton} onPress={() => setModalVisible(true)}>
-            <Ionicons name="add" size={24} color="#fff" />
+          <TouchableOpacity testID="add-txn-btn" style={styles.addBtn} onPress={() => setModalVisible(true)}>
+            <Ionicons name="add" size={22} color={COLORS.bg.primary} />
           </TouchableOpacity>
         </View>
       </View>
 
       <FlatList
         data={transactions}
-        renderItem={renderTransaction}
+        renderItem={renderTxn}
         keyExtractor={(item) => item.id}
         contentContainerStyle={styles.listContent}
         ListEmptyComponent={
-          <View style={styles.emptyContainer}>
-            <Ionicons name="receipt-outline" size={64} color="#475569" />
-            <Text style={styles.emptyText}>No transactions yet</Text>
-            <Text style={styles.emptySubtext}>Add your first transaction!</Text>
+          <View style={styles.empty}>
+            <Ionicons name="receipt-outline" size={56} color={COLORS.text.muted} />
+            <Text style={styles.emptyTitle}>No transactions yet</Text>
+            <Text style={styles.emptyText}>Tap + to add or scan SMS</Text>
           </View>
         }
       />
 
       {/* Add Transaction Modal */}
       <Modal visible={modalVisible} animationType="slide" transparent>
-        <KeyboardAvoidingView
-          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-          style={styles.modalContainer}
-        >
-          <View style={styles.modalContent}>
+        <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={styles.modalBg}>
+          <View style={styles.modalSheet}>
+            <View style={styles.sheetHandle} />
             <View style={styles.modalHeader}>
               <Text style={styles.modalTitle}>Add Transaction</Text>
-              <TouchableOpacity onPress={() => setModalVisible(false)}>
-                <Ionicons name="close" size={24} color="#fff" />
-              </TouchableOpacity>
+              <TouchableOpacity onPress={() => setModalVisible(false)}><Ionicons name="close" size={24} color={COLORS.text.primary} /></TouchableOpacity>
             </View>
-
-            <ScrollView>
-              <View style={styles.typeSelector}>
-                <TouchableOpacity
-                  style={[
-                    styles.typeButton,
-                    formData.type === 'debit' && styles.typeButtonActive,
-                  ]}
-                  onPress={() => setFormData({ ...formData, type: 'debit' })}
-                >
-                  <Text
-                    style={[
-                      styles.typeButtonText,
-                      formData.type === 'debit' && styles.typeButtonTextActive,
-                    ]}
-                  >
-                    Expense
-                  </Text>
-                </TouchableOpacity>
-                <TouchableOpacity
-                  style={[
-                    styles.typeButton,
-                    formData.type === 'credit' && styles.typeButtonActive,
-                  ]}
-                  onPress={() => setFormData({ ...formData, type: 'credit' })}
-                >
-                  <Text
-                    style={[
-                      styles.typeButtonText,
-                      formData.type === 'credit' && styles.typeButtonTextActive,
-                    ]}
-                  >
-                    Income
-                  </Text>
-                </TouchableOpacity>
+            <ScrollView keyboardShouldPersistTaps="handled">
+              <View style={styles.typeRow}>
+                {['debit', 'credit'].map((t) => (
+                  <TouchableOpacity key={t} style={[styles.typeBtn, formData.type === t && styles.typeBtnActive]} onPress={() => setFormData({ ...formData, type: t })}>
+                    <Ionicons name={t === 'debit' ? 'arrow-up-circle' : 'arrow-down-circle'} size={18} color={formData.type === t ? COLORS.bg.primary : COLORS.text.muted} />
+                    <Text style={[styles.typeBtnText, formData.type === t && styles.typeBtnTextActive]}>{t === 'debit' ? 'Expense' : 'Income'}</Text>
+                  </TouchableOpacity>
+                ))}
               </View>
-
-              <View style={styles.inputGroup}>
-                <Text style={styles.label}>Amount (₹)</Text>
-                <TextInput
-                  style={styles.input}
-                  placeholder="0"
-                  placeholderTextColor="#64748B"
-                  value={formData.amount}
-                  onChangeText={(text) => setFormData({ ...formData, amount: text })}
-                  keyboardType="numeric"
-                />
+              <Text style={styles.formLabel}>Amount</Text>
+              <View style={styles.amountRow}>
+                <Text style={styles.rupee}>{'\u20B9'}</Text>
+                <TextInput style={styles.amountInput} placeholder="0" placeholderTextColor={COLORS.text.muted} value={formData.amount} onChangeText={(v) => setFormData({ ...formData, amount: v })} keyboardType="numeric" />
               </View>
-
-              <View style={styles.inputGroup}>
-                <Text style={styles.label}>Category</Text>
-                <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-                  {CATEGORIES.map((cat) => (
-                    <TouchableOpacity
-                      key={cat}
-                      style={[
-                        styles.categoryChip,
-                        formData.category === cat && styles.categoryChipActive,
-                      ]}
-                      onPress={() => setFormData({ ...formData, category: cat })}
-                    >
-                      <Text
-                        style={[
-                          styles.categoryChipText,
-                          formData.category === cat && styles.categoryChipTextActive,
-                        ]}
-                      >
-                        {cat}
-                      </Text>
-                    </TouchableOpacity>
-                  ))}
-                </ScrollView>
-              </View>
-
-              <View style={styles.inputGroup}>
-                <Text style={styles.label}>Description</Text>
-                <TextInput
-                  style={styles.input}
-                  placeholder="E.g., Lunch at restaurant"
-                  placeholderTextColor="#64748B"
-                  value={formData.description}
-                  onChangeText={(text) => setFormData({ ...formData, description: text })}
-                />
-              </View>
-
-              <TouchableOpacity style={styles.submitButton} onPress={handleAddTransaction}>
-                <Text style={styles.submitButtonText}>Add Transaction</Text>
-              </TouchableOpacity>
+              <Text style={styles.formLabel}>Category</Text>
+              <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.chipScroll}>
+                {CATEGORY_LIST.map((c) => (
+                  <TouchableOpacity key={c} style={[styles.chip, formData.category === c && styles.chipActive]} onPress={() => setFormData({ ...formData, category: c })}>
+                    <Ionicons name={CATEGORIES[c].icon as any} size={14} color={formData.category === c ? COLORS.bg.primary : CATEGORIES[c].color} />
+                    <Text style={[styles.chipText, formData.category === c && styles.chipTextActive]}>{c}</Text>
+                  </TouchableOpacity>
+                ))}
+              </ScrollView>
+              <Text style={styles.formLabel}>Description</Text>
+              <TextInput style={styles.textInput} placeholder="e.g. Lunch at restaurant" placeholderTextColor={COLORS.text.muted} value={formData.description} onChangeText={(v) => setFormData({ ...formData, description: v })} />
+              <TouchableOpacity testID="submit-txn-btn" style={styles.submitBtn} onPress={handleAdd}><Text style={styles.submitText}>Add Transaction</Text></TouchableOpacity>
             </ScrollView>
           </View>
         </KeyboardAvoidingView>
@@ -299,34 +151,20 @@ export default function TransactionsScreen() {
 
       {/* SMS Parse Modal */}
       <Modal visible={smsModalVisible} animationType="slide" transparent>
-        <KeyboardAvoidingView
-          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-          style={styles.modalContainer}
-        >
-          <View style={styles.modalContent}>
+        <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={styles.modalBg}>
+          <View style={styles.modalSheet}>
+            <View style={styles.sheetHandle} />
             <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>Parse SMS</Text>
-              <TouchableOpacity onPress={() => setSmsModalVisible(false)}>
-                <Ionicons name="close" size={24} color="#fff" />
-              </TouchableOpacity>
+              <Text style={styles.modalTitle}>Scan SMS</Text>
+              <TouchableOpacity onPress={() => setSmsModalVisible(false)}><Ionicons name="close" size={24} color={COLORS.text.primary} /></TouchableOpacity>
             </View>
-
-            <Text style={styles.modalDescription}>
-              Paste your bank or payment app SMS below
-            </Text>
-
-            <TextInput
-              style={[styles.input, styles.textArea]}
-              placeholder="Paste SMS text here..."
-              placeholderTextColor="#64748B"
-              value={smsText}
-              onChangeText={setSmsText}
-              multiline
-              numberOfLines={6}
-            />
-
-            <TouchableOpacity style={styles.submitButton} onPress={handleParseSMS}>
-              <Text style={styles.submitButtonText}>Parse & Add</Text>
+            <View style={styles.smsBanner}>
+              <Ionicons name="sparkles" size={18} color={COLORS.accent.warning} />
+              <Text style={styles.smsBannerText}>AI will extract amount, category & merchant</Text>
+            </View>
+            <TextInput style={styles.smsInput} placeholder="Paste your bank SMS here..." placeholderTextColor={COLORS.text.muted} value={smsText} onChangeText={setSmsText} multiline numberOfLines={5} textAlignVertical="top" />
+            <TouchableOpacity testID="parse-sms-btn" style={[styles.submitBtn, smsLoading && { opacity: 0.6 }]} onPress={handleParseSMS} disabled={smsLoading}>
+              {smsLoading ? <ActivityIndicator color={COLORS.bg.primary} /> : <Text style={styles.submitText}>Parse & Add</Text>}
             </TouchableOpacity>
           </View>
         </KeyboardAvoidingView>
@@ -336,205 +174,48 @@ export default function TransactionsScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#0F172A',
-  },
-  header: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    padding: 16,
-  },
-  headerTitle: {
-    fontSize: 28,
-    fontWeight: 'bold',
-    color: '#fff',
-  },
-  headerButtons: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-  },
-  headerButton: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    backgroundColor: '#1E293B',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  addButton: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    backgroundColor: '#10B981',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  listContent: {
-    padding: 16,
-  },
-  transactionCard: {
-    backgroundColor: '#1E293B',
-    borderRadius: 12,
-    padding: 16,
-    marginBottom: 12,
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-  },
-  transactionLeft: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    flex: 1,
-  },
-  iconContainer: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginRight: 12,
-  },
-  transactionTitle: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#fff',
-    marginBottom: 4,
-  },
-  transactionCategory: {
-    fontSize: 12,
-    color: '#94A3B8',
-    marginBottom: 2,
-  },
-  transactionDate: {
-    fontSize: 11,
-    color: '#64748B',
-  },
-  transactionAmount: {
-    fontSize: 18,
-    fontWeight: 'bold',
-  },
-  emptyContainer: {
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: 80,
-  },
-  emptyText: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    color: '#CBD5E1',
-    marginTop: 16,
-  },
-  emptySubtext: {
-    fontSize: 14,
-    color: '#64748B',
-    marginTop: 8,
-  },
-  modalContainer: {
-    flex: 1,
-    justifyContent: 'flex-end',
-    backgroundColor: 'rgba(0,0,0,0.5)',
-  },
-  modalContent: {
-    backgroundColor: '#1E293B',
-    borderTopLeftRadius: 24,
-    borderTopRightRadius: 24,
-    padding: 24,
-    maxHeight: '85%',
-  },
-  modalHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 24,
-  },
-  modalTitle: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    color: '#fff',
-  },
-  modalDescription: {
-    fontSize: 14,
-    color: '#94A3B8',
-    marginBottom: 16,
-  },
-  typeSelector: {
-    flexDirection: 'row',
-    gap: 12,
-    marginBottom: 24,
-  },
-  typeButton: {
-    flex: 1,
-    padding: 12,
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: '#334155',
-    alignItems: 'center',
-  },
-  typeButtonActive: {
-    backgroundColor: '#4F46E5',
-    borderColor: '#4F46E5',
-  },
-  typeButtonText: {
-    fontSize: 16,
-    color: '#94A3B8',
-  },
-  typeButtonTextActive: {
-    color: '#fff',
-    fontWeight: '600',
-  },
-  inputGroup: {
-    marginBottom: 20,
-  },
-  label: {
-    fontSize: 14,
-    color: '#CBD5E1',
-    marginBottom: 8,
-    fontWeight: '500',
-  },
-  input: {
-    backgroundColor: '#334155',
-    borderRadius: 12,
-    padding: 16,
-    fontSize: 16,
-    color: '#fff',
-    borderWidth: 1,
-    borderColor: '#475569',
-  },
-  textArea: {
-    height: 120,
-    textAlignVertical: 'top',
-  },
-  categoryChip: {
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    borderRadius: 20,
-    backgroundColor: '#334155',
-    marginRight: 8,
-  },
-  categoryChipActive: {
-    backgroundColor: '#4F46E5',
-  },
-  categoryChipText: {
-    fontSize: 14,
-    color: '#94A3B8',
-  },
-  categoryChipTextActive: {
-    color: '#fff',
-    fontWeight: '600',
-  },
-  submitButton: {
-    backgroundColor: '#10B981',
-    borderRadius: 12,
-    padding: 16,
-    alignItems: 'center',
-    marginTop: 8,
-  },
-  submitButtonText: {
-    color: '#fff',
-    fontSize: 16,
-    fontWeight: 'bold',
-  },
+  container: { flex: 1, backgroundColor: COLORS.bg.primary },
+  header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: SPACING.lg, paddingVertical: SPACING.md },
+  pageTitle: { fontSize: 28, fontWeight: '800', color: COLORS.text.primary, letterSpacing: -0.5 },
+  pageSubtitle: { fontSize: 13, color: COLORS.text.muted },
+  headerActions: { flexDirection: 'row', gap: 10 },
+  actionBtn: { width: 44, height: 44, borderRadius: 22, backgroundColor: COLORS.bg.secondary, borderWidth: 1, borderColor: COLORS.border.subtle, justifyContent: 'center', alignItems: 'center' },
+  addBtn: { width: 44, height: 44, borderRadius: 22, backgroundColor: COLORS.accent.primary, justifyContent: 'center', alignItems: 'center' },
+  listContent: { padding: SPACING.lg },
+  txnCard: { flexDirection: 'row', alignItems: 'center', backgroundColor: COLORS.bg.card, borderRadius: RADIUS.xl, padding: SPACING.lg, marginBottom: 10, borderWidth: 1, borderColor: COLORS.border.card },
+  txnIcon: { width: 44, height: 44, borderRadius: 16, justifyContent: 'center', alignItems: 'center', marginRight: SPACING.md },
+  txnInfo: { flex: 1 },
+  txnDesc: { fontSize: 15, fontWeight: '600', color: COLORS.text.primary },
+  txnMeta: { fontSize: 12, color: COLORS.text.muted, marginTop: 3 },
+  txnAmount: { fontSize: 17, fontWeight: '700' },
+  empty: { alignItems: 'center', paddingVertical: 80 },
+  emptyTitle: { fontSize: 18, fontWeight: '700', color: COLORS.text.secondary, marginTop: 16 },
+  emptyText: { fontSize: 14, color: COLORS.text.muted, marginTop: 6 },
+  // Modal
+  modalBg: { flex: 1, justifyContent: 'flex-end', backgroundColor: 'rgba(0,0,0,0.6)' },
+  modalSheet: { backgroundColor: COLORS.bg.secondary, borderTopLeftRadius: 28, borderTopRightRadius: 28, padding: SPACING.xxl, maxHeight: '88%' },
+  sheetHandle: { width: 40, height: 4, borderRadius: 2, backgroundColor: COLORS.text.muted, alignSelf: 'center', marginBottom: SPACING.lg, opacity: 0.3 },
+  modalHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: SPACING.xxl },
+  modalTitle: { fontSize: 22, fontWeight: '700', color: COLORS.text.primary },
+  typeRow: { flexDirection: 'row', gap: 12, marginBottom: SPACING.xxl },
+  typeBtn: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, paddingVertical: 14, borderRadius: RADIUS.full, borderWidth: 1, borderColor: COLORS.border.subtle },
+  typeBtnActive: { backgroundColor: COLORS.accent.primary, borderColor: COLORS.accent.primary },
+  typeBtnText: { fontSize: 15, color: COLORS.text.muted, fontWeight: '600' },
+  typeBtnTextActive: { color: COLORS.bg.primary },
+  formLabel: { fontSize: 13, fontWeight: '600', color: COLORS.text.muted, marginBottom: 10, letterSpacing: 0.3 },
+  amountRow: { flexDirection: 'row', alignItems: 'center', backgroundColor: COLORS.bg.primary, borderRadius: RADIUS.xl, paddingHorizontal: SPACING.lg, marginBottom: SPACING.xxl, borderWidth: 1, borderColor: COLORS.border.subtle },
+  rupee: { fontSize: 24, fontWeight: '700', color: COLORS.accent.primary, marginRight: 8 },
+  amountInput: { flex: 1, fontSize: 28, fontWeight: '700', color: COLORS.text.primary, paddingVertical: 16 },
+  chipScroll: { marginBottom: SPACING.xxl },
+  chip: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 14, paddingVertical: 10, borderRadius: RADIUS.full, backgroundColor: COLORS.bg.primary, marginRight: 8, borderWidth: 1, borderColor: COLORS.border.subtle },
+  chipActive: { backgroundColor: COLORS.accent.primary, borderColor: COLORS.accent.primary },
+  chipText: { fontSize: 13, color: COLORS.text.secondary, fontWeight: '500' },
+  chipTextActive: { color: COLORS.bg.primary, fontWeight: '600' },
+  textInput: { backgroundColor: COLORS.bg.primary, borderRadius: RADIUS.xl, paddingHorizontal: SPACING.lg, paddingVertical: 16, fontSize: 16, color: COLORS.text.primary, borderWidth: 1, borderColor: COLORS.border.subtle, marginBottom: SPACING.xxl },
+  submitBtn: { backgroundColor: COLORS.accent.primary, borderRadius: RADIUS.full, paddingVertical: 18, alignItems: 'center', shadowColor: COLORS.accent.primary, shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.3, shadowRadius: 12, elevation: 8 },
+  submitText: { fontSize: 16, fontWeight: '700', color: COLORS.bg.primary },
+  // SMS
+  smsBanner: { flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: COLORS.accent.warning + '12', borderRadius: RADIUS.lg, padding: SPACING.md, marginBottom: SPACING.lg },
+  smsBannerText: { fontSize: 13, color: COLORS.accent.warning, fontWeight: '500' },
+  smsInput: { backgroundColor: COLORS.bg.primary, borderRadius: RADIUS.xl, padding: SPACING.lg, fontSize: 15, color: COLORS.text.primary, borderWidth: 1, borderColor: COLORS.border.subtle, minHeight: 120, marginBottom: SPACING.xxl },
 });

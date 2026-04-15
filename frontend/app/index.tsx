@@ -1,229 +1,100 @@
-import React, { useState, useEffect } from 'react';
-import {
-  View,
-  Text,
-  TextInput,
-  TouchableOpacity,
-  StyleSheet,
-  KeyboardAvoidingView,
-  Platform,
-  ScrollView,
-  ActivityIndicator,
-  Alert,
-} from 'react-native';
+import React, { useEffect, useRef } from 'react';
+import { View, Text, StyleSheet, Animated } from 'react-native';
 import { router } from 'expo-router';
 import { useAuthStore } from '../store/authStore';
-import api from '../utils/api';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { COLORS } from '../utils/theme';
 
-export default function AuthScreen() {
-  const [isLogin, setIsLogin] = useState(true);
-  const [phone, setPhone] = useState('');
-  const [name, setName] = useState('');
-  const [password, setPassword] = useState('');
-  const [loading, setLoading] = useState(false);
-  
-  const { token, setUser, setToken, isLoading } = useAuthStore();
+export default function SplashIndex() {
+  const { token, isLoading } = useAuthStore();
+  const fadeAnim = useRef(new Animated.Value(0)).current;
+  const scaleAnim = useRef(new Animated.Value(0.8)).current;
+  const subtitleFade = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
-    if (token && !isLoading) {
-      fetchUserProfile();
-    }
-  }, [token, isLoading]);
+    Animated.sequence([
+      Animated.parallel([
+        Animated.timing(fadeAnim, { toValue: 1, duration: 600, useNativeDriver: true }),
+        Animated.spring(scaleAnim, { toValue: 1, friction: 6, useNativeDriver: true }),
+      ]),
+      Animated.timing(subtitleFade, { toValue: 1, duration: 400, useNativeDriver: true }),
+    ]).start();
 
-  const fetchUserProfile = async () => {
-    try {
-      const response = await api.get('/user/me');
-      setUser(response.data);
-      router.replace('/(tabs)');
-    } catch (error) {
-      console.error('Failed to fetch profile:', error);
-    }
-  };
+    const timer = setTimeout(async () => {
+      if (isLoading) return;
+      if (token) {
+        router.replace('/(tabs)');
+      } else {
+        const seen = await AsyncStorage.getItem('onboarding_seen');
+        router.replace(seen ? '/auth' : '/onboarding');
+      }
+    }, 2200);
 
-  const handleAuth = async () => {
-    if (!phone || !password || (!isLogin && !name)) {
-      Alert.alert('Error', 'Please fill all fields');
-      return;
-    }
-
-    setLoading(true);
-    try {
-      const endpoint = isLogin ? '/auth/login' : '/auth/register';
-      const data = isLogin ? { phone, password } : { phone, name, password };
-      
-      const response = await api.post(endpoint, data);
-      
-      await setToken(response.data.token);
-      setUser(response.data.user);
-      router.replace('/(tabs)');
-    } catch (error: any) {
-      Alert.alert(
-        'Error',
-        error.response?.data?.detail || 'Authentication failed'
-      );
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  if (isLoading) {
-    return (
-      <View style={styles.container}>
-        <ActivityIndicator size="large" color="#4F46E5" />
-      </View>
-    );
-  }
+    return () => clearTimeout(timer);
+  }, [isLoading, token]);
 
   return (
-    <SafeAreaView style={styles.container}>
-      <KeyboardAvoidingView
-        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-        style={styles.keyboardView}
-      >
-        <ScrollView contentContainerStyle={styles.scrollContent}>
-          <View style={styles.header}>
-            <Text style={styles.logo}>MintU</Text>
-            <Text style={styles.tagline}>Smart Money, Simple Life</Text>
-          </View>
-
-          <View style={styles.form}>
-            {!isLogin && (
-              <View style={styles.inputGroup}>
-                <Text style={styles.label}>Name</Text>
-                <TextInput
-                  style={styles.input}
-                  placeholder="Enter your name"
-                  value={name}
-                  onChangeText={setName}
-                  autoCapitalize="words"
-                />
-              </View>
-            )}
-
-            <View style={styles.inputGroup}>
-              <Text style={styles.label}>Phone Number</Text>
-              <TextInput
-                style={styles.input}
-                placeholder="Enter phone number"
-                value={phone}
-                onChangeText={setPhone}
-                keyboardType="phone-pad"
-                maxLength={10}
-              />
-            </View>
-
-            <View style={styles.inputGroup}>
-              <Text style={styles.label}>Password</Text>
-              <TextInput
-                style={styles.input}
-                placeholder="Enter password"
-                value={password}
-                onChangeText={setPassword}
-                secureTextEntry
-              />
-            </View>
-
-            <TouchableOpacity
-              style={[styles.button, loading && styles.buttonDisabled]}
-              onPress={handleAuth}
-              disabled={loading}
-            >
-              {loading ? (
-                <ActivityIndicator color="#fff" />
-              ) : (
-                <Text style={styles.buttonText}>
-                  {isLogin ? 'Login' : 'Sign Up'}
-                </Text>
-              )}
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              style={styles.switchButton}
-              onPress={() => setIsLogin(!isLogin)}
-            >
-              <Text style={styles.switchText}>
-                {isLogin
-                  ? "Don't have an account? Sign Up"
-                  : 'Already have an account? Login'}
-              </Text>
-            </TouchableOpacity>
-          </View>
-        </ScrollView>
-      </KeyboardAvoidingView>
-    </SafeAreaView>
+    <View testID="splash-screen" style={styles.container}>
+      <View style={styles.glowCircle} />
+      <Animated.View style={[styles.logoContainer, { opacity: fadeAnim, transform: [{ scale: scaleAnim }] }]}>
+        <View style={styles.logoIcon}>
+          <Text style={styles.logoEmoji}>₹</Text>
+        </View>
+        <Text style={styles.logoText}>MintU</Text>
+      </Animated.View>
+      <Animated.Text style={[styles.tagline, { opacity: subtitleFade }]}>
+        Smart Money, Simple Life
+      </Animated.Text>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#1E293B',
-  },
-  keyboardView: {
-    flex: 1,
-  },
-  scrollContent: {
-    flexGrow: 1,
+    backgroundColor: COLORS.bg.primary,
     justifyContent: 'center',
-    padding: 24,
-  },
-  header: {
     alignItems: 'center',
-    marginBottom: 48,
   },
-  logo: {
-    fontSize: 48,
-    fontWeight: 'bold',
-    color: '#10B981',
-    marginBottom: 8,
+  glowCircle: {
+    position: 'absolute',
+    width: 300,
+    height: 300,
+    borderRadius: 150,
+    backgroundColor: COLORS.accent.primary,
+    opacity: 0.06,
+  },
+  logoContainer: {
+    alignItems: 'center',
+  },
+  logoIcon: {
+    width: 88,
+    height: 88,
+    borderRadius: 28,
+    backgroundColor: COLORS.accent.primary,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 20,
+    shadowColor: COLORS.accent.primary,
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0.4,
+    shadowRadius: 24,
+    elevation: 12,
+  },
+  logoEmoji: {
+    fontSize: 42,
+    fontWeight: '800',
+    color: COLORS.bg.primary,
+  },
+  logoText: {
+    fontSize: 44,
+    fontWeight: '800',
+    color: COLORS.text.primary,
+    letterSpacing: -1,
   },
   tagline: {
     fontSize: 16,
-    color: '#94A3B8',
-  },
-  form: {
-    width: '100%',
-  },
-  inputGroup: {
-    marginBottom: 20,
-  },
-  label: {
-    fontSize: 14,
-    color: '#CBD5E1',
-    marginBottom: 8,
-    fontWeight: '500',
-  },
-  input: {
-    backgroundColor: '#334155',
-    borderRadius: 12,
-    padding: 16,
-    fontSize: 16,
-    color: '#fff',
-    borderWidth: 1,
-    borderColor: '#475569',
-  },
-  button: {
-    backgroundColor: '#4F46E5',
-    borderRadius: 12,
-    padding: 16,
-    alignItems: 'center',
-    marginTop: 8,
-  },
-  buttonDisabled: {
-    opacity: 0.6,
-  },
-  buttonText: {
-    color: '#fff',
-    fontSize: 16,
-    fontWeight: 'bold',
-  },
-  switchButton: {
-    marginTop: 24,
-    alignItems: 'center',
-  },
-  switchText: {
-    color: '#10B981',
-    fontSize: 14,
+    color: COLORS.text.secondary,
+    marginTop: 12,
   },
 });
