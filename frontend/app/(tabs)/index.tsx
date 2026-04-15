@@ -74,14 +74,17 @@ export default function HomeScreen() {
         contentContainerStyle={styles.scrollContent}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); fetchData(); }} tintColor={COLORS.accent.primary} />}
       >
-        {/* Header */}
+        {/* Header with Profile Avatar */}
         <View style={styles.header}>
-          <View>
+          <TouchableOpacity testID="profile-avatar-btn" style={styles.avatarBtn} onPress={() => router.push('/(tabs)/profile')}>
+            <Ionicons name="person" size={18} color={COLORS.accent.primary} />
+          </TouchableOpacity>
+          <View style={styles.headerCenter}>
             <Text style={styles.overline}>{t('welcome_back', lang)}</Text>
             <Text style={styles.greeting}>{t('hello', lang)}, {user?.name || 'there'}!</Text>
           </View>
-          <TouchableOpacity testID="home-notifications-btn" style={styles.notifButton}>
-            <Ionicons name="notifications-outline" size={22} color={COLORS.text.primary} />
+          <TouchableOpacity testID="home-rewards-btn" style={styles.rewardsBtn} onPress={() => router.push('/(tabs)/rewards')}>
+            <Ionicons name="gift" size={18} color={COLORS.accent.secondary} />
           </TouchableOpacity>
         </View>
 
@@ -243,12 +246,15 @@ export default function HomeScreen() {
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: COLORS.bg.primary },
   scrollContent: { padding: SPACING.lg },
-  header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: SPACING.xxl },
+  header: { flexDirection: 'row', alignItems: 'center', marginBottom: SPACING.xxl },
+  avatarBtn: { width: 40, height: 40, borderRadius: 20, backgroundColor: COLORS.accent.primary + '15', justifyContent: 'center', alignItems: 'center', borderWidth: 2, borderColor: COLORS.accent.primary + '30' },
+  headerCenter: { flex: 1, marginHorizontal: SPACING.md },
+  rewardsBtn: { width: 40, height: 40, borderRadius: 20, backgroundColor: COLORS.accent.secondary + '15', justifyContent: 'center', alignItems: 'center' },
   overline: { fontSize: 11, fontWeight: '700', letterSpacing: 1.5, color: COLORS.accent.primary, marginBottom: 4 },
   greeting: { fontSize: 28, fontWeight: '800', color: COLORS.text.primary, letterSpacing: -0.5 },
-  notifButton: { width: 44, height: 44, borderRadius: 22, backgroundColor: COLORS.bg.secondary, borderWidth: 1, borderColor: COLORS.border.subtle, justifyContent: 'center', alignItems: 'center' },
   // Score card
   scoreCard: { backgroundColor: COLORS.bg.card, borderRadius: RADIUS.card, padding: SPACING.xl, marginBottom: SPACING.lg, borderWidth: 1, borderColor: COLORS.border.card },
+  overline: { fontSize: 11, fontWeight: '700', letterSpacing: 1.5, color: COLORS.accent.primary, marginBottom: 4 },
   scoreTop: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: SPACING.lg },
   scoreOverline: { fontSize: 11, fontWeight: '700', letterSpacing: 1.2, color: COLORS.text.muted, marginBottom: 6 },
   scoreStatus: { fontSize: 18, fontWeight: '700' },

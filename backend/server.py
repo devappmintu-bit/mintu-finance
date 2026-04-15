@@ -1599,6 +1599,124 @@ async def get_biometric_status(user_id: str = Depends(get_current_user)):
     user = await db.users.find_one({"_id": ObjectId(user_id)}, {"biometric_enabled": 1})
     return {"biometric_enabled": user.get("biometric_enabled", False) if user else False}
 
+# ============== SPLITWISE-LIKE SPLIT EXPENSES ==============
+class SplitGroupCreate(BaseModel):
+    name: str
+    members: List[str]  # List of phone numbers
+
+class SplitExpenseCreate(BaseModel):
+    group_id: str
+    description: str
+    amount: float
+    paid_by: str  # user_id of payer
+    split_type: str = "equal"  # "equal", "custom"
+    splits: Optional[Dict[str, float]] = None  # user_id -> amount (for custom)
+
+@api_router.post("/split/groups")
+async def create_split_group(group: SplitGroupCreate, user_id: str = Depends(get_current_user)):
+    from bson import ObjectId
+    user = await db.users.find_one({"_id": ObjectId(user_id)})
+    members = [{"user_id": user_id, "name": user["name"], "phone": user["phone"]}]
+    for phone in group.members:
+        m = await db.users.find_one({"phone": phone.strip()})
+        if m:
+            mid = str(m["_id"])
+            if mid != user_id:
+                members.append({"user_id": mid, "name": m["name"], "phone": m["phone"]})
+    
+    g = {"name": group.name, "members": members, "created_by": user_id, "created_at": datetime.utcnow()}
+    result = await db.split_groups.insert_one(g)
+    return {"id": str(result.inserted_id), "name": g["name"], "members": members}
+
+@api_router.get("/split/groups")
+async def get_split_groups(user_id: str = Depends(get_current_user)):
+    groups = await db.split_groups.find({"members.user_id": user_id}).to_list(50)
+    for g in groups:
+        g["id"] = str(g["_id"]); del g["_id"]
+        # Calculate balances
+        expenses = await db.split_expenses.find({"group_id": g["id"]}).to_list(500)
+        balances = {}
+        for m in g["members"]:
+            balances[m["user_id"]] = 0
+        for exp in expenses:
+            payer = exp["paid_by"]
+            for uid, amt in exp.get("splits", {}).items():
+                if uid != payer:
+                    balances[payer] = balances.get(payer, 0) + amt
+                    balances[uid] = balances.get(uid, 0) - amt
+        g["balances"] = {m["name"]: round(balances.get(m["user_id"], 0), 2) for m in g["members"]}
+        g["total_expenses"] = sum(e["amount"] for e in expenses)
+    return groups
+
+@api_router.post("/split/expenses")
+async def add_split_expense(expense: SplitExpenseCreate, user_id: str = Depends(get_current_user)):
+    from bson import ObjectId
+    group = await db.split_groups.find_one({"_id": ObjectId(expense.group_id), "members.user_id": user_id})
+    if not group:
+        raise HTTPException(status_code=404, detail="Group not found")
+    
+    member_ids = [m["user_id"] for m in group["members"]]
+    if expense.split_type == "equal":
+        per_person = round(expense.amount / len(member_ids), 2)
+        splits = {mid: per_person for mid in member_ids}
+    else:
+        splits = expense.splits or {}
+    
+    exp_doc = {
+        "group_id": expense.group_id,
+        "description": expense.description,
+        "amount": expense.amount,
+        "paid_by": expense.paid_by,
+        "split_type": expense.split_type,
+        "splits": splits,
+        "created_by": user_id,
+        "created_at": datetime.utcnow()
+    }
+    result = await db.split_expenses.insert_one(exp_doc)
+    return {"id": str(result.inserted_id), **{k: v for k, v in exp_doc.items() if k != "_id"}, "created_at": exp_doc["created_at"]}
+
+@api_router.get("/split/groups/{group_id}/expenses")
+async def get_group_expenses(group_id: str, user_id: str = Depends(get_current_user)):
+    from bson import ObjectId
+    group = await db.split_groups.find_one({"_id": ObjectId(group_id), "members.user_id": user_id})
+    if not group:
+        raise HTTPException(status_code=404, detail="Group not found")
+    expenses = await db.split_expenses.find({"group_id": group_id}).sort("created_at", -1).to_list(500)
+    for e in expenses:
+        e["id"] = str(e["_id"]); del e["_id"]
+        payer = next((m["name"] for m in group["members"] if m["user_id"] == e["paid_by"]), "Unknown")
+        e["paid_by_name"] = payer
+    return {"group": {"name": group["name"], "members": group["members"]}, "expenses": expenses}
+
+@api_router.get("/split/balances")
+async def get_overall_balances(user_id: str = Depends(get_current_user)):
+    """Get overall who owes you / you owe across all groups"""
+    groups = await db.split_groups.find({"members.user_id": user_id}).to_list(50)
+    people = {}  # name -> net amount (positive = they owe you)
+    
+    for g in groups:
+        expenses = await db.split_expenses.find({"group_id": str(g["_id"])}).to_list(500)
+        name_map = {m["user_id"]: m["name"] for m in g["members"]}
+        for exp in expenses:
+            payer = exp["paid_by"]
+            for uid, amt in exp.get("splits", {}).items():
+                if uid == payer: continue
+                other_name = name_map.get(uid if payer == user_id else payer, "Unknown")
+                if payer == user_id:
+                    people[other_name] = people.get(other_name, 0) + amt
+                elif uid == user_id:
+                    people[other_name] = people.get(other_name, 0) - amt
+    
+    owe_you = {n: v for n, v in people.items() if v > 0}
+    you_owe = {n: abs(v) for n, v in people.items() if v < 0}
+    
+    return {
+        "total_owed_to_you": sum(owe_you.values()),
+        "total_you_owe": sum(you_owe.values()),
+        "owe_you": owe_you,
+        "you_owe": you_owe
+    }
+
 # ============== 1. REFERRAL SYSTEM ==============
 import uuid as uuid_lib
 
