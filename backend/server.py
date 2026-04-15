@@ -1783,6 +1783,13 @@ PRICING = {
     "intro": {"price": 29, "label": "₹29 first month", "trial": True},
 }
 
+# Razorpay client
+import razorpay
+razorpay_client = razorpay.Client(auth=(os.environ.get('RAZORPAY_KEY_ID', ''), os.environ.get('RAZORPAY_KEY_SECRET', '')))
+
+class CreateOrderRequest(BaseModel):
+    plan: str  # "monthly", "yearly", "intro"
+
 @api_router.get("/premium/status")
 async def get_premium_status(user_id: str = Depends(get_current_user)):
     """Check user's premium status"""
@@ -1824,6 +1831,82 @@ async def get_paywall_trigger(user_id: str = Depends(get_current_user)):
         "pricing": PRICING,
         "features": list(PREMIUM_FEATURES.values()),
     }
+
+@api_router.post("/premium/create-order")
+async def create_razorpay_order(req: CreateOrderRequest, user_id: str = Depends(get_current_user)):
+    """Create Razorpay order for premium subscription"""
+    if req.plan not in PRICING:
+        raise HTTPException(status_code=400, detail="Invalid plan")
+    
+    amount_paise = PRICING[req.plan]["price"] * 100
+    
+    try:
+        order = razorpay_client.order.create({
+            "amount": amount_paise,
+            "currency": "INR",
+            "payment_capture": 1,
+            "notes": {"user_id": user_id, "plan": req.plan}
+        })
+        
+        await db.payment_orders.insert_one({
+            "user_id": user_id,
+            "order_id": order["id"],
+            "plan": req.plan,
+            "amount": PRICING[req.plan]["price"],
+            "status": "created",
+            "created_at": datetime.utcnow()
+        })
+        
+        return {
+            "order_id": order["id"],
+            "amount": amount_paise,
+            "currency": "INR",
+            "key_id": os.environ.get('RAZORPAY_KEY_ID', ''),
+            "plan": req.plan
+        }
+    except Exception as e:
+        logging.error(f"Razorpay order error: {e}")
+        raise HTTPException(status_code=500, detail="Payment service unavailable. Please try later.")
+
+@api_router.post("/premium/verify-payment")
+async def verify_razorpay_payment(payment_data: dict, user_id: str = Depends(get_current_user)):
+    """Verify Razorpay payment and activate premium"""
+    order_id = payment_data.get("order_id", "")
+    payment_id = payment_data.get("payment_id", "")
+    signature = payment_data.get("signature", "")
+    
+    if not all([order_id, payment_id, signature]):
+        raise HTTPException(status_code=400, detail="Missing payment details")
+    
+    try:
+        razorpay_client.utility.verify_payment_signature({
+            "razorpay_order_id": order_id,
+            "razorpay_payment_id": payment_id,
+            "razorpay_signature": signature
+        })
+    except Exception:
+        raise HTTPException(status_code=400, detail="Payment verification failed")
+    
+    # Get order details
+    order = await db.payment_orders.find_one({"order_id": order_id, "user_id": user_id})
+    if not order:
+        raise HTTPException(status_code=404, detail="Order not found")
+    
+    # Activate premium
+    plan = order["plan"]
+    days = 30 if plan in ["monthly", "intro"] else 365
+    from bson import ObjectId
+    await db.users.update_one(
+        {"_id": ObjectId(user_id)},
+        {"$set": {"premium_tier": "premium", "premium_until": datetime.utcnow() + timedelta(days=days)}}
+    )
+    
+    await db.payment_orders.update_one(
+        {"order_id": order_id},
+        {"$set": {"status": "paid", "payment_id": payment_id, "paid_at": datetime.utcnow()}}
+    )
+    
+    return {"message": "Premium activated!", "premium_until": (datetime.utcnow() + timedelta(days=days)).isoformat(), "plan": plan}
 
 @api_router.post("/premium/ai-coach")
 async def ai_smart_coach(user_id: str = Depends(get_current_user)):
