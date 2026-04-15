@@ -226,63 +226,212 @@ async def calculate_money_score(user_id: str) -> int:
         return 50
 
 async def generate_insights_with_ai(user_id: str, money_score: int, spending_summary: Dict[str, float]) -> Dict:
-    """Generate personalized spending insights using AI"""
+    """Generate personalized spending insights using AI — Enhanced Engine v2"""
     try:
-        # Get recent transactions
-        seven_days_ago = datetime.utcnow() - timedelta(days=7)
-        transactions = await db.transactions.find({
-            "user_id": user_id,
-            "date": {"$gte": seven_days_ago}
+        # ── DATA PIPELINE: Gather all analysis data ──
+        now = datetime.utcnow()
+        seven_days_ago = now - timedelta(days=7)
+        fourteen_days_ago = now - timedelta(days=14)
+        thirty_days_ago = now - timedelta(days=30)
+
+        # Current week transactions
+        this_week_txns = await db.transactions.find({
+            "user_id": user_id, "type": "debit", "date": {"$gte": seven_days_ago}
         }).to_list(1000)
-        
-        total_spent = sum(spending_summary.values())
-        
+
+        # Previous week transactions (for trend comparison)
+        prev_week_txns = await db.transactions.find({
+            "user_id": user_id, "type": "debit",
+            "date": {"$gte": fourteen_days_ago, "$lt": seven_days_ago}
+        }).to_list(1000)
+
+        # Monthly transactions
+        month_txns = await db.transactions.find({
+            "user_id": user_id, "date": {"$gte": thirty_days_ago}
+        }).to_list(1000)
+
+        # Budgets
+        budgets = await db.budgets.find({"user_id": user_id}).to_list(100)
+
+        # ── ANALYSIS: Compute metrics ──
+        this_week_total = sum(t["amount"] for t in this_week_txns)
+        prev_week_total = sum(t["amount"] for t in prev_week_txns)
+        month_income = sum(t["amount"] for t in month_txns if t["type"] == "credit")
+        month_expense = sum(t["amount"] for t in month_txns if t["type"] == "debit")
+
+        # Category spending: this week vs last week
+        this_week_cats = {}
+        for t in this_week_txns:
+            this_week_cats[t["category"]] = this_week_cats.get(t["category"], 0) + t["amount"]
+
+        prev_week_cats = {}
+        for t in prev_week_txns:
+            prev_week_cats[t["category"]] = prev_week_cats.get(t["category"], 0) + t["amount"]
+
+        # ── OVERSPENDING DETECTION ──
+        alerts = []
+        overspend_categories = []
+
+        # 1. Week-over-week spike detection (>25% increase)
+        for cat, amount in this_week_cats.items():
+            prev_amount = prev_week_cats.get(cat, 0)
+            if prev_amount > 0:
+                pct_change = ((amount - prev_amount) / prev_amount) * 100
+                if pct_change > 25:
+                    alerts.append({
+                        "type": "overspend",
+                        "severity": "high" if pct_change > 50 else "medium",
+                        "category": cat,
+                        "message": f"You spent {pct_change:.0f}% more on {cat} this week (₹{amount:.0f} vs ₹{prev_amount:.0f} last week)",
+                        "amount_diff": amount - prev_amount
+                    })
+                    overspend_categories.append(cat)
+
+        # 2. Budget breach detection
+        for budget in budgets:
+            cat_spent = this_week_cats.get(budget["category"], 0)
+            if budget["period"] == "monthly":
+                cat_spent = sum(t["amount"] for t in month_txns if t["type"] == "debit" and t["category"] == budget["category"])
+            pct_used = (cat_spent / budget["amount"] * 100) if budget["amount"] > 0 else 0
+            if pct_used >= 100:
+                alerts.append({
+                    "type": "budget_breach",
+                    "severity": "high",
+                    "category": budget["category"],
+                    "message": f"{budget['category']} budget exceeded! ₹{cat_spent:.0f} spent of ₹{budget['amount']:.0f} limit",
+                    "amount_diff": cat_spent - budget["amount"]
+                })
+            elif pct_used >= 80:
+                alerts.append({
+                    "type": "budget_warning",
+                    "severity": "medium",
+                    "category": budget["category"],
+                    "message": f"{budget['category']} budget is {pct_used:.0f}% used (₹{cat_spent:.0f} of ₹{budget['amount']:.0f})",
+                    "amount_diff": 0
+                })
+
+        # 3. Unusual transaction detection (single txn > 3x daily average)
+        if this_week_txns:
+            daily_avg = this_week_total / 7
+            for t in this_week_txns:
+                if t["amount"] > daily_avg * 3 and t["amount"] > 500:
+                    alerts.append({
+                        "type": "anomaly",
+                        "severity": "low",
+                        "category": t["category"],
+                        "message": f"Unusual spend: ₹{t['amount']:.0f} on {t['description']} ({t['category']}). Your daily average is ₹{daily_avg:.0f}",
+                        "amount_diff": t["amount"]
+                    })
+
+        # ── TREND DATA for AI ──
+        week_trend = "flat"
+        if prev_week_total > 0:
+            change_pct = ((this_week_total - prev_week_total) / prev_week_total) * 100
+            week_trend = f"{'up' if change_pct > 0 else 'down'} {abs(change_pct):.0f}%"
+
+        top_category = max(this_week_cats, key=this_week_cats.get) if this_week_cats else "None"
+        savings_rate = ((month_income - month_expense) / month_income * 100) if month_income > 0 else 0
+
+        # ── AI PROMPT ENGINEERING ──
+        spending_text = ", ".join([f"{cat}: ₹{amt:.0f}" for cat, amt in sorted(spending_summary.items(), key=lambda x: -x[1])])
+        alerts_text = "\n".join([f"- [{a['severity'].upper()}] {a['message']}" for a in alerts[:5]]) if alerts else "No alerts."
+        budget_text = ", ".join([f"{b['category']}: ₹{b['amount']:.0f}" for b in budgets]) if budgets else "No budgets set."
+
+        system_prompt = """You are MintU AI — a warm, witty Indian personal finance buddy.
+You analyze spending data and provide ACTIONABLE insights. Your tone is friendly, like a smart friend — NOT a bank manager.
+
+RULES:
+1. Always use ₹ (Indian Rupee), refer to Indian services (Swiggy, Zomato, Ola, Uber, Paytm, PhonePe, Blinkit, D-Mart)
+2. Be specific with numbers — say "₹2,400 on food" not "a lot on food"
+3. Give ACTIONABLE advice — "Switch 2 Swiggy orders to home cooking" not "reduce food spending"
+4. If spending is healthy, celebrate it! Be encouraging
+5. Reference Indian saving habits: SIP, FD, gold, EPF
+6. Keep it concise — max 3 sentences per insight
+7. Use casual Indian English — "yaar", "solid", "chill" are ok sparingly
+
+Return ONLY valid JSON:
+{
+  "daily_insight": "2-3 sentence personalized insight about today/this week",
+  "weekly_summary": "3-4 sentence summary comparing this week vs last week",
+  "recommendations": ["actionable tip 1", "actionable tip 2", "actionable tip 3"],
+  "savings_tip": "One specific way to save money this month",
+  "mood": "great" | "good" | "okay" | "concerning" | "alert"
+}"""
+
+        user_prompt = f"""FINANCIAL SNAPSHOT:
+- Money Score: {money_score}/100
+- This week total spent: ₹{this_week_total:.0f}
+- Last week total spent: ₹{prev_week_total:.0f}
+- Week trend: {week_trend}
+- Top spending category: {top_category}
+- Monthly income: ₹{month_income:.0f} | Monthly expenses: ₹{month_expense:.0f}
+- Savings rate: {savings_rate:.0f}%
+- {len(this_week_txns)} transactions this week
+
+CATEGORY BREAKDOWN (this week):
+{spending_text}
+
+BUDGETS SET:
+{budget_text}
+
+ALERTS DETECTED:
+{alerts_text}
+
+Generate personalized insights based on this data."""
+
         chat = LlmChat(
             api_key=os.environ['EMERGENT_LLM_KEY'],
-            session_id=f"insights_{user_id}_{datetime.utcnow().timestamp()}",
-            system_message="""You are a friendly Indian personal finance assistant. 
-            Analyze spending data and provide: 
-            1. A warm, encouraging insight (2-3 sentences)
-            2. Three practical recommendations
-            Return ONLY valid JSON: {"insight": "string", "recommendations": ["rec1", "rec2", "rec3"]}
-            Use Indian context (rupees, local services). Be positive and actionable.
-            """
+            session_id=f"insights_v2_{user_id}_{now.timestamp()}",
+            system_message=system_prompt
         ).with_model("openai", "gpt-5.2")
-        
-        spending_text = ", ".join([f"{cat}: ₹{amt:.0f}" for cat, amt in spending_summary.items()])
-        message = UserMessage(
-            text=f"Money score: {money_score}/100. Last 7 days spending: {spending_text}. Total: ₹{total_spent:.0f}. {len(transactions)} transactions."
-        )
-        
-        response = await chat.send_message(message)
-        
+
+        response = await chat.send_message(UserMessage(text=user_prompt))
+
         # Clean and parse response
         response_text = response.strip()
         if response_text.startswith("```"):
-            response_text = response_text.split("```")[1]
+            parts = response_text.split("```")
+            response_text = parts[1] if len(parts) > 1 else parts[0]
             if response_text.startswith("json"):
                 response_text = response_text[4:]
-        
+        response_text = response_text.strip()
+
         import json
         parsed = json.loads(response_text)
-        
+
         return {
-            "insight_text": parsed.get("insight", "Keep tracking your expenses!"),
-            "recommendations": parsed.get("recommendations", [
-                "Set a daily spending limit",
-                "Review your subscriptions",
-                "Try cooking at home more often"
-            ])
+            "insight_text": parsed.get("daily_insight", "Keep tracking your expenses!"),
+            "weekly_summary": parsed.get("weekly_summary", ""),
+            "recommendations": parsed.get("recommendations", ["Track all your expenses", "Set category budgets", "Review spending weekly"]),
+            "savings_tip": parsed.get("savings_tip", ""),
+            "mood": parsed.get("mood", "good"),
+            "alerts": alerts,
+            "trends": {
+                "this_week_total": this_week_total,
+                "prev_week_total": prev_week_total,
+                "week_change_pct": ((this_week_total - prev_week_total) / prev_week_total * 100) if prev_week_total > 0 else 0,
+                "top_category": top_category,
+                "savings_rate": savings_rate,
+                "category_trends": {
+                    cat: {
+                        "this_week": this_week_cats.get(cat, 0),
+                        "last_week": prev_week_cats.get(cat, 0),
+                        "change_pct": ((this_week_cats.get(cat, 0) - prev_week_cats.get(cat, 0)) / prev_week_cats.get(cat, 1) * 100) if prev_week_cats.get(cat, 0) > 0 else 0
+                    }
+                    for cat in set(list(this_week_cats.keys()) + list(prev_week_cats.keys()))
+                }
+            }
         }
     except Exception as e:
-        logging.error(f"AI insights generation error: {str(e)}")
+        logging.error(f"AI insights v2 error: {str(e)}")
         return {
             "insight_text": "Keep up the good work tracking your finances!",
-            "recommendations": [
-                "Monitor your top spending categories",
-                "Set budgets for better control",
-                "Review your spending weekly"
-            ]
+            "weekly_summary": "",
+            "recommendations": ["Monitor your top spending categories", "Set budgets for better control", "Review your spending weekly"],
+            "savings_tip": "Try setting up a SIP to automate savings",
+            "mood": "good",
+            "alerts": [],
+            "trends": {}
         }
 
 # ============== Routes ==============
@@ -624,15 +773,95 @@ async def get_daily_insights(user_id: str = Depends(get_current_user)):
         category = trans["category"]
         spending_summary[category] = spending_summary.get(category, 0) + trans["amount"]
     
-    # Generate AI insights
+    # Generate AI insights (enhanced v2)
     ai_insights = await generate_insights_with_ai(user_id, money_score, spending_summary)
     
     return {
         "money_score": money_score,
         "insight_text": ai_insights["insight_text"],
+        "weekly_summary": ai_insights.get("weekly_summary", ""),
         "spending_summary": spending_summary,
         "recommendations": ai_insights["recommendations"],
+        "savings_tip": ai_insights.get("savings_tip", ""),
+        "mood": ai_insights.get("mood", "good"),
+        "alerts": ai_insights.get("alerts", []),
+        "trends": ai_insights.get("trends", {}),
         "generated_at": datetime.utcnow()
+    }
+
+@api_router.get("/insights/weekly")
+async def get_weekly_insights(user_id: str = Depends(get_current_user)):
+    """Full weekly spending report with AI analysis"""
+    now = datetime.utcnow()
+    seven_days_ago = now - timedelta(days=7)
+    fourteen_days_ago = now - timedelta(days=14)
+    
+    # This week
+    this_week = await db.transactions.find({
+        "user_id": user_id, "date": {"$gte": seven_days_ago}
+    }).to_list(1000)
+    
+    # Last week
+    last_week = await db.transactions.find({
+        "user_id": user_id, "date": {"$gte": fourteen_days_ago, "$lt": seven_days_ago}
+    }).to_list(1000)
+    
+    # Calculate metrics
+    tw_income = sum(t["amount"] for t in this_week if t["type"] == "credit")
+    tw_expense = sum(t["amount"] for t in this_week if t["type"] == "debit")
+    lw_income = sum(t["amount"] for t in last_week if t["type"] == "credit")
+    lw_expense = sum(t["amount"] for t in last_week if t["type"] == "debit")
+    
+    # Day-by-day spending for chart
+    daily_spending = {}
+    for t in this_week:
+        if t["type"] == "debit":
+            day_key = t["date"].strftime("%a")
+            daily_spending[day_key] = daily_spending.get(day_key, 0) + t["amount"]
+    
+    # Category comparison
+    tw_cats = {}
+    lw_cats = {}
+    for t in this_week:
+        if t["type"] == "debit":
+            tw_cats[t["category"]] = tw_cats.get(t["category"], 0) + t["amount"]
+    for t in last_week:
+        if t["type"] == "debit":
+            lw_cats[t["category"]] = lw_cats.get(t["category"], 0) + t["amount"]
+    
+    all_cats = set(list(tw_cats.keys()) + list(lw_cats.keys()))
+    category_comparison = {}
+    for cat in all_cats:
+        tw_amt = tw_cats.get(cat, 0)
+        lw_amt = lw_cats.get(cat, 0)
+        change = ((tw_amt - lw_amt) / lw_amt * 100) if lw_amt > 0 else (100 if tw_amt > 0 else 0)
+        category_comparison[cat] = {
+            "this_week": tw_amt,
+            "last_week": lw_amt,
+            "change_pct": round(change, 1),
+            "trend": "up" if change > 10 else ("down" if change < -10 else "stable")
+        }
+    
+    money_score = await calculate_money_score(user_id)
+    
+    return {
+        "money_score": money_score,
+        "this_week": {
+            "income": tw_income,
+            "expense": tw_expense,
+            "savings": tw_income - tw_expense,
+            "transaction_count": len(this_week)
+        },
+        "last_week": {
+            "income": lw_income,
+            "expense": lw_expense,
+            "savings": lw_income - lw_expense,
+            "transaction_count": len(last_week)
+        },
+        "expense_change_pct": round(((tw_expense - lw_expense) / lw_expense * 100), 1) if lw_expense > 0 else 0,
+        "daily_spending": daily_spending,
+        "category_comparison": category_comparison,
+        "generated_at": now
     }
 
 @api_router.post("/budgets")
