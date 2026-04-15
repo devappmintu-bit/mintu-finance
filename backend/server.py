@@ -1471,6 +1471,132 @@ async def get_family_summary(group_id: str, user_id: str = Depends(get_current_u
         "member_stats": member_stats
     }
 
+# ============== MONEY SCHOOL (Financial Literacy) ==============
+MONEY_SCHOOL_LESSONS = [
+    {"id": "sip_101", "title": "SIP: Your Wealth Machine", "category": "Investment", "content": "A Systematic Investment Plan (SIP) lets you invest ₹500-₹5,000/month into mutual funds automatically. At 12% annual returns, ₹5,000/month for 10 years becomes ₹11.6 lakhs! Start with any amount — even ₹500 works.", "tip": "Start a SIP today on Groww or Zerodha. Even ₹500/month makes a difference over 10 years."},
+    {"id": "fd_basics", "title": "Fixed Deposits: Safe & Steady", "category": "Savings", "content": "FDs offer guaranteed 7-8% returns with zero risk. Best for emergency funds and short-term goals. Senior citizens get 0.5% extra. Pro tip: Ladder your FDs (split across 1yr, 2yr, 3yr) for better liquidity.", "tip": "Keep 3-6 months expenses in FD as emergency fund. Don't break it for shopping!"},
+    {"id": "tax_80c", "title": "Save Tax with Section 80C", "category": "Tax", "content": "You can save up to ₹1.5 lakh/year in taxes under 80C. Options: ELSS mutual funds (best returns, 3yr lock-in), PPF (15yr, tax-free), NPS (extra ₹50K under 80CCD). Most salaried people overpay by ₹15,000-30,000!", "tip": "If you haven't invested in 80C yet, start an ELSS SIP. It saves tax AND grows your money."},
+    {"id": "emergency_fund", "title": "The Emergency Fund Rule", "category": "Savings", "content": "Keep 3-6 months of expenses in a savings account or liquid fund. This protects you from job loss, medical emergencies, or car repairs without borrowing. Average Indian household needs ₹1-3 lakhs as emergency buffer.", "tip": "Calculate your monthly expenses × 6. That's your emergency fund target. Start saving towards it today."},
+    {"id": "insurance_101", "title": "Term Insurance: ₹500/month for ₹1 Crore Cover", "category": "Insurance", "content": "Term insurance gives ₹50L-1Cr life cover for just ₹500-800/month if you're 25-35. It's the cheapest way to protect your family. Never mix insurance with investment (avoid ULIPs/endowment plans). Pure term = best value.", "tip": "If you have dependents, get a term insurance plan TODAY. Compare on PolicyBazaar."},
+    {"id": "compound_interest", "title": "The Magic of Compounding", "category": "Investment", "content": "₹10,000/month at 12% returns: After 5 years = ₹8.2L, After 10 years = ₹23.2L, After 20 years = ₹99.9L! The secret? Start early. Someone who starts at 25 will have 3x more than someone starting at 35 with the same investment.", "tip": "The best time to start investing was yesterday. The second best time is today."},
+    {"id": "credit_card_trap", "title": "Credit Card: Friend or Foe?", "category": "Budgeting", "content": "Credit cards charge 36-42% annual interest if you don't pay full amount. Minimum payment is a TRAP — a ₹50,000 balance takes 8+ years to clear with minimum payments! Always pay full balance. Use cards only for rewards, never for borrowing.", "tip": "Set up auto-pay for full credit card balance. Never carry forward a balance."},
+    {"id": "50_30_20", "title": "The 50-30-20 Budget Rule", "category": "Budgeting", "content": "Allocate your income: 50% for Needs (rent, food, bills), 30% for Wants (dining, shopping, entertainment), 20% for Savings (SIP, FD, emergency). If earning ₹50,000/month: ₹25K needs, ₹15K wants, ₹10K savings.", "tip": "Open MintU budgets for each category and track against the 50-30-20 rule."},
+    {"id": "health_insurance", "title": "Health Insurance Before Wealth", "category": "Insurance", "content": "One hospital stay can wipe out years of savings. A ₹5-10 lakh health cover costs ₹5,000-8,000/year for a family. Buy before 35 for lower premiums. Always take a family floater plan, not individual.", "tip": "If you don't have health insurance, get a ₹10L family floater this month. Compare on PolicyBazaar."},
+    {"id": "gold_investing", "title": "Gold: Digital vs Physical", "category": "Investment", "content": "Indians love gold but physical gold has making charges (10-25%) and locker costs. Digital gold (Sovereign Gold Bonds, Gold ETFs) has zero making charges, gives 2.5% annual interest, and is tax-free after 8 years!", "tip": "Switch from buying physical gold to Sovereign Gold Bonds (SGB). Same gold, better returns, zero hassle."},
+    {"id": "nps_retirement", "title": "NPS: Retire Like a King", "category": "Investment", "content": "National Pension System gives extra ₹50,000 tax deduction (above 80C). At 10% returns, ₹5,000/month from age 30 gives you ₹1.12 Crore at 60! Government employees get even better benefits.", "tip": "Open an NPS account on eNPS.nsdl.com. The extra ₹50K tax saving alone is worth it."},
+    {"id": "emi_management", "title": "EMI Management: The 40% Rule", "category": "Budgeting", "content": "Total EMIs should never exceed 40% of take-home salary. If you earn ₹60,000/month, max EMI = ₹24,000. This includes home loan, car loan, personal loan, and BNPL. Beyond 40% = financial stress zone.", "tip": "Add up ALL your EMIs right now. If it's more than 40% of salary, focus on paying off the highest-interest loan first."},
+    {"id": "ppf_power", "title": "PPF: Tax-Free Wealth Builder", "category": "Investment", "content": "Public Provident Fund gives 7.1% tax-free returns with ₹1.5L/year limit. After 15 years, ₹1.5L/year becomes ₹40+ lakhs — completely tax-free! It's the safest long-term investment in India after FD.", "tip": "Open a PPF account at your bank or post office. Max out ₹1.5L/year for tax-free compounding."},
+    {"id": "avoid_lifestyle", "title": "Lifestyle Inflation: The Silent Killer", "category": "Budgeting", "content": "Got a raise? Don't upgrade everything. If salary goes from ₹50K to ₹70K, save the ₹20K difference instead of upgrading car/house. This is how millionaires are made — they invest raises, not spend them.", "tip": "Next time you get a raise, increase your SIP by the same amount. Your future self will thank you."},
+    {"id": "upi_safety", "title": "UPI Safety: Protect Your Money", "category": "Security", "content": "Never share UPI PIN, OTP, or scan QR codes sent by strangers. Fraudsters pose as bank officials or buyers. Remember: you NEVER need to scan QR or enter PIN to RECEIVE money. If someone asks you to, it's a scam.", "tip": "Enable UPI transaction limits in your bank app. Set daily limit to what you actually need."},
+]
+
+@api_router.get("/money-school/lessons")
+async def get_money_school_lessons():
+    """Get all financial literacy lessons"""
+    return {"lessons": MONEY_SCHOOL_LESSONS, "total": len(MONEY_SCHOOL_LESSONS)}
+
+@api_router.get("/money-school/daily")
+async def get_daily_lesson(user_id: str = Depends(get_current_user)):
+    """Get today's lesson + AI-personalized tip based on user's spending"""
+    from datetime import date
+    # Rotate daily lesson based on date
+    day_index = date.today().toordinal() % len(MONEY_SCHOOL_LESSONS)
+    lesson = MONEY_SCHOOL_LESSONS[day_index]
+    
+    # Get user's spending context for AI personalization
+    try:
+        thirty_days_ago = datetime.utcnow() - timedelta(days=30)
+        txns = await db.transactions.find({"user_id": user_id, "type": "debit", "date": {"$gte": thirty_days_ago}}).to_list(500)
+        total_spent = sum(t["amount"] for t in txns)
+        top_cat = {}
+        for t in txns:
+            top_cat[t["category"]] = top_cat.get(t["category"], 0) + t["amount"]
+        top_category = max(top_cat, key=top_cat.get) if top_cat else "Food"
+        
+        chat = LlmChat(
+            api_key=os.environ['EMERGENT_LLM_KEY'],
+            session_id=f"school_{user_id}_{datetime.utcnow().timestamp()}",
+            system_message="You are MintU's financial literacy buddy. Give ONE short personalized tip (1-2 sentences) connecting the lesson topic to user's actual spending. Be warm and specific with numbers. Use ₹."
+        ).with_model("openai", "gpt-5.2")
+        
+        msg = f"Lesson: {lesson['title']}. User spent ₹{total_spent:.0f} this month, top category: {top_category}."
+        response = await chat.send_message(UserMessage(text=msg))
+        personal_tip = response.strip()
+    except Exception as e:
+        logging.error(f"Money school AI error: {e}")
+        personal_tip = lesson["tip"]
+    
+    return {
+        "lesson": lesson,
+        "personal_tip": personal_tip,
+        "lesson_number": day_index + 1,
+        "total_lessons": len(MONEY_SCHOOL_LESSONS)
+    }
+
+# ============== PUSH NOTIFICATIONS ==============
+class PushTokenRegister(BaseModel):
+    push_token: str
+
+@api_router.post("/notifications/register-token")
+async def register_push_token(data: PushTokenRegister, user_id: str = Depends(get_current_user)):
+    """Register Expo push token for a user"""
+    from bson import ObjectId
+    await db.users.update_one(
+        {"_id": ObjectId(user_id)},
+        {"$set": {"push_token": data.push_token}}
+    )
+    return {"message": "Push token registered"}
+
+@api_router.get("/notifications/check-budget-alerts")
+async def check_budget_alerts(user_id: str = Depends(get_current_user)):
+    """Check budgets and return any that need alerts"""
+    budgets = await db.budgets.find({"user_id": user_id}).to_list(100)
+    thirty_days_ago = datetime.utcnow() - timedelta(days=30)
+    
+    alerts = []
+    for budget in budgets:
+        txns = await db.transactions.find({
+            "user_id": user_id,
+            "category": budget["category"],
+            "type": "debit",
+            "date": {"$gte": thirty_days_ago}
+        }).to_list(1000)
+        spent = sum(t["amount"] for t in txns)
+        pct = (spent / budget["amount"] * 100) if budget["amount"] > 0 else 0
+        
+        if pct >= 80:
+            alerts.append({
+                "category": budget["category"],
+                "spent": spent,
+                "limit": budget["amount"],
+                "percentage": round(pct, 1),
+                "severity": "exceeded" if pct >= 100 else "warning",
+                "message": f"{'Budget exceeded' if pct >= 100 else 'Nearing limit'}: {budget['category']} at {pct:.0f}% (₹{spent:.0f}/₹{budget['amount']:.0f})"
+            })
+    
+    return {"alerts": alerts, "total": len(alerts)}
+
+# ============== BIOMETRIC AUTH ==============
+class BiometricToggle(BaseModel):
+    enabled: bool
+
+@api_router.put("/user/biometric")
+async def toggle_biometric(data: BiometricToggle, user_id: str = Depends(get_current_user)):
+    """Enable/disable biometric auth for user"""
+    from bson import ObjectId
+    await db.users.update_one(
+        {"_id": ObjectId(user_id)},
+        {"$set": {"biometric_enabled": data.enabled}}
+    )
+    return {"biometric_enabled": data.enabled}
+
+@api_router.get("/user/biometric")
+async def get_biometric_status(user_id: str = Depends(get_current_user)):
+    """Check if biometric is enabled"""
+    from bson import ObjectId
+    user = await db.users.find_one({"_id": ObjectId(user_id)}, {"biometric_enabled": 1})
+    return {"biometric_enabled": user.get("biometric_enabled", False) if user else False}
+
 # ============== DATA PROTECTION & COMPLIANCE ROUTES ==============
 # GDPR Art. 15/20 + India DPDP Act 2023 Sec. 11 — Right to Access & Portability
 @api_router.get("/privacy/data-export")
