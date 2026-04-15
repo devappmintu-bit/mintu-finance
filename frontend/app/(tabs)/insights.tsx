@@ -16,12 +16,13 @@ export default function InsightsScreen() {
 
   const fetchData = async () => {
     try {
-      const [insightsRes, statsRes] = await Promise.all([
-        api.get('/insights/daily'),
-        api.get('/stats/overview'),
-      ]);
-      setInsights(insightsRes.data);
+      // Fetch stats first (fast), then insights (may be slow due to AI)
+      const statsRes = await api.get('/stats/overview');
       setStats(statsRes.data);
+      setLoading(false); // Show content as soon as stats load
+      
+      const insightsRes = await api.get('/insights/daily');
+      setInsights(insightsRes.data);
     } catch (error) {
       console.error('Insights fetch error:', error);
     } finally {
