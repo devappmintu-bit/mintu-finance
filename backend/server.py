@@ -2532,6 +2532,586 @@ async def cleanup_expired_data():
         "old_audit_logs_removed": audit_result.deleted_count
     }
 
+# ============== PHASE 1: RETENTION ENGINE — Built for 1.46B Indians ==============
+
+# --- India population context for comparisons ---
+INDIA_POPULATION_2025 = 1_460_000_000
+
+# --- Fun equivalences for Waste Detector (INR) ---
+WASTE_EQUIVALENCES = [
+    {"threshold": 500, "emoji": "☕", "text": "{count} Starbucks coffees"},
+    {"threshold": 1000, "emoji": "🍕", "text": "{count} Domino's pizza nights"},
+    {"threshold": 2000, "emoji": "🎬", "text": "{count} movie dates with popcorn"},
+    {"threshold": 3000, "emoji": "👟", "text": "{count} pairs of Nike shoes in a year"},
+    {"threshold": 5000, "emoji": "✈️", "text": "{count} weekend trips to Goa"},
+    {"threshold": 8000, "emoji": "📱", "text": "1 iPhone in {months} months"},
+    {"threshold": 10000, "emoji": "🏍️", "text": "1 Royal Enfield in {months} months"},
+    {"threshold": 15000, "emoji": "💻", "text": "1 MacBook in {months} months"},
+    {"threshold": 25000, "emoji": "🚗", "text": "1 car down-payment in {months} months"},
+    {"threshold": 50000, "emoji": "🏠", "text": "Towards a flat down-payment in {months} months"},
+]
+
+def build_equivalences(monthly_amount: float) -> list:
+    """Build fun spending equivalences for waste detector"""
+    results = []
+    yearly = monthly_amount * 12
+    for eq in WASTE_EQUIVALENCES:
+        if monthly_amount >= eq["threshold"] * 0.3:
+            if "{count}" in eq["text"]:
+                count = int(yearly / eq["threshold"])
+                if count > 0:
+                    results.append({"emoji": eq["emoji"], "text": eq["text"].format(count=count)})
+            elif "{months}" in eq["text"]:
+                months = max(1, int(eq["threshold"] / max(monthly_amount, 1)))
+                results.append({"emoji": eq["emoji"], "text": eq["text"].format(months=months)})
+    return results[:4]  # Top 4 most impactful
+
+# 1. AI FINANCIAL COACH (CHAT)
+class ChatMessage(BaseModel):
+    message: str
+    context: Optional[str] = None  # "savings", "budget", "general"
+
+@api_router.post("/ai/chat")
+async def ai_financial_coach(msg: ChatMessage, user_id: str = Depends(get_current_user)):
+    """AI Financial Coach — personalized advice based on real spending data"""
+    from bson import ObjectId
+    
+    # Gather user's financial context
+    user = await db.users.find_one({"_id": ObjectId(user_id)})
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+    
+    now = datetime.utcnow()
+    month_start = now.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+    
+    # Aggregate spending data
+    pipeline = [
+        {"$match": {"user_id": user_id, "date": {"$gte": month_start}}},
+        {"$group": {"_id": "$category", "total": {"$sum": "$amount"}, "count": {"$sum": 1}}}
+    ]
+    category_spend = {doc["_id"]: doc["total"] async for doc in db.transactions.aggregate(pipeline)}
+    total_expense = sum(v for v in category_spend.values())
+    
+    income_pipeline = [
+        {"$match": {"user_id": user_id, "type": "income", "date": {"$gte": month_start}}},
+        {"$group": {"_id": None, "total": {"$sum": "$amount"}}}
+    ]
+    income_docs = await db.transactions.aggregate(income_pipeline).to_list(1)
+    total_income = income_docs[0]["total"] if income_docs else 0
+    
+    budgets = await db.budgets.find({"user_id": user_id}).to_list(20)
+    budget_info = {b["category"]: b["amount"] for b in budgets}
+    
+    # Build rich context for AI
+    context = f"""User: {user.get('name', 'User')} | Money Score: {user.get('money_score', 50)}/100
+Monthly Income: ₹{total_income:,.0f} | Monthly Expenses: ₹{total_expense:,.0f} | Savings: ₹{max(0, total_income - total_expense):,.0f}
+Category-wise spending this month: {', '.join(f'{k}: ₹{v:,.0f}' for k, v in category_spend.items()) or 'No data yet'}
+Budgets set: {', '.join(f'{k}: ₹{v:,.0f}' for k, v in budget_info.items()) or 'None'}
+Streak: {user.get('streak_days', 0)} days
+India context: Average Indian household spends ~₹15,000-25,000/month. User is in India."""
+
+    system_prompt = f"""You are MintU AI Coach — a witty, friendly Indian financial advisor like a smart friend who's great with money.
+
+PERSONALITY:
+- Speak like a relatable Indian friend (use "yaar", "bhai", casual Hindi-English mix naturally)
+- Be encouraging but honest — don't sugarcoat
+- Use emojis sparingly but effectively 💪
+- Keep responses SHORT (max 3-4 sentences) and actionable
+- Reference specific numbers from their data
+- Think like you're advising for 1.46 billion Indians — practical, India-specific tips
+- Reference Indian products, services, and costs (Swiggy, Zomato, FD rates, SIP, UPI)
+
+USER FINANCIAL CONTEXT:
+{context}
+
+RULES:
+- Always reference their actual numbers
+- Give ONE specific actionable tip
+- If they ask about savings, suggest specific Indian instruments (SIP, PPF, FD, NPS)
+- If they ask about budgeting, reference their actual category spending
+- NEVER give generic advice — personalize everything"""
+
+    try:
+        llm_key = os.environ.get("EMERGENT_LLM_KEY", "")
+        chat = LlmChat(
+            api_key=llm_key,
+            session_id=f"coach_{user_id}_{datetime.utcnow().timestamp()}",
+            system_message=system_prompt
+        ).with_model("openai", "gpt-5.2")
+        response = await chat.send_message(UserMessage(text=msg.message))
+        
+        response_text = response.strip() if isinstance(response, str) else str(response)
+        
+        return {
+            "reply": response_text,
+            "context_used": {
+                "money_score": user.get("money_score", 50),
+                "monthly_expense": total_expense,
+                "monthly_income": total_income,
+                "top_category": max(category_spend, key=category_spend.get) if category_spend else None,
+            }
+        }
+    except Exception as e:
+        logging.error(f"AI Coach error: {e}")
+        # Fallback: rule-based advice
+        savings_rate = ((total_income - total_expense) / max(total_income, 1)) * 100 if total_income > 0 else 0
+        if savings_rate > 30:
+            reply = f"You're saving {savings_rate:.0f}% — that's solid, yaar! 💪 Consider putting ₹{int((total_income-total_expense)*0.5):,} into a SIP for long-term wealth."
+        elif savings_rate > 10:
+            reply = f"Saving {savings_rate:.0f}% is decent, but let's push to 30%. Your top spend is {max(category_spend, key=category_spend.get) if category_spend else 'unknown'} — can we cut ₹500 there?"
+        else:
+            reply = f"Your savings rate is {savings_rate:.0f}% — let's fix this! Start with cutting ₹200/week from discretionary spending. Small steps = big results. 🚀"
+        return {"reply": reply, "context_used": {"money_score": user.get("money_score", 50), "monthly_expense": total_expense}}
+
+# 2. WASTE DETECTOR
+@api_router.get("/waste-detector")
+async def waste_detector(user_id: str = Depends(get_current_user)):
+    """Waste Detector — viral-worthy spending reality check"""
+    from bson import ObjectId
+    now = datetime.utcnow()
+    month_start = now.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+    
+    # Category spending this month
+    pipeline = [
+        {"$match": {"user_id": user_id, "type": "expense", "date": {"$gte": month_start}}},
+        {"$group": {"_id": "$category", "total": {"$sum": "$amount"}, "count": {"$sum": 1}}}
+    ]
+    categories = {}
+    async for doc in db.transactions.aggregate(pipeline):
+        categories[doc["_id"]] = {"total": doc["total"], "count": doc["count"]}
+    
+    total_expense = sum(c["total"] for c in categories.values())
+    
+    # Build waste insights for each category
+    waste_insights = []
+    for cat, data in sorted(categories.items(), key=lambda x: x[1]["total"], reverse=True):
+        equivs = build_equivalences(data["total"])
+        if equivs:
+            waste_insights.append({
+                "category": cat,
+                "amount": data["total"],
+                "count": data["count"],
+                "equivalences": equivs,
+                "shock_text": f"You spent ₹{data['total']:,.0f} on {cat} this month 😳"
+            })
+    
+    # Overall equivalence
+    overall_equivs = build_equivalences(total_expense)
+    
+    # Percentile comparison (simulated for MVP, real with user base)
+    user_count = await db.users.count_documents({})
+    users_with_less = await db.users.count_documents({"money_score": {"$lt": 50}})
+    percentile = min(95, max(5, int((1 - (users_with_less / max(user_count, 1))) * 100)))
+    
+    return {
+        "total_monthly_expense": total_expense,
+        "category_waste": waste_insights[:5],
+        "overall_equivalences": overall_equivs,
+        "comparison": {
+            "percentile": percentile,
+            "text": f"You spend {'less' if percentile > 50 else 'more'} than {percentile}% of MintU users 👀",
+            "population_context": f"Out of 1.46 billion Indians, only ~{int(INDIA_POPULATION_2025 * percentile / 100 / 1_000_000)}M people save as well as you"
+        },
+        "shareable_text": f"I spent ₹{total_expense:,.0f} this month... that's {overall_equivs[0]['emoji']} {overall_equivs[0]['text']}! 😱 Check yours on MintU" if overall_equivs else f"I tracked ₹{total_expense:,.0f} this month with MintU 💸"
+    }
+
+# 3. WEEKLY REPORT
+@api_router.get("/reports/weekly")
+async def weekly_report(user_id: str = Depends(get_current_user)):
+    """Weekly Report — emotional + actionable summary"""
+    from bson import ObjectId
+    now = datetime.utcnow()
+    week_start = now - timedelta(days=now.weekday())
+    week_start = week_start.replace(hour=0, minute=0, second=0, microsecond=0)
+    prev_week_start = week_start - timedelta(days=7)
+    
+    user = await db.users.find_one({"_id": ObjectId(user_id)})
+    
+    # This week's spending
+    this_week_pipeline = [
+        {"$match": {"user_id": user_id, "type": "expense", "date": {"$gte": week_start}}},
+        {"$group": {"_id": "$category", "total": {"$sum": "$amount"}, "count": {"$sum": 1}}}
+    ]
+    this_week = {}
+    async for doc in db.transactions.aggregate(this_week_pipeline):
+        this_week[doc["_id"]] = doc["total"]
+    
+    # Last week's spending
+    last_week_pipeline = [
+        {"$match": {"user_id": user_id, "type": "expense", "date": {"$gte": prev_week_start, "$lt": week_start}}},
+        {"$group": {"_id": "$category", "total": {"$sum": "$amount"}}}
+    ]
+    last_week = {}
+    async for doc in db.transactions.aggregate(last_week_pipeline):
+        last_week[doc["_id"]] = doc["total"]
+    
+    this_total = sum(this_week.values())
+    last_total = sum(last_week.values())
+    change_pct = ((this_total - last_total) / max(last_total, 1) * 100) if last_total > 0 else 0
+    
+    # Top waste category
+    top_category = max(this_week, key=this_week.get) if this_week else "Nothing tracked"
+    top_amount = this_week.get(top_category, 0)
+    
+    # Mood determination
+    if change_pct < -10:
+        mood = "🎉"
+        mood_text = "Great week! You spent less than last week"
+    elif change_pct < 5:
+        mood = "😊"
+        mood_text = "Steady week — spending is stable"
+    elif change_pct < 20:
+        mood = "👀"
+        mood_text = "Watch out! Spending crept up a bit"
+    else:
+        mood = "🔥"
+        mood_text = "Big spending week! Let's course-correct"
+    
+    # Savings suggestion
+    potential_save = int(this_total * 0.15)  # Suggest saving 15% more
+    
+    report = {
+        "period": f"{week_start.strftime('%b %d')} - {now.strftime('%b %d, %Y')}",
+        "total_spent": this_total,
+        "last_week_spent": last_total,
+        "change_pct": round(change_pct, 1),
+        "mood": mood,
+        "mood_text": mood_text,
+        "top_category": {"name": top_category, "amount": top_amount},
+        "category_breakdown": {k: v for k, v in sorted(this_week.items(), key=lambda x: x[1], reverse=True)},
+        "savings_suggestion": f"Cut ₹{potential_save:,} next week by reducing {top_category} spending",
+        "streak": user.get("streak_days", 0) if user else 0,
+        "money_score": user.get("money_score", 50) if user else 50,
+        "headline": f"You {'wasted' if change_pct > 10 else 'spent'} ₹{this_total:,.0f} this week {mood}",
+        "shareable_text": f"My week: ₹{this_total:,.0f} spent | Top: {top_category} ₹{top_amount:,.0f} | Score: {user.get('money_score', 50) if user else 50}/100 💸 #MintU"
+    }
+    return report
+
+# 4. SMART BUDGET AUTO-CREATION
+@api_router.get("/budgets/smart-suggest")
+async def smart_budget_suggestions(user_id: str = Depends(get_current_user)):
+    """AI-powered budget suggestions based on spending habits"""
+    from bson import ObjectId
+    now = datetime.utcnow()
+    
+    # Analyze last 60 days of spending
+    sixty_days_ago = now - timedelta(days=60)
+    pipeline = [
+        {"$match": {"user_id": user_id, "type": "expense", "date": {"$gte": sixty_days_ago}}},
+        {"$group": {"_id": "$category", "total": {"$sum": "$amount"}, "count": {"$sum": 1}, "avg": {"$avg": "$amount"}}}
+    ]
+    spending = {}
+    async for doc in db.transactions.aggregate(pipeline):
+        spending[doc["_id"]] = {"total": doc["total"], "count": doc["count"], "avg": doc["avg"]}
+    
+    if not spending:
+        return {"suggestions": [], "message": "Track expenses for a week and I'll suggest smart budgets for you! 📊"}
+    
+    # Calculate monthly projections (scale 60 days → 30 days)
+    total_monthly = sum(s["total"] for s in spending.values()) / 2
+    
+    # Indian benchmark budgets (% of income)
+    INDIAN_BENCHMARKS = {
+        "Food": 0.25, "Transport": 0.10, "Entertainment": 0.08,
+        "Shopping": 0.10, "Bills": 0.20, "Health": 0.05,
+        "Education": 0.08, "Groceries": 0.15, "Other": 0.10,
+    }
+    
+    # Existing budgets
+    existing = await db.budgets.find({"user_id": user_id}).to_list(20)
+    existing_cats = {b["category"] for b in existing}
+    
+    suggestions = []
+    for cat, data in sorted(spending.items(), key=lambda x: x[1]["total"], reverse=True):
+        monthly_avg = data["total"] / 2  # 60 days → monthly
+        benchmark_pct = INDIAN_BENCHMARKS.get(cat, 0.10)
+        
+        # Suggest 10-15% less than current spending (achievable)
+        suggested = int(monthly_avg * 0.88 / 100) * 100  # Round to nearest 100
+        suggested = max(suggested, 500)  # Minimum ₹500
+        
+        is_new = cat not in existing_cats
+        status = "over" if monthly_avg > suggested else "under"
+        
+        suggestions.append({
+            "category": cat,
+            "current_monthly_avg": round(monthly_avg),
+            "suggested_budget": suggested,
+            "is_new": is_new,
+            "message": f"You spend ~₹{monthly_avg:,.0f}/mo on {cat}. I'd cap it at ₹{suggested:,.0f}",
+            "savings_potential": max(0, int(monthly_avg - suggested)),
+            "confidence": "high" if data["count"] >= 5 else "medium" if data["count"] >= 2 else "low",
+        })
+    
+    total_potential_savings = sum(s["savings_potential"] for s in suggestions)
+    
+    return {
+        "suggestions": suggestions[:8],
+        "total_potential_savings": total_potential_savings,
+        "message": f"Following these budgets could save you ₹{total_potential_savings:,.0f}/month! 🎯",
+        "auto_apply_available": True
+    }
+
+@api_router.post("/budgets/auto-apply")
+async def auto_apply_budgets(user_id: str = Depends(get_current_user)):
+    """Auto-apply AI-suggested budgets"""
+    suggestions = await smart_budget_suggestions(user_id)
+    applied = 0
+    for s in suggestions.get("suggestions", []):
+        if s["is_new"] and s["confidence"] != "low":
+            await db.budgets.insert_one({
+                "user_id": user_id,
+                "category": s["category"],
+                "amount": s["suggested_budget"],
+                "period": "monthly",
+                "auto_created": True,
+                "created_at": datetime.utcnow()
+            })
+            applied += 1
+    return {"applied_count": applied, "message": f"Auto-created {applied} smart budgets! 🎯"}
+
+# 5. AI SMART ALERTS
+@api_router.get("/alerts/smart")
+async def smart_alerts(user_id: str = Depends(get_current_user)):
+    """AI Smart Alerts — intelligent, non-annoying nudges"""
+    from bson import ObjectId
+    now = datetime.utcnow()
+    today_start = now.replace(hour=0, minute=0, second=0, microsecond=0)
+    week_start = now - timedelta(days=now.weekday())
+    month_start = now.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+    
+    user = await db.users.find_one({"_id": ObjectId(user_id)})
+    alerts = []
+    
+    # 1. Daily spending alert
+    today_pipeline = [
+        {"$match": {"user_id": user_id, "type": "expense", "date": {"$gte": today_start}}},
+        {"$group": {"_id": None, "total": {"$sum": "$amount"}, "count": {"$sum": 1}}}
+    ]
+    today_docs = await db.transactions.aggregate(today_pipeline).to_list(1)
+    today_total = today_docs[0]["total"] if today_docs else 0
+    
+    # Compare with daily average
+    month_pipeline = [
+        {"$match": {"user_id": user_id, "type": "expense", "date": {"$gte": month_start}}},
+        {"$group": {"_id": None, "total": {"$sum": "$amount"}}}
+    ]
+    month_docs = await db.transactions.aggregate(month_pipeline).to_list(1)
+    month_total = month_docs[0]["total"] if month_docs else 0
+    days_elapsed = max(1, (now - month_start).days)
+    daily_avg = month_total / days_elapsed
+    
+    if today_total > daily_avg * 1.5 and today_total > 200:
+        alerts.append({
+            "type": "overspend_today",
+            "severity": "warning",
+            "emoji": "👀",
+            "title": f"You spent ₹{today_total:,.0f} today",
+            "message": f"That's {today_total/max(daily_avg,1):.1f}x your daily average of ₹{daily_avg:,.0f}. Worth it?",
+            "action": "review_transactions"
+        })
+    
+    # 2. Weekend spike detection (Fri-Sun)
+    if now.weekday() >= 4:  # Friday onwards
+        weekend_pipeline = [
+            {"$match": {"user_id": user_id, "type": "expense", "date": {"$gte": today_start - timedelta(days=now.weekday()-4) if now.weekday() >= 4 else today_start}}},
+            {"$group": {"_id": None, "total": {"$sum": "$amount"}}}
+        ]
+        weekend_docs = await db.transactions.aggregate(weekend_pipeline).to_list(1)
+        weekend_total = weekend_docs[0]["total"] if weekend_docs else 0
+        if weekend_total > daily_avg * 2:
+            alerts.append({
+                "type": "weekend_spike",
+                "severity": "info",
+                "emoji": "🍻",
+                "title": "Weekend spending spike detected",
+                "message": f"₹{weekend_total:,.0f} since Friday. That's your weekend tax! 😅",
+                "action": "view_insights"
+            })
+    
+    # 3. Streak alerts
+    streak = user.get("streak_days", 0) if user else 0
+    if streak >= 5:
+        alerts.append({
+            "type": "streak_strong",
+            "severity": "success",
+            "emoji": "🔥",
+            "title": f"{streak}-day streak! Keep going!",
+            "message": f"You're in the top 10% of consistent trackers. Don't break it!",
+            "action": "log_expense"
+        })
+    elif streak >= 2:
+        alerts.append({
+            "type": "streak_building",
+            "severity": "info",
+            "emoji": "⚡",
+            "title": f"{streak}-day streak building!",
+            "message": f"Just {7 - streak} more days for a weekly badge! 🏅",
+            "action": "log_expense"
+        })
+    
+    # 4. Budget alerts
+    budgets = await db.budgets.find({"user_id": user_id}).to_list(20)
+    for b in budgets:
+        cat = b["category"]
+        spent_pipeline = [
+            {"$match": {"user_id": user_id, "category": cat, "type": "expense", "date": {"$gte": month_start}}},
+            {"$group": {"_id": None, "total": {"$sum": "$amount"}}}
+        ]
+        spent_docs = await db.transactions.aggregate(spent_pipeline).to_list(1)
+        spent = spent_docs[0]["total"] if spent_docs else 0
+        pct = (spent / max(b["amount"], 1)) * 100
+        
+        if pct >= 100:
+            alerts.append({
+                "type": "budget_exceeded",
+                "severity": "danger",
+                "emoji": "🚨",
+                "title": f"{cat} budget exceeded!",
+                "message": f"₹{spent:,.0f} of ₹{b['amount']:,.0f} ({pct:.0f}%). Time to slow down!",
+                "action": "view_budget"
+            })
+        elif pct >= 80:
+            alerts.append({
+                "type": "budget_warning",
+                "severity": "warning",
+                "emoji": "⚠️",
+                "title": f"{cat} budget almost done",
+                "message": f"₹{spent:,.0f} of ₹{b['amount']:,.0f} used ({pct:.0f}%). Only ₹{b['amount']-spent:,.0f} left!",
+                "action": "view_budget"
+            })
+    
+    # 5. Savings rate alert
+    income_pipeline = [
+        {"$match": {"user_id": user_id, "type": "income", "date": {"$gte": month_start}}},
+        {"$group": {"_id": None, "total": {"$sum": "$amount"}}}
+    ]
+    income_docs = await db.transactions.aggregate(income_pipeline).to_list(1)
+    total_income = income_docs[0]["total"] if income_docs else 0
+    
+    if total_income > 0:
+        savings_rate = ((total_income - month_total) / total_income) * 100
+        if savings_rate > 30:
+            alerts.append({
+                "type": "savings_star",
+                "severity": "success",
+                "emoji": "🌟",
+                "title": f"Savings rate: {savings_rate:.0f}%!",
+                "message": f"You're saving ₹{total_income-month_total:,.0f} this month. That's better than most Indians! 🇮🇳",
+                "action": "view_insights"
+            })
+    
+    # 6. Money score milestone
+    score = user.get("money_score", 50) if user else 50
+    if score >= 90:
+        alerts.append({
+            "type": "score_elite",
+            "severity": "success", 
+            "emoji": "👑",
+            "title": "Elite Money Score: " + str(score),
+            "message": "Top 5% of all users! You're a financial rockstar! 🎸",
+            "action": "share_score"
+        })
+    
+    return {"alerts": alerts[:6], "count": len(alerts)}  # Max 6 alerts
+
+# 6. SHAREABLE STATS CARD
+@api_router.get("/share/stats-card")
+async def shareable_stats_card(user_id: str = Depends(get_current_user)):
+    """Generate shareable stats for WhatsApp/Instagram"""
+    from bson import ObjectId
+    user = await db.users.find_one({"_id": ObjectId(user_id)})
+    now = datetime.utcnow()
+    month_start = now.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+    
+    # Monthly stats
+    pipeline = [
+        {"$match": {"user_id": user_id, "date": {"$gte": month_start}}},
+        {"$group": {
+            "_id": "$type",
+            "total": {"$sum": "$amount"},
+            "count": {"$sum": 1}
+        }}
+    ]
+    stats = {}
+    async for doc in db.transactions.aggregate(pipeline):
+        stats[doc["_id"]] = doc["total"]
+    
+    income = stats.get("income", 0)
+    expense = stats.get("expense", 0)
+    saved = max(0, income - expense)
+    score = user.get("money_score", 50) if user else 50
+    streak = user.get("streak_days", 0) if user else 0
+    name = user.get("name", "MintU User") if user else "MintU User"
+    
+    # Build shareable texts
+    whatsapp_text = f"💸 {name}'s Money Report — {now.strftime('%B %Y')}\n\n"
+    whatsapp_text += f"💰 Saved: ₹{saved:,.0f}\n"
+    whatsapp_text += f"📊 Money Score: {score}/100\n"
+    whatsapp_text += f"🔥 Streak: {streak} days\n\n"
+    whatsapp_text += f"Track your money smartly with MintU! 🚀"
+    
+    instagram_caption = f"I saved ₹{saved:,.0f} this month using MintU 💸\n\nMoney Score: {score}/100 ⭐\n🔥 {streak}-day tracking streak\n\n#MintU #MoneyManagement #Savings #FinancialFreedom #India"
+    
+    return {
+        "name": name,
+        "month": now.strftime("%B %Y"),
+        "income": income,
+        "expense": expense,
+        "saved": saved,
+        "money_score": score,
+        "streak": streak,
+        "whatsapp_text": whatsapp_text,
+        "instagram_caption": instagram_caption,
+        "card_data": {
+            "headline": f"I saved ₹{saved:,.0f} this month! 💸",
+            "subtitle": f"Money Score: {score}/100",
+            "stats": [
+                {"label": "Income", "value": f"₹{income:,.0f}", "color": "green"},
+                {"label": "Expenses", "value": f"₹{expense:,.0f}", "color": "red"},
+                {"label": "Saved", "value": f"₹{saved:,.0f}", "color": "blue"},
+            ],
+            "badge": f"🔥 {streak}-day streak" if streak > 0 else "📊 Start tracking!",
+        }
+    }
+
+# 7. DATABASE INDEXES for 1.46B scale
+@app.on_event("startup")
+async def create_indexes():
+    """Create MongoDB indexes for performance at India-scale (1.46B users)"""
+    try:
+        # User indexes
+        await db.users.create_index("phone", unique=True)
+        await db.users.create_index("money_score")
+        await db.users.create_index("referral_code")
+        
+        # Transaction indexes (most queried collection)
+        await db.transactions.create_index([("user_id", 1), ("date", -1)])
+        await db.transactions.create_index([("user_id", 1), ("type", 1), ("date", -1)])
+        await db.transactions.create_index([("user_id", 1), ("category", 1), ("date", -1)])
+        
+        # Budget indexes
+        await db.budgets.create_index([("user_id", 1), ("category", 1)])
+        
+        # Split indexes
+        await db.split_groups.create_index("members.user_id")
+        await db.split_expenses.create_index([("group_id", 1), ("created_at", -1)])
+        
+        # Rate limit / OTP cleanup indexes
+        await db.rate_limits.create_index("key")
+        await db.rate_limits.create_index("window", expireAfterSeconds=120)
+        await db.otps.create_index("expires_at", expireAfterSeconds=0)
+        
+        # Audit log TTL
+        await db.audit_logs.create_index("timestamp", expireAfterSeconds=90*24*60*60)
+        
+        # Cash entries
+        await db.cash_entries.create_index([("user_id", 1), ("date", -1)])
+        
+        logging.info("✅ MongoDB indexes created for 1.46B-scale performance")
+    except Exception as e:
+        logging.error(f"Index creation error: {e}")
+
 # Include router
 app.include_router(api_router)
 

@@ -15,16 +15,31 @@ const PERIODS = ['daily', 'weekly', 'monthly'];
 export default function BudgetScreen() {
   const { lang } = useLangStore();
   const [budgets, setBudgets] = useState<any[]>([]);
+  const [suggestions, setSuggestions] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [modalVisible, setModalVisible] = useState(false);
   const [formData, setFormData] = useState({ category: 'Food', amount: '', period: 'monthly' });
 
-  useEffect(() => { fetchBudgets(); }, []);
+  useEffect(() => { fetchBudgets(); fetchSuggestions(); }, []);
 
   const fetchBudgets = async () => {
     try { const res = await api.get('/budgets'); setBudgets(res.data); }
     catch (e) { console.error(e); }
     finally { setLoading(false); }
+  };
+
+  const fetchSuggestions = async () => {
+    try { const res = await api.get('/budgets/smart-suggest'); setSuggestions(res.data); }
+    catch (e) { console.error(e); }
+  };
+
+  const applySmartBudgets = async () => {
+    try {
+      const res = await api.post('/budgets/auto-apply');
+      Alert.alert('Done!', res.data.message);
+      fetchBudgets();
+      fetchSuggestions();
+    } catch (e) { Alert.alert('Error', 'Could not apply budgets'); }
   };
 
   const handleAdd = async () => {
@@ -111,6 +126,30 @@ export default function BudgetScreen() {
         renderItem={renderBudget}
         keyExtractor={(item) => item.id}
         contentContainerStyle={styles.listContent}
+        ListHeaderComponent={
+          suggestions && suggestions.suggestions?.length > 0 ? (
+            <View style={styles.suggestCard}>
+              <View style={styles.suggestHeader}>
+                <Ionicons name="bulb" size={18} color={COLORS.accent.warning} />
+                <Text style={styles.suggestTitle}>Smart Budget Suggestions</Text>
+              </View>
+              <Text style={styles.suggestMsg}>{suggestions.message}</Text>
+              {suggestions.suggestions.slice(0, 3).map((s: any, i: number) => (
+                <View key={i} style={styles.suggestRow}>
+                  <View style={styles.suggestInfo}>
+                    <Text style={styles.suggestCat}>{s.category}</Text>
+                    <Text style={styles.suggestDetail}>{s.message}</Text>
+                  </View>
+                  <Text style={styles.suggestSave}>Save {'\u20B9'}{s.savings_potential?.toFixed(0)}</Text>
+                </View>
+              ))}
+              <TouchableOpacity style={styles.suggestApply} onPress={applySmartBudgets}>
+                <Ionicons name="checkmark-circle" size={16} color="#fff" />
+                <Text style={styles.suggestApplyText}>Auto-apply Smart Budgets</Text>
+              </TouchableOpacity>
+            </View>
+          ) : null
+        }
         ListEmptyComponent={
           <View style={styles.empty}>
             <Ionicons name="wallet-outline" size={56} color={COLORS.text.muted} />
@@ -207,4 +246,16 @@ const styles = StyleSheet.create({
   amountInput: { flex: 1, fontSize: 28, fontWeight: '700', color: COLORS.text.primary, paddingVertical: 16 },
   submitBtn: { backgroundColor: COLORS.accent.primary, borderRadius: RADIUS.full, paddingVertical: 18, alignItems: 'center', shadowColor: COLORS.accent.primary, shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.3, shadowRadius: 12, elevation: 8 },
   submitText: { fontSize: 16, fontWeight: '700', color: COLORS.bg.primary },
+  // Smart suggestions
+  suggestCard: { backgroundColor: '#FFFBEB', borderRadius: RADIUS.card, padding: SPACING.xl, marginBottom: SPACING.lg, borderWidth: 1, borderColor: '#FDE68A' },
+  suggestHeader: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 6 },
+  suggestTitle: { fontSize: 16, fontWeight: '700', color: '#92400E' },
+  suggestMsg: { fontSize: 13, color: '#78716C', marginBottom: SPACING.md },
+  suggestRow: { flexDirection: 'row', alignItems: 'center', paddingVertical: 10, borderTopWidth: 1, borderTopColor: '#FDE68A' },
+  suggestInfo: { flex: 1 },
+  suggestCat: { fontSize: 15, fontWeight: '600', color: COLORS.text.primary },
+  suggestDetail: { fontSize: 12, color: COLORS.text.muted, marginTop: 2 },
+  suggestSave: { fontSize: 13, fontWeight: '700', color: COLORS.accent.moneyIn },
+  suggestApply: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, backgroundColor: COLORS.accent.primary, paddingVertical: 14, borderRadius: RADIUS.full, marginTop: SPACING.md },
+  suggestApplyText: { fontSize: 14, fontWeight: '700', color: '#fff' },
 });

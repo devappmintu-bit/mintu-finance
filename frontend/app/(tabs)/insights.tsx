@@ -1,333 +1,369 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
-  View, Text, StyleSheet, ScrollView, RefreshControl, ActivityIndicator, TouchableOpacity,
+  View, Text, StyleSheet, ScrollView, TouchableOpacity, ActivityIndicator,
+  TextInput, KeyboardAvoidingView, Platform, FlatList, Share, Linking,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import api from '../../utils/api';
+import { useAuthStore } from '../../store/authStore';
 import { COLORS, RADIUS, SPACING, CATEGORIES } from '../../utils/theme';
-import { useLangStore } from '../../store/langStore';
-import { t } from '../../utils/i18n';
 import { PieChart } from 'react-native-gifted-charts';
 
-const MOOD_CONFIG: Record<string, { icon: string; color: string; label: string }> = {
-  great: { icon: 'happy', color: '#10B981', label: 'Excellent' },
-  good: { icon: 'thumbs-up', color: '#3B82F6', label: 'Good' },
-  okay: { icon: 'help-circle', color: '#F59E0B', label: 'Okay' },
-  concerning: { icon: 'warning', color: '#F97316', label: 'Needs Attention' },
-  alert: { icon: 'alert-circle', color: '#EF4444', label: 'Alert' },
-};
+type ChatMsg = { role: 'user' | 'ai'; text: string; loading?: boolean };
+
+const QUICK_CHIPS = [
+  { label: 'Am I overspending?', emoji: '👀' },
+  { label: 'How can I save more?', emoji: '💰' },
+  { label: 'Best SIP for me?', emoji: '📈' },
+  { label: 'Review my budget', emoji: '📊' },
+  { label: 'Waste detector', emoji: '🔥' },
+];
 
 export default function InsightsScreen() {
+  const { user } = useAuthStore();
+  const [tab, setTab] = useState<'coach' | 'insights'>('coach');
+  const [messages, setMessages] = useState<ChatMsg[]>([]);
+  const [input, setInput] = useState('');
+  const [chatLoading, setChatLoading] = useState(false);
+  const [waste, setWaste] = useState<any>(null);
+  const [statsCard, setStatsCard] = useState<any>(null);
   const [insights, setInsights] = useState<any>(null);
   const [stats, setStats] = useState<any>(null);
-  const [weekly, setWeekly] = useState<any>(null);
-  const [loading, setLoading] = useState(true);
-  const [refreshing, setRefreshing] = useState(false);
-  const { lang } = useLangStore();
+  const [dataLoading, setDataLoading] = useState(true);
+  const scrollRef = useRef<ScrollView>(null);
+  const flatRef = useRef<FlatList>(null);
 
-  const fetchData = async () => {
+  useEffect(() => {
+    loadData();
+    // Greeting message
+    setMessages([{
+      role: 'ai',
+      text: `Hey ${user?.name || 'there'}! 👋 I'm your AI money coach. Ask me anything about your finances — I know your numbers! Try the quick chips below 👇`,
+    }]);
+  }, []);
+
+  const loadData = async () => {
     try {
-      const statsRes = await api.get('/stats/overview');
-      setStats(statsRes.data);
-      setLoading(false);
-
-      const [insightsRes, weeklyRes] = await Promise.all([
-        api.get('/insights/daily'),
-        api.get('/insights/weekly'),
+      const [wasteRes, shareRes, statsRes] = await Promise.all([
+        api.get('/waste-detector'),
+        api.get('/share/stats-card'),
+        api.get('/stats/overview'),
       ]);
-      setInsights(insightsRes.data);
-      setWeekly(weeklyRes.data);
-    } catch (error) {
-      console.error('Insights fetch error:', error);
-    } finally {
-      setLoading(false);
-      setRefreshing(false);
+      setWaste(wasteRes.data);
+      setStatsCard(shareRes.data);
+      setStats(statsRes.data);
+    } catch (e) { console.error(e); }
+
+    try {
+      const insRes = await api.get('/insights/daily');
+      setInsights(insRes.data);
+    } catch (e) { console.error(e); }
+    finally { setDataLoading(false); }
+  };
+
+  const sendMessage = async (text: string) => {
+    if (!text.trim() || chatLoading) return;
+    const userMsg: ChatMsg = { role: 'user', text: text.trim() };
+    const loadingMsg: ChatMsg = { role: 'ai', text: '', loading: true };
+    setMessages(prev => [...prev, userMsg, loadingMsg]);
+    setInput('');
+    setChatLoading(true);
+
+    try {
+      const res = await api.post('/ai/chat', { message: text.trim() });
+      setMessages(prev => [
+        ...prev.slice(0, -1),
+        { role: 'ai', text: res.data.reply },
+      ]);
+    } catch {
+      setMessages(prev => [
+        ...prev.slice(0, -1),
+        { role: 'ai', text: "Oops, something went wrong. Try again? 🙏" },
+      ]);
+    } finally { setChatLoading(false); }
+  };
+
+  const shareStats = async (platform: 'whatsapp' | 'instagram' | 'general') => {
+    if (!statsCard) return;
+    const text = platform === 'whatsapp' ? statsCard.whatsapp_text : statsCard.instagram_caption;
+    if (platform === 'whatsapp') {
+      Linking.openURL(`whatsapp://send?text=${encodeURIComponent(text)}`).catch(() => Share.share({ message: text }));
+    } else {
+      Share.share({ message: text });
     }
   };
 
-  useEffect(() => { fetchData(); }, []);
-
-  const pieData = Object.entries(stats?.category_breakdown || {}).map(
-    ([cat, amount]: [string, any]) => ({
-      value: amount,
-      color: CATEGORIES[cat]?.color || '#64748B',
-      text: cat,
-    })
+  const renderChatMsg = ({ item }: { item: ChatMsg }) => (
+    <View style={[s.msgRow, item.role === 'user' ? s.msgUser : s.msgAi]}>
+      {item.role === 'ai' && (
+        <View style={s.aiAvatar}><Ionicons name="sparkles" size={14} color={COLORS.accent.primary} /></View>
+      )}
+      <View style={[s.msgBubble, item.role === 'user' ? s.bubbleUser : s.bubbleAi]}>
+        {item.loading ? (
+          <ActivityIndicator size="small" color={COLORS.accent.primary} />
+        ) : (
+          <Text style={[s.msgText, item.role === 'user' ? s.textUser : s.textAi]}>{item.text}</Text>
+        )}
+      </View>
+    </View>
   );
-  const totalSpent = pieData.reduce((sum, d) => sum + d.value, 0);
 
-  const moneyScore = insights?.money_score || 50;
-  const scoreColor = moneyScore >= 75 ? COLORS.accent.moneyIn : moneyScore >= 50 ? COLORS.accent.warning : COLORS.accent.moneyOut;
-  const mood = MOOD_CONFIG[insights?.mood || 'good'];
-  const alerts = insights?.alerts || [];
-  const trends = insights?.trends || {};
-
-  if (loading) {
-    return (
-      <SafeAreaView style={styles.container}>
-        <ActivityIndicator size="large" color={COLORS.accent.primary} style={{ marginTop: 100 }} />
-      </SafeAreaView>
-    );
-  }
-
-  return (
-    <SafeAreaView style={styles.container}>
-      <ScrollView
-        testID="insights-screen"
-        contentContainerStyle={styles.scrollContent}
-        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); fetchData(); }} tintColor={COLORS.accent.primary} />}
-      >
-        <Text style={styles.pageTitle}>{t('insights', lang)}</Text>
-        <Text style={styles.pageSubtitle}>{t('ai_analysis', lang)}</Text>
-
-        {/* Money Score + Mood */}
-        <View style={styles.scoreCard}>
-          <View style={styles.scoreRow}>
-            <View style={[styles.scoreCircle, { borderColor: scoreColor }]}>
-              <Text style={[styles.scoreValue, { color: scoreColor }]}>{moneyScore}</Text>
-            </View>
-            <View style={styles.scoreInfo}>
-              <Text style={styles.scoreLabel}>Money Score</Text>
-              <Text style={[styles.scoreGrade, { color: scoreColor }]}>
-                {moneyScore >= 75 ? 'Excellent' : moneyScore >= 50 ? 'Good' : 'Needs Attention'}
-              </Text>
-              <View style={styles.scoreMiniBar}>
-                <View style={[styles.scoreMiniBarFill, { width: `${moneyScore}%`, backgroundColor: scoreColor }]} />
+  // Tab: Coach
+  const renderCoach = () => (
+    <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={{ flex: 1 }} keyboardVerticalOffset={100}>
+      <FlatList
+        ref={flatRef}
+        data={messages}
+        keyExtractor={(_, i) => String(i)}
+        renderItem={renderChatMsg}
+        contentContainerStyle={s.chatList}
+        onContentSizeChange={() => flatRef.current?.scrollToEnd({ animated: true })}
+        ListHeaderComponent={
+          <>
+            {/* Shareable Stats Card */}
+            {statsCard && (
+              <View style={s.shareCard}>
+                <Text style={s.shareHeadline}>{statsCard.card_data?.headline}</Text>
+                <Text style={s.shareSub}>{statsCard.card_data?.subtitle}</Text>
+                <View style={s.shareStatsRow}>
+                  {statsCard.card_data?.stats?.map((st: any, i: number) => (
+                    <View key={i} style={s.shareStat}>
+                      <Text style={[s.shareStatVal, { color: st.color === 'green' ? COLORS.accent.moneyIn : st.color === 'red' ? COLORS.accent.moneyOut : COLORS.accent.primary }]}>{st.value}</Text>
+                      <Text style={s.shareStatLbl}>{st.label}</Text>
+                    </View>
+                  ))}
+                </View>
+                {statsCard.card_data?.badge && <Text style={s.shareBadge}>{statsCard.card_data.badge}</Text>}
+                <View style={s.shareActions}>
+                  <TouchableOpacity style={s.waBtn} onPress={() => shareStats('whatsapp')}>
+                    <Ionicons name="logo-whatsapp" size={16} color="#fff" />
+                    <Text style={s.waBtnText}>Share</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity style={s.igBtn} onPress={() => shareStats('general')}>
+                    <Ionicons name="share-social" size={16} color={COLORS.accent.primary} />
+                    <Text style={s.igBtnText}>Share</Text>
+                  </TouchableOpacity>
+                </View>
               </View>
+            )}
+
+            {/* Waste Detector */}
+            {waste && waste.category_waste?.length > 0 && (
+              <View style={s.wasteCard}>
+                <View style={s.wasteBadge}><Ionicons name="flame" size={14} color="#EF4444" /><Text style={s.wasteBadgeText}>WASTE DETECTOR</Text></View>
+                {waste.category_waste.slice(0, 2).map((w: any, i: number) => (
+                  <View key={i} style={s.wasteItem}>
+                    <Text style={s.wasteShock}>{w.shock_text}</Text>
+                    {w.equivalences?.map((eq: any, j: number) => (
+                      <Text key={j} style={s.wasteEq}>{eq.emoji} That's {eq.text}</Text>
+                    ))}
+                  </View>
+                ))}
+                {waste.comparison && <Text style={s.wasteCompare}>{waste.comparison.text}</Text>}
+                <TouchableOpacity style={s.wasteShareBtn} onPress={() => Share.share({ message: waste.shareable_text })}>
+                  <Ionicons name="share-social" size={14} color={COLORS.accent.primary} />
+                  <Text style={s.wasteShareText}>Share this reality check</Text>
+                </TouchableOpacity>
+              </View>
+            )}
+          </>
+        }
+      />
+
+      {/* Quick chips */}
+      <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={s.chipsRow}>
+        {QUICK_CHIPS.map((chip, i) => (
+          <TouchableOpacity key={i} style={s.chip} onPress={() => sendMessage(chip.label)} disabled={chatLoading}>
+            <Text style={s.chipEmoji}>{chip.emoji}</Text>
+            <Text style={s.chipText}>{chip.label}</Text>
+          </TouchableOpacity>
+        ))}
+      </ScrollView>
+
+      {/* Input */}
+      <View style={s.inputRow}>
+        <TextInput
+          style={s.chatInput}
+          value={input}
+          onChangeText={setInput}
+          placeholder="Ask your AI coach..."
+          placeholderTextColor={COLORS.text.muted}
+          onSubmitEditing={() => sendMessage(input)}
+          returnKeyType="send"
+          editable={!chatLoading}
+        />
+        <TouchableOpacity style={[s.sendBtn, (!input.trim() || chatLoading) && s.sendDisabled]} onPress={() => sendMessage(input)} disabled={!input.trim() || chatLoading}>
+          <Ionicons name="send" size={18} color="#fff" />
+        </TouchableOpacity>
+      </View>
+    </KeyboardAvoidingView>
+  );
+
+  // Tab: Insights (existing)
+  const renderInsights = () => {
+    const pieData = Object.entries(stats?.category_breakdown || {}).map(
+      ([cat, amount]: [string, any]) => ({
+        value: amount, color: CATEGORIES[cat]?.color || '#64748B', text: cat,
+      })
+    );
+    const totalSpent = pieData.reduce((sum, d) => sum + d.value, 0);
+    const moneyScore = insights?.money_score || user?.money_score || 50;
+    const scoreColor = moneyScore >= 75 ? COLORS.accent.moneyIn : moneyScore >= 50 ? COLORS.accent.warning : COLORS.accent.moneyOut;
+
+    return (
+      <ScrollView contentContainerStyle={s.insightsScroll}>
+        {/* Score */}
+        <View style={s.scoreCard}>
+          <View style={s.scoreRow}>
+            <View style={[s.scoreCircle, { borderColor: scoreColor }]}>
+              <Text style={[s.scoreVal, { color: scoreColor }]}>{moneyScore}</Text>
             </View>
-          </View>
-          {mood && (
-            <View style={[styles.moodBadge, { backgroundColor: mood.color + '15' }]}>
-              <Ionicons name={mood.icon as any} size={16} color={mood.color} />
-              <Text style={[styles.moodText, { color: mood.color }]}>Financial Mood: {mood.label}</Text>
-            </View>
-          )}
-          <View style={styles.scoreFactors}>
-            <View style={styles.factor}>
-              <Ionicons name="trending-down" size={14} color={COLORS.accent.moneyOut} />
-              <Text style={styles.factorText}>Spending</Text>
-            </View>
-            <View style={styles.factor}>
-              <Ionicons name="shield-checkmark" size={14} color={COLORS.accent.primary} />
-              <Text style={styles.factorText}>Budgets</Text>
-            </View>
-            <View style={styles.factor}>
-              <Ionicons name="pulse" size={14} color={COLORS.accent.secondary} />
-              <Text style={styles.factorText}>Consistency</Text>
+            <View style={{ flex: 1 }}>
+              <Text style={s.scoreLbl}>Money Score</Text>
+              <Text style={[s.scoreGrade, { color: scoreColor }]}>
+                {moneyScore >= 75 ? 'Excellent' : moneyScore >= 50 ? 'Good' : 'Needs Work'}
+              </Text>
             </View>
           </View>
         </View>
 
-        {/* Alerts */}
-        {alerts.length > 0 && (
-          <View style={styles.alertsSection}>
-            {alerts.slice(0, 3).map((alert: any, i: number) => {
-              const alertColor = alert.severity === 'high' ? '#EF4444' : alert.severity === 'medium' ? '#F59E0B' : '#3B82F6';
-              return (
-                <View key={i} style={[styles.alertCard, { borderLeftColor: alertColor }]}>
-                  <Ionicons
-                    name={alert.type === 'anomaly' ? 'help-circle' : alert.type === 'budget_breach' ? 'alert-circle' : 'trending-up'}
-                    size={18} color={alertColor}
-                  />
-                  <Text style={styles.alertText}>{alert.message}</Text>
-                </View>
-              );
-            })}
-          </View>
-        )}
-
         {/* AI Insight */}
         {insights?.insight_text && (
-          <View style={styles.aiCard}>
-            <View style={styles.aiBadge}>
-              <Ionicons name="sparkles" size={14} color={COLORS.accent.warning} />
-              <Text style={styles.aiBadgeText}>AI INSIGHT</Text>
-            </View>
-            <Text style={styles.aiText}>{insights.insight_text}</Text>
+          <View style={s.aiCard}>
+            <View style={s.aiBadgeRow}><Ionicons name="sparkles" size={14} color={COLORS.accent.warning} /><Text style={s.aiBadgeLabel}>AI INSIGHT</Text></View>
+            <Text style={s.aiText}>{insights.insight_text}</Text>
           </View>
         )}
 
-        {/* Weekly Summary */}
-        {insights?.weekly_summary ? (
-          <View style={styles.card}>
-            <View style={styles.cardHeaderRow}>
-              <Ionicons name="calendar" size={18} color={COLORS.accent.secondary} />
-              <Text style={styles.cardTitle}>{t('weekly_summary', lang)}</Text>
-            </View>
-            <Text style={styles.summaryText}>{insights.weekly_summary}</Text>
-            {trends.week_change_pct !== undefined && trends.week_change_pct !== 0 && (
-              <View style={[styles.trendPill, { backgroundColor: trends.week_change_pct > 0 ? COLORS.accent.moneyOut + '15' : COLORS.accent.moneyIn + '15' }]}>
-                <Ionicons
-                  name={trends.week_change_pct > 0 ? 'arrow-up' : 'arrow-down'}
-                  size={14}
-                  color={trends.week_change_pct > 0 ? COLORS.accent.moneyOut : COLORS.accent.moneyIn}
-                />
-                <Text style={[styles.trendText, { color: trends.week_change_pct > 0 ? COLORS.accent.moneyOut : COLORS.accent.moneyIn }]}>
-                  {Math.abs(trends.week_change_pct).toFixed(0)}% vs last week
-                </Text>
-              </View>
-            )}
-          </View>
-        ) : null}
-
-        {/* Expense Breakdown Donut */}
+        {/* Pie Chart */}
         {pieData.length > 0 && (
-          <View style={styles.card}>
-            <Text style={styles.cardTitle}>{t('expense_breakdown', lang)}</Text>
-            <Text style={styles.cardSubtitle}>{t('last_30_days', lang)}</Text>
-            <View style={styles.pieWrap}>
-              <PieChart
-                data={pieData}
-                donut
-                radius={90}
-                innerRadius={60}
-                innerCircleColor={COLORS.bg.card}
+          <View style={s.card}>
+            <Text style={s.cardTitle}>Expense Breakdown</Text>
+            <View style={{ alignItems: 'center', marginVertical: SPACING.lg }}>
+              <PieChart data={pieData} donut radius={85} innerRadius={55} innerCircleColor={COLORS.bg.card}
                 centerLabelComponent={() => (
-                  <View style={styles.pieCenter}>
-                    <Text style={styles.pieCenterAmount}>{'\u20B9'}{totalSpent.toFixed(0)}</Text>
-                    <Text style={styles.pieCenterLabel}>Total</Text>
+                  <View style={{ alignItems: 'center' }}>
+                    <Text style={{ fontSize: 18, fontWeight: '800', color: COLORS.text.primary }}>{'\u20B9'}{totalSpent.toFixed(0)}</Text>
+                    <Text style={{ fontSize: 11, color: COLORS.text.muted }}>Total</Text>
                   </View>
                 )}
               />
             </View>
-            <View style={styles.legend}>
-              {pieData.map((item, i) => (
-                <View key={i} style={styles.legendItem}>
-                  <View style={[styles.legendDot, { backgroundColor: item.color }]} />
-                  <Text style={styles.legendText}>{item.text}</Text>
-                  <Text style={styles.legendAmount}>{'\u20B9'}{item.value.toFixed(0)}</Text>
-                </View>
-              ))}
-            </View>
-          </View>
-        )}
-
-        {/* Savings Tip */}
-        {insights?.savings_tip ? (
-          <View style={[styles.card, { borderColor: COLORS.accent.primary + '30' }]}>
-            <View style={styles.cardHeaderRow}>
-              <Ionicons name="cash" size={18} color={COLORS.accent.primary} />
-              <Text style={[styles.cardTitle, { color: COLORS.accent.primary }]}>{t('savings_tip', lang)}</Text>
-            </View>
-            <Text style={styles.savingsText}>{insights.savings_tip}</Text>
-          </View>
-        ) : null}
-
-        {/* Recommendations */}
-        {insights?.recommendations?.length > 0 && (
-          <View style={styles.card}>
-            <Text style={styles.cardTitle}>{t('recommendations', lang)}</Text>
-            {insights.recommendations.map((rec: string, i: number) => (
-              <View key={i} style={styles.recItem}>
-                <View style={[styles.recNum, { backgroundColor: [COLORS.accent.primary, COLORS.accent.secondary, COLORS.accent.tertiary][i % 3] + '20' }]}>
-                  <Text style={[styles.recNumText, { color: [COLORS.accent.primary, COLORS.accent.secondary, COLORS.accent.tertiary][i % 3] }]}>{i + 1}</Text>
-                </View>
-                <Text style={styles.recText}>{rec}</Text>
+            {pieData.map((item, i) => (
+              <View key={i} style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 8 }}>
+                <View style={{ width: 10, height: 10, borderRadius: 5, backgroundColor: item.color, marginRight: 10 }} />
+                <Text style={{ flex: 1, fontSize: 14, color: COLORS.text.secondary }}>{item.text}</Text>
+                <Text style={{ fontSize: 14, fontWeight: '600', color: COLORS.text.primary }}>{'\u20B9'}{item.value.toFixed(0)}</Text>
               </View>
             ))}
           </View>
         )}
 
-        {/* Category Trends */}
-        {trends.category_trends && Object.keys(trends.category_trends).length > 0 && (
-          <View style={styles.card}>
-            <Text style={styles.cardTitle}>{t('category_trends', lang)}</Text>
-            <Text style={styles.cardSubtitle}>{t('this_vs_last', lang)}</Text>
-            {Object.entries(trends.category_trends).map(([cat, data]: [string, any], i: number) => {
-              const catInfo = CATEGORIES[cat] || CATEGORIES.Other;
-              const isUp = data.change_pct > 10;
-              const isDown = data.change_pct < -10;
-              return (
-                <View key={i} style={styles.trendRow}>
-                  <View style={[styles.trendIcon, { backgroundColor: catInfo.color + '18' }]}>
-                    <Ionicons name={catInfo.icon as any} size={16} color={catInfo.color} />
-                  </View>
-                  <Text style={styles.trendCat}>{cat}</Text>
-                  <Text style={styles.trendAmount}>{'\u20B9'}{data.this_week.toFixed(0)}</Text>
-                  {data.change_pct !== 0 && (
-                    <View style={[styles.trendBadge, { backgroundColor: isUp ? COLORS.accent.moneyOut + '15' : isDown ? COLORS.accent.moneyIn + '15' : COLORS.bg.primary }]}>
-                      <Ionicons
-                        name={isUp ? 'arrow-up' : isDown ? 'arrow-down' : 'remove'}
-                        size={12}
-                        color={isUp ? COLORS.accent.moneyOut : isDown ? COLORS.accent.moneyIn : COLORS.text.muted}
-                      />
-                      <Text style={[styles.trendBadgeText, { color: isUp ? COLORS.accent.moneyOut : isDown ? COLORS.accent.moneyIn : COLORS.text.muted }]}>
-                        {Math.abs(data.change_pct).toFixed(0)}%
-                      </Text>
-                    </View>
-                  )}
+        {/* Recommendations */}
+        {insights?.recommendations?.length > 0 && (
+          <View style={s.card}>
+            <Text style={s.cardTitle}>Smart Tips</Text>
+            {insights.recommendations.map((rec: string, i: number) => (
+              <View key={i} style={{ flexDirection: 'row', marginTop: 12 }}>
+                <View style={{ width: 24, height: 24, borderRadius: 12, backgroundColor: COLORS.accent.primary + '15', justifyContent: 'center', alignItems: 'center', marginRight: 12 }}>
+                  <Text style={{ fontSize: 12, fontWeight: '700', color: COLORS.accent.primary }}>{i+1}</Text>
                 </View>
-              );
-            })}
+                <Text style={{ flex: 1, fontSize: 14, color: COLORS.text.secondary, lineHeight: 21 }}>{rec}</Text>
+              </View>
+            ))}
           </View>
         )}
-
         <View style={{ height: 24 }} />
       </ScrollView>
+    );
+  };
+
+  return (
+    <SafeAreaView style={s.container}>
+      {/* Tab Switcher */}
+      <View style={s.tabBar}>
+        <TouchableOpacity style={[s.tabBtn, tab === 'coach' && s.tabActive]} onPress={() => setTab('coach')}>
+          <Ionicons name="chatbubbles" size={16} color={tab === 'coach' ? COLORS.accent.primary : COLORS.text.muted} />
+          <Text style={[s.tabText, tab === 'coach' && s.tabTextActive]}>AI Coach</Text>
+        </TouchableOpacity>
+        <TouchableOpacity style={[s.tabBtn, tab === 'insights' && s.tabActive]} onPress={() => setTab('insights')}>
+          <Ionicons name="analytics" size={16} color={tab === 'insights' ? COLORS.accent.primary : COLORS.text.muted} />
+          <Text style={[s.tabText, tab === 'insights' && s.tabTextActive]}>Insights</Text>
+        </TouchableOpacity>
+      </View>
+
+      {tab === 'coach' ? renderCoach() : (dataLoading ? <ActivityIndicator size="large" color={COLORS.accent.primary} style={{ marginTop: 60 }} /> : renderInsights())}
     </SafeAreaView>
   );
 }
 
-const styles = StyleSheet.create({
+const s = StyleSheet.create({
   container: { flex: 1, backgroundColor: COLORS.bg.primary },
-  scrollContent: { padding: SPACING.lg },
-  pageTitle: { fontSize: 28, fontWeight: '800', color: COLORS.text.primary, letterSpacing: -0.5 },
-  pageSubtitle: { fontSize: 14, color: COLORS.text.muted, marginBottom: SPACING.xxl },
-  // Score
+  // Tabs
+  tabBar: { flexDirection: 'row', paddingHorizontal: SPACING.lg, paddingTop: SPACING.sm, gap: 8 },
+  tabBtn: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, paddingVertical: 12, borderRadius: RADIUS.full, backgroundColor: COLORS.bg.secondary },
+  tabActive: { backgroundColor: COLORS.accent.primary + '12', borderWidth: 1, borderColor: COLORS.accent.primary + '30' },
+  tabText: { fontSize: 14, fontWeight: '600', color: COLORS.text.muted },
+  tabTextActive: { color: COLORS.accent.primary },
+  // Chat
+  chatList: { padding: SPACING.lg, paddingBottom: 8 },
+  msgRow: { flexDirection: 'row', marginBottom: 12, maxWidth: '85%' },
+  msgUser: { alignSelf: 'flex-end', flexDirection: 'row-reverse' },
+  msgAi: { alignSelf: 'flex-start' },
+  aiAvatar: { width: 28, height: 28, borderRadius: 14, backgroundColor: COLORS.accent.primary + '15', justifyContent: 'center', alignItems: 'center', marginRight: 8, marginTop: 4 },
+  msgBubble: { borderRadius: 18, paddingHorizontal: 16, paddingVertical: 12, maxWidth: '100%' },
+  bubbleUser: { backgroundColor: COLORS.accent.primary, borderBottomRightRadius: 4 },
+  bubbleAi: { backgroundColor: COLORS.bg.card, borderBottomLeftRadius: 4, borderWidth: 1, borderColor: COLORS.border.card },
+  msgText: { fontSize: 15, lineHeight: 22 },
+  textUser: { color: '#fff' },
+  textAi: { color: COLORS.text.primary },
+  // Chips
+  chipsRow: { paddingHorizontal: SPACING.lg, paddingVertical: 8, gap: 8 },
+  chip: { flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: COLORS.bg.secondary, paddingHorizontal: 14, paddingVertical: 10, borderRadius: RADIUS.full, borderWidth: 1, borderColor: COLORS.border.subtle },
+  chipEmoji: { fontSize: 14 },
+  chipText: { fontSize: 13, fontWeight: '500', color: COLORS.text.secondary },
+  // Input
+  inputRow: { flexDirection: 'row', paddingHorizontal: SPACING.lg, paddingVertical: SPACING.sm, gap: 8, borderTopWidth: 1, borderTopColor: COLORS.border.subtle, backgroundColor: COLORS.bg.primary },
+  chatInput: { flex: 1, backgroundColor: COLORS.bg.secondary, borderRadius: RADIUS.full, paddingHorizontal: 18, paddingVertical: 12, fontSize: 15, color: COLORS.text.primary, borderWidth: 1, borderColor: COLORS.border.subtle },
+  sendBtn: { width: 44, height: 44, borderRadius: 22, backgroundColor: COLORS.accent.primary, justifyContent: 'center', alignItems: 'center' },
+  sendDisabled: { opacity: 0.4 },
+  // Shareable card
+  shareCard: { backgroundColor: COLORS.bg.card, borderRadius: RADIUS.card, padding: SPACING.xl, marginBottom: SPACING.lg, borderWidth: 1, borderColor: COLORS.accent.primary + '20' },
+  shareHeadline: { fontSize: 20, fontWeight: '800', color: COLORS.text.primary, marginBottom: 4 },
+  shareSub: { fontSize: 14, color: COLORS.text.muted, marginBottom: SPACING.lg },
+  shareStatsRow: { flexDirection: 'row', justifyContent: 'space-around', marginBottom: SPACING.lg },
+  shareStat: { alignItems: 'center' },
+  shareStatVal: { fontSize: 18, fontWeight: '800' },
+  shareStatLbl: { fontSize: 11, color: COLORS.text.muted, marginTop: 4 },
+  shareBadge: { textAlign: 'center', fontSize: 14, fontWeight: '600', color: COLORS.accent.primary, marginBottom: SPACING.md },
+  shareActions: { flexDirection: 'row', justifyContent: 'center', gap: 12 },
+  waBtn: { flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: '#25D366', paddingHorizontal: 20, paddingVertical: 10, borderRadius: RADIUS.full },
+  waBtnText: { fontSize: 14, fontWeight: '600', color: '#fff' },
+  igBtn: { flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: COLORS.accent.primary + '12', paddingHorizontal: 20, paddingVertical: 10, borderRadius: RADIUS.full },
+  igBtnText: { fontSize: 14, fontWeight: '600', color: COLORS.accent.primary },
+  // Waste
+  wasteCard: { backgroundColor: '#FEF2F2', borderRadius: RADIUS.card, padding: SPACING.xl, marginBottom: SPACING.lg, borderWidth: 1, borderColor: '#FECACA' },
+  wasteBadge: { flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: SPACING.md },
+  wasteBadgeText: { fontSize: 11, fontWeight: '700', color: '#EF4444', letterSpacing: 0.8 },
+  wasteItem: { marginBottom: SPACING.md },
+  wasteShock: { fontSize: 16, fontWeight: '700', color: '#1F2937', marginBottom: 6 },
+  wasteEq: { fontSize: 14, color: '#6B7280', lineHeight: 22, marginLeft: 4 },
+  wasteCompare: { fontSize: 13, fontWeight: '600', color: '#6B7280', marginTop: 8 },
+  wasteShareBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, marginTop: SPACING.md, paddingVertical: 10, borderRadius: RADIUS.full, backgroundColor: '#fff' },
+  wasteShareText: { fontSize: 13, fontWeight: '600', color: COLORS.accent.primary },
+  // Insights tab
+  insightsScroll: { padding: SPACING.lg },
   scoreCard: { backgroundColor: COLORS.bg.card, borderRadius: RADIUS.card, padding: SPACING.xl, marginBottom: SPACING.lg, borderWidth: 1, borderColor: COLORS.border.card },
-  scoreRow: { flexDirection: 'row', alignItems: 'center', marginBottom: SPACING.md },
-  scoreCircle: { width: 76, height: 76, borderRadius: 38, borderWidth: 4, justifyContent: 'center', alignItems: 'center', marginRight: SPACING.lg },
-  scoreValue: { fontSize: 30, fontWeight: '800' },
-  scoreInfo: { flex: 1 },
-  scoreLabel: { fontSize: 13, color: COLORS.text.muted, marginBottom: 4 },
-  scoreGrade: { fontSize: 18, fontWeight: '700', marginBottom: 8 },
-  scoreMiniBar: { height: 4, backgroundColor: COLORS.bg.primary, borderRadius: 2, overflow: 'hidden' },
-  scoreMiniBarFill: { height: '100%', borderRadius: 2 },
-  moodBadge: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingHorizontal: 14, paddingVertical: 8, borderRadius: RADIUS.full, alignSelf: 'flex-start', marginBottom: SPACING.md },
-  moodText: { fontSize: 13, fontWeight: '600' },
-  scoreFactors: { flexDirection: 'row', justifyContent: 'space-between', marginTop: 4 },
-  factor: { flexDirection: 'row', alignItems: 'center', gap: 5 },
-  factorText: { fontSize: 12, color: COLORS.text.muted },
-  // Alerts
-  alertsSection: { marginBottom: SPACING.lg, gap: 8 },
-  alertCard: { flexDirection: 'row', alignItems: 'flex-start', gap: 10, backgroundColor: COLORS.bg.card, borderRadius: RADIUS.lg, padding: SPACING.md, borderLeftWidth: 3, borderWidth: 1, borderColor: COLORS.border.card },
-  alertText: { flex: 1, fontSize: 13, color: COLORS.text.secondary, lineHeight: 19 },
-  // AI card
+  scoreRow: { flexDirection: 'row', alignItems: 'center' },
+  scoreCircle: { width: 68, height: 68, borderRadius: 34, borderWidth: 4, justifyContent: 'center', alignItems: 'center', marginRight: SPACING.lg },
+  scoreVal: { fontSize: 26, fontWeight: '800' },
+  scoreLbl: { fontSize: 12, color: COLORS.text.muted, marginBottom: 4 },
+  scoreGrade: { fontSize: 16, fontWeight: '700' },
   aiCard: { backgroundColor: COLORS.bg.card, borderRadius: RADIUS.card, padding: SPACING.xl, marginBottom: SPACING.lg, borderWidth: 1, borderColor: COLORS.accent.warning + '20' },
-  aiBadge: { flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: COLORS.accent.warning + '15', paddingHorizontal: 12, paddingVertical: 6, borderRadius: RADIUS.full, alignSelf: 'flex-start', marginBottom: SPACING.md },
-  aiBadgeText: { fontSize: 11, fontWeight: '700', color: COLORS.accent.warning, letterSpacing: 0.8 },
+  aiBadgeRow: { flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: SPACING.md },
+  aiBadgeLabel: { fontSize: 11, fontWeight: '700', color: COLORS.accent.warning, letterSpacing: 0.8 },
   aiText: { fontSize: 15, color: COLORS.text.secondary, lineHeight: 23 },
-  // Card
   card: { backgroundColor: COLORS.bg.card, borderRadius: RADIUS.card, padding: SPACING.xl, marginBottom: SPACING.lg, borderWidth: 1, borderColor: COLORS.border.card },
-  cardHeaderRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: SPACING.md },
-  cardTitle: { fontSize: 17, fontWeight: '700', color: COLORS.text.primary },
-  cardSubtitle: { fontSize: 13, color: COLORS.text.muted, marginBottom: SPACING.lg },
-  summaryText: { fontSize: 14, color: COLORS.text.secondary, lineHeight: 22 },
-  trendPill: { flexDirection: 'row', alignItems: 'center', gap: 6, alignSelf: 'flex-start', paddingHorizontal: 12, paddingVertical: 6, borderRadius: RADIUS.full, marginTop: SPACING.md },
-  trendText: { fontSize: 13, fontWeight: '600' },
-  // Savings
-  savingsText: { fontSize: 14, color: COLORS.text.secondary, lineHeight: 22 },
-  // Pie
-  pieWrap: { alignItems: 'center', marginBottom: SPACING.lg },
-  pieCenter: { alignItems: 'center' },
-  pieCenterAmount: { fontSize: 20, fontWeight: '800', color: COLORS.text.primary },
-  pieCenterLabel: { fontSize: 12, color: COLORS.text.muted },
-  legend: { gap: 10 },
-  legendItem: { flexDirection: 'row', alignItems: 'center' },
-  legendDot: { width: 10, height: 10, borderRadius: 5, marginRight: 10 },
-  legendText: { flex: 1, fontSize: 14, color: COLORS.text.secondary },
-  legendAmount: { fontSize: 14, fontWeight: '600', color: COLORS.text.primary },
-  // Recommendations
-  recItem: { flexDirection: 'row', alignItems: 'flex-start', marginTop: SPACING.md },
-  recNum: { width: 28, height: 28, borderRadius: 14, justifyContent: 'center', alignItems: 'center', marginRight: SPACING.md },
-  recNumText: { fontSize: 13, fontWeight: '700' },
-  recText: { flex: 1, fontSize: 14, color: COLORS.text.secondary, lineHeight: 21 },
-  // Category Trends
-  trendRow: { flexDirection: 'row', alignItems: 'center', paddingVertical: SPACING.sm, borderBottomWidth: 1, borderBottomColor: COLORS.border.subtle },
-  trendIcon: { width: 32, height: 32, borderRadius: 10, justifyContent: 'center', alignItems: 'center', marginRight: SPACING.md },
-  trendCat: { flex: 1, fontSize: 14, fontWeight: '500', color: COLORS.text.primary },
-  trendAmount: { fontSize: 14, fontWeight: '600', color: COLORS.text.primary, marginRight: SPACING.sm },
-  trendBadge: { flexDirection: 'row', alignItems: 'center', gap: 3, paddingHorizontal: 8, paddingVertical: 3, borderRadius: RADIUS.full },
-  trendBadgeText: { fontSize: 12, fontWeight: '600' },
+  cardTitle: { fontSize: 17, fontWeight: '700', color: COLORS.text.primary, marginBottom: 4 },
 });

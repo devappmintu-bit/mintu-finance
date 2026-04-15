@@ -19,22 +19,28 @@ export default function HomeScreen() {
   const [stats, setStats] = useState<any>(null);
   const [recentTxns, setRecentTxns] = useState<any[]>([]);
   const [dailyLesson, setDailyLesson] = useState<any>(null);
+  const [smartAlerts, setSmartAlerts] = useState<any[]>([]);
+  const [weeklyReport, setWeeklyReport] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
 
   const fetchData = useCallback(async () => {
     try {
       // Load fast endpoints first to unblock the UI
-      const [profileRes, statsRes, txnRes, lessonRes] = await Promise.all([
+      const [profileRes, statsRes, txnRes, lessonRes, alertsRes, reportRes] = await Promise.all([
         api.get('/user/me'),
         api.get('/stats/overview'),
         api.get('/transactions?limit=5'),
         api.get('/money-school/daily'),
+        api.get('/alerts/smart'),
+        api.get('/reports/weekly'),
       ]);
       setUser(profileRes.data);
       setStats(statsRes.data);
       setRecentTxns(Array.isArray(txnRes.data) ? txnRes.data.slice(0, 4) : []);
       setDailyLesson(lessonRes.data);
+      setSmartAlerts(alertsRes.data?.alerts || []);
+      setWeeklyReport(reportRes.data);
     } catch (error) {
       console.error('Dashboard fetch error:', error);
     } finally {
@@ -145,7 +151,56 @@ export default function HomeScreen() {
           </View>
         )}
 
-        {/* Spending Chart */}
+        {/* Smart Alerts */}
+        {smartAlerts.length > 0 && (
+          <View style={styles.alertsSection}>
+            {smartAlerts.slice(0, 3).map((alert: any, i: number) => {
+              const bgColors: Record<string, string> = { danger: '#FEF2F2', warning: '#FFFBEB', success: '#F0FDF4', info: '#EFF6FF' };
+              const borderColors: Record<string, string> = { danger: '#FECACA', warning: '#FDE68A', success: '#BBF7D0', info: '#BFDBFE' };
+              const textColors: Record<string, string> = { danger: '#991B1B', warning: '#92400E', success: '#166534', info: '#1E40AF' };
+              return (
+                <View key={i} style={[styles.alertCard, { backgroundColor: bgColors[alert.severity] || '#F9FAFB', borderColor: borderColors[alert.severity] || '#E5E7EB' }]}>
+                  <Text style={styles.alertEmoji}>{alert.emoji}</Text>
+                  <View style={styles.alertBody}>
+                    <Text style={[styles.alertTitle, { color: textColors[alert.severity] || COLORS.text.primary }]}>{alert.title}</Text>
+                    <Text style={styles.alertMsg}>{alert.message}</Text>
+                  </View>
+                </View>
+              );
+            })}
+          </View>
+        )}
+
+        {/* Weekly Report Card */}
+        {weeklyReport && weeklyReport.total_spent > 0 && (
+          <View style={styles.weeklyCard}>
+            <View style={styles.weeklyHeader}>
+              <Ionicons name="calendar" size={16} color={COLORS.accent.secondary} />
+              <Text style={styles.weeklyLabel}>WEEKLY REPORT</Text>
+              <Text style={styles.weeklyPeriod}>{weeklyReport.period}</Text>
+            </View>
+            <Text style={styles.weeklyHeadline}>{weeklyReport.headline}</Text>
+            <View style={styles.weeklyStatsRow}>
+              <View style={styles.weeklyStat}>
+                <Text style={[styles.weeklyStatVal, { color: COLORS.accent.moneyOut }]}>{'\u20B9'}{weeklyReport.total_spent?.toFixed(0)}</Text>
+                <Text style={styles.weeklyStatLbl}>This Week</Text>
+              </View>
+              {weeklyReport.last_week_spent > 0 && (
+                <View style={styles.weeklyStat}>
+                  <Text style={[styles.weeklyStatVal, { color: COLORS.text.muted }]}>{'\u20B9'}{weeklyReport.last_week_spent?.toFixed(0)}</Text>
+                  <Text style={styles.weeklyStatLbl}>Last Week</Text>
+                </View>
+              )}
+              {weeklyReport.change_pct !== 0 && (
+                <View style={[styles.weeklyChangePill, { backgroundColor: weeklyReport.change_pct > 0 ? COLORS.accent.moneyOut + '15' : COLORS.accent.moneyIn + '15' }]}>
+                  <Ionicons name={weeklyReport.change_pct > 0 ? 'arrow-up' : 'arrow-down'} size={12} color={weeklyReport.change_pct > 0 ? COLORS.accent.moneyOut : COLORS.accent.moneyIn} />
+                  <Text style={{ fontSize: 12, fontWeight: '700', color: weeklyReport.change_pct > 0 ? COLORS.accent.moneyOut : COLORS.accent.moneyIn }}>{Math.abs(weeklyReport.change_pct).toFixed(0)}%</Text>
+                </View>
+              )}
+            </View>
+            <Text style={styles.weeklySuggestion}>{weeklyReport.savings_suggestion}</Text>
+          </View>
+        )}
         {/* Money School Card */}
         {dailyLesson && (
           <View testID="money-school-card" style={styles.schoolCard}>
@@ -311,4 +366,23 @@ const styles = StyleSheet.create({
   schoolTipText: { flex: 1, fontSize: 13, color: COLORS.accent.primaryLight, lineHeight: 19 },
   schoolCatPill: { backgroundColor: '#8B5CF6' + '15', paddingHorizontal: 12, paddingVertical: 4, borderRadius: RADIUS.full, alignSelf: 'flex-start' },
   schoolCatText: { fontSize: 11, fontWeight: '600', color: '#8B5CF6' },
+  // Smart Alerts
+  alertsSection: { marginBottom: SPACING.lg, gap: 8 },
+  alertCard: { flexDirection: 'row', alignItems: 'flex-start', borderRadius: RADIUS.lg, padding: SPACING.md, borderWidth: 1, gap: 10 },
+  alertEmoji: { fontSize: 20, marginTop: 2 },
+  alertBody: { flex: 1 },
+  alertTitle: { fontSize: 14, fontWeight: '700', marginBottom: 2 },
+  alertMsg: { fontSize: 13, color: COLORS.text.secondary, lineHeight: 19 },
+  // Weekly Report
+  weeklyCard: { backgroundColor: COLORS.bg.card, borderRadius: RADIUS.card, padding: SPACING.xl, marginBottom: SPACING.lg, borderWidth: 1, borderColor: COLORS.accent.secondary + '25' },
+  weeklyHeader: { flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: SPACING.md },
+  weeklyLabel: { fontSize: 11, fontWeight: '700', letterSpacing: 0.8, color: COLORS.accent.secondary, flex: 1 },
+  weeklyPeriod: { fontSize: 11, color: COLORS.text.muted },
+  weeklyHeadline: { fontSize: 18, fontWeight: '800', color: COLORS.text.primary, marginBottom: SPACING.md },
+  weeklyStatsRow: { flexDirection: 'row', alignItems: 'center', gap: SPACING.lg, marginBottom: SPACING.md },
+  weeklyStat: { alignItems: 'center' },
+  weeklyStatVal: { fontSize: 18, fontWeight: '800' },
+  weeklyStatLbl: { fontSize: 11, color: COLORS.text.muted, marginTop: 2 },
+  weeklyChangePill: { flexDirection: 'row', alignItems: 'center', gap: 3, paddingHorizontal: 10, paddingVertical: 4, borderRadius: RADIUS.full },
+  weeklySuggestion: { fontSize: 13, color: COLORS.text.secondary, lineHeight: 19, fontStyle: 'italic' },
 });
