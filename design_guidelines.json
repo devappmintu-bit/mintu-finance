@@ -1,184 +1,166 @@
 {
-  "theme": "dark",
-  "archetype": "5",
-  "archetype_name": "Jewel & Luxury (Gen-Z Fintech Edition)",
-  "design_philosophy": "A modern, friendly, and premium personal finance assistant. Replaces the clinical 'bank' feel with a tactile, encouraging, and night-mode aesthetic using deep blues and glowing mint green accents. Prioritizes soft rounded geometries and crystal glassmorphism.",
-  "colors": {
-    "background": {
-      "primary": "#0A0F1C",
-      "secondary": "#131B2D",
-      "glass": "rgba(19, 27, 45, 0.6)",
-      "overlay": "rgba(10, 15, 28, 0.8)"
-    },
-    "accents": {
-      "primary": "#10B981",
-      "primary_hover": "#34D399",
-      "secondary": "#3B82F6",
-      "tertiary": "#8B5CF6",
-      "money_in": "#10B981",
-      "money_out": "#F43F5E",
-      "warning": "#F59E0B"
-    },
-    "text": {
-      "primary": "#FFFFFF",
-      "secondary": "#94A3B8",
-      "muted": "#64748B",
-      "inverse": "#0A0F1C"
-    },
-    "borders": {
-      "subtle": "rgba(255, 255, 255, 0.08)",
-      "focus": "#10B981"
-    }
+  "theme_and_archetype": {
+    "domain": "Fintech / Personal Finance for Indian Masses",
+    "selected_archetype": "Archetype 1 (Organic & Earthy) blended with Archetype 6 (Vibrant Play)",
+    "theme": "LIGHT",
+    "rationale": "Financial apps for the Indian demographic need to move away from cold, corporate SaaS blues. They must evoke trust, warmth, and approachability. The 'Vibrant Play' elements add gamification (streaks, badges) to encourage engagement, while 'Organic & Earthy' ensures the platform feels grounded and safe. Cultural resonance is achieved through warm Saffron, Marigold, and Terra Cotta tones against an Off-White/Bone base."
+  },
+  "color_palette": {
+    "background": "#FDF8F5",
+    "surface": "#FFFFFF",
+    "surface_secondary": "#F3EBE1",
+    "primary": "#E65100",
+    "primary_hover": "#BF360C",
+    "secondary": "#FFB300",
+    "secondary_hover": "#FF8F00",
+    "accent_success": "#2E7D32",
+    "accent_warning": "#F57F17",
+    "accent_error": "#D32F2F",
+    "premium": "#880E4F",
+    "text_primary": "#2E1F1A",
+    "text_secondary": "#6D554B",
+    "text_inverse": "#FFFFFF",
+    "border_light": "#EEDDCC",
+    "forbidden_colors": ["#1B93A4", "#9D4CDD", "#000000", "#7351B7"],
+    "rules": [
+      "No pure black or pure white backgrounds. Tint everything towards warm sand or espresso.",
+      "The 'premium' section must use Deep Maroon (#880E4F) instead of purple to evoke Indian royalty and wealth.",
+      "Success states (saving money, high scores) use natural Tulsi green (#2E7D32)."
+    ]
   },
   "typography": {
-    "fonts": {
-      "heading": "Outfit, sans-serif",
-      "body": "Manrope, sans-serif"
+    "font_families": {
+      "heading": "Outfit, system-ui, sans-serif",
+      "body": "Nunito, Noto Sans Devanagari, system-ui, sans-serif",
+      "mono": "JetBrains Mono, monospace"
     },
-    "hierarchy": {
-      "h1": "text-4xl tracking-tight font-bold",
-      "h2": "text-2xl sm:text-3xl tracking-tight font-semibold",
-      "h3": "text-xl font-semibold",
-      "h4": "text-lg font-medium",
-      "body": "text-base font-normal leading-relaxed",
-      "small": "text-sm font-normal",
-      "overline": "text-xs font-bold uppercase tracking-[0.2em] text-slate-400"
-    }
+    "scale": {
+      "h1": "text-4xl tracking-tight leading-none font-bold",
+      "h2": "text-3xl tracking-tight leading-tight font-semibold",
+      "h3": "text-2xl tracking-tight font-semibold",
+      "h4": "text-xl font-medium",
+      "body_large": "text-lg leading-relaxed",
+      "body_base": "text-base leading-relaxed",
+      "body_small": "text-sm leading-normal",
+      "overline": "text-xs uppercase tracking-widest font-bold text-text_secondary"
+    },
+    "rules": [
+      "Use 'Outfit' for all numbers, balances, and headings. It feels highly geometric but extremely friendly.",
+      "Use 'Nunito' for reading text. Its rounded terminals feel soft and non-judgmental.",
+      "Crucial for India: Rely on standard system fallbacks for multi-language script rendering (Hindi, Tamil, Telugu, etc.). Keep line-heights generous (leading-relaxed) because Indic scripts require more vertical breathing room.",
+      "Avoid 'Inter' or 'Roboto'."
+    ]
   },
   "spacing_and_layout": {
-    "philosophy": "Generous spacing, optical alignment, and mobile-first bento grids.",
-    "container": "max-w-md mx-auto min-h-screen bg-[#0A0F1C] relative pb-24",
-    "section_padding": "p-6 sm:p-8",
-    "card_padding": "p-5 sm:p-6",
-    "gaps": {
-      "small": "gap-3",
-      "medium": "gap-4",
-      "large": "gap-6",
-      "xl": "gap-8"
-    },
+    "spacing_scale": "Tailwind standard (p-2, p-4, p-6, p-8), prioritizing p-6 for default mobile container padding.",
     "border_radius": {
-      "card": "rounded-3xl",
-      "button": "rounded-full",
-      "input": "rounded-2xl",
-      "chip": "rounded-full"
-    }
+      "cards": "rounded-3xl",
+      "buttons": "rounded-full",
+      "inputs": "rounded-2xl",
+      "badges": "rounded-full"
+    },
+    "shadows": {
+      "ambient": "shadow-[0_8px_30px_rgb(230,81,0,0.06)]",
+      "lifted": "shadow-[0_20px_40px_rgb(230,81,0,0.12)]",
+      "neumorphic_inset": "shadow-[inset_0_2px_4px_rgba(255,255,255,0.5),0_4px_12px_rgba(0,0,0,0.05)]"
+    },
+    "grid_strategy": {
+      "mobile": "grid-cols-1 or grid-cols-2 for bento widgets",
+      "gap": "gap-4 to gap-6"
+    },
+    "rules": [
+      "Bento Grid for Dashboard: Use asymmetrical blocks. E.g., 'Money Score' takes full width (col-span-2), 'Quick Cash' and 'Streaks' take half widths (col-span-1).",
+      "Card Design: 'Clay & Crisp'. Use solid white backgrounds, rounded-3xl, ambient shadow, and a 1px border of #EEDDCC to ground them.",
+      "Mobile-First: Everything must be reachable with one thumb. Heavy reliance on bottom-sheet interactions."
+    ]
   },
   "components": {
-    "cards": {
-      "default": "bg-[#131B2D] border border-white/5 rounded-3xl shadow-lg relative overflow-hidden",
-      "glass": "backdrop-blur-xl bg-[#131B2D]/60 border border-white/10 rounded-3xl",
-      "highlight": "bg-gradient-to-br from-[#131B2D] to-[#0A0F1C] border border-[#10B981]/20 rounded-3xl"
+    "navigation_bar": {
+      "type": "Bottom Dock",
+      "style": "Fixed bottom-0, inset-x-4, mb-6 bg-white/90 backdrop-blur-xl rounded-full border border-border_light shadow-lifted flex justify-between items-center px-6 py-4",
+      "special_element": "Floating Action Button (FAB) in the center for Voice Input (Mic), elevated and colored in primary Saffron."
     },
-    "buttons": {
-      "primary": "w-full bg-[#10B981] hover:bg-[#34D399] text-[#0A0F1C] font-semibold py-4 rounded-full transition-all active:scale-[0.98] shadow-[0_0_20px_rgba(16,185,129,0.2)]",
-      "secondary": "w-full bg-white/5 hover:bg-white/10 text-white font-medium py-4 rounded-full border border-white/10 transition-all",
-      "icon_action": "h-12 w-12 rounded-full bg-white/5 border border-white/10 flex items-center justify-center hover:bg-white/10 transition-colors"
+    "money_score_gauge": {
+      "type": "Data Visualization",
+      "style": "Half-circle gauge (Recharts PieChart startAngle=180 endAngle=0) or an SVG arc. Big friendly typography in the center. Gradient stroke from Orange to Green based on health.",
+      "animation": "Framer Motion layout animations to count up from 0 to actual score on mount."
     },
-    "inputs": {
-      "default": "w-full bg-[#0A0F1C] border border-white/10 rounded-2xl px-5 py-4 text-white focus:border-[#10B981] focus:ring-1 focus:ring-[#10B981] outline-none transition-all placeholder:text-slate-500",
-      "search": "w-full bg-white/5 border-none rounded-2xl px-5 py-3 text-white pl-12"
+    "money_school_card": {
+      "type": "Educational Widget",
+      "style": "bg-secondary/10 rounded-3xl p-6 border border-secondary/20 flex flex-row items-center justify-between. Use Lucide GraduationCap or BookOpen icon.",
+      "interaction": "whileTap={{ scale: 0.96 }} hover={{ y: -2 }}"
     },
-    "navigation": {
-      "bottom_tab": "fixed bottom-0 left-0 right-0 max-w-md mx-auto backdrop-blur-2xl bg-[#0A0F1C]/85 border-t border-white/10 px-6 py-4 flex justify-between items-center z-50 rounded-t-3xl"
+    "budget_progress_bars": {
+      "type": "Progress Indicator",
+      "style": "Thick, rounded-full track (bg-surface_secondary) with a vibrant fill (primary/success). Include a fire emoji 🔥 or an alert icon ⚠️ if nearing limits."
     },
-    "badges": {
-      "success": "bg-[#10B981]/20 text-[#10B981] px-3 py-1 rounded-full text-xs font-semibold",
-      "neutral": "bg-white/10 text-white px-3 py-1 rounded-full text-xs font-medium"
+    "language_picker": {
+      "type": "Shadcn Dialog / Drawer",
+      "style": "Bottom sheet sliding up, showing a grid of 10 Indian languages with native script rendering (English, \u0939\u093f\u0928\u094d\u0926\u0940, \u09ac\u09be\u0982\u09b2\u09be, \u0c24\u0c46\u0c32\u0c41\u0c17\u0c41, \u0ba4\u0bae\u0bbf\u0bb4\u0bcd, etc.)."
     }
   },
   "screens": {
-    "splash": {
-      "layout": "flex-col center, full-height",
-      "elements": ["Logo animation", "MintU branding", "Background image overlay"]
-    },
-    "onboarding": {
-      "layout": "Carousel with fixed bottom action area",
-      "elements": ["Full width image on top", "H2 Title", "Body text", "Pagination dots", "Primary CTA button"]
-    },
-    "home_dashboard": {
-      "layout": "Vertical scroll with safe area top and bottom tab padding",
-      "elements": [
-        "Header: Avatar + 'Hi, Name' + Notification icon",
-        "Hero Card: Money Score Gauge (Circular progress) + Total Balance",
-        "Quick Actions: Send, Receive, Scan (Row of circular buttons)",
-        "AI Insights Bento: Horizontal scroll or 2x2 grid of small smart tips",
-        "Recent Transactions: List of 3-4 items with 'See All'"
-      ]
-    },
-    "transactions": {
-      "layout": "List view with filters",
-      "elements": [
-        "Header: Title + Filter icon",
-        "Month selector tabs (pill shaped)",
-        "Daily grouped transaction lists",
-        "Floating Action Button (FAB) or prominent button for 'Add Manual / Parse SMS'"
-      ]
-    },
-    "expense_breakdown": {
-      "layout": "Chart focused dashboard",
-      "elements": [
-        "Recharts Pie/Donut Chart centered with total spent inside",
-        "Category list below with horizontal progress bars (budget vs spent)"
-      ]
-    },
-    "budget_tracking": {
-      "layout": "Card list",
-      "elements": [
-        "Overall budget vs spent summary card",
-        "Individual category cards with colored progress bars (green/yellow/red based on limit)"
-      ]
-    },
-    "ai_insights": {
-      "layout": "Feed of cards",
-      "elements": [
-        "Daily insight cards with glowing borders",
-        "Actionable recommendations (e.g., 'Save ₹500 on Swiggy')",
-        "Spending alerts"
-      ]
-    }
+    "splash_and_onboarding": "Uses 3D claymation generated images. Swipeable Framer Motion cards. Warm, celebratory, welcoming.",
+    "auth_screen": "Trust-building. OTP-based (common in India). Clean numpad, prominent 'Secure' lock icon, reassuring text.",
+    "home_dashboard": "Glanceable. 'Hello, [Name]' header. Money Score gauge is the hero. Horizontally scrolling 'Money School' lessons. Recent transactions list. Central FAB for voice.",
+    "transactions": "Quick Cash bar (fast add predefined amounts: \u20b910, \u20b950, \u20b9100). Voice input dialog ('I spent 50 rupees on chai'). Colorful category badges.",
+    "insights": "AI insights cards ('You saved 20% more this week! \ud83c\udf89'). Expense donut chart using Recharts. Trend lines.",
+    "budget": "Category budgets. Visual progress bars. Friendly alerts ('Careful, dining out is 80% used!').",
+    "rewards_and_premium": "Gamification hub. Flame icon for streaks, SVG badges. 'Share on WhatsApp / Instagram Story' buttons. Premium paywall uses Deep Maroon (#880E4F), gold gradients, and a regal aesthetic.",
+    "profile": "Settings, Language Picker, Avatar. Clean list items with Lucide icons on the left, chevron on the right."
   },
-  "animations": {
-    "page_transition": "framer-motion fade in and slide up (y: 10, opacity: 0 -> 1)",
-    "list_stagger": "framer-motion children stagger (delay 0.05s)",
-    "button_tap": "scale down to 0.98",
-    "chart_load": "Recharts standard animation, stroke-dasharray animation for gauges"
-  },
-  "media": {
-    "images": {
-      "user_profile": {
-        "url": "https://images.unsplash.com/photo-1749700332258-775b1b6b9cd5?crop=entropy&cs=srgb&fm=jpg&ixid=M3w4NjA2MDV8MHwxfHNlYXJjaHwzfHxjaGVlcmZ1bCUyMHlvdW5nJTIwaW5kaWFuJTIwcHJvZmVzc2lvbmFsJTIwcG9ydHJhaXR8ZW58MHx8fHwxNzc2MjY3MTczfDA&ixlib=rb-4.1.0&q=85",
-        "description": "Avatar for the logged-in user"
+  "media_assets": {
+    "images": [
+      {
+        "category": "splash_bg",
+        "description": "Abstract warm gradient background, Indian festive colors, elegant smooth texture.",
+        "url": "https://static.prod-images.emergentagent.com/jobs/6b84bb29-30c5-4f1f-8532-223619c96941/images/b0021a8a2b3f6fb6fd10d17d8fc1c6ca3ce16661550d4ae42367e0658ff8cbed.png"
       },
-      "splash_bg": {
-        "url": "https://images.unsplash.com/photo-1625685554446-9c0dc87d506a?crop=entropy&cs=srgb&fm=jpg&ixid=M3w4NjA1Mjh8MHwxfHNlYXJjaHwxfHxkYXJrJTIwYmx1ZSUyMG5lb24lMjBhYnN0cmFjdCUyMGJhY2tncm91bmR8ZW58MHx8fHwxNzc2MjY3MTg0fDA&ixlib=rb-4.1.0&q=85",
-        "description": "Abstract neon dark blue background for splash screen overlay"
+      {
+        "category": "onboarding_save",
+        "description": "3D claymation style illustration of a happy Indian family saving money, marigold and terracotta palette.",
+        "url": "https://static.prod-images.emergentagent.com/jobs/6b84bb29-30c5-4f1f-8532-223619c96941/images/08cef8bb2a5c1d6cf8de4d5625f5d37b62620544049b4422f1100cd0d67b7a75.png"
       },
-      "onboarding_1": {
-        "url": "https://images.unsplash.com/photo-1642142784847-83b9b8a22910?crop=entropy&cs=srgb&fm=jpg&ixid=M3w4NjA1OTV8MHwxfHNlYXJjaHwxfHxzbWFydHBob25lJTIwZmluYW5jZSUyMGlsbHVzdHJhdGlvbnxlbnwwfHx8fDE3NzYyNjcxODR8MA&ixlib=rb-4.1.0&q=85",
-        "description": "Onboarding slide 1 image: Smart AI tracking"
+      {
+        "category": "onboarding_grow",
+        "description": "3D claymation style illustration of a glowing gold coin with a rising graph, Indian festive context.",
+        "url": "https://static.prod-images.emergentagent.com/jobs/6b84bb29-30c5-4f1f-8532-223619c96941/images/3b885da80db448d847e1f6c097bc17ef6849177ca6b8a3dfaaf4ac612fcab49c.png"
       },
-      "onboarding_2": {
-        "url": "https://images.unsplash.com/photo-1772413438614-3d4582783392?crop=entropy&cs=srgb&fm=jpg&ixid=M3w4NjAzMjh8MHwxfHNlYXJjaHwxfHxmaW5hbmNpYWwlMjBncm93dGglMjBjaGFydCUyMGlsbHVzdHJhdGlvbnxlbnwwfHx8fDE3NzYyNjcxODR8MA&ixlib=rb-4.1.0&q=85",
-        "description": "Onboarding slide 2 image: Financial growth and insights"
+      {
+        "category": "onboarding_welcome",
+        "description": "3D claymation style illustration of an ornate, welcoming Indian doorway (Toran) opening to a bright future.",
+        "url": "https://static.prod-images.emergentagent.com/jobs/6b84bb29-30c5-4f1f-8532-223619c96941/images/e7523de09ef2fe49176945c99e41d56b3e71bc7de9f23f12afdde9f01e568d54.png"
       },
-      "onboarding_3": {
-        "url": "https://images.unsplash.com/photo-1769676391614-ee47569b1c69?crop=entropy&cs=srgb&fm=jpg&ixid=M3w4NjA1NDh8MHwxfHNlYXJjaHwxfHxzYXZpbmclMjBtb25leSUyMHBpZ2d5JTIwYmFua3xlbnwwfHx8fDE3NzYyNjcxODR8MA&ixlib=rb-4.1.0&q=85",
-        "description": "Onboarding slide 3 image: Saving goals"
+      {
+        "category": "profile_avatar",
+        "description": "Portrait of an Indian user for the profile screen.",
+        "url": "https://images.unsplash.com/photo-1615022702095-ff2c036f3360?auto=format&fit=crop&q=80&w=400"
       }
-    }
+    ]
   },
-  "icons": "lucide-react",
-  "data_testid_rules": "All interactive elements MUST include data-testid. Format: kebab-case, role-based. E.g., data-testid='login-submit-button'",
+  "motion_and_interactions": {
+    "library": "framer-motion",
+    "spring_config": "type: 'spring', stiffness: 400, damping: 30",
+    "gestures": "Add whileTap={{ scale: 0.95 }} to all cards, buttons, and list items to give a tactile, gamified feel.",
+    "page_transitions": "Slide horizontally for onboarding. Fade and scale up for dialogs and modals.",
+    "micro_interactions": "Celebrate streak milestones with react-confetti. Add a pulsing animation (scale 1 to 1.05 infinitely) to the Voice Input mic when active."
+  },
+  "icons": {
+    "library": "lucide-react",
+    "rules": "Use strokeWidth={2.5} for a chunkier, friendlier appearance. Avoid thin, clinical icons."
+  },
+  "accessibility_and_testing": {
+    "contrast": "Ensure text contrast on primary Saffron background meets WCAG AA standards (use white text on #E65100).",
+    "touch_targets": "All interactive elements MUST be at least 48x48px.",
+    "data_testid": "All interactive and key informational elements MUST include a data-testid attribute in kebab-case, role-based (e.g., data-testid='voice-input-button', data-testid='money-score-value', data-testid='language-select-hindi')."
+  },
   "instructions_to_main_agent": [
-    "Design specifically for a mobile web view constraint: max-w-md mx-auto, hide scrollbars, add bottom padding for the fixed tab bar.",
-    "Use framer-motion for page transitions and staggering list items.",
-    "Implement the 'Money Score' using Recharts RadialBarChart or a custom SVG donut chart with a glowing stroke.",
-    "Use lucide-react for all standard icons, wrapping them in circular backgrounds (w-12 h-12 bg-white/5 rounded-full flex items-center justify-center) for that modern tactile app feel.",
-    "For Indian Bank names and Payment Apps (HDFC, SBI, Paytm, GPay), use lucide icons like 'Building2', 'Landmark', or 'SmartphoneNfc' combined with brand colors if actual logos aren't readily available via icons.",
-    "Use Indian Rupee symbol (₹) strictly.",
-    "Do NOT use HTML native components like <select> or <input type='date'>. Always use Shadcn/UI wrapped and customized to fit the Dark/Mint theme.",
-    "Forms and modals (e.g., 'Add Transaction' or 'SMS Parse Modal') should slide up like Bottom Sheets (using Framer Motion or Shadcn Drawer/Dialog).",
-    "All cards must have generous rounded corners (rounded-3xl) and subtle inner borders to separate them from the dark background.",
-    "Include 'Pull-to-refresh' UI visually (a spinner pulling down at the top of scrollable areas) to mimic native mobile feel."
+    "Build a mobile-first web app using React JS, Tailwind CSS, and Shadcn UI.",
+    "Implement the provided JSON color palette tightly into tailwind.config.js.",
+    "Use framer-motion extensively for playful, tactile feedback on all tappable cards.",
+    "Use react-router-dom for navigation. Set up an app shell where the bottom dock navigation is persistent for authenticated routes.",
+    "Prioritize the UI execution for the 'Home Dashboard', 'Transactions', 'Insights', and 'Rewards' screens.",
+    "Ensure the Money Score gauge feels alive and central. Use Recharts for insights and the gauge.",
+    "Use the generated media_urls exactly as provided for onboarding slides and the splash screen. Do NOT use placeholder domains."
   ]
 }
