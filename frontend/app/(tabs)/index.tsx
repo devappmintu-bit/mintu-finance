@@ -18,21 +18,24 @@ export default function HomeScreen() {
   const [insights, setInsights] = useState<any>(null);
   const [stats, setStats] = useState<any>(null);
   const [recentTxns, setRecentTxns] = useState<any[]>([]);
+  const [dailyLesson, setDailyLesson] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
 
   const fetchData = useCallback(async () => {
     try {
-      const [insightsRes, profileRes, statsRes, txnRes] = await Promise.all([
+      const [insightsRes, profileRes, statsRes, txnRes, lessonRes] = await Promise.all([
         api.get('/insights/daily'),
         api.get('/user/me'),
         api.get('/stats/overview'),
         api.get('/transactions?limit=5'),
+        api.get('/money-school/daily'),
       ]);
       setInsights(insightsRes.data);
       setUser(profileRes.data);
       setStats(statsRes.data);
       setRecentTxns(Array.isArray(txnRes.data) ? txnRes.data.slice(0, 4) : []);
+      setDailyLesson(lessonRes.data);
     } catch (error) {
       console.error('Dashboard fetch error:', error);
     } finally {
@@ -134,6 +137,35 @@ export default function HomeScreen() {
         )}
 
         {/* Spending Chart */}
+        {/* Money School Card */}
+        {dailyLesson && (
+          <View testID="money-school-card" style={styles.schoolCard}>
+            <View style={styles.schoolHeader}>
+              <View style={styles.schoolBadge}>
+                <Ionicons name="school" size={14} color="#8B5CF6" />
+                <Text style={styles.schoolBadgeText}>MONEY SCHOOL</Text>
+              </View>
+              <Text style={styles.schoolProgress}>
+                {dailyLesson.lesson_number}/{dailyLesson.total_lessons}
+              </Text>
+            </View>
+            <Text style={styles.schoolTitle}>{dailyLesson.lesson?.title}</Text>
+            <Text style={styles.schoolContent} numberOfLines={3}>
+              {dailyLesson.lesson?.content}
+            </Text>
+            {dailyLesson.personal_tip ? (
+              <View style={styles.schoolTipBox}>
+                <Ionicons name="sparkles" size={14} color={COLORS.accent.primary} />
+                <Text style={styles.schoolTipText}>{dailyLesson.personal_tip}</Text>
+              </View>
+            ) : null}
+            <View style={styles.schoolCatPill}>
+              <Text style={styles.schoolCatText}>{dailyLesson.lesson?.category}</Text>
+            </View>
+          </View>
+        )}
+
+        {/* Spending Chart - original */}
         {chartData.length > 0 && (
           <View style={styles.card}>
             <Text style={styles.cardTitle}>{t('spending_breakdown', lang)}</Text>
@@ -255,4 +287,16 @@ const styles = StyleSheet.create({
   txnDesc: { fontSize: 15, fontWeight: '600', color: COLORS.text.primary },
   txnCat: { fontSize: 12, color: COLORS.text.muted, marginTop: 2 },
   txnAmount: { fontSize: 16, fontWeight: '700' },
+  // Money School
+  schoolCard: { backgroundColor: COLORS.bg.card, borderRadius: RADIUS.card, padding: SPACING.xl, marginBottom: SPACING.lg, borderWidth: 1, borderColor: '#8B5CF6' + '25' },
+  schoolHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: SPACING.md },
+  schoolBadge: { flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: '#8B5CF6' + '15', paddingHorizontal: 12, paddingVertical: 6, borderRadius: RADIUS.full },
+  schoolBadgeText: { fontSize: 11, fontWeight: '700', color: '#8B5CF6', letterSpacing: 0.8 },
+  schoolProgress: { fontSize: 12, fontWeight: '600', color: COLORS.text.muted },
+  schoolTitle: { fontSize: 18, fontWeight: '700', color: COLORS.text.primary, marginBottom: 8 },
+  schoolContent: { fontSize: 14, color: COLORS.text.secondary, lineHeight: 21, marginBottom: SPACING.md },
+  schoolTipBox: { flexDirection: 'row', alignItems: 'flex-start', gap: 8, backgroundColor: COLORS.accent.primary + '10', borderRadius: RADIUS.lg, padding: SPACING.md, marginBottom: SPACING.md },
+  schoolTipText: { flex: 1, fontSize: 13, color: COLORS.accent.primaryLight, lineHeight: 19 },
+  schoolCatPill: { backgroundColor: '#8B5CF6' + '15', paddingHorizontal: 12, paddingVertical: 4, borderRadius: RADIUS.full, alignSelf: 'flex-start' },
+  schoolCatText: { fontSize: 11, fontWeight: '600', color: '#8B5CF6' },
 });
