@@ -1597,6 +1597,362 @@ async def get_biometric_status(user_id: str = Depends(get_current_user)):
     user = await db.users.find_one({"_id": ObjectId(user_id)}, {"biometric_enabled": 1})
     return {"biometric_enabled": user.get("biometric_enabled", False) if user else False}
 
+# ============== 1. REFERRAL SYSTEM ==============
+import uuid as uuid_lib
+
+@api_router.get("/referral/my-code")
+async def get_referral_code(user_id: str = Depends(get_current_user)):
+    """Get or generate user's unique referral code"""
+    from bson import ObjectId
+    user = await db.users.find_one({"_id": ObjectId(user_id)})
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+    
+    code = user.get("referral_code")
+    if not code:
+        code = f"MINTU{user['phone'][-4:]}{uuid_lib.uuid4().hex[:4].upper()}"
+        await db.users.update_one({"_id": ObjectId(user_id)}, {"$set": {"referral_code": code}})
+    
+    # Count referrals
+    referral_count = await db.referrals.count_documents({"referrer_id": user_id})
+    
+    tier = "none"
+    if referral_count >= 10: tier = "legend"
+    elif referral_count >= 3: tier = "premium"
+    elif referral_count >= 1: tier = "starter"
+    
+    return {
+        "referral_code": code,
+        "referral_count": referral_count,
+        "tier": tier,
+        "rewards": {
+            "starter": {"needed": 1, "reward": "Advanced insights (1 week)"},
+            "premium": {"needed": 3, "reward": "Premium features (1 month)"},
+            "legend": {"needed": 10, "reward": "Lifetime badge + perks"},
+        },
+        "share_text": f"I saved money with MintU! Join me and start tracking your expenses smartly. Use my code: {code}\nDownload: https://mintu.app/invite/{code}"
+    }
+
+@api_router.post("/referral/apply")
+async def apply_referral_code(code: dict, user_id: str = Depends(get_current_user)):
+    """Apply a referral code (for new users)"""
+    referral_code = code.get("code", "").strip().upper()
+    if not referral_code:
+        raise HTTPException(status_code=400, detail="Referral code required")
+    
+    # Check if already used
+    existing = await db.referrals.find_one({"referred_id": user_id})
+    if existing:
+        raise HTTPException(status_code=400, detail="You've already used a referral code")
+    
+    # Find referrer
+    referrer = await db.users.find_one({"referral_code": referral_code})
+    if not referrer:
+        raise HTTPException(status_code=404, detail="Invalid referral code")
+    
+    referrer_id = str(referrer["_id"])
+    if referrer_id == user_id:
+        raise HTTPException(status_code=400, detail="Cannot use your own code")
+    
+    # Record referral
+    await db.referrals.insert_one({
+        "referrer_id": referrer_id,
+        "referred_id": user_id,
+        "code": referral_code,
+        "created_at": datetime.utcnow()
+    })
+    
+    # Check if referrer hit new tier
+    count = await db.referrals.count_documents({"referrer_id": referrer_id})
+    from bson import ObjectId
+    if count >= 10:
+        await db.users.update_one({"_id": ObjectId(referrer_id)}, {"$set": {"premium_tier": "legend", "premium_until": None}})
+    elif count >= 3:
+        await db.users.update_one({"_id": ObjectId(referrer_id)}, {"$set": {"premium_tier": "premium", "premium_until": datetime.utcnow() + timedelta(days=30)}})
+    elif count >= 1:
+        await db.users.update_one({"_id": ObjectId(referrer_id)}, {"$set": {"premium_tier": "starter", "premium_until": datetime.utcnow() + timedelta(days=7)}})
+    
+    return {"message": "Referral applied! Welcome to MintU!", "referrer_name": referrer["name"]}
+
+@api_router.get("/referral/leaderboard")
+async def referral_leaderboard():
+    """Top referrers"""
+    pipeline = [
+        {"$group": {"_id": "$referrer_id", "count": {"$sum": 1}}},
+        {"$sort": {"count": -1}},
+        {"$limit": 10}
+    ]
+    results = await db.referrals.aggregate(pipeline).to_list(10)
+    from bson import ObjectId
+    leaderboard = []
+    for r in results:
+        user = await db.users.find_one({"_id": ObjectId(r["_id"])}, {"name": 1})
+        if user:
+            leaderboard.append({"name": user["name"], "referrals": r["count"]})
+    return {"leaderboard": leaderboard}
+
+# ============== 2. GAMIFICATION ENGINE ==============
+BADGES = {
+    "first_track": {"name": "First Step", "desc": "Tracked your first expense", "icon": "footsteps"},
+    "week_streak": {"name": "Week Warrior", "desc": "7-day tracking streak", "icon": "flame"},
+    "month_streak": {"name": "Streak Master", "desc": "30-day tracking streak", "icon": "trophy"},
+    "budget_master": {"name": "Budget Master", "desc": "Stayed within all budgets for a month", "icon": "shield-checkmark"},
+    "saver_pro": {"name": "Saver Pro", "desc": "Saved 20%+ of income", "icon": "cash"},
+    "impulse_killer": {"name": "Impulse Killer", "desc": "Completed a no-Swiggy challenge", "icon": "flash-off"},
+    "money_school": {"name": "Money Scholar", "desc": "Read 10 Money School lessons", "icon": "school"},
+    "family_leader": {"name": "Family CFO", "desc": "Created a family group", "icon": "people"},
+    "voice_tracker": {"name": "Voice Pro", "desc": "Added 10 expenses by voice", "icon": "mic"},
+    "score_80": {"name": "Elite Scorer", "desc": "Reached Money Score 80+", "icon": "star"},
+}
+
+WEEKLY_CHALLENGES = [
+    {"id": "no_swiggy_3", "title": "No Swiggy for 3 days", "desc": "Skip food delivery for 3 days", "category": "Food", "target_days": 3},
+    {"id": "save_500", "title": "Save ₹500 this week", "desc": "Reduce spending by ₹500 vs last week", "category": None, "target_amount": 500},
+    {"id": "cook_5", "title": "Cook 5 meals at home", "desc": "Track 5 home-cooked meals", "category": "Food", "target_count": 5},
+    {"id": "no_shopping", "title": "No Shopping Spree", "desc": "Zero shopping expenses for 5 days", "category": "Shopping", "target_days": 5},
+    {"id": "budget_all", "title": "Budget Everything", "desc": "Set budgets for all your spending categories", "category": None, "target_count": 5},
+    {"id": "cash_tracker", "title": "Cash Detective", "desc": "Track 10 cash expenses this week", "category": None, "target_count": 10},
+]
+
+@api_router.get("/gamification/status")
+async def get_gamification_status(user_id: str = Depends(get_current_user)):
+    """Get user's streak, badges, and active challenge"""
+    from bson import ObjectId
+    user = await db.users.find_one({"_id": ObjectId(user_id)})
+    
+    # Calculate streak
+    today = datetime.utcnow().replace(hour=0, minute=0, second=0, microsecond=0)
+    streak = 0
+    for i in range(365):
+        day_start = today - timedelta(days=i)
+        day_end = day_start + timedelta(days=1)
+        has_txn = await db.transactions.find_one({"user_id": user_id, "date": {"$gte": day_start, "$lt": day_end}})
+        if has_txn:
+            streak += 1
+        else:
+            if i > 0: break  # Allow today to not have txn yet
+    
+    # Get badges
+    user_badges = user.get("badges", [])
+    
+    # Auto-award badges
+    new_badges = []
+    txn_count = await db.transactions.count_documents({"user_id": user_id})
+    if txn_count >= 1 and "first_track" not in user_badges:
+        new_badges.append("first_track")
+    if streak >= 7 and "week_streak" not in user_badges:
+        new_badges.append("week_streak")
+    if streak >= 30 and "month_streak" not in user_badges:
+        new_badges.append("month_streak")
+    score = user.get("money_score", 0)
+    if score >= 80 and "score_80" not in user_badges:
+        new_badges.append("score_80")
+    
+    if new_badges:
+        user_badges.extend(new_badges)
+        await db.users.update_one({"_id": ObjectId(user_id)}, {"$set": {"badges": user_badges}})
+    
+    # Get active challenge
+    from datetime import date
+    week_num = date.today().isocalendar()[1]
+    active_challenge = WEEKLY_CHALLENGES[week_num % len(WEEKLY_CHALLENGES)]
+    
+    return {
+        "streak": streak,
+        "badges_earned": [{"id": b, **BADGES.get(b, {})} for b in user_badges],
+        "badges_available": [{"id": k, **v} for k, v in BADGES.items() if k not in user_badges],
+        "total_badges": len(user_badges),
+        "weekly_challenge": active_challenge,
+        "new_badges": [{"id": b, **BADGES.get(b, {})} for b in new_badges],
+    }
+
+# ============== 3. PREMIUM/FREEMIUM SYSTEM ==============
+PREMIUM_FEATURES = {
+    "ai_smart_coach": {"name": "AI Smart Coach", "desc": "Personalized weekly money advice"},
+    "waste_analysis": {"name": "Waste Analysis", "desc": "Find hidden spending leaks"},
+    "goal_planning": {"name": "Goal Planning", "desc": "Save ₹1L in 6 months with a step-by-step plan"},
+    "advanced_insights": {"name": "Advanced Insights", "desc": "Category trends, peer comparison"},
+    "unlimited_budgets": {"name": "Unlimited Budgets", "desc": "Set budgets for every category"},
+    "family_budgets": {"name": "Family Budgets", "desc": "Shared household budget tracking"},
+    "ad_free": {"name": "Ad-Free", "desc": "Clean, distraction-free experience"},
+}
+
+PRICING = {
+    "monthly": {"price": 99, "label": "₹99/month"},
+    "yearly": {"price": 499, "label": "₹499/year", "savings": "58% off", "best_seller": True},
+    "intro": {"price": 29, "label": "₹29 first month", "trial": True},
+}
+
+@api_router.get("/premium/status")
+async def get_premium_status(user_id: str = Depends(get_current_user)):
+    """Check user's premium status"""
+    from bson import ObjectId
+    user = await db.users.find_one({"_id": ObjectId(user_id)})
+    
+    tier = user.get("premium_tier", "free")
+    until = user.get("premium_until")
+    is_premium = tier in ["premium", "legend"] and (until is None or until > datetime.utcnow())
+    
+    return {
+        "is_premium": is_premium,
+        "tier": tier,
+        "premium_until": until,
+        "features": PREMIUM_FEATURES,
+        "pricing": PRICING,
+    }
+
+@api_router.get("/premium/paywall-trigger")
+async def get_paywall_trigger(user_id: str = Depends(get_current_user)):
+    """Generate personalized paywall data with emotional triggers"""
+    thirty_days_ago = datetime.utcnow() - timedelta(days=30)
+    txns = await db.transactions.find({"user_id": user_id, "type": "debit", "date": {"$gte": thirty_days_ago}}).to_list(1000)
+    
+    total_spent = sum(t["amount"] for t in txns)
+    # Estimate "waste" as top discretionary category overspend
+    cats = {}
+    for t in txns:
+        cats[t["category"]] = cats.get(t["category"], 0) + t["amount"]
+    
+    discretionary = ["Food", "Entertainment", "Shopping"]
+    waste_estimate = sum(cats.get(c, 0) for c in discretionary) * 0.25  # 25% of discretionary = potential savings
+    
+    return {
+        "total_spent": total_spent,
+        "waste_estimate": round(waste_estimate),
+        "hook_text": f"You could have saved ₹{waste_estimate:.0f} this month",
+        "sub_text": "MintU Premium finds your hidden money leaks",
+        "pricing": PRICING,
+        "features": list(PREMIUM_FEATURES.values()),
+    }
+
+@api_router.post("/premium/ai-coach")
+async def ai_smart_coach(user_id: str = Depends(get_current_user)):
+    """AI Smart Coach — premium feature: personalized weekly advice"""
+    from bson import ObjectId
+    user = await db.users.find_one({"_id": ObjectId(user_id)})
+    tier = user.get("premium_tier", "free")
+    if tier not in ["premium", "legend", "starter"]:
+        raise HTTPException(status_code=403, detail="Premium feature. Upgrade to access AI Smart Coach.")
+    
+    thirty_days_ago = datetime.utcnow() - timedelta(days=30)
+    txns = await db.transactions.find({"user_id": user_id, "date": {"$gte": thirty_days_ago}}).to_list(1000)
+    
+    total_income = sum(t["amount"] for t in txns if t["type"] == "credit")
+    total_expense = sum(t["amount"] for t in txns if t["type"] == "debit")
+    cats = {}
+    for t in txns:
+        if t["type"] == "debit":
+            cats[t["category"]] = cats.get(t["category"], 0) + t["amount"]
+    
+    cat_text = ", ".join([f"{c}: ₹{a:.0f}" for c, a in sorted(cats.items(), key=lambda x: -x[1])])
+    
+    try:
+        chat = LlmChat(
+            api_key=os.environ['EMERGENT_LLM_KEY'],
+            session_id=f"coach_{user_id}_{datetime.utcnow().timestamp()}",
+            system_message="""You are MintU AI Smart Coach — a personal financial advisor for Indian users.
+Give a detailed, actionable weekly plan. Be specific with ₹ amounts. Reference Indian services.
+Return JSON: {"advice": "2-3 paragraph plan", "action_items": ["item1", "item2", "item3"], "potential_savings": number}"""
+        ).with_model("openai", "gpt-5.2")
+        
+        response = await chat.send_message(UserMessage(
+            text=f"Income: ₹{total_income:.0f}, Expenses: ₹{total_expense:.0f}. Categories: {cat_text}. Score: {user.get('money_score', 50)}. What should I do with my money this week?"
+        ))
+        
+        resp_text = response.strip()
+        if resp_text.startswith("```"):
+            parts = resp_text.split("```")
+            resp_text = parts[1] if len(parts) > 1 else parts[0]
+            if resp_text.startswith("json"): resp_text = resp_text[4:]
+        
+        import json as json_mod
+        parsed = json_mod.loads(resp_text.strip())
+        return parsed
+    except Exception as e:
+        logging.error(f"AI Coach error: {e}")
+        return {
+            "advice": "Focus on reducing your top spending category this week. Try the 50-30-20 rule.",
+            "action_items": ["Review last week's spending", "Set a daily limit", "Cook 3 meals at home"],
+            "potential_savings": 500
+        }
+
+# ============== 4. SMART NOTIFICATIONS ==============
+@api_router.get("/notifications/smart-triggers")
+async def get_smart_notification_triggers(user_id: str = Depends(get_current_user)):
+    """Generate all pending smart notifications for user"""
+    from bson import ObjectId
+    now = datetime.utcnow()
+    today_start = now.replace(hour=0, minute=0, second=0, microsecond=0)
+    
+    notifications = []
+    
+    # 1. Overspend alert (today's spending > daily average)
+    seven_days_ago = now - timedelta(days=7)
+    week_txns = await db.transactions.find({"user_id": user_id, "type": "debit", "date": {"$gte": seven_days_ago}}).to_list(500)
+    today_txns = await db.transactions.find({"user_id": user_id, "type": "debit", "date": {"$gte": today_start}}).to_list(100)
+    
+    daily_avg = sum(t["amount"] for t in week_txns) / 7 if week_txns else 0
+    today_total = sum(t["amount"] for t in today_txns)
+    
+    if today_total > daily_avg * 1.5 and today_total > 200:
+        notifications.append({
+            "type": "overspend",
+            "title": "Spending Alert",
+            "body": f"You've spent ₹{today_total:.0f} today — {((today_total/daily_avg - 1)*100):.0f}% above your daily average",
+            "priority": "high"
+        })
+    
+    # 2. Savings celebration
+    if today_total < daily_avg * 0.5 and daily_avg > 100:
+        saved = daily_avg - today_total
+        notifications.append({
+            "type": "savings",
+            "title": "Great Job!",
+            "body": f"You saved ₹{saved:.0f} today compared to your average. Keep it up!",
+            "priority": "low"
+        })
+    
+    # 3. Streak reminder (no txn today by evening)
+    if not today_txns and now.hour >= 18:
+        user = await db.users.find_one({"_id": ObjectId(user_id)})
+        notifications.append({
+            "type": "streak",
+            "title": "Don't break your streak!",
+            "body": "You haven't tracked any expenses today. Add one to keep your streak going!",
+            "priority": "medium"
+        })
+    
+    # 4. Budget alerts
+    budgets = await db.budgets.find({"user_id": user_id}).to_list(50)
+    thirty_days_ago = now - timedelta(days=30)
+    for b in budgets:
+        spent = sum(t["amount"] for t in week_txns if t["category"] == b["category"]) if b["period"] == "weekly" else 0
+        if b["period"] == "monthly":
+            month_txns = await db.transactions.find({"user_id": user_id, "category": b["category"], "type": "debit", "date": {"$gte": thirty_days_ago}}).to_list(500)
+            spent = sum(t["amount"] for t in month_txns)
+        pct = (spent / b["amount"] * 100) if b["amount"] > 0 else 0
+        if pct >= 100:
+            notifications.append({"type": "budget_exceeded", "title": f"{b['category']} Budget Exceeded!", "body": f"₹{spent:.0f} of ₹{b['amount']:.0f} — time to slow down", "priority": "high"})
+        elif pct >= 80:
+            notifications.append({"type": "budget_warning", "title": f"{b['category']} Budget at {pct:.0f}%", "body": f"₹{spent:.0f} of ₹{b['amount']:.0f} — be careful this week", "priority": "medium"})
+    
+    # 5. Payday detection (large credit today)
+    today_credits = [t for t in today_txns if t.get("type") == "credit"]
+    if not today_credits:
+        all_today = await db.transactions.find({"user_id": user_id, "type": "credit", "date": {"$gte": today_start}}).to_list(10)
+        today_credits = all_today
+    for c in today_credits:
+        if c["amount"] >= 10000:
+            notifications.append({
+                "type": "payday",
+                "title": "Payday Detected!",
+                "body": f"₹{c['amount']:.0f} credited. Let's plan your money for this month!",
+                "priority": "medium"
+            })
+            break
+    
+    return {"notifications": notifications, "count": len(notifications)}
+
 # ============== DATA PROTECTION & COMPLIANCE ROUTES ==============
 # GDPR Art. 15/20 + India DPDP Act 2023 Sec. 11 — Right to Access & Portability
 @api_router.get("/privacy/data-export")
