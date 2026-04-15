@@ -1,0 +1,184 @@
+{
+  "theme": "dark",
+  "archetype": "5",
+  "archetype_name": "Jewel & Luxury (Gen-Z Fintech Edition)",
+  "design_philosophy": "A modern, friendly, and premium personal finance assistant. Replaces the clinical 'bank' feel with a tactile, encouraging, and night-mode aesthetic using deep blues and glowing mint green accents. Prioritizes soft rounded geometries and crystal glassmorphism.",
+  "colors": {
+    "background": {
+      "primary": "#0A0F1C",
+      "secondary": "#131B2D",
+      "glass": "rgba(19, 27, 45, 0.6)",
+      "overlay": "rgba(10, 15, 28, 0.8)"
+    },
+    "accents": {
+      "primary": "#10B981",
+      "primary_hover": "#34D399",
+      "secondary": "#3B82F6",
+      "tertiary": "#8B5CF6",
+      "money_in": "#10B981",
+      "money_out": "#F43F5E",
+      "warning": "#F59E0B"
+    },
+    "text": {
+      "primary": "#FFFFFF",
+      "secondary": "#94A3B8",
+      "muted": "#64748B",
+      "inverse": "#0A0F1C"
+    },
+    "borders": {
+      "subtle": "rgba(255, 255, 255, 0.08)",
+      "focus": "#10B981"
+    }
+  },
+  "typography": {
+    "fonts": {
+      "heading": "Outfit, sans-serif",
+      "body": "Manrope, sans-serif"
+    },
+    "hierarchy": {
+      "h1": "text-4xl tracking-tight font-bold",
+      "h2": "text-2xl sm:text-3xl tracking-tight font-semibold",
+      "h3": "text-xl font-semibold",
+      "h4": "text-lg font-medium",
+      "body": "text-base font-normal leading-relaxed",
+      "small": "text-sm font-normal",
+      "overline": "text-xs font-bold uppercase tracking-[0.2em] text-slate-400"
+    }
+  },
+  "spacing_and_layout": {
+    "philosophy": "Generous spacing, optical alignment, and mobile-first bento grids.",
+    "container": "max-w-md mx-auto min-h-screen bg-[#0A0F1C] relative pb-24",
+    "section_padding": "p-6 sm:p-8",
+    "card_padding": "p-5 sm:p-6",
+    "gaps": {
+      "small": "gap-3",
+      "medium": "gap-4",
+      "large": "gap-6",
+      "xl": "gap-8"
+    },
+    "border_radius": {
+      "card": "rounded-3xl",
+      "button": "rounded-full",
+      "input": "rounded-2xl",
+      "chip": "rounded-full"
+    }
+  },
+  "components": {
+    "cards": {
+      "default": "bg-[#131B2D] border border-white/5 rounded-3xl shadow-lg relative overflow-hidden",
+      "glass": "backdrop-blur-xl bg-[#131B2D]/60 border border-white/10 rounded-3xl",
+      "highlight": "bg-gradient-to-br from-[#131B2D] to-[#0A0F1C] border border-[#10B981]/20 rounded-3xl"
+    },
+    "buttons": {
+      "primary": "w-full bg-[#10B981] hover:bg-[#34D399] text-[#0A0F1C] font-semibold py-4 rounded-full transition-all active:scale-[0.98] shadow-[0_0_20px_rgba(16,185,129,0.2)]",
+      "secondary": "w-full bg-white/5 hover:bg-white/10 text-white font-medium py-4 rounded-full border border-white/10 transition-all",
+      "icon_action": "h-12 w-12 rounded-full bg-white/5 border border-white/10 flex items-center justify-center hover:bg-white/10 transition-colors"
+    },
+    "inputs": {
+      "default": "w-full bg-[#0A0F1C] border border-white/10 rounded-2xl px-5 py-4 text-white focus:border-[#10B981] focus:ring-1 focus:ring-[#10B981] outline-none transition-all placeholder:text-slate-500",
+      "search": "w-full bg-white/5 border-none rounded-2xl px-5 py-3 text-white pl-12"
+    },
+    "navigation": {
+      "bottom_tab": "fixed bottom-0 left-0 right-0 max-w-md mx-auto backdrop-blur-2xl bg-[#0A0F1C]/85 border-t border-white/10 px-6 py-4 flex justify-between items-center z-50 rounded-t-3xl"
+    },
+    "badges": {
+      "success": "bg-[#10B981]/20 text-[#10B981] px-3 py-1 rounded-full text-xs font-semibold",
+      "neutral": "bg-white/10 text-white px-3 py-1 rounded-full text-xs font-medium"
+    }
+  },
+  "screens": {
+    "splash": {
+      "layout": "flex-col center, full-height",
+      "elements": ["Logo animation", "MintU branding", "Background image overlay"]
+    },
+    "onboarding": {
+      "layout": "Carousel with fixed bottom action area",
+      "elements": ["Full width image on top", "H2 Title", "Body text", "Pagination dots", "Primary CTA button"]
+    },
+    "home_dashboard": {
+      "layout": "Vertical scroll with safe area top and bottom tab padding",
+      "elements": [
+        "Header: Avatar + 'Hi, Name' + Notification icon",
+        "Hero Card: Money Score Gauge (Circular progress) + Total Balance",
+        "Quick Actions: Send, Receive, Scan (Row of circular buttons)",
+        "AI Insights Bento: Horizontal scroll or 2x2 grid of small smart tips",
+        "Recent Transactions: List of 3-4 items with 'See All'"
+      ]
+    },
+    "transactions": {
+      "layout": "List view with filters",
+      "elements": [
+        "Header: Title + Filter icon",
+        "Month selector tabs (pill shaped)",
+        "Daily grouped transaction lists",
+        "Floating Action Button (FAB) or prominent button for 'Add Manual / Parse SMS'"
+      ]
+    },
+    "expense_breakdown": {
+      "layout": "Chart focused dashboard",
+      "elements": [
+        "Recharts Pie/Donut Chart centered with total spent inside",
+        "Category list below with horizontal progress bars (budget vs spent)"
+      ]
+    },
+    "budget_tracking": {
+      "layout": "Card list",
+      "elements": [
+        "Overall budget vs spent summary card",
+        "Individual category cards with colored progress bars (green/yellow/red based on limit)"
+      ]
+    },
+    "ai_insights": {
+      "layout": "Feed of cards",
+      "elements": [
+        "Daily insight cards with glowing borders",
+        "Actionable recommendations (e.g., 'Save ₹500 on Swiggy')",
+        "Spending alerts"
+      ]
+    }
+  },
+  "animations": {
+    "page_transition": "framer-motion fade in and slide up (y: 10, opacity: 0 -> 1)",
+    "list_stagger": "framer-motion children stagger (delay 0.05s)",
+    "button_tap": "scale down to 0.98",
+    "chart_load": "Recharts standard animation, stroke-dasharray animation for gauges"
+  },
+  "media": {
+    "images": {
+      "user_profile": {
+        "url": "https://images.unsplash.com/photo-1749700332258-775b1b6b9cd5?crop=entropy&cs=srgb&fm=jpg&ixid=M3w4NjA2MDV8MHwxfHNlYXJjaHwzfHxjaGVlcmZ1bCUyMHlvdW5nJTIwaW5kaWFuJTIwcHJvZmVzc2lvbmFsJTIwcG9ydHJhaXR8ZW58MHx8fHwxNzc2MjY3MTczfDA&ixlib=rb-4.1.0&q=85",
+        "description": "Avatar for the logged-in user"
+      },
+      "splash_bg": {
+        "url": "https://images.unsplash.com/photo-1625685554446-9c0dc87d506a?crop=entropy&cs=srgb&fm=jpg&ixid=M3w4NjA1Mjh8MHwxfHNlYXJjaHwxfHxkYXJrJTIwYmx1ZSUyMG5lb24lMjBhYnN0cmFjdCUyMGJhY2tncm91bmR8ZW58MHx8fHwxNzc2MjY3MTg0fDA&ixlib=rb-4.1.0&q=85",
+        "description": "Abstract neon dark blue background for splash screen overlay"
+      },
+      "onboarding_1": {
+        "url": "https://images.unsplash.com/photo-1642142784847-83b9b8a22910?crop=entropy&cs=srgb&fm=jpg&ixid=M3w4NjA1OTV8MHwxfHNlYXJjaHwxfHxzbWFydHBob25lJTIwZmluYW5jZSUyMGlsbHVzdHJhdGlvbnxlbnwwfHx8fDE3NzYyNjcxODR8MA&ixlib=rb-4.1.0&q=85",
+        "description": "Onboarding slide 1 image: Smart AI tracking"
+      },
+      "onboarding_2": {
+        "url": "https://images.unsplash.com/photo-1772413438614-3d4582783392?crop=entropy&cs=srgb&fm=jpg&ixid=M3w4NjAzMjh8MHwxfHNlYXJjaHwxfHxmaW5hbmNpYWwlMjBncm93dGglMjBjaGFydCUyMGlsbHVzdHJhdGlvbnxlbnwwfHx8fDE3NzYyNjcxODR8MA&ixlib=rb-4.1.0&q=85",
+        "description": "Onboarding slide 2 image: Financial growth and insights"
+      },
+      "onboarding_3": {
+        "url": "https://images.unsplash.com/photo-1769676391614-ee47569b1c69?crop=entropy&cs=srgb&fm=jpg&ixid=M3w4NjA1NDh8MHwxfHNlYXJjaHwxfHxzYXZpbmclMjBtb25leSUyMHBpZ2d5JTIwYmFua3xlbnwwfHx8fDE3NzYyNjcxODR8MA&ixlib=rb-4.1.0&q=85",
+        "description": "Onboarding slide 3 image: Saving goals"
+      }
+    }
+  },
+  "icons": "lucide-react",
+  "data_testid_rules": "All interactive elements MUST include data-testid. Format: kebab-case, role-based. E.g., data-testid='login-submit-button'",
+  "instructions_to_main_agent": [
+    "Design specifically for a mobile web view constraint: max-w-md mx-auto, hide scrollbars, add bottom padding for the fixed tab bar.",
+    "Use framer-motion for page transitions and staggering list items.",
+    "Implement the 'Money Score' using Recharts RadialBarChart or a custom SVG donut chart with a glowing stroke.",
+    "Use lucide-react for all standard icons, wrapping them in circular backgrounds (w-12 h-12 bg-white/5 rounded-full flex items-center justify-center) for that modern tactile app feel.",
+    "For Indian Bank names and Payment Apps (HDFC, SBI, Paytm, GPay), use lucide icons like 'Building2', 'Landmark', or 'SmartphoneNfc' combined with brand colors if actual logos aren't readily available via icons.",
+    "Use Indian Rupee symbol (₹) strictly.",
+    "Do NOT use HTML native components like <select> or <input type='date'>. Always use Shadcn/UI wrapped and customized to fit the Dark/Mint theme.",
+    "Forms and modals (e.g., 'Add Transaction' or 'SMS Parse Modal') should slide up like Bottom Sheets (using Framer Motion or Shadcn Drawer/Dialog).",
+    "All cards must have generous rounded corners (rounded-3xl) and subtle inner borders to separate them from the dark background.",
+    "Include 'Pull-to-refresh' UI visually (a spinner pulling down at the top of scrollable areas) to mimic native mobile feel."
+  ]
+}
