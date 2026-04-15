@@ -103,7 +103,7 @@ const styles = StyleSheet.create({
     paddingTop: 4,
   },
   activeIconWrap: {
-    backgroundColor: COLORS.accent.primary + '18',
+    backgroundColor: COLORS.accent.primary + '15',
     borderRadius: 12,
     padding: 6,
   },

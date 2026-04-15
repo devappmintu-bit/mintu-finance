@@ -1,9 +1,9 @@
 import React, { useEffect, useRef } from 'react';
-import { View, Text, StyleSheet, Animated } from 'react-native';
+import { View, Text, StyleSheet, Animated, ImageBackground } from 'react-native';
 import { router } from 'expo-router';
 import { useAuthStore } from '../store/authStore';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { COLORS } from '../utils/theme';
+import { COLORS, ONBOARDING_IMAGES } from '../utils/theme';
 
 export default function SplashIndex() {
   const { token, isLoading } = useAuthStore();
@@ -22,14 +22,12 @@ export default function SplashIndex() {
 
     const timer = setTimeout(async () => {
       if (isLoading) return;
-      if (token) {
-        router.replace('/(tabs)');
-      } else {
+      if (token) { router.replace('/(tabs)'); }
+      else {
         const seen = await AsyncStorage.getItem('onboarding_seen');
         router.replace(seen ? '/auth' : '/onboarding');
       }
     }, 2200);
-
     return () => clearTimeout(timer);
   }, [isLoading, token]);
 
@@ -38,7 +36,7 @@ export default function SplashIndex() {
       <View style={styles.glowCircle} />
       <Animated.View style={[styles.logoContainer, { opacity: fadeAnim, transform: [{ scale: scaleAnim }] }]}>
         <View style={styles.logoIcon}>
-          <Text style={styles.logoEmoji}>₹</Text>
+          <Text style={styles.logoEmoji}>{'\u20B9'}</Text>
         </View>
         <Text style={styles.logoText}>MintU</Text>
       </Animated.View>
@@ -50,51 +48,15 @@ export default function SplashIndex() {
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: COLORS.bg.primary,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  glowCircle: {
-    position: 'absolute',
-    width: 300,
-    height: 300,
-    borderRadius: 150,
-    backgroundColor: COLORS.accent.primary,
-    opacity: 0.06,
-  },
-  logoContainer: {
-    alignItems: 'center',
-  },
+  container: { flex: 1, backgroundColor: COLORS.bg.primary, justifyContent: 'center', alignItems: 'center' },
+  glowCircle: { position: 'absolute', width: 300, height: 300, borderRadius: 150, backgroundColor: COLORS.accent.secondary, opacity: 0.08 },
+  logoContainer: { alignItems: 'center' },
   logoIcon: {
-    width: 88,
-    height: 88,
-    borderRadius: 28,
-    backgroundColor: COLORS.accent.primary,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginBottom: 20,
-    shadowColor: COLORS.accent.primary,
-    shadowOffset: { width: 0, height: 0 },
-    shadowOpacity: 0.4,
-    shadowRadius: 24,
-    elevation: 12,
+    width: 96, height: 96, borderRadius: 32, backgroundColor: COLORS.accent.primary,
+    justifyContent: 'center', alignItems: 'center', marginBottom: 20,
+    shadowColor: COLORS.accent.primary, shadowOffset: { width: 0, height: 8 }, shadowOpacity: 0.3, shadowRadius: 20, elevation: 12,
   },
-  logoEmoji: {
-    fontSize: 42,
-    fontWeight: '800',
-    color: COLORS.bg.primary,
-  },
-  logoText: {
-    fontSize: 44,
-    fontWeight: '800',
-    color: COLORS.text.primary,
-    letterSpacing: -1,
-  },
-  tagline: {
-    fontSize: 16,
-    color: COLORS.text.secondary,
-    marginTop: 12,
-  },
+  logoEmoji: { fontSize: 46, fontWeight: '800', color: COLORS.text.inverse },
+  logoText: { fontSize: 48, fontWeight: '800', color: COLORS.text.primary, letterSpacing: -1 },
+  tagline: { fontSize: 16, color: COLORS.text.secondary, marginTop: 12 },
 });
