@@ -24,14 +24,13 @@ export default function HomeScreen() {
 
   const fetchData = useCallback(async () => {
     try {
-      const [insightsRes, profileRes, statsRes, txnRes, lessonRes] = await Promise.all([
-        api.get('/insights/daily'),
+      // Load fast endpoints first to unblock the UI
+      const [profileRes, statsRes, txnRes, lessonRes] = await Promise.all([
         api.get('/user/me'),
         api.get('/stats/overview'),
         api.get('/transactions?limit=5'),
         api.get('/money-school/daily'),
       ]);
-      setInsights(insightsRes.data);
       setUser(profileRes.data);
       setStats(statsRes.data);
       setRecentTxns(Array.isArray(txnRes.data) ? txnRes.data.slice(0, 4) : []);
@@ -41,6 +40,13 @@ export default function HomeScreen() {
     } finally {
       setLoading(false);
       setRefreshing(false);
+    }
+    // Load AI insights separately (slow OpenAI call - don't block UI)
+    try {
+      const insightsRes = await api.get('/insights/daily');
+      setInsights(insightsRes.data);
+    } catch (error) {
+      console.error('Insights fetch error:', error);
     }
   }, []);
 

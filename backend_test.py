@@ -2,6 +2,7 @@
 """
 MintU Backend API Testing Suite
 Tests all backend APIs according to test_result.md priorities
+Focus on OTP authentication and new split functionality
 """
 
 import asyncio
@@ -15,9 +16,10 @@ from typing import Dict, Any, Optional
 BASE_URL = "https://mintu-finance.preview.emergentagent.com/api"
 TEST_CREDENTIALS = {
     "phone": "9876543210",
-    "password": "test123",
+    "otp": "123456",  # Mock OTP mode
     "name": "Test User"
 }
+ADDITIONAL_USER_PHONE = "9999888877"  # For split group testing
 
 class MintUAPITester:
     def __init__(self):
@@ -75,56 +77,53 @@ class MintUAPITester:
         except Exception as e:
             return False, f"Request error: {str(e)}"
     
-    async def test_user_registration(self):
-        """Test user registration endpoint"""
-        print("\n🔐 Testing User Registration...")
+    async def test_otp_authentication(self):
+        """Test OTP-based authentication flow"""
+        print("\n🔐 Testing OTP Authentication Flow...")
         
-        # Test valid registration
+        # Step 1: Send OTP
         success, response = await self.make_request(
-            "POST", "/auth/register",
-            data=TEST_CREDENTIALS,
+            "POST", "/auth/send-otp",
+            data={"phone": TEST_CREDENTIALS["phone"]},
+            expect_status=200
+        )
+        
+        if success and isinstance(response, dict):
+            self.log_test("Send OTP", True, f"OTP sent to {TEST_CREDENTIALS['phone']}")
+        else:
+            self.log_test("Send OTP", False, str(response))
+            return
+        
+        # Step 2: Verify OTP
+        success, response = await self.make_request(
+            "POST", "/auth/verify-otp",
+            data={
+                "phone": TEST_CREDENTIALS["phone"], 
+                "otp": TEST_CREDENTIALS["otp"],
+                "name": TEST_CREDENTIALS["name"]  # For new users
+            },
             expect_status=200
         )
         
         if success and isinstance(response, dict) and "token" in response:
             self.auth_token = response["token"]
             self.user_id = response["user"]["id"]
-            self.log_test("User Registration", True, f"User ID: {self.user_id}")
+            self.log_test("Verify OTP", True, f"Token received, User ID: {self.user_id}")
         else:
-            # User might already exist, try login instead
-            await self.test_user_login()
-            return
-    
-    async def test_user_login(self):
-        """Test user login endpoint"""
-        print("\n🔑 Testing User Login...")
-        
-        # Test valid login
-        success, response = await self.make_request(
-            "POST", "/auth/login",
-            data={"phone": TEST_CREDENTIALS["phone"], "password": TEST_CREDENTIALS["password"]},
-            expect_status=200
-        )
-        
-        if success and isinstance(response, dict) and "token" in response:
-            self.auth_token = response["token"]
-            self.user_id = response["user"]["id"]
-            self.log_test("User Login - Valid Credentials", True, f"Token received, User ID: {self.user_id}")
-        else:
-            self.log_test("User Login - Valid Credentials", False, str(response))
+            self.log_test("Verify OTP", False, str(response))
             return
         
-        # Test invalid credentials
+        # Test invalid OTP
         success, response = await self.make_request(
-            "POST", "/auth/login",
-            data={"phone": "9999999999", "password": "wrongpass"},
-            expect_status=401
+            "POST", "/auth/verify-otp",
+            data={"phone": "9999999999", "otp": "000000"},
+            expect_status=400
         )
         
         if success:
-            self.log_test("User Login - Invalid Credentials", True, "Correctly rejected invalid credentials")
+            self.log_test("Invalid OTP Rejection", True, "Correctly rejected invalid OTP")
         else:
-            self.log_test("User Login - Invalid Credentials", False, str(response))
+            self.log_test("Invalid OTP Rejection", False, str(response))
     
     async def test_user_profile(self):
         """Test user profile endpoint"""
@@ -154,7 +153,7 @@ class MintUAPITester:
             "amount": 250.0,
             "category": "Food",
             "description": "Lunch at restaurant",
-            "type": "debit"
+            "type": "debit"  # Changed from "expense" to "debit"
         }
         
         success, response = await self.make_request(
@@ -206,41 +205,116 @@ class MintUAPITester:
             else:
                 self.log_test("Delete Transaction", False, str(response))
     
-    async def test_sms_parsing(self):
-        """Test SMS parsing with AI"""
-        print("\n📱 Testing SMS Parsing with AI...")
+    async def test_split_groups_and_expenses(self):
+        """Test split groups and expenses functionality"""
+        print("\n👥 Testing Split Groups & Expenses...")
         
         if not self.auth_token:
-            self.log_test("SMS Parsing", False, "No auth token available")
+            self.log_test("Split Groups & Expenses", False, "No auth token available")
             return
         
-        # Test Indian bank SMS
-        bank_sms = "Your HDFC Bank Account XX1234 has been debited with Rs.250.00 on 15-Apr-26 at SWIGGY"
+        # Test create split group
+        group_data = {
+            "name": "Test Group",
+            "members": [ADDITIONAL_USER_PHONE]  # Add another user
+        }
         
         success, response = await self.make_request(
-            "POST", "/transactions/parse-sms",
-            data={"sms_text": bank_sms}
+            "POST", "/split/groups",
+            data=group_data
         )
         
+        group_id = None
         if success and isinstance(response, dict) and "id" in response:
-            self.log_test("SMS Parsing - Bank SMS", True, 
-                         f"Parsed: ₹{response.get('amount', 0)} - {response.get('category', 'N/A')}")
+            group_id = response["id"]
+            self.log_test("Create Split Group", True, f"Group ID: {group_id}")
         else:
-            self.log_test("SMS Parsing - Bank SMS", False, str(response))
+            self.log_test("Create Split Group", False, str(response))
         
-        # Test payment app SMS
-        payment_sms = "You paid Rs.150 to Uber via Paytm"
+        # Test get all split groups
+        success, response = await self.make_request("GET", "/split/groups")
+        
+        if success and isinstance(response, list):
+            self.log_test("Get Split Groups", True, f"Retrieved {len(response)} groups")
+        else:
+            self.log_test("Get Split Groups", False, str(response))
+        
+        # Test add split expense
+        if group_id and self.user_id:
+            expense_data = {
+                "group_id": group_id,
+                "description": "Dinner at restaurant",
+                "amount": 1000.0,
+                "paid_by": self.user_id,
+                "split_type": "equal"
+            }
+            
+            success, response = await self.make_request(
+                "POST", "/split/expenses",
+                data=expense_data
+            )
+            
+            if success and isinstance(response, dict) and "id" in response:
+                self.log_test("Add Split Expense", True, f"Expense ID: {response['id']}")
+            else:
+                self.log_test("Add Split Expense", False, str(response))
+            
+            # Test get group expenses
+            success, response = await self.make_request(
+                "GET", f"/split/groups/{group_id}/expenses"
+            )
+            
+            if success and isinstance(response, dict) and "expenses" in response:
+                self.log_test("Get Group Expenses", True, f"Retrieved {len(response['expenses'])} expenses")
+            else:
+                self.log_test("Get Group Expenses", False, str(response))
+        
+        # Test get split balances
+        success, response = await self.make_request("GET", "/split/balances")
+        
+        if success and isinstance(response, dict):
+            required_fields = ["total_owed_to_you", "total_you_owe", "owe_you", "you_owe"]
+            missing_fields = [field for field in required_fields if field not in response]
+            
+            if not missing_fields:
+                self.log_test("Get Split Balances", True, 
+                             f"Owed to you: ₹{response['total_owed_to_you']}, You owe: ₹{response['total_you_owe']}")
+            else:
+                self.log_test("Get Split Balances", False, f"Missing fields: {missing_fields}")
+        else:
+            self.log_test("Get Split Balances", False, str(response))
+    
+    async def test_sms_bulk_parse(self):
+        """Test SMS bulk parsing functionality"""
+        print("\n📱 Testing SMS Bulk Parse...")
+        
+        if not self.auth_token:
+            self.log_test("SMS Bulk Parse", False, "No auth token available")
+            return
+        
+        # Test bulk SMS parsing
+        sms_messages = [
+            "HDFC Bank: Rs 500.00 debited from A/c XX1234 to VPA test@upi on 01-06-25",
+            "You paid Rs.250 to Swiggy via PhonePe",
+            "ICICI Bank: Rs 1000.00 credited to A/c XX5678 on 01-06-25"
+        ]
         
         success, response = await self.make_request(
-            "POST", "/transactions/parse-sms",
-            data={"sms_text": payment_sms}
+            "POST", "/sms/bulk-parse",
+            data={"messages": sms_messages}
         )
         
-        if success and isinstance(response, dict) and "id" in response:
-            self.log_test("SMS Parsing - Payment App SMS", True,
-                         f"Parsed: ₹{response.get('amount', 0)} - {response.get('category', 'N/A')}")
+        if success and isinstance(response, dict):
+            required_fields = ["parsed", "failed", "total"]
+            missing_fields = [field for field in required_fields if field not in response]
+            
+            if not missing_fields:
+                self.log_test("SMS Bulk Parse", True, 
+                             f"Parsed: {response['parsed']}, Failed: {response['failed']}, Total: {response['total']}")
+            else:
+                self.log_test("SMS Bulk Parse", False, f"Missing fields: {missing_fields}")
         else:
-            self.log_test("SMS Parsing - Payment App SMS", False, str(response))
+            self.log_test("SMS Bulk Parse", False, str(response))
     
     async def test_daily_insights(self):
         """Test daily insights with AI"""
@@ -336,22 +410,31 @@ class MintUAPITester:
         """Run all tests in priority order"""
         print("🚀 Starting MintU Backend API Tests...")
         print(f"🌐 Testing against: {BASE_URL}")
+        print(f"📱 Using OTP authentication with phone: {TEST_CREDENTIALS['phone']}")
         
         await self.setup()
         
         try:
-            # High Priority Tests
-            await self.test_user_registration()
-            await self.test_user_login()
+            # High Priority Tests - Authentication Flow
+            await self.test_otp_authentication()
             await self.test_user_profile()
-            await self.test_transaction_management()
-            await self.test_sms_parsing()
-            await self.test_daily_insights()
             
-            # Medium Priority Tests
+            # High Priority Tests - Split Groups & Expenses (recently added)
+            await self.test_split_groups_and_expenses()
+            
+            # High Priority Tests - SMS Bulk Parse (recently added)
+            await self.test_sms_bulk_parse()
+            
+            # Medium Priority Tests - Transaction Management
+            await self.test_transaction_management()
+            
+            # Medium Priority Tests - Budget Management
             await self.test_budget_management()
             
-            # Low Priority Tests
+            # High Priority Tests - Daily Insights with AI
+            await self.test_daily_insights()
+            
+            # Low Priority Tests - Stats Overview
             await self.test_stats_overview()
             
         finally:

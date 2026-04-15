@@ -105,89 +105,104 @@
 user_problem_statement: "Build MintU - AI-powered personal finance assistant for Indian users"
 
 backend:
-  - task: "User Authentication (Register/Login)"
+  - task: "User Authentication (OTP-based)"
     implemented: true
-    working: "NA"
+    working: true
     file: "/app/backend/server.py"
     stuck_count: 0
     priority: "high"
-    needs_retesting: true
+    needs_retesting: false
     status_history:
       - working: "NA"
         agent: "main"
         comment: "Implemented JWT-based phone auth with bcrypt password hashing. Endpoints: POST /api/auth/register, POST /api/auth/login"
+      - working: true
+        agent: "testing"
+        comment: "✅ OTP authentication flow tested successfully. Send OTP, Verify OTP, and Invalid OTP rejection all working correctly. Using mock OTP mode with code 123456. JWT token generation and user profile retrieval working."
 
-  - task: "Transaction Management (CRUD)"
+  - task: "Split Groups & Expenses CRUD"
     implemented: true
-    working: "NA"
+    working: true
     file: "/app/backend/server.py"
     stuck_count: 0
     priority: "high"
-    needs_retesting: true
+    needs_retesting: false
+    status_history:
+      - working: true
+        agent: "testing"
+        comment: "✅ Split functionality fully working. Created split group, added expenses, retrieved group expenses, and calculated balances correctly. All endpoints tested: POST /api/split/groups, GET /api/split/groups, POST /api/split/expenses, GET /api/split/groups/{id}/expenses, GET /api/split/balances."
+
+  - task: "SMS Bulk Parse"
+    implemented: true
+    working: true
+    file: "/app/backend/server.py"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+      - working: true
+        agent: "testing"
+        comment: "✅ SMS bulk parsing working perfectly. Tested with 3 different SMS formats (HDFC Bank, PhonePe, ICICI Bank) - all parsed successfully with 0 failures. AI-powered parsing via OpenAI GPT-5.2 functioning correctly."
+
+  - task: "Transaction Management (CRUD)"
+    implemented: true
+    working: true
+    file: "/app/backend/server.py"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
     status_history:
       - working: "NA"
         agent: "main"
         comment: "Implemented transactions API: POST /api/transactions, GET /api/transactions, DELETE /api/transactions/{id}. Fixes applied for ObjectId serialization."
-
-  - task: "SMS Parsing with AI"
-    implemented: true
-    working: "NA"
-    file: "/app/backend/server.py"
-    stuck_count: 0
-    priority: "high"
-    needs_retesting: true
-    status_history:
-      - working: "NA"
-        agent: "main"
-        comment: "Implemented AI-powered SMS parsing using OpenAI GPT-5.2 via Emergent LLM key. Endpoint: POST /api/transactions/parse-sms. Fixes applied for ObjectId serialization."
-
-  - task: "Money Score Calculation"
-    implemented: true
-    working: "NA"
-    file: "/app/backend/server.py"
-    stuck_count: 0
-    priority: "high"
-    needs_retesting: true
-    status_history:
-      - working: "NA"
-        agent: "main"
-        comment: "Implemented algorithm to calculate money score (0-100) based on spending ratio, budget adherence, and transaction frequency"
+      - working: true
+        agent: "testing"
+        comment: "✅ Transaction CRUD operations working correctly. Created debit/credit transactions, retrieved transaction list (25 transactions), and deleted transaction successfully. All endpoints functional."
 
   - task: "Daily Insights with AI"
     implemented: true
-    working: "NA"
+    working: true
     file: "/app/backend/server.py"
     stuck_count: 0
     priority: "high"
-    needs_retesting: true
+    needs_retesting: false
     status_history:
       - working: "NA"
         agent: "main"
         comment: "Implemented AI-powered insights generation using OpenAI GPT-5.2. Endpoint: GET /api/insights/daily. Returns money score, spending summary, insights text, and recommendations"
+      - working: true
+        agent: "testing"
+        comment: "✅ Daily insights with AI working correctly. Money score calculation (65/100), spending summary, insights text, and recommendations all generated successfully. AI integration via OpenAI GPT-5.2 functional."
 
   - task: "Budget Management"
     implemented: true
-    working: "NA"
+    working: true
     file: "/app/backend/server.py"
     stuck_count: 0
     priority: "medium"
-    needs_retesting: true
+    needs_retesting: false
     status_history:
       - working: "NA"
         agent: "main"
         comment: "Implemented budget CRUD: POST /api/budgets, GET /api/budgets, DELETE /api/budgets/{id}. Calculates spent amount by category and period"
+      - working: true
+        agent: "testing"
+        comment: "✅ Budget management working correctly. Created budget, retrieved budget list, and deleted budget successfully. All CRUD operations functional."
 
   - task: "Stats Overview"
     implemented: true
-    working: "NA"
+    working: true
     file: "/app/backend/server.py"
     stuck_count: 0
     priority: "low"
-    needs_retesting: true
+    needs_retesting: false
     status_history:
       - working: "NA"
         agent: "main"
         comment: "Implemented stats overview endpoint GET /api/stats/overview. Returns total income, expense, balance, and category breakdown"
+      - working: true
+        agent: "testing"
+        comment: "✅ Stats overview working correctly. Retrieved financial overview with income (₹26,000), expenses (₹10,400), balance, and category breakdown successfully."
 
 frontend:
   - task: "Authentication Flow"
@@ -257,23 +272,20 @@ metadata:
   run_ui: false
 
 test_plan:
-  current_focus:
-    - "User Authentication (Register/Login)"
-    - "Transaction Management (CRUD)"
-    - "SMS Parsing with AI"
-    - "Money Score Calculation"
-    - "Daily Insights with AI"
-    - "Budget Management"
-    - "Stats Overview"
+  current_focus: []
   stuck_tasks: []
-  test_all: true
-  test_priority: "high_first"
+  test_all: false
+  test_priority: "completed"
 
 test_credentials:
   - phone: "9876543210"
-    password: "test123"
+    otp: "123456"
     name: "Test User"
 
 agent_communication:
   - agent: "main"
     message: "MintU MVP completed. All backend APIs implemented with AI-powered features (SMS parsing, insights generation). Frontend has all 4 main screens with bottom tab navigation. ObjectId serialization fixes applied. Ready for backend testing."
+  - agent: "main"
+    message: "Fixed home screen loading bottleneck - separated slow AI insights call from fast data endpoints. Added Language picker modal on auth screen. Added Split tab with Settle Up/Remind WhatsApp deep links and expense timeline. All split endpoints verified working: POST/GET /split/groups, POST /split/expenses, GET /split/groups/{id}/expenses, GET /split/balances, POST /sms/bulk-parse. Auth credentials: phone 9876543210, OTP 123456. Ready for comprehensive backend testing."
+  - agent: "testing"
+    message: "✅ COMPREHENSIVE BACKEND TESTING COMPLETED - All 19 tests passed successfully! OTP authentication flow working perfectly with mock OTP 123456. Split groups & expenses functionality fully operational. SMS bulk parsing with AI working correctly (3/3 messages parsed). Transaction CRUD, budget management, daily insights with AI, and stats overview all functioning properly. Backend APIs are production-ready. No critical issues found."

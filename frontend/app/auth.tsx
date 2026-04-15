@@ -1,7 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import {
   View, Text, TextInput, TouchableOpacity, StyleSheet, KeyboardAvoidingView,
-  Platform, ScrollView, ActivityIndicator, Alert,
+  Platform, ScrollView, ActivityIndicator, Alert, Modal, FlatList,
 } from 'react-native';
 import { router } from 'expo-router';
 import { useAuthStore } from '../store/authStore';
@@ -10,12 +10,13 @@ import { t } from '../utils/i18n';
 import api from '../utils/api';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
-import { COLORS, RADIUS, SPACING } from '../utils/theme';
+import { COLORS, RADIUS, SPACING, ONBOARDING_IMAGES } from '../utils/theme';
+import { LANGUAGES, LangCode } from '../utils/i18n';
 
 type AuthStep = 'phone' | 'otp' | 'name';
 
 export default function AuthScreen() {
-  const { lang } = useLangStore();
+  const { lang, setLang } = useLangStore();
   const [step, setStep] = useState<AuthStep>('phone');
   const [phone, setPhone] = useState('');
   const [otp, setOtp] = useState(['', '', '', '', '', '']);
@@ -25,6 +26,7 @@ export default function AuthScreen() {
   const [resendTimer, setResendTimer] = useState(0);
   const [showPasswordLogin, setShowPasswordLogin] = useState(false);
   const [password, setPassword] = useState('');
+  const [showLangPicker, setShowLangPicker] = useState(false);
   const { setUser, setToken } = useAuthStore();
   const otpRefs = useRef<(TextInput | null)[]>([]);
 
@@ -98,6 +100,13 @@ export default function AuthScreen() {
 
   const renderPhoneStep = () => (
     <>
+      {/* Language Selector at top */}
+      <TouchableOpacity testID="auth-lang-picker" style={s.langToggle} onPress={() => setShowLangPicker(true)}>
+        <Ionicons name="language" size={16} color={COLORS.accent.primary} />
+        <Text style={s.langToggleText}>{LANGUAGES.find(l => l.code === lang)?.nativeName || 'English'}</Text>
+        <Ionicons name="chevron-down" size={14} color={COLORS.text.muted} />
+      </TouchableOpacity>
+
       <View style={s.header}>
         <View style={s.logoIcon}><Text style={s.logoSymbol}>{'\u20B9'}</Text></View>
         <Text style={s.logoText}>MintU</Text>
@@ -179,6 +188,25 @@ export default function AuthScreen() {
           {step === 'name' && renderNameStep()}
         </ScrollView>
       </KeyboardAvoidingView>
+      {/* Language Picker Modal */}
+      <Modal visible={showLangPicker} animationType="slide" transparent>
+        <View style={s.langModalBg}>
+          <View style={s.langModalSheet}>
+            <View style={s.sheetHandle} />
+            <Text style={s.langModalTitle}>{t('language', lang)}</Text>
+            <FlatList
+              data={LANGUAGES}
+              keyExtractor={(item) => item.code}
+              renderItem={({ item }) => (
+                <TouchableOpacity style={[s.langOption, lang === item.code && s.langOptionActive]} onPress={() => { setLang(item.code); setShowLangPicker(false); }}>
+                  <View><Text style={s.langNative}>{item.nativeName}</Text><Text style={s.langEn}>{item.name}</Text></View>
+                  {lang === item.code && <Ionicons name="checkmark-circle" size={22} color={COLORS.accent.primary} />}
+                </TouchableOpacity>
+              )}
+            />
+          </View>
+        </View>
+      </Modal>
     </SafeAreaView>
   );
 }
@@ -220,4 +248,15 @@ const s = StyleSheet.create({
   mockBannerText: { fontSize: 13, color: COLORS.accent.primary },
   passwordSection: { marginTop: SPACING.lg, gap: SPACING.md },
   textInput: { backgroundColor: COLORS.bg.secondary, borderRadius: RADIUS.xl, paddingHorizontal: SPACING.lg, paddingVertical: 18, fontSize: 16, color: COLORS.text.primary, borderWidth: 1, borderColor: COLORS.border.subtle },
+  // Language toggle
+  langToggle: { flexDirection: 'row', alignItems: 'center', gap: 6, alignSelf: 'center', backgroundColor: COLORS.bg.secondary, paddingHorizontal: 16, paddingVertical: 10, borderRadius: RADIUS.full, borderWidth: 1, borderColor: COLORS.border.subtle, marginBottom: SPACING.lg },
+  langToggleText: { fontSize: 14, fontWeight: '600', color: COLORS.text.primary },
+  sheetHandle: { width: 40, height: 4, borderRadius: 2, backgroundColor: COLORS.text.muted, alignSelf: 'center', marginBottom: SPACING.lg, opacity: 0.3 },
+  langModalBg: { flex: 1, justifyContent: 'flex-end', backgroundColor: 'rgba(0,0,0,0.4)' },
+  langModalSheet: { backgroundColor: COLORS.bg.secondary, borderTopLeftRadius: 28, borderTopRightRadius: 28, padding: SPACING.xxl, maxHeight: '70%' },
+  langModalTitle: { fontSize: 22, fontWeight: '700', color: COLORS.text.primary, marginBottom: SPACING.lg, textAlign: 'center' },
+  langOption: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingVertical: 14, paddingHorizontal: SPACING.lg, borderRadius: RADIUS.lg, marginBottom: 4 },
+  langOptionActive: { backgroundColor: COLORS.accent.primary + '10' },
+  langNative: { fontSize: 18, fontWeight: '600', color: COLORS.text.primary },
+  langEn: { fontSize: 12, color: COLORS.text.muted, marginTop: 2 },
 });

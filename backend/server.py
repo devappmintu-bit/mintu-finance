@@ -1599,6 +1599,64 @@ async def get_biometric_status(user_id: str = Depends(get_current_user)):
     user = await db.users.find_one({"_id": ObjectId(user_id)}, {"biometric_enabled": 1})
     return {"biometric_enabled": user.get("biometric_enabled", False) if user else False}
 
+# ============== BULK SMS IMPORT ==============
+SAMPLE_INDIAN_SMS = [
+    "Your A/c XX1234 is debited for Rs.450.00 on 15-Apr-26. Info: UPI/SWIGGY/Payment",
+    "Rs.2500.00 credited to your A/c XX1234 on 15-Apr-26 by NEFT-SALARY-COMPANY",
+    "Your SBI A/c X5678 debited Rs.150.00 on 14Apr UPI-Ola Cabs",
+    "ICICI Bank Acct XX9012 debited with Rs 1,200.00 on 14-APR-26; Info:AMAZON",
+    "You paid Rs.80 to Tea Junction via Paytm Wallet",
+    "Sent Rs.300 to Zomato from HDFC XX1234 via UPI",
+    "Rs.35000.00 credited to your A/c XX1234 by NEFT from ACME CORP SALARY APR26",
+    "Your A/c XX1234 debited Rs.500.00 ATM Cash Withdrawal",
+    "Rs.199 debited from your Axis Bank A/c for NETFLIX subscription",
+    "Your HDFC A/c XX1234 debited Rs.3500.00 for Electricity Bill TATA POWER",
+    "Paid Rs.250 to PhonePe for BigBasket order",
+    "Your A/c XX1234 debited Rs.1800.00 on 12-Apr-26. Info: UPI/MYNTRA/Shopping",
+]
+
+@api_router.get("/sms/sample-inbox")
+async def get_sample_sms_inbox():
+    """Return sample Indian bank SMS for demo auto-import"""
+    return {"messages": SAMPLE_INDIAN_SMS, "count": len(SAMPLE_INDIAN_SMS)}
+
+@api_router.post("/sms/bulk-parse")
+async def bulk_parse_sms(data: dict, user_id: str = Depends(get_current_user)):
+    """Parse multiple SMS messages and create transactions"""
+    messages = data.get("messages", [])
+    if not messages:
+        raise HTTPException(status_code=400, detail="No messages provided")
+    
+    parsed_count = 0
+    failed_count = 0
+    
+    for sms_text in messages[:50]:  # Limit to 50
+        try:
+            parsed = await parse_sms_with_ai(sms_text)
+            if parsed:
+                await db.transactions.insert_one({
+                    "user_id": user_id,
+                    "amount": parsed["amount"],
+                    "category": parsed["category"],
+                    "description": parsed.get("description", parsed.get("merchant", "Transaction")),
+                    "type": parsed["type"],
+                    "source": "sms_import",
+                    "date": datetime.utcnow(),
+                    "created_at": datetime.utcnow()
+                })
+                parsed_count += 1
+            else:
+                failed_count += 1
+        except Exception:
+            failed_count += 1
+    
+    # Recalculate money score
+    new_score = await calculate_money_score(user_id)
+    from bson import ObjectId
+    await db.users.update_one({"_id": ObjectId(user_id)}, {"$set": {"money_score": new_score}})
+    
+    return {"parsed": parsed_count, "failed": failed_count, "total": len(messages)}
+
 # ============== SPLITWISE-LIKE SPLIT EXPENSES ==============
 class SplitGroupCreate(BaseModel):
     name: str
