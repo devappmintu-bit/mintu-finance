@@ -1411,19 +1411,21 @@ async def get_family_budgets(group_id: str, user_id: str = Depends(get_current_u
     
     thirty_days_ago = datetime.utcnow() - timedelta(days=30)
     
+    # Fetch ALL transactions once (avoid N+1 query)
+    all_txns = await db.transactions.find({
+        "user_id": {"$in": member_ids},
+        "type": "debit",
+        "date": {"$gte": thirty_days_ago}
+    }).to_list(5000)
+    
     for b in budgets:
-        # Calculate combined spending from all members
-        txns = await db.transactions.find({
-            "user_id": {"$in": member_ids},
-            "category": b["category"],
-            "type": "debit",
-            "date": {"$gte": thirty_days_ago}
-        }).to_list(5000)
+        # Filter in memory instead of querying per budget
+        cat_txns = [t for t in all_txns if t["category"] == b["category"]]
         
-        b["spent"] = sum(t["amount"] for t in txns)
+        b["spent"] = sum(t["amount"] for t in cat_txns)
         b["member_spending"] = {}
         for m in group["members"]:
-            m_spent = sum(t["amount"] for t in txns if t["user_id"] == m["user_id"])
+            m_spent = sum(t["amount"] for t in cat_txns if t["user_id"] == m["user_id"])
             if m_spent > 0:
                 b["member_spending"][m["name"]] = m_spent
         
