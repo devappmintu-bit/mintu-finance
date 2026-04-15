@@ -19,6 +19,7 @@ import re
 import random
 import string
 from emergentintegrations.llm.chat import LlmChat, UserMessage
+from emergentintegrations.llm.openai import OpenAISpeechToText
 
 ROOT_DIR = Path(__file__).parent
 load_dotenv(ROOT_DIR / '.env')
@@ -1112,6 +1113,51 @@ async def get_stats_overview(user_id: str = Depends(get_current_user)):
         "transaction_count": len(transactions),
         "category_breakdown": category_breakdown
     }
+
+# ============== VOICE INPUT (Whisper STT) ==============
+from fastapi import UploadFile, File
+
+@api_router.post("/voice/transcribe")
+async def transcribe_voice(file: UploadFile = File(...), user_id: str = Depends(get_current_user)):
+    """Transcribe voice audio to text using OpenAI Whisper, then parse as cash entry"""
+    import tempfile
+    import io
+
+    # Read audio data
+    audio_data = await file.read()
+    if len(audio_data) > 25 * 1024 * 1024:
+        raise HTTPException(status_code=400, detail="File too large. Max 25MB.")
+
+    # Save to temp file
+    suffix = "." + (file.filename.split(".")[-1] if file.filename and "." in file.filename else "m4a")
+    with tempfile.NamedTemporaryFile(suffix=suffix, delete=False) as tmp:
+        tmp.write(audio_data)
+        tmp_path = tmp.name
+
+    try:
+        stt = OpenAISpeechToText(api_key=os.environ['EMERGENT_LLM_KEY'])
+        with open(tmp_path, "rb") as audio_file:
+            response = await stt.transcribe(
+                file=audio_file,
+                model="whisper-1",
+                response_format="json",
+                prompt="Indian currency amounts, Hindi and English mixed. Examples: 50 rupaye auto, 200 sabzi, chai 30, doodh 50, maid 3000"
+            )
+        transcribed_text = response.text.strip()
+    except Exception as e:
+        logging.error(f"Whisper transcription error: {str(e)}")
+        raise HTTPException(status_code=500, detail="Voice transcription failed")
+    finally:
+        import os as _os
+        try:
+            _os.unlink(tmp_path)
+        except Exception:
+            pass
+
+    if not transcribed_text:
+        raise HTTPException(status_code=400, detail="Could not understand audio. Please try again.")
+
+    return {"transcribed_text": transcribed_text}
 
 # ============== CASH TRACKING ROUTES ==============
 @api_router.post("/cash/quick-entry")

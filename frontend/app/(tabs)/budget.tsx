@@ -7,10 +7,13 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import api from '../../utils/api';
 import { COLORS, RADIUS, SPACING, CATEGORIES, CATEGORY_LIST } from '../../utils/theme';
+import { useLangStore } from '../../store/langStore';
+import { t } from '../../utils/i18n';
 
 const PERIODS = ['daily', 'weekly', 'monthly'];
 
 export default function BudgetScreen() {
+  const { lang } = useLangStore();
   const [budgets, setBudgets] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [modalVisible, setModalVisible] = useState(false);
@@ -68,11 +71,11 @@ export default function BudgetScreen() {
 
         <View style={styles.budgetBottom}>
           <View>
-            <Text style={styles.metaLabel}>Spent</Text>
+            <Text style={styles.metaLabel}>{t('spent', lang)}</Text>
             <Text style={[styles.metaValue, { color: COLORS.accent.moneyOut }]}>{'\u20B9'}{item.spent.toFixed(0)}</Text>
           </View>
           <View>
-            <Text style={[styles.metaLabel, { textAlign: 'right' }]}>Left</Text>
+            <Text style={[styles.metaLabel, { textAlign: 'right' }]}>{t('left', lang)}</Text>
             <Text style={[styles.metaValue, { color: COLORS.accent.moneyIn, textAlign: 'right' }]}>{'\u20B9'}{remaining.toFixed(0)}</Text>
           </View>
         </View>
@@ -95,8 +98,8 @@ export default function BudgetScreen() {
     <SafeAreaView style={styles.container}>
       <View style={styles.header}>
         <View>
-          <Text style={styles.pageTitle}>Budgets</Text>
-          <Text style={styles.pageSubtitle}>{budgets.length} active</Text>
+          <Text style={styles.pageTitle}>{t('budgets', lang)}</Text>
+          <Text style={styles.pageSubtitle}>{budgets.length} {t('active', lang)}</Text>
         </View>
         <TouchableOpacity testID="add-budget-btn" style={styles.addBtn} onPress={() => setModalVisible(true)}>
           <Ionicons name="add" size={22} color={COLORS.bg.primary} />
@@ -111,8 +114,8 @@ export default function BudgetScreen() {
         ListEmptyComponent={
           <View style={styles.empty}>
             <Ionicons name="wallet-outline" size={56} color={COLORS.text.muted} />
-            <Text style={styles.emptyTitle}>No budgets set</Text>
-            <Text style={styles.emptyText}>Tap + to set your first budget</Text>
+            <Text style={styles.emptyTitle}>{t('no_budgets', lang)}</Text>
+            <Text style={styles.emptyText}>{t('set_first_budget', lang)}</Text>
           </View>
         }
       />
@@ -122,7 +125,7 @@ export default function BudgetScreen() {
           <View style={styles.modalSheet}>
             <View style={styles.sheetHandle} />
             <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>Set Budget</Text>
+              <Text style={styles.modalTitle}>{t('set_budget', lang)}</Text>
               <TouchableOpacity onPress={() => setModalVisible(false)}><Ionicons name="close" size={24} color={COLORS.text.primary} /></TouchableOpacity>
             </View>
             <ScrollView keyboardShouldPersistTaps="handled">

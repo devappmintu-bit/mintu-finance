@@ -6,6 +6,8 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import api from '../../utils/api';
 import { COLORS, RADIUS, SPACING, CATEGORIES } from '../../utils/theme';
+import { useLangStore } from '../../store/langStore';
+import { t } from '../../utils/i18n';
 import { PieChart } from 'react-native-gifted-charts';
 
 const MOOD_CONFIG: Record<string, { icon: string; color: string; label: string }> = {
@@ -22,6 +24,7 @@ export default function InsightsScreen() {
   const [weekly, setWeekly] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const { lang } = useLangStore();
 
   const fetchData = async () => {
     try {
@@ -75,8 +78,8 @@ export default function InsightsScreen() {
         contentContainerStyle={styles.scrollContent}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); fetchData(); }} tintColor={COLORS.accent.primary} />}
       >
-        <Text style={styles.pageTitle}>Insights</Text>
-        <Text style={styles.pageSubtitle}>AI-powered spending analysis</Text>
+        <Text style={styles.pageTitle}>{t('insights', lang)}</Text>
+        <Text style={styles.pageSubtitle}>{t('ai_analysis', lang)}</Text>
 
         {/* Money Score + Mood */}
         <View style={styles.scoreCard}>
@@ -150,7 +153,7 @@ export default function InsightsScreen() {
           <View style={styles.card}>
             <View style={styles.cardHeaderRow}>
               <Ionicons name="calendar" size={18} color={COLORS.accent.secondary} />
-              <Text style={styles.cardTitle}>Weekly Summary</Text>
+              <Text style={styles.cardTitle}>{t('weekly_summary', lang)}</Text>
             </View>
             <Text style={styles.summaryText}>{insights.weekly_summary}</Text>
             {trends.week_change_pct !== undefined && trends.week_change_pct !== 0 && (
@@ -171,8 +174,8 @@ export default function InsightsScreen() {
         {/* Expense Breakdown Donut */}
         {pieData.length > 0 && (
           <View style={styles.card}>
-            <Text style={styles.cardTitle}>Expense Breakdown</Text>
-            <Text style={styles.cardSubtitle}>Last 30 days</Text>
+            <Text style={styles.cardTitle}>{t('expense_breakdown', lang)}</Text>
+            <Text style={styles.cardSubtitle}>{t('last_30_days', lang)}</Text>
             <View style={styles.pieWrap}>
               <PieChart
                 data={pieData}
@@ -205,7 +208,7 @@ export default function InsightsScreen() {
           <View style={[styles.card, { borderColor: COLORS.accent.primary + '30' }]}>
             <View style={styles.cardHeaderRow}>
               <Ionicons name="cash" size={18} color={COLORS.accent.primary} />
-              <Text style={[styles.cardTitle, { color: COLORS.accent.primary }]}>Savings Tip</Text>
+              <Text style={[styles.cardTitle, { color: COLORS.accent.primary }]}>{t('savings_tip', lang)}</Text>
             </View>
             <Text style={styles.savingsText}>{insights.savings_tip}</Text>
           </View>
@@ -214,7 +217,7 @@ export default function InsightsScreen() {
         {/* Recommendations */}
         {insights?.recommendations?.length > 0 && (
           <View style={styles.card}>
-            <Text style={styles.cardTitle}>Recommendations</Text>
+            <Text style={styles.cardTitle}>{t('recommendations', lang)}</Text>
             {insights.recommendations.map((rec: string, i: number) => (
               <View key={i} style={styles.recItem}>
                 <View style={[styles.recNum, { backgroundColor: [COLORS.accent.primary, COLORS.accent.secondary, COLORS.accent.tertiary][i % 3] + '20' }]}>
@@ -229,8 +232,8 @@ export default function InsightsScreen() {
         {/* Category Trends */}
         {trends.category_trends && Object.keys(trends.category_trends).length > 0 && (
           <View style={styles.card}>
-            <Text style={styles.cardTitle}>Category Trends</Text>
-            <Text style={styles.cardSubtitle}>This week vs last week</Text>
+            <Text style={styles.cardTitle}>{t('category_trends', lang)}</Text>
+            <Text style={styles.cardSubtitle}>{t('this_vs_last', lang)}</Text>
             {Object.entries(trends.category_trends).map(([cat, data]: [string, any], i: number) => {
               const catInfo = CATEGORIES[cat] || CATEGORIES.Other;
               const isUp = data.change_pct > 10;
