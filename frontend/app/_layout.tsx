@@ -3,6 +3,7 @@ import { useEffect } from 'react';
 import { StatusBar } from 'expo-status-bar';
 import { useAuthStore } from '../store/authStore';
 import { useLangStore } from '../store/langStore';
+import { startAutoSync } from '../utils/offline';
 
 export default function RootLayout() {
   const loadFromStorage = useAuthStore((state) => state.loadFromStorage);
@@ -11,6 +12,9 @@ export default function RootLayout() {
   useEffect(() => {
     loadFromStorage();
     loadLang();
+    // Start auto-sync for offline queue
+    const unsubscribe = startAutoSync();
+    return () => unsubscribe();
   }, []);
 
   return (

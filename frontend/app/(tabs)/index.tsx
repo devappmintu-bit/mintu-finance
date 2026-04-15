@@ -8,6 +8,7 @@ import { useAuthStore } from '../../store/authStore';
 import { useLangStore } from '../../store/langStore';
 import { t } from '../../utils/i18n';
 import api from '../../utils/api';
+import { smartFetch, isOnline, getQueueSize } from '../../utils/offline';
 import { COLORS, RADIUS, SPACING, CATEGORIES } from '../../utils/theme';
 import { BarChart } from 'react-native-gifted-charts';
 import { router } from 'expo-router';
@@ -20,19 +21,25 @@ export default function HomeScreen() {
   const [recentTxns, setRecentTxns] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [offline, setOffline] = useState(false);
+  const [pendingCount, setPendingCount] = useState(0);
 
   const fetchData = useCallback(async () => {
+    const online = await isOnline();
+    setOffline(!online);
+    const qSize = await getQueueSize();
+    setPendingCount(qSize);
     try {
-      const [insightsRes, profileRes, statsRes, txnRes] = await Promise.all([
-        api.get('/insights/daily'),
-        api.get('/user/me'),
-        api.get('/stats/overview'),
-        api.get('/transactions?limit=5'),
+      const [insightsData, profileData, statsData, txnData] = await Promise.all([
+        smartFetch('/insights/daily', 'home_insights'),
+        smartFetch('/user/me', 'home_profile'),
+        smartFetch('/stats/overview', 'home_stats'),
+        smartFetch('/transactions?limit=5', 'home_recent_txns'),
       ]);
-      setInsights(insightsRes.data);
-      setUser(profileRes.data);
-      setStats(statsRes.data);
-      setRecentTxns(txnRes.data.slice(0, 4));
+      setInsights(insightsData);
+      setUser(profileData);
+      setStats(statsData);
+      setRecentTxns(Array.isArray(txnData) ? txnData.slice(0, 4) : []);
     } catch (error) {
       console.error('Dashboard fetch error:', error);
     } finally {
@@ -81,6 +88,20 @@ export default function HomeScreen() {
             <Ionicons name="notifications-outline" size={22} color={COLORS.text.primary} />
           </TouchableOpacity>
         </View>
+
+        {/* Offline Banner */}
+        {offline && (
+          <View testID="offline-banner" style={styles.offlineBanner}>
+            <Ionicons name="cloud-offline" size={16} color="#F59E0B" />
+            <Text style={styles.offlineBannerText}>Offline mode — showing cached data</Text>
+          </View>
+        )}
+        {pendingCount > 0 && (
+          <View testID="pending-sync-banner" style={styles.syncBanner}>
+            <Ionicons name="sync" size={14} color={COLORS.accent.secondary} />
+            <Text style={styles.syncBannerText}>{pendingCount} pending sync</Text>
+          </View>
+        )}
 
         {/* Money Score Hero */}
         <View style={styles.scoreCard}>
@@ -255,4 +276,9 @@ const styles = StyleSheet.create({
   txnDesc: { fontSize: 15, fontWeight: '600', color: COLORS.text.primary },
   txnCat: { fontSize: 12, color: COLORS.text.muted, marginTop: 2 },
   txnAmount: { fontSize: 16, fontWeight: '700' },
+  // Offline
+  offlineBanner: { flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: '#F59E0B15', borderRadius: RADIUS.lg, padding: SPACING.md, marginBottom: SPACING.md },
+  offlineBannerText: { fontSize: 13, color: '#F59E0B', fontWeight: '500' },
+  syncBanner: { flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: COLORS.accent.secondary + '12', borderRadius: RADIUS.lg, padding: SPACING.sm, paddingHorizontal: SPACING.md, marginBottom: SPACING.md, alignSelf: 'flex-start' },
+  syncBannerText: { fontSize: 12, color: COLORS.accent.secondary, fontWeight: '500' },
 });

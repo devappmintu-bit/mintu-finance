@@ -1301,6 +1301,176 @@ async def apply_recurring_expenses(user_id: str = Depends(get_current_user)):
 
     return {"applied": added, "total_recurring": len(expenses)}
 
+# ============== FAMILY GROUP ROUTES ==============
+class FamilyGroupCreate(BaseModel):
+    name: str
+    
+class FamilyMemberAdd(BaseModel):
+    phone: str
+
+class FamilyBudgetCreate(BaseModel):
+    category: str
+    amount: float
+    period: str = "monthly"
+
+@api_router.post("/family/create")
+async def create_family_group(group: FamilyGroupCreate, user_id: str = Depends(get_current_user)):
+    """Create a family group"""
+    from bson import ObjectId
+    user = await db.users.find_one({"_id": ObjectId(user_id)})
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+    
+    family = {
+        "name": group.name,
+        "owner_id": user_id,
+        "members": [{"user_id": user_id, "name": user["name"], "phone": user["phone"], "role": "owner"}],
+        "created_at": datetime.utcnow()
+    }
+    result = await db.family_groups.insert_one(family)
+    return {
+        "id": str(result.inserted_id),
+        "name": family["name"],
+        "owner_id": user_id,
+        "members": family["members"],
+        "created_at": family["created_at"]
+    }
+
+@api_router.post("/family/{group_id}/add-member")
+async def add_family_member(group_id: str, member: FamilyMemberAdd, user_id: str = Depends(get_current_user)):
+    """Add a member to family group by phone number"""
+    from bson import ObjectId
+    group = await db.family_groups.find_one({"_id": ObjectId(group_id), "owner_id": user_id})
+    if not group:
+        raise HTTPException(status_code=404, detail="Family group not found or not owner")
+    
+    # Find member user
+    member_user = await db.users.find_one({"phone": member.phone})
+    if not member_user:
+        raise HTTPException(status_code=404, detail="User not found with this phone number")
+    
+    member_id = str(member_user["_id"])
+    # Check if already member
+    if any(m["user_id"] == member_id for m in group["members"]):
+        raise HTTPException(status_code=400, detail="Already a member")
+    
+    new_member = {"user_id": member_id, "name": member_user["name"], "phone": member_user["phone"], "role": "member"}
+    await db.family_groups.update_one(
+        {"_id": ObjectId(group_id)},
+        {"$push": {"members": new_member}}
+    )
+    return {"message": "Member added", "member": new_member}
+
+@api_router.get("/family/my-groups")
+async def get_my_family_groups(user_id: str = Depends(get_current_user)):
+    """Get all family groups user belongs to"""
+    groups = await db.family_groups.find({"members.user_id": user_id}).to_list(20)
+    for g in groups:
+        g["id"] = str(g["_id"])
+        del g["_id"]
+    return groups
+
+@api_router.post("/family/{group_id}/budget")
+async def create_family_budget(group_id: str, budget: FamilyBudgetCreate, user_id: str = Depends(get_current_user)):
+    """Create a shared family budget"""
+    from bson import ObjectId
+    group = await db.family_groups.find_one({"_id": ObjectId(group_id), "members.user_id": user_id})
+    if not group:
+        raise HTTPException(status_code=404, detail="Family group not found")
+    
+    # Check existing
+    existing = await db.family_budgets.find_one({"group_id": group_id, "category": budget.category})
+    if existing:
+        await db.family_budgets.update_one(
+            {"_id": existing["_id"]},
+            {"$set": {"amount": budget.amount, "period": budget.period}}
+        )
+        return {"id": str(existing["_id"]), "category": budget.category, "amount": budget.amount, "period": budget.period}
+    
+    fb = {
+        "group_id": group_id,
+        "category": budget.category,
+        "amount": budget.amount,
+        "period": budget.period,
+        "created_by": user_id,
+        "created_at": datetime.utcnow()
+    }
+    result = await db.family_budgets.insert_one(fb)
+    return {"id": str(result.inserted_id), **budget.dict()}
+
+@api_router.get("/family/{group_id}/budgets")
+async def get_family_budgets(group_id: str, user_id: str = Depends(get_current_user)):
+    """Get all budgets for a family group with combined spending"""
+    from bson import ObjectId
+    group = await db.family_groups.find_one({"_id": ObjectId(group_id), "members.user_id": user_id})
+    if not group:
+        raise HTTPException(status_code=404, detail="Family group not found")
+    
+    budgets = await db.family_budgets.find({"group_id": group_id}).to_list(100)
+    member_ids = [m["user_id"] for m in group["members"]]
+    
+    thirty_days_ago = datetime.utcnow() - timedelta(days=30)
+    
+    for b in budgets:
+        # Calculate combined spending from all members
+        txns = await db.transactions.find({
+            "user_id": {"$in": member_ids},
+            "category": b["category"],
+            "type": "debit",
+            "date": {"$gte": thirty_days_ago}
+        }).to_list(5000)
+        
+        b["spent"] = sum(t["amount"] for t in txns)
+        b["member_spending"] = {}
+        for m in group["members"]:
+            m_spent = sum(t["amount"] for t in txns if t["user_id"] == m["user_id"])
+            if m_spent > 0:
+                b["member_spending"][m["name"]] = m_spent
+        
+        b["id"] = str(b["_id"])
+        del b["_id"]
+    
+    return {"group_name": group["name"], "members": group["members"], "budgets": budgets}
+
+@api_router.get("/family/{group_id}/summary")
+async def get_family_summary(group_id: str, user_id: str = Depends(get_current_user)):
+    """Get combined family spending summary"""
+    from bson import ObjectId
+    group = await db.family_groups.find_one({"_id": ObjectId(group_id), "members.user_id": user_id})
+    if not group:
+        raise HTTPException(status_code=404, detail="Family group not found")
+    
+    member_ids = [m["user_id"] for m in group["members"]]
+    thirty_days_ago = datetime.utcnow() - timedelta(days=30)
+    
+    all_txns = await db.transactions.find({
+        "user_id": {"$in": member_ids},
+        "date": {"$gte": thirty_days_ago}
+    }).to_list(5000)
+    
+    total_income = sum(t["amount"] for t in all_txns if t["type"] == "credit")
+    total_expense = sum(t["amount"] for t in all_txns if t["type"] == "debit")
+    
+    # Per-member breakdown
+    member_stats = []
+    for m in group["members"]:
+        m_txns = [t for t in all_txns if t["user_id"] == m["user_id"]]
+        member_stats.append({
+            "name": m["name"],
+            "income": sum(t["amount"] for t in m_txns if t["type"] == "credit"),
+            "expense": sum(t["amount"] for t in m_txns if t["type"] == "debit"),
+            "transaction_count": len(m_txns)
+        })
+    
+    return {
+        "group_name": group["name"],
+        "total_income": total_income,
+        "total_expense": total_expense,
+        "balance": total_income - total_expense,
+        "member_count": len(group["members"]),
+        "member_stats": member_stats
+    }
+
 # ============== DATA PROTECTION & COMPLIANCE ROUTES ==============
 # GDPR Art. 15/20 + India DPDP Act 2023 Sec. 11 — Right to Access & Portability
 @api_router.get("/privacy/data-export")
