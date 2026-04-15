@@ -2593,7 +2593,7 @@ async def ai_financial_coach(msg: ChatMessage, user_id: str = Depends(get_curren
     total_expense = sum(v for v in category_spend.values())
     
     income_pipeline = [
-        {"$match": {"user_id": user_id, "type": "income", "date": {"$gte": month_start}}},
+        {"$match": {"user_id": user_id, "type": {"$in": ["income", "credit"]}, "date": {"$gte": month_start}}},
         {"$group": {"_id": None, "total": {"$sum": "$amount"}}}
     ]
     income_docs = await db.transactions.aggregate(income_pipeline).to_list(1)
@@ -2673,7 +2673,7 @@ async def waste_detector(user_id: str = Depends(get_current_user)):
     
     # Category spending this month
     pipeline = [
-        {"$match": {"user_id": user_id, "type": "expense", "date": {"$gte": month_start}}},
+        {"$match": {"user_id": user_id, "type": {"$in": ["expense", "debit"]}, "date": {"$gte": month_start}}},
         {"$group": {"_id": "$category", "total": {"$sum": "$amount"}, "count": {"$sum": 1}}}
     ]
     categories = {}
@@ -2729,7 +2729,7 @@ async def weekly_report(user_id: str = Depends(get_current_user)):
     
     # This week's spending
     this_week_pipeline = [
-        {"$match": {"user_id": user_id, "type": "expense", "date": {"$gte": week_start}}},
+        {"$match": {"user_id": user_id, "type": {"$in": ["expense", "debit"]}, "date": {"$gte": week_start}}},
         {"$group": {"_id": "$category", "total": {"$sum": "$amount"}, "count": {"$sum": 1}}}
     ]
     this_week = {}
@@ -2738,7 +2738,7 @@ async def weekly_report(user_id: str = Depends(get_current_user)):
     
     # Last week's spending
     last_week_pipeline = [
-        {"$match": {"user_id": user_id, "type": "expense", "date": {"$gte": prev_week_start, "$lt": week_start}}},
+        {"$match": {"user_id": user_id, "type": {"$in": ["expense", "debit"]}, "date": {"$gte": prev_week_start, "$lt": week_start}}},
         {"$group": {"_id": "$category", "total": {"$sum": "$amount"}}}
     ]
     last_week = {}
@@ -2797,7 +2797,7 @@ async def smart_budget_suggestions(user_id: str = Depends(get_current_user)):
     # Analyze last 60 days of spending
     sixty_days_ago = now - timedelta(days=60)
     pipeline = [
-        {"$match": {"user_id": user_id, "type": "expense", "date": {"$gte": sixty_days_ago}}},
+        {"$match": {"user_id": user_id, "type": {"$in": ["expense", "debit"]}, "date": {"$gte": sixty_days_ago}}},
         {"$group": {"_id": "$category", "total": {"$sum": "$amount"}, "count": {"$sum": 1}, "avg": {"$avg": "$amount"}}}
     ]
     spending = {}
@@ -2885,7 +2885,7 @@ async def smart_alerts(user_id: str = Depends(get_current_user)):
     
     # 1. Daily spending alert
     today_pipeline = [
-        {"$match": {"user_id": user_id, "type": "expense", "date": {"$gte": today_start}}},
+        {"$match": {"user_id": user_id, "type": {"$in": ["expense", "debit"]}, "date": {"$gte": today_start}}},
         {"$group": {"_id": None, "total": {"$sum": "$amount"}, "count": {"$sum": 1}}}
     ]
     today_docs = await db.transactions.aggregate(today_pipeline).to_list(1)
@@ -2893,7 +2893,7 @@ async def smart_alerts(user_id: str = Depends(get_current_user)):
     
     # Compare with daily average
     month_pipeline = [
-        {"$match": {"user_id": user_id, "type": "expense", "date": {"$gte": month_start}}},
+        {"$match": {"user_id": user_id, "type": {"$in": ["expense", "debit"]}, "date": {"$gte": month_start}}},
         {"$group": {"_id": None, "total": {"$sum": "$amount"}}}
     ]
     month_docs = await db.transactions.aggregate(month_pipeline).to_list(1)
@@ -2914,7 +2914,7 @@ async def smart_alerts(user_id: str = Depends(get_current_user)):
     # 2. Weekend spike detection (Fri-Sun)
     if now.weekday() >= 4:  # Friday onwards
         weekend_pipeline = [
-            {"$match": {"user_id": user_id, "type": "expense", "date": {"$gte": today_start - timedelta(days=now.weekday()-4) if now.weekday() >= 4 else today_start}}},
+            {"$match": {"user_id": user_id, "type": {"$in": ["expense", "debit"]}, "date": {"$gte": today_start - timedelta(days=now.weekday()-4) if now.weekday() >= 4 else today_start}}},
             {"$group": {"_id": None, "total": {"$sum": "$amount"}}}
         ]
         weekend_docs = await db.transactions.aggregate(weekend_pipeline).to_list(1)
@@ -2955,7 +2955,7 @@ async def smart_alerts(user_id: str = Depends(get_current_user)):
     for b in budgets:
         cat = b["category"]
         spent_pipeline = [
-            {"$match": {"user_id": user_id, "category": cat, "type": "expense", "date": {"$gte": month_start}}},
+            {"$match": {"user_id": user_id, "category": cat, "type": {"$in": ["expense", "debit"]}, "date": {"$gte": month_start}}},
             {"$group": {"_id": None, "total": {"$sum": "$amount"}}}
         ]
         spent_docs = await db.transactions.aggregate(spent_pipeline).to_list(1)
@@ -2983,7 +2983,7 @@ async def smart_alerts(user_id: str = Depends(get_current_user)):
     
     # 5. Savings rate alert
     income_pipeline = [
-        {"$match": {"user_id": user_id, "type": "income", "date": {"$gte": month_start}}},
+        {"$match": {"user_id": user_id, "type": {"$in": ["income", "credit"]}, "date": {"$gte": month_start}}},
         {"$group": {"_id": None, "total": {"$sum": "$amount"}}}
     ]
     income_docs = await db.transactions.aggregate(income_pipeline).to_list(1)
