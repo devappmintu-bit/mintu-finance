@@ -26,18 +26,24 @@ export default function RewardsScreen() {
   const [paywall, setPaywall] = useState<any>(null);
   const [scoreCardData, setScoreCardData] = useState<any>(null);
   const [abGroup, setAbGroup] = useState<any>(null);
+  const [leaderboard, setLeaderboard] = useState<any>(null);
+  const [friendComparison, setFriendComparison] = useState<any>(null);
+  const [enhancedRef, setEnhancedRef] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
 
   const fetchData = async () => {
     try {
-      const [refRes, gameRes, premRes, payRes, cardRes, abRes] = await Promise.all([
+      const [refRes, gameRes, premRes, payRes, cardRes, abRes, lbRes, friendRes, enhRefRes] = await Promise.all([
         api.get('/referral/my-code'),
         api.get('/gamification/status'),
         api.get('/premium/status'),
         api.get('/premium/paywall-trigger'),
         api.get('/share/score-card'),
         api.get('/ab/paywall-group'),
+        api.get('/leaderboard/savings'),
+        api.get('/leaderboard/friends'),
+        api.get('/referral/enhanced-status'),
       ]);
       setReferral(refRes.data);
       setGamification(gameRes.data);
@@ -45,6 +51,9 @@ export default function RewardsScreen() {
       setPaywall(payRes.data);
       setScoreCardData(cardRes.data);
       setAbGroup(abRes.data);
+      setLeaderboard(lbRes.data);
+      setFriendComparison(friendRes.data);
+      setEnhancedRef(enhRefRes.data);
     } catch (e) { console.error(e); }
     finally { setLoading(false); setRefreshing(false); }
   };
@@ -171,40 +180,121 @@ export default function RewardsScreen() {
           </>
         )}
 
-        {/* Referral */}
-        <Text style={s.section}>Invite Friends</Text>
+        {/* Referral — Enhanced with Pro Rewards */}
+        <Text style={s.section}>Invite Friends — Earn Pro!</Text>
         <View style={s.referralCard}>
-          <Text style={s.referralTitle}>Share MintU, Earn Premium!</Text>
+          <Text style={s.referralTitle}>Share MintU, Get Pro Days!</Text>
+          {/* Enhanced reward tiers */}
           <View style={s.referralTiers}>
-            {[
-              { n: 1, r: 'Advanced insights (1 week)', icon: 'sparkles' },
-              { n: 3, r: 'Premium (1 month)', icon: 'diamond' },
-              { n: 10, r: 'Lifetime badge + perks', icon: 'star' },
-            ].map((t, i) => (
-              <View key={i} style={[s.tierRow, (referral?.referral_count || 0) >= t.n && s.tierComplete]}>
-                <Ionicons name={t.icon as any} size={16} color={(referral?.referral_count || 0) >= t.n ? COLORS.accent.primary : COLORS.text.muted} />
-                <Text style={[s.tierText, (referral?.referral_count || 0) >= t.n && { color: COLORS.accent.primary }]}>
-                  {t.n} invite{t.n > 1 ? 's' : ''} → {t.r}
+            {(enhancedRef?.reward_tiers || [
+              { friends: 1, reward: '+3 days Pro', icon: 'star', unlocked: false },
+              { friends: 3, reward: '+7 days Pro', icon: 'diamond', unlocked: false },
+              { friends: 5, reward: '1 month Pro', icon: 'trophy', unlocked: false },
+              { friends: 10, reward: 'Lifetime Pro', icon: 'crown', unlocked: false },
+            ]).map((t: any, i: number) => (
+              <View key={i} style={[s.tierRow, t.unlocked && s.tierComplete]}>
+                <Ionicons name={t.icon as any} size={16} color={t.unlocked ? COLORS.accent.primary : COLORS.text.muted} />
+                <Text style={[s.tierText, t.unlocked && { color: COLORS.accent.primary, fontWeight: '700' }]}>
+                  {t.friends} friend{t.friends > 1 ? 's' : ''} → {t.reward}
                 </Text>
-                {(referral?.referral_count || 0) >= t.n && <Ionicons name="checkmark-circle" size={16} color={COLORS.accent.primary} />}
+                {t.unlocked && <Ionicons name="checkmark-circle" size={16} color={COLORS.accent.primary} />}
               </View>
             ))}
           </View>
+          {/* Progress */}
+          {enhancedRef?.next_milestone && enhancedRef.next_milestone.friends_needed > 0 && (
+            <View style={s.nextMilestone}>
+              <Text style={s.milestoneText}>
+                {enhancedRef.next_milestone.friends_needed} more invite{enhancedRef.next_milestone.friends_needed > 1 ? 's' : ''} → {enhancedRef.next_milestone.reward}
+              </Text>
+            </View>
+          )}
+          {/* Pro days earned */}
+          {(enhancedRef?.total_pro_days_earned || 0) > 0 && (
+            <View style={s.proDaysEarned}>
+              <Ionicons name="sparkles" size={16} color={COLORS.accent.primary} />
+              <Text style={s.proDaysText}>🎉 You've earned {enhancedRef.total_pro_days_earned} Pro days!</Text>
+            </View>
+          )}
           <View style={s.codeBox}>
             <Text style={s.codeLabel}>Your Code</Text>
-            <Text style={s.codeText}>{referral?.referral_code}</Text>
+            <Text style={s.codeText}>{enhancedRef?.referral_code || referral?.referral_code}</Text>
           </View>
           <View style={s.shareRow}>
-            <TouchableOpacity testID="share-whatsapp-btn" style={s.whatsappBtn} onPress={shareReferral}>
+            <TouchableOpacity testID="share-whatsapp-btn" style={s.whatsappBtn} onPress={() => shareWhatsApp(enhancedRef?.whatsapp_text || referral?.share_text || '')}>
               <Ionicons name="logo-whatsapp" size={20} color="#fff" />
               <Text style={s.whatsappTxt}>Share on WhatsApp</Text>
             </TouchableOpacity>
-            <TouchableOpacity style={s.copyBtn} onPress={() => { Share.share({ message: referral?.share_text || '' }); }}>
+            <TouchableOpacity style={s.copyBtn} onPress={() => { Share.share({ message: enhancedRef?.share_text || referral?.share_text || '' }); }}>
               <Ionicons name="copy" size={18} color={COLORS.text.primary} />
             </TouchableOpacity>
           </View>
-          <Text style={s.referralCount}>{referral?.referral_count || 0} friends invited</Text>
+          <Text style={s.referralCount}>{enhancedRef?.referral_count || referral?.referral_count || 0} friends invited</Text>
         </View>
+
+        {/* Savings Leaderboard */}
+        <Text style={s.section}>Leaderboard</Text>
+        {leaderboard && (
+          <View style={s.leaderboardCard}>
+            {/* User's rank */}
+            <View style={s.rankHero}>
+              <View style={s.rankCircle}>
+                <Text style={s.rankNum}>#{leaderboard.user_rank || '?'}</Text>
+              </View>
+              <View style={s.rankInfo}>
+                <Text style={s.rankTitle}>Your Rank</Text>
+                <Text style={s.rankPercentile}>Top {100 - (leaderboard.percentile || 50)}% of {leaderboard.total_users || 0} users</Text>
+              </View>
+              <View style={s.rankScore}>
+                <Text style={s.rankScoreNum}>{leaderboard.user_score || 0}</Text>
+                <Text style={s.rankScoreLabel}>Score</Text>
+              </View>
+            </View>
+            <Text style={s.comparisonText}>{leaderboard.comparison_text}</Text>
+            
+            {/* Top 10 */}
+            {(leaderboard.top_10 || []).slice(0, 5).map((entry: any, i: number) => (
+              <View key={i} style={[s.lbRow, entry.is_me && s.lbRowMe]}>
+                <Text style={[s.lbRank, i === 0 && { color: '#F59E0B' }, i === 1 && { color: '#94A3B8' }, i === 2 && { color: '#B45309' }]}>
+                  {i === 0 ? '🥇' : i === 1 ? '🥈' : i === 2 ? '🥉' : `#${entry.rank}`}
+                </Text>
+                <Text style={[s.lbName, entry.is_me && { fontWeight: '800', color: COLORS.accent.primary }]}>{entry.is_me ? 'You' : entry.name}</Text>
+                <Text style={s.lbScore}>{entry.score}</Text>
+                {entry.streak > 0 && <Text style={s.lbStreak}>🔥{entry.streak}</Text>}
+              </View>
+            ))}
+          </View>
+        )}
+
+        {/* Friend Comparison */}
+        {friendComparison && friendComparison.friends?.length > 0 && (
+          <>
+            <Text style={s.section}>vs Friends</Text>
+            <View style={s.friendCard}>
+              <Text style={s.friendSummary}>{friendComparison.summary}</Text>
+              {friendComparison.friends.map((f: any, i: number) => (
+                <View key={i} style={s.friendRow}>
+                  <View style={[s.friendAvatar, { backgroundColor: f.ahead ? COLORS.accent.moneyOut + '15' : COLORS.accent.moneyIn + '15' }]}>
+                    <Ionicons name="person" size={16} color={f.ahead ? COLORS.accent.moneyOut : COLORS.accent.moneyIn} />
+                  </View>
+                  <View style={s.friendInfo}>
+                    <Text style={s.friendName}>{f.name}</Text>
+                    <Text style={s.friendTaunt}>{f.taunt}</Text>
+                  </View>
+                  <View style={[s.friendDiff, { backgroundColor: f.ahead ? COLORS.accent.moneyIn + '15' : COLORS.accent.moneyOut + '15' }]}>
+                    <Text style={[s.friendDiffText, { color: f.ahead ? COLORS.accent.moneyIn : COLORS.accent.moneyOut }]}>
+                      {f.ahead ? '+' : ''}{f.diff}
+                    </Text>
+                  </View>
+                </View>
+              ))}
+              <TouchableOpacity style={s.challengeBtn} onPress={() => shareWhatsApp(friendComparison.challenge_text)}>
+                <Ionicons name="logo-whatsapp" size={16} color="#fff" />
+                <Text style={s.challengeBtnText}>Challenge Friends</Text>
+              </TouchableOpacity>
+            </View>
+          </>
+        )}
 
         {/* Premium Upgrade - A/B tested placement */}
         {!premium?.is_premium && (
@@ -330,4 +420,39 @@ const s = StyleSheet.create({
   featureInfo: { flex: 1 },
   featureName: { fontSize: 15, fontWeight: '600', color: COLORS.text.primary },
   featureDesc: { fontSize: 12, color: COLORS.text.muted, marginTop: 2 },
+  // Enhanced Referral
+  nextMilestone: { backgroundColor: COLORS.accent.primary + '10', borderRadius: RADIUS.lg, padding: SPACING.md, marginBottom: SPACING.md },
+  milestoneText: { fontSize: 13, fontWeight: '600', color: COLORS.accent.primary, textAlign: 'center' },
+  proDaysEarned: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, backgroundColor: COLORS.accent.moneyIn + '12', borderRadius: RADIUS.lg, padding: SPACING.md, marginBottom: SPACING.md },
+  proDaysText: { fontSize: 14, fontWeight: '600', color: COLORS.accent.moneyIn },
+  // Leaderboard
+  leaderboardCard: { backgroundColor: COLORS.bg.card, borderRadius: RADIUS.card, padding: SPACING.xl, borderWidth: 1, borderColor: '#F59E0B25' },
+  rankHero: { flexDirection: 'row', alignItems: 'center', marginBottom: SPACING.lg },
+  rankCircle: { width: 56, height: 56, borderRadius: 28, backgroundColor: '#F59E0B18', justifyContent: 'center', alignItems: 'center', marginRight: SPACING.md },
+  rankNum: { fontSize: 20, fontWeight: '800', color: '#F59E0B' },
+  rankInfo: { flex: 1 },
+  rankTitle: { fontSize: 13, color: COLORS.text.muted },
+  rankPercentile: { fontSize: 14, fontWeight: '700', color: COLORS.text.primary },
+  rankScore: { alignItems: 'center' },
+  rankScoreNum: { fontSize: 26, fontWeight: '800', color: COLORS.accent.primary },
+  rankScoreLabel: { fontSize: 10, color: COLORS.text.muted },
+  comparisonText: { fontSize: 14, fontWeight: '600', color: COLORS.text.secondary, marginBottom: SPACING.lg, lineHeight: 20 },
+  lbRow: { flexDirection: 'row', alignItems: 'center', paddingVertical: 10, borderTopWidth: 1, borderTopColor: COLORS.border.subtle, gap: 10 },
+  lbRowMe: { backgroundColor: COLORS.accent.primary + '08', borderRadius: 8, marginHorizontal: -8, paddingHorizontal: 8 },
+  lbRank: { fontSize: 16, fontWeight: '700', width: 30, textAlign: 'center', color: COLORS.text.secondary },
+  lbName: { flex: 1, fontSize: 15, fontWeight: '500', color: COLORS.text.primary },
+  lbScore: { fontSize: 16, fontWeight: '700', color: COLORS.accent.primary },
+  lbStreak: { fontSize: 12, color: '#F59E0B' },
+  // Friend Comparison
+  friendCard: { backgroundColor: COLORS.bg.card, borderRadius: RADIUS.card, padding: SPACING.xl, borderWidth: 1, borderColor: COLORS.border.card },
+  friendSummary: { fontSize: 16, fontWeight: '700', color: COLORS.text.primary, marginBottom: SPACING.lg },
+  friendRow: { flexDirection: 'row', alignItems: 'center', paddingVertical: 10, borderTopWidth: 1, borderTopColor: COLORS.border.subtle },
+  friendAvatar: { width: 36, height: 36, borderRadius: 18, justifyContent: 'center', alignItems: 'center', marginRight: SPACING.md },
+  friendInfo: { flex: 1 },
+  friendName: { fontSize: 15, fontWeight: '600', color: COLORS.text.primary },
+  friendTaunt: { fontSize: 12, color: COLORS.text.muted, marginTop: 2 },
+  friendDiff: { paddingHorizontal: 10, paddingVertical: 4, borderRadius: RADIUS.full },
+  friendDiffText: { fontSize: 14, fontWeight: '700' },
+  challengeBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, backgroundColor: '#25D366', borderRadius: RADIUS.full, paddingVertical: 14, marginTop: SPACING.lg },
+  challengeBtnText: { fontSize: 14, fontWeight: '600', color: '#fff' },
 });

@@ -3112,6 +3112,213 @@ async def create_indexes():
     except Exception as e:
         logging.error(f"Index creation error: {e}")
 
+# ============== PHASE 2: LEADERBOARD & ENHANCED REFERRAL ==============
+
+# 1. SAVINGS LEADERBOARD
+@api_router.get("/leaderboard/savings")
+async def savings_leaderboard(user_id: str = Depends(get_current_user)):
+    """Global savings leaderboard with user's rank and percentile"""
+    from bson import ObjectId
+    now = datetime.utcnow()
+    month_start = now.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+    
+    # Get all users with their money scores
+    all_users = await db.users.find(
+        {"money_score": {"$exists": True}},
+        {"name": 1, "money_score": 1, "phone": 1, "streak_days": 1}
+    ).sort("money_score", -1).to_list(100)
+    
+    # Find current user's position
+    user_rank = 0
+    user_score = 0
+    total_users = len(all_users)
+    
+    for i, u in enumerate(all_users):
+        if str(u["_id"]) == user_id:
+            user_rank = i + 1
+            user_score = u.get("money_score", 0)
+            break
+    
+    # Percentile (higher is better)
+    percentile = max(1, min(99, int(((total_users - user_rank) / max(total_users, 1)) * 100))) if user_rank > 0 else 50
+    
+    # Build top 10 leaderboard (anonymize phone numbers)
+    top_10 = []
+    for i, u in enumerate(all_users[:10]):
+        is_me = str(u["_id"]) == user_id
+        phone = u.get("phone", "")
+        masked_phone = f"***{phone[-4:]}" if len(phone) >= 4 else "****"
+        top_10.append({
+            "rank": i + 1,
+            "name": u.get("name", "MintU User"),
+            "score": u.get("money_score", 0),
+            "streak": u.get("streak_days", 0),
+            "is_me": is_me,
+            "phone_masked": masked_phone,
+        })
+    
+    # Get user's monthly savings for comparison text
+    user_txn_pipeline = [
+        {"$match": {"user_id": user_id, "date": {"$gte": month_start}}},
+        {"$group": {"_id": "$type", "total": {"$sum": "$amount"}}}
+    ]
+    user_stats = {}
+    async for doc in db.transactions.aggregate(user_txn_pipeline):
+        user_stats[doc["_id"]] = doc["total"]
+    
+    income = user_stats.get("credit", 0)
+    expense = user_stats.get("debit", 0)
+    saved = max(0, income - expense)
+    
+    # Motivational comparison text
+    if percentile >= 80:
+        comparison_text = f"🏆 You're in the top {100-percentile}% of savers! Financial rockstar!"
+    elif percentile >= 60:
+        comparison_text = f"💪 You save better than {percentile}% of users. Push for top 20%!"
+    elif percentile >= 40:
+        comparison_text = f"👀 You're in the middle — {percentile}% of users save less than you. Room to grow!"
+    else:
+        comparison_text = f"🚀 {percentile}% of users save less than you. Small changes = big results!"
+    
+    return {
+        "user_rank": user_rank,
+        "total_users": total_users,
+        "percentile": percentile,
+        "user_score": user_score,
+        "monthly_saved": saved,
+        "comparison_text": comparison_text,
+        "top_10": top_10,
+        "motivations": [
+            f"You saved more than {percentile}% of users this week 👀",
+            f"Your Money Score: {user_score}/100 — {'Top tier!' if user_score >= 75 else 'Getting there!'}",
+            f"{'🔥 ' + str(all_users[user_rank-1].get('streak_days', 0)) + '-day streak!' if user_rank > 0 and user_rank <= len(all_users) else ''}",
+        ]
+    }
+
+# 2. FRIEND COMPARISON
+@api_router.get("/leaderboard/friends")
+async def friend_comparison(user_id: str = Depends(get_current_user)):
+    """Compare savings with friends from split groups"""
+    from bson import ObjectId
+    
+    # Get friends from split groups
+    groups = await db.split_groups.find({"members.user_id": user_id}).to_list(20)
+    friend_ids = set()
+    for g in groups:
+        for m in g.get("members", []):
+            if m["user_id"] != user_id:
+                friend_ids.add(m["user_id"])
+    
+    if not friend_ids:
+        return {"friends": [], "message": "Add friends in Split groups to compare savings! 👥"}
+    
+    # Get friend data
+    user = await db.users.find_one({"_id": ObjectId(user_id)})
+    user_score = user.get("money_score", 50) if user else 50
+    user_name = user.get("name", "You") if user else "You"
+    
+    friends = []
+    for fid in friend_ids:
+        try:
+            friend = await db.users.find_one({"_id": ObjectId(fid)})
+            if friend:
+                f_score = friend.get("money_score", 50)
+                diff = user_score - f_score
+                if diff > 10:
+                    taunt = f"You're crushing it vs {friend['name']}! 😎"
+                elif diff > 0:
+                    taunt = f"Slightly ahead of {friend['name']} — keep it up!"
+                elif diff > -10:
+                    taunt = f"{friend['name']} is just ahead — catch up! 💪"
+                else:
+                    taunt = f"{friend['name']} is killing it! Time to step up 😏"
+                
+                friends.append({
+                    "name": friend.get("name", "Friend"),
+                    "score": f_score,
+                    "streak": friend.get("streak_days", 0),
+                    "diff": diff,
+                    "taunt": taunt,
+                    "ahead": diff > 0,
+                })
+        except Exception:
+            continue
+    
+    # Sort: friends beating you first (to motivate)
+    friends.sort(key=lambda x: x["diff"])
+    
+    winning_count = sum(1 for f in friends if f["ahead"])
+    total = len(friends)
+    
+    return {
+        "you": {"name": user_name, "score": user_score},
+        "friends": friends,
+        "summary": f"You're beating {winning_count}/{total} friends 🏆" if total > 0 else "No friends to compare yet",
+        "challenge_text": f"Hey! My MintU score is {user_score}. Can you beat me? 😏 Download MintU!"
+    }
+
+# 3. ENHANCED REFERRAL WITH PRO REWARDS
+@api_router.get("/referral/enhanced-status")
+async def enhanced_referral_status(user_id: str = Depends(get_current_user)):
+    """Enhanced referral status with Pro day rewards"""
+    from bson import ObjectId
+    user = await db.users.find_one({"_id": ObjectId(user_id)})
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+    
+    code = user.get("referral_code")
+    if not code:
+        code = f"MINTU{user['phone'][-4:]}{uuid_lib.uuid4().hex[:4].upper()}"
+        await db.users.update_one({"_id": ObjectId(user_id)}, {"$set": {"referral_code": code}})
+    
+    # Get referral details
+    referrals = await db.referrals.find({"referrer_id": user_id}).sort("created_at", -1).to_list(50)
+    referral_count = len(referrals)
+    
+    # Enhanced reward tiers
+    reward_tiers = [
+        {"friends": 1, "reward": "+3 days Pro", "pro_days": 3, "icon": "star", "unlocked": referral_count >= 1},
+        {"friends": 3, "reward": "+7 days Pro", "pro_days": 7, "icon": "diamond", "unlocked": referral_count >= 3},
+        {"friends": 5, "reward": "1 month Pro", "pro_days": 30, "icon": "trophy", "unlocked": referral_count >= 5},
+        {"friends": 10, "reward": "Lifetime Pro", "pro_days": 365, "icon": "crown", "unlocked": referral_count >= 10},
+    ]
+    
+    # Calculate total earned Pro days
+    total_pro_days = 0
+    for tier in reward_tiers:
+        if tier["unlocked"]:
+            total_pro_days = tier["pro_days"]  # Highest unlocked tier
+    
+    # Next milestone
+    next_tier = None
+    for tier in reward_tiers:
+        if not tier["unlocked"]:
+            next_tier = tier
+            break
+    
+    # Recent referral activity
+    recent = []
+    for ref in referrals[:5]:
+        referred = await db.users.find_one({"_id": ObjectId(ref["referred_id"])}, {"name": 1})
+        recent.append({
+            "name": referred.get("name", "Friend") if referred else "Friend",
+            "date": ref["created_at"],
+        })
+    
+    return {
+        "referral_code": code,
+        "referral_count": referral_count,
+        "total_pro_days_earned": total_pro_days,
+        "reward_tiers": reward_tiers,
+        "next_milestone": {
+            "friends_needed": next_tier["friends"] - referral_count if next_tier else 0,
+            "reward": next_tier["reward"] if next_tier else "All unlocked! 🎉",
+        } if next_tier else {"friends_needed": 0, "reward": "All unlocked! 🎉"},
+        "recent_referrals": recent,
+        "share_text": f"🔥 I'm using MintU to track my money smartly! Use my code {code} and we both get Pro features. Download: https://mintu.app/invite/{code}",
+        "whatsapp_text": f"Hey! 👋 I found this amazing finance app called MintU. It tells you exactly where your money goes 💸\n\nUse my code: {code}\nDownload: https://mintu.app/invite/{code}\n\nWe both get Pro features for free! 🎁",
+    }
+
 # Include router
 app.include_router(api_router)
 
