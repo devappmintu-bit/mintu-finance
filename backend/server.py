@@ -11,6 +11,8 @@ from datetime import datetime, timedelta
 import jwt
 import bcrypt
 import re
+import random
+import string
 from emergentintegrations.llm.chat import LlmChat, UserMessage
 
 ROOT_DIR = Path(__file__).parent
@@ -87,6 +89,15 @@ class DailyInsightResponse(BaseModel):
     spending_summary: Dict[str, float]
     recommendations: List[str]
     generated_at: datetime
+
+# OTP Models
+class OTPSendRequest(BaseModel):
+    phone: str
+
+class OTPVerifyRequest(BaseModel):
+    phone: str
+    otp: str
+    name: Optional[str] = None  # Required for new users
 
 # ============== Helper Functions ==============
 def hash_password(password: str) -> str:
@@ -324,6 +335,162 @@ async def login(credentials: UserLogin):
             "money_score": user.get("money_score", 50)
         }
     }
+
+# ============== OTP Auth Routes ==============
+OTP_EXPIRY_MINUTES = 5
+MAX_OTP_ATTEMPTS = 3
+MOCK_OTP_MODE = True  # Set to False when integrating real SMS (Twilio/MSG91)
+
+def generate_otp() -> str:
+    """Generate a 6-digit OTP. In mock mode, always returns 123456."""
+    if MOCK_OTP_MODE:
+        return "123456"
+    return ''.join(random.choices(string.digits, k=6))
+
+async def send_otp_sms(phone: str, otp: str) -> bool:
+    """Send OTP via SMS. Mock mode just logs it."""
+    if MOCK_OTP_MODE:
+        logger.info(f"[MOCK SMS] OTP for {phone}: {otp}")
+        return True
+    # TODO: Integrate real SMS gateway (Twilio/MSG91)
+    # Example for MSG91:
+    # response = requests.post("https://api.msg91.com/api/v5/otp", json={
+    #     "template_id": "YOUR_TEMPLATE_ID",
+    #     "mobile": f"91{phone}",
+    #     "otp": otp
+    # }, headers={"authkey": os.environ.get("MSG91_AUTH_KEY", "")})
+    # return response.status_code == 200
+    return False
+
+@api_router.post("/auth/send-otp")
+async def send_otp(request: OTPSendRequest):
+    phone = request.phone.strip()
+    if len(phone) != 10 or not phone.isdigit():
+        raise HTTPException(status_code=400, detail="Invalid phone number. Must be 10 digits.")
+    
+    # Rate limit: max 1 OTP per 30 seconds
+    recent_otp = await db.otps.find_one({
+        "phone": phone,
+        "created_at": {"$gte": datetime.utcnow() - timedelta(seconds=30)}
+    })
+    if recent_otp:
+        raise HTTPException(status_code=429, detail="Please wait 30 seconds before requesting another OTP")
+    
+    # Generate and store OTP
+    otp_code = generate_otp()
+    otp_hash = hash_password(otp_code)
+    
+    # Remove old OTPs for this phone
+    await db.otps.delete_many({"phone": phone})
+    
+    # Store new OTP
+    await db.otps.insert_one({
+        "phone": phone,
+        "otp_hash": otp_hash,
+        "attempts": 0,
+        "verified": False,
+        "expires_at": datetime.utcnow() + timedelta(minutes=OTP_EXPIRY_MINUTES),
+        "created_at": datetime.utcnow()
+    })
+    
+    # Send SMS
+    sent = await send_otp_sms(phone, otp_code)
+    
+    # Check if user already exists
+    existing_user = await db.users.find_one({"phone": phone})
+    
+    return {
+        "message": "OTP sent successfully" if sent else "OTP generated (mock mode)",
+        "is_new_user": existing_user is None,
+        "mock_mode": MOCK_OTP_MODE,
+        "expires_in": OTP_EXPIRY_MINUTES * 60
+    }
+
+@api_router.post("/auth/verify-otp")
+async def verify_otp(request: OTPVerifyRequest):
+    phone = request.phone.strip()
+    otp = request.otp.strip()
+    
+    # Find OTP record
+    otp_record = await db.otps.find_one({
+        "phone": phone,
+        "verified": False,
+        "expires_at": {"$gte": datetime.utcnow()}
+    })
+    
+    if not otp_record:
+        raise HTTPException(status_code=400, detail="OTP expired or not found. Please request a new one.")
+    
+    # Check max attempts
+    if otp_record["attempts"] >= MAX_OTP_ATTEMPTS:
+        await db.otps.delete_one({"_id": otp_record["_id"]})
+        raise HTTPException(status_code=400, detail="Too many attempts. Please request a new OTP.")
+    
+    # Increment attempts
+    await db.otps.update_one(
+        {"_id": otp_record["_id"]},
+        {"$inc": {"attempts": 1}}
+    )
+    
+    # Verify OTP
+    if not verify_password(otp, otp_record["otp_hash"]):
+        remaining = MAX_OTP_ATTEMPTS - otp_record["attempts"] - 1
+        raise HTTPException(status_code=400, detail=f"Invalid OTP. {remaining} attempts remaining.")
+    
+    # Mark OTP as verified
+    await db.otps.update_one(
+        {"_id": otp_record["_id"]},
+        {"$set": {"verified": True}}
+    )
+    
+    # Find or create user
+    user = await db.users.find_one({"phone": phone})
+    
+    if user:
+        # Existing user - login
+        user_id = str(user["_id"])
+        token = create_token(user_id)
+        return {
+            "token": token,
+            "is_new_user": False,
+            "user": {
+                "id": user_id,
+                "phone": user["phone"],
+                "name": user["name"],
+                "money_score": user.get("money_score", 50)
+            }
+        }
+    else:
+        # New user - need name
+        if not request.name or not request.name.strip():
+            raise HTTPException(status_code=400, detail="Name is required for new users")
+        
+        new_user = {
+            "phone": phone,
+            "name": request.name.strip(),
+            "password": hash_password(''.join(random.choices(string.ascii_letters + string.digits, k=16))),
+            "money_score": 50,
+            "created_at": datetime.utcnow()
+        }
+        result = await db.users.insert_one(new_user)
+        user_id = str(result.inserted_id)
+        token = create_token(user_id)
+        
+        return {
+            "token": token,
+            "is_new_user": True,
+            "user": {
+                "id": user_id,
+                "phone": new_user["phone"],
+                "name": new_user["name"],
+                "money_score": new_user["money_score"]
+            }
+        }
+
+@api_router.post("/auth/resend-otp")
+async def resend_otp(request: OTPSendRequest):
+    """Alias for send-otp with same rate limiting"""
+    return await send_otp(request)
 
 @api_router.get("/user/me")
 async def get_user_profile(user_id: str = Depends(get_current_user)):
