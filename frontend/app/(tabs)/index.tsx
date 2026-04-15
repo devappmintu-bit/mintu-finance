@@ -5,6 +5,8 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuthStore } from '../../store/authStore';
+import { useLangStore } from '../../store/langStore';
+import { t } from '../../utils/i18n';
 import api from '../../utils/api';
 import { COLORS, RADIUS, SPACING, CATEGORIES } from '../../utils/theme';
 import { BarChart } from 'react-native-gifted-charts';
@@ -12,6 +14,7 @@ import { router } from 'expo-router';
 
 export default function HomeScreen() {
   const { user, setUser } = useAuthStore();
+  const { lang } = useLangStore();
   const [insights, setInsights] = useState<any>(null);
   const [stats, setStats] = useState<any>(null);
   const [recentTxns, setRecentTxns] = useState<any[]>([]);
@@ -42,7 +45,7 @@ export default function HomeScreen() {
 
   const moneyScore = insights?.money_score || user?.money_score || 50;
   const scoreColor = moneyScore >= 75 ? COLORS.accent.moneyIn : moneyScore >= 50 ? COLORS.accent.warning : COLORS.accent.moneyOut;
-  const scoreLabel = moneyScore >= 75 ? 'Excellent' : moneyScore >= 50 ? 'Good' : 'Needs Work';
+  const scoreLabel = moneyScore >= 75 ? t('excellent', lang) : moneyScore >= 50 ? t('good', lang) : t('needs_attention', lang);
 
   const chartData = Object.entries(insights?.spending_summary || {}).map(
     ([category, amount]: [string, any]) => ({
@@ -71,8 +74,8 @@ export default function HomeScreen() {
         {/* Header */}
         <View style={styles.header}>
           <View>
-            <Text style={styles.overline}>WELCOME BACK</Text>
-            <Text style={styles.greeting}>Hi, {user?.name || 'there'}!</Text>
+            <Text style={styles.overline}>{t('welcome_back', lang)}</Text>
+            <Text style={styles.greeting}>{t('hello', lang)}, {user?.name || 'there'}!</Text>
           </View>
           <TouchableOpacity testID="home-notifications-btn" style={styles.notifButton}>
             <Ionicons name="notifications-outline" size={22} color={COLORS.text.primary} />
@@ -83,7 +86,7 @@ export default function HomeScreen() {
         <View style={styles.scoreCard}>
           <View style={styles.scoreTop}>
             <View>
-              <Text style={styles.scoreOverline}>YOUR MONEY SCORE</Text>
+              <Text style={styles.scoreOverline}>{t('money_score', lang)}</Text>
               <Text style={[styles.scoreStatus, { color: scoreColor }]}>{scoreLabel}</Text>
             </View>
             <View style={[styles.scoreBadge, { borderColor: scoreColor }]}>
@@ -102,17 +105,17 @@ export default function HomeScreen() {
             <View style={[styles.statCard, { borderLeftColor: COLORS.accent.moneyIn }]}>
               <Ionicons name="arrow-down-circle" size={20} color={COLORS.accent.moneyIn} />
               <Text style={styles.statAmount}>{'\u20B9'}{stats.total_income.toFixed(0)}</Text>
-              <Text style={styles.statLabel}>Income</Text>
+              <Text style={styles.statLabel}>{t('income', lang)}</Text>
             </View>
             <View style={[styles.statCard, { borderLeftColor: COLORS.accent.moneyOut }]}>
               <Ionicons name="arrow-up-circle" size={20} color={COLORS.accent.moneyOut} />
               <Text style={styles.statAmount}>{'\u20B9'}{stats.total_expense.toFixed(0)}</Text>
-              <Text style={styles.statLabel}>Expenses</Text>
+              <Text style={styles.statLabel}>{t('expenses', lang)}</Text>
             </View>
             <View style={[styles.statCard, { borderLeftColor: COLORS.accent.secondary }]}>
               <Ionicons name="wallet" size={20} color={COLORS.accent.secondary} />
               <Text style={styles.statAmount}>{'\u20B9'}{stats.balance.toFixed(0)}</Text>
-              <Text style={styles.statLabel}>Balance</Text>
+              <Text style={styles.statLabel}>{t('balance', lang)}</Text>
             </View>
           </View>
         )}
@@ -124,7 +127,7 @@ export default function HomeScreen() {
               <Ionicons name="sparkles" size={20} color={COLORS.accent.warning} />
             </View>
             <View style={styles.insightContent}>
-              <Text style={styles.insightTitle}>AI Insight</Text>
+              <Text style={styles.insightTitle}>{t('ai_insight', lang)}</Text>
               <Text style={styles.insightText}>{insights.insight_text}</Text>
             </View>
           </View>
@@ -133,8 +136,8 @@ export default function HomeScreen() {
         {/* Spending Chart */}
         {chartData.length > 0 && (
           <View style={styles.card}>
-            <Text style={styles.cardTitle}>Spending Breakdown</Text>
-            <Text style={styles.cardSubtitle}>Last 7 days by category</Text>
+            <Text style={styles.cardTitle}>{t('spending_breakdown', lang)}</Text>
+            <Text style={styles.cardSubtitle}>{t('last_7_days', lang)}</Text>
             <View style={styles.chartWrap}>
               <BarChart
                 data={chartData}
@@ -158,7 +161,7 @@ export default function HomeScreen() {
         {/* Recommendations */}
         {insights?.recommendations?.length > 0 && (
           <View style={styles.card}>
-            <Text style={styles.cardTitle}>Smart Tips</Text>
+            <Text style={styles.cardTitle}>{t('smart_tips', lang)}</Text>
             {insights.recommendations.map((rec: string, i: number) => (
               <View key={i} style={styles.tipRow}>
                 <View style={styles.tipIcon}>
@@ -174,9 +177,9 @@ export default function HomeScreen() {
         {recentTxns.length > 0 && (
           <View style={styles.card}>
             <View style={styles.cardHeader}>
-              <Text style={styles.cardTitle}>Recent Transactions</Text>
+              <Text style={styles.cardTitle}>{t('recent_transactions', lang)}</Text>
               <TouchableOpacity onPress={() => router.push('/(tabs)/transactions')}>
-                <Text style={styles.seeAll}>See All</Text>
+                <Text style={styles.seeAll}>{t('see_all', lang)}</Text>
               </TouchableOpacity>
             </View>
             {recentTxns.map((txn: any, i: number) => {
