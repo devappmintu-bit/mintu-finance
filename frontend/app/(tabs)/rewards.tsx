@@ -1,14 +1,21 @@
 import React, { useState, useEffect } from 'react';
 import {
   View, Text, StyleSheet, ScrollView, TouchableOpacity, ActivityIndicator,
-  Share, Linking, Alert, RefreshControl,
+  Share, Linking, Alert, RefreshControl, Platform,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
+import * as Notifications from 'expo-notifications';
+import * as Device from 'expo-device';
 import api from '../../utils/api';
 import { useLangStore } from '../../store/langStore';
 import { useAuthStore } from '../../store/authStore';
 import { COLORS, RADIUS, SPACING } from '../../utils/theme';
+import ScoreCard from '../../components/ScoreCard';
+
+Notifications.setNotificationHandler({
+  handleNotification: async () => ({ shouldShowAlert: true, shouldPlaySound: true, shouldSetBadge: true }),
+});
 
 export default function RewardsScreen() {
   const { lang } = useLangStore();
@@ -17,27 +24,52 @@ export default function RewardsScreen() {
   const [gamification, setGamification] = useState<any>(null);
   const [premium, setPremium] = useState<any>(null);
   const [paywall, setPaywall] = useState<any>(null);
+  const [scoreCardData, setScoreCardData] = useState<any>(null);
+  const [abGroup, setAbGroup] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
-  const [showPaywall, setShowPaywall] = useState(false);
 
   const fetchData = async () => {
     try {
-      const [refRes, gameRes, premRes, payRes] = await Promise.all([
+      const [refRes, gameRes, premRes, payRes, cardRes, abRes] = await Promise.all([
         api.get('/referral/my-code'),
         api.get('/gamification/status'),
         api.get('/premium/status'),
         api.get('/premium/paywall-trigger'),
+        api.get('/share/score-card'),
+        api.get('/ab/paywall-group'),
       ]);
       setReferral(refRes.data);
       setGamification(gameRes.data);
       setPremium(premRes.data);
       setPaywall(payRes.data);
+      setScoreCardData(cardRes.data);
+      setAbGroup(abRes.data);
     } catch (e) { console.error(e); }
     finally { setLoading(false); setRefreshing(false); }
   };
 
-  useEffect(() => { fetchData(); }, []);
+  useEffect(() => {
+    fetchData();
+    registerForPush();
+  }, []);
+
+  // Push notification registration
+  const registerForPush = async () => {
+    try {
+      if (!Device.isDevice) return;
+      const { status: existingStatus } = await Notifications.getPermissionsAsync();
+      let finalStatus = existingStatus;
+      if (existingStatus !== 'granted') {
+        const { status } = await Notifications.requestPermissionsAsync();
+        finalStatus = status;
+      }
+      if (finalStatus !== 'granted') return;
+      const tokenData = await Notifications.getExpoPushTokenAsync();
+      const token = tokenData.data;
+      await api.post('/notifications/register-token', { push_token: token });
+    } catch (e) { console.log('Push reg skip:', e); }
+  };
 
   const shareWhatsApp = (text: string) => {
     const url = `whatsapp://send?text=${encodeURIComponent(text)}`;
@@ -47,14 +79,10 @@ export default function RewardsScreen() {
     });
   };
 
-  const shareReferral = () => {
-    if (referral?.share_text) shareWhatsApp(referral.share_text);
-  };
+  const shareReferral = () => { if (referral?.share_text) shareWhatsApp(referral.share_text); };
 
-  const shareMoneyScore = () => {
-    const score = user?.money_score || 50;
-    const text = `My Money Score on MintU is ${score}/100! 🔥\nTrack your finances and beat my score!\nDownload: https://mintu.app`;
-    shareWhatsApp(text);
+  const trackABEvent = async (event: string) => {
+    try { await api.post('/ab/track-event', { event, group: abGroup?.group, placement: abGroup?.placement }); } catch {}
   };
 
   if (loading) return <SafeAreaView style={s.container}><ActivityIndicator size="large" color={COLORS.accent.primary} style={{ marginTop: 100 }} /></SafeAreaView>;
@@ -85,11 +113,25 @@ export default function RewardsScreen() {
               <Text style={s.streakSub}>Keep tracking to grow your streak!</Text>
             </View>
           </View>
-          <TouchableOpacity testID="share-score-btn" style={s.shareScoreBtn} onPress={shareMoneyScore}>
+          <TouchableOpacity testID="share-score-btn" style={s.shareScoreBtn} onPress={() => shareWhatsApp(`My Money Score on MintU is ${user?.money_score || 50}/100! Track your finances: https://mintu.app`)}>
             <Ionicons name="share-social" size={16} color="#fff" />
             <Text style={s.shareScoreTxt}>Share Score</Text>
           </TouchableOpacity>
         </View>
+
+        {/* Instagram Story Card */}
+        {scoreCardData && (
+          <View style={{ marginBottom: SPACING.lg }}>
+            <Text style={s.section}>Share Your Score</Text>
+            <ScoreCard
+              name={scoreCardData.name}
+              score={scoreCardData.score}
+              streak={scoreCardData.streak}
+              totalSaved={scoreCardData.total_saved}
+              month={scoreCardData.month}
+            />
+          </View>
+        )}
 
         {/* Weekly Challenge */}
         {challenge && (
@@ -164,7 +206,7 @@ export default function RewardsScreen() {
           <Text style={s.referralCount}>{referral?.referral_count || 0} friends invited</Text>
         </View>
 
-        {/* Premium Upgrade */}
+        {/* Premium Upgrade - A/B tested placement */}
         {!premium?.is_premium && (
           <>
             <Text style={s.section}>Go Premium</Text>
@@ -173,11 +215,16 @@ export default function RewardsScreen() {
                 <Ionicons name="diamond" size={24} color="#8B5CF6" />
                 <Text style={s.premiumTitle}>MintU Premium</Text>
               </View>
+              {abGroup?.group && (
+                <View style={s.abBadge}>
+                  <Text style={s.abBadgeText}>Test: {abGroup.placement === 'after_overspend' ? 'Smart Trigger' : 'Always Visible'}</Text>
+                </View>
+              )}
               {paywall?.waste_estimate > 0 && (
-                <View style={s.wasteAlert}>
+                <TouchableOpacity style={s.wasteAlert} onPress={() => trackABEvent('click')}>
                   <Text style={s.wasteText}>{paywall.hook_text}</Text>
                   <Text style={s.wasteSub}>{paywall.sub_text}</Text>
-                </View>
+                </TouchableOpacity>
               )}
               {/* Pricing Cards */}
               <View style={s.pricingRow}>
@@ -266,6 +313,8 @@ const s = StyleSheet.create({
   premiumCard: { backgroundColor: COLORS.bg.card, borderRadius: RADIUS.card, padding: SPACING.xl, borderWidth: 1, borderColor: '#8B5CF625' },
   premiumHeader: { flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: SPACING.lg },
   premiumTitle: { fontSize: 22, fontWeight: '800', color: COLORS.text.primary },
+  abBadge: { backgroundColor: COLORS.accent.secondary + '15', paddingHorizontal: 10, paddingVertical: 4, borderRadius: RADIUS.full, alignSelf: 'flex-start', marginBottom: SPACING.md },
+  abBadgeText: { fontSize: 10, fontWeight: '600', color: COLORS.accent.secondary },
   wasteAlert: { backgroundColor: COLORS.accent.moneyOut + '12', borderRadius: RADIUS.lg, padding: SPACING.lg, marginBottom: SPACING.lg },
   wasteText: { fontSize: 18, fontWeight: '700', color: COLORS.accent.moneyOut, marginBottom: 4 },
   wasteSub: { fontSize: 13, color: COLORS.text.secondary },

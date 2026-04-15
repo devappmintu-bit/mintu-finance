@@ -2036,6 +2036,173 @@ async def get_smart_notification_triggers(user_id: str = Depends(get_current_use
     
     return {"notifications": notifications, "count": len(notifications)}
 
+# ============== A/B TEST SYSTEM ==============
+import hashlib as _hashlib
+
+@api_router.get("/ab/paywall-group")
+async def get_ab_group(user_id: str = Depends(get_current_user)):
+    """Assign user to A/B test group for paywall placement"""
+    from bson import ObjectId
+    user = await db.users.find_one({"_id": ObjectId(user_id)})
+    
+    group = user.get("ab_paywall_group")
+    if not group:
+        # Deterministic 50/50 split based on user_id hash
+        h = int(_hashlib.md5(user_id.encode()).hexdigest(), 16)
+        group = "A" if h % 2 == 0 else "B"
+        await db.users.update_one({"_id": ObjectId(user_id)}, {"$set": {"ab_paywall_group": group}})
+    
+    return {
+        "group": group,
+        "placement": "after_overspend" if group == "A" else "profile_tab",
+        "description": "Group A: Paywall shown after overspend insight. Group B: Paywall in profile tab."
+    }
+
+@api_router.post("/ab/track-event")
+async def track_ab_event(event: dict, user_id: str = Depends(get_current_user)):
+    """Track A/B test conversion events"""
+    await db.ab_events.insert_one({
+        "user_id": user_id,
+        "event": event.get("event", "view"),  # "view", "click", "convert"
+        "group": event.get("group", ""),
+        "placement": event.get("placement", ""),
+        "created_at": datetime.utcnow()
+    })
+    return {"tracked": True}
+
+@api_router.get("/ab/results")
+async def get_ab_results():
+    """Get A/B test results (admin)"""
+    pipeline_a = [
+        {"$match": {"group": "A"}},
+        {"$group": {"_id": "$event", "count": {"$sum": 1}}}
+    ]
+    pipeline_b = [
+        {"$match": {"group": "B"}},
+        {"$group": {"_id": "$event", "count": {"$sum": 1}}}
+    ]
+    a_results = {r["_id"]: r["count"] for r in await db.ab_events.aggregate(pipeline_a).to_list(10)}
+    b_results = {r["_id"]: r["count"] for r in await db.ab_events.aggregate(pipeline_b).to_list(10)}
+    
+    return {
+        "group_A": {"placement": "after_overspend", "events": a_results, "conversion_rate": (a_results.get("convert", 0) / max(a_results.get("view", 1), 1)) * 100},
+        "group_B": {"placement": "profile_tab", "events": b_results, "conversion_rate": (b_results.get("convert", 0) / max(b_results.get("view", 1), 1)) * 100},
+    }
+
+# ============== STORY CARD DATA ==============
+@api_router.get("/share/score-card")
+async def get_score_card_data(user_id: str = Depends(get_current_user)):
+    """Get data for generating shareable score card"""
+    from bson import ObjectId
+    user = await db.users.find_one({"_id": ObjectId(user_id)})
+    thirty_days_ago = datetime.utcnow() - timedelta(days=30)
+    txns = await db.transactions.find({"user_id": user_id, "date": {"$gte": thirty_days_ago}}).to_list(1000)
+    
+    total_saved = sum(t["amount"] for t in txns if t["type"] == "credit") - sum(t["amount"] for t in txns if t["type"] == "debit")
+    score = user.get("money_score", 50)
+    
+    # Calculate streak
+    today = datetime.utcnow().replace(hour=0, minute=0, second=0, microsecond=0)
+    streak = 0
+    for i in range(365):
+        day_start = today - timedelta(days=i)
+        day_end = day_start + timedelta(days=1)
+        has = await db.transactions.find_one({"user_id": user_id, "date": {"$gte": day_start, "$lt": day_end}})
+        if has: streak += 1
+        elif i > 0: break
+    
+    return {
+        "name": user.get("name", "User"),
+        "score": score,
+        "streak": streak,
+        "total_saved": max(total_saved, 0),
+        "transaction_count": len(txns),
+        "month": datetime.utcnow().strftime("%B %Y"),
+    }
+
+# ============== PUSH NOTIFICATION CRON ==============
+import httpx
+
+async def send_expo_push(token: str, title: str, body: str, data: dict = None):
+    """Send push notification via Expo Push API"""
+    if not token or not token.startswith("ExponentPushToken"):
+        return False
+    try:
+        async with httpx.AsyncClient() as client_http:
+            resp = await client_http.post(
+                "https://exp.host/--/api/v2/push/send",
+                json={"to": token, "title": title, "body": body, "data": data or {}, "sound": "default"},
+                headers={"Content-Type": "application/json"}
+            )
+            return resp.status_code == 200
+    except Exception as e:
+        logging.error(f"Push send error: {e}")
+        return False
+
+@api_router.post("/notifications/cron-check")
+async def cron_check_notifications():
+    """Cron endpoint: check all users for pending notifications and send pushes"""
+    users = await db.users.find({"push_token": {"$exists": True, "$ne": None}}).to_list(10000)
+    sent_count = 0
+    
+    for user in users:
+        user_id = str(user["_id"])
+        token = user.get("push_token", "")
+        if not token: continue
+        
+        now = datetime.utcnow()
+        today_start = now.replace(hour=0, minute=0, second=0, microsecond=0)
+        seven_days_ago = now - timedelta(days=7)
+        thirty_days_ago = now - timedelta(days=30)
+        
+        # Check: already sent today?
+        already_sent = await db.sent_notifications.find_one({"user_id": user_id, "date": {"$gte": today_start}})
+        if already_sent: continue
+        
+        # Gather data
+        today_txns = await db.transactions.find({"user_id": user_id, "type": "debit", "date": {"$gte": today_start}}).to_list(100)
+        week_txns = await db.transactions.find({"user_id": user_id, "type": "debit", "date": {"$gte": seven_days_ago}}).to_list(500)
+        
+        today_total = sum(t["amount"] for t in today_txns)
+        daily_avg = sum(t["amount"] for t in week_txns) / 7 if week_txns else 0
+        
+        notification = None
+        
+        # 1. Overspend
+        if today_total > daily_avg * 1.5 and today_total > 200:
+            notification = {"title": "Spending Alert ⚠️", "body": f"₹{today_total:.0f} spent today — above your daily average. Watch out!"}
+        
+        # 2. Budget breach
+        if not notification:
+            budgets = await db.budgets.find({"user_id": user_id}).to_list(50)
+            for b in budgets:
+                m_txns = await db.transactions.find({"user_id": user_id, "category": b["category"], "type": "debit", "date": {"$gte": thirty_days_ago}}).to_list(500)
+                spent = sum(t["amount"] for t in m_txns)
+                pct = (spent / b["amount"] * 100) if b["amount"] > 0 else 0
+                if pct >= 100:
+                    notification = {"title": f"{b['category']} Budget Exceeded! 🚨", "body": f"₹{spent:.0f} of ₹{b['amount']:.0f} limit. Time to cut back."}
+                    break
+                elif pct >= 80:
+                    notification = {"title": f"{b['category']} Budget Warning ⚠️", "body": f"{pct:.0f}% used (₹{spent:.0f}/₹{b['amount']:.0f}). Slow down!"}
+                    break
+        
+        # 3. Streak reminder (evening)
+        if not notification and not today_txns and now.hour >= 18:
+            notification = {"title": "Track your expenses! 📝", "body": "Don't break your streak — add today's expenses now."}
+        
+        # 4. Savings celebration
+        if not notification and today_total < daily_avg * 0.5 and daily_avg > 100 and today_txns:
+            saved = daily_avg - today_total
+            notification = {"title": "Great saving today! 🎉", "body": f"You saved ₹{saved:.0f} compared to your average. Keep it up!"}
+        
+        if notification:
+            success = await send_expo_push(token, notification["title"], notification["body"])
+            if success:
+                await db.sent_notifications.insert_one({"user_id": user_id, "date": now, **notification})
+                sent_count += 1
+    
+    return {"users_checked": len(users), "notifications_sent": sent_count}
+
 # ============== DATA PROTECTION & COMPLIANCE ROUTES ==============
 # GDPR Art. 15/20 + India DPDP Act 2023 Sec. 11 — Right to Access & Portability
 @api_router.get("/privacy/data-export")
