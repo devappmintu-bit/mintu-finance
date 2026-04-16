@@ -22,7 +22,9 @@ export default function OnboardingScreen() {
 
   const handleNext = async () => {
     if (activeIndex < SLIDES.length - 1) {
-      flatListRef.current?.scrollToIndex({ index: activeIndex + 1 });
+      const nextIndex = activeIndex + 1;
+      flatListRef.current?.scrollToOffset({ offset: nextIndex * width, animated: true });
+      setActiveIndex(nextIndex);
     } else {
       await AsyncStorage.setItem('onboarding_seen', 'true');
       router.replace('/auth');
