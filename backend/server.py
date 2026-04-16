@@ -3096,9 +3096,9 @@ async def shareable_stats_card(user_id: str = Depends(get_current_user)):
     whatsapp_text += f"💰 Saved: ₹{saved:,.0f}\n"
     whatsapp_text += f"📊 Money Score: {score}/100\n"
     whatsapp_text += f"🔥 Streak: {streak} days\n\n"
-    whatsapp_text += f"Track your money smartly with MintU! 🚀"
+    whatsapp_text += f"Track your money smartly with MintU! 🚀\n📲 Download: {APP_DOWNLOAD_LINK}"
     
-    instagram_caption = f"I saved ₹{saved:,.0f} this month using MintU 💸\n\nMoney Score: {score}/100 ⭐\n🔥 {streak}-day tracking streak\n\n#MintU #MoneyManagement #Savings #FinancialFreedom #India"
+    instagram_caption = f"I saved ₹{saved:,.0f} this month using MintU 💸\n\nMoney Score: {score}/100 ⭐\n🔥 {streak}-day tracking streak\n\n📲 Download MintU: {APP_DOWNLOAD_LINK}\n\n#MintU #MoneyManagement #Savings #FinancialFreedom #India"
     
     return {
         "name": name,
@@ -3160,6 +3160,57 @@ async def create_indexes():
         logging.error(f"Index creation error: {e}")
 
 # ============== PHASE 2: LEADERBOARD & ENHANCED REFERRAL ==============
+
+# App download link for shareable content
+APP_DOWNLOAD_LINK = "https://mintu.app/download"
+
+# Daily rotating cards for engagement
+DAILY_CARDS = [
+    {"type": "fact", "emoji": "💡", "title": "Did you know?", "text": "Indians who track expenses save 23% more than those who don't!", "color": "#3B82F6"},
+    {"type": "challenge", "emoji": "🎯", "title": "Today's Challenge", "text": "No unnecessary spending today! Can you do it? 💪", "color": "#8B5CF6"},
+    {"type": "quote", "emoji": "🧠", "title": "Money Wisdom", "text": "\"The habit of saving is itself an education\" — T. T. Munger", "color": "#059669"},
+    {"type": "tip", "emoji": "🔥", "title": "Pro Tip", "text": "Set up a SIP of just ₹500/month. In 10 years, it could be ₹1.1 lakh!", "color": "#F59E0B"},
+    {"type": "fact", "emoji": "📊", "title": "India Stat", "text": "Only 27% of Indians have a monthly budget. You're already ahead!", "color": "#EC4899"},
+    {"type": "challenge", "emoji": "⚡", "title": "Quick Win", "text": "Review your subscriptions today. Cancel one you don't use!", "color": "#10B981"},
+    {"type": "quote", "emoji": "💰", "title": "Wealth Quote", "text": "\"Don't save what's left after spending. Spend what's left after saving.\" — Warren Buffett", "color": "#6366F1"},
+    {"type": "tip", "emoji": "🏦", "title": "Smart Move", "text": "Keep 3 months expenses in a liquid fund. Better than savings account!", "color": "#0EA5E9"},
+    {"type": "fact", "emoji": "🇮🇳", "title": "Indian Finance", "text": "UPI processed 14 billion transactions last month. Track yours with MintU!", "color": "#EF4444"},
+    {"type": "challenge", "emoji": "🌟", "title": "Streak Builder", "text": "Log every expense today, no matter how small. Build that habit!", "color": "#F97316"},
+]
+
+# Profile photo upload
+@api_router.post("/user/avatar")
+async def upload_avatar(data: dict, user_id: str = Depends(get_current_user)):
+    """Upload profile photo as base64"""
+    from bson import ObjectId
+    avatar_b64 = data.get("avatar", "")
+    if not avatar_b64:
+        raise HTTPException(status_code=400, detail="No avatar data")
+    # Limit size to ~500KB base64
+    if len(avatar_b64) > 700_000:
+        raise HTTPException(status_code=400, detail="Image too large. Max 500KB")
+    await db.users.update_one({"_id": ObjectId(user_id)}, {"$set": {"avatar": avatar_b64}})
+    return {"message": "Avatar updated!"}
+
+@api_router.get("/user/avatar")
+async def get_avatar(user_id: str = Depends(get_current_user)):
+    """Get profile photo"""
+    from bson import ObjectId
+    user = await db.users.find_one({"_id": ObjectId(user_id)}, {"avatar": 1, "name": 1})
+    return {"avatar": user.get("avatar", "") if user else "", "name": user.get("name", "") if user else ""}
+
+# Card of the Day — rotates daily + random refresh
+@api_router.get("/card-of-the-day")
+async def card_of_the_day(refresh: bool = False, user_id: str = Depends(get_current_user)):
+    """Get daily rotating motivational/financial card"""
+    import random
+    from datetime import date
+    if refresh:
+        card = random.choice(DAILY_CARDS)
+    else:
+        day_index = date.today().toordinal() % len(DAILY_CARDS)
+        card = DAILY_CARDS[day_index]
+    return {**card, "app_link": APP_DOWNLOAD_LINK}
 
 # 1. SAVINGS LEADERBOARD
 @api_router.get("/leaderboard/savings")

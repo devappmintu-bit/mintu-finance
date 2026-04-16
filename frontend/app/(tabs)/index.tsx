@@ -1,9 +1,11 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import {
   View, Text, StyleSheet, ScrollView, RefreshControl, TouchableOpacity, ActivityIndicator,
+  Image, Share, Linking, Alert,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
+import * as ImagePicker from 'expo-image-picker';
 import { useAuthStore } from '../../store/authStore';
 import { useLangStore } from '../../store/langStore';
 import { t } from '../../utils/i18n';
@@ -12,28 +14,36 @@ import { COLORS, RADIUS, SPACING, CATEGORIES } from '../../utils/theme';
 import { BarChart } from 'react-native-gifted-charts';
 import { router } from 'expo-router';
 
+const APP_LINK = 'https://mintu.app/download';
+
 export default function HomeScreen() {
   const { user, setUser } = useAuthStore();
   const { lang } = useLangStore();
-  const [insights, setInsights] = useState<any>(null);
   const [stats, setStats] = useState<any>(null);
   const [recentTxns, setRecentTxns] = useState<any[]>([]);
   const [dailyLesson, setDailyLesson] = useState<any>(null);
   const [smartAlerts, setSmartAlerts] = useState<any[]>([]);
   const [weeklyReport, setWeeklyReport] = useState<any>(null);
+  const [leaderboard, setLeaderboard] = useState<any>(null);
+  const [gamification, setGamification] = useState<any>(null);
+  const [cardOfDay, setCardOfDay] = useState<any>(null);
+  const [avatar, setAvatar] = useState<string>('');
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
 
   const fetchData = useCallback(async () => {
     try {
-      // Load fast endpoints first to unblock the UI
-      const [profileRes, statsRes, txnRes, lessonRes, alertsRes, reportRes] = await Promise.all([
+      const [profileRes, statsRes, txnRes, lessonRes, alertsRes, reportRes, lbRes, gameRes, cotdRes, avatarRes] = await Promise.all([
         api.get('/user/me'),
         api.get('/stats/overview'),
         api.get('/transactions?limit=5'),
         api.get(`/money-school/daily?lang=${lang}`),
         api.get('/alerts/smart'),
         api.get('/reports/weekly'),
+        api.get('/leaderboard/savings'),
+        api.get('/gamification/status'),
+        api.get('/card-of-the-day'),
+        api.get('/user/avatar'),
       ]);
       setUser(profileRes.data);
       setStats(statsRes.data);
@@ -41,128 +51,171 @@ export default function HomeScreen() {
       setDailyLesson(lessonRes.data);
       setSmartAlerts(alertsRes.data?.alerts || []);
       setWeeklyReport(reportRes.data);
+      setLeaderboard(lbRes.data);
+      setGamification(gameRes.data);
+      setCardOfDay(cotdRes.data);
+      if (avatarRes.data?.avatar) setAvatar(avatarRes.data.avatar);
     } catch (error) {
       console.error('Dashboard fetch error:', error);
     } finally {
       setLoading(false);
       setRefreshing(false);
     }
-    // Load AI insights separately (slow OpenAI call - don't block UI)
-    try {
-      const insightsRes = await api.get(`/insights/daily?lang=${lang}`);
-      setInsights(insightsRes.data);
-    } catch (error) {
-      console.error('Insights fetch error:', error);
-    }
-  }, []);
+  }, [lang]);
 
   useEffect(() => { fetchData(); }, []);
+  const onRefresh = () => { setRefreshing(true); fetchData(); };
 
-  const moneyScore = insights?.money_score || user?.money_score || 50;
-  const scoreColor = moneyScore >= 75 ? COLORS.accent.moneyIn : moneyScore >= 50 ? COLORS.accent.warning : COLORS.accent.moneyOut;
-  const scoreLabel = moneyScore >= 75 ? t('excellent', lang) : moneyScore >= 50 ? t('good', lang) : t('needs_attention', lang);
+  const refreshCardOfDay = async () => {
+    try {
+      const res = await api.get('/card-of-the-day?refresh=true');
+      setCardOfDay(res.data);
+    } catch (e) { console.error(e); }
+  };
 
-  const chartData = Object.entries(insights?.spending_summary || {}).map(
-    ([category, amount]: [string, any]) => ({
-      value: amount,
-      label: category.slice(0, 4),
-      frontColor: CATEGORIES[category]?.color || COLORS.accent.secondary,
-      topLabelComponent: () => <Text style={styles.chartLabel}>{'\u20B9'}{Math.round(amount)}</Text>,
-    })
+  const refreshLesson = async () => {
+    try {
+      const res = await api.get(`/money-school/daily?lang=${lang}&t=${Date.now()}`);
+      setDailyLesson(res.data);
+    } catch (e) { console.error(e); }
+  };
+
+  const pickAvatar = async () => {
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ['images'],
+      allowsEditing: true,
+      aspect: [1, 1],
+      quality: 0.5,
+      base64: true,
+    });
+    if (!result.canceled && result.assets[0].base64) {
+      const b64 = `data:image/jpeg;base64,${result.assets[0].base64}`;
+      setAvatar(b64);
+      try {
+        await api.post('/user/avatar', { avatar: b64 });
+      } catch (e) { Alert.alert('Error', 'Could not upload photo'); }
+    }
+  };
+
+  const score = user?.money_score || stats?.money_score || 50;
+  const scoreColor = score >= 75 ? '#10B981' : score >= 50 ? '#F59E0B' : '#EF4444';
+
+  if (loading) return (
+    <SafeAreaView style={styles.container}>
+      <ActivityIndicator size="large" color={COLORS.accent.primary} style={{ marginTop: 100 }} />
+    </SafeAreaView>
   );
-
-  if (loading) {
-    return (
-      <SafeAreaView style={styles.container}>
-        <ActivityIndicator size="large" color={COLORS.accent.primary} style={{ marginTop: 100 }} />
-      </SafeAreaView>
-    );
-  }
 
   return (
     <SafeAreaView style={styles.container}>
-      <ScrollView
-        testID="home-dashboard"
-        contentContainerStyle={styles.scrollContent}
-        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); fetchData(); }} tintColor={COLORS.accent.primary} />}
-      >
-        {/* Header with Profile Avatar */}
+      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scroll}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={COLORS.accent.primary} />}>
+
+        {/* HEADER — CRED-style with avatar */}
         <View style={styles.header}>
-          <TouchableOpacity testID="profile-avatar-btn" style={styles.avatarBtn} onPress={() => router.push('/(tabs)/profile')}>
-            <Ionicons name="person" size={18} color={COLORS.accent.primary} />
-          </TouchableOpacity>
-          <View style={styles.headerCenter}>
-            <Text style={styles.overline}>{t('welcome_back', lang)}</Text>
-            <Text style={styles.greeting}>{t('hello', lang)}, {user?.name || 'there'}!</Text>
+          <View style={{ flex: 1 }}>
+            <Text style={styles.greeting}>{t('welcome_back', lang).toUpperCase()}</Text>
+            <Text style={styles.name}>{t('hi', lang)}, {user?.name || 'User'}!</Text>
           </View>
-          <TouchableOpacity testID="home-rewards-btn" style={styles.rewardsBtn} onPress={() => router.push('/(tabs)/rewards')}>
-            <Ionicons name="gift" size={18} color={COLORS.accent.secondary} />
+          <TouchableOpacity onPress={pickAvatar} style={styles.avatarWrap}>
+            <View style={styles.avatarRing}>
+              {avatar ? (
+                <Image source={{ uri: avatar }} style={styles.avatarImg} />
+              ) : (
+                <View style={styles.avatarPlaceholder}>
+                  <Ionicons name="person" size={22} color={COLORS.accent.primary} />
+                </View>
+              )}
+            </View>
+            <View style={styles.avatarBadge}><Ionicons name="camera" size={10} color="#fff" /></View>
           </TouchableOpacity>
         </View>
 
-        {/* Money Score Hero */}
-        <View style={styles.scoreCard}>
-          <View style={styles.scoreTop}>
-            <View>
-              <Text style={styles.scoreOverline}>{t('money_score', lang)}</Text>
-              <Text style={[styles.scoreStatus, { color: scoreColor }]}>{scoreLabel}</Text>
+        {/* LEADERBOARD — Top position */}
+        {leaderboard && (
+          <View style={styles.lbCard}>
+            <View style={styles.lbHeader}>
+              <Ionicons name="trophy" size={18} color="#F59E0B" />
+              <Text style={styles.lbTitle}>LEADERBOARD</Text>
+              <View style={styles.lbRankPill}>
+                <Text style={styles.lbRankText}>#{leaderboard.user_rank}</Text>
+              </View>
             </View>
-            <View style={[styles.scoreBadge, { borderColor: scoreColor }]}>
-              <Text style={[styles.scoreBadgeText, { color: scoreColor }]}>{moneyScore}</Text>
-              <Text style={styles.scoreBadgeSub}>/100</Text>
+            <Text style={styles.lbComparison}>{leaderboard.comparison_text}</Text>
+            <View style={styles.lbStatsRow}>
+              <View style={styles.lbStatBox}>
+                <Text style={[styles.lbStatNum, { color: scoreColor }]}>{score}</Text>
+                <Text style={styles.lbStatLabel}>Score</Text>
+              </View>
+              <View style={styles.lbStatDivider} />
+              <View style={styles.lbStatBox}>
+                <Text style={styles.lbStatNum}>Top {Math.max(1, 100 - (leaderboard.percentile || 50))}%</Text>
+                <Text style={styles.lbStatLabel}>Rank</Text>
+              </View>
+              <View style={styles.lbStatDivider} />
+              <View style={styles.lbStatBox}>
+                <Text style={styles.lbStatNum}>{leaderboard.total_users}</Text>
+                <Text style={styles.lbStatLabel}>Users</Text>
+              </View>
             </View>
+            {/* Mini leaderboard */}
+            {(leaderboard.top_10 || []).slice(0, 3).map((e: any, i: number) => (
+              <View key={i} style={[styles.lbRow, e.is_me && styles.lbRowMe]}>
+                <Text style={styles.lbMedal}>{i === 0 ? '🥇' : i === 1 ? '🥈' : '🥉'}</Text>
+                <Text style={[styles.lbName, e.is_me && { fontWeight: '800', color: COLORS.accent.primary }]}>{e.is_me ? 'You' : e.name}</Text>
+                <Text style={styles.lbScore}>{e.score}</Text>
+                {e.streak > 0 && <Text style={styles.lbStreak}>🔥{e.streak}</Text>}
+              </View>
+            ))}
           </View>
-          <View style={styles.progressTrack}>
-            <View style={[styles.progressFill, { width: `${moneyScore}%`, backgroundColor: scoreColor }]} />
+        )}
+
+        {/* CARD OF THE DAY — Eye-catching */}
+        {cardOfDay && (
+          <View style={[styles.cotdCard, { borderLeftColor: cardOfDay.color || COLORS.accent.primary }]}>
+            <View style={styles.cotdHeader}>
+              <Text style={styles.cotdEmoji}>{cardOfDay.emoji}</Text>
+              <Text style={[styles.cotdType, { color: cardOfDay.color }]}>{cardOfDay.title}</Text>
+              <TouchableOpacity onPress={refreshCardOfDay} style={styles.cotdRefresh}>
+                <Ionicons name="refresh" size={14} color={COLORS.text.muted} />
+              </TouchableOpacity>
+            </View>
+            <Text style={styles.cotdText}>{cardOfDay.text}</Text>
+          </View>
+        )}
+
+        {/* FINANCIAL STATS — Compact */}
+        <View style={styles.statsRow}>
+          <View style={[styles.statBox, { borderColor: '#10B98120' }]}>
+            <Ionicons name="arrow-down-circle" size={18} color="#10B981" />
+            <Text style={[styles.statVal, { color: '#10B981' }]}>{'\u20B9'}{(stats?.total_income || 0).toLocaleString()}</Text>
+            <Text style={styles.statLabel}>{t('income', lang)}</Text>
+          </View>
+          <View style={[styles.statBox, { borderColor: '#EF444420' }]}>
+            <Ionicons name="arrow-up-circle" size={18} color="#EF4444" />
+            <Text style={[styles.statVal, { color: '#EF4444' }]}>{'\u20B9'}{(stats?.total_expense || 0).toLocaleString()}</Text>
+            <Text style={styles.statLabel}>{t('expenses', lang)}</Text>
+          </View>
+          <View style={[styles.statBox, { borderColor: COLORS.accent.primary + '20' }]}>
+            <Ionicons name="wallet" size={18} color={COLORS.accent.primary} />
+            <Text style={[styles.statVal, { color: COLORS.accent.primary }]}>{'\u20B9'}{((stats?.total_income || 0) - (stats?.total_expense || 0)).toLocaleString()}</Text>
+            <Text style={styles.statLabel}>{t('balance', lang)}</Text>
           </View>
         </View>
 
-        {/* Quick Stats */}
-        {stats && (
-          <View style={styles.statsRow}>
-            <View style={[styles.statCard, { borderLeftColor: COLORS.accent.moneyIn }]}>
-              <Ionicons name="arrow-down-circle" size={20} color={COLORS.accent.moneyIn} />
-              <Text style={styles.statAmount}>{'\u20B9'}{stats.total_income.toFixed(0)}</Text>
-              <Text style={styles.statLabel}>{t('income', lang)}</Text>
-            </View>
-            <View style={[styles.statCard, { borderLeftColor: COLORS.accent.moneyOut }]}>
-              <Ionicons name="arrow-up-circle" size={20} color={COLORS.accent.moneyOut} />
-              <Text style={styles.statAmount}>{'\u20B9'}{stats.total_expense.toFixed(0)}</Text>
-              <Text style={styles.statLabel}>{t('expenses', lang)}</Text>
-            </View>
-            <View style={[styles.statCard, { borderLeftColor: COLORS.accent.secondary }]}>
-              <Ionicons name="wallet" size={20} color={COLORS.accent.secondary} />
-              <Text style={styles.statAmount}>{'\u20B9'}{stats.balance.toFixed(0)}</Text>
-              <Text style={styles.statLabel}>{t('balance', lang)}</Text>
-            </View>
-          </View>
-        )}
-
-        {/* AI Insight Card */}
-        {insights?.insight_text && (
-          <View style={styles.insightCard}>
-            <View style={styles.insightIconWrap}>
-              <Ionicons name="sparkles" size={20} color={COLORS.accent.warning} />
-            </View>
-            <View style={styles.insightContent}>
-              <Text style={styles.insightTitle}>{t('ai_insight', lang)}</Text>
-              <Text style={styles.insightText}>{insights.insight_text}</Text>
-            </View>
-          </View>
-        )}
-
-        {/* Smart Alerts */}
+        {/* SMART ALERTS */}
         {smartAlerts.length > 0 && (
           <View style={styles.alertsSection}>
+            <Text style={styles.sectionTitle}>Smart Alerts</Text>
             {smartAlerts.slice(0, 3).map((alert: any, i: number) => {
-              const bgColors: Record<string, string> = { danger: '#FEF2F2', warning: '#FFFBEB', success: '#F0FDF4', info: '#EFF6FF' };
-              const borderColors: Record<string, string> = { danger: '#FECACA', warning: '#FDE68A', success: '#BBF7D0', info: '#BFDBFE' };
-              const textColors: Record<string, string> = { danger: '#991B1B', warning: '#92400E', success: '#166534', info: '#1E40AF' };
+              const bg: Record<string, string> = { danger: '#FEF2F2', warning: '#FFFBEB', success: '#F0FDF4', info: '#EFF6FF' };
+              const border: Record<string, string> = { danger: '#FECACA', warning: '#FDE68A', success: '#BBF7D0', info: '#BFDBFE' };
+              const textC: Record<string, string> = { danger: '#991B1B', warning: '#92400E', success: '#166534', info: '#1E40AF' };
               return (
-                <View key={i} style={[styles.alertCard, { backgroundColor: bgColors[alert.severity] || '#F9FAFB', borderColor: borderColors[alert.severity] || '#E5E7EB' }]}>
+                <View key={i} style={[styles.alertCard, { backgroundColor: bg[alert.severity] || '#F9FAFB', borderColor: border[alert.severity] || '#E5E7EB' }]}>
                   <Text style={styles.alertEmoji}>{alert.emoji}</Text>
                   <View style={styles.alertBody}>
-                    <Text style={[styles.alertTitle, { color: textColors[alert.severity] || COLORS.text.primary }]}>{alert.title}</Text>
+                    <Text style={[styles.alertTitle, { color: textC[alert.severity] || COLORS.text.primary }]}>{alert.title}</Text>
                     <Text style={styles.alertMsg}>{alert.message}</Text>
                   </View>
                 </View>
@@ -171,7 +224,43 @@ export default function HomeScreen() {
           </View>
         )}
 
-        {/* Weekly Report Card */}
+        {/* REWARDS HIGHLIGHT */}
+        {gamification && (
+          <View style={styles.rewardsCard}>
+            <View style={styles.rewardsHeader}>
+              <Ionicons name="trophy" size={16} color="#F59E0B" />
+              <Text style={styles.rewardsTitle}>YOUR REWARDS</Text>
+              <TouchableOpacity onPress={() => router.push('/(tabs)/rewards')} style={styles.seeAllBtn}>
+                <Text style={styles.seeAllText}>See All</Text>
+                <Ionicons name="chevron-forward" size={14} color={COLORS.accent.primary} />
+              </TouchableOpacity>
+            </View>
+            <View style={styles.rewardsBadges}>
+              <View style={styles.rewardItem}>
+                <Text style={styles.rewardEmoji}>🔥</Text>
+                <Text style={styles.rewardVal}>{gamification.streak || 0}</Text>
+                <Text style={styles.rewardLabel}>Streak</Text>
+              </View>
+              <View style={styles.rewardItem}>
+                <Text style={styles.rewardEmoji}>🏅</Text>
+                <Text style={styles.rewardVal}>{gamification.badges?.length || 0}</Text>
+                <Text style={styles.rewardLabel}>Badges</Text>
+              </View>
+              <View style={styles.rewardItem}>
+                <Text style={styles.rewardEmoji}>⚡</Text>
+                <Text style={styles.rewardVal}>{gamification.challenges_completed || 0}</Text>
+                <Text style={styles.rewardLabel}>Challenges</Text>
+              </View>
+              <View style={styles.rewardItem}>
+                <Text style={styles.rewardEmoji}>👑</Text>
+                <Text style={[styles.rewardVal, { color: scoreColor }]}>{score}</Text>
+                <Text style={styles.rewardLabel}>Score</Text>
+              </View>
+            </View>
+          </View>
+        )}
+
+        {/* WEEKLY REPORT */}
         {weeklyReport && weeklyReport.total_spent > 0 && (
           <View style={styles.weeklyCard}>
             <View style={styles.weeklyHeader}>
@@ -182,7 +271,7 @@ export default function HomeScreen() {
             <Text style={styles.weeklyHeadline}>{weeklyReport.headline}</Text>
             <View style={styles.weeklyStatsRow}>
               <View style={styles.weeklyStat}>
-                <Text style={[styles.weeklyStatVal, { color: COLORS.accent.moneyOut }]}>{'\u20B9'}{weeklyReport.total_spent?.toFixed(0)}</Text>
+                <Text style={[styles.weeklyStatVal, { color: '#EF4444' }]}>{'\u20B9'}{weeklyReport.total_spent?.toFixed(0)}</Text>
                 <Text style={styles.weeklyStatLbl}>This Week</Text>
               </View>
               {weeklyReport.last_week_spent > 0 && (
@@ -192,112 +281,59 @@ export default function HomeScreen() {
                 </View>
               )}
               {weeklyReport.change_pct !== 0 && (
-                <View style={[styles.weeklyChangePill, { backgroundColor: weeklyReport.change_pct > 0 ? COLORS.accent.moneyOut + '15' : COLORS.accent.moneyIn + '15' }]}>
-                  <Ionicons name={weeklyReport.change_pct > 0 ? 'arrow-up' : 'arrow-down'} size={12} color={weeklyReport.change_pct > 0 ? COLORS.accent.moneyOut : COLORS.accent.moneyIn} />
-                  <Text style={{ fontSize: 12, fontWeight: '700', color: weeklyReport.change_pct > 0 ? COLORS.accent.moneyOut : COLORS.accent.moneyIn }}>{Math.abs(weeklyReport.change_pct).toFixed(0)}%</Text>
+                <View style={[styles.changePill, { backgroundColor: weeklyReport.change_pct > 0 ? '#FEF2F2' : '#F0FDF4' }]}>
+                  <Ionicons name={weeklyReport.change_pct > 0 ? 'arrow-up' : 'arrow-down'} size={12} color={weeklyReport.change_pct > 0 ? '#EF4444' : '#10B981'} />
+                  <Text style={{ fontSize: 12, fontWeight: '700', color: weeklyReport.change_pct > 0 ? '#EF4444' : '#10B981' }}>{Math.abs(weeklyReport.change_pct).toFixed(0)}%</Text>
                 </View>
               )}
             </View>
             <Text style={styles.weeklySuggestion}>{weeklyReport.savings_suggestion}</Text>
           </View>
         )}
-        {/* Money School Card */}
+
+        {/* MONEY SCHOOL */}
         {dailyLesson && (
-          <View testID="money-school-card" style={styles.schoolCard}>
+          <View style={styles.schoolCard}>
             <View style={styles.schoolHeader}>
-              <View style={styles.schoolBadge}>
-                <Ionicons name="school" size={14} color="#8B5CF6" />
-                <Text style={styles.schoolBadgeText}>MONEY SCHOOL</Text>
-              </View>
-              <Text style={styles.schoolProgress}>
-                {dailyLesson.lesson_number}/{dailyLesson.total_lessons}
-              </Text>
+              <View style={styles.schoolBadge}><Ionicons name="school" size={14} color="#8B5CF6" /><Text style={styles.schoolBadgeText}>MONEY SCHOOL</Text></View>
+              <TouchableOpacity onPress={refreshLesson}><Ionicons name="refresh" size={16} color={COLORS.text.muted} /></TouchableOpacity>
             </View>
-            <Text style={styles.schoolTitle}>{dailyLesson.lesson?.title}</Text>
-            <Text style={styles.schoolContent} numberOfLines={3}>
-              {dailyLesson.lesson?.content}
-            </Text>
-            {dailyLesson.personal_tip ? (
-              <View style={styles.schoolTipBox}>
-                <Ionicons name="sparkles" size={14} color={COLORS.accent.primary} />
-                <Text style={styles.schoolTipText}>{dailyLesson.personal_tip}</Text>
-              </View>
-            ) : null}
-            <View style={styles.schoolCatPill}>
-              <Text style={styles.schoolCatText}>{dailyLesson.lesson?.category}</Text>
-            </View>
+            <Text style={styles.schoolTitle}>{dailyLesson.title}</Text>
+            {dailyLesson.personal_tip && <Text style={styles.schoolTip}>{dailyLesson.personal_tip}</Text>}
+            <View style={styles.schoolCatPill}><Text style={styles.schoolCatText}>{dailyLesson.category}</Text></View>
           </View>
         )}
 
-        {/* Spending Chart - original */}
-        {chartData.length > 0 && (
-          <View style={styles.card}>
-            <Text style={styles.cardTitle}>{t('spending_breakdown', lang)}</Text>
-            <Text style={styles.cardSubtitle}>{t('last_7_days', lang)}</Text>
-            <View style={styles.chartWrap}>
-              <BarChart
-                data={chartData}
-                barWidth={28}
-                spacing={20}
-                roundedTop
-                barBorderRadius={6}
-                hideRules
-                xAxisThickness={0}
-                yAxisThickness={0}
-                yAxisTextStyle={{ color: COLORS.text.muted, fontSize: 10 }}
-                xAxisLabelTextStyle={{ color: COLORS.text.muted, fontSize: 10 }}
-                noOfSections={3}
-                maxValue={Math.max(...chartData.map((d) => d.value)) * 1.3}
-                isAnimated
-              />
-            </View>
+        {/* RECENT TRANSACTIONS */}
+        <View style={styles.txnSection}>
+          <View style={styles.txnHeader}>
+            <Text style={styles.sectionTitle}>{t('recent_transactions', lang)}</Text>
+            <TouchableOpacity onPress={() => router.push('/(tabs)/transactions')}>
+              <Text style={styles.seeAllLink}>{t('view_all', lang)}</Text>
+            </TouchableOpacity>
           </View>
-        )}
-
-        {/* Recommendations */}
-        {insights?.recommendations?.length > 0 && (
-          <View style={styles.card}>
-            <Text style={styles.cardTitle}>{t('smart_tips', lang)}</Text>
-            {insights.recommendations.map((rec: string, i: number) => (
-              <View key={i} style={styles.tipRow}>
-                <View style={styles.tipIcon}>
-                  <Ionicons name="checkmark" size={14} color={COLORS.accent.primary} />
-                </View>
-                <Text style={styles.tipText}>{rec}</Text>
-              </View>
-            ))}
-          </View>
-        )}
-
-        {/* Recent Transactions */}
-        {recentTxns.length > 0 && (
-          <View style={styles.card}>
-            <View style={styles.cardHeader}>
-              <Text style={styles.cardTitle}>{t('recent_transactions', lang)}</Text>
-              <TouchableOpacity onPress={() => router.push('/(tabs)/transactions')}>
-                <Text style={styles.seeAll}>{t('see_all', lang)}</Text>
-              </TouchableOpacity>
-            </View>
-            {recentTxns.map((txn: any, i: number) => {
-              const cat = CATEGORIES[txn.category] || CATEGORIES.Other;
+          {recentTxns.length === 0 ? (
+            <View style={styles.emptyState}><Text style={styles.emptyText}>No transactions yet. Start tracking!</Text></View>
+          ) : (
+            recentTxns.map((txn: any, i: number) => {
+              const cat = CATEGORIES[txn.category] || { icon: 'help-circle', color: '#64748B' };
               return (
-                <View key={txn.id || i} style={styles.txnRow}>
-                  <View style={[styles.txnIcon, { backgroundColor: cat.color + '18' }]}>
+                <View key={i} style={styles.txnRow}>
+                  <View style={[styles.txnIcon, { backgroundColor: cat.color + '15' }]}>
                     <Ionicons name={cat.icon as any} size={18} color={cat.color} />
                   </View>
                   <View style={styles.txnInfo}>
-                    <Text style={styles.txnDesc} numberOfLines={1}>{txn.description}</Text>
-                    <Text style={styles.txnCat}>{txn.category}</Text>
+                    <Text style={styles.txnDesc} numberOfLines={1}>{txn.description || txn.category}</Text>
+                    <Text style={styles.txnDate}>{new Date(txn.date).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })}</Text>
                   </View>
-                  <Text style={[styles.txnAmount, { color: txn.type === 'credit' ? COLORS.accent.moneyIn : COLORS.accent.moneyOut }]}>
-                    {txn.type === 'credit' ? '+' : '-'}{'\u20B9'}{txn.amount.toFixed(0)}
+                  <Text style={[styles.txnAmt, { color: txn.type === 'credit' ? '#10B981' : '#EF4444' }]}>
+                    {txn.type === 'credit' ? '+' : '-'}{'\u20B9'}{txn.amount?.toLocaleString()}
                   </Text>
                 </View>
               );
-            })}
-          </View>
-        )}
-
+            })
+          )}
+        </View>
         <View style={{ height: 24 }} />
       </ScrollView>
     </SafeAreaView>
@@ -306,74 +342,67 @@ export default function HomeScreen() {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: COLORS.bg.primary },
-  scrollContent: { padding: SPACING.lg },
-  header: { flexDirection: 'row', alignItems: 'center', marginBottom: SPACING.xxl },
-  avatarBtn: { width: 40, height: 40, borderRadius: 20, backgroundColor: COLORS.accent.primary + '15', justifyContent: 'center', alignItems: 'center', borderWidth: 2, borderColor: COLORS.accent.primary + '30' },
-  headerCenter: { flex: 1, marginHorizontal: SPACING.md },
-  rewardsBtn: { width: 40, height: 40, borderRadius: 20, backgroundColor: COLORS.accent.secondary + '15', justifyContent: 'center', alignItems: 'center' },
-  overline: { fontSize: 11, fontWeight: '700', letterSpacing: 1.5, color: COLORS.accent.primary, marginBottom: 4 },
-  greeting: { fontSize: 28, fontWeight: '800', color: COLORS.text.primary, letterSpacing: -0.5 },
-  // Score card
-  scoreCard: { backgroundColor: COLORS.bg.card, borderRadius: RADIUS.card, padding: SPACING.xl, marginBottom: SPACING.lg, borderWidth: 1, borderColor: COLORS.border.card },
-  overline: { fontSize: 11, fontWeight: '700', letterSpacing: 1.5, color: COLORS.accent.primary, marginBottom: 4 },
-  scoreTop: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: SPACING.lg },
-  scoreOverline: { fontSize: 11, fontWeight: '700', letterSpacing: 1.2, color: COLORS.text.muted, marginBottom: 6 },
-  scoreStatus: { fontSize: 18, fontWeight: '700' },
-  scoreBadge: { width: 72, height: 72, borderRadius: 36, borderWidth: 3, justifyContent: 'center', alignItems: 'center' },
-  scoreBadgeText: { fontSize: 28, fontWeight: '800' },
-  scoreBadgeSub: { fontSize: 11, color: COLORS.text.muted, marginTop: -2 },
-  progressTrack: { height: 6, backgroundColor: COLORS.bg.primary, borderRadius: 3, overflow: 'hidden' },
-  progressFill: { height: '100%', borderRadius: 3 },
-  // Stats
-  statsRow: { flexDirection: 'row', gap: SPACING.sm, marginBottom: SPACING.lg },
-  statCard: { flex: 1, backgroundColor: COLORS.bg.card, borderRadius: RADIUS.lg, padding: SPACING.md, borderLeftWidth: 3, borderWidth: 1, borderColor: COLORS.border.card },
-  statAmount: { fontSize: 16, fontWeight: '700', color: COLORS.text.primary, marginTop: 8 },
-  statLabel: { fontSize: 11, color: COLORS.text.muted, marginTop: 2 },
-  // Insight
-  insightCard: { flexDirection: 'row', backgroundColor: COLORS.bg.card, borderRadius: RADIUS.card, padding: SPACING.lg, marginBottom: SPACING.lg, borderWidth: 1, borderColor: COLORS.accent.warning + '20' },
-  insightIconWrap: { width: 40, height: 40, borderRadius: 20, backgroundColor: COLORS.accent.warning + '18', justifyContent: 'center', alignItems: 'center', marginRight: SPACING.md },
-  insightContent: { flex: 1 },
-  insightTitle: { fontSize: 14, fontWeight: '700', color: COLORS.accent.warning, marginBottom: 6 },
-  insightText: { fontSize: 14, color: COLORS.text.secondary, lineHeight: 21 },
-  // Card
-  card: { backgroundColor: COLORS.bg.card, borderRadius: RADIUS.card, padding: SPACING.xl, marginBottom: SPACING.lg, borderWidth: 1, borderColor: COLORS.border.card },
-  cardHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-  cardTitle: { fontSize: 18, fontWeight: '700', color: COLORS.text.primary, marginBottom: 4 },
-  cardSubtitle: { fontSize: 13, color: COLORS.text.muted, marginBottom: SPACING.lg },
-  seeAll: { fontSize: 14, fontWeight: '600', color: COLORS.accent.primary },
-  chartWrap: { alignItems: 'center', marginTop: 8 },
-  chartLabel: { fontSize: 9, color: COLORS.text.muted, marginBottom: 4 },
-  // Tips
-  tipRow: { flexDirection: 'row', alignItems: 'flex-start', marginTop: SPACING.md },
-  tipIcon: { width: 24, height: 24, borderRadius: 12, backgroundColor: COLORS.accent.primary + '18', justifyContent: 'center', alignItems: 'center', marginRight: SPACING.md },
-  tipText: { flex: 1, fontSize: 14, color: COLORS.text.secondary, lineHeight: 20 },
-  // Transaction rows
-  txnRow: { flexDirection: 'row', alignItems: 'center', paddingVertical: SPACING.md, borderTopWidth: 1, borderTopColor: COLORS.border.subtle },
-  txnIcon: { width: 40, height: 40, borderRadius: 14, justifyContent: 'center', alignItems: 'center', marginRight: SPACING.md },
-  txnInfo: { flex: 1 },
-  txnDesc: { fontSize: 15, fontWeight: '600', color: COLORS.text.primary },
-  txnCat: { fontSize: 12, color: COLORS.text.muted, marginTop: 2 },
-  txnAmount: { fontSize: 16, fontWeight: '700' },
-  // Money School
-  schoolCard: { backgroundColor: COLORS.bg.card, borderRadius: RADIUS.card, padding: SPACING.xl, marginBottom: SPACING.lg, borderWidth: 1, borderColor: '#8B5CF6' + '25' },
-  schoolHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: SPACING.md },
-  schoolBadge: { flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: '#8B5CF6' + '15', paddingHorizontal: 12, paddingVertical: 6, borderRadius: RADIUS.full },
-  schoolBadgeText: { fontSize: 11, fontWeight: '700', color: '#8B5CF6', letterSpacing: 0.8 },
-  schoolProgress: { fontSize: 12, fontWeight: '600', color: COLORS.text.muted },
-  schoolTitle: { fontSize: 18, fontWeight: '700', color: COLORS.text.primary, marginBottom: 8 },
-  schoolContent: { fontSize: 14, color: COLORS.text.secondary, lineHeight: 21, marginBottom: SPACING.md },
-  schoolTipBox: { flexDirection: 'row', alignItems: 'flex-start', gap: 8, backgroundColor: COLORS.accent.primary + '10', borderRadius: RADIUS.lg, padding: SPACING.md, marginBottom: SPACING.md },
-  schoolTipText: { flex: 1, fontSize: 13, color: COLORS.accent.primaryLight, lineHeight: 19 },
-  schoolCatPill: { backgroundColor: '#8B5CF6' + '15', paddingHorizontal: 12, paddingVertical: 4, borderRadius: RADIUS.full, alignSelf: 'flex-start' },
-  schoolCatText: { fontSize: 11, fontWeight: '600', color: '#8B5CF6' },
-  // Smart Alerts
-  alertsSection: { marginBottom: SPACING.lg, gap: 8 },
-  alertCard: { flexDirection: 'row', alignItems: 'flex-start', borderRadius: RADIUS.lg, padding: SPACING.md, borderWidth: 1, gap: 10 },
+  scroll: { paddingHorizontal: SPACING.lg, paddingTop: SPACING.md },
+  // Header
+  header: { flexDirection: 'row', alignItems: 'center', marginBottom: SPACING.lg },
+  greeting: { fontSize: 11, fontWeight: '700', letterSpacing: 1.2, color: COLORS.text.muted },
+  name: { fontSize: 22, fontWeight: '800', color: COLORS.text.primary, marginTop: 2 },
+  // Avatar — CRED style
+  avatarWrap: { position: 'relative' },
+  avatarRing: { width: 52, height: 52, borderRadius: 26, padding: 2, borderWidth: 2.5, borderColor: COLORS.accent.primary, justifyContent: 'center', alignItems: 'center' },
+  avatarImg: { width: 44, height: 44, borderRadius: 22 },
+  avatarPlaceholder: { width: 44, height: 44, borderRadius: 22, backgroundColor: COLORS.accent.primary + '12', justifyContent: 'center', alignItems: 'center' },
+  avatarBadge: { position: 'absolute', bottom: 0, right: 0, width: 18, height: 18, borderRadius: 9, backgroundColor: COLORS.accent.primary, justifyContent: 'center', alignItems: 'center', borderWidth: 2, borderColor: COLORS.bg.primary },
+  // Leaderboard
+  lbCard: { backgroundColor: '#FFFBEB', borderRadius: RADIUS.card, padding: SPACING.xl, marginBottom: SPACING.lg, borderWidth: 1, borderColor: '#FDE68A' },
+  lbHeader: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 8 },
+  lbTitle: { fontSize: 12, fontWeight: '800', letterSpacing: 1, color: '#92400E', flex: 1 },
+  lbRankPill: { backgroundColor: '#F59E0B', paddingHorizontal: 12, paddingVertical: 4, borderRadius: RADIUS.full },
+  lbRankText: { fontSize: 14, fontWeight: '800', color: '#fff' },
+  lbComparison: { fontSize: 14, fontWeight: '600', color: '#78716C', marginBottom: SPACING.md, lineHeight: 20 },
+  lbStatsRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-around', marginBottom: SPACING.md, paddingVertical: SPACING.sm, backgroundColor: '#fff', borderRadius: RADIUS.lg },
+  lbStatBox: { alignItems: 'center', flex: 1 },
+  lbStatNum: { fontSize: 20, fontWeight: '800', color: COLORS.text.primary },
+  lbStatLabel: { fontSize: 10, color: COLORS.text.muted, marginTop: 2 },
+  lbStatDivider: { width: 1, height: 30, backgroundColor: '#FDE68A' },
+  lbRow: { flexDirection: 'row', alignItems: 'center', paddingVertical: 8, borderTopWidth: 1, borderTopColor: '#FDE68A', gap: 8 },
+  lbRowMe: { backgroundColor: '#FEF3C7', borderRadius: 8, marginHorizontal: -8, paddingHorizontal: 8 },
+  lbMedal: { fontSize: 16, width: 28 },
+  lbName: { flex: 1, fontSize: 14, fontWeight: '500', color: COLORS.text.primary },
+  lbScore: { fontSize: 16, fontWeight: '700', color: '#F59E0B' },
+  lbStreak: { fontSize: 12, color: '#EF4444' },
+  // Card of the Day
+  cotdCard: { backgroundColor: COLORS.bg.card, borderRadius: RADIUS.card, padding: SPACING.xl, marginBottom: SPACING.lg, borderLeftWidth: 4, borderWidth: 1, borderColor: COLORS.border.card },
+  cotdHeader: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 8 },
+  cotdEmoji: { fontSize: 22 },
+  cotdType: { fontSize: 13, fontWeight: '700', letterSpacing: 0.5, flex: 1 },
+  cotdRefresh: { padding: 4 },
+  cotdText: { fontSize: 15, fontWeight: '500', color: COLORS.text.secondary, lineHeight: 23 },
+  // Stats row
+  statsRow: { flexDirection: 'row', gap: 8, marginBottom: SPACING.lg },
+  statBox: { flex: 1, backgroundColor: COLORS.bg.card, borderRadius: RADIUS.lg, padding: SPACING.md, alignItems: 'center', borderWidth: 1, gap: 4 },
+  statVal: { fontSize: 15, fontWeight: '800' },
+  statLabel: { fontSize: 10, color: COLORS.text.muted, fontWeight: '600' },
+  // Alerts
+  alertsSection: { marginBottom: SPACING.lg },
+  sectionTitle: { fontSize: 16, fontWeight: '700', color: COLORS.text.primary, marginBottom: SPACING.sm },
+  alertCard: { flexDirection: 'row', alignItems: 'flex-start', borderRadius: RADIUS.lg, padding: SPACING.md, borderWidth: 1, gap: 10, marginBottom: 8 },
   alertEmoji: { fontSize: 20, marginTop: 2 },
   alertBody: { flex: 1 },
   alertTitle: { fontSize: 14, fontWeight: '700', marginBottom: 2 },
   alertMsg: { fontSize: 13, color: COLORS.text.secondary, lineHeight: 19 },
-  // Weekly Report
+  // Rewards
+  rewardsCard: { backgroundColor: COLORS.bg.card, borderRadius: RADIUS.card, padding: SPACING.xl, marginBottom: SPACING.lg, borderWidth: 1, borderColor: '#F59E0B25' },
+  rewardsHeader: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: SPACING.md },
+  rewardsTitle: { fontSize: 12, fontWeight: '800', letterSpacing: 1, color: '#92400E', flex: 1 },
+  seeAllBtn: { flexDirection: 'row', alignItems: 'center', gap: 2 },
+  seeAllText: { fontSize: 13, fontWeight: '600', color: COLORS.accent.primary },
+  rewardsBadges: { flexDirection: 'row', justifyContent: 'space-around' },
+  rewardItem: { alignItems: 'center', gap: 4 },
+  rewardEmoji: { fontSize: 24 },
+  rewardVal: { fontSize: 20, fontWeight: '800', color: COLORS.text.primary },
+  rewardLabel: { fontSize: 10, color: COLORS.text.muted, fontWeight: '600' },
+  // Weekly
   weeklyCard: { backgroundColor: COLORS.bg.card, borderRadius: RADIUS.card, padding: SPACING.xl, marginBottom: SPACING.lg, borderWidth: 1, borderColor: COLORS.accent.secondary + '25' },
   weeklyHeader: { flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: SPACING.md },
   weeklyLabel: { fontSize: 11, fontWeight: '700', letterSpacing: 0.8, color: COLORS.accent.secondary, flex: 1 },
@@ -383,6 +412,27 @@ const styles = StyleSheet.create({
   weeklyStat: { alignItems: 'center' },
   weeklyStatVal: { fontSize: 18, fontWeight: '800' },
   weeklyStatLbl: { fontSize: 11, color: COLORS.text.muted, marginTop: 2 },
-  weeklyChangePill: { flexDirection: 'row', alignItems: 'center', gap: 3, paddingHorizontal: 10, paddingVertical: 4, borderRadius: RADIUS.full },
+  changePill: { flexDirection: 'row', alignItems: 'center', gap: 3, paddingHorizontal: 10, paddingVertical: 4, borderRadius: RADIUS.full },
   weeklySuggestion: { fontSize: 13, color: COLORS.text.secondary, lineHeight: 19, fontStyle: 'italic' },
+  // School
+  schoolCard: { backgroundColor: COLORS.bg.card, borderRadius: RADIUS.card, padding: SPACING.xl, marginBottom: SPACING.lg, borderWidth: 1, borderColor: '#8B5CF625' },
+  schoolHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: SPACING.md },
+  schoolBadge: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  schoolBadgeText: { fontSize: 11, fontWeight: '700', letterSpacing: 0.8, color: '#8B5CF6' },
+  schoolTitle: { fontSize: 16, fontWeight: '700', color: COLORS.text.primary, marginBottom: 8 },
+  schoolTip: { fontSize: 14, color: COLORS.text.secondary, lineHeight: 21, marginBottom: SPACING.md },
+  schoolCatPill: { backgroundColor: '#8B5CF615', paddingHorizontal: 12, paddingVertical: 4, borderRadius: RADIUS.full, alignSelf: 'flex-start' },
+  schoolCatText: { fontSize: 11, fontWeight: '600', color: '#8B5CF6' },
+  // Transactions
+  txnSection: { marginBottom: SPACING.lg },
+  txnHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: SPACING.md },
+  seeAllLink: { fontSize: 14, fontWeight: '600', color: COLORS.accent.primary },
+  emptyState: { paddingVertical: 24, alignItems: 'center' },
+  emptyText: { fontSize: 14, color: COLORS.text.muted },
+  txnRow: { flexDirection: 'row', alignItems: 'center', paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: COLORS.border.subtle },
+  txnIcon: { width: 40, height: 40, borderRadius: 12, justifyContent: 'center', alignItems: 'center', marginRight: 12 },
+  txnInfo: { flex: 1 },
+  txnDesc: { fontSize: 15, fontWeight: '600', color: COLORS.text.primary },
+  txnDate: { fontSize: 12, color: COLORS.text.muted, marginTop: 2 },
+  txnAmt: { fontSize: 16, fontWeight: '700' },
 });

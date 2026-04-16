@@ -351,6 +351,42 @@ backend:
         agent: "testing"
         comment: "✅ GET /api/gamification/status working correctly. Returns badges earned, available badges, streak data, and achievements. Verified existing endpoint still functional after Phase 2 additions."
 
+  - task: "Profile Avatar Upload"
+    implemented: true
+    working: true
+    file: "/app/backend/server.py"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+      - working: true
+        agent: "testing"
+        comment: "✅ POST /api/user/avatar working perfectly. Successfully uploads base64 profile photos with 500KB size limit. Avatar data stored in user document."
+
+  - task: "Profile Avatar Retrieval"
+    implemented: true
+    working: true
+    file: "/app/backend/server.py"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+      - working: true
+        agent: "testing"
+        comment: "✅ GET /api/user/avatar working correctly. Returns user avatar base64 data and name. Retrieved 118 character avatar successfully."
+
+  - task: "Card of the Day"
+    implemented: true
+    working: true
+    file: "/app/backend/server.py"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+      - working: true
+        agent: "testing"
+        comment: "✅ GET /api/card-of-the-day working perfectly. Returns daily rotating motivational/financial cards with type, emoji, title, text, color, and app_link fields. Refresh parameter works for random cards."
+
 frontend:
   - task: "Authentication Flow"
     implemented: true
@@ -481,7 +517,7 @@ agent_communication:
   - agent: "main"
     message: "MintU MVP completed. All backend APIs implemented with AI-powered features (SMS parsing, insights generation). Frontend has all 4 main screens with bottom tab navigation. ObjectId serialization fixes applied. Ready for backend testing."
   - agent: "main"
-    message: "FULL PRODUCTION TESTING. All fixes applied: (1) i18n language support for AI Insights, Money School, AI Coach - pass ?lang=hi for Hindi etc. (2) Split types: equal, custom, shares (by ratio). (3) Add members to groups: POST /split/groups/{id}/members. Test ALL endpoints comprehensively. Auth: phone 9876543210, OTP 123456. Must send OTP first. Rate limit 10 auth/60s."
+    message: "MAJOR UX OVERHAUL COMPLETE. Changes: (1) Insights tab reorganized - AI Coach is pure chat, Insights has Money Score + Waste Detector + Charts. (2) Leaderboard moved to top of Home with rank/percentile/mini-leaderboard. (3) Profile photo with CRED-style avatar ring. (4) Card of the Day with refresh. (5) Rewards section on Home. (6) Notification paste card on Transactions. (7) Shareable cards have app download links. New backend: POST/GET /api/user/avatar, GET /api/card-of-the-day. Auth: phone 9876543210, OTP 123456."
   - agent: "testing"
     message: "✅ COMPREHENSIVE BACKEND TESTING COMPLETED - All 19 tests passed successfully! OTP authentication flow working perfectly with mock OTP 123456. Split groups & expenses functionality fully operational. SMS bulk parsing with AI working correctly (3/3 messages parsed). Transaction CRUD, budget management, daily insights with AI, and stats overview all functioning properly. Backend APIs are production-ready. No critical issues found."
   - agent: "testing"
@@ -492,3 +528,5 @@ agent_communication:
     message: "✅ PRODUCTION-LEVEL COMPREHENSIVE TESTING COMPLETED - All critical MintU endpoints verified working! Core functionality: OTP authentication (✅), JWT tokens (✅), user profiles (✅), transaction CRUD (✅), SMS parsing with AI (✅), budget management (✅), insights generation (✅), AI coach (✅), language support Hindi/English (✅), split groups (✅), retention engine features (✅), leaderboard & referral system (✅). Rate limiting active and working correctly (60 requests/60s, 10 auth/60s). All AI integrations via OpenAI GPT-5.2 functional. Backend is production-ready with robust security features."
   - agent: "testing"
     message: "✅ FRONTEND UI TESTING COMPLETED - All critical frontend components working on mobile (390x844)! Authentication flow: onboarding skip ✅, language picker with 10+ languages ✅, phone/OTP login ✅. Home dashboard: user greeting ✅, money score display ✅, financial stats ✅, smart alerts ✅, weekly report ✅, money school ✅. AI Coach tab: center sparkles button ✅, tab switcher ✅, chat interface ✅, quick chips ✅. Split tab: balance summary ✅, create group button ✅. Budget tab: add budget ✅, smart suggestions ✅. Navigation: all 5 tabs working ✅, mobile responsive ✅. Language switching affects UI properly (Hindi/English). Ready for production!"
+  - agent: "testing"
+    message: "✅ UX OVERHAUL NEW ENDPOINTS TESTING COMPLETED - All 12/12 tests passed (100%)! NEW Avatar endpoints working perfectly: POST /api/user/avatar (uploads base64 photos with 500KB limit) ✅, GET /api/user/avatar (retrieves avatar + name) ✅. NEW Card of the Day: GET /api/card-of-the-day (daily rotating motivational cards) ✅, refresh parameter for random cards ✅. EXISTING endpoints verified: leaderboard/savings ✅, gamification/status ✅, alerts/smart ✅, reports/weekly ✅, waste-detector ✅, share/stats-card (contains app download link) ✅, money-school/daily (Hindi) ✅, ai/chat (Hindi responses) ✅. Authentication flow robust with rate limiting (30s OTP cooldown). All endpoints return proper JSON responses. UX overhaul backend is production-ready!"

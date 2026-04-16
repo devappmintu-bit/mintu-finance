@@ -1,334 +1,291 @@
 #!/usr/bin/env python3
 """
-MintU Backend API Testing - Phase 1 Retention Engine
-Tests all new retention engine endpoints with real authentication flow
+MintU Backend API Testing - UX Overhaul New Endpoints
+Tests the new avatar and card-of-the-day endpoints plus verifies existing endpoints still work
 """
 
-import asyncio
-import aiohttp
+import requests
 import json
-import sys
-from datetime import datetime, timedelta
+import base64
+from datetime import datetime
 
-# Backend URL from frontend .env
-BACKEND_URL = "https://mintu-finance.preview.emergentagent.com/api"
-
-# Test credentials from test_credentials.md
+# Configuration
+BASE_URL = "https://mintu-finance.preview.emergentagent.com/api"
 TEST_PHONE = "9876543210"
 TEST_OTP = "123456"
-TEST_NAME = "Test User"
 
 class MintUTester:
     def __init__(self):
-        self.session = None
-        self.auth_token = None
-        self.user_id = None
+        self.token = None
+        self.session = requests.Session()
+        self.session.headers.update({
+            'Content-Type': 'application/json',
+            'User-Agent': 'MintU-Test/1.0'
+        })
         
-    async def __aenter__(self):
-        self.session = aiohttp.ClientSession()
-        return self
+    def log(self, message, status="INFO"):
+        timestamp = datetime.now().strftime("%H:%M:%S")
+        print(f"[{timestamp}] {status}: {message}")
         
-    async def __aexit__(self, exc_type, exc_val, exc_tb):
-        if self.session:
-            await self.session.close()
-    
-    def get_headers(self):
-        headers = {"Content-Type": "application/json"}
-        if self.auth_token:
-            headers["Authorization"] = f"Bearer {self.auth_token}"
-        return headers
-    
-    async def make_request(self, method, endpoint, data=None, expect_status=200):
-        """Make HTTP request with error handling"""
-        url = f"{BACKEND_URL}{endpoint}"
-        headers = self.get_headers()
-        
+    def send_otp(self):
+        """Send OTP to test phone number"""
+        self.log("🔐 Testing OTP Send...")
         try:
-            async with self.session.request(method, url, json=data, headers=headers) as response:
-                response_text = await response.text()
-                
-                print(f"\n{method} {endpoint}")
-                print(f"Status: {response.status}")
-                print(f"Response: {response_text[:500]}...")
-                
-                if response.status != expect_status:
-                    print(f"❌ Expected {expect_status}, got {response.status}")
-                    return None
-                
-                try:
-                    return await response.json() if response_text else {}
-                except:
-                    return {"raw_response": response_text}
-                    
-        except Exception as e:
-            print(f"❌ Request failed: {str(e)}")
-            return None
-    
-    async def test_auth_flow(self):
-        """Test OTP authentication flow"""
-        print("\n🔐 TESTING AUTHENTICATION FLOW")
-        
-        # Step 1: Send OTP
-        print("\n1. Sending OTP...")
-        otp_response = await self.make_request("POST", "/auth/send-otp", {
-            "phone": TEST_PHONE
-        })
-        
-        if not otp_response:
-            print("❌ Failed to send OTP")
-            return False
-        
-        print(f"✅ OTP sent successfully: {otp_response.get('message', '')}")
-        
-        # Step 2: Verify OTP
-        print("\n2. Verifying OTP...")
-        verify_response = await self.make_request("POST", "/auth/verify-otp", {
-            "phone": TEST_PHONE,
-            "otp": TEST_OTP,
-            "name": TEST_NAME
-        })
-        
-        if not verify_response or "token" not in verify_response:
-            print("❌ Failed to verify OTP")
-            return False
-        
-        self.auth_token = verify_response["token"]
-        self.user_id = verify_response["user"]["id"]
-        print(f"✅ Authentication successful! User ID: {self.user_id}")
-        
-        return True
-    
-    async def setup_test_data(self):
-        """Create some test transactions for meaningful AI responses"""
-        print("\n📊 SETTING UP TEST DATA")
-        
-        # Create sample transactions for better AI responses
-        test_transactions = [
-            {"amount": 500, "category": "Food", "description": "Swiggy order", "type": "debit"},
-            {"amount": 200, "category": "Transport", "description": "Uber ride", "type": "debit"},
-            {"amount": 1500, "category": "Shopping", "description": "Amazon purchase", "type": "debit"},
-            {"amount": 300, "category": "Entertainment", "description": "Movie tickets", "type": "debit"},
-            {"amount": 25000, "category": "Salary", "description": "Monthly salary", "type": "credit"},
-            {"amount": 800, "category": "Bills", "description": "Electricity bill", "type": "debit"},
-            {"amount": 1200, "category": "Groceries", "description": "D-Mart shopping", "type": "debit"},
-        ]
-        
-        for txn in test_transactions:
-            response = await self.make_request("POST", "/transactions", txn)
-            if response:
-                print(f"✅ Created transaction: {txn['description']} - ₹{txn['amount']}")
-            else:
-                print(f"❌ Failed to create transaction: {txn['description']}")
-        
-        # Create a test budget
-        budget_response = await self.make_request("POST", "/budgets", {
-            "category": "Food",
-            "amount": 3000,
-            "period": "monthly"
-        })
-        if budget_response:
-            print("✅ Created test budget: Food ₹3000/month")
-    
-    async def test_ai_financial_coach(self):
-        """Test AI Financial Coach endpoint"""
-        print("\n🤖 TESTING AI FINANCIAL COACH")
-        
-        test_messages = [
-            "How can I save more money?",
-            "Am I overspending on food?",
-            "What should I do with my salary this month?",
-            "Help me reduce my expenses"
-        ]
-        
-        for message in test_messages:
-            print(f"\n💬 Testing message: '{message}'")
-            response = await self.make_request("POST", "/ai/chat", {
-                "message": message
-            })
+            response = self.session.post(f"{BASE_URL}/auth/send-otp", 
+                                       json={"phone": TEST_PHONE})
             
-            if response and "reply" in response:
-                print(f"✅ AI Response: {response['reply'][:200]}...")
-                print(f"📊 Context used: {response.get('context_used', {})}")
+            if response.status_code == 200:
+                self.log("✅ OTP sent successfully", "PASS")
+                return True
             else:
-                print("❌ AI Coach failed to respond")
+                self.log(f"❌ OTP send failed: {response.status_code} - {response.text}", "FAIL")
                 return False
-        
-        return True
-    
-    async def test_waste_detector(self):
-        """Test Waste Detector endpoint"""
-        print("\n💸 TESTING WASTE DETECTOR")
-        
-        response = await self.make_request("GET", "/waste-detector")
-        
-        if not response:
-            print("❌ Waste Detector failed")
+        except Exception as e:
+            self.log(f"❌ OTP send error: {str(e)}", "ERROR")
             return False
-        
-        print(f"✅ Total monthly expense: ₹{response.get('total_monthly_expense', 0)}")
-        print(f"📊 Category waste insights: {len(response.get('category_waste', []))} categories")
-        print(f"🎯 Overall equivalences: {len(response.get('overall_equivalences', []))} items")
-        print(f"📈 Percentile: {response.get('comparison', {}).get('percentile', 0)}%")
-        print(f"📱 Shareable text: {response.get('shareable_text', '')[:100]}...")
-        
-        return True
-    
-    async def test_weekly_report(self):
-        """Test Weekly Report endpoint"""
-        print("\n📅 TESTING WEEKLY REPORT")
-        
-        response = await self.make_request("GET", "/reports/weekly")
-        
-        if not response:
-            print("❌ Weekly Report failed")
+            
+    def verify_otp(self):
+        """Verify OTP and get JWT token"""
+        self.log("🔑 Testing OTP Verification...")
+        try:
+            response = self.session.post(f"{BASE_URL}/auth/verify-otp",
+                                       json={"phone": TEST_PHONE, "otp": TEST_OTP})
+            
+            if response.status_code == 200:
+                data = response.json()
+                self.token = data.get("token")
+                if self.token:
+                    self.session.headers.update({"Authorization": f"Bearer {self.token}"})
+                    self.log("✅ OTP verified, token received", "PASS")
+                    return True
+                else:
+                    self.log("❌ No token in response", "FAIL")
+                    return False
+            else:
+                self.log(f"❌ OTP verification failed: {response.status_code} - {response.text}", "FAIL")
+                return False
+        except Exception as e:
+            self.log(f"❌ OTP verification error: {str(e)}", "ERROR")
             return False
-        
-        print(f"✅ Period: {response.get('period', '')}")
-        print(f"💰 Total spent: ₹{response.get('total_spent', 0)}")
-        print(f"📊 Change from last week: {response.get('change_pct', 0)}%")
-        print(f"😊 Mood: {response.get('mood', '')} - {response.get('mood_text', '')}")
-        print(f"🏆 Top category: {response.get('top_category', {}).get('name', '')} - ₹{response.get('top_category', {}).get('amount', 0)}")
-        print(f"🔥 Streak: {response.get('streak', 0)} days")
-        print(f"📊 Money Score: {response.get('money_score', 0)}/100")
-        print(f"📱 Shareable: {response.get('shareable_text', '')[:100]}...")
-        
-        return True
-    
-    async def test_smart_budget_suggestions(self):
-        """Test Smart Budget Suggestions endpoint"""
-        print("\n🎯 TESTING SMART BUDGET SUGGESTIONS")
-        
-        response = await self.make_request("GET", "/budgets/smart-suggest")
-        
-        if not response:
-            print("❌ Smart Budget Suggestions failed")
+            
+    def test_upload_avatar(self):
+        """Test POST /api/user/avatar - Upload profile photo"""
+        self.log("📸 Testing Avatar Upload...")
+        try:
+            # Create a small test base64 image (1x1 pixel PNG)
+            test_image_b64 = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg=="
+            
+            response = self.session.post(f"{BASE_URL}/user/avatar",
+                                       json={"avatar": test_image_b64})
+            
+            if response.status_code == 200:
+                data = response.json()
+                if "message" in data and "updated" in data["message"].lower():
+                    self.log("✅ Avatar uploaded successfully", "PASS")
+                    return True
+                else:
+                    self.log(f"❌ Unexpected response: {data}", "FAIL")
+                    return False
+            else:
+                self.log(f"❌ Avatar upload failed: {response.status_code} - {response.text}", "FAIL")
+                return False
+        except Exception as e:
+            self.log(f"❌ Avatar upload error: {str(e)}", "ERROR")
             return False
-        
-        suggestions = response.get("suggestions", [])
-        print(f"✅ Found {len(suggestions)} budget suggestions")
-        print(f"💰 Total potential savings: ₹{response.get('total_potential_savings', 0)}")
-        print(f"📝 Message: {response.get('message', '')}")
-        
-        for i, suggestion in enumerate(suggestions[:3]):  # Show first 3
-            print(f"  {i+1}. {suggestion.get('category', '')}: ₹{suggestion.get('suggested_budget', 0)}/month")
-            print(f"     Current avg: ₹{suggestion.get('current_monthly_avg', 0)}, Savings: ₹{suggestion.get('savings_potential', 0)}")
-        
-        return True
-    
-    async def test_auto_apply_budgets(self):
-        """Test Auto Apply Budgets endpoint"""
-        print("\n⚡ TESTING AUTO APPLY BUDGETS")
-        
-        response = await self.make_request("POST", "/budgets/auto-apply")
-        
-        if not response:
-            print("❌ Auto Apply Budgets failed")
+            
+    def test_get_avatar(self):
+        """Test GET /api/user/avatar - Retrieve avatar"""
+        self.log("🖼️ Testing Avatar Retrieval...")
+        try:
+            response = self.session.get(f"{BASE_URL}/user/avatar")
+            
+            if response.status_code == 200:
+                data = response.json()
+                if "avatar" in data and "name" in data:
+                    avatar_data = data.get("avatar", "")
+                    user_name = data.get("name", "")
+                    self.log(f"✅ Avatar retrieved - Name: {user_name}, Avatar length: {len(avatar_data)} chars", "PASS")
+                    return True
+                else:
+                    self.log(f"❌ Missing avatar/name fields: {data}", "FAIL")
+                    return False
+            else:
+                self.log(f"❌ Avatar retrieval failed: {response.status_code} - {response.text}", "FAIL")
+                return False
+        except Exception as e:
+            self.log(f"❌ Avatar retrieval error: {str(e)}", "ERROR")
             return False
-        
-        print(f"✅ Applied {response.get('applied_count', 0)} budgets")
-        print(f"📝 Message: {response.get('message', '')}")
-        
-        return True
-    
-    async def test_smart_alerts(self):
-        """Test Smart Alerts endpoint"""
-        print("\n🚨 TESTING SMART ALERTS")
-        
-        response = await self.make_request("GET", "/alerts/smart")
-        
-        if not response:
-            print("❌ Smart Alerts failed")
+            
+    def test_card_of_the_day(self):
+        """Test GET /api/card-of-the-day - Daily motivational card"""
+        self.log("🃏 Testing Card of the Day...")
+        try:
+            response = self.session.get(f"{BASE_URL}/card-of-the-day")
+            
+            if response.status_code == 200:
+                data = response.json()
+                required_fields = ["type", "emoji", "title", "text", "color", "app_link"]
+                
+                if all(field in data for field in required_fields):
+                    self.log(f"✅ Card of the Day - Type: {data['type']}, Title: {data['title']}", "PASS")
+                    return True
+                else:
+                    missing = [f for f in required_fields if f not in data]
+                    self.log(f"❌ Missing fields: {missing}", "FAIL")
+                    return False
+            else:
+                self.log(f"❌ Card of the Day failed: {response.status_code} - {response.text}", "FAIL")
+                return False
+        except Exception as e:
+            self.log(f"❌ Card of the Day error: {str(e)}", "ERROR")
             return False
-        
-        alerts = response.get("alerts", [])
-        print(f"✅ Found {len(alerts)} smart alerts")
-        
-        for i, alert in enumerate(alerts):
-            print(f"  {i+1}. {alert.get('emoji', '')} {alert.get('title', '')}")
-            print(f"     {alert.get('message', '')}")
-            print(f"     Type: {alert.get('type', '')}, Severity: {alert.get('severity', '')}")
-        
-        return True
-    
-    async def test_shareable_stats_card(self):
-        """Test Shareable Stats Card endpoint"""
-        print("\n📊 TESTING SHAREABLE STATS CARD")
-        
-        response = await self.make_request("GET", "/share/stats-card")
-        
-        if not response:
-            print("❌ Shareable Stats Card failed")
+            
+    def test_card_of_the_day_refresh(self):
+        """Test GET /api/card-of-the-day?refresh=true - Random card"""
+        self.log("🔄 Testing Card of the Day Refresh...")
+        try:
+            response = self.session.get(f"{BASE_URL}/card-of-the-day?refresh=true")
+            
+            if response.status_code == 200:
+                data = response.json()
+                required_fields = ["type", "emoji", "title", "text", "color", "app_link"]
+                
+                if all(field in data for field in required_fields):
+                    self.log(f"✅ Card Refresh - Type: {data['type']}, Title: {data['title']}", "PASS")
+                    return True
+                else:
+                    missing = [f for f in required_fields if f not in data]
+                    self.log(f"❌ Missing fields: {missing}", "FAIL")
+                    return False
+            else:
+                self.log(f"❌ Card refresh failed: {response.status_code} - {response.text}", "FAIL")
+                return False
+        except Exception as e:
+            self.log(f"❌ Card refresh error: {str(e)}", "ERROR")
             return False
+            
+    def test_existing_endpoints(self):
+        """Test existing endpoints to ensure they still work"""
+        endpoints = [
+            ("GET", "/leaderboard/savings", "Savings Leaderboard"),
+            ("GET", "/gamification/status", "Gamification Status"),
+            ("GET", "/alerts/smart", "Smart Alerts"),
+            ("GET", "/reports/weekly", "Weekly Report"),
+            ("GET", "/waste-detector", "Waste Detector"),
+            ("GET", "/share/stats-card", "Shareable Stats Card"),
+            ("GET", "/money-school/daily?lang=hi", "Money School Daily (Hindi)"),
+        ]
         
-        print(f"✅ Name: {response.get('name', '')}")
-        print(f"📅 Month: {response.get('month', '')}")
-        print(f"💰 Income: ₹{response.get('income', 0)}")
-        print(f"💸 Expense: ₹{response.get('expense', 0)}")
-        print(f"💎 Saved: ₹{response.get('saved', 0)}")
-        print(f"📊 Money Score: {response.get('money_score', 0)}/100")
-        print(f"🔥 Streak: {response.get('streak', 0)} days")
-        print(f"📱 WhatsApp text: {response.get('whatsapp_text', '')[:100]}...")
-        print(f"📸 Instagram caption: {response.get('instagram_caption', '')[:100]}...")
-        
-        return True
-    
-    async def run_all_tests(self):
-        """Run all Phase 1 Retention Engine tests"""
-        print("🚀 STARTING MINTU PHASE 1 RETENTION ENGINE TESTS")
-        print(f"🌐 Backend URL: {BACKEND_URL}")
-        print(f"📱 Test Phone: {TEST_PHONE}")
-        
-        results = {}
-        
-        # Authentication is required for all endpoints
-        results["auth_flow"] = await self.test_auth_flow()
-        if not results["auth_flow"]:
-            print("❌ Authentication failed - cannot proceed with other tests")
-            return results
-        
-        # Setup test data for meaningful responses
-        await self.setup_test_data()
-        
-        # Test all Phase 1 Retention Engine endpoints
-        results["ai_financial_coach"] = await self.test_ai_financial_coach()
-        results["waste_detector"] = await self.test_waste_detector()
-        results["weekly_report"] = await self.test_weekly_report()
-        results["smart_budget_suggestions"] = await self.test_smart_budget_suggestions()
-        results["auto_apply_budgets"] = await self.test_auto_apply_budgets()
-        results["smart_alerts"] = await self.test_smart_alerts()
-        results["shareable_stats_card"] = await self.test_shareable_stats_card()
-        
-        # Print summary
-        print("\n" + "="*60)
-        print("📋 TEST SUMMARY")
-        print("="*60)
-        
-        passed = 0
-        total = len(results)
-        
-        for test_name, result in results.items():
-            status = "✅ PASS" if result else "❌ FAIL"
-            print(f"{status} {test_name.replace('_', ' ').title()}")
-            if result:
-                passed += 1
-        
-        print(f"\n🎯 OVERALL: {passed}/{total} tests passed ({passed/total*100:.1f}%)")
-        
-        if passed == total:
-            print("🎉 ALL PHASE 1 RETENTION ENGINE ENDPOINTS WORKING!")
-        else:
-            print("⚠️  Some endpoints need attention")
-        
+        results = []
+        for method, endpoint, name in endpoints:
+            self.log(f"🔍 Testing {name}...")
+            try:
+                if method == "GET":
+                    response = self.session.get(f"{BASE_URL}{endpoint}")
+                else:
+                    response = self.session.post(f"{BASE_URL}{endpoint}")
+                    
+                if response.status_code == 200:
+                    data = response.json()
+                    self.log(f"✅ {name} working", "PASS")
+                    
+                    # Special check for stats-card app download link
+                    if "stats-card" in endpoint:
+                        if "whatsapp_text" in data or "instagram_caption" in data:
+                            text_content = data.get("whatsapp_text", "") + data.get("instagram_caption", "")
+                            if "mintu.app" in text_content.lower() or "download" in text_content.lower():
+                                self.log("✅ Stats card contains app download link", "PASS")
+                            else:
+                                self.log("⚠️ Stats card missing app download link", "WARN")
+                    
+                    results.append(True)
+                else:
+                    self.log(f"❌ {name} failed: {response.status_code}", "FAIL")
+                    results.append(False)
+            except Exception as e:
+                self.log(f"❌ {name} error: {str(e)}", "ERROR")
+                results.append(False)
+                
         return results
-
-async def main():
-    """Main test runner"""
-    async with MintUTester() as tester:
-        results = await tester.run_all_tests()
         
-        # Exit with appropriate code
-        all_passed = all(results.values())
-        sys.exit(0 if all_passed else 1)
+    def test_ai_chat(self):
+        """Test POST /api/ai/chat with Hindi language"""
+        self.log("🤖 Testing AI Chat...")
+        try:
+            response = self.session.post(f"{BASE_URL}/ai/chat",
+                                       json={"message": "मैं कैसे पैसे बचा सकता हूं?", "lang": "hi"})
+            
+            if response.status_code == 200:
+                data = response.json()
+                # Check for either "response" or "reply" field
+                response_text = data.get("response", data.get("reply", ""))
+                if response_text and len(response_text) > 10:
+                    self.log(f"✅ AI Chat working - Response length: {len(response_text)} chars", "PASS")
+                    return True
+                else:
+                    self.log(f"❌ AI Chat response too short or missing: {data}", "FAIL")
+                    return False
+            else:
+                self.log(f"❌ AI Chat failed: {response.status_code} - {response.text}", "FAIL")
+                return False
+        except Exception as e:
+            self.log(f"❌ AI Chat error: {str(e)}", "ERROR")
+            return False
+            
+    def run_all_tests(self):
+        """Run all tests in sequence"""
+        self.log("🚀 Starting MintU UX Overhaul Backend Testing...")
+        self.log(f"📍 Testing against: {BASE_URL}")
+        
+        # Authentication flow
+        if not self.send_otp():
+            self.log("❌ Cannot proceed without OTP send", "CRITICAL")
+            return False
+            
+        if not self.verify_otp():
+            self.log("❌ Cannot proceed without authentication", "CRITICAL")
+            return False
+            
+        # Test new endpoints
+        new_endpoint_results = []
+        new_endpoint_results.append(self.test_upload_avatar())
+        new_endpoint_results.append(self.test_get_avatar())
+        new_endpoint_results.append(self.test_card_of_the_day())
+        new_endpoint_results.append(self.test_card_of_the_day_refresh())
+        
+        # Test existing endpoints
+        existing_results = self.test_existing_endpoints()
+        
+        # Test AI chat
+        ai_result = self.test_ai_chat()
+        
+        # Summary
+        self.log("\n" + "="*60)
+        self.log("📊 TEST SUMMARY")
+        self.log("="*60)
+        
+        new_passed = sum(new_endpoint_results)
+        new_total = len(new_endpoint_results)
+        existing_passed = sum(existing_results)
+        existing_total = len(existing_results)
+        
+        self.log(f"🆕 NEW Endpoints: {new_passed}/{new_total} passed")
+        self.log(f"🔄 EXISTING Endpoints: {existing_passed}/{existing_total} passed")
+        self.log(f"🤖 AI Chat: {'✅ PASS' if ai_result else '❌ FAIL'}")
+        
+        total_passed = new_passed + existing_passed + (1 if ai_result else 0)
+        total_tests = new_total + existing_total + 1
+        
+        self.log(f"🎯 OVERALL: {total_passed}/{total_tests} tests passed ({(total_passed/total_tests)*100:.1f}%)")
+        
+        if total_passed == total_tests:
+            self.log("🎉 ALL TESTS PASSED! UX Overhaul backend is working perfectly!", "SUCCESS")
+        else:
+            self.log(f"⚠️ {total_tests - total_passed} tests failed. Review issues above.", "WARNING")
+            
+        return total_passed == total_tests
 
 if __name__ == "__main__":
-    asyncio.run(main())
+    tester = MintUTester()
+    success = tester.run_all_tests()
+    exit(0 if success else 1)

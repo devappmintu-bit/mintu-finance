@@ -24,6 +24,10 @@ export default function TransactionsScreen() {
   // Cash quick entry
   const [cashText, setCashText] = useState('');
   const [cashLoading, setCashLoading] = useState(false);
+  // Notification paste
+  const [notifText, setNotifText] = useState('');
+  const [notifLoading, setNotifLoading] = useState(false);
+  const [notifExpanded, setNotifExpanded] = useState(false);
   // Voice
   const [recording, setRecording] = useState<Audio.Recording | null>(null);
   const [isRecording, setIsRecording] = useState(false);
@@ -70,6 +74,17 @@ export default function TransactionsScreen() {
       Alert.alert(t('success', lang), 'Transaction added from SMS!');
     } catch (e: any) { Alert.alert(t('error', lang), e.response?.data?.detail || 'Could not parse'); }
     finally { setSmsLoading(false); }
+  };
+
+  const handleNotifParse = async () => {
+    if (!notifText.trim()) { Alert.alert('Error', 'Paste your bank notification text'); return; }
+    setNotifLoading(true);
+    try {
+      await api.post('/transactions/parse-sms', { sms_text: notifText });
+      setNotifText(''); setNotifExpanded(false); fetchTransactions();
+      Alert.alert('Done!', 'Expense added from notification! 🎉');
+    } catch (e: any) { Alert.alert('Error', e.response?.data?.detail || 'Could not parse notification'); }
+    finally { setNotifLoading(false); }
   };
 
   const handleQuickCash = async () => {
@@ -221,6 +236,34 @@ export default function TransactionsScreen() {
         renderItem={renderTxn}
         keyExtractor={(item) => item.id}
         contentContainerStyle={styles.listContent}
+        ListHeaderComponent={
+          <TouchableOpacity style={styles.notifCard} onPress={() => setNotifExpanded(!notifExpanded)} activeOpacity={0.8}>
+            <View style={styles.notifHeader}>
+              <Ionicons name="notifications" size={18} color="#6366F1" />
+              <Text style={styles.notifTitle}>Paste Bank Notification</Text>
+              <Ionicons name={notifExpanded ? 'chevron-up' : 'chevron-down'} size={18} color={COLORS.text.muted} />
+            </View>
+            <Text style={styles.notifHint}>Copy any bank SMS/notification and paste here to auto-track</Text>
+            {notifExpanded && (
+              <View style={styles.notifBody}>
+                <TextInput
+                  style={styles.notifInput}
+                  placeholder="e.g. HDFC Bank: Rs 500.00 debited from A/c XX1234..."
+                  placeholderTextColor={COLORS.text.muted}
+                  value={notifText}
+                  onChangeText={setNotifText}
+                  multiline
+                  numberOfLines={3}
+                />
+                <TouchableOpacity style={styles.notifParseBtn} onPress={handleNotifParse} disabled={notifLoading || !notifText.trim()}>
+                  {notifLoading ? <ActivityIndicator size="small" color="#fff" /> : (
+                    <><Ionicons name="sparkles" size={14} color="#fff" /><Text style={styles.notifParseTxt}>AI Parse & Add</Text></>
+                  )}
+                </TouchableOpacity>
+              </View>
+            )}
+          </TouchableOpacity>
+        }
         ListEmptyComponent={
           <View style={styles.empty}>
             <Ionicons name="receipt-outline" size={56} color={COLORS.text.muted} />
@@ -349,4 +392,13 @@ const styles = StyleSheet.create({
   smsBanner: { flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: COLORS.accent.warning + '12', borderRadius: RADIUS.lg, padding: SPACING.md, marginBottom: SPACING.lg },
   smsBannerText: { fontSize: 13, color: COLORS.accent.warning, fontWeight: '500' },
   smsInput: { backgroundColor: COLORS.bg.primary, borderRadius: RADIUS.xl, padding: SPACING.lg, fontSize: 15, color: COLORS.text.primary, borderWidth: 1, borderColor: COLORS.border.subtle, minHeight: 120, marginBottom: SPACING.xxl },
+  // Notification paste card
+  notifCard: { backgroundColor: '#EEF2FF', borderRadius: RADIUS.card, padding: SPACING.lg, marginBottom: SPACING.lg, borderWidth: 1, borderColor: '#C7D2FE' },
+  notifHeader: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 4 },
+  notifTitle: { fontSize: 15, fontWeight: '700', color: '#4338CA', flex: 1 },
+  notifHint: { fontSize: 12, color: '#6B7280', lineHeight: 18 },
+  notifBody: { marginTop: SPACING.md },
+  notifInput: { backgroundColor: '#fff', borderRadius: RADIUS.lg, padding: SPACING.md, fontSize: 14, color: COLORS.text.primary, borderWidth: 1, borderColor: '#C7D2FE', minHeight: 70, textAlignVertical: 'top', marginBottom: SPACING.sm },
+  notifParseBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, backgroundColor: '#6366F1', borderRadius: RADIUS.full, paddingVertical: 12 },
+  notifParseTxt: { fontSize: 14, fontWeight: '600', color: '#fff' },
 });
