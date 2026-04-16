@@ -36,8 +36,8 @@ JWT_EXPIRATION_DAYS = 30
 
 # ============== SECURITY CONFIGURATION ==============
 RATE_LIMIT_WINDOW = 60  # seconds
-RATE_LIMIT_MAX_REQUESTS = 60  # per window
-AUTH_RATE_LIMIT_MAX = 10  # auth endpoints per window
+RATE_LIMIT_MAX_REQUESTS = 300  # per window — generous for SPA that makes many parallel calls
+AUTH_RATE_LIMIT_MAX = 15  # auth endpoints per window
 BRUTE_FORCE_LOCKOUT_MINUTES = 15
 BRUTE_FORCE_MAX_FAILURES = 5
 SENSITIVE_FIELDS = ["password", "otp_hash", "_id", "otp"]
@@ -66,11 +66,20 @@ class SecurityHeadersMiddleware(BaseHTTPMiddleware):
 class RateLimitMiddleware(BaseHTTPMiddleware):
     """IP-based rate limiting to prevent DDoS and abuse"""
     async def dispatch(self, request: Request, call_next):
+        # Skip rate limiting for preflight CORS and health checks
+        if request.method == "OPTIONS":
+            return await call_next(request)
+
         client_ip = request.client.host if request.client else "unknown"
         path = request.url.path
+
+        # Skip rate limiting for static/non-API routes
+        if not path.startswith("/api/"):
+            return await call_next(request)
+
         now = time.time()
 
-        # Determine rate limit
+        # Only rate-limit auth endpoints strictly; be generous with data endpoints
         is_auth = "/auth/" in path
         max_req = AUTH_RATE_LIMIT_MAX if is_auth else RATE_LIMIT_MAX_REQUESTS
 
