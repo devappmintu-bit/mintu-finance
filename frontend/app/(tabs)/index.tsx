@@ -117,7 +117,7 @@ export default function HomeScreen() {
             <Text style={styles.greeting}>{t('welcome_back', lang).toUpperCase()}</Text>
             <Text style={styles.name}>{t('hi', lang)}, {user?.name || 'User'}!</Text>
           </View>
-          <TouchableOpacity onPress={pickAvatar} style={styles.avatarWrap}>
+          <TouchableOpacity onPress={() => router.push('/(tabs)/profile')} style={styles.avatarWrap}>
             <View style={styles.avatarRing}>
               {avatar ? (
                 <Image source={{ uri: avatar }} style={styles.avatarImg} />
@@ -127,7 +127,7 @@ export default function HomeScreen() {
                 </View>
               )}
             </View>
-            <View style={styles.avatarBadge}><Ionicons name="camera" size={10} color="#fff" /></View>
+            <View style={styles.avatarBadge}><Ionicons name="settings-sharp" size={10} color="#fff" /></View>
           </TouchableOpacity>
         </View>
 

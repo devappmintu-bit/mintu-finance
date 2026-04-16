@@ -1,10 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import {
   View, Text, StyleSheet, ScrollView, TouchableOpacity, Alert, ActivityIndicator, Modal, FlatList,
+  TextInput, Image,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
+import * as ImagePicker from 'expo-image-picker';
 import { useAuthStore } from '../../store/authStore';
 import { useLangStore } from '../../store/langStore';
 import { t, LANGUAGES, LangCode } from '../../utils/i18n';
@@ -17,9 +19,14 @@ export default function ProfileScreen() {
   const [stats, setStats] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [langModalVisible, setLangModalVisible] = useState(false);
+  const [upiId, setUpiId] = useState('');
+  const [upiSaving, setUpiSaving] = useState(false);
+  const [avatar, setAvatar] = useState('');
 
   useEffect(() => {
     api.get('/stats/overview').then(r => setStats(r.data)).catch(() => {}).finally(() => setLoading(false));
+    api.get('/user/upi').then(r => setUpiId(r.data.upi_id || '')).catch(() => {});
+    api.get('/user/avatar').then(r => { if (r.data?.avatar) setAvatar(r.data.avatar); }).catch(() => {});
   }, []);
 
   const handleLogout = () => {
@@ -27,6 +34,28 @@ export default function ProfileScreen() {
       { text: t('cancel', lang), style: 'cancel' },
       { text: t('logout', lang), style: 'destructive', onPress: async () => { await logout(); router.replace('/'); } },
     ]);
+  };
+
+  const saveUpiId = async () => {
+    if (!upiId.trim()) return;
+    setUpiSaving(true);
+    try {
+      await api.post('/user/upi', { upi_id: upiId.trim() });
+      Alert.alert('Saved!', 'UPI ID updated successfully');
+    } catch (e: any) {
+      Alert.alert('Error', e.response?.data?.detail || 'Invalid UPI ID format');
+    } finally { setUpiSaving(false); }
+  };
+
+  const pickAvatar = async () => {
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ['images'], allowsEditing: true, aspect: [1, 1], quality: 0.5, base64: true,
+    });
+    if (!result.canceled && result.assets[0].base64) {
+      const b64 = `data:image/jpeg;base64,${result.assets[0].base64}`;
+      setAvatar(b64);
+      try { await api.post('/user/avatar', { avatar: b64 }); } catch (e) { Alert.alert('Error', 'Could not upload photo'); }
+    }
   };
 
   const moneyScore = user?.money_score || 50;
@@ -38,14 +67,44 @@ export default function ProfileScreen() {
       <ScrollView testID="profile-screen" contentContainerStyle={styles.scrollContent}>
         {/* Profile Card */}
         <View style={styles.profileCard}>
-          <View style={styles.avatar}>
-            <Ionicons name="person" size={36} color={COLORS.accent.primary} />
-          </View>
+          <TouchableOpacity onPress={pickAvatar} style={styles.avatarWrap}>
+            {avatar ? (
+              <Image source={{ uri: avatar }} style={styles.avatarImg} />
+            ) : (
+              <View style={styles.avatar}>
+                <Ionicons name="person" size={36} color={COLORS.accent.primary} />
+              </View>
+            )}
+            <View style={styles.cameraBadge}><Ionicons name="camera" size={12} color="#fff" /></View>
+          </TouchableOpacity>
           <Text style={styles.name}>{user?.name}</Text>
           <Text style={styles.phone}>{user?.phone}</Text>
           <View style={styles.scorePill}>
             <Ionicons name="trophy" size={16} color={scoreColor} />
             <Text style={[styles.scorePillText, { color: scoreColor }]}>{t('money_score', lang)}: {moneyScore}</Text>
+          </View>
+        </View>
+
+        {/* UPI ID Section */}
+        <View style={styles.upiCard}>
+          <View style={styles.upiHeader}>
+            <Ionicons name="card" size={18} color="#6366F1" />
+            <Text style={styles.upiTitle}>UPI ID</Text>
+          </View>
+          <Text style={styles.upiHint}>Add your UPI ID for instant split payments</Text>
+          <View style={styles.upiInputRow}>
+            <TextInput
+              style={styles.upiInput}
+              value={upiId}
+              onChangeText={setUpiId}
+              placeholder="yourname@okicici"
+              placeholderTextColor={COLORS.text.muted}
+              autoCapitalize="none"
+              keyboardType="email-address"
+            />
+            <TouchableOpacity style={[styles.upiSaveBtn, (!upiId.trim() || upiSaving) && { opacity: 0.5 }]} onPress={saveUpiId} disabled={!upiId.trim() || upiSaving}>
+              {upiSaving ? <ActivityIndicator size="small" color="#fff" /> : <Ionicons name="checkmark" size={20} color="#fff" />}
+            </TouchableOpacity>
           </View>
         </View>
 
@@ -146,6 +205,17 @@ const styles = StyleSheet.create({
   scrollContent: { padding: SPACING.lg },
   profileCard: { alignItems: 'center', backgroundColor: COLORS.bg.card, borderRadius: RADIUS.card, padding: SPACING.xxxl, marginBottom: SPACING.xxl, borderWidth: 1, borderColor: COLORS.border.card },
   avatar: { width: 80, height: 80, borderRadius: 40, backgroundColor: COLORS.accent.primary + '18', justifyContent: 'center', alignItems: 'center', marginBottom: SPACING.lg },
+  avatarWrap: { position: 'relative', marginBottom: SPACING.lg },
+  avatarImg: { width: 80, height: 80, borderRadius: 40 },
+  cameraBadge: { position: 'absolute', bottom: 0, right: 0, width: 24, height: 24, borderRadius: 12, backgroundColor: COLORS.accent.primary, justifyContent: 'center', alignItems: 'center', borderWidth: 2, borderColor: COLORS.bg.card },
+  // UPI
+  upiCard: { backgroundColor: '#EEF2FF', borderRadius: RADIUS.card, padding: SPACING.xl, marginBottom: SPACING.xxl, borderWidth: 1, borderColor: '#C7D2FE' },
+  upiHeader: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 4 },
+  upiTitle: { fontSize: 16, fontWeight: '700', color: '#4338CA' },
+  upiHint: { fontSize: 12, color: '#6B7280', marginBottom: SPACING.md },
+  upiInputRow: { flexDirection: 'row', gap: 8, alignItems: 'center' },
+  upiInput: { flex: 1, backgroundColor: '#fff', borderRadius: RADIUS.lg, paddingHorizontal: SPACING.md, paddingVertical: 12, fontSize: 15, color: COLORS.text.primary, borderWidth: 1, borderColor: '#C7D2FE' },
+  upiSaveBtn: { width: 44, height: 44, borderRadius: 22, backgroundColor: '#6366F1', justifyContent: 'center', alignItems: 'center' },
   name: { fontSize: 24, fontWeight: '800', color: COLORS.text.primary, marginBottom: 4 },
   phone: { fontSize: 15, color: COLORS.text.muted, marginBottom: SPACING.md },
   scorePill: { flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: COLORS.bg.primary, paddingHorizontal: 16, paddingVertical: 8, borderRadius: RADIUS.full },
