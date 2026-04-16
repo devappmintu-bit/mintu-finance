@@ -81,6 +81,45 @@ export default function SplitScreen() {
     Linking.openURL(`whatsapp://send?text=${encodeURIComponent(text)}`).catch(() => Share.share({ message: text }));
   };
 
+  // UPI Payment
+  const payViaUPI = async (targetUserId: string, amount: number) => {
+    try {
+      const res = await api.get(`/split/pay-intent/${targetUserId}?amount=${amount}`);
+      const { upi_link, payee_name, payee_upi, txn_ref } = res.data;
+      Alert.alert(
+        `Pay ${payee_name}`,
+        `Amount: ₹${amount.toFixed(0)}\nUPI: ${payee_upi}\nRef: ${txn_ref}`,
+        [
+          { text: 'Cancel', style: 'cancel' },
+          { text: 'Pay via UPI', onPress: () => {
+            Linking.openURL(upi_link).catch(() => {
+              Alert.alert('UPI App Not Found', 'Install Google Pay, PhonePe or Paytm to pay via UPI');
+            });
+          }},
+          { text: 'Mark as Paid', style: 'default', onPress: () => markAsPaid(targetUserId, amount, txn_ref) },
+        ]
+      );
+    } catch (e: any) {
+      if (e.response?.status === 400) {
+        Alert.alert('UPI Not Set', 'Payee hasn\'t added their UPI ID yet. Send a WhatsApp reminder instead?', [
+          { text: 'Cancel', style: 'cancel' },
+          { text: 'Remind', onPress: () => remindPerson('Friend', amount) },
+          { text: 'Mark as Paid (Cash)', onPress: () => markAsPaid(targetUserId, amount, undefined, 'cash') },
+        ]);
+      } else {
+        Alert.alert('Error', 'Could not generate payment link');
+      }
+    }
+  };
+
+  const markAsPaid = async (targetUserId: string, amount: number, txnRef?: string, method: string = 'upi') => {
+    try {
+      await api.post('/split/settle', { target_user_id: targetUserId, amount, txn_ref: txnRef, method });
+      Alert.alert('Settled!', `₹${amount.toFixed(0)} marked as paid 🎉`);
+      fetchData();
+    } catch (e) { Alert.alert('Error', 'Could not record settlement'); }
+  };
+
   if (loading) return <SafeAreaView style={s.container}><ActivityIndicator size="large" color={COLORS.accent.primary} style={{ marginTop: 100 }} /></SafeAreaView>;
 
   return (

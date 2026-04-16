@@ -14,11 +14,12 @@ import { PieChart } from 'react-native-gifted-charts';
 type ChatMsg = { role: 'user' | 'ai'; text: string; loading?: boolean };
 
 const QUICK_CHIPS = [
-  { label: 'Am I overspending?', emoji: '👀' },
-  { label: 'How can I save more?', emoji: '💰' },
-  { label: 'Best SIP for me?', emoji: '📈' },
-  { label: 'Review my budget', emoji: '📊' },
-  { label: 'Tax saving tips', emoji: '🏦' },
+  { label: 'Where did I overspend?', emoji: '📊' },
+  { label: 'Set a food budget', emoji: '🎯' },
+  { label: 'Who owes me?', emoji: '🤝' },
+  { label: 'Weekly spending report', emoji: '📈' },
+  { label: 'How to save on subscriptions?', emoji: '🧠' },
+  { label: 'Best SIP for me?', emoji: '💰' },
 ];
 
 const APP_LINK = 'https://mintu.app/download';
@@ -78,8 +79,10 @@ export default function InsightsScreen() {
     setInput('');
     setChatLoading(true);
     try {
-      const res = await api.post('/ai/chat', { message: text.trim(), lang });
-      setMessages(prev => [...prev.slice(0, -1), { role: 'ai', text: res.data.reply }]);
+      const res = await api.post('/ai/agent-chat', { message: text.trim(), lang });
+      const agentInfo = res.data.agent;
+      const replyText = `${agentInfo?.emoji || '🤖'} *${agentInfo?.name || 'AI'}*\n\n${res.data.reply}`;
+      setMessages(prev => [...prev.slice(0, -1), { role: 'ai', text: replyText }]);
     } catch {
       setMessages(prev => [...prev.slice(0, -1), { role: 'ai', text: "Oops, something went wrong. Try again? 🙏" }]);
     } finally { setChatLoading(false); }

@@ -387,6 +387,114 @@ backend:
         agent: "testing"
         comment: "✅ GET /api/card-of-the-day working perfectly. Returns daily rotating motivational/financial cards with type, emoji, title, text, color, and app_link fields. Refresh parameter works for random cards."
 
+  - task: "UPI Payment Integration - Save UPI ID"
+    implemented: true
+    working: true
+    file: "/app/backend/server.py"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+      - working: true
+        agent: "testing"
+        comment: "✅ POST /api/user/upi working perfectly. Saves UPI ID with proper validation (format: name@bank). Returns masked UPI ID for privacy (te****@okicici). Invalid UPI IDs properly rejected with 400 status."
+
+  - task: "UPI Payment Integration - Retrieve UPI ID"
+    implemented: true
+    working: true
+    file: "/app/backend/server.py"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+      - working: true
+        agent: "testing"
+        comment: "✅ GET /api/user/upi working correctly. Returns both full UPI ID and masked version for privacy. Includes user name for display purposes."
+
+  - task: "UPI Payment Integration - Pay Intent Generation"
+    implemented: true
+    working: true
+    file: "/app/backend/server.py"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+      - working: true
+        agent: "testing"
+        comment: "✅ GET /api/split/pay-intent/{user_id}?amount=500 working perfectly. Generates proper UPI deep links (upi://pay format) compatible with GPay, PhonePe, Paytm, BHIM. Includes transaction reference and payee details."
+
+  - task: "UPI Payment Integration - Settlement"
+    implemented: true
+    working: true
+    file: "/app/backend/server.py"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+      - working: true
+        agent: "testing"
+        comment: "✅ POST /api/split/settle working correctly. Marks payments as settled with proper method tracking (UPI, cash, bank_transfer). Returns confirmation message with amount and payee details."
+
+  - task: "UPI Payment Integration - Settlement History"
+    implemented: true
+    working: true
+    file: "/app/backend/server.py"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+      - working: true
+        agent: "testing"
+        comment: "✅ GET /api/split/settlements working correctly. Returns settlement history with proper data structure. Tracks multiple settlements and payment methods."
+
+  - task: "Agentic AI System - Multi-Agent Chat"
+    implemented: true
+    working: true
+    file: "/app/backend/server.py"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+      - working: true
+        agent: "testing"
+        comment: "✅ POST /api/ai/agent-chat working perfectly. All 5 agents (expense_tracker, budget_manager, split_manager, insights_agent, market_intel) routing correctly based on message content. AI responses contextual and detailed. Uses OpenAI GPT-5.2 integration."
+
+  - task: "Agentic AI System - Proactive Nudges"
+    implemented: true
+    working: true
+    file: "/app/backend/server.py"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+      - working: true
+        agent: "testing"
+        comment: "✅ GET /api/ai/proactive-nudges working correctly. Returns 6 proactive nudges including budget warnings, split reminders, expense tracking suggestions, and market intelligence tips. All nudges contextual to user data."
+
+  - task: "Agentic AI System - Memory Management"
+    implemented: true
+    working: true
+    file: "/app/backend/server.py"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+      - working: true
+        agent: "testing"
+        comment: "✅ POST /api/ai/memory working correctly. Saves user preferences and habits for AI personalization. Memory data properly stored and retrieved for agent context."
+
+  - task: "Agentic AI System - Agent Listing"
+    implemented: true
+    working: true
+    file: "/app/backend/server.py"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+      - working: true
+        agent: "testing"
+        comment: "✅ GET /api/ai/agents working perfectly. Returns all 5 agents with proper metadata: Expense Tracker Agent, Budget Manager Agent, Split Manager Agent, Insights & Trends Agent, Market Intelligence Agent. Each agent has correct name, emoji, and description."
+
 frontend:
   - task: "Authentication Flow"
     implemented: true
@@ -517,7 +625,7 @@ agent_communication:
   - agent: "main"
     message: "MintU MVP completed. All backend APIs implemented with AI-powered features (SMS parsing, insights generation). Frontend has all 4 main screens with bottom tab navigation. ObjectId serialization fixes applied. Ready for backend testing."
   - agent: "main"
-    message: "MAJOR UX OVERHAUL COMPLETE. Changes: (1) Insights tab reorganized - AI Coach is pure chat, Insights has Money Score + Waste Detector + Charts. (2) Leaderboard moved to top of Home with rank/percentile/mini-leaderboard. (3) Profile photo with CRED-style avatar ring. (4) Card of the Day with refresh. (5) Rewards section on Home. (6) Notification paste card on Transactions. (7) Shareable cards have app download links. New backend: POST/GET /api/user/avatar, GET /api/card-of-the-day. Auth: phone 9876543210, OTP 123456."
+    message: "UPI PAYMENTS + AGENTIC AI SYSTEM implemented. New: POST /api/user/upi, GET /api/user/upi, GET /api/split/pay-intent/{id}, POST /api/split/settle, GET /api/split/settlements, POST /api/ai/agent-chat (5 agents: expense_tracker, budget_manager, split_manager, insights_agent, market_intel), GET /api/ai/proactive-nudges, POST /api/ai/memory, GET /api/ai/agents. Auth: phone 9876543210, OTP 123456. Rate limit 300/min."
   - agent: "testing"
     message: "✅ COMPREHENSIVE BACKEND TESTING COMPLETED - All 19 tests passed successfully! OTP authentication flow working perfectly with mock OTP 123456. Split groups & expenses functionality fully operational. SMS bulk parsing with AI working correctly (3/3 messages parsed). Transaction CRUD, budget management, daily insights with AI, and stats overview all functioning properly. Backend APIs are production-ready. No critical issues found."
   - agent: "testing"
@@ -532,3 +640,5 @@ agent_communication:
     message: "✅ UX OVERHAUL NEW ENDPOINTS TESTING COMPLETED - All 12/12 tests passed (100%)! NEW Avatar endpoints working perfectly: POST /api/user/avatar (uploads base64 photos with 500KB limit) ✅, GET /api/user/avatar (retrieves avatar + name) ✅. NEW Card of the Day: GET /api/card-of-the-day (daily rotating motivational cards) ✅, refresh parameter for random cards ✅. EXISTING endpoints verified: leaderboard/savings ✅, gamification/status ✅, alerts/smart ✅, reports/weekly ✅, waste-detector ✅, share/stats-card (contains app download link) ✅, money-school/daily (Hindi) ✅, ai/chat (Hindi responses) ✅. Authentication flow robust with rate limiting (30s OTP cooldown). All endpoints return proper JSON responses. UX overhaul backend is production-ready!"
   - agent: "testing"
     message: "✅ COMPREHENSIVE FRONTEND REVIEW TESTING COMPLETED - All critical UI components verified on iPhone 14 (390x844)! Login flow: onboarding skip ✅, phone input (9876543210) ✅, OTP entry (123456) ✅, redirect to home ✅. Home screen: CRED-style avatar ring ✅, LEADERBOARD card with #2 rank ✅, comparison text ✅, 'You' row highlighting ✅, Money Wisdom section ✅, Income/Expenses/Balance stats (14 rupee amounts) ✅, Smart Alerts with budget exceeded notifications ✅. Navigation: all 5 tabs working (Expenses, Budget, AI center sparkles, Split, Home) ✅. Mobile-first responsive design perfect. Minor: Medal emojis and AI chat interface need data-testid improvements but core functionality working. Production-ready!"
+  - agent: "testing"
+    message: "✅ UPI + AGENTIC AI COMPREHENSIVE TESTING COMPLETED - All 21/21 tests passed (100%)! NEW UPI Payment Integration: POST /api/user/upi (save/validate UPI ID) ✅, GET /api/user/upi (retrieve with masking) ✅, GET /api/split/pay-intent/{id} (UPI deep links) ✅, POST /api/split/settle (mark settled) ✅, GET /api/split/settlements (history) ✅. NEW 5-Agent AI System: POST /api/ai/agent-chat (expense_tracker, budget_manager, split_manager, insights_agent, market_intel routing) ✅, GET /api/ai/proactive-nudges (6 contextual nudges) ✅, POST /api/ai/memory (preferences/habits) ✅, GET /api/ai/agents (all 5 listed) ✅. EXISTING endpoints verified: user/me, transactions, budgets, stats/overview, leaderboard/savings, waste-detector, alerts/smart all working ✅. Authentication robust with rate limiting (300 req/min). All AI integrations via OpenAI GPT-5.2 functional. UPI + AI backend is production-ready!"

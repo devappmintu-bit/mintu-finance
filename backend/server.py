@@ -3426,6 +3426,577 @@ async def enhanced_referral_status(user_id: str = Depends(get_current_user)):
         "whatsapp_text": f"Hey! 👋 I found this amazing finance app called MintU. It tells you exactly where your money goes 💸\n\nUse my code: {code}\nDownload: https://mintu.app/invite/{code}\n\nWe both get Pro features for free! 🎁",
     }
 
+# ============== FEATURE: UPI PAYMENT INTEGRATION ==============
+
+import re as regex_module
+import uuid as uuid_lib
+
+UPI_REGEX = r'^[a-zA-Z0-9._-]+@[a-zA-Z0-9]+$'
+
+def validate_upi_id(upi_id: str) -> bool:
+    """Validate UPI ID format (e.g., name@okicici, phone@ybl)"""
+    return bool(regex_module.match(UPI_REGEX, upi_id)) and len(upi_id) <= 50
+
+def mask_upi_id(upi_id: str) -> str:
+    """Mask UPI ID for privacy (show ****@bank)"""
+    if not upi_id or '@' not in upi_id:
+        return '****'
+    parts = upi_id.split('@')
+    name = parts[0]
+    bank = parts[1]
+    masked = name[:2] + '****' if len(name) > 2 else '****'
+    return f"{masked}@{bank}"
+
+@api_router.post("/user/upi")
+async def save_upi_id(data: dict, user_id: str = Depends(get_current_user)):
+    """Save or update user's UPI ID"""
+    from bson import ObjectId
+    upi_id = data.get("upi_id", "").strip()
+    if not upi_id:
+        raise HTTPException(status_code=400, detail="UPI ID is required")
+    if not validate_upi_id(upi_id):
+        raise HTTPException(status_code=400, detail="Invalid UPI ID format. Use format: name@bank")
+    await db.users.update_one({"_id": ObjectId(user_id)}, {"$set": {"upi_id": upi_id}})
+    return {"message": "UPI ID saved", "upi_id": mask_upi_id(upi_id)}
+
+@api_router.get("/user/upi")
+async def get_upi_id(user_id: str = Depends(get_current_user)):
+    """Get user's UPI ID"""
+    from bson import ObjectId
+    user = await db.users.find_one({"_id": ObjectId(user_id)}, {"upi_id": 1, "name": 1})
+    upi = user.get("upi_id", "") if user else ""
+    return {"upi_id": upi, "masked": mask_upi_id(upi), "name": user.get("name", "") if user else ""}
+
+@api_router.get("/split/pay-intent/{target_user_id}")
+async def generate_upi_pay_intent(target_user_id: str, amount: float, user_id: str = Depends(get_current_user)):
+    """Generate UPI deep link for payment"""
+    from bson import ObjectId
+    from urllib.parse import quote
+    
+    target = await db.users.find_one({"_id": ObjectId(target_user_id)}, {"upi_id": 1, "name": 1})
+    if not target or not target.get("upi_id"):
+        raise HTTPException(status_code=400, detail="Payee hasn't set up UPI ID")
+    
+    payee_name = target.get("name", "MintU User")
+    upi_id = target["upi_id"]
+    txn_ref = f"MINTU{uuid_lib.uuid4().hex[:8].upper()}"
+    
+    # UPI intent deep link (works with GPay, PhonePe, Paytm, BHIM)
+    upi_link = f"upi://pay?pa={quote(upi_id)}&pn={quote(payee_name)}&am={amount:.2f}&cu=INR&tn={quote(f'MintU Split Settlement')}&tr={txn_ref}"
+    
+    return {
+        "upi_link": upi_link,
+        "payee_name": payee_name,
+        "payee_upi": mask_upi_id(upi_id),
+        "amount": amount,
+        "txn_ref": txn_ref,
+        "currency": "INR"
+    }
+
+class SettlePayment(BaseModel):
+    target_user_id: str
+    amount: float
+    txn_ref: Optional[str] = None
+    method: str = "upi"  # "upi", "cash", "bank_transfer"
+    group_id: Optional[str] = None
+
+@api_router.post("/split/settle")
+async def settle_payment(data: SettlePayment, user_id: str = Depends(get_current_user)):
+    """Mark a split payment as settled"""
+    from bson import ObjectId
+    
+    settlement = {
+        "payer_id": user_id,
+        "payee_id": data.target_user_id,
+        "amount": data.amount,
+        "method": data.method,
+        "txn_ref": data.txn_ref or f"MINTU{uuid_lib.uuid4().hex[:8].upper()}",
+        "group_id": data.group_id,
+        "status": "completed",
+        "settled_at": datetime.utcnow(),
+        "created_at": datetime.utcnow()
+    }
+    
+    result = await db.settlements.insert_one(settlement)
+    settlement["id"] = str(result.inserted_id)
+    
+    # Get names for response
+    payer = await db.users.find_one({"_id": ObjectId(user_id)}, {"name": 1})
+    payee = await db.users.find_one({"_id": ObjectId(data.target_user_id)}, {"name": 1})
+    
+    return {
+        "id": settlement["id"],
+        "message": f"Payment of ₹{data.amount:,.0f} to {payee.get('name', 'User') if payee else 'User'} marked as settled!",
+        "txn_ref": settlement["txn_ref"],
+        "status": "completed"
+    }
+
+@api_router.get("/split/settlements")
+async def get_settlements(user_id: str = Depends(get_current_user)):
+    """Get payment settlement history"""
+    from bson import ObjectId
+    
+    settlements = await db.settlements.find({
+        "$or": [{"payer_id": user_id}, {"payee_id": user_id}]
+    }).sort("settled_at", -1).to_list(50)
+    
+    result = []
+    for s in settlements:
+        payer = await db.users.find_one({"_id": ObjectId(s["payer_id"])}, {"name": 1})
+        payee = await db.users.find_one({"_id": ObjectId(s["payee_id"])}, {"name": 1})
+        result.append({
+            "id": str(s["_id"]),
+            "payer_name": payer.get("name", "User") if payer else "User",
+            "payee_name": payee.get("name", "User") if payee else "User",
+            "amount": s["amount"],
+            "method": s["method"],
+            "txn_ref": s.get("txn_ref", ""),
+            "status": s["status"],
+            "is_payer": s["payer_id"] == user_id,
+            "settled_at": s["settled_at"].isoformat() if s.get("settled_at") else None
+        })
+    return result
+
+# ============== FEATURE: AGENTIC AI FINANCE SYSTEM ==============
+
+# Agent definitions
+AGENT_PROFILES = {
+    "expense_tracker": {
+        "name": "Expense Tracker Agent",
+        "emoji": "📊",
+        "description": "Categorizes expenses, detects anomalies, tracks spending patterns",
+        "triggers": ["spent", "expense", "purchase", "bought", "paid", "cost", "bill", "transaction", "category", "categorize"],
+    },
+    "budget_manager": {
+        "name": "Budget Manager Agent",
+        "emoji": "🎯",
+        "description": "Sets dynamic budgets, alerts on thresholds, optimizes allocations",
+        "triggers": ["budget", "limit", "cap", "allocat", "threshold", "overspend", "underspend", "saving target"],
+    },
+    "split_manager": {
+        "name": "Split Manager Agent",
+        "emoji": "🤝",
+        "description": "Manages fair splits, payment reminders, group expenses",
+        "triggers": ["split", "owe", "owes", "settle", "group", "share", "divide", "remind", "pending", "who owes"],
+    },
+    "insights_agent": {
+        "name": "Insights & Trends Agent",
+        "emoji": "📈",
+        "description": "Weekly/monthly insights, spending patterns, category breakdowns, comparisons",
+        "triggers": ["insight", "trend", "pattern", "week", "month", "compare", "analysis", "breakdown", "report", "summary", "how much"],
+    },
+    "market_intel": {
+        "name": "Market Intelligence Agent",
+        "emoji": "🧠",
+        "description": "Subscription savings, cost alternatives, inflation-aware advice, investment tips",
+        "triggers": ["subscription", "save money", "alternative", "cheaper", "invest", "sip", "fd", "mutual fund", "insurance", "tax", "market", "inflation", "switch", "plan"],
+    },
+}
+
+def route_to_agent(message: str) -> str:
+    """Route user message to the most appropriate AI agent"""
+    msg_lower = message.lower()
+    scores = {}
+    for agent_id, profile in AGENT_PROFILES.items():
+        score = sum(1 for trigger in profile["triggers"] if trigger in msg_lower)
+        scores[agent_id] = score
+    
+    best = max(scores, key=scores.get)
+    if scores[best] == 0:
+        return "insights_agent"  # Default to insights for general queries
+    return best
+
+@api_router.post("/ai/agent-chat")
+async def agentic_ai_chat(data: dict, user_id: str = Depends(get_current_user)):
+    """Multi-agent AI finance assistant with memory and proactive behavior"""
+    from bson import ObjectId
+    
+    message = data.get("message", "")
+    lang = data.get("lang", "en")
+    if not message.strip():
+        raise HTTPException(status_code=400, detail="Message required")
+    
+    # Route to appropriate agent
+    agent_id = route_to_agent(message)
+    agent = AGENT_PROFILES[agent_id]
+    
+    # Gather comprehensive financial context
+    user = await db.users.find_one({"_id": ObjectId(user_id)})
+    now = datetime.utcnow()
+    month_start = now.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+    week_start = now - timedelta(days=now.weekday())
+    
+    # Spending data
+    cat_pipeline = [
+        {"$match": {"user_id": user_id, "date": {"$gte": month_start}}},
+        {"$group": {"_id": "$category", "total": {"$sum": "$amount"}, "count": {"$sum": 1}}}
+    ]
+    category_spend = {}
+    async for doc in db.transactions.aggregate(cat_pipeline):
+        category_spend[doc["_id"]] = {"total": doc["total"], "count": doc["count"]}
+    
+    total_expense = sum(c["total"] for c in category_spend.values())
+    
+    # Income
+    income_pipe = [
+        {"$match": {"user_id": user_id, "type": {"$in": ["income", "credit"]}, "date": {"$gte": month_start}}},
+        {"$group": {"_id": None, "total": {"$sum": "$amount"}}}
+    ]
+    income_docs = await db.transactions.aggregate(income_pipe).to_list(1)
+    total_income = income_docs[0]["total"] if income_docs else 0
+    
+    # Budgets
+    budgets = await db.budgets.find({"user_id": user_id}).to_list(20)
+    budget_info = []
+    for b in budgets:
+        spent = category_spend.get(b["category"], {}).get("total", 0)
+        pct = (spent / max(b["amount"], 1)) * 100
+        budget_info.append(f"{b['category']}: ₹{spent:,.0f}/₹{b['amount']:,.0f} ({pct:.0f}%)")
+    
+    # Split balances
+    balances = await db.split_expenses.find({"splits.user_id": user_id}).to_list(50)
+    
+    # Recent transactions (last 10)
+    recent_txns = await db.transactions.find({"user_id": user_id}).sort("date", -1).to_list(10)
+    recent_str = "\n".join([f"  - {t.get('description','?')}: ₹{t['amount']:,.0f} ({t.get('category','?')}) on {t['date'].strftime('%b %d') if t.get('date') else '?'}" for t in recent_txns[:7]])
+    
+    # Load agent memory
+    memory = await db.agent_memory.find_one({"user_id": user_id})
+    memory_context = ""
+    if memory:
+        prefs = memory.get("preferences", {})
+        habits = memory.get("habits", [])
+        memory_context = f"\nUser Preferences: {prefs}\nKnown Habits: {', '.join(habits[:5])}"
+    
+    # Build agent-specific system prompt
+    financial_context = f"""USER FINANCIAL PROFILE:
+Name: {user.get('name', 'User')} | Money Score: {user.get('money_score', 50)}/100 | Streak: {user.get('streak_days', 0)} days
+Monthly Income: ₹{total_income:,.0f} | Monthly Expenses: ₹{total_expense:,.0f} | Savings: ₹{max(0, total_income - total_expense):,.0f}
+Savings Rate: {((total_income - total_expense) / max(total_income, 1) * 100):.0f}%
+
+CATEGORY SPENDING (This Month):
+{chr(10).join(f'  {cat}: ₹{data["total"]:,.0f} ({data["count"]} txns)' for cat, data in sorted(category_spend.items(), key=lambda x: x[1]["total"], reverse=True)) or '  No data yet'}
+
+BUDGETS:
+{chr(10).join(f'  {b}' for b in budget_info) or '  No budgets set'}
+
+RECENT TRANSACTIONS:
+{recent_str or '  None yet'}
+{memory_context}"""
+
+    agent_system_prompts = {
+        "expense_tracker": f"""You are MintU's {agent['emoji']} Expense Tracker Agent — an expert at categorizing and analyzing expenses.
+
+CAPABILITIES:
+- Automatically categorize expenses into: Food, Transport, Entertainment, Shopping, Bills, Health, Education, Groceries, Other
+- Detect spending anomalies (unusual amounts, new merchants, spikes)
+- Identify recurring expenses
+- Flag potential duplicate charges
+
+PERSONALITY: Precise, detail-oriented, helpful. Use specific numbers.
+
+{financial_context}
+
+RULES:
+- Reference ACTUAL transaction data — never make up numbers
+- If you spot an anomaly, explain why it's unusual
+- Suggest better categories if you see miscategorization
+- Be concise (max 4 sentences per insight)""",
+
+        "budget_manager": f"""You are MintU's {agent['emoji']} Budget Manager Agent — proactive budget optimizer for Indian users.
+
+CAPABILITIES:
+- Set and adjust dynamic budgets based on spending patterns
+- Alert when approaching/exceeding thresholds
+- Suggest realistic budget targets (based on Indian cost of living)
+- Recommend budget reallocation between categories
+
+PERSONALITY: Firm but encouraging. Like a friendly financial advisor.
+
+{financial_context}
+
+RULES:
+- Use Indian benchmarks (25% food, 10% transport, 20% bills, 30% savings)
+- Suggest specific ₹ amounts, not vague advice
+- If budget exceeded, suggest specific cuts
+- Reference SIP, FD, PPF for savings recommendations""",
+
+        "split_manager": f"""You are MintU's {agent['emoji']} Split Manager Agent — fair split calculator and payment reminder.
+
+CAPABILITIES:
+- Calculate fair splits (equal, by income, by consumption)
+- Track who owes whom
+- Generate payment reminders (friendly, not pushy)
+- Suggest settlement strategies (netting, UPI)
+
+PERSONALITY: Diplomatic, fair, organized.
+
+{financial_context}
+
+RULES:
+- Always suggest the simplest settlement path
+- Recommend UPI for instant payments
+- Be sensitive about money between friends
+- Use casual Indian English""",
+
+        "insights_agent": f"""You are MintU's {agent['emoji']} Insights & Trends Agent — data storyteller who makes numbers interesting.
+
+CAPABILITIES:
+- Generate weekly/monthly spending summaries
+- Identify trends and patterns (rising/falling categories)
+- Compare current vs previous periods
+- Provide percentile comparisons with other users
+- Create digestible financial snapshots
+
+PERSONALITY: Insightful, encouraging, data-driven but relatable.
+
+{financial_context}
+
+RULES:
+- Make insights ACTIONABLE — don't just report, suggest
+- Use comparisons ("30% more than last week")
+- Reference Indian context (festivals, seasons affecting spending)
+- Keep it punchy — max 3-4 key insights""",
+
+        "market_intel": f"""You are MintU's {agent['emoji']} Market Intelligence Agent — India's smartest money-saving advisor.
+
+CAPABILITIES:
+- Identify subscription savings (Netflix annual vs monthly, etc.)
+- Suggest cheaper alternatives for services
+- Inflation-aware spending advice
+- Investment tips (SIP, FD, gold, NPS, PPF)
+- Tax-saving recommendations (80C, 80D, HRA)
+- Insurance optimization
+
+PERSONALITY: Sharp, knowledgeable, like a fintech-savvy friend.
+
+{financial_context}
+
+RULES:
+- Reference REAL Indian products/services (Zerodha, Groww, HDFC, SBI)
+- Calculate actual savings ("Switching to annual Netflix = ₹600/year saved")
+- Consider user's income level for investment advice
+- Tax tips relevant to Indian tax slabs
+- Be specific — name products, amounts, percentages"""
+    }
+
+    system_prompt = agent_system_prompts.get(agent_id, agent_system_prompts["insights_agent"])
+    system_prompt += get_lang_instruction(lang)
+    
+    try:
+        chat = LlmChat(
+            api_key=os.environ.get("EMERGENT_LLM_KEY", ""),
+            session_id=f"agent_{agent_id}_{user_id}_{now.timestamp()}",
+            system_message=system_prompt
+        ).with_model("openai", "gpt-5.2")
+        
+        response = await chat.send_message(UserMessage(text=message))
+        reply = response.strip() if isinstance(response, str) else str(response)
+        
+        # Store interaction in agent memory
+        await db.agent_memory.update_one(
+            {"user_id": user_id},
+            {
+                "$set": {"user_id": user_id, "last_interaction": now},
+                "$push": {
+                    "interactions": {
+                        "$each": [{"agent": agent_id, "query": message[:200], "timestamp": now}],
+                        "$slice": -50  # Keep last 50 interactions
+                    }
+                }
+            },
+            upsert=True
+        )
+        
+        return {
+            "reply": reply,
+            "agent": {
+                "id": agent_id,
+                "name": agent["name"],
+                "emoji": agent["emoji"],
+            },
+            "context": {
+                "money_score": user.get("money_score", 50) if user else 50,
+                "monthly_expense": total_expense,
+                "monthly_income": total_income,
+                "savings_rate": round(((total_income - total_expense) / max(total_income, 1)) * 100, 1) if total_income > 0 else 0,
+            }
+        }
+    except Exception as e:
+        logging.error(f"Agent chat error: {e}")
+        return {
+            "reply": f"I'm having trouble right now. Here's a quick insight: Your monthly expenses are ₹{total_expense:,.0f} across {len(category_spend)} categories. {'Your top spend is ' + max(category_spend, key=lambda k: category_spend[k]['total']) + '.' if category_spend else 'Start tracking to get personalized insights!'}",
+            "agent": {"id": agent_id, "name": agent["name"], "emoji": agent["emoji"]},
+            "context": {"money_score": user.get("money_score", 50) if user else 50}
+        }
+
+@api_router.get("/ai/proactive-nudges")
+async def get_proactive_nudges(user_id: str = Depends(get_current_user)):
+    """Generate proactive AI nudges based on user's financial behavior"""
+    from bson import ObjectId
+    
+    user = await db.users.find_one({"_id": ObjectId(user_id)})
+    now = datetime.utcnow()
+    month_start = now.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+    today_start = now.replace(hour=0, minute=0, second=0, microsecond=0)
+    
+    nudges = []
+    
+    # 1. Check for unpaid splits
+    groups = await db.split_groups.find({"members.user_id": user_id}).to_list(20)
+    for g in groups:
+        expenses = await db.split_expenses.find({"group_id": str(g["_id"])}).to_list(100)
+        for exp in expenses:
+            splits_data = exp.get("splits", {})
+            # splits can be dict {user_id: amount} or list [{user_id, amount}]
+            if isinstance(splits_data, dict):
+                my_share = splits_data.get(user_id, 0)
+                if my_share > 0 and exp.get("paid_by") != user_id:
+                    settled = await db.settlements.find_one({
+                        "payer_id": user_id, "payee_id": exp["paid_by"],
+                        "group_id": str(g["_id"])
+                    })
+                    if not settled:
+                        payer = await db.users.find_one({"_id": ObjectId(exp["paid_by"])}, {"name": 1})
+                        nudges.append({
+                            "type": "split_reminder",
+                            "agent": "split_manager",
+                            "emoji": "🤝",
+                            "title": f"You owe {payer.get('name', 'someone') if payer else 'someone'}",
+                            "message": f"₹{my_share:,.0f} for '{exp.get('description', 'expense')}'. Settle via UPI?",
+                            "action": "settle_split",
+                            "priority": "high",
+                            "data": {"payee_id": exp["paid_by"], "amount": my_share, "group_id": str(g["_id"])}
+                        })
+    
+    # 2. Budget alerts
+    budgets = await db.budgets.find({"user_id": user_id}).to_list(20)
+    for b in budgets:
+        spent_pipe = [
+            {"$match": {"user_id": user_id, "category": b["category"], "type": {"$in": ["expense", "debit"]}, "date": {"$gte": month_start}}},
+            {"$group": {"_id": None, "total": {"$sum": "$amount"}}}
+        ]
+        spent_docs = await db.transactions.aggregate(spent_pipe).to_list(1)
+        spent = spent_docs[0]["total"] if spent_docs else 0
+        pct = (spent / max(b["amount"], 1)) * 100
+        
+        if pct >= 90 and pct < 100:
+            nudges.append({
+                "type": "budget_warning",
+                "agent": "budget_manager",
+                "emoji": "⚠️",
+                "title": f"{b['category']} budget at {pct:.0f}%",
+                "message": f"Only ₹{b['amount'] - spent:,.0f} left. Slow down for the rest of the month!",
+                "action": "view_budget",
+                "priority": "medium"
+            })
+        elif pct >= 100:
+            nudges.append({
+                "type": "budget_exceeded",
+                "agent": "budget_manager",
+                "emoji": "🚨",
+                "title": f"{b['category']} budget blown!",
+                "message": f"₹{spent:,.0f} of ₹{b['amount']:,.0f} ({pct:.0f}%). Want me to adjust the budget?",
+                "action": "adjust_budget",
+                "priority": "high"
+            })
+    
+    # 3. Spending anomaly
+    today_pipe = [
+        {"$match": {"user_id": user_id, "type": {"$in": ["expense", "debit"]}, "date": {"$gte": today_start}}},
+        {"$group": {"_id": None, "total": {"$sum": "$amount"}}}
+    ]
+    today_docs = await db.transactions.aggregate(today_pipe).to_list(1)
+    today_total = today_docs[0]["total"] if today_docs else 0
+    
+    month_pipe = [
+        {"$match": {"user_id": user_id, "type": {"$in": ["expense", "debit"]}, "date": {"$gte": month_start}}},
+        {"$group": {"_id": None, "total": {"$sum": "$amount"}}}
+    ]
+    month_docs = await db.transactions.aggregate(month_pipe).to_list(1)
+    month_total = month_docs[0]["total"] if month_docs else 0
+    days = max(1, (now - month_start).days)
+    daily_avg = month_total / days
+    
+    if today_total > daily_avg * 2 and today_total > 500:
+        nudges.append({
+            "type": "spending_spike",
+            "agent": "expense_tracker",
+            "emoji": "📊",
+            "title": f"High spending today: ₹{today_total:,.0f}",
+            "message": f"That's {today_total / max(daily_avg, 1):.1f}x your daily average. Review transactions?",
+            "action": "review_today",
+            "priority": "medium"
+        })
+    
+    # 4. Streak nudge
+    streak = user.get("streak_days", 0) if user else 0
+    if streak >= 3 and streak < 7:
+        nudges.append({
+            "type": "streak_builder",
+            "agent": "insights_agent",
+            "emoji": "🔥",
+            "title": f"{streak}-day streak!",
+            "message": f"Just {7 - streak} more days for a weekly badge! Log today's expenses.",
+            "action": "add_expense",
+            "priority": "low"
+        })
+    
+    # 5. Savings suggestion
+    income_pipe = [
+        {"$match": {"user_id": user_id, "type": {"$in": ["income", "credit"]}, "date": {"$gte": month_start}}},
+        {"$group": {"_id": None, "total": {"$sum": "$amount"}}}
+    ]
+    income_docs = await db.transactions.aggregate(income_pipe).to_list(1)
+    income = income_docs[0]["total"] if income_docs else 0
+    
+    if income > 0:
+        savings_rate = ((income - month_total) / income) * 100
+        if savings_rate < 20:
+            nudges.append({
+                "type": "savings_low",
+                "agent": "market_intel",
+                "emoji": "💡",
+                "title": f"Savings rate: {savings_rate:.0f}%",
+                "message": f"Indian financial advisors recommend 30%+. Want tips to boost savings?",
+                "action": "get_savings_tips",
+                "priority": "medium"
+            })
+    
+    # Sort by priority
+    priority_order = {"high": 0, "medium": 1, "low": 2}
+    nudges.sort(key=lambda x: priority_order.get(x.get("priority", "low"), 3))
+    
+    return {"nudges": nudges[:8], "count": len(nudges)}
+
+@api_router.post("/ai/memory")
+async def save_agent_memory(data: dict, user_id: str = Depends(get_current_user)):
+    """Store user preferences for AI agent memory"""
+    prefs = data.get("preferences", {})
+    habits = data.get("habits", [])
+    
+    await db.agent_memory.update_one(
+        {"user_id": user_id},
+        {
+            "$set": {
+                "user_id": user_id,
+                "preferences": prefs,
+                "habits": habits,
+                "updated_at": datetime.utcnow()
+            }
+        },
+        upsert=True
+    )
+    return {"message": "Memory updated"}
+
+@api_router.get("/ai/agents")
+async def list_agents(user_id: str = Depends(get_current_user)):
+    """List all available AI agents"""
+    return {"agents": [
+        {"id": k, "name": v["name"], "emoji": v["emoji"], "description": v["description"]}
+        for k, v in AGENT_PROFILES.items()
+    ]}
+
 # Include router
 app.include_router(api_router)
 
