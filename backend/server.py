@@ -4193,6 +4193,36 @@ async def remove_member(group_id: str, member_id: str, user_id: str = Depends(ge
     )
     return {"message": "Member removed"}
 
+@api_router.delete("/split/groups/{group_id}")
+async def delete_group(group_id: str, user_id: str = Depends(get_current_user)):
+    """Delete a split group"""
+    from bson import ObjectId
+    group = await db.split_groups.find_one({"_id": ObjectId(group_id)})
+    if not group:
+        raise HTTPException(status_code=404, detail="Group not found")
+    await db.split_groups.delete_one({"_id": ObjectId(group_id)})
+    await db.split_expenses.delete_many({"group_id": group_id})
+    return {"message": "Group deleted"}
+
+@api_router.delete("/split/expenses/{expense_id}")
+async def delete_expense(expense_id: str, user_id: str = Depends(get_current_user)):
+    """Delete a split expense"""
+    from bson import ObjectId
+    await db.split_expenses.delete_one({"_id": ObjectId(expense_id)})
+    return {"message": "Expense deleted"}
+
+@api_router.put("/split/expenses/{expense_id}")
+async def edit_expense(expense_id: str, data: dict, user_id: str = Depends(get_current_user)):
+    """Edit a split expense"""
+    from bson import ObjectId
+    updates = {}
+    if "description" in data: updates["description"] = data["description"]
+    if "amount" in data: updates["amount"] = data["amount"]
+    if "category" in data: updates["category"] = data["category"]
+    if updates:
+        await db.split_expenses.update_one({"_id": ObjectId(expense_id)}, {"$set": updates})
+    return {"message": "Expense updated"}
+
 @api_router.delete("/split/groups/{group_id}/leave")
 async def leave_group(group_id: str, user_id: str = Depends(get_current_user)):
     """Leave a split group"""
