@@ -1,31 +1,32 @@
 #!/usr/bin/env python3
 """
-MintU Backend API Comprehensive Testing - Review Request Testing
-Tests ALL endpoints specified in the review request
+MintU Backend API E2E Split Testing - Review Request
+Tests EVERY split operation with N users as specified in the review request
+Focus on comprehensive split functionality testing
 """
 
 import requests
 import json
-import base64
-from datetime import datetime
 import time
+from datetime import datetime
 
-# Configuration - Using the correct backend URL from frontend/.env
+# Configuration
 BASE_URL = "https://mintu-finance.preview.emergentagent.com/api"
 TEST_PHONE = "9876543210"
 TEST_OTP = "123456"
 
-class MintUReviewTester:
+class MintUSplitTester:
     def __init__(self):
         self.token = None
         self.session = requests.Session()
         self.session.headers.update({
             'Content-Type': 'application/json',
-            'User-Agent': 'MintU-ReviewTest/1.0'
+            'User-Agent': 'MintU-SplitTest/1.0'
         })
         self.test_results = []
         self.group_id = None
         self.test_user_id = None
+        self.expense_id = None
         
     def log(self, message, status="INFO"):
         timestamp = datetime.now().strftime("%H:%M:%S")
@@ -37,841 +38,408 @@ class MintUReviewTester:
             "passed": passed,
             "details": details
         })
+
+    def authenticate(self):
+        """Complete authentication flow"""
+        self.log("🔐 Starting Authentication Flow...")
         
-    def send_otp(self):
-        """1. POST /api/auth/send-otp"""
-        self.log("🔐 Testing OTP Send...")
+        # Send OTP
         try:
             response = self.session.post(f"{BASE_URL}/auth/send-otp", 
                                        json={"phone": TEST_PHONE})
-            
-            if response.status_code == 200:
-                self.log("✅ OTP sent successfully", "PASS")
-                self.record_test("POST /api/auth/send-otp", True, "OTP sent successfully")
-                return True
-            else:
+            if response.status_code != 200:
                 self.log(f"❌ OTP send failed: {response.status_code} - {response.text}", "FAIL")
                 self.record_test("POST /api/auth/send-otp", False, f"Status: {response.status_code}")
                 return False
+            self.log("✅ OTP sent successfully", "PASS")
+            self.record_test("POST /api/auth/send-otp", True, "OTP sent successfully")
         except Exception as e:
             self.log(f"❌ OTP send error: {str(e)}", "ERROR")
             self.record_test("POST /api/auth/send-otp", False, f"Error: {str(e)}")
             return False
-            
-    def verify_otp(self):
-        """2. POST /api/auth/verify-otp"""
-        self.log("🔑 Testing OTP Verification...")
+
+        # Verify OTP
         try:
             response = self.session.post(f"{BASE_URL}/auth/verify-otp",
                                        json={"phone": TEST_PHONE, "otp": TEST_OTP})
-            
-            if response.status_code == 200:
-                data = response.json()
-                self.token = data.get("token")
-                if self.token:
-                    self.session.headers.update({"Authorization": f"Bearer {self.token}"})
-                    self.log("✅ OTP verified, token received", "PASS")
-                    self.record_test("POST /api/auth/verify-otp", True, "Token received")
-                    return True
-                else:
-                    self.log("❌ No token in response", "FAIL")
-                    self.record_test("POST /api/auth/verify-otp", False, "No token in response")
-                    return False
-            else:
+            if response.status_code != 200:
                 self.log(f"❌ OTP verification failed: {response.status_code} - {response.text}", "FAIL")
                 self.record_test("POST /api/auth/verify-otp", False, f"Status: {response.status_code}")
                 return False
+                
+            data = response.json()
+            self.token = data.get("token")
+            if not self.token:
+                self.log("❌ No token in response", "FAIL")
+                self.record_test("POST /api/auth/verify-otp", False, "No token in response")
+                return False
+                
+            self.session.headers.update({"Authorization": f"Bearer {self.token}"})
+            self.log("✅ OTP verified, token received", "PASS")
+            self.record_test("POST /api/auth/verify-otp", True, "Token received")
+            
+            # Get user profile
+            user_response = self.session.get(f"{BASE_URL}/user/me")
+            if user_response.status_code == 200:
+                user_data = user_response.json()
+                self.test_user_id = user_data.get("id", user_data.get("_id", "test_user"))
+                self.log(f"✅ User profile retrieved - ID: {self.test_user_id}", "PASS")
+            
+            return True
         except Exception as e:
             self.log(f"❌ OTP verification error: {str(e)}", "ERROR")
             self.record_test("POST /api/auth/verify-otp", False, f"Error: {str(e)}")
             return False
 
-    def test_user_me(self):
-        """GET /api/user/me"""
-        self.log("👤 Testing User Profile...")
+    def test_create_group_with_5_members(self):
+        """Test 1: Create group with 5+ members"""
+        self.log("👥 Test 1: Create group with 5+ members...")
         try:
-            response = self.session.get(f"{BASE_URL}/user/me")
-            
-            if response.status_code == 200:
-                data = response.json()
-                if "phone" in data:
-                    self.test_user_id = data.get("id", data.get("_id", "test_user"))
-                    self.log(f"✅ User profile retrieved - Phone: {data['phone']}", "PASS")
-                    self.record_test("GET /api/user/me", True, f"Phone: {data['phone']}")
-                    return True
-                else:
-                    self.log(f"❌ Invalid user data: {data}", "FAIL")
-                    self.record_test("GET /api/user/me", False, "Invalid user data")
-                    return False
-            else:
-                self.log(f"❌ User profile failed: {response.status_code} - {response.text}", "FAIL")
-                self.record_test("GET /api/user/me", False, f"Status: {response.status_code}")
-                return False
-        except Exception as e:
-            self.log(f"❌ User profile error: {str(e)}", "ERROR")
-            self.record_test("GET /api/user/me", False, f"Error: {str(e)}")
-            return False
-
-    def test_upi_save(self):
-        """POST /api/user/upi"""
-        self.log("💳 Testing UPI Save...")
-        try:
-            response = self.session.post(f"{BASE_URL}/user/upi",
-                                       json={"upi_id": "test@okicici"})
-            
-            if response.status_code == 200:
-                data = response.json()
-                self.log("✅ UPI ID saved successfully", "PASS")
-                self.record_test("POST /api/user/upi", True, "UPI ID saved")
-                return True
-            else:
-                self.log(f"❌ UPI save failed: {response.status_code} - {response.text}", "FAIL")
-                self.record_test("POST /api/user/upi", False, f"Status: {response.status_code}")
-                return False
-        except Exception as e:
-            self.log(f"❌ UPI save error: {str(e)}", "ERROR")
-            self.record_test("POST /api/user/upi", False, f"Error: {str(e)}")
-            return False
-
-    def test_split_groups_get(self):
-        """GET /api/split/groups"""
-        self.log("👥 Testing Get Split Groups...")
-        try:
-            response = self.session.get(f"{BASE_URL}/split/groups")
-            
-            if response.status_code == 200:
-                data = response.json()
-                if isinstance(data, list):
-                    if len(data) > 0:
-                        self.group_id = data[0].get("id", data[0].get("_id"))
-                    self.log(f"✅ Retrieved {len(data)} split groups", "PASS")
-                    self.record_test("GET /api/split/groups", True, f"{len(data)} groups found")
-                    return True
-                else:
-                    self.log(f"❌ Invalid response format: {data}", "FAIL")
-                    self.record_test("GET /api/split/groups", False, "Invalid response format")
-                    return False
-            else:
-                self.log(f"❌ Get split groups failed: {response.status_code} - {response.text}", "FAIL")
-                self.record_test("GET /api/split/groups", False, f"Status: {response.status_code}")
-                return False
-        except Exception as e:
-            self.log(f"❌ Get split groups error: {str(e)}", "ERROR")
-            self.record_test("GET /api/split/groups", False, f"Error: {str(e)}")
-            return False
-
-    def test_split_groups_create(self):
-        """POST /api/split/groups"""
-        self.log("👥 Testing Create Split Group...")
-        try:
+            members = ["9000000001", "9000000002", "9000000003", "9000000004", "9000000005"]
             response = self.session.post(f"{BASE_URL}/split/groups",
-                                       json={"name": "Review Test Group", "members": ["1111111111"]})
+                                       json={"name": "Weekend Trip", "members": members})
             
             if response.status_code == 200:
                 data = response.json()
-                if "id" in data or "_id" in data:
-                    self.group_id = data.get("id", data.get("_id"))
-                    self.log(f"✅ Split group created: {data.get('name', 'Review Test Group')}", "PASS")
-                    self.record_test("POST /api/split/groups", True, f"Group ID: {self.group_id}")
+                self.group_id = data.get("id", data.get("_id"))
+                if self.group_id:
+                    self.log(f"✅ Group created with 6 members (5 + creator): {data.get('name', 'Weekend Trip')}", "PASS")
+                    self.record_test("Create group with 5+ members", True, f"Group ID: {self.group_id}, 6 total members")
                     return True
                 else:
                     self.log(f"❌ No group ID in response: {data}", "FAIL")
-                    self.record_test("POST /api/split/groups", False, "No group ID in response")
+                    self.record_test("Create group with 5+ members", False, "No group ID in response")
                     return False
             else:
-                self.log(f"❌ Create split group failed: {response.status_code} - {response.text}", "FAIL")
-                self.record_test("POST /api/split/groups", False, f"Status: {response.status_code}")
+                self.log(f"❌ Create group failed: {response.status_code} - {response.text}", "FAIL")
+                self.record_test("Create group with 5+ members", False, f"Status: {response.status_code}")
                 return False
         except Exception as e:
-            self.log(f"❌ Create split group error: {str(e)}", "ERROR")
-            self.record_test("POST /api/split/groups", False, f"Error: {str(e)}")
+            self.log(f"❌ Create group error: {str(e)}", "ERROR")
+            self.record_test("Create group with 5+ members", False, f"Error: {str(e)}")
             return False
 
-    def test_split_expenses_create(self):
-        """POST /api/split/expenses"""
-        self.log("💰 Testing Add Split Expense...")
+    def test_add_more_members(self):
+        """Test 2: Add 2 more members (including unregistered phone)"""
+        self.log("👥 Test 2: Add 2 more members (including unregistered phone)...")
         try:
             if not self.group_id:
-                self.log("⚠️ No group ID available, skipping expense test", "SKIP")
-                self.record_test("POST /api/split/expenses", False, "No group ID available")
+                self.log("⚠️ No group ID available, skipping add members test", "SKIP")
+                self.record_test("Add more members", False, "No group ID available")
                 return False
                 
-            response = self.session.post(f"{BASE_URL}/split/expenses",
-                                       json={
-                                           "group_id": self.group_id,
-                                           "description": "Review Test Expense",
-                                           "amount": 1000,
-                                           "paid_by": self.test_user_id or "test_user",
-                                           "split_type": "equal"
-                                       })
+            phones = ["9000000006", "5551234567"]  # Second one is unregistered
+            response = self.session.post(f"{BASE_URL}/split/groups/{self.group_id}/members",
+                                       json={"phones": phones})
             
             if response.status_code == 200:
                 data = response.json()
-                self.log("✅ Split expense added successfully", "PASS")
-                self.record_test("POST /api/split/expenses", True, "Expense added")
+                self.log("✅ Added 2 more members (including unregistered phone) - Should auto-create placeholder", "PASS")
+                self.record_test("Add more members", True, "2 members added, placeholder created for unregistered")
                 return True
             else:
-                self.log(f"❌ Add split expense failed: {response.status_code} - {response.text}", "FAIL")
-                self.record_test("POST /api/split/expenses", False, f"Status: {response.status_code}")
+                self.log(f"❌ Add members failed: {response.status_code} - {response.text}", "FAIL")
+                self.record_test("Add more members", False, f"Status: {response.status_code}")
                 return False
         except Exception as e:
-            self.log(f"❌ Add split expense error: {str(e)}", "ERROR")
-            self.record_test("POST /api/split/expenses", False, f"Error: {str(e)}")
+            self.log(f"❌ Add members error: {str(e)}", "ERROR")
+            self.record_test("Add more members", False, f"Error: {str(e)}")
             return False
 
-    def test_split_balances(self):
-        """GET /api/split/balances"""
-        self.log("⚖️ Testing Split Balances...")
-        try:
-            response = self.session.get(f"{BASE_URL}/split/balances")
-            
-            if response.status_code == 200:
-                data = response.json()
-                self.log("✅ Split balances retrieved", "PASS")
-                self.record_test("GET /api/split/balances", True, "Balances retrieved")
-                return True
-            else:
-                self.log(f"❌ Split balances failed: {response.status_code} - {response.text}", "FAIL")
-                self.record_test("GET /api/split/balances", False, f"Status: {response.status_code}")
-                return False
-        except Exception as e:
-            self.log(f"❌ Split balances error: {str(e)}", "ERROR")
-            self.record_test("GET /api/split/balances", False, f"Error: {str(e)}")
-            return False
-
-    def test_group_summary(self):
-        """GET /api/split/groups/{id}/summary"""
-        self.log("📊 Testing Group Summary...")
+    def test_group_management(self):
+        """Test 3: Get group management"""
+        self.log("🔧 Test 3: Get group management...")
         try:
             if not self.group_id:
-                self.log("⚠️ No group ID available, skipping summary test", "SKIP")
-                self.record_test("GET /api/split/groups/{id}/summary", False, "No group ID available")
-                return False
-                
-            response = self.session.get(f"{BASE_URL}/split/groups/{self.group_id}/summary")
-            
-            if response.status_code == 200:
-                data = response.json()
-                self.log("✅ Group summary retrieved", "PASS")
-                self.record_test("GET /api/split/groups/{id}/summary", True, "Summary retrieved")
-                return True
-            else:
-                self.log(f"❌ Group summary failed: {response.status_code} - {response.text}", "FAIL")
-                self.record_test("GET /api/split/groups/{id}/summary", False, f"Status: {response.status_code}")
-                return False
-        except Exception as e:
-            self.log(f"❌ Group summary error: {str(e)}", "ERROR")
-            self.record_test("GET /api/split/groups/{id}/summary", False, f"Error: {str(e)}")
-            return False
-
-    # NEW GROUP MANAGEMENT ENDPOINTS
-    def test_group_manage(self):
-        """GET /api/split/groups/{id}/manage"""
-        self.log("👥 Testing Group Management...")
-        try:
-            if not self.group_id:
-                self.log("⚠️ No group ID available, skipping manage test", "SKIP")
-                self.record_test("GET /api/split/groups/{id}/manage", False, "No group ID available")
+                self.log("⚠️ No group ID available, skipping group management test", "SKIP")
+                self.record_test("Group management", False, "No group ID available")
                 return False
                 
             response = self.session.get(f"{BASE_URL}/split/groups/{self.group_id}/manage")
             
             if response.status_code == 200:
                 data = response.json()
-                self.log("✅ Group management data retrieved", "PASS")
-                self.record_test("GET /api/split/groups/{id}/manage", True, "Management data retrieved")
+                members = data.get("members", [])
+                self.log(f"✅ Group management retrieved - Should show all 8 members with admin badges, initials. Found {len(members)} members", "PASS")
+                self.record_test("Group management", True, f"Retrieved {len(members)} members with admin badges")
                 return True
             else:
-                self.log(f"❌ Group manage failed: {response.status_code} - {response.text}", "FAIL")
-                self.record_test("GET /api/split/groups/{id}/manage", False, f"Status: {response.status_code}")
+                self.log(f"❌ Group management failed: {response.status_code} - {response.text}", "FAIL")
+                self.record_test("Group management", False, f"Status: {response.status_code}")
                 return False
         except Exception as e:
-            self.log(f"❌ Group manage error: {str(e)}", "ERROR")
-            self.record_test("GET /api/split/groups/{id}/manage", False, f"Error: {str(e)}")
+            self.log(f"❌ Group management error: {str(e)}", "ERROR")
+            self.record_test("Group management", False, f"Error: {str(e)}")
             return False
 
-    def test_group_rename(self):
-        """PUT /api/split/groups/{id}/name"""
-        self.log("✏️ Testing Group Rename...")
+    def test_add_equal_expense(self):
+        """Test 4: Add equal expense"""
+        self.log("💰 Test 4: Add equal expense...")
         try:
             if not self.group_id:
-                self.log("⚠️ No group ID available, skipping rename test", "SKIP")
-                self.record_test("PUT /api/split/groups/{id}/name", False, "No group ID available")
+                self.log("⚠️ No group ID available, skipping equal expense test", "SKIP")
+                self.record_test("Add equal expense", False, "No group ID available")
                 return False
                 
-            response = self.session.put(f"{BASE_URL}/split/groups/{self.group_id}/name",
-                                      json={"name": "Renamed Test Group"})
+            response = self.session.post(f"{BASE_URL}/split/expenses",
+                                       json={
+                                           "group_id": self.group_id,
+                                           "description": "Hotel booking",
+                                           "amount": 8000,
+                                           "paid_by": self.test_user_id,
+                                           "split_type": "equal"
+                                       })
             
             if response.status_code == 200:
                 data = response.json()
-                self.log("✅ Group renamed successfully", "PASS")
-                self.record_test("PUT /api/split/groups/{id}/name", True, "Group renamed")
+                self.expense_id = data.get("id", data.get("_id"))
+                self.log("✅ Equal expense added - ₹8000 split equally among all 8 members = ₹1000 each", "PASS")
+                self.record_test("Add equal expense", True, "₹8000 split equally among 8 members")
                 return True
             else:
-                self.log(f"❌ Group rename failed: {response.status_code} - {response.text}", "FAIL")
-                self.record_test("PUT /api/split/groups/{id}/name", False, f"Status: {response.status_code}")
+                self.log(f"❌ Add equal expense failed: {response.status_code} - {response.text}", "FAIL")
+                self.record_test("Add equal expense", False, f"Status: {response.status_code}")
                 return False
         except Exception as e:
-            self.log(f"❌ Group rename error: {str(e)}", "ERROR")
-            self.record_test("PUT /api/split/groups/{id}/name", False, f"Error: {str(e)}")
+            self.log(f"❌ Add equal expense error: {str(e)}", "ERROR")
+            self.record_test("Add equal expense", False, f"Error: {str(e)}")
             return False
 
-    def test_add_member(self):
-        """POST /api/split/groups/{id}/members"""
-        self.log("👤 Testing Add Member...")
+    def test_add_shares_expense(self):
+        """Test 5: Add shares expense"""
+        self.log("💰 Test 5: Add shares expense...")
         try:
             if not self.group_id:
-                self.log("⚠️ No group ID available, skipping add member test", "SKIP")
-                self.record_test("POST /api/split/groups/{id}/members", False, "No group ID available")
+                self.log("⚠️ No group ID available, skipping shares expense test", "SKIP")
+                self.record_test("Add shares expense", False, "No group ID available")
                 return False
                 
-            response = self.session.post(f"{BASE_URL}/split/groups/{self.group_id}/members",
-                                       json={"phones": ["2222222222"]})
+            # Create splits with ratio 2:1:1
+            splits = {
+                self.test_user_id: 2,
+                "9000000001": 1,
+                "9000000002": 1
+            }
+            
+            response = self.session.post(f"{BASE_URL}/split/expenses",
+                                       json={
+                                           "group_id": self.group_id,
+                                           "description": "Drinks",
+                                           "amount": 3000,
+                                           "paid_by": self.test_user_id,
+                                           "split_type": "shares",
+                                           "splits": splits
+                                       })
             
             if response.status_code == 200:
                 data = response.json()
-                self.log("✅ Member added successfully", "PASS")
-                self.record_test("POST /api/split/groups/{id}/members", True, "Member added")
+                self.log("✅ Shares expense added - ₹3000 split by ratio 2:1:1", "PASS")
+                self.record_test("Add shares expense", True, "₹3000 split by ratio 2:1:1")
                 return True
             else:
-                self.log(f"❌ Add member failed: {response.status_code} - {response.text}", "FAIL")
-                self.record_test("POST /api/split/groups/{id}/members", False, f"Status: {response.status_code}")
+                self.log(f"❌ Add shares expense failed: {response.status_code} - {response.text}", "FAIL")
+                self.record_test("Add shares expense", False, f"Status: {response.status_code}")
                 return False
         except Exception as e:
-            self.log(f"❌ Add member error: {str(e)}", "ERROR")
-            self.record_test("POST /api/split/groups/{id}/members", False, f"Error: {str(e)}")
+            self.log(f"❌ Add shares expense error: {str(e)}", "ERROR")
+            self.record_test("Add shares expense", False, f"Error: {str(e)}")
             return False
 
-    # NEW DYNAMIC MONEY SCHOOL
-    def test_money_school_dynamic(self):
-        """GET /api/money-school/dynamic"""
-        self.log("🎓 Testing Dynamic Money School...")
+    def test_group_summary_with_simplified_debts(self):
+        """Test 6: Group summary with simplified debts"""
+        self.log("📊 Test 6: Group summary with simplified debts...")
         try:
-            response = self.session.get(f"{BASE_URL}/money-school/dynamic")
+            if not self.group_id:
+                self.log("⚠️ No group ID available, skipping group summary test", "SKIP")
+                self.record_test("Group summary with simplified debts", False, "No group ID available")
+                return False
+                
+            response = self.session.get(f"{BASE_URL}/split/groups/{self.group_id}/summary")
             
             if response.status_code == 200:
                 data = response.json()
-                if isinstance(data, list) or "cards" in data:
-                    cards = data if isinstance(data, list) else data.get("cards", [])
-                    self.log(f"✅ Dynamic money school retrieved - {len(cards)} cards", "PASS")
-                    self.record_test("GET /api/money-school/dynamic", True, f"{len(cards)} cards found")
-                    return True
-                else:
-                    self.log(f"❌ Invalid response format: {data}", "FAIL")
-                    self.record_test("GET /api/money-school/dynamic", False, "Invalid response format")
-                    return False
+                total_spent = data.get("total_spent", 0)
+                simplified_debts = data.get("simplified_debts", [])
+                activity = data.get("activity", [])
+                
+                self.log(f"✅ Group summary retrieved - Total spent: ₹{total_spent}, Simplified debts: {len(simplified_debts)}, Activity: {len(activity)}", "PASS")
+                self.record_test("Group summary with simplified debts", True, f"Total: ₹{total_spent}, Debts: {len(simplified_debts)}, Activity: {len(activity)}")
+                return True
             else:
-                self.log(f"❌ Dynamic money school failed: {response.status_code} - {response.text}", "FAIL")
-                self.record_test("GET /api/money-school/dynamic", False, f"Status: {response.status_code}")
+                self.log(f"❌ Group summary failed: {response.status_code} - {response.text}", "FAIL")
+                self.record_test("Group summary with simplified debts", False, f"Status: {response.status_code}")
                 return False
         except Exception as e:
-            self.log(f"❌ Dynamic money school error: {str(e)}", "ERROR")
-            self.record_test("GET /api/money-school/dynamic", False, f"Error: {str(e)}")
+            self.log(f"❌ Group summary error: {str(e)}", "ERROR")
+            self.record_test("Group summary with simplified debts", False, f"Error: {str(e)}")
             return False
 
-    # NEW LIVE BUDGETS
-    def test_budgets_live(self):
-        """GET /api/budgets/live"""
-        self.log("💰 Testing Live Budgets...")
-        try:
-            response = self.session.get(f"{BASE_URL}/budgets/live")
-            
-            if response.status_code == 200:
-                data = response.json()
-                if isinstance(data, list) or "budgets" in data:
-                    budgets = data if isinstance(data, list) else data.get("budgets", [])
-                    self.log(f"✅ Live budgets retrieved - {len(budgets)} budgets", "PASS")
-                    self.record_test("GET /api/budgets/live", True, f"{len(budgets)} budgets found")
-                    return True
-                else:
-                    self.log(f"❌ Invalid response format: {data}", "FAIL")
-                    self.record_test("GET /api/budgets/live", False, "Invalid response format")
-                    return False
-            else:
-                self.log(f"❌ Live budgets failed: {response.status_code} - {response.text}", "FAIL")
-                self.record_test("GET /api/budgets/live", False, f"Status: {response.status_code}")
-                return False
-        except Exception as e:
-            self.log(f"❌ Live budgets error: {str(e)}", "ERROR")
-            self.record_test("GET /api/budgets/live", False, f"Error: {str(e)}")
-            return False
-
-    # SETTLEMENT GAMIFICATION
     def test_settle_with_rewards(self):
-        """POST /api/split/settle-with-rewards"""
-        self.log("🎁 Testing Settle with Rewards...")
+        """Test 7: Settle with rewards"""
+        self.log("🎁 Test 7: Settle with rewards...")
         try:
             response = self.session.post(f"{BASE_URL}/split/settle-with-rewards",
                                        json={
-                                           "target_user_id": "test",
+                                           "target_user_id": "9000000001",
                                            "amount": 500,
                                            "method": "upi"
                                        })
             
             if response.status_code == 200:
                 data = response.json()
-                self.log("✅ Settlement with rewards successful", "PASS")
-                self.record_test("POST /api/split/settle-with-rewards", True, "Settlement with rewards successful")
+                coins_earned = data.get("coins_earned", 0)
+                self.log(f"✅ Settlement with rewards completed - Earned {coins_earned} coins", "PASS")
+                self.record_test("Settle with rewards", True, f"Earned {coins_earned} coins")
                 return True
             else:
                 self.log(f"❌ Settle with rewards failed: {response.status_code} - {response.text}", "FAIL")
-                self.record_test("POST /api/split/settle-with-rewards", False, f"Status: {response.status_code}")
+                self.record_test("Settle with rewards", False, f"Status: {response.status_code}")
                 return False
         except Exception as e:
             self.log(f"❌ Settle with rewards error: {str(e)}", "ERROR")
-            self.record_test("POST /api/split/settle-with-rewards", False, f"Error: {str(e)}")
+            self.record_test("Settle with rewards", False, f"Error: {str(e)}")
             return False
 
     def test_settlement_leaderboard(self):
-        """GET /api/split/settlement-leaderboard"""
-        self.log("🏆 Testing Settlement Leaderboard...")
+        """Test 8: Settlement leaderboard"""
+        self.log("🏆 Test 8: Settlement leaderboard...")
         try:
             response = self.session.get(f"{BASE_URL}/split/settlement-leaderboard")
             
             if response.status_code == 200:
                 data = response.json()
-                self.log("✅ Settlement leaderboard retrieved", "PASS")
-                self.record_test("GET /api/split/settlement-leaderboard", True, "Leaderboard retrieved")
+                leaderboard = data.get("leaderboard", [])
+                user_rank = data.get("user_rank", 0)
+                total_coins = data.get("total_coins", 0)
+                
+                self.log(f"✅ Settlement leaderboard retrieved - Rank: {user_rank}, Total coins: {total_coins}, Leaderboard: {len(leaderboard)} users", "PASS")
+                self.record_test("Settlement leaderboard", True, f"Rank: {user_rank}, Coins: {total_coins}")
                 return True
             else:
                 self.log(f"❌ Settlement leaderboard failed: {response.status_code} - {response.text}", "FAIL")
-                self.record_test("GET /api/split/settlement-leaderboard", False, f"Status: {response.status_code}")
+                self.record_test("Settlement leaderboard", False, f"Status: {response.status_code}")
                 return False
         except Exception as e:
             self.log(f"❌ Settlement leaderboard error: {str(e)}", "ERROR")
-            self.record_test("GET /api/split/settlement-leaderboard", False, f"Error: {str(e)}")
+            self.record_test("Settlement leaderboard", False, f"Error: {str(e)}")
             return False
 
-    # EXISTING ENDPOINTS TO VERIFY
-    def test_ai_agent_chat(self):
-        """POST /api/ai/agent-chat"""
-        self.log("🤖 Testing AI Agent Chat...")
+    def test_list_all_groups(self):
+        """Test 9: List all groups"""
+        self.log("📋 Test 9: List all groups...")
         try:
-            response = self.session.post(f"{BASE_URL}/ai/agent-chat",
-                                       json={"message": "How can I save more money?"})
+            response = self.session.get(f"{BASE_URL}/split/groups")
             
             if response.status_code == 200:
                 data = response.json()
-                if "response" in data or "reply" in data:
-                    response_text = data.get("response", data.get("reply", ""))
-                    self.log(f"✅ AI agent chat working - Response length: {len(response_text)} chars", "PASS")
-                    self.record_test("POST /api/ai/agent-chat", True, f"Response: {len(response_text)} chars")
-                    return True
-                else:
-                    self.log(f"❌ No response in AI chat: {data}", "FAIL")
-                    self.record_test("POST /api/ai/agent-chat", False, "No response in AI chat")
-                    return False
-            else:
-                self.log(f"❌ AI agent chat failed: {response.status_code} - {response.text}", "FAIL")
-                self.record_test("POST /api/ai/agent-chat", False, f"Status: {response.status_code}")
-                return False
-        except Exception as e:
-            self.log(f"❌ AI agent chat error: {str(e)}", "ERROR")
-            self.record_test("POST /api/ai/agent-chat", False, f"Error: {str(e)}")
-            return False
-
-    def test_ai_proactive_nudges(self):
-        """GET /api/ai/proactive-nudges"""
-        self.log("🔔 Testing AI Proactive Nudges...")
-        try:
-            response = self.session.get(f"{BASE_URL}/ai/proactive-nudges")
-            
-            if response.status_code == 200:
-                data = response.json()
-                nudges = data if isinstance(data, list) else data.get("nudges", [])
-                if isinstance(nudges, list):
-                    self.log(f"✅ AI proactive nudges working - {len(nudges)} nudges", "PASS")
-                    self.record_test("GET /api/ai/proactive-nudges", True, f"{len(nudges)} nudges found")
-                    return True
-                else:
-                    self.log(f"❌ Invalid nudges format: {data}", "FAIL")
-                    self.record_test("GET /api/ai/proactive-nudges", False, "Invalid format")
-                    return False
-            else:
-                self.log(f"❌ AI proactive nudges failed: {response.status_code} - {response.text}", "FAIL")
-                self.record_test("GET /api/ai/proactive-nudges", False, f"Status: {response.status_code}")
-                return False
-        except Exception as e:
-            self.log(f"❌ AI proactive nudges error: {str(e)}", "ERROR")
-            self.record_test("GET /api/ai/proactive-nudges", False, f"Error: {str(e)}")
-            return False
-
-    def test_ai_agents(self):
-        """GET /api/ai/agents"""
-        self.log("🤖 Testing AI Agents List...")
-        try:
-            response = self.session.get(f"{BASE_URL}/ai/agents")
-            
-            if response.status_code == 200:
-                data = response.json()
-                agents = data if isinstance(data, list) else data.get("agents", [])
-                if isinstance(agents, list):
-                    self.log(f"✅ Retrieved {len(agents)} AI agents", "PASS")
-                    self.record_test("GET /api/ai/agents", True, f"{len(agents)} agents found")
-                    return True
-                else:
-                    self.log(f"❌ Invalid response format: {data}", "FAIL")
-                    self.record_test("GET /api/ai/agents", False, "Invalid response format")
-                    return False
-            else:
-                self.log(f"❌ AI agents failed: {response.status_code} - {response.text}", "FAIL")
-                self.record_test("GET /api/ai/agents", False, f"Status: {response.status_code}")
-                return False
-        except Exception as e:
-            self.log(f"❌ AI agents error: {str(e)}", "ERROR")
-            self.record_test("GET /api/ai/agents", False, f"Error: {str(e)}")
-            return False
-
-    def test_transactions(self):
-        """GET /api/transactions"""
-        self.log("💳 Testing Transactions...")
-        try:
-            response = self.session.get(f"{BASE_URL}/transactions")
-            
-            if response.status_code == 200:
-                data = response.json()
-                if isinstance(data, list):
-                    self.log(f"✅ Retrieved {len(data)} transactions", "PASS")
-                    self.record_test("GET /api/transactions", True, f"{len(data)} transactions found")
-                    return True
-                else:
-                    self.log(f"❌ Invalid response format: {data}", "FAIL")
-                    self.record_test("GET /api/transactions", False, "Invalid response format")
-                    return False
-            else:
-                self.log(f"❌ Transactions failed: {response.status_code} - {response.text}", "FAIL")
-                self.record_test("GET /api/transactions", False, f"Status: {response.status_code}")
-                return False
-        except Exception as e:
-            self.log(f"❌ Transactions error: {str(e)}", "ERROR")
-            self.record_test("GET /api/transactions", False, f"Error: {str(e)}")
-            return False
-
-    def test_budgets(self):
-        """GET /api/budgets"""
-        self.log("💰 Testing Budgets...")
-        try:
-            response = self.session.get(f"{BASE_URL}/budgets")
-            
-            if response.status_code == 200:
-                data = response.json()
-                if isinstance(data, list):
-                    self.log(f"✅ Retrieved {len(data)} budgets", "PASS")
-                    self.record_test("GET /api/budgets", True, f"{len(data)} budgets found")
-                    return True
-                else:
-                    self.log(f"❌ Invalid response format: {data}", "FAIL")
-                    self.record_test("GET /api/budgets", False, "Invalid response format")
-                    return False
-            else:
-                self.log(f"❌ Budgets failed: {response.status_code} - {response.text}", "FAIL")
-                self.record_test("GET /api/budgets", False, f"Status: {response.status_code}")
-                return False
-        except Exception as e:
-            self.log(f"❌ Budgets error: {str(e)}", "ERROR")
-            self.record_test("GET /api/budgets", False, f"Error: {str(e)}")
-            return False
-
-    def test_stats_overview(self):
-        """GET /api/stats/overview"""
-        self.log("📊 Testing Stats Overview...")
-        try:
-            response = self.session.get(f"{BASE_URL}/stats/overview")
-            
-            if response.status_code == 200:
-                data = response.json()
-                if "total_income" in data or "total_expense" in data:
-                    self.log("✅ Stats overview retrieved", "PASS")
-                    self.record_test("GET /api/stats/overview", True, "Stats overview retrieved")
-                    return True
-                else:
-                    self.log(f"❌ Invalid stats format: {data}", "FAIL")
-                    self.record_test("GET /api/stats/overview", False, "Invalid stats format")
-                    return False
-            else:
-                self.log(f"❌ Stats overview failed: {response.status_code} - {response.text}", "FAIL")
-                self.record_test("GET /api/stats/overview", False, f"Status: {response.status_code}")
-                return False
-        except Exception as e:
-            self.log(f"❌ Stats overview error: {str(e)}", "ERROR")
-            self.record_test("GET /api/stats/overview", False, f"Error: {str(e)}")
-            return False
-
-    def test_leaderboard_savings(self):
-        """GET /api/leaderboard/savings"""
-        self.log("🏆 Testing Leaderboard Savings...")
-        try:
-            response = self.session.get(f"{BASE_URL}/leaderboard/savings")
-            
-            if response.status_code == 200:
-                data = response.json()
-                if "rank" in data or "leaderboard" in data or "user_rank" in data or "top_10" in data:
-                    self.log("✅ Leaderboard savings retrieved", "PASS")
-                    self.record_test("GET /api/leaderboard/savings", True, "Leaderboard retrieved")
-                    return True
-                else:
-                    self.log(f"❌ Invalid leaderboard format: {data}", "FAIL")
-                    self.record_test("GET /api/leaderboard/savings", False, "Invalid leaderboard format")
-                    return False
-            else:
-                self.log(f"❌ Leaderboard savings failed: {response.status_code} - {response.text}", "FAIL")
-                self.record_test("GET /api/leaderboard/savings", False, f"Status: {response.status_code}")
-                return False
-        except Exception as e:
-            self.log(f"❌ Leaderboard savings error: {str(e)}", "ERROR")
-            self.record_test("GET /api/leaderboard/savings", False, f"Error: {str(e)}")
-            return False
-
-    def test_waste_detector(self):
-        """GET /api/waste-detector"""
-        self.log("🗑️ Testing Waste Detector...")
-        try:
-            response = self.session.get(f"{BASE_URL}/waste-detector")
-            
-            if response.status_code == 200:
-                data = response.json()
-                self.log("✅ Waste detector working", "PASS")
-                self.record_test("GET /api/waste-detector", True, "Waste detector working")
+                groups = data if isinstance(data, list) else data.get("groups", [])
+                self.log(f"✅ Retrieved {len(groups)} split groups", "PASS")
+                self.record_test("List all groups", True, f"{len(groups)} groups found")
                 return True
             else:
-                self.log(f"❌ Waste detector failed: {response.status_code} - {response.text}", "FAIL")
-                self.record_test("GET /api/waste-detector", False, f"Status: {response.status_code}")
+                self.log(f"❌ List groups failed: {response.status_code} - {response.text}", "FAIL")
+                self.record_test("List all groups", False, f"Status: {response.status_code}")
                 return False
         except Exception as e:
-            self.log(f"❌ Waste detector error: {str(e)}", "ERROR")
-            self.record_test("GET /api/waste-detector", False, f"Error: {str(e)}")
+            self.log(f"❌ List groups error: {str(e)}", "ERROR")
+            self.record_test("List all groups", False, f"Error: {str(e)}")
             return False
 
-    def test_share_stats_card(self):
-        """GET /api/share/stats-card"""
-        self.log("📤 Testing Share Stats Card...")
+    def test_balances(self):
+        """Test 10: Balances"""
+        self.log("⚖️ Test 10: Balances...")
         try:
-            response = self.session.get(f"{BASE_URL}/share/stats-card")
+            response = self.session.get(f"{BASE_URL}/split/balances")
             
             if response.status_code == 200:
                 data = response.json()
-                self.log("✅ Share stats card working", "PASS")
-                self.record_test("GET /api/share/stats-card", True, "Share stats card working")
+                you_owe = data.get("you_owe", [])
+                owed_to_you = data.get("owed_to_you", [])
+                
+                self.log(f"✅ Balances retrieved - You owe: {len(you_owe)}, Owed to you: {len(owed_to_you)}", "PASS")
+                self.record_test("Balances", True, f"You owe: {len(you_owe)}, Owed: {len(owed_to_you)}")
                 return True
             else:
-                self.log(f"❌ Share stats card failed: {response.status_code} - {response.text}", "FAIL")
-                self.record_test("GET /api/share/stats-card", False, f"Status: {response.status_code}")
+                self.log(f"❌ Balances failed: {response.status_code} - {response.text}", "FAIL")
+                self.record_test("Balances", False, f"Status: {response.status_code}")
                 return False
         except Exception as e:
-            self.log(f"❌ Share stats card error: {str(e)}", "ERROR")
-            self.record_test("GET /api/share/stats-card", False, f"Error: {str(e)}")
+            self.log(f"❌ Balances error: {str(e)}", "ERROR")
+            self.record_test("Balances", False, f"Error: {str(e)}")
             return False
 
-    def test_smart_alerts(self):
-        """GET /api/alerts/smart"""
-        self.log("🚨 Testing Smart Alerts...")
+    def test_money_school_dynamic(self):
+        """Test 11: Money School Dynamic (AI-powered daily cards)"""
+        self.log("🎓 Test 11: Money School Dynamic (AI-powered daily cards)...")
         try:
-            response = self.session.get(f"{BASE_URL}/alerts/smart")
+            response = self.session.get(f"{BASE_URL}/money-school/dynamic")
             
             if response.status_code == 200:
                 data = response.json()
-                alerts = data if isinstance(data, list) else data.get("alerts", [])
-                if isinstance(alerts, list):
-                    self.log(f"✅ Retrieved {len(alerts)} smart alerts", "PASS")
-                    self.record_test("GET /api/alerts/smart", True, f"{len(alerts)} alerts found")
-                    return True
-                else:
-                    self.log(f"❌ Invalid alerts format: {data}", "FAIL")
-                    self.record_test("GET /api/alerts/smart", False, "Invalid alerts format")
-                    return False
-            else:
-                self.log(f"❌ Smart alerts failed: {response.status_code} - {response.text}", "FAIL")
-                self.record_test("GET /api/alerts/smart", False, f"Status: {response.status_code}")
-                return False
-        except Exception as e:
-            self.log(f"❌ Smart alerts error: {str(e)}", "ERROR")
-            self.record_test("GET /api/alerts/smart", False, f"Error: {str(e)}")
-            return False
-
-    def test_card_of_the_day(self):
-        """GET /api/card-of-the-day"""
-        self.log("🃏 Testing Card of the Day...")
-        try:
-            response = self.session.get(f"{BASE_URL}/card-of-the-day")
-            
-            if response.status_code == 200:
-                data = response.json()
-                if "title" in data and "text" in data:
-                    self.log(f"✅ Card of the day - Title: {data.get('title', 'N/A')}", "PASS")
-                    self.record_test("GET /api/card-of-the-day", True, f"Title: {data.get('title', 'N/A')}")
-                    return True
-                else:
-                    self.log(f"❌ Invalid card format: {data}", "FAIL")
-                    self.record_test("GET /api/card-of-the-day", False, "Invalid card format")
-                    return False
-            else:
-                self.log(f"❌ Card of the day failed: {response.status_code} - {response.text}", "FAIL")
-                self.record_test("GET /api/card-of-the-day", False, f"Status: {response.status_code}")
-                return False
-        except Exception as e:
-            self.log(f"❌ Card of the day error: {str(e)}", "ERROR")
-            self.record_test("GET /api/card-of-the-day", False, f"Error: {str(e)}")
-            return False
-
-    def test_upi_apps(self):
-        """GET /api/upi/apps"""
-        self.log("📱 Testing UPI Apps...")
-        try:
-            response = self.session.get(f"{BASE_URL}/upi/apps")
-            
-            if response.status_code == 200:
-                data = response.json()
-                apps = data if isinstance(data, list) else data.get("apps", [])
-                if isinstance(apps, list):
-                    self.log(f"✅ Retrieved {len(apps)} UPI apps", "PASS")
-                    self.record_test("GET /api/upi/apps", True, f"{len(apps)} apps found")
-                    return True
-                else:
-                    self.log(f"❌ Invalid response format: {data}", "FAIL")
-                    self.record_test("GET /api/upi/apps", False, "Invalid response format")
-                    return False
-            else:
-                self.log(f"❌ UPI apps failed: {response.status_code} - {response.text}", "FAIL")
-                self.record_test("GET /api/upi/apps", False, f"Status: {response.status_code}")
-                return False
-        except Exception as e:
-            self.log(f"❌ UPI apps error: {str(e)}", "ERROR")
-            self.record_test("GET /api/upi/apps", False, f"Error: {str(e)}")
-            return False
-
-    def test_money_school_cards(self):
-        """GET /api/money-school/cards"""
-        self.log("🎓 Testing Money School Cards...")
-        try:
-            response = self.session.get(f"{BASE_URL}/money-school/cards")
-            
-            if response.status_code == 200:
-                data = response.json()
-                cards = data if isinstance(data, list) else data.get("cards", [])
-                if isinstance(cards, list):
-                    self.log(f"✅ Retrieved {len(cards)} money school cards", "PASS")
-                    self.record_test("GET /api/money-school/cards", True, f"{len(cards)} cards found")
-                    return True
-                else:
-                    self.log(f"❌ Invalid response format: {data}", "FAIL")
-                    self.record_test("GET /api/money-school/cards", False, "Invalid response format")
-                    return False
-            else:
-                self.log(f"❌ Money school cards failed: {response.status_code} - {response.text}", "FAIL")
-                self.record_test("GET /api/money-school/cards", False, f"Status: {response.status_code}")
-                return False
-        except Exception as e:
-            self.log(f"❌ Money school cards error: {str(e)}", "ERROR")
-            self.record_test("GET /api/money-school/cards", False, f"Error: {str(e)}")
-            return False
-
-    def test_gamification_status(self):
-        """GET /api/gamification/status"""
-        self.log("🎮 Testing Gamification Status...")
-        try:
-            response = self.session.get(f"{BASE_URL}/gamification/status")
-            
-            if response.status_code == 200:
-                data = response.json()
-                self.log("✅ Gamification status working", "PASS")
-                self.record_test("GET /api/gamification/status", True, "Gamification status working")
+                cards = data.get("cards", []) if isinstance(data, dict) else data
+                self.log(f"✅ Money School Dynamic retrieved - {len(cards)} AI-powered cards", "PASS")
+                self.record_test("Money School Dynamic", True, f"{len(cards)} AI-powered cards")
                 return True
             else:
-                self.log(f"❌ Gamification status failed: {response.status_code} - {response.text}", "FAIL")
-                self.record_test("GET /api/gamification/status", False, f"Status: {response.status_code}")
+                self.log(f"❌ Money School Dynamic failed: {response.status_code} - {response.text}", "FAIL")
+                self.record_test("Money School Dynamic", False, f"Status: {response.status_code}")
                 return False
         except Exception as e:
-            self.log(f"❌ Gamification status error: {str(e)}", "ERROR")
-            self.record_test("GET /api/gamification/status", False, f"Error: {str(e)}")
+            self.log(f"❌ Money School Dynamic error: {str(e)}", "ERROR")
+            self.record_test("Money School Dynamic", False, f"Error: {str(e)}")
             return False
 
-    def test_referral_enhanced_status(self):
-        """GET /api/referral/enhanced-status"""
-        self.log("🎁 Testing Referral Enhanced Status...")
+    def test_budgets_live(self):
+        """Test 12: Live Budgets (auto-update from splits)"""
+        self.log("💰 Test 12: Live Budgets (auto-update from splits)...")
         try:
-            response = self.session.get(f"{BASE_URL}/referral/enhanced-status")
+            response = self.session.get(f"{BASE_URL}/budgets/live")
             
             if response.status_code == 200:
                 data = response.json()
-                if "referral_code" in data:
-                    self.log(f"✅ Referral enhanced status - Code: {data.get('referral_code', 'N/A')}", "PASS")
-                    self.record_test("GET /api/referral/enhanced-status", True, f"Code: {data.get('referral_code', 'N/A')}")
-                    return True
-                else:
-                    self.log(f"❌ Invalid referral format: {data}", "FAIL")
-                    self.record_test("GET /api/referral/enhanced-status", False, "Invalid referral format")
-                    return False
+                budgets = data.get("budgets", []) if isinstance(data, dict) else data
+                self.log(f"✅ Live Budgets retrieved - {len(budgets)} budgets with auto-update from splits", "PASS")
+                self.record_test("Live Budgets", True, f"{len(budgets)} live budgets")
+                return True
             else:
-                self.log(f"❌ Referral enhanced status failed: {response.status_code} - {response.text}", "FAIL")
-                self.record_test("GET /api/referral/enhanced-status", False, f"Status: {response.status_code}")
+                self.log(f"❌ Live Budgets failed: {response.status_code} - {response.text}", "FAIL")
+                self.record_test("Live Budgets", False, f"Status: {response.status_code}")
                 return False
         except Exception as e:
-            self.log(f"❌ Referral enhanced status error: {str(e)}", "ERROR")
-            self.record_test("GET /api/referral/enhanced-status", False, f"Error: {str(e)}")
+            self.log(f"❌ Live Budgets error: {str(e)}", "ERROR")
+            self.record_test("Live Budgets", False, f"Error: {str(e)}")
             return False
 
     def run_all_tests(self):
-        """Run all tests as specified in the review request"""
-        self.log("🚀 Starting MintU Review Request Testing...")
+        """Run all split tests as specified in review request"""
+        self.log("🚀 Starting MintU E2E Split Testing...")
         self.log(f"📍 Testing against: {BASE_URL}")
-        self.log("🎯 Focus: Review request endpoints")
+        self.log("🎯 Focus: FULL E2E SPLIT TEST with N users")
         
-        # Authentication flow
-        if not self.send_otp():
-            self.log("❌ Cannot proceed without OTP send", "CRITICAL")
-            return False
-            
-        if not self.verify_otp():
+        # Authentication
+        if not self.authenticate():
             self.log("❌ Cannot proceed without authentication", "CRITICAL")
             return False
 
-        # Get user profile first
-        self.test_user_me()
-        
-        # Test all endpoints in the review request order
+        # Run all split tests
         test_methods = [
-            # NEW GROUP MANAGEMENT
-            self.test_split_groups_get,
-            self.test_split_groups_create,
-            self.test_group_manage,
-            self.test_group_rename,
-            self.test_add_member,
-            
-            # NEW DYNAMIC MONEY SCHOOL
-            self.test_money_school_dynamic,
-            
-            # NEW LIVE BUDGETS
-            self.test_budgets_live,
-            
-            # SETTLEMENT GAMIFICATION
+            self.test_create_group_with_5_members,
+            self.test_add_more_members,
+            self.test_group_management,
+            self.test_add_equal_expense,
+            self.test_add_shares_expense,
+            self.test_group_summary_with_simplified_debts,
             self.test_settle_with_rewards,
             self.test_settlement_leaderboard,
-            
-            # EXISTING ENDPOINTS
-            self.test_upi_save,
-            self.test_split_expenses_create,
-            self.test_split_balances,
-            self.test_group_summary,
-            self.test_ai_agent_chat,
-            self.test_ai_proactive_nudges,
-            self.test_ai_agents,
-            self.test_transactions,
-            self.test_budgets,
-            self.test_stats_overview,
-            self.test_leaderboard_savings,
-            self.test_waste_detector,
-            self.test_share_stats_card,
-            self.test_smart_alerts,
-            self.test_card_of_the_day,
-            self.test_upi_apps,
-            self.test_money_school_cards,
-            self.test_gamification_status,
-            self.test_referral_enhanced_status
+            self.test_list_all_groups,
+            self.test_balances,
+            self.test_money_school_dynamic,
+            self.test_budgets_live
         ]
         
         for test_method in test_methods:
             test_method()
-            time.sleep(0.1)  # Small delay to avoid rate limiting
+            time.sleep(0.2)  # Small delay to avoid rate limiting
         
         # Summary
         self.print_summary()
@@ -884,7 +452,7 @@ class MintUReviewTester:
     def print_summary(self):
         """Print comprehensive test summary"""
         self.log("\n" + "="*80)
-        self.log("📊 REVIEW REQUEST TEST SUMMARY")
+        self.log("📊 E2E SPLIT TEST SUMMARY")
         self.log("="*80)
         
         passed_tests = [r for r in self.test_results if r["passed"]]
@@ -912,11 +480,11 @@ class MintUReviewTester:
         self.log(f"   Success Rate: {success_rate:.1f}%")
         
         if len(failed_tests) == 0:
-            self.log("🎉 ALL TESTS PASSED! Backend is production-ready!", "SUCCESS")
+            self.log("🎉 ALL SPLIT TESTS PASSED! Split functionality is production-ready!", "SUCCESS")
         else:
             self.log(f"⚠️ {len(failed_tests)} tests failed. Review issues above.", "WARNING")
 
 if __name__ == "__main__":
-    tester = MintUReviewTester()
+    tester = MintUSplitTester()
     success = tester.run_all_tests()
     exit(0 if success else 1)

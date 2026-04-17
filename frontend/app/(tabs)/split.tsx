@@ -81,8 +81,15 @@ export default function SplitScreen() {
   };
 
   const addPhone = () => {
-    const p = memberPhone.replace(/\D/g, '');
-    if (p.length === 10 && !memberPhones.includes(p)) { setMemberPhones([...memberPhones, p]); setMemberPhone(''); }
+    // Support comma-separated multiple phones
+    const phones = memberPhone.split(',').map(p => p.replace(/\D/g, '').slice(-10)).filter(p => p.length === 10);
+    const newPhones = phones.filter(p => !memberPhones.includes(p));
+    if (newPhones.length > 0) {
+      setMemberPhones([...memberPhones, ...newPhones]);
+      setMemberPhone('');
+    } else if (memberPhone.trim()) {
+      Alert.alert('Invalid', 'Enter valid 10-digit phone number(s). Separate multiple with commas.');
+    }
   };
 
   // Open expense modal (GPay-style)
@@ -538,11 +545,6 @@ export default function SplitScreen() {
 
               {/* Actions */}
               <View style={s.manageActions}>
-                <TouchableOpacity style={s.manageAction} onPress={() => { setManageModal(false); setAddMemberPhone(''); }}>
-                  <Ionicons name="person-add-outline" size={22} color="#6366F1" />
-                  <Text style={s.manageActionText}>Add people</Text>
-                </TouchableOpacity>
-
                 <TouchableOpacity style={s.manageAction} onPress={shareInvite}>
                   <Ionicons name="link-outline" size={22} color="#6366F1" />
                   <Text style={s.manageActionText}>Invite via link</Text>

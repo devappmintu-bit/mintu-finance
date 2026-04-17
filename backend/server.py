@@ -1698,12 +1698,28 @@ async def create_split_group(group: SplitGroupCreate, user_id: str = Depends(get
     from bson import ObjectId
     user = await db.users.find_one({"_id": ObjectId(user_id)})
     members = [{"user_id": user_id, "name": user["name"], "phone": user["phone"]}]
+    
     for phone in group.members:
-        m = await db.users.find_one({"phone": phone.strip()})
-        if m:
-            mid = str(m["_id"])
-            if mid != user_id:
-                members.append({"user_id": mid, "name": m["name"], "phone": m["phone"]})
+        p = phone.strip().replace("+91", "").replace(" ", "")[-10:]
+        if len(p) != 10 or not p.isdigit():
+            continue
+        # Check if already added
+        if any(m["phone"] == p for m in members):
+            continue
+        
+        m = await db.users.find_one({"phone": p})
+        if not m:
+            # Auto-create placeholder user
+            result = await db.users.insert_one({
+                "phone": p, "name": f"User {p[-4:]}", "money_score": 50,
+                "streak_days": 0, "created_at": datetime.utcnow(),
+                "reward_coins": 0, "settlement_count": 0,
+            })
+            m = {"_id": result.inserted_id, "name": f"User {p[-4:]}", "phone": p}
+        
+        mid = str(m["_id"])
+        if mid != user_id:
+            members.append({"user_id": mid, "name": m.get("name", f"User {p[-4:]}"), "phone": p})
     
     g = {"name": group.name, "members": members, "created_by": user_id, "created_at": datetime.utcnow()}
     result = await db.split_groups.insert_one(g)
@@ -1806,7 +1822,7 @@ async def get_overall_balances(user_id: str = Depends(get_current_user)):
 
 @api_router.post("/split/groups/{group_id}/members")
 async def add_members_to_group(group_id: str, data: dict, user_id: str = Depends(get_current_user)):
-    """Add new members to an existing split group"""
+    """Add new members to an existing split group — auto-creates users if not registered"""
     from bson import ObjectId
     phones = data.get("phones", [])
     if not phones:
@@ -1816,19 +1832,39 @@ async def add_members_to_group(group_id: str, data: dict, user_id: str = Depends
     if not group:
         raise HTTPException(status_code=404, detail="Group not found")
     
-    existing_ids = {m["user_id"] for m in group["members"]}
+    existing_phones = {m.get("phone", "") for m in group["members"]}
     added = []
     
     for phone in phones:
-        p = phone.strip().replace("+91", "")[-10:]
+        p = phone.strip().replace("+91", "").replace(" ", "")[-10:]
+        if len(p) != 10 or not p.isdigit():
+            continue
+        if p in existing_phones:
+            continue
+            
         member = await db.users.find_one({"phone": p})
-        if member and str(member["_id"]) not in existing_ids:
-            new_member = {"user_id": str(member["_id"]), "name": member["name"], "phone": member["phone"]}
-            await db.split_groups.update_one({"_id": ObjectId(group_id)}, {"$push": {"members": new_member}})
-            existing_ids.add(str(member["_id"]))
-            added.append(new_member["name"])
+        if not member:
+            # Create placeholder user for unregistered phone
+            result = await db.users.insert_one({
+                "phone": p,
+                "name": f"User {p[-4:]}",
+                "money_score": 50,
+                "streak_days": 0,
+                "created_at": datetime.utcnow(),
+                "reward_coins": 0,
+                "settlement_count": 0,
+            })
+            member = {"_id": result.inserted_id, "name": f"User {p[-4:]}", "phone": p}
+        
+        new_member = {"user_id": str(member["_id"]), "name": member.get("name", f"User {p[-4:]}"), "phone": p}
+        await db.split_groups.update_one({"_id": ObjectId(group_id)}, {"$push": {"members": new_member}})
+        existing_phones.add(p)
+        added.append(new_member["name"])
     
-    return {"added": added, "message": f"Added {len(added)} member(s)" if added else "No new members found"}
+    if not added:
+        return {"added": [], "message": "No new members to add (already in group or invalid numbers)"}
+    
+    return {"added": added, "message": f"Added {len(added)} member(s): {', '.join(added)}"}
 
 # ============== 1. REFERRAL SYSTEM ==============
 import uuid as uuid_lib
