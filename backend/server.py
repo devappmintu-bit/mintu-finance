@@ -3520,13 +3520,23 @@ async def settle_payment(data: SettlePayment, user_id: str = Depends(get_current
     result = await db.settlements.insert_one(settlement)
     settlement["id"] = str(result.inserted_id)
     
-    # Get names for response
-    payer = await db.users.find_one({"_id": ObjectId(user_id)}, {"name": 1})
-    payee = await db.users.find_one({"_id": ObjectId(data.target_user_id)}, {"name": 1})
+    # Get names safely
+    payer_name = "You"
+    payee_name = "User"
+    try:
+        payer = await db.users.find_one({"_id": ObjectId(user_id)}, {"name": 1})
+        if payer: payer_name = payer.get("name", "You")
+    except Exception:
+        pass
+    try:
+        payee = await db.users.find_one({"_id": ObjectId(data.target_user_id)}, {"name": 1})
+        if payee: payee_name = payee.get("name", "User")
+    except Exception:
+        pass
     
     return {
         "id": settlement["id"],
-        "message": f"Payment of ₹{data.amount:,.0f} to {payee.get('name', 'User') if payee else 'User'} marked as settled!",
+        "message": f"Payment of ₹{data.amount:,.0f} to {payee_name} marked as settled!",
         "txn_ref": settlement["txn_ref"],
         "status": "completed"
     }
@@ -3542,12 +3552,22 @@ async def get_settlements(user_id: str = Depends(get_current_user)):
     
     result = []
     for s in settlements:
-        payer = await db.users.find_one({"_id": ObjectId(s["payer_id"])}, {"name": 1})
-        payee = await db.users.find_one({"_id": ObjectId(s["payee_id"])}, {"name": 1})
+        payer_name = "User"
+        payee_name = "User"
+        try:
+            payer = await db.users.find_one({"_id": ObjectId(s["payer_id"])}, {"name": 1})
+            if payer: payer_name = payer.get("name", "User")
+        except Exception:
+            pass
+        try:
+            payee = await db.users.find_one({"_id": ObjectId(s["payee_id"])}, {"name": 1})
+            if payee: payee_name = payee.get("name", "User")
+        except Exception:
+            pass
         result.append({
             "id": str(s["_id"]),
-            "payer_name": payer.get("name", "User") if payer else "User",
-            "payee_name": payee.get("name", "User") if payee else "User",
+            "payer_name": payer_name,
+            "payee_name": payee_name,
             "amount": s["amount"],
             "method": s["method"],
             "txn_ref": s.get("txn_ref", ""),
@@ -3857,12 +3877,17 @@ async def get_proactive_nudges(user_id: str = Depends(get_current_user)):
                         "group_id": str(g["_id"])
                     })
                     if not settled:
-                        payer = await db.users.find_one({"_id": ObjectId(exp["paid_by"])}, {"name": 1})
+                        payer_name = "someone"
+                        try:
+                            payer = await db.users.find_one({"_id": ObjectId(exp["paid_by"])}, {"name": 1})
+                            if payer: payer_name = payer.get("name", "someone")
+                        except Exception:
+                            payer_name = exp.get("paid_by", "someone")
                         nudges.append({
                             "type": "split_reminder",
                             "agent": "split_manager",
                             "emoji": "🤝",
-                            "title": f"You owe {payer.get('name', 'someone') if payer else 'someone'}",
+                            "title": f"You owe {payer_name}",
                             "message": f"₹{my_share:,.0f} for '{exp.get('description', 'expense')}'. Settle via UPI?",
                             "action": "settle_split",
                             "priority": "high",

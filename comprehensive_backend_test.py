@@ -1,658 +1,942 @@
 #!/usr/bin/env python3
 """
-MintU Comprehensive Backend API Testing - Production Level
-Tests ALL MintU endpoints as specified in the review request
+MintU Backend API Comprehensive Testing - Final Production Test
+Tests ALL 30 endpoints as specified in the review request
+Focus on verifying the 3 previously failing endpoints are now fixed:
+- POST /api/split/settle (was 500, should be 200 now)
+- GET /api/split/settlements (was 500, should be 200 now)  
+- GET /api/ai/proactive-nudges (was 500, should be 200 now)
 """
 
-import asyncio
-import aiohttp
+import requests
 import json
-import sys
-from datetime import datetime, timedelta
+import base64
+from datetime import datetime
+import time
 
-# Backend URL from frontend .env
-BACKEND_URL = "https://mintu-finance.preview.emergentagent.com/api"
-
-# Test credentials from test_credentials.md
+# Configuration
+BASE_URL = "https://mintu-finance.preview.emergentagent.com/api"
 TEST_PHONE = "9876543210"
 TEST_OTP = "123456"
-TEST_NAME = "Test User"
-MEMBER_PHONE = "9999888877"
 
 class MintUComprehensiveTester:
     def __init__(self):
-        self.session = None
-        self.auth_token = None
-        self.user_id = None
-        self.test_group_id = None
-        self.test_transaction_id = None
-        self.test_budget_id = None
+        self.token = None
+        self.session = requests.Session()
+        self.session.headers.update({
+            'Content-Type': 'application/json',
+            'User-Agent': 'MintU-ComprehensiveTest/1.0'
+        })
+        self.test_results = []
+        self.group_id = None
+        self.test_user_id = None
         
-    async def __aenter__(self):
-        self.session = aiohttp.ClientSession()
-        return self
+    def log(self, message, status="INFO"):
+        timestamp = datetime.now().strftime("%H:%M:%S")
+        print(f"[{timestamp}] {status}: {message}")
         
-    async def __aexit__(self, exc_type, exc_val, exc_tb):
-        if self.session:
-            await self.session.close()
-    
-    def get_headers(self):
-        headers = {"Content-Type": "application/json"}
-        if self.auth_token:
-            headers["Authorization"] = f"Bearer {self.auth_token}"
-        return headers
-    
-    async def make_request(self, method, endpoint, data=None, expect_status=200):
-        """Make HTTP request with error handling"""
-        url = f"{BACKEND_URL}{endpoint}"
-        headers = self.get_headers()
+    def record_test(self, test_name, passed, details=""):
+        self.test_results.append({
+            "test": test_name,
+            "passed": passed,
+            "details": details
+        })
         
+    def send_otp(self):
+        """1. POST /api/auth/send-otp"""
+        self.log("🔐 Testing OTP Send...")
         try:
-            async with self.session.request(method, url, json=data, headers=headers) as response:
-                response_text = await response.text()
-                
-                print(f"\n{method} {endpoint}")
-                print(f"Status: {response.status}")
-                if len(response_text) > 500:
-                    print(f"Response: {response_text[:500]}...")
-                else:
-                    print(f"Response: {response_text}")
-                
-                if response.status != expect_status:
-                    print(f"❌ Expected {expect_status}, got {response.status}")
-                    return None
-                
-                try:
-                    return json.loads(response_text) if response_text else {}
-                except:
-                    return {"raw_response": response_text}
-                    
+            response = self.session.post(f"{BASE_URL}/auth/send-otp", 
+                                       json={"phone": TEST_PHONE})
+            
+            if response.status_code == 200:
+                self.log("✅ OTP sent successfully", "PASS")
+                self.record_test("POST /api/auth/send-otp", True, "OTP sent successfully")
+                return True
+            else:
+                self.log(f"❌ OTP send failed: {response.status_code} - {response.text}", "FAIL")
+                self.record_test("POST /api/auth/send-otp", False, f"Status: {response.status_code}")
+                return False
         except Exception as e:
-            print(f"❌ Request failed: {str(e)}")
-            return None
-    
-    async def test_auth_flow(self):
-        """Test complete OTP authentication flow"""
-        print("\n🔐 TESTING AUTH FLOW")
-        
-        # Step 1: Send OTP
-        print("\n1. POST /api/auth/send-otp")
-        otp_response = await self.make_request("POST", "/auth/send-otp", {
-            "phone": TEST_PHONE
-        })
-        
-        if not otp_response:
-            print("❌ Failed to send OTP")
+            self.log(f"❌ OTP send error: {str(e)}", "ERROR")
+            self.record_test("POST /api/auth/send-otp", False, f"Error: {str(e)}")
             return False
-        
-        print(f"✅ OTP sent: {otp_response.get('message', '')}")
-        
-        # Step 2: Verify OTP
-        print("\n2. POST /api/auth/verify-otp")
-        verify_response = await self.make_request("POST", "/auth/verify-otp", {
-            "phone": TEST_PHONE,
-            "otp": TEST_OTP,
-            "name": TEST_NAME
-        })
-        
-        if not verify_response or "token" not in verify_response:
-            print("❌ Failed to verify OTP")
+            
+    def verify_otp(self):
+        """2. POST /api/auth/verify-otp"""
+        self.log("🔑 Testing OTP Verification...")
+        try:
+            response = self.session.post(f"{BASE_URL}/auth/verify-otp",
+                                       json={"phone": TEST_PHONE, "otp": TEST_OTP})
+            
+            if response.status_code == 200:
+                data = response.json()
+                self.token = data.get("token")
+                if self.token:
+                    self.session.headers.update({"Authorization": f"Bearer {self.token}"})
+                    self.log("✅ OTP verified, token received", "PASS")
+                    self.record_test("POST /api/auth/verify-otp", True, "Token received")
+                    return True
+                else:
+                    self.log("❌ No token in response", "FAIL")
+                    self.record_test("POST /api/auth/verify-otp", False, "No token in response")
+                    return False
+            else:
+                self.log(f"❌ OTP verification failed: {response.status_code} - {response.text}", "FAIL")
+                self.record_test("POST /api/auth/verify-otp", False, f"Status: {response.status_code}")
+                return False
+        except Exception as e:
+            self.log(f"❌ OTP verification error: {str(e)}", "ERROR")
+            self.record_test("POST /api/auth/verify-otp", False, f"Error: {str(e)}")
             return False
-        
-        self.auth_token = verify_response["token"]
-        self.user_id = verify_response["user"]["id"]
-        print(f"✅ Authentication successful! Token received, User ID: {self.user_id}")
-        
-        return True
-    
-    async def test_core_auth_user(self):
-        """Test core auth and user endpoints"""
-        print("\n👤 TESTING CORE AUTH & USER")
-        
-        # Test register endpoint
-        print("\n1. POST /api/auth/register")
-        register_response = await self.make_request("POST", "/auth/register", {
-            "phone": "9876543211",
-            "password": "test123",
-            "name": "Test User 2"
-        })
-        
-        if register_response:
-            print("✅ Register endpoint working")
-        else:
-            print("❌ Register endpoint failed")
-            return False
-        
-        # Test login endpoint
-        print("\n2. POST /api/auth/login")
-        login_response = await self.make_request("POST", "/auth/login", {
-            "phone": TEST_PHONE,
-            "password": "test123"
-        })
-        
-        if login_response:
-            print("✅ Login endpoint working")
-        else:
-            print("❌ Login endpoint failed")
-            return False
-        
-        # Test user profile
-        print("\n3. GET /api/user/me")
-        profile_response = await self.make_request("GET", "/user/me")
-        
-        if profile_response and "id" in profile_response:
-            print(f"✅ User profile retrieved: {profile_response.get('name', '')}")
-            return True
-        else:
-            print("❌ User profile failed")
-            return False
-    
-    async def test_transactions(self):
-        """Test transaction CRUD operations"""
-        print("\n💰 TESTING TRANSACTIONS")
-        
-        # Create transaction
-        print("\n1. POST /api/transactions")
-        create_response = await self.make_request("POST", "/transactions", {
-            "amount": 1500,
-            "category": "Food",
-            "description": "Dinner at restaurant",
-            "type": "debit"
-        })
-        
-        if not create_response or "id" not in create_response:
-            print("❌ Failed to create transaction")
-            return False
-        
-        self.test_transaction_id = create_response["id"]
-        print(f"✅ Transaction created: {create_response['description']} - ₹{create_response['amount']}")
-        
-        # Get transactions
-        print("\n2. GET /api/transactions")
-        list_response = await self.make_request("GET", "/transactions")
-        
-        if not list_response or not isinstance(list_response, list):
-            print("❌ Failed to get transactions")
-            return False
-        
-        print(f"✅ Retrieved {len(list_response)} transactions")
-        
-        # Parse SMS
-        print("\n3. POST /api/transactions/parse-sms")
-        sms_response = await self.make_request("POST", "/transactions/parse-sms", {
-            "sms_text": "HDFC Bank: Rs 2,500 debited from A/c **1234 on 15-Dec-24 at SWIGGY BANGALORE. Avl Bal: Rs 45,678.90"
-        })
-        
-        if sms_response:
-            print(f"✅ SMS parsed successfully")
-        else:
-            print("❌ SMS parsing failed")
-            return False
-        
-        # Delete transaction
-        print(f"\n4. DELETE /api/transactions/{self.test_transaction_id}")
-        delete_response = await self.make_request("DELETE", f"/transactions/{self.test_transaction_id}")
-        
-        if delete_response:
-            print("✅ Transaction deleted successfully")
-            return True
-        else:
-            print("❌ Transaction deletion failed")
-            return False
-    
-    async def test_budgets(self):
-        """Test budget CRUD operations"""
-        print("\n🎯 TESTING BUDGETS")
-        
-        # Create budget
-        print("\n1. POST /api/budgets")
-        create_response = await self.make_request("POST", "/budgets", {
-            "category": "Entertainment",
-            "amount": 5000,
-            "period": "monthly"
-        })
-        
-        if not create_response or "id" not in create_response:
-            print("❌ Failed to create budget")
-            return False
-        
-        self.test_budget_id = create_response["id"]
-        print(f"✅ Budget created: {create_response['category']} - ₹{create_response['amount']}/{create_response['period']}")
-        
-        # Get budgets
-        print("\n2. GET /api/budgets")
-        list_response = await self.make_request("GET", "/budgets")
-        
-        if not list_response or not isinstance(list_response, list):
-            print("❌ Failed to get budgets")
-            return False
-        
-        print(f"✅ Retrieved {len(list_response)} budgets")
-        
-        # Delete budget
-        print(f"\n3. DELETE /api/budgets/{self.test_budget_id}")
-        delete_response = await self.make_request("DELETE", f"/budgets/{self.test_budget_id}")
-        
-        if delete_response:
-            print("✅ Budget deleted successfully")
-            return True
-        else:
-            print("❌ Budget deletion failed")
-            return False
-    
-    async def test_insights(self):
-        """Test insights endpoints with language support"""
-        print("\n📊 TESTING INSIGHTS")
-        
-        # Daily insights in Hindi
-        print("\n1. GET /api/insights/daily?lang=hi")
-        hindi_response = await self.make_request("GET", "/insights/daily?lang=hi")
-        
-        if not hindi_response:
-            print("❌ Failed to get Hindi insights")
-            return False
-        
-        print(f"✅ Hindi insights: Money score {hindi_response.get('money_score', 0)}/100")
-        
-        # Daily insights in English
-        print("\n2. GET /api/insights/daily?lang=en")
-        english_response = await self.make_request("GET", "/insights/daily?lang=en")
-        
-        if not english_response:
-            print("❌ Failed to get English insights")
-            return False
-        
-        print(f"✅ English insights: Money score {english_response.get('money_score', 0)}/100")
-        
-        # Weekly insights
-        print("\n3. GET /api/insights/weekly")
-        weekly_response = await self.make_request("GET", "/insights/weekly")
-        
-        if weekly_response:
-            print("✅ Weekly insights retrieved")
-            return True
-        else:
-            print("❌ Weekly insights failed")
-            return False
-    
-    async def test_money_school(self):
-        """Test money school endpoints with language support"""
-        print("\n🎓 TESTING MONEY SCHOOL")
-        
-        # Daily tip in Hindi
-        print("\n1. GET /api/money-school/daily?lang=hi")
-        hindi_response = await self.make_request("GET", "/money-school/daily?lang=hi")
-        
-        if not hindi_response:
-            print("❌ Failed to get Hindi money school tip")
-            return False
-        
-        print(f"✅ Hindi tip: {hindi_response.get('tip', '')[:100]}...")
-        
-        # Daily tip in English
-        print("\n2. GET /api/money-school/daily?lang=en")
-        english_response = await self.make_request("GET", "/money-school/daily?lang=en")
-        
-        if english_response:
-            print(f"✅ English tip: {english_response.get('tip', '')[:100]}...")
-            return True
-        else:
-            print("❌ English money school tip failed")
-            return False
-    
-    async def test_ai_coach(self):
-        """Test AI coach with language support"""
-        print("\n🤖 TESTING AI COACH")
-        
-        # Hindi chat
-        print("\n1. POST /api/ai/chat (Hindi)")
-        hindi_response = await self.make_request("POST", "/ai/chat", {
-            "message": "How save more?",
-            "lang": "hi"
-        })
-        
-        if not hindi_response or "reply" not in hindi_response:
-            print("❌ Failed to get Hindi AI response")
-            return False
-        
-        print(f"✅ Hindi AI response: {hindi_response['reply'][:100]}...")
-        
-        # English chat
-        print("\n2. POST /api/ai/chat (English)")
-        english_response = await self.make_request("POST", "/ai/chat", {
-            "message": "Am I overspending?",
-            "lang": "en"
-        })
-        
-        if english_response and "reply" in english_response:
-            print(f"✅ English AI response: {english_response['reply'][:100]}...")
-            return True
-        else:
-            print("❌ English AI response failed")
-            return False
-    
-    async def test_split_functionality(self):
-        """Test all split functionality including different split types"""
-        print("\n👥 TESTING SPLIT FUNCTIONALITY")
-        
-        # Create group
-        print("\n1. POST /api/split/groups")
-        group_response = await self.make_request("POST", "/split/groups", {
-            "name": "Test Group",
-            "members": [MEMBER_PHONE]
-        })
-        
-        if not group_response or "id" not in group_response:
-            print("❌ Failed to create split group")
-            return False
-        
-        self.test_group_id = group_response["id"]
-        print(f"✅ Split group created: {group_response['name']}")
-        
-        # Get groups
-        print("\n2. GET /api/split/groups")
-        groups_response = await self.make_request("GET", "/split/groups")
-        
-        if not groups_response or not isinstance(groups_response, list):
-            print("❌ Failed to get split groups")
-            return False
-        
-        print(f"✅ Retrieved {len(groups_response)} split groups")
-        
-        # Add member to group
-        print(f"\n3. POST /api/split/groups/{self.test_group_id}/members")
-        member_response = await self.make_request("POST", f"/split/groups/{self.test_group_id}/members", {
-            "phones": [MEMBER_PHONE]
-        })
-        
-        if not member_response:
-            print("❌ Failed to add member to group")
-            return False
-        
-        print(f"✅ Added member {MEMBER_PHONE} to group")
-        
-        # Test equal split
-        print("\n4. POST /api/split/expenses (equal split)")
-        equal_response = await self.make_request("POST", "/split/expenses", {
-            "group_id": self.test_group_id,
-            "description": "Dinner bill",
-            "amount": 1000,
-            "split_type": "equal"
-        })
-        
-        if not equal_response:
-            print("❌ Failed to create equal split expense")
-            return False
-        
-        print("✅ Equal split expense created")
-        
-        # Test shares split
-        print("\n5. POST /api/split/expenses (shares split)")
-        shares_response = await self.make_request("POST", "/split/expenses", {
-            "group_id": self.test_group_id,
-            "description": "Movie tickets",
-            "amount": 600,
-            "split_type": "shares",
-            "splits": {
-                self.user_id: 2,
-                "member_user_id": 1
-            }
-        })
-        
-        if not shares_response:
-            print("❌ Failed to create shares split expense")
-            return False
-        
-        print("✅ Shares split expense created")
-        
-        # Test custom split
-        print("\n6. POST /api/split/expenses (custom split)")
-        custom_response = await self.make_request("POST", "/split/expenses", {
-            "group_id": self.test_group_id,
-            "description": "Shopping",
-            "amount": 1000,
-            "split_type": "custom",
-            "splits": {
-                self.user_id: 600,
-                "member_user_id": 400
-            }
-        })
-        
-        if not custom_response:
-            print("❌ Failed to create custom split expense")
-            return False
-        
-        print("✅ Custom split expense created")
-        
-        # Get group expenses
-        print(f"\n7. GET /api/split/groups/{self.test_group_id}/expenses")
-        expenses_response = await self.make_request("GET", f"/split/groups/{self.test_group_id}/expenses")
-        
-        if not expenses_response or not isinstance(expenses_response, list):
-            print("❌ Failed to get group expenses")
-            return False
-        
-        print(f"✅ Retrieved {len(expenses_response)} group expenses")
-        
-        # Get balances
-        print("\n8. GET /api/split/balances")
-        balances_response = await self.make_request("GET", "/split/balances")
-        
-        if balances_response:
-            print("✅ Split balances retrieved")
-            return True
-        else:
-            print("❌ Split balances failed")
-            return False
-    
-    async def test_retention_engine(self):
-        """Test retention engine endpoints"""
-        print("\n🔄 TESTING RETENTION ENGINE")
-        
-        # Waste detector
-        print("\n1. GET /api/waste-detector")
-        waste_response = await self.make_request("GET", "/waste-detector")
-        
-        if not waste_response:
-            print("❌ Waste detector failed")
-            return False
-        
-        print("✅ Waste detector working")
-        
-        # Weekly report
-        print("\n2. GET /api/reports/weekly")
-        report_response = await self.make_request("GET", "/reports/weekly")
-        
-        if not report_response:
-            print("❌ Weekly report failed")
-            return False
-        
-        print("✅ Weekly report working")
-        
-        # Smart alerts
-        print("\n3. GET /api/alerts/smart")
-        alerts_response = await self.make_request("GET", "/alerts/smart")
-        
-        if not alerts_response:
-            print("❌ Smart alerts failed")
-            return False
-        
-        print("✅ Smart alerts working")
-        
-        # Smart budget suggestions
-        print("\n4. GET /api/budgets/smart-suggest")
-        suggest_response = await self.make_request("GET", "/budgets/smart-suggest")
-        
-        if not suggest_response:
-            print("❌ Smart budget suggestions failed")
-            return False
-        
-        print("✅ Smart budget suggestions working")
-        
-        # Auto apply budgets
-        print("\n5. POST /api/budgets/auto-apply")
-        auto_response = await self.make_request("POST", "/budgets/auto-apply")
-        
-        if not auto_response:
-            print("❌ Auto apply budgets failed")
-            return False
-        
-        print("✅ Auto apply budgets working")
-        
-        # Shareable stats card
-        print("\n6. GET /api/share/stats-card")
-        stats_response = await self.make_request("GET", "/share/stats-card")
-        
-        if stats_response:
-            print("✅ Shareable stats card working")
-            return True
-        else:
-            print("❌ Shareable stats card failed")
-            return False
-    
-    async def test_leaderboard_referral(self):
-        """Test leaderboard and referral endpoints"""
-        print("\n🏆 TESTING LEADERBOARD & REFERRAL")
-        
-        # Savings leaderboard
-        print("\n1. GET /api/leaderboard/savings")
-        savings_response = await self.make_request("GET", "/leaderboard/savings")
-        
-        if not savings_response:
-            print("❌ Savings leaderboard failed")
-            return False
-        
-        print("✅ Savings leaderboard working")
-        
-        # Friends leaderboard
-        print("\n2. GET /api/leaderboard/friends")
-        friends_response = await self.make_request("GET", "/leaderboard/friends")
-        
-        if not friends_response:
-            print("❌ Friends leaderboard failed")
-            return False
-        
-        print("✅ Friends leaderboard working")
-        
-        # Enhanced referral status
-        print("\n3. GET /api/referral/enhanced-status")
-        enhanced_response = await self.make_request("GET", "/referral/enhanced-status")
-        
-        if not enhanced_response:
-            print("❌ Enhanced referral status failed")
-            return False
-        
-        print("✅ Enhanced referral status working")
-        
-        # My referral code
-        print("\n4. GET /api/referral/my-code")
-        code_response = await self.make_request("GET", "/referral/my-code")
-        
-        if not code_response:
-            print("❌ My referral code failed")
-            return False
-        
-        print("✅ My referral code working")
-        
-        # Gamification status
-        print("\n5. GET /api/gamification/status")
-        gamification_response = await self.make_request("GET", "/gamification/status")
-        
-        if gamification_response:
-            print("✅ Gamification status working")
-            return True
-        else:
-            print("❌ Gamification status failed")
-            return False
-    
-    async def test_other_endpoints(self):
-        """Test other miscellaneous endpoints"""
-        print("\n📈 TESTING OTHER ENDPOINTS")
-        
-        # Stats overview
-        print("\n1. GET /api/stats/overview")
-        stats_response = await self.make_request("GET", "/stats/overview")
-        
-        if not stats_response:
-            print("❌ Stats overview failed")
-            return False
-        
-        print("✅ Stats overview working")
-        
-        # Bulk SMS parse
-        print("\n2. POST /api/sms/bulk-parse")
-        bulk_response = await self.make_request("POST", "/sms/bulk-parse", {
-            "messages": [
-                "HDFC Bank: Rs 2,500 debited from A/c **1234 on 15-Dec-24 at SWIGGY BANGALORE. Avl Bal: Rs 45,678.90",
-                "PhonePe: You paid Rs 150 to UBER INDIA. UPI Ref: 123456789. Balance: Rs 5,000",
-                "ICICI Bank: Rs 3,200 credited to A/c **5678 on 14-Dec-24. Salary credit. Avl Bal: Rs 48,878.90"
-            ]
-        })
-        
-        if bulk_response:
-            print("✅ Bulk SMS parse working")
-            return True
-        else:
-            print("❌ Bulk SMS parse failed")
-            return False
-    
-    async def run_comprehensive_tests(self):
-        """Run all comprehensive tests"""
-        print("🚀 STARTING COMPREHENSIVE MINTU BACKEND TESTS")
-        print(f"🌐 Backend URL: {BACKEND_URL}")
-        print(f"📱 Test Phone: {TEST_PHONE}")
-        
-        results = {}
-        
-        # Authentication is required first
-        results["auth_flow"] = await self.test_auth_flow()
-        if not results["auth_flow"]:
-            print("❌ Authentication failed - cannot proceed with other tests")
-            return results
-        
-        # Test all endpoint categories
-        results["core_auth_user"] = await self.test_core_auth_user()
-        results["transactions"] = await self.test_transactions()
-        results["budgets"] = await self.test_budgets()
-        results["insights"] = await self.test_insights()
-        results["money_school"] = await self.test_money_school()
-        results["ai_coach"] = await self.test_ai_coach()
-        results["split_functionality"] = await self.test_split_functionality()
-        results["retention_engine"] = await self.test_retention_engine()
-        results["leaderboard_referral"] = await self.test_leaderboard_referral()
-        results["other_endpoints"] = await self.test_other_endpoints()
-        
-        # Print comprehensive summary
-        print("\n" + "="*80)
-        print("📋 COMPREHENSIVE TEST SUMMARY")
-        print("="*80)
-        
-        passed = 0
-        total = len(results)
-        
-        for test_name, result in results.items():
-            status = "✅ PASS" if result else "❌ FAIL"
-            print(f"{status} {test_name.replace('_', ' ').title()}")
-            if result:
-                passed += 1
-        
-        print(f"\n🎯 OVERALL: {passed}/{total} test categories passed ({passed/total*100:.1f}%)")
-        
-        if passed == total:
-            print("🎉 ALL MINTU ENDPOINTS WORKING - PRODUCTION READY!")
-        else:
-            print("⚠️  Some endpoints need attention")
-        
-        return results
 
-async def main():
-    """Main test runner"""
-    async with MintUComprehensiveTester() as tester:
-        results = await tester.run_comprehensive_tests()
+    def test_user_me(self):
+        """4. GET /api/user/me"""
+        self.log("👤 Testing User Profile...")
+        try:
+            response = self.session.get(f"{BASE_URL}/user/me")
+            
+            if response.status_code == 200:
+                data = response.json()
+                if "phone" in data:
+                    self.test_user_id = data.get("id", data.get("_id", "test_user"))
+                    self.log(f"✅ User profile retrieved - Phone: {data['phone']}", "PASS")
+                    self.record_test("GET /api/user/me", True, f"Phone: {data['phone']}")
+                    return True
+                else:
+                    self.log(f"❌ Invalid user data: {data}", "FAIL")
+                    self.record_test("GET /api/user/me", False, "Invalid user data")
+                    return False
+            else:
+                self.log(f"❌ User profile failed: {response.status_code} - {response.text}", "FAIL")
+                self.record_test("GET /api/user/me", False, f"Status: {response.status_code}")
+                return False
+        except Exception as e:
+            self.log(f"❌ User profile error: {str(e)}", "ERROR")
+            self.record_test("GET /api/user/me", False, f"Error: {str(e)}")
+            return False
+
+    def test_upi_save(self):
+        """5. POST /api/user/upi"""
+        self.log("💳 Testing UPI Save...")
+        try:
+            response = self.session.post(f"{BASE_URL}/user/upi",
+                                       json={"upi_id": "test@okicici"})
+            
+            if response.status_code == 200:
+                data = response.json()
+                self.log("✅ UPI ID saved successfully", "PASS")
+                self.record_test("POST /api/user/upi", True, "UPI ID saved")
+                return True
+            else:
+                self.log(f"❌ UPI save failed: {response.status_code} - {response.text}", "FAIL")
+                self.record_test("POST /api/user/upi", False, f"Status: {response.status_code}")
+                return False
+        except Exception as e:
+            self.log(f"❌ UPI save error: {str(e)}", "ERROR")
+            self.record_test("POST /api/user/upi", False, f"Error: {str(e)}")
+            return False
+
+    def test_upi_get(self):
+        """6. GET /api/user/upi"""
+        self.log("💳 Testing UPI Retrieve...")
+        try:
+            response = self.session.get(f"{BASE_URL}/user/upi")
+            
+            if response.status_code == 200:
+                data = response.json()
+                if "upi_id" in data:
+                    self.log(f"✅ UPI ID retrieved: {data.get('upi_id_masked', data['upi_id'])}", "PASS")
+                    self.record_test("GET /api/user/upi", True, f"UPI: {data.get('upi_id_masked', data['upi_id'])}")
+                    return True
+                else:
+                    self.log(f"❌ No UPI ID in response: {data}", "FAIL")
+                    self.record_test("GET /api/user/upi", False, "No UPI ID in response")
+                    return False
+            else:
+                self.log(f"❌ UPI retrieve failed: {response.status_code} - {response.text}", "FAIL")
+                self.record_test("GET /api/user/upi", False, f"Status: {response.status_code}")
+                return False
+        except Exception as e:
+            self.log(f"❌ UPI retrieve error: {str(e)}", "ERROR")
+            self.record_test("GET /api/user/upi", False, f"Error: {str(e)}")
+            return False
+
+    def test_create_split_group(self):
+        """7. POST /api/split/groups"""
+        self.log("👥 Testing Create Split Group...")
+        try:
+            response = self.session.post(f"{BASE_URL}/split/groups",
+                                       json={"name": "Final Test", "members": ["9999888877"]})
+            
+            if response.status_code == 200:
+                data = response.json()
+                if "id" in data or "_id" in data:
+                    self.group_id = data.get("id", data.get("_id"))
+                    self.log(f"✅ Split group created: {data.get('name', 'Final Test')}", "PASS")
+                    self.record_test("POST /api/split/groups", True, f"Group ID: {self.group_id}")
+                    return True
+                else:
+                    self.log(f"❌ No group ID in response: {data}", "FAIL")
+                    self.record_test("POST /api/split/groups", False, "No group ID in response")
+                    return False
+            else:
+                self.log(f"❌ Create split group failed: {response.status_code} - {response.text}", "FAIL")
+                self.record_test("POST /api/split/groups", False, f"Status: {response.status_code}")
+                return False
+        except Exception as e:
+            self.log(f"❌ Create split group error: {str(e)}", "ERROR")
+            self.record_test("POST /api/split/groups", False, f"Error: {str(e)}")
+            return False
+
+    def test_get_split_groups(self):
+        """8. GET /api/split/groups"""
+        self.log("👥 Testing Get Split Groups...")
+        try:
+            response = self.session.get(f"{BASE_URL}/split/groups")
+            
+            if response.status_code == 200:
+                data = response.json()
+                if isinstance(data, list) and len(data) > 0:
+                    self.log(f"✅ Retrieved {len(data)} split groups", "PASS")
+                    self.record_test("GET /api/split/groups", True, f"{len(data)} groups found")
+                    return True
+                else:
+                    self.log("✅ No split groups found (empty list)", "PASS")
+                    self.record_test("GET /api/split/groups", True, "Empty list returned")
+                    return True
+            else:
+                self.log(f"❌ Get split groups failed: {response.status_code} - {response.text}", "FAIL")
+                self.record_test("GET /api/split/groups", False, f"Status: {response.status_code}")
+                return False
+        except Exception as e:
+            self.log(f"❌ Get split groups error: {str(e)}", "ERROR")
+            self.record_test("GET /api/split/groups", False, f"Error: {str(e)}")
+            return False
+
+    def test_add_split_expense(self):
+        """9. POST /api/split/expenses"""
+        self.log("💰 Testing Add Split Expense...")
+        try:
+            if not self.group_id:
+                self.log("⚠️ No group ID available, skipping expense test", "SKIP")
+                self.record_test("POST /api/split/expenses", False, "No group ID available")
+                return False
+                
+            response = self.session.post(f"{BASE_URL}/split/expenses",
+                                       json={
+                                           "group_id": self.group_id,
+                                           "description": "Test Expense",
+                                           "amount": 1000,
+                                           "paid_by": self.test_user_id or "test_user",
+                                           "split_type": "equal"
+                                       })
+            
+            if response.status_code == 200:
+                data = response.json()
+                self.log("✅ Split expense added successfully", "PASS")
+                self.record_test("POST /api/split/expenses", True, "Expense added")
+                return True
+            else:
+                self.log(f"❌ Add split expense failed: {response.status_code} - {response.text}", "FAIL")
+                self.record_test("POST /api/split/expenses", False, f"Status: {response.status_code}")
+                return False
+        except Exception as e:
+            self.log(f"❌ Add split expense error: {str(e)}", "ERROR")
+            self.record_test("POST /api/split/expenses", False, f"Error: {str(e)}")
+            return False
+
+    def test_group_summary(self):
+        """10. GET /api/split/groups/{id}/summary"""
+        self.log("📊 Testing Group Summary...")
+        try:
+            if not self.group_id:
+                self.log("⚠️ No group ID available, skipping summary test", "SKIP")
+                self.record_test("GET /api/split/groups/{id}/summary", False, "No group ID available")
+                return False
+                
+            response = self.session.get(f"{BASE_URL}/split/groups/{self.group_id}/summary")
+            
+            if response.status_code == 200:
+                data = response.json()
+                self.log("✅ Group summary retrieved", "PASS")
+                self.record_test("GET /api/split/groups/{id}/summary", True, "Summary retrieved")
+                return True
+            else:
+                self.log(f"❌ Group summary failed: {response.status_code} - {response.text}", "FAIL")
+                self.record_test("GET /api/split/groups/{id}/summary", False, f"Status: {response.status_code}")
+                return False
+        except Exception as e:
+            self.log(f"❌ Group summary error: {str(e)}", "ERROR")
+            self.record_test("GET /api/split/groups/{id}/summary", False, f"Error: {str(e)}")
+            return False
+
+    def test_split_balances(self):
+        """11. GET /api/split/balances"""
+        self.log("⚖️ Testing Split Balances...")
+        try:
+            response = self.session.get(f"{BASE_URL}/split/balances")
+            
+            if response.status_code == 200:
+                data = response.json()
+                self.log("✅ Split balances retrieved", "PASS")
+                self.record_test("GET /api/split/balances", True, "Balances retrieved")
+                return True
+            else:
+                self.log(f"❌ Split balances failed: {response.status_code} - {response.text}", "FAIL")
+                self.record_test("GET /api/split/balances", False, f"Status: {response.status_code}")
+                return False
+        except Exception as e:
+            self.log(f"❌ Split balances error: {str(e)}", "ERROR")
+            self.record_test("GET /api/split/balances", False, f"Error: {str(e)}")
+            return False
+
+    def test_recurring_expenses(self):
+        """12. POST /api/split/expenses/recurring"""
+        self.log("🔄 Testing Recurring Expenses...")
+        try:
+            response = self.session.post(f"{BASE_URL}/split/expenses/recurring",
+                                       json={
+                                           "description": "Monthly Rent",
+                                           "amount": 5000,
+                                           "frequency": "monthly",
+                                           "group_id": self.group_id or "test_group"
+                                       })
+            
+            if response.status_code == 200:
+                data = response.json()
+                self.log("✅ Recurring expense created", "PASS")
+                self.record_test("POST /api/split/expenses/recurring", True, "Recurring expense created")
+                return True
+            else:
+                self.log(f"❌ Recurring expenses failed: {response.status_code} - {response.text}", "FAIL")
+                self.record_test("POST /api/split/expenses/recurring", False, f"Status: {response.status_code}")
+                return False
+        except Exception as e:
+            self.log(f"❌ Recurring expenses error: {str(e)}", "ERROR")
+            self.record_test("POST /api/split/expenses/recurring", False, f"Error: {str(e)}")
+            return False
+
+    def test_money_school_cards(self):
+        """13. GET /api/money-school/cards"""
+        self.log("🎓 Testing Money School Cards...")
+        try:
+            response = self.session.get(f"{BASE_URL}/money-school/cards")
+            
+            if response.status_code == 200:
+                data = response.json()
+                # Handle both direct array and wrapped response
+                cards = data if isinstance(data, list) else data.get("cards", [])
+                if isinstance(cards, list):
+                    self.log(f"✅ Retrieved {len(cards)} money school cards", "PASS")
+                    self.record_test("GET /api/money-school/cards", True, f"{len(cards)} cards found")
+                    return True
+                else:
+                    self.log(f"❌ Invalid response format: {data}", "FAIL")
+                    self.record_test("GET /api/money-school/cards", False, "Invalid response format")
+                    return False
+            else:
+                self.log(f"❌ Money school cards failed: {response.status_code} - {response.text}", "FAIL")
+                self.record_test("GET /api/money-school/cards", False, f"Status: {response.status_code}")
+                return False
+        except Exception as e:
+            self.log(f"❌ Money school cards error: {str(e)}", "ERROR")
+            self.record_test("GET /api/money-school/cards", False, f"Error: {str(e)}")
+            return False
+
+    def test_money_school_complete(self):
+        """14. POST /api/money-school/complete"""
+        self.log("✅ Testing Money School Complete...")
+        try:
+            response = self.session.post(f"{BASE_URL}/money-school/complete",
+                                       json={"card_id": "card_0", "xp": 10})
+            
+            if response.status_code == 200:
+                data = response.json()
+                self.log("✅ Money school card completed", "PASS")
+                self.record_test("POST /api/money-school/complete", True, "Card completed")
+                return True
+            else:
+                self.log(f"❌ Money school complete failed: {response.status_code} - {response.text}", "FAIL")
+                self.record_test("POST /api/money-school/complete", False, f"Status: {response.status_code}")
+                return False
+        except Exception as e:
+            self.log(f"❌ Money school complete error: {str(e)}", "ERROR")
+            self.record_test("POST /api/money-school/complete", False, f"Error: {str(e)}")
+            return False
+
+    def test_upi_apps(self):
+        """15. GET /api/upi/apps"""
+        self.log("📱 Testing UPI Apps...")
+        try:
+            response = self.session.get(f"{BASE_URL}/upi/apps")
+            
+            if response.status_code == 200:
+                data = response.json()
+                # Handle both direct array and wrapped response
+                apps = data if isinstance(data, list) else data.get("apps", [])
+                if isinstance(apps, list):
+                    self.log(f"✅ Retrieved {len(apps)} UPI apps", "PASS")
+                    self.record_test("GET /api/upi/apps", True, f"{len(apps)} apps found")
+                    return True
+                else:
+                    self.log(f"❌ Invalid response format: {data}", "FAIL")
+                    self.record_test("GET /api/upi/apps", False, "Invalid response format")
+                    return False
+            else:
+                self.log(f"❌ UPI apps failed: {response.status_code} - {response.text}", "FAIL")
+                self.record_test("GET /api/upi/apps", False, f"Status: {response.status_code}")
+                return False
+        except Exception as e:
+            self.log(f"❌ UPI apps error: {str(e)}", "ERROR")
+            self.record_test("GET /api/upi/apps", False, f"Error: {str(e)}")
+            return False
+
+    def test_generate_qr(self):
+        """16. POST /api/upi/generate-qr"""
+        self.log("📱 Testing Generate QR...")
+        try:
+            response = self.session.post(f"{BASE_URL}/upi/generate-qr",
+                                       json={"amount": 500})
+            
+            if response.status_code == 200:
+                data = response.json()
+                # Check for various QR code field names
+                if "qr_code" in data or "upi_link" in data or "qr_data" in data:
+                    self.log("✅ QR code generated", "PASS")
+                    self.record_test("POST /api/upi/generate-qr", True, "QR code generated")
+                    return True
+                else:
+                    self.log(f"❌ No QR code in response: {data}", "FAIL")
+                    self.record_test("POST /api/upi/generate-qr", False, "No QR code in response")
+                    return False
+            else:
+                self.log(f"❌ Generate QR failed: {response.status_code} - {response.text}", "FAIL")
+                self.record_test("POST /api/upi/generate-qr", False, f"Status: {response.status_code}")
+                return False
+        except Exception as e:
+            self.log(f"❌ Generate QR error: {str(e)}", "ERROR")
+            self.record_test("POST /api/upi/generate-qr", False, f"Error: {str(e)}")
+            return False
+
+    def test_ai_agent_chat(self):
+        """17. POST /api/ai/agent-chat"""
+        self.log("🤖 Testing AI Agent Chat...")
+        try:
+            response = self.session.post(f"{BASE_URL}/ai/agent-chat",
+                                       json={"message": "Where did I overspend?"})
+            
+            if response.status_code == 200:
+                data = response.json()
+                if "response" in data or "reply" in data:
+                    response_text = data.get("response", data.get("reply", ""))
+                    self.log(f"✅ AI agent chat working - Response length: {len(response_text)} chars", "PASS")
+                    self.record_test("POST /api/ai/agent-chat", True, f"Response: {len(response_text)} chars")
+                    return True
+                else:
+                    self.log(f"❌ No response in AI chat: {data}", "FAIL")
+                    self.record_test("POST /api/ai/agent-chat", False, "No response in AI chat")
+                    return False
+            else:
+                self.log(f"❌ AI agent chat failed: {response.status_code} - {response.text}", "FAIL")
+                self.record_test("POST /api/ai/agent-chat", False, f"Status: {response.status_code}")
+                return False
+        except Exception as e:
+            self.log(f"❌ AI agent chat error: {str(e)}", "ERROR")
+            self.record_test("POST /api/ai/agent-chat", False, f"Error: {str(e)}")
+            return False
+
+    def test_ai_agents(self):
+        """18. GET /api/ai/agents"""
+        self.log("🤖 Testing AI Agents List...")
+        try:
+            response = self.session.get(f"{BASE_URL}/ai/agents")
+            
+            if response.status_code == 200:
+                data = response.json()
+                # Handle both direct array and wrapped response
+                agents = data if isinstance(data, list) else data.get("agents", [])
+                if isinstance(agents, list):
+                    self.log(f"✅ Retrieved {len(agents)} AI agents", "PASS")
+                    self.record_test("GET /api/ai/agents", True, f"{len(agents)} agents found")
+                    return True
+                else:
+                    self.log(f"❌ Invalid response format: {data}", "FAIL")
+                    self.record_test("GET /api/ai/agents", False, "Invalid response format")
+                    return False
+            else:
+                self.log(f"❌ AI agents failed: {response.status_code} - {response.text}", "FAIL")
+                self.record_test("GET /api/ai/agents", False, f"Status: {response.status_code}")
+                return False
+        except Exception as e:
+            self.log(f"❌ AI agents error: {str(e)}", "ERROR")
+            self.record_test("GET /api/ai/agents", False, f"Error: {str(e)}")
+            return False
+
+    def test_transactions(self):
+        """19. GET /api/transactions"""
+        self.log("💳 Testing Transactions...")
+        try:
+            response = self.session.get(f"{BASE_URL}/transactions")
+            
+            if response.status_code == 200:
+                data = response.json()
+                if isinstance(data, list):
+                    self.log(f"✅ Retrieved {len(data)} transactions", "PASS")
+                    self.record_test("GET /api/transactions", True, f"{len(data)} transactions found")
+                    return True
+                else:
+                    self.log(f"❌ Invalid response format: {data}", "FAIL")
+                    self.record_test("GET /api/transactions", False, "Invalid response format")
+                    return False
+            else:
+                self.log(f"❌ Transactions failed: {response.status_code} - {response.text}", "FAIL")
+                self.record_test("GET /api/transactions", False, f"Status: {response.status_code}")
+                return False
+        except Exception as e:
+            self.log(f"❌ Transactions error: {str(e)}", "ERROR")
+            self.record_test("GET /api/transactions", False, f"Error: {str(e)}")
+            return False
+
+    def test_budgets(self):
+        """20. GET /api/budgets"""
+        self.log("💰 Testing Budgets...")
+        try:
+            response = self.session.get(f"{BASE_URL}/budgets")
+            
+            if response.status_code == 200:
+                data = response.json()
+                if isinstance(data, list):
+                    self.log(f"✅ Retrieved {len(data)} budgets", "PASS")
+                    self.record_test("GET /api/budgets", True, f"{len(data)} budgets found")
+                    return True
+                else:
+                    self.log(f"❌ Invalid response format: {data}", "FAIL")
+                    self.record_test("GET /api/budgets", False, "Invalid response format")
+                    return False
+            else:
+                self.log(f"❌ Budgets failed: {response.status_code} - {response.text}", "FAIL")
+                self.record_test("GET /api/budgets", False, f"Status: {response.status_code}")
+                return False
+        except Exception as e:
+            self.log(f"❌ Budgets error: {str(e)}", "ERROR")
+            self.record_test("GET /api/budgets", False, f"Error: {str(e)}")
+            return False
+
+    def test_stats_overview(self):
+        """21. GET /api/stats/overview"""
+        self.log("📊 Testing Stats Overview...")
+        try:
+            response = self.session.get(f"{BASE_URL}/stats/overview")
+            
+            if response.status_code == 200:
+                data = response.json()
+                if "total_income" in data or "total_expense" in data:
+                    self.log("✅ Stats overview retrieved", "PASS")
+                    self.record_test("GET /api/stats/overview", True, "Stats overview retrieved")
+                    return True
+                else:
+                    self.log(f"❌ Invalid stats format: {data}", "FAIL")
+                    self.record_test("GET /api/stats/overview", False, "Invalid stats format")
+                    return False
+            else:
+                self.log(f"❌ Stats overview failed: {response.status_code} - {response.text}", "FAIL")
+                self.record_test("GET /api/stats/overview", False, f"Status: {response.status_code}")
+                return False
+        except Exception as e:
+            self.log(f"❌ Stats overview error: {str(e)}", "ERROR")
+            self.record_test("GET /api/stats/overview", False, f"Error: {str(e)}")
+            return False
+
+    def test_leaderboard_savings(self):
+        """22. GET /api/leaderboard/savings"""
+        self.log("🏆 Testing Leaderboard Savings...")
+        try:
+            response = self.session.get(f"{BASE_URL}/leaderboard/savings")
+            
+            if response.status_code == 200:
+                data = response.json()
+                # Check for various leaderboard field names
+                if "rank" in data or "leaderboard" in data or "user_rank" in data or "top_10" in data:
+                    self.log("✅ Leaderboard savings retrieved", "PASS")
+                    self.record_test("GET /api/leaderboard/savings", True, "Leaderboard retrieved")
+                    return True
+                else:
+                    self.log(f"❌ Invalid leaderboard format: {data}", "FAIL")
+                    self.record_test("GET /api/leaderboard/savings", False, "Invalid leaderboard format")
+                    return False
+            else:
+                self.log(f"❌ Leaderboard savings failed: {response.status_code} - {response.text}", "FAIL")
+                self.record_test("GET /api/leaderboard/savings", False, f"Status: {response.status_code}")
+                return False
+        except Exception as e:
+            self.log(f"❌ Leaderboard savings error: {str(e)}", "ERROR")
+            self.record_test("GET /api/leaderboard/savings", False, f"Error: {str(e)}")
+            return False
+
+    def test_waste_detector(self):
+        """23. GET /api/waste-detector"""
+        self.log("🗑️ Testing Waste Detector...")
+        try:
+            response = self.session.get(f"{BASE_URL}/waste-detector")
+            
+            if response.status_code == 200:
+                data = response.json()
+                self.log("✅ Waste detector working", "PASS")
+                self.record_test("GET /api/waste-detector", True, "Waste detector working")
+                return True
+            else:
+                self.log(f"❌ Waste detector failed: {response.status_code} - {response.text}", "FAIL")
+                self.record_test("GET /api/waste-detector", False, f"Status: {response.status_code}")
+                return False
+        except Exception as e:
+            self.log(f"❌ Waste detector error: {str(e)}", "ERROR")
+            self.record_test("GET /api/waste-detector", False, f"Error: {str(e)}")
+            return False
+
+    def test_smart_alerts(self):
+        """24. GET /api/alerts/smart"""
+        self.log("🚨 Testing Smart Alerts...")
+        try:
+            response = self.session.get(f"{BASE_URL}/alerts/smart")
+            
+            if response.status_code == 200:
+                data = response.json()
+                # Handle both direct array and wrapped response
+                alerts = data if isinstance(data, list) else data.get("alerts", [])
+                if isinstance(alerts, list):
+                    self.log(f"✅ Retrieved {len(alerts)} smart alerts", "PASS")
+                    self.record_test("GET /api/alerts/smart", True, f"{len(alerts)} alerts found")
+                    return True
+                else:
+                    self.log(f"❌ Invalid alerts format: {data}", "FAIL")
+                    self.record_test("GET /api/alerts/smart", False, "Invalid alerts format")
+                    return False
+            else:
+                self.log(f"❌ Smart alerts failed: {response.status_code} - {response.text}", "FAIL")
+                self.record_test("GET /api/alerts/smart", False, f"Status: {response.status_code}")
+                return False
+        except Exception as e:
+            self.log(f"❌ Smart alerts error: {str(e)}", "ERROR")
+            self.record_test("GET /api/alerts/smart", False, f"Error: {str(e)}")
+            return False
+
+    def test_share_stats_card(self):
+        """25. GET /api/share/stats-card"""
+        self.log("📤 Testing Share Stats Card...")
+        try:
+            response = self.session.get(f"{BASE_URL}/share/stats-card")
+            
+            if response.status_code == 200:
+                data = response.json()
+                self.log("✅ Share stats card working", "PASS")
+                self.record_test("GET /api/share/stats-card", True, "Share stats card working")
+                return True
+            else:
+                self.log(f"❌ Share stats card failed: {response.status_code} - {response.text}", "FAIL")
+                self.record_test("GET /api/share/stats-card", False, f"Status: {response.status_code}")
+                return False
+        except Exception as e:
+            self.log(f"❌ Share stats card error: {str(e)}", "ERROR")
+            self.record_test("GET /api/share/stats-card", False, f"Error: {str(e)}")
+            return False
+
+    def test_card_of_the_day(self):
+        """26. GET /api/card-of-the-day"""
+        self.log("🃏 Testing Card of the Day...")
+        try:
+            response = self.session.get(f"{BASE_URL}/card-of-the-day")
+            
+            if response.status_code == 200:
+                data = response.json()
+                if "title" in data and "text" in data:
+                    self.log(f"✅ Card of the day - Title: {data.get('title', 'N/A')}", "PASS")
+                    self.record_test("GET /api/card-of-the-day", True, f"Title: {data.get('title', 'N/A')}")
+                    return True
+                else:
+                    self.log(f"❌ Invalid card format: {data}", "FAIL")
+                    self.record_test("GET /api/card-of-the-day", False, "Invalid card format")
+                    return False
+            else:
+                self.log(f"❌ Card of the day failed: {response.status_code} - {response.text}", "FAIL")
+                self.record_test("GET /api/card-of-the-day", False, f"Status: {response.status_code}")
+                return False
+        except Exception as e:
+            self.log(f"❌ Card of the day error: {str(e)}", "ERROR")
+            self.record_test("GET /api/card-of-the-day", False, f"Error: {str(e)}")
+            return False
+
+    def test_money_school_daily(self):
+        """27. GET /api/money-school/daily"""
+        self.log("🎓 Testing Money School Daily...")
+        try:
+            response = self.session.get(f"{BASE_URL}/money-school/daily")
+            
+            if response.status_code == 200:
+                data = response.json()
+                self.log("✅ Money school daily working", "PASS")
+                self.record_test("GET /api/money-school/daily", True, "Money school daily working")
+                return True
+            else:
+                self.log(f"❌ Money school daily failed: {response.status_code} - {response.text}", "FAIL")
+                self.record_test("GET /api/money-school/daily", False, f"Status: {response.status_code}")
+                return False
+        except Exception as e:
+            self.log(f"❌ Money school daily error: {str(e)}", "ERROR")
+            self.record_test("GET /api/money-school/daily", False, f"Error: {str(e)}")
+            return False
+
+    def test_gamification_status(self):
+        """28. GET /api/gamification/status"""
+        self.log("🎮 Testing Gamification Status...")
+        try:
+            response = self.session.get(f"{BASE_URL}/gamification/status")
+            
+            if response.status_code == 200:
+                data = response.json()
+                self.log("✅ Gamification status working", "PASS")
+                self.record_test("GET /api/gamification/status", True, "Gamification status working")
+                return True
+            else:
+                self.log(f"❌ Gamification status failed: {response.status_code} - {response.text}", "FAIL")
+                self.record_test("GET /api/gamification/status", False, f"Status: {response.status_code}")
+                return False
+        except Exception as e:
+            self.log(f"❌ Gamification status error: {str(e)}", "ERROR")
+            self.record_test("GET /api/gamification/status", False, f"Error: {str(e)}")
+            return False
+
+    def test_referral_enhanced_status(self):
+        """29. GET /api/referral/enhanced-status"""
+        self.log("🎁 Testing Referral Enhanced Status...")
+        try:
+            response = self.session.get(f"{BASE_URL}/referral/enhanced-status")
+            
+            if response.status_code == 200:
+                data = response.json()
+                if "referral_code" in data:
+                    self.log(f"✅ Referral enhanced status - Code: {data.get('referral_code', 'N/A')}", "PASS")
+                    self.record_test("GET /api/referral/enhanced-status", True, f"Code: {data.get('referral_code', 'N/A')}")
+                    return True
+                else:
+                    self.log(f"❌ Invalid referral format: {data}", "FAIL")
+                    self.record_test("GET /api/referral/enhanced-status", False, "Invalid referral format")
+                    return False
+            else:
+                self.log(f"❌ Referral enhanced status failed: {response.status_code} - {response.text}", "FAIL")
+                self.record_test("GET /api/referral/enhanced-status", False, f"Status: {response.status_code}")
+                return False
+        except Exception as e:
+            self.log(f"❌ Referral enhanced status error: {str(e)}", "ERROR")
+            self.record_test("GET /api/referral/enhanced-status", False, f"Error: {str(e)}")
+            return False
+
+    def test_weekly_report(self):
+        """30. GET /api/reports/weekly"""
+        self.log("📊 Testing Weekly Report...")
+        try:
+            response = self.session.get(f"{BASE_URL}/reports/weekly")
+            
+            if response.status_code == 200:
+                data = response.json()
+                self.log("✅ Weekly report working", "PASS")
+                self.record_test("GET /api/reports/weekly", True, "Weekly report working")
+                return True
+            else:
+                self.log(f"❌ Weekly report failed: {response.status_code} - {response.text}", "FAIL")
+                self.record_test("GET /api/reports/weekly", False, f"Status: {response.status_code}")
+                return False
+        except Exception as e:
+            self.log(f"❌ Weekly report error: {str(e)}", "ERROR")
+            self.record_test("GET /api/reports/weekly", False, f"Error: {str(e)}")
+            return False
+
+    # CRITICAL TESTS - Previously failing endpoints that should now be fixed
+    def test_split_settle(self):
+        """CRITICAL: POST /api/split/settle - Was 500, should be 200 now"""
+        self.log("🔥 CRITICAL TEST: Split Settle (was 500, should be 200)...")
+        try:
+            response = self.session.post(f"{BASE_URL}/split/settle",
+                                       json={
+                                           "target_user_id": "test_user",
+                                           "amount": 500,
+                                           "method": "upi"
+                                       })
+            
+            if response.status_code == 200:
+                data = response.json()
+                self.log("✅ CRITICAL FIX VERIFIED: Split settle now working (was 500)", "PASS")
+                self.record_test("POST /api/split/settle (CRITICAL)", True, "Fixed from 500 to 200")
+                return True
+            else:
+                self.log(f"❌ CRITICAL ISSUE: Split settle still failing: {response.status_code} - {response.text}", "FAIL")
+                self.record_test("POST /api/split/settle (CRITICAL)", False, f"Still failing: {response.status_code}")
+                return False
+        except Exception as e:
+            self.log(f"❌ CRITICAL ERROR: Split settle error: {str(e)}", "ERROR")
+            self.record_test("POST /api/split/settle (CRITICAL)", False, f"Error: {str(e)}")
+            return False
+
+    def test_split_settlements(self):
+        """CRITICAL: GET /api/split/settlements - Was 500, should be 200 now"""
+        self.log("🔥 CRITICAL TEST: Split Settlements (was 500, should be 200)...")
+        try:
+            response = self.session.get(f"{BASE_URL}/split/settlements")
+            
+            if response.status_code == 200:
+                data = response.json()
+                self.log("✅ CRITICAL FIX VERIFIED: Split settlements now working (was 500)", "PASS")
+                self.record_test("GET /api/split/settlements (CRITICAL)", True, "Fixed from 500 to 200")
+                return True
+            else:
+                self.log(f"❌ CRITICAL ISSUE: Split settlements still failing: {response.status_code} - {response.text}", "FAIL")
+                self.record_test("GET /api/split/settlements (CRITICAL)", False, f"Still failing: {response.status_code}")
+                return False
+        except Exception as e:
+            self.log(f"❌ CRITICAL ERROR: Split settlements error: {str(e)}", "ERROR")
+            self.record_test("GET /api/split/settlements (CRITICAL)", False, f"Error: {str(e)}")
+            return False
+
+    def test_ai_proactive_nudges(self):
+        """CRITICAL: GET /api/ai/proactive-nudges - Was 500, should be 200 now"""
+        self.log("🔥 CRITICAL TEST: AI Proactive Nudges (was 500, should be 200)...")
+        try:
+            response = self.session.get(f"{BASE_URL}/ai/proactive-nudges")
+            
+            if response.status_code == 200:
+                data = response.json()
+                # Handle both direct array and wrapped response
+                nudges = data if isinstance(data, list) else data.get("nudges", [])
+                if isinstance(nudges, list):
+                    self.log(f"✅ CRITICAL FIX VERIFIED: AI proactive nudges now working (was 500) - {len(nudges)} nudges", "PASS")
+                    self.record_test("GET /api/ai/proactive-nudges (CRITICAL)", True, f"Fixed from 500 to 200 - {len(nudges)} nudges")
+                    return True
+                else:
+                    self.log(f"❌ CRITICAL ISSUE: Invalid nudges format: {data}", "FAIL")
+                    self.record_test("GET /api/ai/proactive-nudges (CRITICAL)", False, "Invalid format")
+                    return False
+            else:
+                self.log(f"❌ CRITICAL ISSUE: AI proactive nudges still failing: {response.status_code} - {response.text}", "FAIL")
+                self.record_test("GET /api/ai/proactive-nudges (CRITICAL)", False, f"Still failing: {response.status_code}")
+                return False
+        except Exception as e:
+            self.log(f"❌ CRITICAL ERROR: AI proactive nudges error: {str(e)}", "ERROR")
+            self.record_test("GET /api/ai/proactive-nudges (CRITICAL)", False, f"Error: {str(e)}")
+            return False
+
+    def run_all_tests(self):
+        """Run all 30 endpoint tests"""
+        self.log("🚀 Starting MintU Comprehensive Backend Testing...")
+        self.log(f"📍 Testing against: {BASE_URL}")
+        self.log("🎯 Focus: Verify ALL 30 endpoints + 3 critical fixes")
         
-        # Exit with appropriate code
-        all_passed = all(results.values())
-        sys.exit(0 if all_passed else 1)
+        # Authentication flow
+        if not self.send_otp():
+            self.log("❌ Cannot proceed without OTP send", "CRITICAL")
+            return False
+            
+        if not self.verify_otp():
+            self.log("❌ Cannot proceed without authentication", "CRITICAL")
+            return False
+
+        # Get user profile first
+        self.test_user_me()
+        
+        # Test all endpoints in order
+        test_methods = [
+            self.test_upi_save,
+            self.test_upi_get,
+            self.test_create_split_group,
+            self.test_get_split_groups,
+            self.test_add_split_expense,
+            self.test_group_summary,
+            self.test_split_balances,
+            self.test_recurring_expenses,
+            self.test_money_school_cards,
+            self.test_money_school_complete,
+            self.test_upi_apps,
+            self.test_generate_qr,
+            self.test_ai_agent_chat,
+            self.test_ai_agents,
+            self.test_transactions,
+            self.test_budgets,
+            self.test_stats_overview,
+            self.test_leaderboard_savings,
+            self.test_waste_detector,
+            self.test_smart_alerts,
+            self.test_share_stats_card,
+            self.test_card_of_the_day,
+            self.test_money_school_daily,
+            self.test_gamification_status,
+            self.test_referral_enhanced_status,
+            self.test_weekly_report,
+            # CRITICAL TESTS - Previously failing endpoints
+            self.test_split_settle,
+            self.test_split_settlements,
+            self.test_ai_proactive_nudges
+        ]
+        
+        for test_method in test_methods:
+            test_method()
+            time.sleep(0.1)  # Small delay to avoid rate limiting
+        
+        # Summary
+        self.print_summary()
+        
+        passed_tests = sum(1 for result in self.test_results if result["passed"])
+        total_tests = len(self.test_results)
+        
+        return passed_tests == total_tests
+
+    def print_summary(self):
+        """Print comprehensive test summary"""
+        self.log("\n" + "="*80)
+        self.log("📊 COMPREHENSIVE TEST SUMMARY - ALL 30 ENDPOINTS")
+        self.log("="*80)
+        
+        passed_tests = [r for r in self.test_results if r["passed"]]
+        failed_tests = [r for r in self.test_results if not r["passed"]]
+        critical_tests = [r for r in self.test_results if "CRITICAL" in r["test"]]
+        
+        # Critical tests summary
+        self.log("\n🔥 CRITICAL FIXES (Previously failing endpoints):")
+        for test in critical_tests:
+            status = "✅ FIXED" if test["passed"] else "❌ STILL FAILING"
+            self.log(f"   {status}: {test['test']} - {test['details']}")
+        
+        # Failed tests (if any)
+        if failed_tests:
+            self.log(f"\n❌ FAILED TESTS ({len(failed_tests)}):")
+            for test in failed_tests:
+                self.log(f"   ❌ {test['test']} - {test['details']}")
+        
+        # Passed tests summary
+        self.log(f"\n✅ PASSED TESTS ({len(passed_tests)}):")
+        for test in passed_tests:
+            self.log(f"   ✅ {test['test']} - {test['details']}")
+        
+        # Overall summary
+        total_tests = len(self.test_results)
+        success_rate = (len(passed_tests) / total_tests) * 100
+        
+        self.log(f"\n🎯 OVERALL RESULTS:")
+        self.log(f"   Total Tests: {total_tests}")
+        self.log(f"   Passed: {len(passed_tests)}")
+        self.log(f"   Failed: {len(failed_tests)}")
+        self.log(f"   Success Rate: {success_rate:.1f}%")
+        
+        critical_passed = sum(1 for test in critical_tests if test["passed"])
+        critical_total = len(critical_tests)
+        
+        if critical_total > 0:
+            self.log(f"   Critical Fixes: {critical_passed}/{critical_total} working")
+        
+        if len(failed_tests) == 0:
+            self.log("🎉 ALL TESTS PASSED! Backend is production-ready!", "SUCCESS")
+        else:
+            self.log(f"⚠️ {len(failed_tests)} tests failed. Review issues above.", "WARNING")
 
 if __name__ == "__main__":
-    asyncio.run(main())
+    tester = MintUComprehensiveTester()
+    success = tester.run_all_tests()
+    exit(0 if success else 1)
