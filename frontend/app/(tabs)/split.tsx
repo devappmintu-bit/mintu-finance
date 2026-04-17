@@ -2,44 +2,47 @@ import React, { useState, useEffect, useCallback } from 'react';
 import {
   View, Text, StyleSheet, ScrollView, TouchableOpacity, ActivityIndicator,
   Modal, TextInput, Alert, KeyboardAvoidingView, Platform, Linking, Share,
-  RefreshControl,
+  RefreshControl, Animated,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
+import { LinearGradient } from 'expo-linear-gradient';
 import api from '../../utils/api';
 import { useAuthStore } from '../../store/authStore';
-import { COLORS, RADIUS, SPACING } from '../../utils/theme';
+import { RADIUS, SPACING } from '../../utils/theme';
 
-// Smart group avatar generator
-const GROUP_ICONS: Record<string, { emoji: string; bg: string }> = {
-  trip: { emoji: '✈️', bg: '#0EA5E9' }, goa: { emoji: '🏖️', bg: '#F59E0B' },
-  flat: { emoji: '🏠', bg: '#8B5CF6' }, office: { emoji: '💼', bg: '#6366F1' },
-  food: { emoji: '🍕', bg: '#EF4444' }, dinner: { emoji: '🍽️', bg: '#EC4899' },
-  rent: { emoji: '🏡', bg: '#10B981' }, party: { emoji: '🎉', bg: '#F97316' },
-  team: { emoji: '👥', bg: '#3B82F6' }, family: { emoji: '👨‍👩‍👧‍👦', bg: '#059669' },
-  weekend: { emoji: '🌴', bg: '#14B8A6' }, movie: { emoji: '🎬', bg: '#A855F7' },
-  default: { emoji: '💰', bg: '#6366F1' },
+// Glass theme
+const C = {
+  bg: '#0A0E27', card: 'rgba(255,255,255,0.05)', cardBorder: 'rgba(255,255,255,0.08)',
+  glass: 'rgba(255,255,255,0.07)', glassBorder: 'rgba(255,255,255,0.12)',
+  mint: '#00F5A0', mintDim: 'rgba(0,245,160,0.12)', mintGlow: 'rgba(0,245,160,0.25)',
+  red: '#FF6B6B', redDim: 'rgba(255,107,107,0.12)',
+  gold: '#FFD700', goldDim: 'rgba(255,215,0,0.12)',
+  blue: '#60A5FA', purple: '#A78BFA', pink: '#F472B6',
+  w100: '#fff', w70: 'rgba(255,255,255,0.7)', w50: 'rgba(255,255,255,0.5)',
+  w30: 'rgba(255,255,255,0.3)', w15: 'rgba(255,255,255,0.15)', w08: 'rgba(255,255,255,0.08)',
 };
-const getGroupAvatar = (name: string) => {
-  const lower = name.toLowerCase();
-  for (const [key, val] of Object.entries(GROUP_ICONS)) {
-    if (key !== 'default' && lower.includes(key)) return val;
-  }
-  return GROUP_ICONS.default;
+const MEMBER_COLORS = ['#6366F1', '#F59E0B', '#10B981', '#EF4444', '#8B5CF6', '#EC4899', '#0EA5E9', '#F97316'];
+const GROUP_ICONS: Record<string, { emoji: string; colors: string[] }> = {
+  trip: { emoji: '✈️', colors: ['#0EA5E9', '#6366F1'] }, goa: { emoji: '🏖️', colors: ['#F59E0B', '#EF4444'] },
+  flat: { emoji: '🏠', colors: ['#8B5CF6', '#6366F1'] }, office: { emoji: '💼', colors: ['#3B82F6', '#6366F1'] },
+  food: { emoji: '🍕', colors: ['#EF4444', '#F97316'] }, dinner: { emoji: '🍽️', colors: ['#EC4899', '#F43F5E'] },
+  rent: { emoji: '🏡', colors: ['#10B981', '#059669'] }, party: { emoji: '🎉', colors: ['#F97316', '#EF4444'] },
+  team: { emoji: '👥', colors: ['#3B82F6', '#0EA5E9'] }, family: { emoji: '👨‍👩‍👧‍👦', colors: ['#059669', '#10B981'] },
+  default: { emoji: '💰', colors: ['#6366F1', '#8B5CF6'] },
 };
-
-const SPLIT_TYPES = [
-  { id: 'equal', icon: 'git-compare', label: 'Equal' },
-  { id: 'custom', icon: 'calculator', label: '₹ Amount' },
-  { id: 'shares', icon: 'add-circle-outline', label: 'Shares' },
-  { id: 'percentage', icon: 'pie-chart', label: '% Split' },
-];
-
+const getGA = (n: string) => { const l = n.toLowerCase(); for (const [k, v] of Object.entries(GROUP_ICONS)) { if (k !== 'default' && l.includes(k)) return v; } return GROUP_ICONS.default; };
 const UPI_APPS = [
   { id: 'gpay', name: 'Google Pay', color: '#4285F4', icon: 'logo-google' },
   { id: 'phonepe', name: 'PhonePe', color: '#5F259F', icon: 'phone-portrait' },
   { id: 'paytm', name: 'Paytm', color: '#00BAF2', icon: 'wallet' },
   { id: 'bhim', name: 'BHIM', color: '#00695C', icon: 'shield-checkmark' },
+];
+const SPLIT_TYPES = [
+  { id: 'equal', icon: 'git-compare', label: 'Equal' },
+  { id: 'custom', icon: 'calculator', label: '₹ Amt' },
+  { id: 'shares', icon: 'add-circle-outline', label: 'Shares' },
+  { id: 'percentage', icon: 'pie-chart', label: '%' },
 ];
 
 export default function SplitScreen() {
@@ -49,596 +52,433 @@ export default function SplitScreen() {
   const [settleLB, setSettleLB] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
-  // Modals
-  const [modal, setModal] = useState<string>('');
+  const [modal, setModal] = useState('');
   const [selectedGroup, setSelectedGroup] = useState<any>(null);
   const [groupSummary, setGroupSummary] = useState<any>(null);
   const [groupManage, setGroupManage] = useState<any>(null);
   const [payTarget, setPayTarget] = useState<any>(null);
   const [lastReward, setLastReward] = useState<any>(null);
-  // Group create
   const [groupName, setGroupName] = useState('');
   const [phoneInput, setPhoneInput] = useState('');
   const [phones, setPhones] = useState<string[]>([]);
-  // Expense
   const [expAmount, setExpAmount] = useState('');
   const [expDesc, setExpDesc] = useState('');
   const [splitType, setSplitType] = useState('equal');
   const [memberAmts, setMemberAmts] = useState<Record<string, string>>({});
   const [memberOn, setMemberOn] = useState<Record<string, boolean>>({});
-  // Manage
-  const [addPhone, setAddPhone] = useState('');
+  const [addPhoneVal, setAddPhoneVal] = useState('');
   const [renameVal, setRenameVal] = useState('');
   const [showRename, setShowRename] = useState(false);
 
   const fetchData = useCallback(async () => {
     try {
-      const [gRes, bRes, lbRes] = await Promise.all([
-        api.get('/split/groups'),
-        api.get('/split/balances'),
+      const [gR, bR, lR] = await Promise.all([
+        api.get('/split/groups'), api.get('/split/balances'),
         api.get('/split/settlement-leaderboard').catch(() => ({ data: null })),
       ]);
-      setGroups(gRes.data); setBalances(bRes.data);
-      if (lbRes.data) setSettleLB(lbRes.data);
+      setGroups(gR.data); setBalances(bR.data); if (lR.data) setSettleLB(lR.data);
     } catch (e) { console.error(e); }
     finally { setLoading(false); setRefreshing(false); }
   }, []);
-
   useEffect(() => { fetchData(); }, []);
+  const close = () => { setModal(''); setShowRename(false); };
 
-  const closeModal = () => { setModal(''); setShowRename(false); };
-
-  // ===== GROUP CRUD =====
+  // GROUP CRUD
   const createGroup = async () => {
     if (!groupName.trim()) { Alert.alert('Error', 'Enter group name'); return; }
     try {
       await api.post('/split/groups', { name: groupName, members: phones });
-      closeModal(); setGroupName(''); setPhones([]);
-      fetchData();
-      Alert.alert('Created!', `Group "${groupName}" with ${phones.length + 1} members`);
+      close(); setGroupName(''); setPhones([]); fetchData();
     } catch (e: any) { Alert.alert('Error', e.response?.data?.detail || 'Failed'); }
   };
-
-  const deleteGroup = (group: any) => {
-    Alert.alert('Delete Group', `Delete "${group.name}" and all expenses?`, [
-      { text: 'Cancel', style: 'cancel' },
-      { text: 'Delete', style: 'destructive', onPress: async () => {
-        try { await api({ method: 'DELETE', url: `/split/groups/${group.id}` }); } catch {}
-        closeModal(); fetchData();
-      }},
-    ]);
-  };
-
+  const deleteGroup = (gr: any) => Alert.alert('Delete Group', `Delete "${gr.name}"?`, [
+    { text: 'Cancel', style: 'cancel' },
+    { text: 'Delete', style: 'destructive', onPress: async () => { try { await api({ method: 'DELETE', url: `/split/groups/${gr.id}` }); } catch {} close(); fetchData(); } },
+  ]);
   const renameGroup = async () => {
-    if (!renameVal.trim() || !selectedGroup) return;
-    try {
-      await api.put(`/split/groups/${selectedGroup.id}/name`, { name: renameVal.trim() });
-      setShowRename(false);
-      openManage(selectedGroup);
-      fetchData();
-    } catch (e) { Alert.alert('Error', 'Could not rename'); }
+    if (!renameVal.trim()) return;
+    try { await api.put(`/split/groups/${selectedGroup?.id}/name`, { name: renameVal.trim() }); setShowRename(false); openManage(selectedGroup); fetchData(); } catch {}
   };
-
-  const addMemberToGroup = async () => {
-    const p = addPhone.replace(/\D/g, '').slice(-10);
+  const addMember = async () => {
+    const p = addPhoneVal.replace(/\D/g, '').slice(-10);
     if (p.length !== 10) { Alert.alert('Error', 'Enter valid 10-digit number'); return; }
-    try {
-      const res = await api.post(`/split/groups/${selectedGroup?.id}/members`, { phones: [p] });
-      Alert.alert('Done!', res.data.message);
-      setAddPhone('');
-      openManage(selectedGroup);
-      fetchData();
-    } catch (e: any) { Alert.alert('Error', e.response?.data?.detail || 'Failed'); }
+    try { const r = await api.post(`/split/groups/${selectedGroup?.id}/members`, { phones: [p] }); Alert.alert('Done!', r.data.message); setAddPhoneVal(''); openManage(selectedGroup); fetchData(); } catch (e: any) { Alert.alert('Error', e.response?.data?.detail || 'Failed'); }
   };
-
-  const removeMember = async (memberId: string) => {
-    Alert.alert('Remove Member', 'Remove from group?', [
-      { text: 'Cancel', style: 'cancel' },
-      { text: 'Remove', style: 'destructive', onPress: async () => {
-        try { await api({ method: 'DELETE', url: `/split/groups/${selectedGroup?.id}/members/${memberId}` }); } catch {}
-        openManage(selectedGroup); fetchData();
-      }},
-    ]);
-  };
-
-  const leaveGroup = () => {
-    Alert.alert('Leave Group', 'Are you sure?', [
-      { text: 'Cancel', style: 'cancel' },
-      { text: 'Leave', style: 'destructive', onPress: async () => {
-        try { await api({ method: 'DELETE', url: `/split/groups/${selectedGroup?.id}/leave` }); } catch {}
-        closeModal(); fetchData();
-      }},
-    ]);
-  };
-
+  const removeMember = (mid: string) => Alert.alert('Remove?', 'Remove from group?', [
+    { text: 'Cancel', style: 'cancel' },
+    { text: 'Remove', style: 'destructive', onPress: async () => { try { await api({ method: 'DELETE', url: `/split/groups/${selectedGroup?.id}/members/${mid}` }); } catch {} openManage(selectedGroup); fetchData(); } },
+  ]);
+  const leaveGroup = () => Alert.alert('Leave?', 'Are you sure?', [
+    { text: 'Cancel', style: 'cancel' },
+    { text: 'Leave', style: 'destructive', onPress: async () => { try { await api({ method: 'DELETE', url: `/split/groups/${selectedGroup?.id}/leave` }); } catch {} close(); fetchData(); } },
+  ]);
   const addPhoneToList = () => {
     const nums = phoneInput.split(',').map(p => p.replace(/\D/g, '').slice(-10)).filter(p => p.length === 10 && !phones.includes(p));
     if (nums.length) { setPhones([...phones, ...nums]); setPhoneInput(''); }
   };
 
-  // ===== EXPENSE CRUD =====
-  const openAddExpense = (group: any) => {
-    setSelectedGroup(group); setExpAmount(''); setExpDesc(''); setSplitType('equal');
-    const on: Record<string, boolean> = {}; const amts: Record<string, string> = {};
-    (group.members || []).forEach((m: any) => { on[m.user_id] = true; amts[m.user_id] = ''; });
-    setMemberOn(on); setMemberAmts(amts); setModal('expense');
+  // EXPENSE CRUD
+  const openAddExpense = (gr: any) => {
+    setSelectedGroup(gr); setExpAmount(''); setExpDesc(''); setSplitType('equal');
+    const on: Record<string, boolean> = {}; const a: Record<string, string> = {};
+    (gr.members || []).forEach((m: any) => { on[m.user_id] = true; a[m.user_id] = ''; });
+    setMemberOn(on); setMemberAmts(a); setModal('expense');
   };
-
-  const getMemberSplit = (mid: string): string => {
-    const amt = parseFloat(expAmount) || 0;
-    const enabled = Object.entries(memberOn).filter(([_, v]) => v);
-    const cnt = enabled.length || 1;
+  const getSplit = (mid: string) => {
+    const amt = parseFloat(expAmount) || 0; const en = Object.entries(memberOn).filter(([_, v]) => v); const cnt = en.length || 1;
     if (splitType === 'equal') return (amt / cnt).toFixed(0);
     if (splitType === 'custom') return memberAmts[mid] || '0';
-    if (splitType === 'shares') {
-      const total = enabled.reduce((s, [id]) => s + (parseFloat(memberAmts[id]) || 1), 0);
-      return ((amt * (parseFloat(memberAmts[mid]) || 1)) / total).toFixed(0);
-    }
+    if (splitType === 'shares') { const t = en.reduce((s, [id]) => s + (parseFloat(memberAmts[id]) || 1), 0); return ((amt * (parseFloat(memberAmts[mid]) || 1)) / t).toFixed(0); }
     if (splitType === 'percentage') return ((amt * (parseFloat(memberAmts[mid]) || 0)) / 100).toFixed(0);
     return '0';
   };
-
   const addExpense = async () => {
     const amt = parseFloat(expAmount);
-    if (!amt || amt <= 0 || !selectedGroup) { Alert.alert('Error', 'Enter valid amount'); return; }
-    const enabled = Object.entries(memberOn).filter(([_, v]) => v).map(([id]) => id);
-    if (enabled.length < 2) { Alert.alert('Error', 'Select at least 2 members'); return; }
-
+    if (!amt || !selectedGroup) { Alert.alert('Error', 'Enter valid amount'); return; }
+    const en = Object.entries(memberOn).filter(([_, v]) => v).map(([id]) => id);
+    if (en.length < 2) { Alert.alert('Error', 'Select at least 2 members'); return; }
     let splits: Record<string, number> = {};
-    if (splitType === 'equal') {
-      const per = amt / enabled.length;
-      enabled.forEach(id => { splits[id] = Math.round(per * 100) / 100; });
-    } else if (splitType === 'shares') {
-      const total = enabled.reduce((s, id) => s + (parseFloat(memberAmts[id]) || 1), 0);
-      enabled.forEach(id => { splits[id] = Math.round(amt * (parseFloat(memberAmts[id]) || 1) / total * 100) / 100; });
-    } else if (splitType === 'percentage') {
-      enabled.forEach(id => { splits[id] = Math.round(amt * (parseFloat(memberAmts[id]) || 0) / 100 * 100) / 100; });
-    } else {
-      enabled.forEach(id => { splits[id] = parseFloat(memberAmts[id]) || 0; });
-    }
-
+    if (splitType === 'equal') { const p = amt / en.length; en.forEach(id => { splits[id] = Math.round(p * 100) / 100; }); }
+    else if (splitType === 'shares') { const t = en.reduce((s, id) => s + (parseFloat(memberAmts[id]) || 1), 0); en.forEach(id => { splits[id] = Math.round(amt * (parseFloat(memberAmts[id]) || 1) / t * 100) / 100; }); }
+    else if (splitType === 'percentage') { en.forEach(id => { splits[id] = Math.round(amt * (parseFloat(memberAmts[id]) || 0) / 100 * 100) / 100; }); }
+    else { en.forEach(id => { splits[id] = parseFloat(memberAmts[id]) || 0; }); }
     try {
-      await api.post('/split/expenses', {
-        group_id: selectedGroup.id, description: expDesc || 'Expense',
-        amount: amt, paid_by: user?.id, split_type: splitType, splits,
-      });
-      closeModal(); fetchData();
-      Alert.alert('Added! 🎉', `₹${amt} split among ${enabled.length} people`);
+      await api.post('/split/expenses', { group_id: selectedGroup.id, description: expDesc || 'Expense', amount: amt, paid_by: user?.id, split_type: splitType, splits });
+      close(); fetchData(); Alert.alert('Added! 🎉', `₹${amt} split among ${en.length} people`);
     } catch (e: any) { Alert.alert('Error', e.response?.data?.detail || 'Failed'); }
   };
+  const deleteExpense = (eid: string) => Alert.alert('Delete?', 'Remove this expense?', [
+    { text: 'Cancel', style: 'cancel' },
+    { text: 'Delete', style: 'destructive', onPress: async () => { try { await api({ method: 'DELETE', url: `/split/expenses/${eid}` }); } catch {} if (selectedGroup) openSummary(selectedGroup); fetchData(); } },
+  ]);
 
-  const deleteExpense = (expId: string) => {
-    Alert.alert('Delete Expense', 'Remove this expense?', [
-      { text: 'Cancel', style: 'cancel' },
-      { text: 'Delete', style: 'destructive', onPress: async () => {
-        try { await api({ method: 'DELETE', url: `/split/expenses/${expId}` }); } catch {}
-        if (selectedGroup) openSummary(selectedGroup);
-        fetchData();
-      }},
-    ]);
-  };
+  // SUMMARY & MANAGE
+  const openSummary = async (gr: any) => { try { const r = await api.get(`/split/groups/${gr.id}/summary`); setGroupSummary(r.data); setSelectedGroup(gr); setModal('summary'); } catch { Alert.alert('Error', 'Could not load'); } };
+  const openManage = async (gr: any) => { try { const r = await api.get(`/split/groups/${gr.id}/manage`); setGroupManage(r.data); setSelectedGroup(gr); setModal('manage'); } catch { Alert.alert('Error', 'Could not load'); } };
 
-  // ===== SUMMARY & MANAGE =====
-  const openSummary = async (group: any) => {
-    try {
-      const res = await api.get(`/split/groups/${group.id}/summary`);
-      setGroupSummary(res.data); setSelectedGroup(group); setModal('summary');
-    } catch (e) { Alert.alert('Error', 'Could not load'); }
-  };
-
-  const openManage = async (group: any) => {
-    try {
-      const res = await api.get(`/split/groups/${group.id}/manage`);
-      setGroupManage(res.data); setSelectedGroup(group); setModal('manage');
-    } catch (e) { Alert.alert('Error', 'Could not load'); }
-  };
-
-  // ===== PAYMENTS =====
+  // PAYMENTS
   const payViaUPI = async () => {
     if (!payTarget) return;
-    try {
-      const res = await api.get(`/split/pay-intent/${payTarget.to_id}?amount=${payTarget.amount}`);
-      setModal('');
-      await Linking.openURL(res.data.upi_link);
-      setTimeout(() => {
-        Alert.alert('Payment Status', 'Did the payment go through?', [
-          { text: 'No', style: 'cancel' },
-          { text: 'Yes ✓', onPress: () => settleWithRewards(payTarget) },
-        ]);
-      }, 3000);
-    } catch {
-      setModal('');
-      Alert.alert('UPI Not Available', 'Mark as cash?', [
-        { text: 'Cancel', style: 'cancel' },
-        { text: 'Cash Payment', onPress: () => settleWithRewards({ ...payTarget, method: 'cash' }) },
-      ]);
-    }
+    try { const r = await api.get(`/split/pay-intent/${payTarget.to_id}?amount=${payTarget.amount}`); setModal(''); await Linking.openURL(r.data.upi_link);
+      setTimeout(() => Alert.alert('Payment Status', 'Did it go through?', [{ text: 'No', style: 'cancel' }, { text: 'Yes ✓', onPress: () => settleReward(payTarget) }]), 3000);
+    } catch { setModal(''); Alert.alert('UPI Not Available', 'Mark as cash?', [{ text: 'Cancel', style: 'cancel' }, { text: 'Cash', onPress: () => settleReward({ ...payTarget, method: 'cash' }) }]); }
   };
-
-  const settleWithRewards = async (target: any) => {
-    try {
-      const res = await api.post('/split/settle-with-rewards', {
-        target_user_id: target.to_id, amount: target.amount,
-        method: target.method || 'upi', group_id: selectedGroup?.id,
-      });
-      setLastReward(res.data.reward); setModal('reward');
-      fetchData();
-    } catch { Alert.alert('Error', 'Could not settle'); }
+  const settleReward = async (t: any) => {
+    try { const r = await api.post('/split/settle-with-rewards', { target_user_id: t.to_id, amount: t.amount, method: t.method || 'upi', group_id: selectedGroup?.id }); setLastReward(r.data.reward); setModal('reward'); fetchData(); } catch { Alert.alert('Error', 'Could not settle'); }
   };
-
   const remind = (name: string, amt: number) => {
     const t = `Hey ${name}! 👋 You owe ₹${amt.toFixed(0)} on MintU. Settle up? 😊\n📲 https://mintu.app/download`;
     Linking.openURL(`whatsapp://send?text=${encodeURIComponent(t)}`).catch(() => Share.share({ message: t }));
   };
 
-  const myCoins = settleLB?.my_stats?.coins || 0;
-
-  if (loading) return <SafeAreaView style={g.container}><ActivityIndicator size="large" color="#00F5A0" style={{ marginTop: 100 }} /></SafeAreaView>;
+  const coins = settleLB?.my_stats?.coins || 0;
+  if (loading) return <SafeAreaView style={s.bg}><ActivityIndicator size="large" color={C.mint} style={{ marginTop: 100 }} /></SafeAreaView>;
 
   return (
-    <SafeAreaView style={g.container}>
-      <ScrollView contentContainerStyle={g.scroll} refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); fetchData(); }} tintColor="#00F5A0" />}>
-        {/* Header */}
-        <View style={g.header}>
-          <Text style={g.title}>Split</Text>
-          <View style={g.headerR}>
-            <View style={g.coinBadge}><Text style={g.coinText}>🪙 {myCoins}</Text></View>
-            <TouchableOpacity style={g.addBtn} onPress={() => { setGroupName(''); setPhones([]); setPhoneInput(''); setModal('create'); }}>
-              <Ionicons name="add" size={22} color="#0B0F2F" />
+    <SafeAreaView style={s.bg}>
+      <ScrollView contentContainerStyle={s.scroll} refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); fetchData(); }} tintColor={C.mint} />}>
+        {/* HEADER */}
+        <View style={s.header}>
+          <Text style={s.title}>Split</Text>
+          <View style={s.headerR}>
+            <LinearGradient colors={['rgba(255,215,0,0.15)', 'rgba(255,215,0,0.05)']} style={s.coinPill}><Text style={s.coinText}>🪙 {coins}</Text></LinearGradient>
+            <TouchableOpacity onPress={() => { setGroupName(''); setPhones([]); setPhoneInput(''); setModal('create'); }}>
+              <LinearGradient colors={[C.mint, '#00D68F']} style={s.addBtn}><Ionicons name="add" size={22} color={C.bg} /></LinearGradient>
             </TouchableOpacity>
           </View>
         </View>
 
-        {/* Balance Card */}
-        <View style={g.glassCard}>
-          <View style={g.balRow}>
-            <View style={g.balHalf}><Text style={[g.balVal, { color: '#00F5A0' }]}>₹{(balances?.total_owed_to_you || 0).toFixed(0)}</Text><Text style={g.balLbl}>You're owed</Text></View>
-            <View style={g.balDiv} />
-            <View style={g.balHalf}><Text style={[g.balVal, { color: '#FF6B6B' }]}>₹{(balances?.total_you_owe || 0).toFixed(0)}</Text><Text style={g.balLbl}>You owe</Text></View>
+        {/* BALANCE GLASS CARD */}
+        <LinearGradient colors={['rgba(255,255,255,0.08)', 'rgba(255,255,255,0.03)']} style={s.balCard}>
+          <View style={s.balRow}>
+            <View style={s.balH}><Text style={[s.balV, { color: C.mint }]}>₹{(balances?.total_owed_to_you || 0).toFixed(0)}</Text><Text style={s.balL}>You're owed</Text></View>
+            <View style={s.balD} />
+            <View style={s.balH}><Text style={[s.balV, { color: C.red }]}>₹{(balances?.total_you_owe || 0).toFixed(0)}</Text><Text style={s.balL}>You owe</Text></View>
           </View>
-        </View>
+        </LinearGradient>
 
-        {/* Leaderboard */}
+        {/* LEADERBOARD */}
         {settleLB && settleLB.leaderboard?.length > 0 && (
-          <View style={g.lbCard}>
-            <View style={g.lbHead}><Ionicons name="trophy" size={16} color="#FFD700" /><Text style={g.lbTitle}>SETTLEMENT KINGS</Text></View>
+          <LinearGradient colors={['rgba(255,215,0,0.08)', 'rgba(255,215,0,0.02)']} style={s.lbCard}>
+            <View style={s.lbHead}><Ionicons name="trophy" size={16} color={C.gold} /><Text style={s.lbTitle}>SETTLEMENT KINGS</Text></View>
             {settleLB.leaderboard.slice(0, 3).map((e: any, i: number) => (
-              <View key={i} style={[g.lbRow, e.is_me && g.lbRowMe]}>
-                <Text style={g.lbMedal}>{['🥇', '🥈', '🥉'][i]}</Text>
-                <Text style={[g.lbName, e.is_me && { color: '#00F5A0', fontWeight: '800' }]}>{e.is_me ? 'You' : e.name}</Text>
-                <Text style={g.lbCoins}>🪙 {e.coins}</Text>
+              <View key={i} style={[s.lbRow, e.is_me && s.lbMe]}>
+                <Text style={s.lbMedal}>{['🥇', '🥈', '🥉'][i]}</Text>
+                <Text style={[s.lbName, e.is_me && { color: C.mint, fontWeight: '800' }]}>{e.is_me ? 'You' : e.name}</Text>
+                <Text style={s.lbCoins}>🪙 {e.coins}</Text>
               </View>
             ))}
-          </View>
+          </LinearGradient>
         )}
 
-        {/* Groups */}
-        <Text style={g.section}>Groups</Text>
+        {/* GROUPS */}
+        <Text style={s.section}>Groups</Text>
         {groups.length === 0 ? (
-          <View style={g.emptyCard}><Ionicons name="people-outline" size={48} color="rgba(255,255,255,0.3)" /><Text style={g.emptyTitle}>No groups yet</Text><Text style={g.emptyText}>Tap + to create your first split group</Text></View>
+          <LinearGradient colors={[C.glass, 'rgba(255,255,255,0.02)']} style={s.emptyCard}>
+            <Ionicons name="people-outline" size={48} color={C.w30} />
+            <Text style={s.emptyTitle}>No groups yet</Text>
+            <Text style={s.emptyText}>Tap + to create your first split group</Text>
+          </LinearGradient>
         ) : groups.map((gr: any) => {
-          const av = getGroupAvatar(gr.name);
+          const av = getGA(gr.name);
           return (
-            <TouchableOpacity key={gr.id} style={g.groupCard} onPress={() => openSummary(gr)} activeOpacity={0.7}>
-              <View style={[g.groupAvatar, { backgroundColor: av.bg + '30' }]}>
-                <Text style={g.groupEmoji}>{av.emoji}</Text>
+            <TouchableOpacity key={gr.id} style={s.groupCard} onPress={() => openSummary(gr)} activeOpacity={0.7}>
+              <LinearGradient colors={av.colors.map(c => c + '25')} style={s.groupAv}><Text style={s.groupEmoji}>{av.emoji}</Text></LinearGradient>
+              <View style={s.groupInfo}>
+                <Text style={s.groupName}>{gr.name}</Text>
+                <Text style={s.groupMeta}>{gr.members?.length || 0} members</Text>
               </View>
-              <View style={g.groupInfo}>
-                <Text style={g.groupName}>{gr.name}</Text>
-                <Text style={g.groupMeta}>{gr.members?.length || 0} members</Text>
-              </View>
-              <TouchableOpacity style={g.groupActionBtn} onPress={() => openAddExpense(gr)} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
-                <Ionicons name="add-circle" size={28} color="#00F5A0" />
+              <TouchableOpacity onPress={() => openAddExpense(gr)} hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}>
+                <Ionicons name="add-circle" size={30} color={C.mint} />
               </TouchableOpacity>
-              <TouchableOpacity onPress={() => openManage(gr)} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
-                <Ionicons name="ellipsis-vertical" size={20} color="rgba(255,255,255,0.5)" />
+              <TouchableOpacity onPress={() => openManage(gr)} hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }} style={{ marginLeft: 8 }}>
+                <Ionicons name="ellipsis-vertical" size={20} color={C.w50} />
               </TouchableOpacity>
             </TouchableOpacity>
           );
         })}
-        <View style={{ height: 24 }} />
+        <View style={{ height: 30 }} />
       </ScrollView>
 
-      {/* ===== CREATE GROUP MODAL ===== */}
+      {/* === CREATE GROUP === */}
       <Modal visible={modal === 'create'} animationType="slide" transparent>
-        <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={g.modalBg}>
-          <View style={g.sheet}>
-            <View style={g.handle} />
-            <View style={g.sheetHeader}><Text style={g.sheetTitle}>New Group</Text><TouchableOpacity onPress={closeModal}><Ionicons name="close" size={24} color="#fff" /></TouchableOpacity></View>
-            <TextInput style={g.input} placeholder="Group name (e.g. Goa Trip)" placeholderTextColor="rgba(255,255,255,0.3)" value={groupName} onChangeText={setGroupName} />
-            <Text style={g.fieldLabel}>Add members (phone numbers)</Text>
-            <View style={g.inputRow}>
-              <TextInput style={[g.input, { flex: 1, marginBottom: 0 }]} placeholder="9000000001, 9000000002" placeholderTextColor="rgba(255,255,255,0.3)" value={phoneInput} onChangeText={setPhoneInput} keyboardType="phone-pad" />
-              <TouchableOpacity style={g.iconBtn} onPress={addPhoneToList}><Ionicons name="person-add" size={20} color="#0B0F2F" /></TouchableOpacity>
+        <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={s.mBg}>
+          <View style={s.sheet}>
+            <View style={s.handle} />
+            <View style={s.sheetH}><Text style={s.sheetT}>New Group</Text><TouchableOpacity onPress={close}><Ionicons name="close-circle" size={28} color={C.w30} /></TouchableOpacity></View>
+            <TextInput style={s.input} placeholder="Group name (e.g. Goa Trip)" placeholderTextColor={C.w30} value={groupName} onChangeText={setGroupName} />
+            <Text style={s.label}>Add members (comma-separated phones)</Text>
+            <View style={s.inputRow}>
+              <TextInput style={[s.input, { flex: 1, marginBottom: 0 }]} placeholder="9000000001, 9000000002" placeholderTextColor={C.w30} value={phoneInput} onChangeText={setPhoneInput} keyboardType="phone-pad" />
+              <TouchableOpacity onPress={addPhoneToList}><LinearGradient colors={[C.mint, '#00D68F']} style={s.iconBtn}><Ionicons name="person-add" size={20} color={C.bg} /></LinearGradient></TouchableOpacity>
             </View>
-            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={g.chipRow}>
-              {phones.map((p, i) => (
-                <View key={i} style={g.chip}><Text style={g.chipText}>{p}</Text><TouchableOpacity onPress={() => setPhones(phones.filter((_, idx) => idx !== i))}><Ionicons name="close-circle" size={16} color="#00F5A0" /></TouchableOpacity></View>
-              ))}
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={s.chipRow}>
+              {phones.map((p, i) => (<View key={i} style={s.chip}><Text style={s.chipText}>{p}</Text><TouchableOpacity onPress={() => setPhones(phones.filter((_, idx) => idx !== i))}><Ionicons name="close-circle" size={16} color={C.mint} /></TouchableOpacity></View>))}
             </ScrollView>
-            <TouchableOpacity style={g.primaryBtn} onPress={createGroup}><Text style={g.primaryBtnText}>Create Group ({phones.length + 1} members)</Text></TouchableOpacity>
+            <TouchableOpacity onPress={createGroup}><LinearGradient colors={[C.mint, '#00D68F']} style={s.primaryBtn}><Text style={s.primaryBtnText}>Create Group ({phones.length + 1} members)</Text></LinearGradient></TouchableOpacity>
           </View>
         </KeyboardAvoidingView>
       </Modal>
 
-      {/* ===== ADD EXPENSE MODAL ===== */}
+      {/* === ADD EXPENSE (GPay-style) === */}
       <Modal visible={modal === 'expense'} animationType="slide" transparent>
-        <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={g.modalBg}>
-          <View style={[g.sheet, { maxHeight: '92%' }]}>
-            <View style={g.handle} />
-            <TouchableOpacity style={g.closeFloat} onPress={closeModal}><Ionicons name="close" size={22} color="rgba(255,255,255,0.5)" /></TouchableOpacity>
-            <Text style={g.expLabel}>Split expense</Text>
-            <View style={g.amtRow}><Text style={g.rupee}>₹</Text><TextInput style={g.amtInput} value={expAmount} onChangeText={setExpAmount} keyboardType="numeric" placeholder="0" placeholderTextColor="rgba(255,255,255,0.2)" /></View>
-            <TextInput style={g.descInput} value={expDesc} onChangeText={setExpDesc} placeholder="What's this for?" placeholderTextColor="rgba(255,255,255,0.3)" />
-            {/* Split type tabs */}
-            <View style={g.splitTabs}>
+        <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={s.mBg}>
+          <View style={[s.sheet, { maxHeight: '92%' }]}>
+            <View style={s.handle} />
+            <TouchableOpacity style={s.closeFloat} onPress={close}><Ionicons name="close-circle" size={28} color={C.w30} /></TouchableOpacity>
+            <Text style={s.expLabel}>Split expense</Text>
+            <View style={s.amtRow}><Text style={s.rupee}>₹</Text><TextInput style={s.amtInput} value={expAmount} onChangeText={setExpAmount} keyboardType="numeric" placeholder="0" placeholderTextColor={C.w15} /></View>
+            <TextInput style={s.descInput} value={expDesc} onChangeText={setExpDesc} placeholder="What's this for?" placeholderTextColor={C.w30} />
+            <View style={s.splitTabs}>
               {SPLIT_TYPES.map((t) => (
-                <TouchableOpacity key={t.id} style={[g.splitTab, splitType === t.id && g.splitTabOn]} onPress={() => setSplitType(t.id)}>
-                  <Ionicons name={t.icon as any} size={16} color={splitType === t.id ? '#00F5A0' : 'rgba(255,255,255,0.4)'} />
-                  <Text style={[g.splitTabText, splitType === t.id && { color: '#00F5A0' }]}>{t.label}</Text>
+                <TouchableOpacity key={t.id} style={[s.splitTab, splitType === t.id && s.splitTabOn]} onPress={() => setSplitType(t.id)}>
+                  <Ionicons name={t.icon as any} size={16} color={splitType === t.id ? C.mint : C.w30} />
+                  <Text style={[s.splitTabT, splitType === t.id && { color: C.mint }]}>{t.label}</Text>
                 </TouchableOpacity>
               ))}
             </View>
-            {/* Members */}
-            <ScrollView style={{ maxHeight: 280 }}>
-              {(selectedGroup?.members || []).map((m: any) => {
-                const on = memberOn[m.user_id] !== false;
-                const isMe = m.user_id === user?.id;
+            <ScrollView style={{ maxHeight: 260 }}>
+              {(selectedGroup?.members || []).map((m: any, idx: number) => {
+                const on = memberOn[m.user_id] !== false; const isMe = m.user_id === user?.id; const clr = MEMBER_COLORS[idx % MEMBER_COLORS.length];
                 return (
-                  <View key={m.user_id} style={g.memRow}>
-                    <TouchableOpacity onPress={() => setMemberOn({ ...memberOn, [m.user_id]: !on })}><Ionicons name={on ? 'checkmark-circle' : 'ellipse-outline'} size={24} color={on ? '#00F5A0' : 'rgba(255,255,255,0.3)'} /></TouchableOpacity>
-                    <View style={[g.memAvatar, { backgroundColor: isMe ? '#6366F130' : '#F59E0B30' }]}><Text style={[g.memInit, { color: isMe ? '#6366F1' : '#F59E0B' }]}>{(m.name || '?')[0]}</Text></View>
-                    <View style={g.memInfo}><Text style={g.memName}>{isMe ? 'You' : m.name}</Text>{splitType === 'equal' && on && <Text style={g.memAmt}>₹{getMemberSplit(m.user_id)}</Text>}</View>
-                    {splitType === 'custom' && <View style={g.amtWrap}><Text style={g.amtPre}>₹</Text><TextInput style={g.memAmtInput} value={memberAmts[m.user_id]} onChangeText={v => setMemberAmts({ ...memberAmts, [m.user_id]: v })} keyboardType="numeric" placeholder="0" placeholderTextColor="rgba(255,255,255,0.2)" /></View>}
+                  <View key={m.user_id} style={s.memRow}>
+                    <TouchableOpacity onPress={() => setMemberOn({ ...memberOn, [m.user_id]: !on })}><Ionicons name={on ? 'checkmark-circle' : 'ellipse-outline'} size={26} color={on ? C.mint : C.w30} /></TouchableOpacity>
+                    <View style={[s.memAv, { backgroundColor: clr + '20' }]}><Text style={[s.memInit, { color: clr }]}>{(m.name || '?')[0]}</Text></View>
+                    <View style={s.memInfo}><Text style={s.memName}>{isMe ? 'You' : m.name}</Text>{splitType === 'equal' && on && <Text style={s.memAmt}>₹{getSplit(m.user_id)}</Text>}</View>
+                    {splitType === 'custom' && <View style={s.amtWrap}><Text style={s.amtPre}>₹</Text><TextInput style={s.memAmtIn} value={memberAmts[m.user_id]} onChangeText={v => setMemberAmts({ ...memberAmts, [m.user_id]: v })} keyboardType="numeric" placeholder="0" placeholderTextColor={C.w15} /></View>}
                     {splitType === 'shares' && (
-                      <View style={g.sharesWrap}>
-                        <TouchableOpacity style={g.shareBtn} onPress={() => setMemberAmts({ ...memberAmts, [m.user_id]: String(Math.max(0, (parseFloat(memberAmts[m.user_id]) || 1) - 1)) })}><Ionicons name="remove" size={16} color="rgba(255,255,255,0.5)" /></TouchableOpacity>
-                        <Text style={g.shareVal}>{memberAmts[m.user_id] || '1'}</Text>
-                        <TouchableOpacity style={g.shareBtn} onPress={() => setMemberAmts({ ...memberAmts, [m.user_id]: String((parseFloat(memberAmts[m.user_id]) || 1) + 1) })}><Ionicons name="add" size={16} color="rgba(255,255,255,0.5)" /></TouchableOpacity>
+                      <View style={s.sharesW}>
+                        <TouchableOpacity style={s.shareBtn} onPress={() => setMemberAmts({ ...memberAmts, [m.user_id]: String(Math.max(0, (parseFloat(memberAmts[m.user_id]) || 1) - 1)) })}><Ionicons name="remove" size={16} color={C.w50} /></TouchableOpacity>
+                        <Text style={s.shareV}>{memberAmts[m.user_id] || '1'}</Text>
+                        <TouchableOpacity style={s.shareBtn} onPress={() => setMemberAmts({ ...memberAmts, [m.user_id]: String((parseFloat(memberAmts[m.user_id]) || 1) + 1) })}><Ionicons name="add" size={16} color={C.w50} /></TouchableOpacity>
                       </View>
                     )}
-                    {splitType === 'percentage' && <View style={g.amtWrap}><TextInput style={g.memAmtInput} value={memberAmts[m.user_id]} onChangeText={v => setMemberAmts({ ...memberAmts, [m.user_id]: v })} keyboardType="numeric" placeholder="0" placeholderTextColor="rgba(255,255,255,0.2)" /><Text style={g.amtSuf}>%</Text></View>}
+                    {splitType === 'percentage' && <View style={s.amtWrap}><TextInput style={s.memAmtIn} value={memberAmts[m.user_id]} onChangeText={v => setMemberAmts({ ...memberAmts, [m.user_id]: v })} keyboardType="numeric" placeholder="0" placeholderTextColor={C.w15} /><Text style={s.amtSuf}>%</Text></View>}
                   </View>
                 );
               })}
             </ScrollView>
-            <TouchableOpacity style={g.primaryBtn} onPress={addExpense}><Text style={g.primaryBtnText}>Split ₹{expAmount || '0'}</Text></TouchableOpacity>
+            <TouchableOpacity onPress={addExpense}><LinearGradient colors={['#60A5FA', '#3B82F6']} style={s.primaryBtn}><Text style={s.primaryBtnText}>Split ₹{expAmount || '0'}</Text></LinearGradient></TouchableOpacity>
           </View>
         </KeyboardAvoidingView>
       </Modal>
 
-      {/* ===== GROUP SUMMARY MODAL ===== */}
+      {/* === GROUP SUMMARY === */}
       <Modal visible={modal === 'summary'} animationType="slide" transparent>
-        <View style={g.modalBg}><View style={[g.sheet, { maxHeight: '92%' }]}>
-          <View style={g.handle} />
-          <View style={g.sheetHeader}>
-            <View style={[g.groupAvatar, { width: 36, height: 36, backgroundColor: getGroupAvatar(groupSummary?.group_name || '').bg + '30' }]}><Text style={{ fontSize: 16 }}>{getGroupAvatar(groupSummary?.group_name || '').emoji}</Text></View>
-            <Text style={[g.sheetTitle, { flex: 1 }]}>{groupSummary?.group_name}</Text>
-            <TouchableOpacity onPress={closeModal}><Ionicons name="close" size={24} color="#fff" /></TouchableOpacity>
+        <View style={s.mBg}><View style={[s.sheet, { maxHeight: '92%' }]}>
+          <View style={s.handle} />
+          <View style={s.sheetH}>
+            <LinearGradient colors={getGA(groupSummary?.group_name || '').colors.map(c => c + '30')} style={[s.groupAv, { width: 36, height: 36 }]}><Text style={{ fontSize: 16 }}>{getGA(groupSummary?.group_name || '').emoji}</Text></LinearGradient>
+            <Text style={[s.sheetT, { flex: 1 }]}>{groupSummary?.group_name}</Text>
+            <TouchableOpacity onPress={close}><Ionicons name="close-circle" size={28} color={C.w30} /></TouchableOpacity>
           </View>
           <ScrollView showsVerticalScrollIndicator={false}>
-            <View style={g.sumStats}>
-              <View style={g.sumStat}><Text style={g.sumStatVal}>₹{(groupSummary?.total_spent || 0).toFixed(0)}</Text><Text style={g.sumStatLbl}>Total</Text></View>
-              <View style={g.sumStat}><Text style={g.sumStatVal}>{groupSummary?.total_expenses || 0}</Text><Text style={g.sumStatLbl}>Expenses</Text></View>
-              <View style={g.sumStat}><Text style={g.sumStatVal}>{groupSummary?.member_count || 0}</Text><Text style={g.sumStatLbl}>Members</Text></View>
+            <View style={s.sumStats}>
+              <View style={s.sumStat}><Text style={s.sumV}>₹{(groupSummary?.total_spent || 0).toFixed(0)}</Text><Text style={s.sumL}>Total</Text></View>
+              <View style={s.sumStat}><Text style={s.sumV}>{groupSummary?.total_expenses || 0}</Text><Text style={s.sumL}>Expenses</Text></View>
+              <View style={s.sumStat}><Text style={s.sumV}>{groupSummary?.member_count || 0}</Text><Text style={s.sumL}>Members</Text></View>
             </View>
-            {/* Debts */}
             {groupSummary?.simplified_debts?.length > 0 && (<>
-              <Text style={g.sumSection}>Settle Up</Text>
+              <Text style={s.sumSec}>Settle Up</Text>
               {groupSummary.simplified_debts.map((d: any, i: number) => (
-                <View key={i} style={g.debtRow}>
-                  <View style={g.debtInfo}><Text style={[g.debtName, { color: '#FF6B6B' }]}>{d.from_name}</Text><Ionicons name="arrow-forward" size={14} color="rgba(255,255,255,0.3)" /><Text style={[g.debtName, { color: '#00F5A0' }]}>{d.to_name}</Text></View>
-                  <Text style={g.debtAmt}>₹{d.amount.toFixed(0)}</Text>
-                  <TouchableOpacity style={g.payBtn} onPress={() => { setPayTarget(d); setModal('pay'); }}><Ionicons name="card" size={14} color="#0B0F2F" /><Text style={g.payBtnText}>Pay</Text></TouchableOpacity>
-                  <TouchableOpacity style={g.waBtn} onPress={() => remind(d.to_name, d.amount)}><Ionicons name="logo-whatsapp" size={16} color="#25D366" /></TouchableOpacity>
+                <View key={i} style={s.debtRow}>
+                  <View style={s.debtInfo}><Text style={[s.debtN, { color: C.red }]}>{d.from_name}</Text><Ionicons name="arrow-forward" size={14} color={C.w30} /><Text style={[s.debtN, { color: C.mint }]}>{d.to_name}</Text></View>
+                  <Text style={s.debtA}>₹{d.amount.toFixed(0)}</Text>
+                  <TouchableOpacity onPress={() => { setPayTarget(d); setModal('pay'); }}><LinearGradient colors={[C.mint, '#00D68F']} style={s.payBtn}><Ionicons name="card" size={14} color={C.bg} /><Text style={s.payBtnT}>Pay</Text></LinearGradient></TouchableOpacity>
+                  <TouchableOpacity style={s.waBtn} onPress={() => remind(d.to_name, d.amount)}><Ionicons name="logo-whatsapp" size={18} color="#25D366" /></TouchableOpacity>
                 </View>
               ))}
             </>)}
-            {/* Activity */}
             {groupSummary?.recent_expenses?.length > 0 && (<>
-              <Text style={g.sumSection}>Activity</Text>
+              <Text style={s.sumSec}>Activity</Text>
               {groupSummary.recent_expenses.map((e: any, i: number) => (
-                <View key={i} style={g.actRow}>
-                  <View style={g.actDot} />
-                  <View style={{ flex: 1 }}><Text style={g.actDesc}>{e.description}</Text><Text style={g.actMeta}>Paid by {e.paid_by_name}</Text></View>
-                  <Text style={g.actAmt}>₹{e.amount.toFixed(0)}</Text>
+                <View key={i} style={s.actRow}>
+                  <LinearGradient colors={[C.mint, C.blue]} style={s.actDot} />
+                  <View style={{ flex: 1 }}><Text style={s.actDesc}>{e.description}</Text><Text style={s.actMeta}>Paid by {e.paid_by_name}</Text></View>
+                  <Text style={s.actAmt}>₹{e.amount.toFixed(0)}</Text>
                 </View>
               ))}
             </>)}
-            <TouchableOpacity style={[g.primaryBtn, { marginTop: 16 }]} onPress={() => { closeModal(); openAddExpense(selectedGroup); }}><Ionicons name="add" size={18} color="#0B0F2F" /><Text style={g.primaryBtnText}> Add Expense</Text></TouchableOpacity>
+            <TouchableOpacity onPress={() => { close(); openAddExpense(selectedGroup); }}><LinearGradient colors={[C.mint, '#00D68F']} style={[s.primaryBtn, { marginTop: 16 }]}><Ionicons name="add" size={18} color={C.bg} /><Text style={s.primaryBtnText}> Add Expense</Text></LinearGradient></TouchableOpacity>
           </ScrollView>
         </View></View>
       </Modal>
 
-      {/* ===== GROUP MANAGE MODAL ===== */}
+      {/* === GROUP MANAGE === */}
       <Modal visible={modal === 'manage'} animationType="slide" transparent>
-        <View style={g.modalBg}><View style={[g.sheet, { maxHeight: '92%' }]}>
-          <View style={g.handle} />
+        <View style={s.mBg}><View style={[s.sheet, { maxHeight: '92%' }]}>
+          <View style={s.handle} />
           <ScrollView showsVerticalScrollIndicator={false}>
-            <View style={g.manageAvatars}>
-              {(groupManage?.members || []).slice(0, 5).map((m: any, i: number) => (
-                <View key={i} style={[g.manageAvatar, { marginLeft: i > 0 ? -12 : 0, zIndex: 5 - i, backgroundColor: ['#6366F1', '#F59E0B', '#10B981', '#EF4444', '#8B5CF6'][i % 5] + '30' }]}>
-                  <Text style={[g.manageInit, { color: ['#6366F1', '#F59E0B', '#10B981', '#EF4444', '#8B5CF6'][i % 5] }]}>{m.initial}</Text>
-                </View>
-              ))}
-            </View>
-            <Text style={g.manageName}>{groupManage?.name}</Text>
-            {/* Actions */}
-            <TouchableOpacity style={g.manageAction} onPress={() => { setRenameVal(groupManage?.name || ''); setShowRename(true); }}><Ionicons name="create-outline" size={22} color="#00F5A0" /><Text style={g.manageActionText}>Rename group</Text></TouchableOpacity>
-            {showRename && <View style={g.inputRow}><TextInput style={[g.input, { flex: 1, marginBottom: 0 }]} value={renameVal} onChangeText={setRenameVal} autoFocus /><TouchableOpacity style={g.iconBtn} onPress={renameGroup}><Ionicons name="checkmark" size={20} color="#0B0F2F" /></TouchableOpacity></View>}
-            <TouchableOpacity style={g.manageAction} onPress={() => Share.share({ message: `Join my MintU group! Code: ${groupManage?.invite_code}\n📲 https://mintu.app/download` })}><Ionicons name="link-outline" size={22} color="#00F5A0" /><Text style={g.manageActionText}>Invite via link</Text></TouchableOpacity>
-            <TouchableOpacity style={g.manageAction} onPress={() => deleteGroup(selectedGroup)}><Ionicons name="trash-outline" size={22} color="#FF6B6B" /><Text style={[g.manageActionText, { color: '#FF6B6B' }]}>Delete group</Text></TouchableOpacity>
-            <TouchableOpacity style={g.manageAction} onPress={leaveGroup}><Ionicons name="exit-outline" size={22} color="#FF6B6B" /><Text style={[g.manageActionText, { color: '#FF6B6B' }]}>Leave group</Text></TouchableOpacity>
-            {/* Add member */}
-            <Text style={[g.fieldLabel, { marginTop: 16 }]}>Add member</Text>
-            <View style={g.inputRow}><TextInput style={[g.input, { flex: 1, marginBottom: 0 }]} placeholder="Phone number" placeholderTextColor="rgba(255,255,255,0.3)" value={addPhone} onChangeText={setAddPhone} keyboardType="phone-pad" maxLength={10} /><TouchableOpacity style={g.iconBtn} onPress={addMemberToGroup}><Ionicons name="person-add" size={20} color="#0B0F2F" /></TouchableOpacity></View>
-            {/* Members */}
-            <Text style={[g.fieldLabel, { marginTop: 16 }]}>Members ({groupManage?.member_count || 0})</Text>
-            {(groupManage?.members || []).map((m: any, i: number) => (
-              <View key={i} style={g.manageMemberRow}>
-                <View style={[g.memAvatar, { backgroundColor: ['#6366F1', '#F59E0B', '#10B981', '#EF4444', '#8B5CF6'][i % 5] + '25' }]}><Text style={[g.memInit, { color: ['#6366F1', '#F59E0B', '#10B981', '#EF4444', '#8B5CF6'][i % 5] }]}>{m.initial}</Text></View>
-                <Text style={g.manageMemberName}>{m.name}</Text>
-                {m.is_admin && <View style={g.adminBadge}><Text style={g.adminText}>Admin</Text></View>}
-                {!m.is_admin && m.user_id !== user?.id && <TouchableOpacity onPress={() => removeMember(m.user_id)}><Ionicons name="close-circle" size={20} color="rgba(255,255,255,0.3)" /></TouchableOpacity>}
-              </View>
-            ))}
+            <View style={s.manAvatars}>{(groupManage?.members || []).slice(0, 5).map((m: any, i: number) => (<View key={i} style={[s.manAv, { marginLeft: i > 0 ? -14 : 0, zIndex: 5 - i, backgroundColor: MEMBER_COLORS[i % MEMBER_COLORS.length] + '30' }]}><Text style={[s.manInit, { color: MEMBER_COLORS[i % MEMBER_COLORS.length] }]}>{m.initial}</Text></View>))}</View>
+            <Text style={s.manName}>{groupManage?.name}</Text>
+            <TouchableOpacity style={s.manAction} onPress={() => { setRenameVal(groupManage?.name || ''); setShowRename(true); }}><Ionicons name="create-outline" size={22} color={C.mint} /><Text style={s.manActionT}>Rename group</Text></TouchableOpacity>
+            {showRename && <View style={s.inputRow}><TextInput style={[s.input, { flex: 1, marginBottom: 0 }]} value={renameVal} onChangeText={setRenameVal} autoFocus /><TouchableOpacity onPress={renameGroup}><LinearGradient colors={[C.mint, '#00D68F']} style={s.iconBtn}><Ionicons name="checkmark" size={20} color={C.bg} /></LinearGradient></TouchableOpacity></View>}
+            <TouchableOpacity style={s.manAction} onPress={() => Share.share({ message: `Join MintU group! Code: ${groupManage?.invite_code}\n📲 https://mintu.app/download` })}><Ionicons name="link-outline" size={22} color={C.mint} /><Text style={s.manActionT}>Invite via link</Text></TouchableOpacity>
+            <TouchableOpacity style={s.manAction} onPress={() => deleteGroup(selectedGroup)}><Ionicons name="trash-outline" size={22} color={C.red} /><Text style={[s.manActionT, { color: C.red }]}>Delete group</Text></TouchableOpacity>
+            <TouchableOpacity style={s.manAction} onPress={leaveGroup}><Ionicons name="exit-outline" size={22} color={C.red} /><Text style={[s.manActionT, { color: C.red }]}>Leave group</Text></TouchableOpacity>
+            <Text style={[s.label, { marginTop: 16 }]}>Add member</Text>
+            <View style={s.inputRow}><TextInput style={[s.input, { flex: 1, marginBottom: 0 }]} placeholder="Phone number" placeholderTextColor={C.w30} value={addPhoneVal} onChangeText={setAddPhoneVal} keyboardType="phone-pad" maxLength={10} /><TouchableOpacity onPress={addMember}><LinearGradient colors={[C.mint, '#00D68F']} style={s.iconBtn}><Ionicons name="person-add" size={20} color={C.bg} /></LinearGradient></TouchableOpacity></View>
+            <Text style={[s.label, { marginTop: 16 }]}>Members ({groupManage?.member_count || 0})</Text>
+            {(groupManage?.members || []).map((m: any, i: number) => (<View key={i} style={s.manMemRow}><View style={[s.memAv, { backgroundColor: MEMBER_COLORS[i % MEMBER_COLORS.length] + '20' }]}><Text style={[s.memInit, { color: MEMBER_COLORS[i % MEMBER_COLORS.length] }]}>{m.initial}</Text></View><Text style={s.manMemName}>{m.name}</Text>{m.is_admin && <LinearGradient colors={['#3B82F6', '#6366F1']} style={s.adminBadge}><Text style={s.adminT}>Admin</Text></LinearGradient>}{!m.is_admin && m.user_id !== user?.id && <TouchableOpacity onPress={() => removeMember(m.user_id)}><Ionicons name="close-circle" size={22} color={C.w30} /></TouchableOpacity>}</View>))}
           </ScrollView>
-          <TouchableOpacity style={[g.primaryBtn, { marginTop: 12 }]} onPress={closeModal}><Text style={g.primaryBtnText}>Done</Text></TouchableOpacity>
+          <TouchableOpacity onPress={close}><LinearGradient colors={[C.mint, '#00D68F']} style={[s.primaryBtn, { marginTop: 12 }]}><Text style={s.primaryBtnText}>Done</Text></LinearGradient></TouchableOpacity>
         </View></View>
       </Modal>
 
-      {/* ===== UPI PAY MODAL ===== */}
+      {/* === UPI PAY === */}
       <Modal visible={modal === 'pay'} animationType="slide" transparent>
-        <View style={g.modalBg}><View style={g.sheet}>
-          <View style={g.handle} />
-          <Text style={g.sheetTitle}>Pay ₹{payTarget?.amount?.toFixed(0)} to {payTarget?.to_name}</Text>
-          <Text style={g.paySubtitle}>Select payment method</Text>
-          {UPI_APPS.map(app => (
-            <TouchableOpacity key={app.id} style={g.upiRow} onPress={payViaUPI}>
-              <View style={[g.upiIcon, { backgroundColor: app.color + '20' }]}><Ionicons name={app.icon as any} size={22} color={app.color} /></View>
-              <Text style={g.upiName}>{app.name}</Text>
-              <Ionicons name="chevron-forward" size={16} color="rgba(255,255,255,0.3)" />
-            </TouchableOpacity>
-          ))}
-          <TouchableOpacity style={g.cashBtn} onPress={() => { setModal(''); settleWithRewards({ ...payTarget, method: 'cash' }); }}><Ionicons name="cash" size={18} color="#00F5A0" /><Text style={g.cashBtnText}>Paid in Cash</Text></TouchableOpacity>
-          <TouchableOpacity onPress={closeModal}><Text style={g.cancelText}>Cancel</Text></TouchableOpacity>
+        <View style={s.mBg}><View style={s.sheet}>
+          <View style={s.handle} />
+          <Text style={s.sheetT}>Pay ₹{payTarget?.amount?.toFixed(0)} to {payTarget?.to_name}</Text>
+          <Text style={s.payS}>Select payment method</Text>
+          {UPI_APPS.map(app => (<TouchableOpacity key={app.id} style={s.upiRow} onPress={payViaUPI}><View style={[s.upiIcon, { backgroundColor: app.color + '20' }]}><Ionicons name={app.icon as any} size={22} color={app.color} /></View><Text style={s.upiName}>{app.name}</Text><Ionicons name="chevron-forward" size={16} color={C.w30} /></TouchableOpacity>))}
+          <TouchableOpacity style={s.cashBtn} onPress={() => { setModal(''); settleReward({ ...payTarget, method: 'cash' }); }}><Ionicons name="cash" size={18} color={C.mint} /><Text style={s.cashBtnT}>Paid in Cash</Text></TouchableOpacity>
+          <TouchableOpacity onPress={close}><Text style={s.cancelT}>Cancel</Text></TouchableOpacity>
         </View></View>
       </Modal>
 
-      {/* ===== REWARD MODAL ===== */}
+      {/* === REWARD === */}
       <Modal visible={modal === 'reward'} animationType="fade" transparent>
-        <View style={g.rewardBg}><View style={g.rewardCard}>
-          <Text style={g.rewardEmoji}>🎉</Text>
-          <Text style={g.rewardTitle}>Settled!</Text>
-          <Text style={g.rewardCoins}>+{lastReward?.coins_earned || 0} 🪙</Text>
-          <Text style={g.rewardLabel}>{lastReward?.label}</Text>
-          {(lastReward?.cashback_available || 0) > 0 && <Text style={g.rewardCashback}>💰 ₹{lastReward.cashback_available.toFixed(0)} cashback</Text>}
-          <TouchableOpacity style={g.primaryBtn} onPress={() => { closeModal(); fetchData(); }}><Text style={g.primaryBtnText}>Awesome! 🚀</Text></TouchableOpacity>
+        <View style={s.rewBg}><View style={s.rewCard}>
+          <Text style={s.rewEmoji}>🎉</Text><Text style={s.rewTitle}>Settled!</Text>
+          <Text style={s.rewCoins}>+{lastReward?.coins_earned || 0} 🪙</Text>
+          <Text style={s.rewLabel}>{lastReward?.label}</Text>
+          {(lastReward?.cashback_available || 0) > 0 && <LinearGradient colors={[C.mintDim, 'rgba(0,245,160,0.05)']} style={s.rewCashback}><Text style={s.rewCashbackT}>💰 ₹{lastReward.cashback_available.toFixed(0)} cashback</Text></LinearGradient>}
+          <TouchableOpacity onPress={() => { close(); fetchData(); }}><LinearGradient colors={[C.mint, '#00D68F']} style={[s.primaryBtn, { marginTop: 20, paddingHorizontal: 48 }]}><Text style={s.primaryBtnText}>Awesome! 🚀</Text></LinearGradient></TouchableOpacity>
         </View></View>
       </Modal>
     </SafeAreaView>
   );
 }
 
-const g = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#0B0F2F' },
-  scroll: { padding: SPACING.lg },
-  header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: SPACING.lg },
-  title: { fontSize: 28, fontWeight: '800', color: '#fff' },
+const s = StyleSheet.create({
+  bg: { flex: 1, backgroundColor: C.bg },
+  scroll: { padding: 16 },
+  header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 },
+  title: { fontSize: 28, fontWeight: '800', color: C.w100 },
   headerR: { flexDirection: 'row', alignItems: 'center', gap: 10 },
-  coinBadge: { backgroundColor: 'rgba(255,215,0,0.15)', paddingHorizontal: 12, paddingVertical: 6, borderRadius: 20 },
-  coinText: { fontSize: 14, fontWeight: '700', color: '#FFD700' },
-  addBtn: { width: 44, height: 44, borderRadius: 22, backgroundColor: '#00F5A0', justifyContent: 'center', alignItems: 'center' },
-  // Glass card
-  glassCard: { backgroundColor: 'rgba(255,255,255,0.06)', borderRadius: 20, padding: 20, marginBottom: 16, borderWidth: 1, borderColor: 'rgba(255,255,255,0.1)' },
+  coinPill: { paddingHorizontal: 14, paddingVertical: 6, borderRadius: 20, borderWidth: 1, borderColor: C.goldDim },
+  coinText: { fontSize: 14, fontWeight: '700', color: C.gold },
+  addBtn: { width: 44, height: 44, borderRadius: 22, justifyContent: 'center', alignItems: 'center' },
+  balCard: { borderRadius: 20, padding: 22, marginBottom: 16, borderWidth: 1, borderColor: C.glassBorder },
   balRow: { flexDirection: 'row', alignItems: 'center' },
-  balHalf: { flex: 1, alignItems: 'center' },
-  balVal: { fontSize: 26, fontWeight: '800' },
-  balLbl: { fontSize: 12, color: 'rgba(255,255,255,0.5)', marginTop: 4 },
-  balDiv: { width: 1, height: 40, backgroundColor: 'rgba(255,255,255,0.1)' },
-  // Leaderboard
-  lbCard: { backgroundColor: 'rgba(255,215,0,0.06)', borderRadius: 20, padding: 16, marginBottom: 16, borderWidth: 1, borderColor: 'rgba(255,215,0,0.15)' },
-  lbHead: { flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 8 },
-  lbTitle: { fontSize: 11, fontWeight: '800', letterSpacing: 1, color: '#FFD700' },
+  balH: { flex: 1, alignItems: 'center' }, balV: { fontSize: 26, fontWeight: '800' }, balL: { fontSize: 12, color: C.w50, marginTop: 4 },
+  balD: { width: 1, height: 40, backgroundColor: C.w08 },
+  lbCard: { borderRadius: 20, padding: 16, marginBottom: 16, borderWidth: 1, borderColor: C.goldDim },
+  lbHead: { flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 8 }, lbTitle: { fontSize: 11, fontWeight: '800', letterSpacing: 1, color: C.gold },
   lbRow: { flexDirection: 'row', alignItems: 'center', paddingVertical: 8, gap: 8 },
-  lbRowMe: { backgroundColor: 'rgba(0,245,160,0.08)', borderRadius: 8, marginHorizontal: -8, paddingHorizontal: 8 },
-  lbMedal: { fontSize: 16, width: 28 },
-  lbName: { flex: 1, fontSize: 14, fontWeight: '500', color: 'rgba(255,255,255,0.7)' },
-  lbCoins: { fontSize: 14, fontWeight: '700', color: '#FFD700' },
-  // Groups
-  section: { fontSize: 16, fontWeight: '700', color: '#fff', marginBottom: 12 },
-  emptyCard: { backgroundColor: 'rgba(255,255,255,0.04)', borderRadius: 20, padding: 40, alignItems: 'center', borderWidth: 1, borderColor: 'rgba(255,255,255,0.06)', gap: 8 },
-  emptyTitle: { fontSize: 16, fontWeight: '700', color: 'rgba(255,255,255,0.6)' },
-  emptyText: { fontSize: 13, color: 'rgba(255,255,255,0.3)' },
-  groupCard: { flexDirection: 'row', alignItems: 'center', backgroundColor: 'rgba(255,255,255,0.06)', borderRadius: 16, padding: 14, marginBottom: 8, borderWidth: 1, borderColor: 'rgba(255,255,255,0.08)' },
-  groupAvatar: { width: 44, height: 44, borderRadius: 14, justifyContent: 'center', alignItems: 'center', marginRight: 12 },
-  groupEmoji: { fontSize: 20 },
-  groupInfo: { flex: 1 },
-  groupName: { fontSize: 16, fontWeight: '700', color: '#fff' },
-  groupMeta: { fontSize: 12, color: 'rgba(255,255,255,0.4)', marginTop: 2 },
-  groupActionBtn: { marginRight: 8 },
-  // Modal
-  modalBg: { flex: 1, justifyContent: 'flex-end', backgroundColor: 'rgba(0,0,0,0.7)' },
-  sheet: { backgroundColor: '#111535', borderTopLeftRadius: 28, borderTopRightRadius: 28, padding: 24 },
-  handle: { width: 40, height: 4, borderRadius: 2, backgroundColor: 'rgba(255,255,255,0.2)', alignSelf: 'center', marginBottom: 16 },
-  sheetHeader: { flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 20 },
-  sheetTitle: { fontSize: 20, fontWeight: '700', color: '#fff' },
+  lbMe: { backgroundColor: 'rgba(0,245,160,0.06)', borderRadius: 8, marginHorizontal: -8, paddingHorizontal: 8 },
+  lbMedal: { fontSize: 16, width: 28 }, lbName: { flex: 1, fontSize: 14, fontWeight: '500', color: C.w70 }, lbCoins: { fontSize: 14, fontWeight: '700', color: C.gold },
+  section: { fontSize: 16, fontWeight: '700', color: C.w100, marginBottom: 12 },
+  emptyCard: { borderRadius: 24, padding: 40, alignItems: 'center', borderWidth: 1, borderColor: C.cardBorder, gap: 8 },
+  emptyTitle: { fontSize: 16, fontWeight: '700', color: C.w50 }, emptyText: { fontSize: 13, color: C.w30 },
+  groupCard: { flexDirection: 'row', alignItems: 'center', backgroundColor: C.glass, borderRadius: 16, padding: 14, marginBottom: 8, borderWidth: 1, borderColor: C.glassBorder },
+  groupAv: { width: 44, height: 44, borderRadius: 14, justifyContent: 'center', alignItems: 'center', marginRight: 12 },
+  groupEmoji: { fontSize: 20 }, groupInfo: { flex: 1 }, groupName: { fontSize: 16, fontWeight: '700', color: C.w100 }, groupMeta: { fontSize: 12, color: C.w50, marginTop: 2 },
+  mBg: { flex: 1, justifyContent: 'flex-end', backgroundColor: 'rgba(0,0,0,0.7)' },
+  sheet: { backgroundColor: '#0F1338', borderTopLeftRadius: 28, borderTopRightRadius: 28, padding: 24 },
+  handle: { width: 40, height: 4, borderRadius: 2, backgroundColor: C.w15, alignSelf: 'center', marginBottom: 16 },
+  sheetH: { flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 20 }, sheetT: { fontSize: 20, fontWeight: '700', color: C.w100 },
   closeFloat: { position: 'absolute', right: 24, top: 24, zIndex: 10 },
-  input: { backgroundColor: 'rgba(255,255,255,0.06)', borderRadius: 14, paddingHorizontal: 16, paddingVertical: 14, fontSize: 16, color: '#fff', borderWidth: 1, borderColor: 'rgba(255,255,255,0.1)', marginBottom: 12 },
+  input: { backgroundColor: C.glass, borderRadius: 14, paddingHorizontal: 16, paddingVertical: 14, fontSize: 16, color: C.w100, borderWidth: 1, borderColor: C.glassBorder, marginBottom: 12 },
   inputRow: { flexDirection: 'row', gap: 8, marginBottom: 12 },
-  iconBtn: { width: 48, height: 48, borderRadius: 14, backgroundColor: '#00F5A0', justifyContent: 'center', alignItems: 'center' },
-  fieldLabel: { fontSize: 13, fontWeight: '600', color: 'rgba(255,255,255,0.4)', marginBottom: 8 },
+  iconBtn: { width: 48, height: 48, borderRadius: 14, justifyContent: 'center', alignItems: 'center' },
+  label: { fontSize: 13, fontWeight: '600', color: C.w50, marginBottom: 8 },
   chipRow: { gap: 8, marginBottom: 12, flexDirection: 'row' },
-  chip: { flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: 'rgba(0,245,160,0.1)', paddingHorizontal: 12, paddingVertical: 6, borderRadius: 20 },
-  chipText: { fontSize: 14, color: '#00F5A0', fontWeight: '500' },
-  primaryBtn: { flexDirection: 'row', backgroundColor: '#00F5A0', borderRadius: 16, paddingVertical: 16, alignItems: 'center', justifyContent: 'center', marginTop: 8 },
-  primaryBtnText: { fontSize: 16, fontWeight: '700', color: '#0B0F2F' },
-  // Expense modal
-  expLabel: { textAlign: 'center', fontSize: 14, color: 'rgba(255,255,255,0.4)', marginTop: 8 },
+  chip: { flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: C.mintDim, paddingHorizontal: 12, paddingVertical: 6, borderRadius: 20 },
+  chipText: { fontSize: 14, color: C.mint, fontWeight: '500' },
+  primaryBtn: { borderRadius: 16, paddingVertical: 16, alignItems: 'center', justifyContent: 'center', flexDirection: 'row' },
+  primaryBtnText: { fontSize: 16, fontWeight: '700', color: C.bg },
+  expLabel: { textAlign: 'center', fontSize: 14, color: C.w50, marginTop: 8 },
   amtRow: { flexDirection: 'row', justifyContent: 'center', alignItems: 'center', marginVertical: 12 },
-  rupee: { fontSize: 36, fontWeight: '300', color: 'rgba(255,255,255,0.5)', marginRight: 4 },
-  amtInput: { fontSize: 48, fontWeight: '800', color: '#fff', minWidth: 60, textAlign: 'center' },
-  descInput: { textAlign: 'center', fontSize: 15, color: 'rgba(255,255,255,0.6)', paddingVertical: 10, borderWidth: 1, borderColor: 'rgba(255,255,255,0.1)', borderRadius: 20, marginBottom: 16 },
-  splitTabs: { flexDirection: 'row', borderBottomWidth: 1, borderBottomColor: 'rgba(255,255,255,0.1)', marginBottom: 12 },
+  rupee: { fontSize: 36, fontWeight: '300', color: C.w50, marginRight: 4 },
+  amtInput: { fontSize: 48, fontWeight: '800', color: C.w100, minWidth: 60, textAlign: 'center' },
+  descInput: { textAlign: 'center', fontSize: 15, color: C.w70, paddingVertical: 10, borderWidth: 1, borderColor: C.w08, borderRadius: 20, marginBottom: 16 },
+  splitTabs: { flexDirection: 'row', borderBottomWidth: 1, borderBottomColor: C.w08, marginBottom: 12 },
   splitTab: { flex: 1, alignItems: 'center', paddingVertical: 10, gap: 4 },
-  splitTabOn: { borderBottomWidth: 2, borderBottomColor: '#00F5A0' },
-  splitTabText: { fontSize: 11, fontWeight: '600', color: 'rgba(255,255,255,0.4)' },
-  memRow: { flexDirection: 'row', alignItems: 'center', paddingVertical: 10, gap: 10, borderBottomWidth: 1, borderBottomColor: 'rgba(255,255,255,0.05)' },
-  memAvatar: { width: 36, height: 36, borderRadius: 18, justifyContent: 'center', alignItems: 'center' },
-  memInit: { fontSize: 14, fontWeight: '700' },
-  memInfo: { flex: 1 },
-  memName: { fontSize: 15, fontWeight: '600', color: '#fff' },
-  memAmt: { fontSize: 12, color: '#00F5A0', marginTop: 2 },
-  amtWrap: { flexDirection: 'row', alignItems: 'center', backgroundColor: 'rgba(255,255,255,0.06)', borderRadius: 8, paddingHorizontal: 8, borderWidth: 1, borderColor: 'rgba(255,255,255,0.1)' },
-  amtPre: { fontSize: 14, color: 'rgba(255,255,255,0.4)' },
-  amtSuf: { fontSize: 14, color: 'rgba(255,255,255,0.4)', marginLeft: 2 },
-  memAmtInput: { fontSize: 16, fontWeight: '600', color: '#fff', width: 60, textAlign: 'right', paddingVertical: 6 },
-  sharesWrap: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  shareBtn: { width: 30, height: 30, borderRadius: 15, backgroundColor: 'rgba(255,255,255,0.08)', justifyContent: 'center', alignItems: 'center' },
-  shareVal: { fontSize: 18, fontWeight: '700', color: '#fff', width: 24, textAlign: 'center' },
-  // Summary
-  sumStats: { flexDirection: 'row', justifyContent: 'space-around', backgroundColor: 'rgba(255,255,255,0.04)', borderRadius: 14, padding: 16, marginBottom: 16 },
-  sumStat: { alignItems: 'center' },
-  sumStatVal: { fontSize: 20, fontWeight: '800', color: '#fff' },
-  sumStatLbl: { fontSize: 11, color: 'rgba(255,255,255,0.4)', marginTop: 2 },
-  sumSection: { fontSize: 16, fontWeight: '700', color: '#fff', marginBottom: 10, marginTop: 12 },
-  debtRow: { flexDirection: 'row', alignItems: 'center', paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: 'rgba(255,255,255,0.05)', gap: 6 },
-  debtInfo: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: 6 },
-  debtName: { fontSize: 14, fontWeight: '600' },
-  debtAmt: { fontSize: 16, fontWeight: '800', color: '#fff' },
-  payBtn: { flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: '#00F5A0', paddingHorizontal: 14, paddingVertical: 8, borderRadius: 12 },
-  payBtnText: { fontSize: 13, fontWeight: '700', color: '#0B0F2F' },
-  waBtn: { width: 36, height: 36, borderRadius: 12, backgroundColor: 'rgba(37,211,102,0.12)', justifyContent: 'center', alignItems: 'center' },
+  splitTabOn: { borderBottomWidth: 2, borderBottomColor: C.mint },
+  splitTabT: { fontSize: 11, fontWeight: '600', color: C.w30 },
+  memRow: { flexDirection: 'row', alignItems: 'center', paddingVertical: 10, gap: 10, borderBottomWidth: 1, borderBottomColor: C.w08 },
+  memAv: { width: 36, height: 36, borderRadius: 18, justifyContent: 'center', alignItems: 'center' },
+  memInit: { fontSize: 14, fontWeight: '700' }, memInfo: { flex: 1 }, memName: { fontSize: 15, fontWeight: '600', color: C.w100 },
+  memAmt: { fontSize: 12, color: C.mint, marginTop: 2 },
+  amtWrap: { flexDirection: 'row', alignItems: 'center', backgroundColor: C.glass, borderRadius: 8, paddingHorizontal: 8, borderWidth: 1, borderColor: C.glassBorder },
+  amtPre: { fontSize: 14, color: C.w50 }, amtSuf: { fontSize: 14, color: C.w50, marginLeft: 2 },
+  memAmtIn: { fontSize: 16, fontWeight: '600', color: C.w100, width: 60, textAlign: 'right', paddingVertical: 6 },
+  sharesW: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  shareBtn: { width: 30, height: 30, borderRadius: 15, backgroundColor: C.glass, justifyContent: 'center', alignItems: 'center', borderWidth: 1, borderColor: C.glassBorder },
+  shareV: { fontSize: 18, fontWeight: '700', color: C.w100, width: 24, textAlign: 'center' },
+  sumStats: { flexDirection: 'row', justifyContent: 'space-around', backgroundColor: C.glass, borderRadius: 14, padding: 16, marginBottom: 16 },
+  sumStat: { alignItems: 'center' }, sumV: { fontSize: 20, fontWeight: '800', color: C.w100 }, sumL: { fontSize: 11, color: C.w50, marginTop: 2 },
+  sumSec: { fontSize: 16, fontWeight: '700', color: C.w100, marginBottom: 10, marginTop: 12 },
+  debtRow: { flexDirection: 'row', alignItems: 'center', paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: C.w08, gap: 6 },
+  debtInfo: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: 6 }, debtN: { fontSize: 14, fontWeight: '600' },
+  debtA: { fontSize: 16, fontWeight: '800', color: C.w100 },
+  payBtn: { flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: 14, paddingVertical: 8, borderRadius: 12 },
+  payBtnT: { fontSize: 13, fontWeight: '700', color: C.bg },
+  waBtn: { width: 36, height: 36, borderRadius: 12, backgroundColor: 'rgba(37,211,102,0.1)', justifyContent: 'center', alignItems: 'center' },
   actRow: { flexDirection: 'row', alignItems: 'center', paddingVertical: 10, gap: 10 },
-  actDot: { width: 8, height: 8, borderRadius: 4, backgroundColor: '#00F5A0' },
-  actDesc: { fontSize: 14, fontWeight: '600', color: '#fff' },
-  actMeta: { fontSize: 12, color: 'rgba(255,255,255,0.4)' },
-  actAmt: { fontSize: 15, fontWeight: '700', color: '#fff' },
-  // Manage
-  manageAvatars: { flexDirection: 'row', justifyContent: 'center', marginBottom: 12 },
-  manageAvatar: { width: 52, height: 52, borderRadius: 26, justifyContent: 'center', alignItems: 'center', borderWidth: 3, borderColor: '#111535' },
-  manageInit: { fontSize: 18, fontWeight: '700' },
-  manageName: { fontSize: 22, fontWeight: '700', color: '#fff', textAlign: 'center', marginBottom: 20 },
-  manageAction: { flexDirection: 'row', alignItems: 'center', gap: 14, paddingVertical: 14, borderBottomWidth: 1, borderBottomColor: 'rgba(255,255,255,0.06)' },
-  manageActionText: { fontSize: 16, fontWeight: '500', color: '#fff' },
-  manageMemberRow: { flexDirection: 'row', alignItems: 'center', paddingVertical: 10, gap: 10 },
-  manageMemberName: { flex: 1, fontSize: 15, fontWeight: '500', color: '#fff' },
-  adminBadge: { backgroundColor: '#3B82F6', paddingHorizontal: 10, paddingVertical: 3, borderRadius: 10 },
-  adminText: { fontSize: 11, fontWeight: '600', color: '#fff' },
-  // UPI
-  paySubtitle: { fontSize: 14, color: 'rgba(255,255,255,0.4)', marginBottom: 16 },
-  upiRow: { flexDirection: 'row', alignItems: 'center', paddingVertical: 14, borderBottomWidth: 1, borderBottomColor: 'rgba(255,255,255,0.06)' },
+  actDot: { width: 8, height: 8, borderRadius: 4 }, actDesc: { fontSize: 14, fontWeight: '600', color: C.w100 },
+  actMeta: { fontSize: 12, color: C.w50 }, actAmt: { fontSize: 15, fontWeight: '700', color: C.w100 },
+  manAvatars: { flexDirection: 'row', justifyContent: 'center', marginBottom: 12 },
+  manAv: { width: 52, height: 52, borderRadius: 26, justifyContent: 'center', alignItems: 'center', borderWidth: 3, borderColor: '#0F1338' },
+  manInit: { fontSize: 18, fontWeight: '700' }, manName: { fontSize: 22, fontWeight: '700', color: C.w100, textAlign: 'center', marginBottom: 20 },
+  manAction: { flexDirection: 'row', alignItems: 'center', gap: 14, paddingVertical: 14, borderBottomWidth: 1, borderBottomColor: C.w08 },
+  manActionT: { fontSize: 16, fontWeight: '500', color: C.w100 },
+  manMemRow: { flexDirection: 'row', alignItems: 'center', paddingVertical: 10, gap: 10 },
+  manMemName: { flex: 1, fontSize: 15, fontWeight: '500', color: C.w100 },
+  adminBadge: { paddingHorizontal: 10, paddingVertical: 3, borderRadius: 10 }, adminT: { fontSize: 11, fontWeight: '600', color: '#fff' },
+  payS: { fontSize: 14, color: C.w50, marginBottom: 16 },
+  upiRow: { flexDirection: 'row', alignItems: 'center', paddingVertical: 14, borderBottomWidth: 1, borderBottomColor: C.w08 },
   upiIcon: { width: 44, height: 44, borderRadius: 14, justifyContent: 'center', alignItems: 'center', marginRight: 12 },
-  upiName: { flex: 1, fontSize: 16, fontWeight: '600', color: '#fff' },
-  cashBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, paddingVertical: 14, marginTop: 12, borderRadius: 14, backgroundColor: 'rgba(0,245,160,0.1)' },
-  cashBtnText: { fontSize: 15, fontWeight: '600', color: '#00F5A0' },
-  cancelText: { textAlign: 'center', fontSize: 15, color: 'rgba(255,255,255,0.4)', paddingVertical: 14 },
-  // Reward
-  rewardBg: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: 'rgba(0,0,0,0.8)' },
-  rewardCard: { backgroundColor: '#111535', borderRadius: 28, padding: 32, width: '85%', alignItems: 'center', borderWidth: 1, borderColor: 'rgba(0,245,160,0.2)' },
-  rewardEmoji: { fontSize: 48, marginBottom: 8 },
-  rewardTitle: { fontSize: 22, fontWeight: '800', color: '#fff', marginBottom: 12 },
-  rewardCoins: { fontSize: 36, fontWeight: '900', color: '#FFD700' },
-  rewardLabel: { fontSize: 14, fontWeight: '600', color: 'rgba(255,255,255,0.5)', marginTop: 4 },
-  rewardCashback: { fontSize: 15, fontWeight: '700', color: '#00F5A0', marginTop: 12, backgroundColor: 'rgba(0,245,160,0.1)', paddingHorizontal: 16, paddingVertical: 8, borderRadius: 12 },
+  upiName: { flex: 1, fontSize: 16, fontWeight: '600', color: C.w100 },
+  cashBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, paddingVertical: 14, marginTop: 12, borderRadius: 14, backgroundColor: C.mintDim },
+  cashBtnT: { fontSize: 15, fontWeight: '600', color: C.mint },
+  cancelT: { textAlign: 'center', fontSize: 15, color: C.w50, paddingVertical: 14 },
+  rewBg: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: 'rgba(0,0,0,0.85)' },
+  rewCard: { backgroundColor: '#0F1338', borderRadius: 28, padding: 32, width: '85%', alignItems: 'center', borderWidth: 1, borderColor: C.mintGlow },
+  rewEmoji: { fontSize: 48, marginBottom: 8 }, rewTitle: { fontSize: 22, fontWeight: '800', color: C.w100, marginBottom: 12 },
+  rewCoins: { fontSize: 36, fontWeight: '900', color: C.gold }, rewLabel: { fontSize: 14, fontWeight: '600', color: C.w50, marginTop: 4 },
+  rewCashback: { marginTop: 12, paddingHorizontal: 16, paddingVertical: 8, borderRadius: 12 },
+  rewCashbackT: { fontSize: 15, fontWeight: '700', color: C.mint },
 });
