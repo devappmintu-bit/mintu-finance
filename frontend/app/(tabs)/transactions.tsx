@@ -242,34 +242,7 @@ export default function TransactionsScreen() {
         maxToRenderPerBatch={15}
         windowSize={10}
         initialNumToRender={10}
-        ListHeaderComponent={
-          <TouchableOpacity style={styles.notifCard} onPress={() => setNotifExpanded(!notifExpanded)} activeOpacity={0.8}>
-            <View style={styles.notifHeader}>
-              <Ionicons name="notifications" size={18} color="#6366F1" />
-              <Text style={styles.notifTitle}>Paste Bank Notification</Text>
-              <Ionicons name={notifExpanded ? 'chevron-up' : 'chevron-down'} size={18} color={COLORS.text.muted} />
-            </View>
-            <Text style={styles.notifHint}>Copy any bank SMS/notification and paste here to auto-track</Text>
-            {notifExpanded && (
-              <View style={styles.notifBody}>
-                <TextInput
-                  style={styles.notifInput}
-                  placeholder="e.g. HDFC Bank: Rs 500.00 debited from A/c XX1234..."
-                  placeholderTextColor={COLORS.text.muted}
-                  value={notifText}
-                  onChangeText={setNotifText}
-                  multiline
-                  numberOfLines={3}
-                />
-                <TouchableOpacity style={styles.notifParseBtn} onPress={handleNotifParse} disabled={notifLoading || !notifText.trim()}>
-                  {notifLoading ? <ActivityIndicator size="small" color="#fff" /> : (
-                    <><Ionicons name="sparkles" size={14} color="#fff" /><Text style={styles.notifParseTxt}>AI Parse & Add</Text></>
-                  )}
-                </TouchableOpacity>
-              </View>
-            )}
-          </TouchableOpacity>
-        }
+        ListHeaderComponent={null}
         ListEmptyComponent={
           <View style={styles.empty}>
             <Ionicons name="receipt-outline" size={56} color={COLORS.text.muted} />
@@ -319,7 +292,7 @@ export default function TransactionsScreen() {
         </KeyboardAvoidingView>
       </Modal>
 
-      {/* SMS Parse Modal */}
+      {/* SMS Parse Modal — includes Paste Bank Notification */}
       <Modal visible={smsModalVisible} animationType="slide" transparent>
         <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={styles.modalBg}>
           <View style={styles.modalSheet}>
@@ -332,6 +305,16 @@ export default function TransactionsScreen() {
               <Ionicons name="sparkles" size={18} color={COLORS.accent.warning} />
               <Text style={styles.smsBannerText}>{t('ai_extract', lang)}</Text>
             </View>
+            {/* Bank Notification Paste */}
+            <Text style={styles.formLabel}>Paste bank notification or SMS</Text>
+            <TextInput style={styles.notifInput} placeholder="e.g. HDFC Bank: Rs 500.00 debited from A/c XX1234..." placeholderTextColor={COLORS.text.muted} value={notifText} onChangeText={setNotifText} multiline numberOfLines={3} textAlignVertical="top" />
+            <TouchableOpacity style={[styles.notifParseBtn, (notifLoading || !notifText.trim()) && { opacity: 0.5 }]} onPress={handleNotifParse} disabled={notifLoading || !notifText.trim()}>
+              {notifLoading ? <ActivityIndicator size="small" color="#fff" /> : (
+                <><Ionicons name="sparkles" size={14} color="#fff" /><Text style={styles.notifParseTxt}>AI Parse & Add</Text></>
+              )}
+            </TouchableOpacity>
+            {/* Bulk SMS Paste */}
+            <Text style={[styles.formLabel, { marginTop: 16 }]}>Or paste multiple SMS messages</Text>
             <TextInput style={styles.smsInput} placeholder={t('paste_sms', lang)} placeholderTextColor={COLORS.text.muted} value={smsText} onChangeText={setSmsText} multiline numberOfLines={5} textAlignVertical="top" />
             <TouchableOpacity testID="parse-sms-btn" style={[styles.submitBtn, smsLoading && { opacity: 0.6 }]} onPress={handleParseSMS} disabled={smsLoading}>
               {smsLoading ? <ActivityIndicator color={COLORS.bg.primary} /> : <Text style={styles.submitText}>{t('parse_add', lang)}</Text>}

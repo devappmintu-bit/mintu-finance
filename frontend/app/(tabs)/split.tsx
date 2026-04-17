@@ -122,7 +122,7 @@ export default function SplitScreen() {
   };
   const deleteGroup = (gr: any) => Alert.alert('Delete Group', `Delete "${gr.name}"?`, [
     { text: 'Cancel', style: 'cancel' },
-    { text: 'Delete', style: 'destructive', onPress: async () => { try { await api({ method: 'DELETE', url: `/split/groups/${gr.id}` }); } catch {} close(); fetchData(); } },
+    { text: 'Delete', style: 'destructive', onPress: async () => { try { await api.delete(`/split/groups/${gr.id}`); } catch (e) { console.error('Delete group error:', e); } close(); fetchData(); } },
   ]);
   const renameGroup = async () => {
     if (!renameVal.trim()) return;
@@ -135,11 +135,11 @@ export default function SplitScreen() {
   };
   const removeMember = (mid: string) => Alert.alert('Remove?', 'Remove from group?', [
     { text: 'Cancel', style: 'cancel' },
-    { text: 'Remove', style: 'destructive', onPress: async () => { try { await api({ method: 'DELETE', url: `/split/groups/${selectedGroup?.id}/members/${mid}` }); } catch {} openManage(selectedGroup); fetchData(); } },
+    { text: 'Remove', style: 'destructive', onPress: async () => { try { await api.delete(`/split/groups/${selectedGroup?.id}/members/${mid}`); } catch (e) { console.error('Remove member error:', e); } openManage(selectedGroup); fetchData(); } },
   ]);
   const leaveGroup = () => Alert.alert('Leave?', 'Are you sure?', [
     { text: 'Cancel', style: 'cancel' },
-    { text: 'Leave', style: 'destructive', onPress: async () => { try { await api({ method: 'DELETE', url: `/split/groups/${selectedGroup?.id}/leave` }); } catch {} close(); fetchData(); } },
+    { text: 'Leave', style: 'destructive', onPress: async () => { try { await api.delete(`/split/groups/${selectedGroup?.id}/leave`); } catch (e) { console.error('Leave group error:', e); } close(); fetchData(); } },
   ]);
   const addPhoneToList = () => {
     const nums = phoneInput.split(',').map(p => p.replace(/\D/g, '').slice(-10)).filter(p => p.length === 10 && !phones.includes(p));
@@ -179,7 +179,7 @@ export default function SplitScreen() {
   };
   const deleteExpense = (eid: string) => Alert.alert('Delete?', 'Remove this expense?', [
     { text: 'Cancel', style: 'cancel' },
-    { text: 'Delete', style: 'destructive', onPress: async () => { try { await api({ method: 'DELETE', url: `/split/expenses/${eid}` }); } catch {} if (selectedGroup) openSummary(selectedGroup); fetchData(); } },
+    { text: 'Delete', style: 'destructive', onPress: async () => { try { await api.delete(`/split/expenses/${eid}`); } catch (e) { console.error('Delete expense error:', e); } if (selectedGroup) openSummary(selectedGroup); fetchData(); } },
   ]);
 
   // SUMMARY & MANAGE
