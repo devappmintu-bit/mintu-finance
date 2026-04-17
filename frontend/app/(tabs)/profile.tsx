@@ -15,6 +15,8 @@ import api from '../../utils/api';
 import { COLORS, RADIUS, SPACING, CATEGORIES } from '../../utils/theme';
 import Toast from 'react-native-toast-message';
 import { PieChart } from 'react-native-gifted-charts';
+import HelpSupport from '../../components/HelpSupport';
+import AboutMintU from '../../components/AboutMintU';
 
 const APP_LINK = 'https://mintu.app/download';
 
@@ -26,6 +28,7 @@ export default function ProfileScreen() {
   const [refreshing, setRefreshing] = useState(false);
   const [langModalVisible, setLangModalVisible] = useState(false);
   const [aboutVisible, setAboutVisible] = useState(false);
+  const [helpVisible, setHelpVisible] = useState(false);
   const [upiId, setUpiId] = useState('');
   const [upiSaving, setUpiSaving] = useState(false);
   const [avatar, setAvatar] = useState('');
@@ -241,7 +244,6 @@ export default function ProfileScreen() {
           { icon: 'notifications-outline', label: t('notifications', lang), color: COLORS.accent.primary },
           { icon: 'shield-checkmark-outline', label: t('privacy_security', lang), color: COLORS.accent.secondary },
           { icon: 'download-outline', label: t('export_data', lang), color: '#059669' },
-          { icon: 'help-circle-outline', label: t('help_support', lang), color: COLORS.accent.warning },
         ].map((item, i) => (
           <TouchableOpacity key={i} style={p.menuItem}>
             <Ionicons name={item.icon as any} size={20} color={item.color} />
@@ -249,6 +251,13 @@ export default function ProfileScreen() {
             <Ionicons name="chevron-forward" size={16} color={COLORS.text.muted} />
           </TouchableOpacity>
         ))}
+
+        {/* Help & Support */}
+        <TouchableOpacity style={p.menuItem} onPress={() => setHelpVisible(true)}>
+          <Ionicons name="help-circle-outline" size={20} color={COLORS.accent.warning} />
+          <Text style={[p.menuText, { marginLeft: 12 }]}>{t('help_support', lang)}</Text>
+          <Ionicons name="chevron-forward" size={16} color={COLORS.text.muted} />
+        </TouchableOpacity>
 
         {/* About MintU */}
         <TouchableOpacity style={p.menuItem} onPress={() => setAboutVisible(true)}>
@@ -284,44 +293,14 @@ export default function ProfileScreen() {
         </View>
       </Modal>
 
+      {/* Help & Support Modal */}
+      <Modal visible={helpVisible} animationType="slide">
+        <HelpSupport onClose={() => setHelpVisible(false)} />
+      </Modal>
+
       {/* About MintU Modal */}
-      <Modal visible={aboutVisible} animationType="slide" transparent>
-        <View style={p.mBg}>
-          <View style={p.sheet}>
-            <View style={p.handle} />
-            <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
-              <Text style={p.sheetTitle}>About MintU</Text>
-              <TouchableOpacity onPress={() => setAboutVisible(false)}><Ionicons name="close" size={24} color={COLORS.text.primary} /></TouchableOpacity>
-            </View>
-            <ScrollView showsVerticalScrollIndicator={false}>
-              <Text style={p.aboutEmoji}>💰</Text>
-              <Text style={p.aboutTagline}>Your AI-Powered Personal Finance Assistant</Text>
-              <Text style={p.aboutDesc}>MintU is designed for the modern Indian user — combining powerful AI with beautiful design to help you take control of your money, effortlessly.</Text>
-              <View style={p.aboutFeatures}>
-                {[
-                  { emoji: '📊', title: 'Smart Expense Tracking', desc: 'Auto-parse bank SMS, voice entry, AI categorization' },
-                  { emoji: '🤖', title: 'AI Financial Coach', desc: '5 specialized agents for budgets, splits, investments & more' },
-                  { emoji: '🧠', title: 'Waste Detector', desc: 'AI-powered spending analysis with peer comparisons' },
-                  { emoji: '💸', title: 'Splitwise-Style Splits', desc: 'Group expenses, UPI settlements, gamified rewards' },
-                  { emoji: '🎯', title: 'Smart Budgets', desc: 'AI-suggested limits with real-time tracking' },
-                  { emoji: '🏆', title: 'Money Score & Gamification', desc: 'Leaderboards, streaks, badges, and challenges' },
-                  { emoji: '🌐', title: 'Multi-Language', desc: 'Hindi, Tamil, Telugu, Bengali, Marathi & more' },
-                  { emoji: '🔒', title: 'Privacy First', desc: 'Your financial data stays on your device' },
-                ].map((f, i) => (
-                  <View key={i} style={p.aboutFeature}>
-                    <Text style={{ fontSize: 20 }}>{f.emoji}</Text>
-                    <View style={{ flex: 1 }}>
-                      <Text style={p.aboutFTitle}>{f.title}</Text>
-                      <Text style={p.aboutFDesc}>{f.desc}</Text>
-                    </View>
-                  </View>
-                ))}
-              </View>
-              <Text style={p.aboutFooter}>Built with ❤️ for 1.46 billion Indians</Text>
-              <Text style={[p.aboutFooter, { marginTop: 4 }]}>v1.0.0 · Powered by GPT-5.2</Text>
-            </ScrollView>
-          </View>
-        </View>
+      <Modal visible={aboutVisible} animationType="slide">
+        <AboutMintU onClose={() => setAboutVisible(false)} />
       </Modal>
     </SafeAreaView>
   );
