@@ -4108,7 +4108,244 @@ async def group_expense_summary(group_id: str, user_id: str = Depends(get_curren
         "settlements_count": len(settlements),
     }
 
-@api_router.post("/split/expenses/recurring")
+@api_router.get("/split/groups/{group_id}/manage")
+async def get_group_management(group_id: str, user_id: str = Depends(get_current_user)):
+    """Get group management data (GPay-style)"""
+    from bson import ObjectId
+    group = await db.split_groups.find_one({"_id": ObjectId(group_id)})
+    if not group:
+        raise HTTPException(status_code=404, detail="Group not found")
+    
+    members = []
+    for m in group.get("members", []):
+        is_admin = m["user_id"] == group.get("created_by", group["members"][0]["user_id"] if group["members"] else "")
+        members.append({
+            "user_id": m["user_id"],
+            "name": m.get("name", "User"),
+            "phone": m.get("phone", ""),
+            "is_admin": is_admin,
+            "initial": (m.get("name", "?")[0]).upper(),
+        })
+    
+    return {
+        "id": str(group["_id"]),
+        "name": group.get("name", ""),
+        "members": members,
+        "member_count": len(members),
+        "created_by": group.get("created_by", members[0]["user_id"] if members else ""),
+        "is_admin": user_id == group.get("created_by", members[0]["user_id"] if members else ""),
+        "invite_code": f"MINTU-{str(group['_id'])[-6:].upper()}",
+    }
+
+@api_router.put("/split/groups/{group_id}/name")
+async def rename_group(group_id: str, data: dict, user_id: str = Depends(get_current_user)):
+    """Rename a split group"""
+    from bson import ObjectId
+    name = data.get("name", "").strip()
+    if not name:
+        raise HTTPException(status_code=400, detail="Name required")
+    await db.split_groups.update_one({"_id": ObjectId(group_id)}, {"$set": {"name": name}})
+    return {"message": "Group renamed", "name": name}
+
+@api_router.delete("/split/groups/{group_id}/members/{member_id}")
+async def remove_member(group_id: str, member_id: str, user_id: str = Depends(get_current_user)):
+    """Remove a member from group"""
+    from bson import ObjectId
+    await db.split_groups.update_one(
+        {"_id": ObjectId(group_id)},
+        {"$pull": {"members": {"user_id": member_id}}}
+    )
+    return {"message": "Member removed"}
+
+@api_router.delete("/split/groups/{group_id}/leave")
+async def leave_group(group_id: str, user_id: str = Depends(get_current_user)):
+    """Leave a split group"""
+    from bson import ObjectId
+    await db.split_groups.update_one(
+        {"_id": ObjectId(group_id)},
+        {"$pull": {"members": {"user_id": user_id}}}
+    )
+    return {"message": "Left group"}
+
+# ============== DYNAMIC MONEY SCHOOL (AI-POWERED DAILY) ==============
+
+@api_router.get("/money-school/dynamic")
+async def dynamic_money_school(user_id: str = Depends(get_current_user), lang: str = "en"):
+    """AI-generated daily finance school — trends, news, personalized teachings"""
+    from bson import ObjectId
+    import random
+    
+    user = await db.users.find_one({"_id": ObjectId(user_id)})
+    now = datetime.utcnow()
+    month_start = now.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+    
+    # User spending context
+    cat_pipe = [
+        {"$match": {"user_id": user_id, "date": {"$gte": month_start}}},
+        {"$group": {"_id": "$category", "total": {"$sum": "$amount"}, "count": {"$sum": 1}}}
+    ]
+    spending = {}
+    async for doc in db.transactions.aggregate(cat_pipe):
+        spending[doc["_id"]] = doc["total"]
+    
+    total = sum(spending.values())
+    top_cat = max(spending, key=spending.get) if spending else "Food"
+    
+    income_pipe = [
+        {"$match": {"user_id": user_id, "type": {"$in": ["income", "credit"]}, "date": {"$gte": month_start}}},
+        {"$group": {"_id": None, "total": {"$sum": "$amount"}}}
+    ]
+    inc_docs = await db.transactions.aggregate(income_pipe).to_list(1)
+    income = inc_docs[0]["total"] if inc_docs else 0
+    
+    context = f"User: {user.get('name','User') if user else 'User'}, Income: ₹{income:,.0f}, Expenses: ₹{total:,.0f}, Top category: {top_cat} (₹{spending.get(top_cat,0):,.0f}), Score: {user.get('money_score',50) if user else 50}/100. Date: {now.strftime('%B %d, %Y')}."
+    
+    lang_instr = get_lang_instruction(lang)
+    
+    try:
+        chat = LlmChat(
+            api_key=os.environ.get("EMERGENT_LLM_KEY", ""),
+            session_id=f"school_dynamic_{user_id}_{now.timestamp()}",
+            system_message=f"""You are MintU Money School — India's AI finance teacher. Generate 6 dynamic learning cards for TODAY.
+
+CARD TYPES (generate 1 of each):
+1. "trend" — Today's Indian financial trend/news (stock market, RBI policy, crypto, gold prices)
+2. "teaching" — Finance concept explained simply (compound interest, SIP, term insurance, etc.)
+3. "saving_hack" — Practical Indian money-saving tip using their ACTUAL spending data
+4. "investment" — Investment education with real Indian instruments (Nifty, Sensible, ELSS, PPF)
+5. "quiz" — Financial literacy question with answer
+6. "challenge" — Daily money challenge personalized to their spending
+
+Return ONLY valid JSON array:
+[{{"type":"trend|teaching|saving_hack|investment|quiz|challenge", "emoji":"emoji", "title":"catchy title", "body":"2-3 sentences, specific ₹ amounts, Indian context", "xp":10-25, "color":"#hexcolor"}}]
+
+RULES:
+- Use REAL Indian context (RBI, Sensex, Nifty, HDFC, SBI, Groww, Zerodha)
+- Reference user's ACTUAL numbers from context
+- Make it feel like a daily newspaper finance column
+- Each card should teach something NEW and actionable
+- For quiz: include question AND answer in body
+- For challenge: make it achievable today
+{lang_instr}"""
+        ).with_model("openai", "gpt-5.2")
+        
+        response = await chat.send_message(UserMessage(text=context))
+        response_text = response.strip() if isinstance(response, str) else str(response)
+        
+        import json as json_mod
+        start = response_text.find('[')
+        end = response_text.rfind(']') + 1
+        if start >= 0 and end > start:
+            ai_cards = json_mod.loads(response_text[start:end])
+        else:
+            ai_cards = []
+    except Exception as e:
+        logging.error(f"Dynamic school error: {e}")
+        ai_cards = []
+    
+    # Merge with static fallback
+    all_cards = []
+    for i, card in enumerate(ai_cards[:6]):
+        all_cards.append({**card, "id": f"dynamic_{i}", "source": "ai"})
+    
+    # Add static fallbacks if AI didn't generate enough
+    if len(all_cards) < 6:
+        for i, card in enumerate(MONEY_SCHOOL_CARDS[:6-len(all_cards)]):
+            all_cards.append({**card, "id": f"static_{i}", "source": "static"})
+    
+    # Progress
+    progress = await db.school_progress.find_one({"user_id": user_id}) or {"xp": 0, "completed": []}
+    xp = progress.get("xp", 0)
+    current_level = XP_LEVELS[0]
+    next_level = XP_LEVELS[1] if len(XP_LEVELS) > 1 else None
+    for i, lvl in enumerate(XP_LEVELS):
+        if xp >= lvl["min_xp"]:
+            current_level = lvl
+            next_level = XP_LEVELS[i + 1] if i + 1 < len(XP_LEVELS) else None
+    
+    return {
+        "cards": all_cards,
+        "date": now.strftime("%B %d, %Y"),
+        "progress": {
+            "xp": xp, "level": current_level, "next_level": next_level,
+            "xp_to_next": (next_level["min_xp"] - xp) if next_level else 0,
+        }
+    }
+
+# ============== AUTO-UPDATE BUDGET ON EXPENSE ==============
+
+@api_router.get("/budgets/live")
+async def live_budget_status(user_id: str = Depends(get_current_user)):
+    """Get real-time budget status with actual spending from ALL sources (transactions + splits)"""
+    from bson import ObjectId
+    now = datetime.utcnow()
+    month_start = now.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+    
+    budgets = await db.budgets.find({"user_id": user_id}).to_list(30)
+    
+    # Get spending from transactions
+    txn_pipe = [
+        {"$match": {"user_id": user_id, "type": {"$in": ["expense", "debit"]}, "date": {"$gte": month_start}}},
+        {"$group": {"_id": "$category", "total": {"$sum": "$amount"}, "count": {"$sum": 1}}}
+    ]
+    txn_spending = {}
+    async for doc in db.transactions.aggregate(txn_pipe):
+        txn_spending[doc["_id"]] = doc["total"]
+    
+    # Get spending from split expenses (user's share)
+    split_expenses = await db.split_expenses.find({"created_at": {"$gte": month_start}}).to_list(500)
+    split_spending = {}
+    for exp in split_expenses:
+        splits = exp.get("splits", {})
+        if isinstance(splits, dict) and user_id in splits:
+            cat = exp.get("category", "Other")
+            split_spending[cat] = split_spending.get(cat, 0) + splits[user_id]
+    
+    # Combine spending
+    all_spending = {}
+    for cat in set(list(txn_spending.keys()) + list(split_spending.keys())):
+        all_spending[cat] = txn_spending.get(cat, 0) + split_spending.get(cat, 0)
+    
+    result = []
+    for b in budgets:
+        cat = b["category"]
+        spent = all_spending.get(cat, 0)
+        pct = (spent / max(b["amount"], 1)) * 100
+        remaining = max(0, b["amount"] - spent)
+        
+        if pct >= 100: status = "exceeded"
+        elif pct >= 80: status = "warning"
+        elif pct >= 50: status = "on_track"
+        else: status = "healthy"
+        
+        result.append({
+            "id": str(b["_id"]),
+            "category": cat,
+            "budget": b["amount"],
+            "spent": round(spent, 2),
+            "from_transactions": round(txn_spending.get(cat, 0), 2),
+            "from_splits": round(split_spending.get(cat, 0), 2),
+            "remaining": round(remaining, 2),
+            "percentage": round(pct, 1),
+            "status": status,
+            "period": b.get("period", "monthly"),
+        })
+    
+    result.sort(key=lambda x: x["percentage"], reverse=True)
+    
+    total_budgeted = sum(b["amount"] for b in budgets)
+    total_spent = sum(r["spent"] for r in result)
+    
+    return {
+        "budgets": result,
+        "summary": {
+            "total_budgeted": total_budgeted,
+            "total_spent": round(total_spent, 2),
+            "total_remaining": round(max(0, total_budgeted - total_spent), 2),
+            "overall_pct": round((total_spent / max(total_budgeted, 1)) * 100, 1),
+            "sources": {"transactions": round(sum(txn_spending.values()), 2), "splits": round(sum(split_spending.values()), 2)},
+        }
+    }
 async def create_recurring_split(data: dict, user_id: str = Depends(get_current_user)):
     """Create a recurring split expense (monthly rent, subscriptions)"""
     from bson import ObjectId

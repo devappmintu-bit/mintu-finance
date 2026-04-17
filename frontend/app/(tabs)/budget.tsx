@@ -23,8 +23,11 @@ export default function BudgetScreen() {
   useEffect(() => { fetchBudgets(); fetchSuggestions(); }, []);
 
   const fetchBudgets = async () => {
-    try { const res = await api.get('/budgets'); setBudgets(res.data); }
-    catch (e) { console.error(e); }
+    try { const res = await api.get('/budgets/live'); setBudgets(res.data.budgets || res.data); }
+    catch (e) {
+      try { const res = await api.get('/budgets'); setBudgets(res.data); }
+      catch (e2) { console.error(e2); }
+    }
     finally { setLoading(false); }
   };
 

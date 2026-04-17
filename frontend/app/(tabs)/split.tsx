@@ -35,6 +35,9 @@ export default function SplitScreen() {
   const [summaryModal, setSummaryModal] = useState(false);
   const [payModal, setPayModal] = useState(false);
   const [rewardModal, setRewardModal] = useState(false);
+  const [manageModal, setManageModal] = useState(false);
+  const [groupManage, setGroupManage] = useState<any>(null);
+  const [addMemberPhone, setAddMemberPhone] = useState('');
   // Group create
   const [groupName, setGroupName] = useState('');
   const [memberPhone, setMemberPhone] = useState('');
@@ -155,6 +158,50 @@ export default function SplitScreen() {
     } catch (e) { Alert.alert('Error', 'Could not load summary'); }
   };
 
+  // Group management (GPay-style)
+  const openGroupManage = async (group: any) => {
+    try {
+      const res = await api.get(`/split/groups/${group.id}/manage`);
+      setGroupManage(res.data); setSelectedGroup(group); setManageModal(true);
+    } catch (e) { Alert.alert('Error', 'Could not load group'); }
+  };
+
+  const addMemberToGroup = async () => {
+    const p = addMemberPhone.replace(/\D/g, '');
+    if (p.length !== 10) { Alert.alert('Error', 'Enter valid 10-digit phone'); return; }
+    try {
+      const res = await api.post(`/split/groups/${selectedGroup?.id}/members`, { phones: [p] });
+      Alert.alert('Done!', res.data.message);
+      setAddMemberPhone('');
+      openGroupManage(selectedGroup);
+      fetchData();
+    } catch (e: any) { Alert.alert('Error', e.response?.data?.detail || 'Failed'); }
+  };
+
+  const renameGroup = () => {
+    Alert.prompt?.('Rename Group', 'Enter new name', async (name: string) => {
+      if (name?.trim()) {
+        await api.put(`/split/groups/${selectedGroup?.id}/name`, { name: name.trim() });
+        fetchData(); openGroupManage(selectedGroup);
+      }
+    }) || Alert.alert('Rename', 'Use the create group feature to make a new group');
+  };
+
+  const leaveGroup = async () => {
+    Alert.alert('Leave Group', 'Are you sure? Your expenses will remain.', [
+      { text: 'Cancel', style: 'cancel' },
+      { text: 'Leave', style: 'destructive', onPress: async () => {
+        await api.delete(`/split/groups/${selectedGroup?.id}/leave`);
+        setManageModal(false); fetchData();
+      }},
+    ]);
+  };
+
+  const shareInvite = () => {
+    const code = groupManage?.invite_code || '';
+    Share.share({ message: `Join my MintU split group! Code: ${code}\n📲 Download: https://mintu.app/download` });
+  };
+
   // UPI Payment with rewards
   const initiatePayment = (debt: any) => { setPayTarget(debt); setPayModal(true); };
 
@@ -268,6 +315,9 @@ export default function SplitScreen() {
             </View>
             <TouchableOpacity style={s.addExpBtn} onPress={() => openAddExpense(g)}>
               <Ionicons name="add-circle" size={30} color={COLORS.accent.primary} />
+            </TouchableOpacity>
+            <TouchableOpacity onPress={() => openGroupManage(g)} style={{ padding: 4 }}>
+              <Ionicons name="settings-outline" size={18} color={COLORS.text.muted} />
             </TouchableOpacity>
           </TouchableOpacity>
         ))}
@@ -470,6 +520,72 @@ export default function SplitScreen() {
         </View>
       </Modal>
 
+      {/* Group Management Modal (GPay-style) */}
+      <Modal visible={manageModal} animationType="slide" transparent>
+        <View style={s.modalBg}>
+          <View style={[s.modalSheet, { maxHeight: '90%' }]}>
+            <View style={s.sheetHandle} />
+            <ScrollView showsVerticalScrollIndicator={false}>
+              {/* Avatar stack */}
+              <View style={s.manageAvatars}>
+                {(groupManage?.members || []).slice(0, 5).map((m: any, i: number) => (
+                  <View key={i} style={[s.manageAvatar, { marginLeft: i > 0 ? -12 : 0, zIndex: 5 - i, backgroundColor: ['#6366F1', '#F59E0B', '#10B981', '#EF4444', '#8B5CF6'][i % 5] + '25' }]}>
+                    <Text style={[s.manageInit, { color: ['#6366F1', '#F59E0B', '#10B981', '#EF4444', '#8B5CF6'][i % 5] }]}>{m.initial}</Text>
+                  </View>
+                ))}
+              </View>
+              <Text style={s.manageName}>{groupManage?.name}</Text>
+
+              {/* Actions */}
+              <View style={s.manageActions}>
+                <TouchableOpacity style={s.manageAction} onPress={() => { setManageModal(false); setAddMemberPhone(''); }}>
+                  <Ionicons name="person-add-outline" size={22} color="#6366F1" />
+                  <Text style={s.manageActionText}>Add people</Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity style={s.manageAction} onPress={shareInvite}>
+                  <Ionicons name="link-outline" size={22} color="#6366F1" />
+                  <Text style={s.manageActionText}>Invite via link</Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity style={s.manageAction} onPress={shareInvite}>
+                  <Ionicons name="qr-code-outline" size={22} color="#6366F1" />
+                  <Text style={s.manageActionText}>Invite via QR code</Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity style={s.manageAction} onPress={leaveGroup}>
+                  <Ionicons name="exit-outline" size={22} color="#EF4444" />
+                  <Text style={[s.manageActionText, { color: '#EF4444' }]}>Leave group</Text>
+                </TouchableOpacity>
+              </View>
+
+              {/* Add member input */}
+              <View style={{ flexDirection: 'row', gap: 8, marginBottom: 16 }}>
+                <TextInput style={[s.input, { flex: 1, marginBottom: 0 }]} placeholder="Add member phone number" placeholderTextColor={COLORS.text.muted} value={addMemberPhone} onChangeText={setAddMemberPhone} keyboardType="phone-pad" maxLength={10} />
+                <TouchableOpacity style={s.addMemberBtn} onPress={addMemberToGroup}>
+                  <Ionicons name="person-add" size={20} color="#fff" />
+                </TouchableOpacity>
+              </View>
+
+              {/* Members list */}
+              <Text style={s.manageMemberTitle}>Group members ({groupManage?.member_count || 0})</Text>
+              {(groupManage?.members || []).map((m: any, i: number) => (
+                <View key={i} style={s.manageMemberRow}>
+                  <View style={[s.manageMemberAvatar, { backgroundColor: ['#6366F1', '#F59E0B', '#10B981', '#EF4444', '#8B5CF6'][i % 5] + '20' }]}>
+                    <Text style={[s.manageMemberInit, { color: ['#6366F1', '#F59E0B', '#10B981', '#EF4444', '#8B5CF6'][i % 5] }]}>{m.initial}</Text>
+                  </View>
+                  <Text style={s.manageMemberName}>{m.name}</Text>
+                  {m.is_admin && <View style={s.adminBadge}><Text style={s.adminText}>Admin</Text></View>}
+                </View>
+              ))}
+            </ScrollView>
+            <TouchableOpacity style={[s.submitBtn, { marginTop: 12 }]} onPress={() => setManageModal(false)}>
+              <Text style={s.submitText}>Done</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
+
       {/* Create Group Modal */}
       <Modal visible={createModal} animationType="slide" transparent>
         <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={s.modalBg}>
@@ -611,4 +727,19 @@ const s = StyleSheet.create({
   newBadge: { fontSize: 13, fontWeight: '600', color: '#6366F1', backgroundColor: '#EEF2FF', paddingHorizontal: 12, paddingVertical: 6, borderRadius: RADIUS.full },
   rewardDoneBtn: { backgroundColor: COLORS.accent.primary, borderRadius: RADIUS.full, paddingVertical: 16, paddingHorizontal: 48, marginTop: 20 },
   rewardDoneText: { fontSize: 16, fontWeight: '700', color: '#fff' },
+  // Group Management (GPay-style)
+  manageAvatars: { flexDirection: 'row', justifyContent: 'center', marginBottom: SPACING.md },
+  manageAvatar: { width: 56, height: 56, borderRadius: 28, justifyContent: 'center', alignItems: 'center', borderWidth: 3, borderColor: COLORS.bg.secondary },
+  manageInit: { fontSize: 20, fontWeight: '700' },
+  manageName: { fontSize: 22, fontWeight: '700', color: COLORS.text.primary, textAlign: 'center', marginBottom: SPACING.xl },
+  manageActions: { marginBottom: SPACING.xl },
+  manageAction: { flexDirection: 'row', alignItems: 'center', gap: 16, paddingVertical: 16, borderBottomWidth: 1, borderBottomColor: COLORS.border.subtle },
+  manageActionText: { fontSize: 16, fontWeight: '500', color: COLORS.text.primary },
+  manageMemberTitle: { fontSize: 14, fontWeight: '600', color: COLORS.text.muted, marginBottom: SPACING.md },
+  manageMemberRow: { flexDirection: 'row', alignItems: 'center', paddingVertical: 12, gap: 12 },
+  manageMemberAvatar: { width: 44, height: 44, borderRadius: 22, justifyContent: 'center', alignItems: 'center' },
+  manageMemberInit: { fontSize: 16, fontWeight: '700' },
+  manageMemberName: { flex: 1, fontSize: 16, fontWeight: '500', color: COLORS.text.primary },
+  adminBadge: { backgroundColor: '#3B82F6', paddingHorizontal: 12, paddingVertical: 4, borderRadius: RADIUS.full },
+  adminText: { fontSize: 12, fontWeight: '600', color: '#fff' },
 });

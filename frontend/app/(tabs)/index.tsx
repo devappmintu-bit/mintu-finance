@@ -37,7 +37,7 @@ export default function HomeScreen() {
         api.get('/user/me'),
         api.get('/stats/overview'),
         api.get('/transactions?limit=5'),
-        api.get(`/money-school/daily?lang=${lang}`),
+        api.get(`/money-school/dynamic?lang=${lang}`),
         api.get('/alerts/smart'),
         api.get('/reports/weekly'),
         api.get('/leaderboard/savings'),
@@ -291,16 +291,32 @@ export default function HomeScreen() {
           </View>
         )}
 
-        {/* MONEY SCHOOL */}
+        {/* MONEY SCHOOL — AI-Powered Dynamic Cards */}
         {dailyLesson && (
-          <View style={styles.schoolCard}>
+          <View style={{ marginBottom: SPACING.lg }}>
             <View style={styles.schoolHeader}>
               <View style={styles.schoolBadge}><Ionicons name="school" size={14} color="#8B5CF6" /><Text style={styles.schoolBadgeText}>MONEY SCHOOL</Text></View>
               <TouchableOpacity onPress={refreshLesson}><Ionicons name="refresh" size={16} color={COLORS.text.muted} /></TouchableOpacity>
             </View>
-            <Text style={styles.schoolTitle}>{dailyLesson.title}</Text>
-            {dailyLesson.personal_tip && <Text style={styles.schoolTip}>{dailyLesson.personal_tip}</Text>}
-            <View style={styles.schoolCatPill}><Text style={styles.schoolCatText}>{dailyLesson.category}</Text></View>
+            {dailyLesson.progress && (
+              <View style={styles.xpRow}>
+                <Text style={styles.xpText}>{dailyLesson.progress.level?.emoji} {dailyLesson.progress.level?.name}</Text>
+                <Text style={styles.xpVal}>{dailyLesson.progress.xp} XP</Text>
+              </View>
+            )}
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 12 }}>
+              {(dailyLesson.cards || [dailyLesson]).map((card: any, i: number) => (
+                <View key={i} style={[styles.schoolCardH, { borderLeftColor: card.color || '#8B5CF6' }]}>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 6 }}>
+                    <Text style={{ fontSize: 18 }}>{card.emoji || '📚'}</Text>
+                    <Text style={[styles.schoolCardType, { color: card.color || '#8B5CF6' }]}>{(card.type || 'tip').toUpperCase()}</Text>
+                    {card.xp && <Text style={styles.schoolXpBadge}>+{card.xp}XP</Text>}
+                  </View>
+                  <Text style={styles.schoolCardTitle}>{card.title}</Text>
+                  <Text style={styles.schoolCardBody}>{card.body || card.personal_tip || card.content || ''}</Text>
+                </View>
+              ))}
+            </ScrollView>
           </View>
         )}
 
@@ -423,6 +439,15 @@ const styles = StyleSheet.create({
   schoolTip: { fontSize: 14, color: COLORS.text.secondary, lineHeight: 21, marginBottom: SPACING.md },
   schoolCatPill: { backgroundColor: '#8B5CF615', paddingHorizontal: 12, paddingVertical: 4, borderRadius: RADIUS.full, alignSelf: 'flex-start' },
   schoolCatText: { fontSize: 11, fontWeight: '600', color: '#8B5CF6' },
+  // Money School horizontal cards
+  xpRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 },
+  xpText: { fontSize: 13, fontWeight: '600', color: '#8B5CF6' },
+  xpVal: { fontSize: 13, fontWeight: '700', color: '#F59E0B' },
+  schoolCardH: { width: 280, backgroundColor: COLORS.bg.card, borderRadius: RADIUS.card, padding: SPACING.lg, borderWidth: 1, borderColor: COLORS.border.card, borderLeftWidth: 4 },
+  schoolCardType: { fontSize: 10, fontWeight: '700', letterSpacing: 0.8 },
+  schoolXpBadge: { fontSize: 10, fontWeight: '700', color: '#F59E0B', backgroundColor: '#FEF3C7', paddingHorizontal: 6, paddingVertical: 2, borderRadius: 4 },
+  schoolCardTitle: { fontSize: 15, fontWeight: '700', color: COLORS.text.primary, marginBottom: 6 },
+  schoolCardBody: { fontSize: 13, color: COLORS.text.secondary, lineHeight: 19 },
   // Transactions
   txnSection: { marginBottom: SPACING.lg },
   txnHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: SPACING.md },
