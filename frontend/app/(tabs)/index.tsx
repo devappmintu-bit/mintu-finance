@@ -13,6 +13,8 @@ import api from '../../utils/api';
 import { COLORS, RADIUS, SPACING, CATEGORIES } from '../../utils/theme';
 import { BarChart } from 'react-native-gifted-charts';
 import { router } from 'expo-router';
+import Toast from 'react-native-toast-message';
+import { HomeSkeleton } from '../../components/SkeletonLoader';
 
 const APP_LINK = 'https://mintu.app/download';
 
@@ -102,7 +104,7 @@ export default function HomeScreen() {
 
   if (loading) return (
     <SafeAreaView style={styles.container}>
-      <ActivityIndicator size="large" color={COLORS.accent.primary} style={{ marginTop: 100 }} />
+      <HomeSkeleton />
     </SafeAreaView>
   );
 

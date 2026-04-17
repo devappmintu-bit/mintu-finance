@@ -11,6 +11,8 @@ import { format } from 'date-fns';
 import { useLangStore } from '../../store/langStore';
 import { t } from '../../utils/i18n';
 import { COLORS, RADIUS, SPACING, CATEGORIES, CATEGORY_LIST } from '../../utils/theme';
+import Toast from 'react-native-toast-message';
+import { TransactionsSkeleton } from '../../components/SkeletonLoader';
 
 export default function TransactionsScreen() {
   const { lang } = useLangStore();
@@ -71,7 +73,7 @@ export default function TransactionsScreen() {
     try {
       await api.post('/transactions/parse-sms', { sms_text: smsText });
       setSmsModalVisible(false); setSmsText(''); fetchTransactions();
-      Alert.alert(t('success', lang), 'Transaction added from SMS!');
+      Toast.show({ type: 'success', text1: 'Done!', text2: 'Transaction added from SMS!' });
     } catch (e: any) { Alert.alert(t('error', lang), e.response?.data?.detail || 'Could not parse'); }
     finally { setSmsLoading(false); }
   };
@@ -82,7 +84,7 @@ export default function TransactionsScreen() {
     try {
       await api.post('/transactions/parse-sms', { sms_text: notifText });
       setNotifText(''); setNotifExpanded(false); fetchTransactions();
-      Alert.alert('Done!', 'Expense added from notification! 🎉');
+      Toast.show({ type: 'success', text1: 'Done!', text2: 'Expense added from notification!' });
     } catch (e: any) { Alert.alert('Error', e.response?.data?.detail || 'Could not parse notification'); }
     finally { setNotifLoading(false); }
   };
@@ -173,7 +175,7 @@ export default function TransactionsScreen() {
     );
   };
 
-  if (loading) return <SafeAreaView style={styles.container}><ActivityIndicator size="large" color={COLORS.accent.primary} style={{ marginTop: 100 }} /></SafeAreaView>;
+  if (loading) return <SafeAreaView style={styles.container}><TransactionsSkeleton /></SafeAreaView>;
 
   return (
     <SafeAreaView style={styles.container}>

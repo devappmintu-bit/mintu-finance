@@ -9,6 +9,8 @@ import api from '../../utils/api';
 import { COLORS, RADIUS, SPACING, CATEGORIES, CATEGORY_LIST } from '../../utils/theme';
 import { useLangStore } from '../../store/langStore';
 import { t } from '../../utils/i18n';
+import Toast from 'react-native-toast-message';
+import { BudgetSkeleton } from '../../components/SkeletonLoader';
 
 const PERIODS = ['daily', 'weekly', 'monthly'];
 
@@ -39,7 +41,7 @@ export default function BudgetScreen() {
   const applySmartBudgets = async () => {
     try {
       const res = await api.post('/budgets/auto-apply');
-      Alert.alert('Done!', res.data.message);
+      Toast.show({ type: 'success', text1: 'Done!', text2: res.data.message });
       fetchBudgets();
       fetchSuggestions();
     } catch (e) { Alert.alert('Error', 'Could not apply budgets'); }
@@ -110,7 +112,7 @@ export default function BudgetScreen() {
     );
   };
 
-  if (loading) return <SafeAreaView style={styles.container}><ActivityIndicator size="large" color={COLORS.accent.primary} style={{ marginTop: 100 }} /></SafeAreaView>;
+  if (loading) return <SafeAreaView style={styles.container}><BudgetSkeleton /></SafeAreaView>;
 
   return (
     <SafeAreaView style={styles.container}>

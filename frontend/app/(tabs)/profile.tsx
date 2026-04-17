@@ -12,6 +12,8 @@ import { useLangStore } from '../../store/langStore';
 import { t, LANGUAGES, LangCode } from '../../utils/i18n';
 import api from '../../utils/api';
 import { COLORS, RADIUS, SPACING } from '../../utils/theme';
+import Toast from 'react-native-toast-message';
+import { ProfileSkeleton } from '../../components/SkeletonLoader';
 
 export default function ProfileScreen() {
   const { user, logout } = useAuthStore();
@@ -41,7 +43,7 @@ export default function ProfileScreen() {
     setUpiSaving(true);
     try {
       await api.post('/user/upi', { upi_id: upiId.trim() });
-      Alert.alert('Saved!', 'UPI ID updated successfully');
+      Toast.show({ type: 'success', text1: 'Saved!', text2: 'UPI ID updated successfully' });
     } catch (e: any) {
       Alert.alert('Error', e.response?.data?.detail || 'Invalid UPI ID format');
     } finally { setUpiSaving(false); }
