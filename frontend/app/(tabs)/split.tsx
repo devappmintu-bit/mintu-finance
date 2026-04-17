@@ -185,20 +185,31 @@ export default function SplitScreen() {
     } catch (e: any) { Alert.alert('Error', e.response?.data?.detail || 'Failed'); }
   };
 
-  const renameGroup = () => {
-    Alert.prompt?.('Rename Group', 'Enter new name', async (name: string) => {
-      if (name?.trim()) {
-        await api.put(`/split/groups/${selectedGroup?.id}/name`, { name: name.trim() });
-        fetchData(); openGroupManage(selectedGroup);
-      }
-    }) || Alert.alert('Rename', 'Use the create group feature to make a new group');
+  const [renameInput, setRenameInput] = useState('');
+  const [renameVisible, setRenameVisible] = useState(false);
+
+  const renameGroup = async () => {
+    if (!renameInput.trim()) {
+      setRenameInput(groupManage?.name || '');
+      setRenameVisible(true);
+      return;
+    }
+    try {
+      await api.put(`/split/groups/${selectedGroup?.id}/name`, { name: renameInput.trim() });
+      Alert.alert('Done!', 'Group renamed');
+      setRenameVisible(false);
+      fetchData();
+      openGroupManage(selectedGroup);
+    } catch (e) { Alert.alert('Error', 'Could not rename'); }
   };
 
   const leaveGroup = async () => {
     Alert.alert('Leave Group', 'Are you sure? Your expenses will remain.', [
       { text: 'Cancel', style: 'cancel' },
       { text: 'Leave', style: 'destructive', onPress: async () => {
-        await api.delete(`/split/groups/${selectedGroup?.id}/leave`);
+        try {
+          await api({ method: 'DELETE', url: `/split/groups/${selectedGroup?.id}/leave` });
+        } catch (e) { /* ignore */ }
         setManageModal(false); fetchData();
       }},
     ]);
@@ -545,6 +556,11 @@ export default function SplitScreen() {
 
               {/* Actions */}
               <View style={s.manageActions}>
+                <TouchableOpacity style={s.manageAction} onPress={() => { setRenameInput(groupManage?.name || ''); setRenameVisible(true); }}>
+                  <Ionicons name="create-outline" size={22} color="#6366F1" />
+                  <Text style={s.manageActionText}>Rename group</Text>
+                </TouchableOpacity>
+
                 <TouchableOpacity style={s.manageAction} onPress={shareInvite}>
                   <Ionicons name="link-outline" size={22} color="#6366F1" />
                   <Text style={s.manageActionText}>Invite via link</Text>
@@ -560,6 +576,14 @@ export default function SplitScreen() {
                   <Text style={[s.manageActionText, { color: '#EF4444' }]}>Leave group</Text>
                 </TouchableOpacity>
               </View>
+
+              {/* Rename input */}
+              {renameVisible && (
+                <View style={{ flexDirection: 'row', gap: 8, marginBottom: 12 }}>
+                  <TextInput style={[s.input, { flex: 1, marginBottom: 0 }]} placeholder="New group name" placeholderTextColor={COLORS.text.muted} value={renameInput} onChangeText={setRenameInput} autoFocus />
+                  <TouchableOpacity style={s.addMemberBtn} onPress={renameGroup}><Ionicons name="checkmark" size={20} color="#fff" /></TouchableOpacity>
+                </View>
+              )}
 
               {/* Add member input */}
               <View style={{ flexDirection: 'row', gap: 8, marginBottom: 16 }}>
