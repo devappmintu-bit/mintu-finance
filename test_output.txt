@@ -1,0 +1,6 @@
+[02:43:00] INFO: 🚀 Starting MintU Comprehensive Production Testing...
+[02:43:00] INFO: 📍 Testing against: https://mintu-finance.preview.emergentagent.com/api
+[02:43:00] INFO: ⏰ Rate limit: 300/min
+[02:43:00] INFO: 🔐 Testing OTP Send...
+[02:43:00] FAIL: ❌ OTP send failed: 429 - {"detail":"Please wait 30 seconds before requesting another OTP"}
+[02:43:00] CRITICAL: ❌ Cannot proceed without OTP send

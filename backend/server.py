@@ -3997,6 +3997,268 @@ async def list_agents(user_id: str = Depends(get_current_user)):
         for k, v in AGENT_PROFILES.items()
     ]}
 
+# ============== ENHANCED SPLITWISE PRO ==============
+
+@api_router.get("/split/groups/{group_id}/summary")
+async def group_expense_summary(group_id: str, user_id: str = Depends(get_current_user)):
+    """Get comprehensive group summary with simplified debts"""
+    from bson import ObjectId
+    group = await db.split_groups.find_one({"_id": ObjectId(group_id)})
+    if not group:
+        raise HTTPException(status_code=404, detail="Group not found")
+    
+    expenses = await db.split_expenses.find({"group_id": group_id}).sort("created_at", -1).to_list(200)
+    settlements = await db.settlements.find({"group_id": group_id}).to_list(200)
+    
+    members = group.get("members", [])
+    member_names = {m["user_id"]: m.get("name", "User") for m in members}
+    
+    # Calculate net balances
+    balances = {m["user_id"]: 0.0 for m in members}
+    total_spent = 0
+    
+    for exp in expenses:
+        paid_by = exp["paid_by"]
+        amount = exp["amount"]
+        total_spent += amount
+        splits = exp.get("splits", {})
+        
+        if isinstance(splits, dict):
+            balances[paid_by] = balances.get(paid_by, 0) + amount
+            for uid, share in splits.items():
+                balances[uid] = balances.get(uid, 0) - share
+    
+    # Account for settlements
+    for s in settlements:
+        balances[s["payer_id"]] = balances.get(s["payer_id"], 0) + s["amount"]
+        balances[s["payee_id"]] = balances.get(s["payee_id"], 0) - s["amount"]
+    
+    # Simplify debts (minimize transactions)
+    debtors = []
+    creditors = []
+    for uid, bal in balances.items():
+        if bal < -0.5:
+            debtors.append({"id": uid, "name": member_names.get(uid, "User"), "amount": abs(bal)})
+        elif bal > 0.5:
+            creditors.append({"id": uid, "name": member_names.get(uid, "User"), "amount": bal})
+    
+    debtors.sort(key=lambda x: x["amount"], reverse=True)
+    creditors.sort(key=lambda x: x["amount"], reverse=True)
+    
+    simplified = []
+    di, ci = 0, 0
+    while di < len(debtors) and ci < len(creditors):
+        d, c = debtors[di], creditors[ci]
+        settle_amt = min(d["amount"], c["amount"])
+        if settle_amt > 0.5:
+            simplified.append({
+                "from_id": d["id"], "from_name": d["name"],
+                "to_id": c["id"], "to_name": c["name"],
+                "amount": round(settle_amt, 2)
+            })
+        d["amount"] -= settle_amt
+        c["amount"] -= settle_amt
+        if d["amount"] < 0.5: di += 1
+        if c["amount"] < 0.5: ci += 1
+    
+    # Category breakdown
+    cat_totals = {}
+    for exp in expenses:
+        cat = exp.get("category", "Other")
+        cat_totals[cat] = cat_totals.get(cat, 0) + exp["amount"]
+    
+    return {
+        "group_name": group.get("name", ""),
+        "member_count": len(members),
+        "total_expenses": len(expenses),
+        "total_spent": round(total_spent, 2),
+        "simplified_debts": simplified,
+        "category_breakdown": dict(sorted(cat_totals.items(), key=lambda x: x[1], reverse=True)),
+        "recent_expenses": [{
+            "description": e.get("description", ""),
+            "amount": e["amount"],
+            "paid_by_name": member_names.get(e["paid_by"], "User"),
+            "date": e.get("created_at", "").isoformat() if hasattr(e.get("created_at", ""), 'isoformat') else str(e.get("created_at", "")),
+        } for e in expenses[:10]],
+        "settlements_count": len(settlements),
+    }
+
+@api_router.post("/split/expenses/recurring")
+async def create_recurring_split(data: dict, user_id: str = Depends(get_current_user)):
+    """Create a recurring split expense (monthly rent, subscriptions)"""
+    from bson import ObjectId
+    group_id = data.get("group_id")
+    if not group_id:
+        raise HTTPException(status_code=400, detail="group_id required")
+    
+    group = await db.split_groups.find_one({"_id": ObjectId(group_id), "members.user_id": user_id})
+    if not group:
+        raise HTTPException(status_code=404, detail="Group not found")
+    
+    recurring = {
+        "group_id": group_id,
+        "description": data.get("description", "Recurring expense"),
+        "amount": data.get("amount", 0),
+        "paid_by": user_id,
+        "split_type": data.get("split_type", "equal"),
+        "category": data.get("category", "Bills"),
+        "frequency": data.get("frequency", "monthly"),
+        "is_recurring": True,
+        "next_due": datetime.utcnow() + timedelta(days=30),
+        "created_at": datetime.utcnow()
+    }
+    
+    # Also create the first expense
+    member_ids = [m["user_id"] for m in group["members"]]
+    per_person = round(recurring["amount"] / len(member_ids), 2)
+    splits = {mid: per_person for mid in member_ids}
+    
+    expense = {**recurring, "splits": splits}
+    result = await db.split_expenses.insert_one(expense)
+    
+    # Save recurring template
+    await db.recurring_splits.insert_one(recurring)
+    
+    return {"id": str(result.inserted_id), "message": f"Recurring {recurring['frequency']} expense created!"}
+
+# ============== MONEY SCHOOL GAMIFICATION ==============
+
+MONEY_SCHOOL_CARDS = [
+    {"type": "saving_hack", "emoji": "💡", "title": "Skip 1 Zomato order/week", "body": "Save ₹1,500/month → ₹18,000/year. That's a weekend trip to Goa! ✈️", "xp": 10, "level": "beginner", "color": "#10B981"},
+    {"type": "investment", "emoji": "📈", "title": "FD vs Mutual Funds", "body": "Your FD gives 6.5%. A balanced mutual fund averages 12%. You're losing 5.5% returns every year!", "xp": 15, "level": "intermediate", "color": "#6366F1"},
+    {"type": "daily_tip", "emoji": "🎯", "title": "The 50/30/20 Rule", "body": "50% Needs, 30% Wants, 20% Savings. Simple but powerful. Most Indians save only 8%.", "xp": 10, "level": "beginner", "color": "#F59E0B"},
+    {"type": "market_trend", "emoji": "🔥", "title": "SIP Power", "body": "₹5,000/month SIP for 20 years at 12% = ₹49.9 lakhs. Start today, thank yourself later.", "xp": 20, "level": "intermediate", "color": "#EF4444"},
+    {"type": "risk_alert", "emoji": "⚠️", "title": "Credit Card Trap", "body": "Minimum payment = maximum interest. Pay full bill always. 36% annual interest is a wealth destroyer.", "xp": 15, "level": "beginner", "color": "#DC2626"},
+    {"type": "saving_hack", "emoji": "🏷️", "title": "Annual vs Monthly", "body": "Netflix annual = ₹600 saved. Spotify annual = ₹500 saved. Gym annual = ₹3,000 saved. Total: ₹4,100/year!", "xp": 10, "level": "beginner", "color": "#059669"},
+    {"type": "investment", "emoji": "🏦", "title": "PPF: Tax-Free Magic", "body": "₹1.5L/year in PPF = tax saving + 7.1% guaranteed returns + zero risk. Best for beginners!", "xp": 20, "level": "intermediate", "color": "#7C3AED"},
+    {"type": "daily_tip", "emoji": "📊", "title": "Track Before You Cut", "body": "Most people have no idea where 30% of their money goes. Track for 1 month, then optimize.", "xp": 10, "level": "beginner", "color": "#0EA5E9"},
+    {"type": "market_trend", "emoji": "💰", "title": "Gold as Insurance", "body": "Keep 5-10% in Sovereign Gold Bonds. You get 2.5% interest + gold price appreciation. Win-win!", "xp": 15, "level": "advanced", "color": "#F59E0B"},
+    {"type": "saving_hack", "emoji": "🛒", "title": "D-Mart vs Blinkit", "body": "Monthly groceries at D-Mart vs quick commerce saves ₹2,000-3,000/month. Plan your shopping!", "xp": 10, "level": "beginner", "color": "#10B981"},
+    {"type": "investment", "emoji": "🎓", "title": "ELSS: Best Tax Saver", "body": "ELSS funds: 3-year lock-in, ~15% returns, ₹46,800 tax saved on ₹1.5L investment. Beat FD easily!", "xp": 25, "level": "advanced", "color": "#8B5CF6"},
+    {"type": "risk_alert", "emoji": "🚨", "title": "EMI Overload Check", "body": "Total EMIs should be <40% of income. Above that? You're one emergency away from trouble.", "xp": 15, "level": "intermediate", "color": "#EF4444"},
+]
+
+XP_LEVELS = [
+    {"level": 1, "name": "Beginner", "emoji": "🌱", "min_xp": 0},
+    {"level": 2, "name": "Learner", "emoji": "📚", "min_xp": 50},
+    {"level": 3, "name": "Saver", "emoji": "💰", "min_xp": 150},
+    {"level": 4, "name": "Investor", "emoji": "📈", "min_xp": 300},
+    {"level": 5, "name": "Pro", "emoji": "🏆", "min_xp": 500},
+    {"level": 6, "name": "Expert", "emoji": "👑", "min_xp": 800},
+]
+
+@api_router.get("/money-school/cards")
+async def get_money_school_cards(user_id: str = Depends(get_current_user)):
+    """Get personalized money school cards with gamification"""
+    from bson import ObjectId
+    import random
+    
+    user = await db.users.find_one({"_id": ObjectId(user_id)})
+    progress = await db.school_progress.find_one({"user_id": user_id}) or {"xp": 0, "completed": [], "streak": 0}
+    
+    current_xp = progress.get("xp", 0)
+    completed_ids = set(progress.get("completed", []))
+    
+    # Determine user level
+    current_level = XP_LEVELS[0]
+    next_level = XP_LEVELS[1] if len(XP_LEVELS) > 1 else None
+    for i, lvl in enumerate(XP_LEVELS):
+        if current_xp >= lvl["min_xp"]:
+            current_level = lvl
+            next_level = XP_LEVELS[i + 1] if i + 1 < len(XP_LEVELS) else None
+    
+    # Shuffle and personalize cards
+    cards = []
+    for i, card in enumerate(MONEY_SCHOOL_CARDS):
+        card_id = f"card_{i}"
+        cards.append({
+            **card,
+            "id": card_id,
+            "completed": card_id in completed_ids,
+        })
+    
+    random.shuffle(cards)
+    
+    return {
+        "cards": cards,
+        "progress": {
+            "xp": current_xp,
+            "level": current_level,
+            "next_level": next_level,
+            "xp_to_next": (next_level["min_xp"] - current_xp) if next_level else 0,
+            "completed_count": len(completed_ids),
+            "total_cards": len(MONEY_SCHOOL_CARDS),
+            "streak": progress.get("streak", 0),
+        }
+    }
+
+@api_router.post("/money-school/complete")
+async def complete_card(data: dict, user_id: str = Depends(get_current_user)):
+    """Mark a money school card as completed and earn XP"""
+    card_id = data.get("card_id", "")
+    xp_earned = data.get("xp", 10)
+    
+    result = await db.school_progress.update_one(
+        {"user_id": user_id},
+        {
+            "$set": {"user_id": user_id, "last_activity": datetime.utcnow()},
+            "$inc": {"xp": xp_earned},
+            "$addToSet": {"completed": card_id}
+        },
+        upsert=True
+    )
+    
+    progress = await db.school_progress.find_one({"user_id": user_id})
+    new_xp = progress.get("xp", 0)
+    
+    # Check for level up
+    current_level = XP_LEVELS[0]
+    for lvl in XP_LEVELS:
+        if new_xp >= lvl["min_xp"]:
+            current_level = lvl
+    
+    return {
+        "xp_earned": xp_earned,
+        "total_xp": new_xp,
+        "level": current_level,
+        "message": f"+{xp_earned} XP! {current_level['emoji']} Level: {current_level['name']}"
+    }
+
+# ============== UPI PAYMENT FLOW ENHANCEMENT ==============
+
+UPI_APPS = [
+    {"id": "gpay", "name": "Google Pay", "package": "com.google.android.apps.nbu.paisa.user", "color": "#4285F4", "icon": "logo-google"},
+    {"id": "phonepe", "name": "PhonePe", "package": "com.phonepe.app", "color": "#5F259F", "icon": "phone-portrait"},
+    {"id": "paytm", "name": "Paytm", "package": "net.one97.paytm", "color": "#00BAF2", "icon": "wallet"},
+    {"id": "bhim", "name": "BHIM", "package": "in.org.npci.upiapp", "color": "#00695C", "icon": "shield-checkmark"},
+]
+
+@api_router.get("/upi/apps")
+async def get_upi_apps(user_id: str = Depends(get_current_user)):
+    """Get list of supported UPI apps"""
+    return {"apps": UPI_APPS}
+
+@api_router.post("/upi/generate-qr")
+async def generate_upi_qr(data: dict, user_id: str = Depends(get_current_user)):
+    """Generate UPI QR code data for receiving payments"""
+    from bson import ObjectId
+    user = await db.users.find_one({"_id": ObjectId(user_id)})
+    upi_id = user.get("upi_id", "") if user else ""
+    if not upi_id:
+        raise HTTPException(status_code=400, detail="Set your UPI ID first in Profile")
+    
+    amount = data.get("amount", 0)
+    name = user.get("name", "MintU User")
+    
+    qr_string = f"upi://pay?pa={upi_id}&pn={name}&am={amount:.2f}&cu=INR&tn=MintU%20Payment"
+    
+    return {
+        "qr_data": qr_string,
+        "upi_id": upi_id,
+        "name": name,
+        "amount": amount
+    }
+
 # Include router
 app.include_router(api_router)
 
