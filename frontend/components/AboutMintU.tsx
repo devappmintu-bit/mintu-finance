@@ -42,23 +42,6 @@ export default function AboutMintU({ onClose }: { onClose: () => void }) {
           </View>
         ))}
 
-        <Text style={s.sectionTitle}>Technology</Text>
-        <View style={s.techCard}>
-          {[
-            { label: 'AI Engine', value: 'OpenAI GPT-5.2' },
-            { label: 'Frontend', value: 'React Native (Expo)' },
-            { label: 'Backend', value: 'FastAPI + MongoDB' },
-            { label: 'Languages', value: '10 Indian languages' },
-            { label: 'Split Types', value: 'Equal, Custom, Shares, %' },
-            { label: 'Payments', value: 'UPI Deep Linking' },
-          ].map((t, i) => (
-            <View key={i} style={s.techRow}>
-              <Text style={s.techLabel}>{t.label}</Text>
-              <Text style={s.techValue}>{t.value}</Text>
-            </View>
-          ))}
-        </View>
-
         <Text style={s.sectionTitle}>Legal</Text>
         <TouchableOpacity style={s.legalRow} onPress={() => Linking.openURL('https://mintu.app/privacy')}>
           <Ionicons name="shield-checkmark" size={18} color={COLORS.accent.primary} />

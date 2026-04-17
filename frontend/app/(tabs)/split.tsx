@@ -120,10 +120,23 @@ export default function SplitScreen() {
       Toast.show({ type: 'success', text1: 'Group Created!', text2: `${groupName} is ready` });
     } catch (e: any) { Toast.show({ type: 'error', text1: 'Error', text2: e.response?.data?.detail || 'Failed' }); }
   };
-  const deleteGroup = (gr: any) => Alert.alert('Delete Group', `Delete "${gr.name}"?`, [
-    { text: 'Cancel', style: 'cancel' },
-    { text: 'Delete', style: 'destructive', onPress: async () => { try { await api.delete(`/split/groups/${gr.id}`); } catch (e) { console.error('Delete group error:', e); } close(); fetchData(); } },
-  ]);
+  const deleteGroup = (gr: any) => {
+    if (!gr?.id) { Toast.show({ type: 'error', text1: 'Error', text2: 'No group selected' }); return; }
+    const gid = gr.id; const gname = gr.name || 'this group';
+    Alert.alert('Delete Group', `Delete "${gname}"? This cannot be undone.`, [
+      { text: 'Cancel', style: 'cancel' },
+      { text: 'Delete', style: 'destructive', onPress: async () => {
+        try {
+          const resp = await api.delete(`/split/groups/${gid}`);
+          Toast.show({ type: 'success', text1: 'Deleted!', text2: `${gname} removed` });
+        } catch (e: any) {
+          console.error('Delete group error:', e?.response?.data || e);
+          Toast.show({ type: 'error', text1: 'Error', text2: e?.response?.data?.detail || 'Could not delete' });
+        }
+        close(); setTimeout(() => fetchData(), 300);
+      }},
+    ]);
+  };
   const renameGroup = async () => {
     if (!renameVal.trim()) return;
     try { await api.put(`/split/groups/${selectedGroup?.id}/name`, { name: renameVal.trim() }); setShowRename(false); openManage(selectedGroup); fetchData(); Toast.show({ type: 'success', text1: 'Renamed!' }); } catch {}
@@ -133,14 +146,35 @@ export default function SplitScreen() {
     if (p.length !== 10) { Toast.show({ type: 'error', text1: 'Error', text2: 'Enter valid 10-digit number' }); return; }
     try { const r = await api.post(`/split/groups/${selectedGroup?.id}/members`, { phones: [p] }); Toast.show({ type: 'success', text1: 'Done!', text2: r.data.message }); setAddPhoneVal(''); openManage(selectedGroup); fetchData(); } catch (e: any) { Toast.show({ type: 'error', text1: 'Error', text2: e.response?.data?.detail || 'Failed' }); }
   };
-  const removeMember = (mid: string) => Alert.alert('Remove?', 'Remove from group?', [
-    { text: 'Cancel', style: 'cancel' },
-    { text: 'Remove', style: 'destructive', onPress: async () => { try { await api.delete(`/split/groups/${selectedGroup?.id}/members/${mid}`); } catch (e) { console.error('Remove member error:', e); } openManage(selectedGroup); fetchData(); } },
-  ]);
-  const leaveGroup = () => Alert.alert('Leave?', 'Are you sure?', [
-    { text: 'Cancel', style: 'cancel' },
-    { text: 'Leave', style: 'destructive', onPress: async () => { try { await api.delete(`/split/groups/${selectedGroup?.id}/leave`); } catch (e) { console.error('Leave group error:', e); } close(); fetchData(); } },
-  ]);
+  const removeMember = (mid: string) => {
+    Alert.alert('Remove?', 'Remove from group?', [
+      { text: 'Cancel', style: 'cancel' },
+      { text: 'Remove', style: 'destructive', onPress: async () => {
+        try {
+          await api.delete(`/split/groups/${selectedGroup?.id}/members/${mid}`);
+          Toast.show({ type: 'success', text1: 'Member Removed' });
+        } catch (e: any) { console.error('Remove member:', e?.response?.data || e); }
+        if (selectedGroup) openManage(selectedGroup); setTimeout(() => fetchData(), 300);
+      }},
+    ]);
+  };
+  const leaveGroup = () => {
+    if (!selectedGroup?.id) return;
+    const gid = selectedGroup.id;
+    Alert.alert('Leave?', 'Are you sure you want to leave?', [
+      { text: 'Cancel', style: 'cancel' },
+      { text: 'Leave', style: 'destructive', onPress: async () => {
+        try {
+          await api.delete(`/split/groups/${gid}/leave`);
+          Toast.show({ type: 'success', text1: 'Left Group' });
+        } catch (e: any) {
+          console.error('Leave group:', e?.response?.data || e);
+          Toast.show({ type: 'error', text1: 'Error', text2: e?.response?.data?.detail || 'Could not leave' });
+        }
+        close(); setTimeout(() => fetchData(), 300);
+      }},
+    ]);
+  };
   const addPhoneToList = () => {
     const nums = phoneInput.split(',').map(p => p.replace(/\D/g, '').slice(-10)).filter(p => p.length === 10 && !phones.includes(p));
     if (nums.length) { setPhones([...phones, ...nums]); setPhoneInput(''); }

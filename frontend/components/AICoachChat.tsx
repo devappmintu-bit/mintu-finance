@@ -85,6 +85,29 @@ export default function AICoachChat({ onClose }: { onClose: () => void }) {
     return new Date(ts).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' });
   };
 
+  // Format AI text with bold, bullet points, and ₹ highlights
+  const formatAIText = (text: string, isUser: boolean) => {
+    if (isUser) return <Text style={[s.msgText, { color: '#fff' }]}>{text}</Text>;
+
+    const parts: React.ReactNode[] = [];
+    const lines = text.split('\n');
+    lines.forEach((line, li) => {
+      if (li > 0) parts.push(<Text key={`br${li}`}>{'\n'}</Text>);
+      // Process bold **text** and ₹ amounts
+      const segments = line.split(/(\*\*[^*]+\*\*|₹[\d,]+(?:\.\d+)?)/g);
+      segments.forEach((seg, si) => {
+        if (seg.startsWith('**') && seg.endsWith('**')) {
+          parts.push(<Text key={`${li}-${si}`} style={{ fontWeight: '700', color: COLORS.text.primary }}>{seg.slice(2, -2)}</Text>);
+        } else if (seg.startsWith('₹')) {
+          parts.push(<Text key={`${li}-${si}`} style={{ fontWeight: '800', color: COLORS.accent.primary }}>{seg}</Text>);
+        } else {
+          parts.push(<Text key={`${li}-${si}`}>{seg}</Text>);
+        }
+      });
+    });
+    return <Text style={s.msgText}>{parts}</Text>;
+  };
+
   const renderMsg = ({ item }: { item: ChatMsg }) => {
     const isUser = item.role === 'user';
     return (
@@ -97,9 +120,7 @@ export default function AICoachChat({ onClose }: { onClose: () => void }) {
             <Text style={s.agentLabel}>{item.agentEmoji} {item.agent}</Text>
           )}
           <View style={[s.bubble, isUser ? s.bubbleUser : s.bubbleAi]}>
-            {item.loading ? <TypingDots /> : (
-              <Text style={[s.msgText, isUser && { color: '#fff' }]}>{item.text}</Text>
-            )}
+            {item.loading ? <TypingDots /> : formatAIText(item.text, isUser)}
           </View>
           {!item.loading && <Text style={[s.timeLabel, isUser && { textAlign: 'right' }]}>{formatTime(item.ts)}</Text>}
         </View>
