@@ -4931,3 +4931,33 @@ logger = logging.getLogger(__name__)
 @app.on_event("shutdown")
 async def shutdown_db_client():
     client.close()
+
+@app.on_event("startup")
+async def create_indexes():
+    """Create database indexes for performance on startup"""
+    try:
+        # Users
+        await db.users.create_index("phone", unique=True)
+        await db.users.create_index("money_score")
+        # Transactions
+        await db.transactions.create_index([("user_id", 1), ("date", -1)])
+        await db.transactions.create_index([("user_id", 1), ("category", 1)])
+        await db.transactions.create_index([("user_id", 1), ("type", 1), ("date", -1)])
+        # Budgets
+        await db.budgets.create_index([("user_id", 1), ("category", 1)])
+        # OTPs
+        await db.otps.create_index("phone")
+        await db.otps.create_index("created_at", expireAfterSeconds=600)
+        # Split groups
+        await db.split_groups.create_index("created_by")
+        await db.split_groups.create_index("members.user_id")
+        # Split expenses
+        await db.split_expenses.create_index("group_id")
+        await db.split_expenses.create_index([("group_id", 1), ("created_at", -1)])
+        # Rate limits (TTL auto-cleanup)
+        await db.rate_limits.create_index("window", expireAfterSeconds=120)
+        # Audit logs (TTL auto-cleanup)
+        await db.audit_logs.create_index("timestamp", expireAfterSeconds=86400 * 7)
+        logging.info("Database indexes created successfully")
+    except Exception as e:
+        logging.warning(f"Index creation warning: {e}")
