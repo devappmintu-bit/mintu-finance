@@ -36,8 +36,8 @@ JWT_EXPIRATION_DAYS = 30
 
 # ============== SECURITY CONFIGURATION ==============
 RATE_LIMIT_WINDOW = 60  # seconds
-RATE_LIMIT_MAX_REQUESTS = 300  # per window — generous for SPA that makes many parallel calls
-AUTH_RATE_LIMIT_MAX = 15  # auth endpoints per window
+RATE_LIMIT_MAX_REQUESTS = 1000  # per window — very generous for SPA with many parallel calls
+AUTH_RATE_LIMIT_MAX = 30  # auth endpoints per window
 BRUTE_FORCE_LOCKOUT_MINUTES = 15
 BRUTE_FORCE_MAX_FAILURES = 5
 SENSITIVE_FIELDS = ["password", "otp_hash", "_id", "otp"]

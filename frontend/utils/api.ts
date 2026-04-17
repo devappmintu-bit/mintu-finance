@@ -18,6 +18,21 @@ api.interceptors.request.use(async (config) => {
   return config;
 });
 
+// Retry on 429 (rate limit) with exponential backoff
+api.interceptors.response.use(
+  (response) => response,
+  async (error) => {
+    const config = error.config;
+    if (error.response?.status === 429 && (!config._retryCount || config._retryCount < 2)) {
+      config._retryCount = (config._retryCount || 0) + 1;
+      const delay = config._retryCount * 1500;
+      await new Promise(r => setTimeout(r, delay));
+      return api(config);
+    }
+    return Promise.reject(error);
+  }
+);
+
 // Simple in-memory cache for GET requests (5s TTL)
 const cache: Record<string, { data: any; ts: number }> = {};
 const CACHE_TTL = 5000;
