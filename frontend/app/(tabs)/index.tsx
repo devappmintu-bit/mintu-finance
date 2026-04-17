@@ -35,28 +35,34 @@ export default function HomeScreen() {
 
   const fetchData = useCallback(async () => {
     try {
-      const [profileRes, statsRes, txnRes, lessonRes, alertsRes, reportRes, lbRes, gameRes, cotdRes, avatarRes] = await Promise.all([
+      // Phase 1: Critical data (shown above the fold)
+      const [profileRes, statsRes, txnRes, avatarRes] = await Promise.all([
         api.get('/user/me'),
         api.get('/stats/overview'),
         api.get('/transactions?limit=5'),
-        api.get(`/money-school/dynamic?lang=${lang}`),
-        api.get('/alerts/smart'),
-        api.get('/reports/weekly'),
-        api.get('/leaderboard/savings'),
-        api.get('/gamification/status'),
-        api.get('/card-of-the-day'),
         api.get('/user/avatar'),
       ]);
       setUser(profileRes.data);
       setStats(statsRes.data);
       setRecentTxns(Array.isArray(txnRes.data) ? txnRes.data.slice(0, 4) : []);
-      setDailyLesson(lessonRes.data);
-      setSmartAlerts(alertsRes.data?.alerts || []);
-      setWeeklyReport(reportRes.data);
-      setLeaderboard(lbRes.data);
-      setGamification(gameRes.data);
-      setCardOfDay(cotdRes.data);
       if (avatarRes.data?.avatar) setAvatar(avatarRes.data.avatar);
+      setLoading(false); // Show content immediately
+
+      // Phase 2: Secondary data (below the fold, loaded async)
+      const [lessonRes, alertsRes, reportRes, lbRes, gameRes, cotdRes] = await Promise.all([
+        api.get(`/money-school/dynamic?lang=${lang}`).catch(() => ({ data: null })),
+        api.get('/alerts/smart').catch(() => ({ data: { alerts: [] } })),
+        api.get('/reports/weekly').catch(() => ({ data: null })),
+        api.get('/leaderboard/savings').catch(() => ({ data: null })),
+        api.get('/gamification/status').catch(() => ({ data: null })),
+        api.get('/card-of-the-day').catch(() => ({ data: null })),
+      ]);
+      if (lessonRes.data) setDailyLesson(lessonRes.data);
+      setSmartAlerts(alertsRes.data?.alerts || []);
+      if (reportRes.data) setWeeklyReport(reportRes.data);
+      if (lbRes.data) setLeaderboard(lbRes.data);
+      if (gameRes.data) setGamification(gameRes.data);
+      if (cotdRes.data) setCardOfDay(cotdRes.data);
     } catch (error) {
       console.error('Dashboard fetch error:', error);
     } finally {

@@ -18,4 +18,24 @@ api.interceptors.request.use(async (config) => {
   return config;
 });
 
+// Simple in-memory cache for GET requests (5s TTL)
+const cache: Record<string, { data: any; ts: number }> = {};
+const CACHE_TTL = 5000;
+
+export const cachedGet = async (url: string, ttl = CACHE_TTL) => {
+  const key = url;
+  const now = Date.now();
+  if (cache[key] && now - cache[key].ts < ttl) {
+    return cache[key].data;
+  }
+  const res = await api.get(url);
+  cache[key] = { data: res, ts: now };
+  return res;
+};
+
+export const clearCache = (url?: string) => {
+  if (url) { delete cache[url]; }
+  else { Object.keys(cache).forEach(k => delete cache[k]); }
+};
+
 export default api;

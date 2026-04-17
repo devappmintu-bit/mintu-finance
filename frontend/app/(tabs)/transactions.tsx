@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback, memo } from 'react';
 import {
   View, Text, StyleSheet, FlatList, TouchableOpacity, ActivityIndicator,
   Modal, TextInput, KeyboardAvoidingView, Platform, Alert, ScrollView, Animated,
@@ -153,7 +153,7 @@ export default function TransactionsScreen() {
     ]);
   };
 
-  const renderTxn = ({ item }: { item: any }) => {
+  const renderTxn = useCallback(({ item }: { item: any }) => {
     const cat = CATEGORIES[item.category] || CATEGORIES.Other;
     const isCash = item.source === 'cash' || item.source === 'cash_recurring';
     return (
@@ -173,7 +173,7 @@ export default function TransactionsScreen() {
         </Text>
       </TouchableOpacity>
     );
-  };
+  }, [lang]);
 
   if (loading) return <SafeAreaView style={styles.container}><TransactionsSkeleton /></SafeAreaView>;
 
@@ -238,6 +238,10 @@ export default function TransactionsScreen() {
         renderItem={renderTxn}
         keyExtractor={(item) => item.id}
         contentContainerStyle={styles.listContent}
+        removeClippedSubviews={true}
+        maxToRenderPerBatch={15}
+        windowSize={10}
+        initialNumToRender={10}
         ListHeaderComponent={
           <TouchableOpacity style={styles.notifCard} onPress={() => setNotifExpanded(!notifExpanded)} activeOpacity={0.8}>
             <View style={styles.notifHeader}>
