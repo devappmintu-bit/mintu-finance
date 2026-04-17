@@ -169,7 +169,7 @@ export default function TransactionsScreen() {
           </View>
         </View>
         <Text style={[styles.txnAmount, { color: item.type === 'credit' ? COLORS.accent.moneyIn : COLORS.accent.moneyOut }]}>
-          {item.type === 'credit' ? '+' : '-'}{'\u20B9'}{item.amount.toFixed(0)}
+          {item.type === 'credit' ? '+' : '-'}₹{item.amount.toFixed(0)}
         </Text>
       </TouchableOpacity>
     );
@@ -197,7 +197,7 @@ export default function TransactionsScreen() {
       {/* Quick Cash + Voice Bar */}
       <View style={styles.quickBar}>
         <View style={styles.quickInputWrap}>
-          <Text style={styles.quickRupee}>{'\u20B9'}</Text>
+          <Text style={styles.quickRupee}>₹</Text>
           <TextInput
             testID="quick-cash-input"
             style={styles.quickInput}
@@ -295,7 +295,7 @@ export default function TransactionsScreen() {
               </View>
               <Text style={styles.formLabel}>{t('amount', lang)}</Text>
               <View style={styles.amountRow}>
-                <Text style={styles.rupee}>{'\u20B9'}</Text>
+                <Text style={styles.rupee}>₹</Text>
                 <TextInput style={styles.amountInput} placeholder="0" placeholderTextColor={COLORS.text.muted} value={formData.amount} onChangeText={(v) => setFormData({ ...formData, amount: v })} keyboardType="numeric" />
               </View>
               <Text style={styles.formLabel}>{t('category', lang)}</Text>

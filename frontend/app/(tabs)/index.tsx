@@ -190,17 +190,17 @@ export default function HomeScreen() {
         <View style={styles.statsRow}>
           <View style={[styles.statBox, { borderColor: '#10B98120' }]}>
             <Ionicons name="arrow-down-circle" size={18} color="#10B981" />
-            <Text style={[styles.statVal, { color: '#10B981' }]}>{'\u20B9'}{(stats?.total_income || 0).toLocaleString()}</Text>
+            <Text style={[styles.statVal, { color: '#10B981' }]}>₹{(stats?.total_income || 0).toLocaleString()}</Text>
             <Text style={styles.statLabel}>{t('income', lang)}</Text>
           </View>
           <View style={[styles.statBox, { borderColor: '#EF444420' }]}>
             <Ionicons name="arrow-up-circle" size={18} color="#EF4444" />
-            <Text style={[styles.statVal, { color: '#EF4444' }]}>{'\u20B9'}{(stats?.total_expense || 0).toLocaleString()}</Text>
+            <Text style={[styles.statVal, { color: '#EF4444' }]}>₹{(stats?.total_expense || 0).toLocaleString()}</Text>
             <Text style={styles.statLabel}>{t('expenses', lang)}</Text>
           </View>
           <View style={[styles.statBox, { borderColor: COLORS.accent.primary + '20' }]}>
             <Ionicons name="wallet" size={18} color={COLORS.accent.primary} />
-            <Text style={[styles.statVal, { color: COLORS.accent.primary }]}>{'\u20B9'}{((stats?.total_income || 0) - (stats?.total_expense || 0)).toLocaleString()}</Text>
+            <Text style={[styles.statVal, { color: COLORS.accent.primary }]}>₹{((stats?.total_income || 0) - (stats?.total_expense || 0)).toLocaleString()}</Text>
             <Text style={styles.statLabel}>{t('balance', lang)}</Text>
           </View>
         </View>
@@ -273,12 +273,12 @@ export default function HomeScreen() {
             <Text style={styles.weeklyHeadline}>{weeklyReport.headline}</Text>
             <View style={styles.weeklyStatsRow}>
               <View style={styles.weeklyStat}>
-                <Text style={[styles.weeklyStatVal, { color: '#EF4444' }]}>{'\u20B9'}{weeklyReport.total_spent?.toFixed(0)}</Text>
+                <Text style={[styles.weeklyStatVal, { color: '#EF4444' }]}>₹{weeklyReport.total_spent?.toFixed(0)}</Text>
                 <Text style={styles.weeklyStatLbl}>This Week</Text>
               </View>
               {weeklyReport.last_week_spent > 0 && (
                 <View style={styles.weeklyStat}>
-                  <Text style={[styles.weeklyStatVal, { color: COLORS.text.muted }]}>{'\u20B9'}{weeklyReport.last_week_spent?.toFixed(0)}</Text>
+                  <Text style={[styles.weeklyStatVal, { color: COLORS.text.muted }]}>₹{weeklyReport.last_week_spent?.toFixed(0)}</Text>
                   <Text style={styles.weeklyStatLbl}>Last Week</Text>
                 </View>
               )}
@@ -345,7 +345,7 @@ export default function HomeScreen() {
                     <Text style={styles.txnDate}>{new Date(txn.date).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })}</Text>
                   </View>
                   <Text style={[styles.txnAmt, { color: txn.type === 'credit' ? '#10B981' : '#EF4444' }]}>
-                    {txn.type === 'credit' ? '+' : '-'}{'\u20B9'}{txn.amount?.toLocaleString()}
+                    {txn.type === 'credit' ? '+' : '-'}₹{txn.amount?.toLocaleString()}
                   </Text>
                 </View>
               );
@@ -390,7 +390,7 @@ const styles = StyleSheet.create({
   lbScore: { fontSize: 16, fontWeight: '700', color: '#F59E0B' },
   lbStreak: { fontSize: 12, color: '#EF4444' },
   // Card of the Day
-  cotdCard: { backgroundColor: COLORS.bg.card, borderRadius: RADIUS.card, padding: SPACING.xl, marginBottom: SPACING.lg, borderLeftWidth: 4, borderWidth: 1, borderColor: COLORS.border.card },
+  cotdCard: { backgroundColor: 'rgba(255,255,255,0.92)', borderRadius: RADIUS.card, padding: SPACING.xl, marginBottom: SPACING.lg, borderLeftWidth: 4, borderWidth: 1, borderColor: 'rgba(238,221,204,0.6)', shadowColor: '#2E1F1A', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.04, shadowRadius: 12, elevation: 3 },
   cotdHeader: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 8 },
   cotdEmoji: { fontSize: 22 },
   cotdType: { fontSize: 13, fontWeight: '700', letterSpacing: 0.5, flex: 1 },
@@ -398,7 +398,7 @@ const styles = StyleSheet.create({
   cotdText: { fontSize: 15, fontWeight: '500', color: COLORS.text.secondary, lineHeight: 23 },
   // Stats row
   statsRow: { flexDirection: 'row', gap: 8, marginBottom: SPACING.lg },
-  statBox: { flex: 1, backgroundColor: COLORS.bg.card, borderRadius: RADIUS.lg, padding: SPACING.md, alignItems: 'center', borderWidth: 1, gap: 4 },
+  statBox: { flex: 1, backgroundColor: 'rgba(255,255,255,0.92)', borderRadius: RADIUS.lg, padding: SPACING.md, alignItems: 'center', borderWidth: 1, gap: 4, shadowColor: '#2E1F1A', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.03, shadowRadius: 8, elevation: 2 },
   statVal: { fontSize: 15, fontWeight: '800' },
   statLabel: { fontSize: 10, color: COLORS.text.muted, fontWeight: '600' },
   // Alerts
@@ -410,7 +410,7 @@ const styles = StyleSheet.create({
   alertTitle: { fontSize: 14, fontWeight: '700', marginBottom: 2 },
   alertMsg: { fontSize: 13, color: COLORS.text.secondary, lineHeight: 19 },
   // Rewards
-  rewardsCard: { backgroundColor: COLORS.bg.card, borderRadius: RADIUS.card, padding: SPACING.xl, marginBottom: SPACING.lg, borderWidth: 1, borderColor: '#F59E0B25' },
+  rewardsCard: { backgroundColor: 'rgba(255,255,255,0.92)', borderRadius: RADIUS.card, padding: SPACING.xl, marginBottom: SPACING.lg, borderWidth: 1, borderColor: '#F59E0B25', shadowColor: '#2E1F1A', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.04, shadowRadius: 10, elevation: 3 },
   rewardsHeader: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: SPACING.md },
   rewardsTitle: { fontSize: 12, fontWeight: '800', letterSpacing: 1, color: '#92400E', flex: 1 },
   seeAllBtn: { flexDirection: 'row', alignItems: 'center', gap: 2 },
@@ -421,7 +421,7 @@ const styles = StyleSheet.create({
   rewardVal: { fontSize: 20, fontWeight: '800', color: COLORS.text.primary },
   rewardLabel: { fontSize: 10, color: COLORS.text.muted, fontWeight: '600' },
   // Weekly
-  weeklyCard: { backgroundColor: COLORS.bg.card, borderRadius: RADIUS.card, padding: SPACING.xl, marginBottom: SPACING.lg, borderWidth: 1, borderColor: COLORS.accent.secondary + '25' },
+  weeklyCard: { backgroundColor: 'rgba(255,255,255,0.92)', borderRadius: RADIUS.card, padding: SPACING.xl, marginBottom: SPACING.lg, borderWidth: 1, borderColor: COLORS.accent.secondary + '25', shadowColor: '#2E1F1A', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.04, shadowRadius: 10, elevation: 3 },
   weeklyHeader: { flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: SPACING.md },
   weeklyLabel: { fontSize: 11, fontWeight: '700', letterSpacing: 0.8, color: COLORS.accent.secondary, flex: 1 },
   weeklyPeriod: { fontSize: 11, color: COLORS.text.muted },
@@ -445,7 +445,7 @@ const styles = StyleSheet.create({
   xpRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 },
   xpText: { fontSize: 13, fontWeight: '600', color: '#8B5CF6' },
   xpVal: { fontSize: 13, fontWeight: '700', color: '#F59E0B' },
-  schoolCardH: { width: 280, backgroundColor: COLORS.bg.card, borderRadius: RADIUS.card, padding: SPACING.lg, borderWidth: 1, borderColor: COLORS.border.card, borderLeftWidth: 4 },
+  schoolCardH: { width: 280, backgroundColor: 'rgba(255,255,255,0.92)', borderRadius: RADIUS.card, padding: SPACING.lg, borderWidth: 1, borderColor: 'rgba(238,221,204,0.6)', borderLeftWidth: 4, shadowColor: '#2E1F1A', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.04, shadowRadius: 10, elevation: 3 },
   schoolCardType: { fontSize: 10, fontWeight: '700', letterSpacing: 0.8 },
   schoolXpBadge: { fontSize: 10, fontWeight: '700', color: '#F59E0B', backgroundColor: '#FEF3C7', paddingHorizontal: 6, paddingVertical: 2, borderRadius: 4 },
   schoolCardTitle: { fontSize: 15, fontWeight: '700', color: COLORS.text.primary, marginBottom: 6 },

@@ -88,15 +88,15 @@ export default function TabLayout() {
 
 const styles = StyleSheet.create({
   tabBar: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: 'rgba(255,255,255,0.95)',
     borderTopWidth: 0,
     height: Platform.OS === 'ios' ? 88 : 72,
     paddingBottom: Platform.OS === 'ios' ? 28 : 10,
     paddingTop: 10,
-    shadowColor: '#000',
+    shadowColor: '#2E1F1A',
     shadowOffset: { width: 0, height: -4 },
     shadowOpacity: 0.06,
-    shadowRadius: 12,
+    shadowRadius: 16,
     elevation: 16,
   },
   tabLabel: {
