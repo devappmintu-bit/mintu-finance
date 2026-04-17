@@ -4284,6 +4284,242 @@ async def generate_upi_qr(data: dict, user_id: str = Depends(get_current_user)):
         "amount": amount
     }
 
+# ============== SETTLEMENT GAMIFICATION ==============
+
+SETTLEMENT_REWARDS = {
+    "instant": {"coins": 15, "label": "Lightning Settler ⚡", "hours": 1},
+    "same_day": {"coins": 10, "label": "Quick Payer 🏃", "hours": 24},
+    "on_time": {"coins": 5, "label": "Reliable 👍", "hours": 72},
+    "late": {"coins": 1, "label": "Better Late 🐢", "hours": 999999},
+}
+
+SETTLEMENT_BADGES = [
+    {"id": "lightning", "name": "Lightning Settler", "emoji": "⚡", "desc": "Settle within 1 hour", "threshold": 3},
+    {"id": "streak_5", "name": "5-Settle Streak", "emoji": "🔥", "desc": "5 consecutive on-time settlements", "threshold": 5},
+    {"id": "generous", "name": "Generous Soul", "emoji": "💝", "desc": "Settled 10+ times", "threshold": 10},
+    {"id": "zero_debt", "name": "Debt Free", "emoji": "🏆", "desc": "Zero outstanding balance", "threshold": 1},
+]
+
+@api_router.post("/split/settle-with-rewards")
+async def settle_with_rewards(data: SettlePayment, user_id: str = Depends(get_current_user)):
+    """Settle payment and earn reward coins"""
+    from bson import ObjectId
+
+    # Calculate reward tier
+    reward = SETTLEMENT_REWARDS["on_time"]
+    for tier_key, tier in SETTLEMENT_REWARDS.items():
+        reward = tier
+        break  # Give best available reward for now
+
+    settlement = {
+        "payer_id": user_id,
+        "payee_id": data.target_user_id,
+        "amount": data.amount,
+        "method": data.method,
+        "txn_ref": data.txn_ref or f"MINTU{uuid_lib.uuid4().hex[:8].upper()}",
+        "group_id": data.group_id,
+        "status": "completed",
+        "coins_earned": reward["coins"],
+        "reward_label": reward["label"],
+        "settled_at": datetime.utcnow(),
+        "created_at": datetime.utcnow()
+    }
+
+    result = await db.settlements.insert_one(settlement)
+
+    # Update user's reward coins
+    await db.users.update_one(
+        {"_id": ObjectId(user_id)},
+        {"$inc": {"reward_coins": reward["coins"], "settlement_count": 1}}
+    )
+
+    # Check for new badges
+    user = await db.users.find_one({"_id": ObjectId(user_id)})
+    settle_count = user.get("settlement_count", 0) if user else 0
+    total_coins = user.get("reward_coins", 0) if user else 0
+    new_badges = []
+    for badge in SETTLEMENT_BADGES:
+        if settle_count >= badge["threshold"]:
+            existing = await db.user_badges.find_one({"user_id": user_id, "badge_id": badge["id"]})
+            if not existing:
+                await db.user_badges.insert_one({"user_id": user_id, "badge_id": badge["id"], "earned_at": datetime.utcnow()})
+                new_badges.append(badge)
+
+    # Calculate cashback (coins reduce future payments)
+    cashback_value = min(total_coins * 0.5, data.amount * 0.05)  # Max 5% cashback
+
+    payee_name = "User"
+    try:
+        payee = await db.users.find_one({"_id": ObjectId(data.target_user_id)}, {"name": 1})
+        if payee: payee_name = payee.get("name", "User")
+    except: pass
+
+    return {
+        "id": str(result.inserted_id),
+        "message": f"₹{data.amount:,.0f} paid to {payee_name}! 🎉",
+        "txn_ref": settlement["txn_ref"],
+        "reward": {
+            "coins_earned": reward["coins"],
+            "label": reward["label"],
+            "total_coins": total_coins,
+            "cashback_available": round(cashback_value, 2),
+            "new_badges": new_badges,
+        }
+    }
+
+@api_router.get("/split/settlement-leaderboard")
+async def settlement_leaderboard(user_id: str = Depends(get_current_user)):
+    """Settlement speed leaderboard with rewards"""
+    from bson import ObjectId
+
+    # Get all users with settlement data
+    users = await db.users.find(
+        {"settlement_count": {"$gt": 0}},
+        {"name": 1, "settlement_count": 1, "reward_coins": 1}
+    ).sort("reward_coins", -1).to_list(20)
+
+    user_data = await db.users.find_one({"_id": ObjectId(user_id)})
+    my_coins = user_data.get("reward_coins", 0) if user_data else 0
+    my_count = user_data.get("settlement_count", 0) if user_data else 0
+    my_badges = await db.user_badges.find({"user_id": user_id}).to_list(20)
+
+    leaderboard = []
+    my_rank = 0
+    for i, u in enumerate(users):
+        is_me = str(u["_id"]) == user_id
+        if is_me: my_rank = i + 1
+        leaderboard.append({
+            "rank": i + 1,
+            "name": u.get("name", "User"),
+            "coins": u.get("reward_coins", 0),
+            "settlements": u.get("settlement_count", 0),
+            "is_me": is_me,
+        })
+
+    return {
+        "leaderboard": leaderboard[:10],
+        "my_stats": {
+            "rank": my_rank or len(leaderboard) + 1,
+            "coins": my_coins,
+            "settlements": my_count,
+            "cashback_available": round(my_coins * 0.5, 2),
+            "badges": [{"id": b["badge_id"], **next((bd for bd in SETTLEMENT_BADGES if bd["id"] == b["badge_id"]), {})} for b in my_badges],
+        }
+    }
+
+@api_router.post("/split/redeem-coins")
+async def redeem_coins(data: dict, user_id: str = Depends(get_current_user)):
+    """Redeem reward coins as cashback on next settlement"""
+    from bson import ObjectId
+    coins_to_redeem = data.get("coins", 0)
+    user = await db.users.find_one({"_id": ObjectId(user_id)})
+    available = user.get("reward_coins", 0) if user else 0
+
+    if coins_to_redeem > available:
+        raise HTTPException(status_code=400, detail=f"Only {available} coins available")
+
+    cashback = round(coins_to_redeem * 0.5, 2)
+    await db.users.update_one({"_id": ObjectId(user_id)}, {"$inc": {"reward_coins": -coins_to_redeem}})
+
+    return {"redeemed": coins_to_redeem, "cashback": cashback, "remaining_coins": available - coins_to_redeem}
+
+# ============== PERSONALIZED MONEY SCHOOL (AI-POWERED) ==============
+
+@api_router.get("/money-school/personalized")
+async def personalized_money_school(user_id: str = Depends(get_current_user), lang: str = "en"):
+    """AI-personalized money school cards based on user's actual spending"""
+    from bson import ObjectId
+    import random
+
+    user = await db.users.find_one({"_id": ObjectId(user_id)})
+    now = datetime.utcnow()
+    month_start = now.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+
+    # Get spending data
+    cat_pipe = [
+        {"$match": {"user_id": user_id, "date": {"$gte": month_start}}},
+        {"$group": {"_id": "$category", "total": {"$sum": "$amount"}, "count": {"$sum": 1}}}
+    ]
+    spending = {}
+    async for doc in db.transactions.aggregate(cat_pipe):
+        spending[doc["_id"]] = doc["total"]
+
+    total_expense = sum(spending.values())
+    top_cat = max(spending, key=spending.get) if spending else "Food"
+    top_amount = spending.get(top_cat, 0)
+
+    income_pipe = [
+        {"$match": {"user_id": user_id, "type": {"$in": ["income", "credit"]}, "date": {"$gte": month_start}}},
+        {"$group": {"_id": None, "total": {"$sum": "$amount"}}}
+    ]
+    income_docs = await db.transactions.aggregate(income_pipe).to_list(1)
+    income = income_docs[0]["total"] if income_docs else 0
+    savings_rate = ((income - total_expense) / max(income, 1) * 100) if income > 0 else 0
+
+    # Generate personalized cards using AI
+    context = f"User spends ₹{total_expense:,.0f}/month. Top: {top_cat} ₹{top_amount:,.0f}. Income: ₹{income:,.0f}. Savings rate: {savings_rate:.0f}%."
+
+    try:
+        lang_instr = get_lang_instruction(lang)
+        chat = LlmChat(
+            api_key=os.environ.get("EMERGENT_LLM_KEY", ""),
+            session_id=f"school_{user_id}_{now.timestamp()}",
+            system_message=f"""Generate 5 personalized financial learning cards for an Indian user. Return ONLY valid JSON array.
+Each card: {{"type": "saving_hack"|"investment"|"daily_tip"|"market_trend"|"risk_alert", "emoji": "emoji", "title": "short title", "body": "2-3 sentence actionable advice with specific ₹ amounts", "xp": 10-25, "color": "hex_color"}}
+Use REAL numbers from their data. Reference Indian products (Zerodha, SBI, HDFC, Swiggy, Zomato, D-Mart).
+Make it FUN, specific, and actionable. Not generic boring advice.{lang_instr}"""
+        ).with_model("openai", "gpt-5.2")
+
+        response = await chat.send_message(UserMessage(text=context))
+        response_text = response.strip() if isinstance(response, str) else str(response)
+
+        import json as json_mod
+        # Extract JSON from response
+        start = response_text.find('[')
+        end = response_text.rfind(']') + 1
+        if start >= 0 and end > start:
+            ai_cards = json_mod.loads(response_text[start:end])
+        else:
+            ai_cards = []
+    except Exception as e:
+        logging.error(f"Money school AI error: {e}")
+        ai_cards = []
+
+    # Merge AI cards with static cards
+    all_cards = []
+    for i, card in enumerate(ai_cards[:5]):
+        all_cards.append({**card, "id": f"ai_{i}", "completed": False, "source": "ai"})
+
+    for i, card in enumerate(MONEY_SCHOOL_CARDS):
+        all_cards.append({**card, "id": f"card_{i}", "completed": False, "source": "static"})
+
+    random.shuffle(all_cards)
+
+    progress = await db.school_progress.find_one({"user_id": user_id}) or {"xp": 0, "completed": [], "streak": 0}
+    current_xp = progress.get("xp", 0)
+    completed_ids = set(progress.get("completed", []))
+    for card in all_cards:
+        card["completed"] = card["id"] in completed_ids
+
+    current_level = XP_LEVELS[0]
+    next_level = XP_LEVELS[1] if len(XP_LEVELS) > 1 else None
+    for i, lvl in enumerate(XP_LEVELS):
+        if current_xp >= lvl["min_xp"]:
+            current_level = lvl
+            next_level = XP_LEVELS[i + 1] if i + 1 < len(XP_LEVELS) else None
+
+    return {
+        "cards": all_cards[:12],
+        "progress": {
+            "xp": current_xp,
+            "level": current_level,
+            "next_level": next_level,
+            "xp_to_next": (next_level["min_xp"] - current_xp) if next_level else 0,
+            "completed_count": len(completed_ids),
+            "total_cards": len(all_cards),
+        }
+    }
+
 # Include router
 app.include_router(api_router)
 
