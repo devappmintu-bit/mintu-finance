@@ -1,15 +1,16 @@
 import { Tabs } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
-import { View, StyleSheet, Platform, TouchableOpacity, Modal, Text } from 'react-native';
+import { View, StyleSheet, Platform, Modal } from 'react-native';
 import { useState } from 'react';
 import { COLORS } from '../../utils/theme';
 import AICoachChat from '../../components/AICoachChat';
+import DraggableAIBubble from '../../components/DraggableAIBubble';
 
 export default function TabLayout() {
   const [aiVisible, setAiVisible] = useState(false);
 
   return (
-    <>
+    <View style={{ flex: 1 }}>
       <Tabs
         screenOptions={{
           headerShown: false,
@@ -29,16 +30,14 @@ export default function TabLayout() {
         <Tabs.Screen name="insights" options={{ href: null }} />
       </Tabs>
 
-      {/* Floating AI Bubble */}
-      <TouchableOpacity style={styles.fab} onPress={() => setAiVisible(true)} activeOpacity={0.85}>
-        <Ionicons name="sparkles" size={24} color="#fff" />
-      </TouchableOpacity>
+      {/* Draggable AI Bubble — MintU Logo */}
+      <DraggableAIBubble onPress={() => setAiVisible(true)} />
 
       {/* AI Coach Modal */}
       <Modal visible={aiVisible} animationType="slide" presentationStyle="pageSheet">
         <AICoachChat onClose={() => setAiVisible(false)} />
       </Modal>
-    </>
+    </View>
   );
 }
 
@@ -57,21 +56,4 @@ const styles = StyleSheet.create({
   },
   tabLabel: { fontSize: 10, fontWeight: '600', marginTop: 3 },
   tabItem: { paddingTop: 2 },
-  fab: {
-    position: 'absolute',
-    bottom: Platform.OS === 'ios' ? 100 : 80,
-    right: 18,
-    width: 56,
-    height: 56,
-    borderRadius: 28,
-    backgroundColor: COLORS.accent.primary,
-    justifyContent: 'center',
-    alignItems: 'center',
-    shadowColor: COLORS.accent.primary,
-    shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.4,
-    shadowRadius: 12,
-    elevation: 10,
-    zIndex: 999,
-  },
 });
