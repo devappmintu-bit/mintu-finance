@@ -229,14 +229,31 @@ export default function ProfileScreen() {
                   <Ionicons name="flame" size={14} color="#EF4444" />
                   <Text style={st.wasteBadgeText}>WASTE DETECTOR</Text>
                 </View>
+                {/* Overall trend */}
+                {waste.overall_trend_pct !== undefined && waste.prev_month_total > 0 && (
+                  <View style={[st.trendPill, { backgroundColor: waste.overall_trend_pct > 0 ? '#FEF2F2' : '#F0FDF4' }]}>
+                    <Ionicons name={waste.overall_trend_pct > 0 ? 'trending-up' : 'trending-down'} size={16} color={waste.overall_trend_pct > 0 ? '#EF4444' : '#10B981'} />
+                    <Text style={[st.trendText, { color: waste.overall_trend_pct > 0 ? '#EF4444' : '#10B981' }]}>
+                      {Math.abs(waste.overall_trend_pct).toFixed(0)}% {waste.overall_trend_pct > 0 ? 'more' : 'less'} than last month
+                    </Text>
+                  </View>
+                )}
                 {waste.category_waste.slice(0, 3).map((w: any, i: number) => (
                   <View key={i} style={st.wasteItem}>
                     <Text style={st.wasteShock}>{w.shock_text}</Text>
                     {w.equivalences?.slice(0, 2).map((eq: any, j: number) => (
                       <Text key={j} style={st.wasteEq}>{eq.emoji} That's {eq.text}</Text>
                     ))}
+                    {w.trend?.text ? <Text style={st.wasteTrend}>{w.trend.text}</Text> : null}
+                    {w.peer_comparison?.text ? <Text style={st.wastePeer}>{w.peer_comparison.text}</Text> : null}
                   </View>
                 ))}
+                {waste.ai_recommendation ? (
+                  <View style={st.aiRecCard}>
+                    <Ionicons name="sparkles" size={14} color={COLORS.accent.primary} />
+                    <Text style={st.aiRecText}>{waste.ai_recommendation}</Text>
+                  </View>
+                ) : null}
                 {waste.comparison && <Text style={st.wasteCompare}>{waste.comparison.text}</Text>}
                 <View style={{ flexDirection: 'row', gap: 8, marginTop: 12 }}>
                   <TouchableOpacity style={st.shareWaBtn} onPress={() => shareContent(waste.shareable_text, 'whatsapp')}>
@@ -456,6 +473,12 @@ const st = StyleSheet.create({
   wasteShock: { fontSize: 15, fontWeight: '700', color: '#1F2937', marginBottom: 4 },
   wasteEq: { fontSize: 13, color: '#6B7280', lineHeight: 20, marginLeft: 4 },
   wasteCompare: { fontSize: 12, fontWeight: '600', color: '#6B7280', marginTop: 6 },
+  wasteTrend: { fontSize: 12, fontWeight: '600', color: '#6B7280', marginTop: 3 },
+  wastePeer: { fontSize: 12, fontWeight: '500', color: '#9CA3AF', marginTop: 2 },
+  trendPill: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 12, paddingVertical: 8, borderRadius: RADIUS.full, marginBottom: SPACING.sm },
+  trendText: { fontSize: 13, fontWeight: '600' },
+  aiRecCard: { flexDirection: 'row', gap: 8, backgroundColor: COLORS.accent.primary + '08', padding: 12, borderRadius: RADIUS.lg, marginTop: SPACING.sm, borderWidth: 1, borderColor: COLORS.accent.primary + '15' },
+  aiRecText: { flex: 1, fontSize: 13, fontWeight: '500', color: COLORS.text.secondary, lineHeight: 19 },
   shareWaBtn: { flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: '#25D366', paddingHorizontal: 14, paddingVertical: 8, borderRadius: RADIUS.full },
   shareWaTxt: { fontSize: 12, fontWeight: '600', color: '#fff' },
   shareGenBtn: { flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: COLORS.accent.primary + '10', paddingHorizontal: 14, paddingVertical: 8, borderRadius: RADIUS.full },
