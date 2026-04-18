@@ -101,6 +101,15 @@ export default function ProfileScreen() {
     Share.share({ message: text });
   };
 
+  const shareScoreCard = async () => {
+    try {
+      const r = await api.get('/referral/money-score-card');
+      Share.share({ message: r.data?.share_text || r.data?.whatsapp_text || 'My MintU Money Score!' });
+    } catch {
+      Toast.show({ type: 'error', text1: 'Error', text2: 'Could not generate score card' });
+    }
+  };
+
   const currentLang = LANGUAGES.find(l => l.code === lang);
 
   return (
@@ -352,6 +361,10 @@ export default function ProfileScreen() {
                   <TouchableOpacity style={[s.refShareBtn, { backgroundColor: COLORS.accent.primary }]} onPress={shareGeneric}>
                     <Ionicons name="share-social" size={18} color="#fff" />
                     <Text style={s.refShareText}>Share</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity style={[s.refShareBtn, { backgroundColor: '#6A1B9A' }]} onPress={shareScoreCard}>
+                    <Ionicons name="ribbon" size={18} color="#fff" />
+                    <Text style={s.refShareText}>Score Card</Text>
                   </TouchableOpacity>
                 </View>
 

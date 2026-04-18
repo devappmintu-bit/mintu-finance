@@ -31,6 +31,7 @@ export default function HomeScreen() {
   const [cardOfDay, setCardOfDay] = useState<any>(null);
   const [avatar, setAvatar] = useState<string>('');
   const [news, setNews] = useState<any[]>([]);
+  const [fomoItems, setFomoItems] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
 
@@ -50,7 +51,7 @@ export default function HomeScreen() {
       setLoading(false); // Show content immediately
 
       // Phase 2: Secondary data (below the fold, loaded async)
-      const [lessonRes, alertsRes, reportRes, lbRes, gameRes, cotdRes, newsRes] = await Promise.all([
+      const [lessonRes, alertsRes, reportRes, lbRes, gameRes, cotdRes, newsRes, fomoRes] = await Promise.all([
         api.get(`/money-school/dynamic?lang=${lang}`).catch(() => ({ data: null })),
         api.get('/alerts/smart').catch(() => ({ data: { alerts: [] } })),
         api.get('/reports/weekly').catch(() => ({ data: null })),
@@ -58,6 +59,7 @@ export default function HomeScreen() {
         api.get('/gamification/status').catch(() => ({ data: null })),
         api.get('/card-of-the-day').catch(() => ({ data: null })),
         api.get('/news/india-finance').catch(() => ({ data: { articles: [] } })),
+        api.get('/referral/fomo-feed').catch(() => ({ data: { items: [] } })),
       ]);
       if (lessonRes.data) setDailyLesson(lessonRes.data);
       setSmartAlerts(alertsRes.data?.alerts || []);
@@ -66,6 +68,7 @@ export default function HomeScreen() {
       if (gameRes.data) setGamification(gameRes.data);
       if (cotdRes.data) setCardOfDay(cotdRes.data);
       setNews(newsRes.data?.articles || []);
+      setFomoItems(fomoRes.data?.items || []);
     } catch (error) {
       console.error('Dashboard fetch error:', error);
     } finally {
@@ -174,6 +177,32 @@ export default function HomeScreen() {
             <Text style={styles.statLabel}>{t('balance', lang)}</Text>
           </View>
         </View>
+
+        {/* FOMO GROWTH FEED — carousel */}
+        {fomoItems.length > 0 && (
+          <View style={styles.fomoSection}>
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.fomoScroll}>
+              {fomoItems.map((item: any) => (
+                <TouchableOpacity
+                  key={item.id}
+                  style={[styles.fomoCard, item.type === 'streak_break' && styles.fomoCardDanger, item.type === 'invite_nudge' && styles.fomoCardAccent]}
+                  activeOpacity={0.85}
+                  onPress={() => {
+                    if (item.type === 'invite_nudge' || item.type === 'friend_saving') router.push('/(tabs)/profile');
+                    else if (item.type === 'streak_break') router.push('/(tabs)/transactions');
+                    else router.push('/(tabs)/rewards');
+                  }}
+                >
+                  <Text style={styles.fomoIcon}>{item.icon}</Text>
+                  <Text style={styles.fomoText} numberOfLines={2}>{item.text}</Text>
+                  <View style={styles.fomoCtaRow}>
+                    <Text style={styles.fomoCta}>{item.cta} →</Text>
+                  </View>
+                </TouchableOpacity>
+              ))}
+            </ScrollView>
+          </View>
+        )}
 
         {/* SMART ALERTS */}
         {smartAlerts.length > 0 && (
@@ -370,6 +399,15 @@ const styles = StyleSheet.create({
   // Alerts
   alertsSection: { marginBottom: SPACING.lg },
   sectionTitle: { fontSize: 16, fontWeight: '700', color: COLORS.text.primary, marginBottom: SPACING.sm },
+  fomoSection: { marginBottom: SPACING.lg, marginTop: -4 },
+  fomoScroll: { gap: 10, paddingRight: 8 },
+  fomoCard: { width: 260, padding: 14, borderRadius: 18, backgroundColor: 'rgba(230,81,0,0.06)', borderWidth: 1, borderColor: 'rgba(230,81,0,0.18)', gap: 6 },
+  fomoCardDanger: { backgroundColor: '#FEF2F2', borderColor: '#FECACA' },
+  fomoCardAccent: { backgroundColor: '#FEF3C7', borderColor: '#FDE68A' },
+  fomoIcon: { fontSize: 22 },
+  fomoText: { fontSize: 13, fontWeight: '600', color: COLORS.text.primary, lineHeight: 18 },
+  fomoCtaRow: { marginTop: 4 },
+  fomoCta: { fontSize: 12, fontWeight: '800', color: COLORS.accent.primary },
   alertCard: { flexDirection: 'row', alignItems: 'flex-start', borderRadius: RADIUS.lg, padding: SPACING.md, borderWidth: 1, gap: 10, marginBottom: 8 },
   alertEmoji: { fontSize: 20, marginTop: 2 },
   alertBody: { flex: 1 },
