@@ -772,80 +772,7 @@ async def resend_otp(request: OTPSendRequest):
 
 # [extracted to routers/ai.py - server.py:773..805]
 
-@api_router.get("/insights/weekly")
-async def get_weekly_insights(user_id: str = Depends(get_current_user)):
-    """Full weekly spending report with AI analysis"""
-    now = datetime.utcnow()
-    seven_days_ago = now - timedelta(days=7)
-    fourteen_days_ago = now - timedelta(days=14)
-    
-    # This week
-    this_week = await db.transactions.find({
-        "user_id": user_id, "date": {"$gte": seven_days_ago}
-    }).to_list(1000)
-    
-    # Last week
-    last_week = await db.transactions.find({
-        "user_id": user_id, "date": {"$gte": fourteen_days_ago, "$lt": seven_days_ago}
-    }).to_list(1000)
-    
-    # Calculate metrics
-    tw_income = sum(t["amount"] for t in this_week if t["type"] == "credit")
-    tw_expense = sum(t["amount"] for t in this_week if t["type"] == "debit")
-    lw_income = sum(t["amount"] for t in last_week if t["type"] == "credit")
-    lw_expense = sum(t["amount"] for t in last_week if t["type"] == "debit")
-    
-    # Day-by-day spending for chart
-    daily_spending = {}
-    for t in this_week:
-        if t["type"] == "debit":
-            day_key = t["date"].strftime("%a")
-            daily_spending[day_key] = daily_spending.get(day_key, 0) + t["amount"]
-    
-    # Category comparison
-    tw_cats = {}
-    lw_cats = {}
-    for t in this_week:
-        if t["type"] == "debit":
-            tw_cats[t["category"]] = tw_cats.get(t["category"], 0) + t["amount"]
-    for t in last_week:
-        if t["type"] == "debit":
-            lw_cats[t["category"]] = lw_cats.get(t["category"], 0) + t["amount"]
-    
-    all_cats = set(list(tw_cats.keys()) + list(lw_cats.keys()))
-    category_comparison = {}
-    for cat in all_cats:
-        tw_amt = tw_cats.get(cat, 0)
-        lw_amt = lw_cats.get(cat, 0)
-        change = ((tw_amt - lw_amt) / lw_amt * 100) if lw_amt > 0 else (100 if tw_amt > 0 else 0)
-        category_comparison[cat] = {
-            "this_week": tw_amt,
-            "last_week": lw_amt,
-            "change_pct": round(change, 1),
-            "trend": "up" if change > 10 else ("down" if change < -10 else "stable")
-        }
-    
-    money_score = await calculate_money_score(user_id)
-    
-    return {
-        "money_score": money_score,
-        "this_week": {
-            "income": tw_income,
-            "expense": tw_expense,
-            "savings": tw_income - tw_expense,
-            "transaction_count": len(this_week)
-        },
-        "last_week": {
-            "income": lw_income,
-            "expense": lw_expense,
-            "savings": lw_income - lw_expense,
-            "transaction_count": len(last_week)
-        },
-        "expense_change_pct": round(((tw_expense - lw_expense) / lw_expense * 100), 1) if lw_expense > 0 else 0,
-        "daily_spending": daily_spending,
-        "category_comparison": category_comparison,
-        "generated_at": now
-    }
+# [extracted to routers/ - was /insights/weekly at lines 775..848]
 
 # ============== BUDGETS ==============
 # Core CRUD moved to routers/budgets.py:
@@ -860,146 +787,15 @@ from fastapi import UploadFile, File
 # [extracted to routers/ai.py - server.py:892..932]
 
 # ============== CASH TRACKING ROUTES ==============
-@api_router.post("/cash/quick-entry")
-async def quick_cash_entry(entry: QuickCashEntry, user_id: str = Depends(get_current_user)):
-    """Parse natural language cash entry like '50 auto' or '200 sabzi'"""
-    text = entry.text.strip()
+# [extracted to routers/ - was /cash/quick-entry at lines 863..921]
 
-    # Simple parser: extract amount and description
-    amount_match = re.search(r'[\u20B9]?\s*(\d+(?:\.\d+)?)', text)
-    if not amount_match:
-        raise HTTPException(status_code=400, detail="Could not find amount. Try: '50 auto' or '₹200 groceries'")
+# [extracted to routers/ - was /cash/recurring at lines 923..946]
 
-    amount = float(amount_match.group(1))
-    desc = re.sub(r'[\u20B9]?\s*\d+(?:\.\d+)?', '', text).strip()
-    if not desc:
-        desc = "Cash expense"
+# [extracted to routers/ - was /cash/recurring at lines 948..955]
 
-    # Simple keyword-based categorization for cash
-    cat_map = {
-        "auto": "Transport", "ola": "Transport", "uber": "Transport", "taxi": "Transport",
-        "petrol": "Transport", "diesel": "Transport", "bus": "Transport", "metro": "Transport",
-        "sabzi": "Groceries", "grocery": "Groceries", "vegetables": "Groceries", "fruits": "Groceries",
-        "dmart": "Groceries", "kirana": "Groceries",
-        "chai": "Food", "tea": "Food", "coffee": "Food", "lunch": "Food", "dinner": "Food",
-        "breakfast": "Food", "snack": "Food", "biryani": "Food", "thali": "Food",
-        "maid": "Bills", "bai": "Bills", "dhobi": "Bills", "cook": "Bills",
-        "milk": "Groceries", "doodh": "Groceries", "bread": "Groceries",
-        "newspaper": "Bills", "akhbar": "Bills",
-        "medicine": "Healthcare", "doctor": "Healthcare", "pharmacy": "Healthcare",
-        "temple": "Other", "mandir": "Other", "donation": "Other",
-    }
-    category = "Other"
-    desc_lower = desc.lower()
-    for keyword, cat in cat_map.items():
-        if keyword in desc_lower:
-            category = cat
-            break
+# [extracted to routers/ - was /cash/recurring/{expense_id} at lines 957..963]
 
-    trans_dict = {
-        "user_id": user_id,
-        "amount": amount,
-        "category": category,
-        "description": desc,
-        "type": "debit",
-        "source": "cash",
-        "date": datetime.utcnow(),
-        "created_at": datetime.utcnow()
-    }
-    result = await db.transactions.insert_one(trans_dict)
-
-    return {
-        "id": str(result.inserted_id),
-        "user_id": user_id,
-        "amount": amount,
-        "category": category,
-        "description": desc,
-        "type": "debit",
-        "source": "cash",
-        "date": trans_dict["date"],
-        "created_at": trans_dict["created_at"]
-    }
-
-@api_router.post("/cash/recurring")
-async def create_recurring_expense(expense: RecurringExpenseCreate, user_id: str = Depends(get_current_user)):
-    """Create a recurring cash expense (maid, milk, newspaper etc.)"""
-    rec = {
-        "user_id": user_id,
-        "description": expense.description,
-        "amount": expense.amount,
-        "category": expense.category,
-        "frequency": expense.frequency,
-        "active": True,
-        "last_applied": None,
-        "created_at": datetime.utcnow()
-    }
-    result = await db.recurring_expenses.insert_one(rec)
-    return {
-        "id": str(result.inserted_id),
-        "user_id": user_id,
-        "description": rec["description"],
-        "amount": rec["amount"],
-        "category": rec["category"],
-        "frequency": rec["frequency"],
-        "active": True,
-        "created_at": rec["created_at"]
-    }
-
-@api_router.get("/cash/recurring")
-async def get_recurring_expenses(user_id: str = Depends(get_current_user)):
-    """Get all recurring expenses for user"""
-    expenses = await db.recurring_expenses.find({"user_id": user_id, "active": True}).to_list(100)
-    for e in expenses:
-        e["id"] = str(e["_id"])
-        del e["_id"]
-    return expenses
-
-@api_router.delete("/cash/recurring/{expense_id}")
-async def delete_recurring_expense(expense_id: str, user_id: str = Depends(get_current_user)):
-    from bson import ObjectId
-    result = await db.recurring_expenses.delete_one({"_id": ObjectId(expense_id), "user_id": user_id})
-    if result.deleted_count == 0:
-        raise HTTPException(status_code=404, detail="Recurring expense not found")
-    return {"message": "Recurring expense deleted"}
-
-@api_router.post("/cash/apply-recurring")
-async def apply_recurring_expenses(user_id: str = Depends(get_current_user)):
-    """Apply all due recurring expenses as transactions"""
-    expenses = await db.recurring_expenses.find({"user_id": user_id, "active": True}).to_list(100)
-    now = datetime.utcnow()
-    added = 0
-
-    for exp in expenses:
-        last = exp.get("last_applied")
-        should_apply = False
-
-        if last is None:
-            should_apply = True
-        elif exp["frequency"] == "daily" and (now - last).days >= 1:
-            should_apply = True
-        elif exp["frequency"] == "weekly" and (now - last).days >= 7:
-            should_apply = True
-        elif exp["frequency"] == "monthly" and (now - last).days >= 28:
-            should_apply = True
-
-        if should_apply:
-            await db.transactions.insert_one({
-                "user_id": user_id,
-                "amount": exp["amount"],
-                "category": exp["category"],
-                "description": exp["description"] + " (recurring)",
-                "type": "debit",
-                "source": "cash_recurring",
-                "date": now,
-                "created_at": now,
-            })
-            await db.recurring_expenses.update_one(
-                {"_id": exp["_id"]},
-                {"$set": {"last_applied": now}}
-            )
-            added += 1
-
-    return {"applied": added, "total_recurring": len(expenses)}
+# [extracted to routers/ - was /cash/apply-recurring at lines 965..1002]
 
 # ============== FAMILY GROUP ROUTES ==============
 # ============== FAMILY GROUPS ==============
@@ -1035,44 +831,9 @@ MONEY_SCHOOL_LESSONS = [
 class PushTokenRegister(BaseModel):
     push_token: str
 
-@api_router.post("/notifications/register-token")
-async def register_push_token(data: PushTokenRegister, user_id: str = Depends(get_current_user)):
-    """Register Expo push token for a user"""
-    from bson import ObjectId
-    await db.users.update_one(
-        {"_id": ObjectId(user_id)},
-        {"$set": {"push_token": data.push_token}}
-    )
-    return {"message": "Push token registered"}
+# [extracted to routers/ - was /notifications/register-token at lines 1038..1046]
 
-@api_router.get("/notifications/check-budget-alerts")
-async def check_budget_alerts(user_id: str = Depends(get_current_user)):
-    """Check budgets and return any that need alerts"""
-    budgets = await db.budgets.find({"user_id": user_id}).to_list(100)
-    thirty_days_ago = datetime.utcnow() - timedelta(days=30)
-    
-    alerts = []
-    for budget in budgets:
-        txns = await db.transactions.find({
-            "user_id": user_id,
-            "category": budget["category"],
-            "type": "debit",
-            "date": {"$gte": thirty_days_ago}
-        }).to_list(1000)
-        spent = sum(t["amount"] for t in txns)
-        pct = (spent / budget["amount"] * 100) if budget["amount"] > 0 else 0
-        
-        if pct >= 80:
-            alerts.append({
-                "category": budget["category"],
-                "spent": spent,
-                "limit": budget["amount"],
-                "percentage": round(pct, 1),
-                "severity": "exceeded" if pct >= 100 else "warning",
-                "message": f"{'Budget exceeded' if pct >= 100 else 'Nearing limit'}: {budget['category']} at {pct:.0f}% (₹{spent:.0f}/₹{budget['amount']:.0f})"
-            })
-    
-    return {"alerts": alerts, "total": len(alerts)}
+# [extracted to routers/ - was /notifications/check-budget-alerts at lines 1048..1075]
 
 # ============== BIOMETRIC AUTH ==============
 class BiometricToggle(BaseModel):
@@ -1096,47 +857,9 @@ SAMPLE_INDIAN_SMS = [
     "Your A/c XX1234 debited Rs.1800.00 on 12-Apr-26. Info: UPI/MYNTRA/Shopping",
 ]
 
-@api_router.get("/sms/sample-inbox")
-async def get_sample_sms_inbox():
-    """Return sample Indian bank SMS for demo auto-import"""
-    return {"messages": SAMPLE_INDIAN_SMS, "count": len(SAMPLE_INDIAN_SMS)}
+# [extracted to routers/ - was /sms/sample-inbox at lines 1099..1102]
 
-@api_router.post("/sms/bulk-parse")
-async def bulk_parse_sms(data: dict, user_id: str = Depends(get_current_user)):
-    """Parse multiple SMS messages and create transactions"""
-    messages = data.get("messages", [])
-    if not messages:
-        raise HTTPException(status_code=400, detail="No messages provided")
-    
-    parsed_count = 0
-    failed_count = 0
-    
-    for sms_text in messages[:50]:  # Limit to 50
-        try:
-            parsed = await parse_sms_with_ai(sms_text)
-            if parsed:
-                await db.transactions.insert_one({
-                    "user_id": user_id,
-                    "amount": parsed["amount"],
-                    "category": parsed["category"],
-                    "description": parsed.get("description", parsed.get("merchant", "Transaction")),
-                    "type": parsed["type"],
-                    "source": "sms_import",
-                    "date": datetime.utcnow(),
-                    "created_at": datetime.utcnow()
-                })
-                parsed_count += 1
-            else:
-                failed_count += 1
-        except Exception:
-            failed_count += 1
-    
-    # Recalculate money score
-    new_score = await calculate_money_score(user_id)
-    from bson import ObjectId
-    await db.users.update_one({"_id": ObjectId(user_id)}, {"$set": {"money_score": new_score}})
-    
-    return {"parsed": parsed_count, "failed": failed_count, "total": len(messages)}
+# [extracted to routers/ - was /sms/bulk-parse at lines 1104..1139]
 
 # ============== SPLITWISE-LIKE SPLIT EXPENSES ==============
 # [extracted to routers/splits.py - server.py:1254..1256]
@@ -1191,335 +914,30 @@ razorpay_client = razorpay.Client(auth=(os.environ.get('RAZORPAY_KEY_ID', ''), o
 class CreateOrderRequest(BaseModel):
     plan: str  # "monthly", "yearly", "intro"
 
-@api_router.get("/premium/status")
-async def get_premium_status(user_id: str = Depends(get_current_user)):
-    """Check user's premium status"""
-    from bson import ObjectId
-    user = await db.users.find_one({"_id": ObjectId(user_id)})
-    
-    tier = user.get("premium_tier", "free")
-    until = user.get("premium_until")
-    is_premium = tier in ["premium", "legend"] and (until is None or until > datetime.utcnow())
-    
-    return {
-        "is_premium": is_premium,
-        "tier": tier,
-        "premium_until": until,
-        "features": PREMIUM_FEATURES,
-        "pricing": PRICING,
-    }
+# [extracted to routers/ - was /premium/status at lines 1194..1210]
 
-@api_router.get("/premium/paywall-trigger")
-async def get_paywall_trigger(user_id: str = Depends(get_current_user)):
-    """Generate personalized paywall data with emotional triggers"""
-    thirty_days_ago = datetime.utcnow() - timedelta(days=30)
-    txns = await db.transactions.find({"user_id": user_id, "type": "debit", "date": {"$gte": thirty_days_ago}}).to_list(1000)
-    
-    total_spent = sum(t["amount"] for t in txns)
-    # Estimate "waste" as top discretionary category overspend
-    cats = {}
-    for t in txns:
-        cats[t["category"]] = cats.get(t["category"], 0) + t["amount"]
-    
-    discretionary = ["Food", "Entertainment", "Shopping"]
-    waste_estimate = sum(cats.get(c, 0) for c in discretionary) * 0.25  # 25% of discretionary = potential savings
-    
-    return {
-        "total_spent": total_spent,
-        "waste_estimate": round(waste_estimate),
-        "hook_text": f"You could have saved ₹{waste_estimate:.0f} this month",
-        "sub_text": "MintU Premium finds your hidden money leaks",
-        "pricing": PRICING,
-        "features": list(PREMIUM_FEATURES.values()),
-    }
+# [extracted to routers/ - was /premium/paywall-trigger at lines 1212..1234]
 
-@api_router.post("/premium/create-order")
-async def create_razorpay_order(req: CreateOrderRequest, user_id: str = Depends(get_current_user)):
-    """Create Razorpay order for premium subscription"""
-    if req.plan not in PRICING:
-        raise HTTPException(status_code=400, detail="Invalid plan")
-    
-    amount_paise = PRICING[req.plan]["price"] * 100
-    
-    try:
-        order = razorpay_client.order.create({
-            "amount": amount_paise,
-            "currency": "INR",
-            "payment_capture": 1,
-            "notes": {"user_id": user_id, "plan": req.plan}
-        })
-        
-        await db.payment_orders.insert_one({
-            "user_id": user_id,
-            "order_id": order["id"],
-            "plan": req.plan,
-            "amount": PRICING[req.plan]["price"],
-            "status": "created",
-            "created_at": datetime.utcnow()
-        })
-        
-        return {
-            "order_id": order["id"],
-            "amount": amount_paise,
-            "currency": "INR",
-            "key_id": os.environ.get('RAZORPAY_KEY_ID', ''),
-            "plan": req.plan
-        }
-    except Exception as e:
-        logging.error(f"Razorpay order error: {e}")
-        raise HTTPException(status_code=500, detail="Payment service unavailable. Please try later.")
+# [extracted to routers/ - was /premium/create-order at lines 1236..1270]
 
-@api_router.post("/premium/verify-payment")
-async def verify_razorpay_payment(payment_data: dict, user_id: str = Depends(get_current_user)):
-    """Verify Razorpay payment and activate premium"""
-    order_id = payment_data.get("order_id", "")
-    payment_id = payment_data.get("payment_id", "")
-    signature = payment_data.get("signature", "")
-    
-    if not all([order_id, payment_id, signature]):
-        raise HTTPException(status_code=400, detail="Missing payment details")
-    
-    try:
-        razorpay_client.utility.verify_payment_signature({
-            "razorpay_order_id": order_id,
-            "razorpay_payment_id": payment_id,
-            "razorpay_signature": signature
-        })
-    except Exception:
-        raise HTTPException(status_code=400, detail="Payment verification failed")
-    
-    # Get order details
-    order = await db.payment_orders.find_one({"order_id": order_id, "user_id": user_id})
-    if not order:
-        raise HTTPException(status_code=404, detail="Order not found")
-    
-    # Activate premium
-    plan = order["plan"]
-    days = 30 if plan in ["monthly", "intro"] else 365
-    from bson import ObjectId
-    await db.users.update_one(
-        {"_id": ObjectId(user_id)},
-        {"$set": {"premium_tier": "premium", "premium_until": datetime.utcnow() + timedelta(days=days)}}
-    )
-    
-    await db.payment_orders.update_one(
-        {"order_id": order_id},
-        {"$set": {"status": "paid", "payment_id": payment_id, "paid_at": datetime.utcnow()}}
-    )
-    
-    return {"message": "Premium activated!", "premium_until": (datetime.utcnow() + timedelta(days=days)).isoformat(), "plan": plan}
+# [extracted to routers/ - was /premium/verify-payment at lines 1272..1310]
 
-@api_router.post("/premium/ai-coach")
-async def ai_smart_coach(user_id: str = Depends(get_current_user)):
-    """AI Smart Coach — premium feature: personalized weekly advice"""
-    from bson import ObjectId
-    user = await db.users.find_one({"_id": ObjectId(user_id)})
-    tier = user.get("premium_tier", "free")
-    if tier not in ["premium", "legend", "starter"]:
-        raise HTTPException(status_code=403, detail="Premium feature. Upgrade to access AI Smart Coach.")
-    
-    thirty_days_ago = datetime.utcnow() - timedelta(days=30)
-    txns = await db.transactions.find({"user_id": user_id, "date": {"$gte": thirty_days_ago}}).to_list(1000)
-    
-    total_income = sum(t["amount"] for t in txns if t["type"] == "credit")
-    total_expense = sum(t["amount"] for t in txns if t["type"] == "debit")
-    cats = {}
-    for t in txns:
-        if t["type"] == "debit":
-            cats[t["category"]] = cats.get(t["category"], 0) + t["amount"]
-    
-    cat_text = ", ".join([f"{c}: ₹{a:.0f}" for c, a in sorted(cats.items(), key=lambda x: -x[1])])
-    
-    try:
-        chat = LlmChat(
-            api_key=os.environ['EMERGENT_LLM_KEY'],
-            session_id=f"coach_{user_id}_{datetime.utcnow().timestamp()}",
-            system_message="""You are MintU AI Smart Coach — a personal financial advisor for Indian users.
-Give a detailed, actionable weekly plan. Be specific with ₹ amounts. Reference Indian services.
-Return JSON: {"advice": "2-3 paragraph plan", "action_items": ["item1", "item2", "item3"], "potential_savings": number}"""
-        ).with_model("openai", "gpt-5.2")
-        
-        response = await chat.send_message(UserMessage(
-            text=f"Income: ₹{total_income:.0f}, Expenses: ₹{total_expense:.0f}. Categories: {cat_text}. Score: {user.get('money_score', 50)}. What should I do with my money this week?"
-        ))
-        
-        resp_text = response.strip()
-        if resp_text.startswith("```"):
-            parts = resp_text.split("```")
-            resp_text = parts[1] if len(parts) > 1 else parts[0]
-            if resp_text.startswith("json"): resp_text = resp_text[4:]
-        
-        import json as json_mod
-        parsed = json_mod.loads(resp_text.strip())
-        return parsed
-    except Exception as e:
-        logging.error(f"AI Coach error: {e}")
-        return {
-            "advice": "Focus on reducing your top spending category this week. Try the 50-30-20 rule.",
-            "action_items": ["Review last week's spending", "Set a daily limit", "Cook 3 meals at home"],
-            "potential_savings": 500
-        }
+# [extracted to routers/ - was /premium/ai-coach at lines 1312..1361]
 
 # ============== 4. SMART NOTIFICATIONS ==============
-@api_router.get("/notifications/smart-triggers")
-async def get_smart_notification_triggers(user_id: str = Depends(get_current_user)):
-    """Generate all pending smart notifications for user"""
-    from bson import ObjectId
-    now = datetime.utcnow()
-    today_start = now.replace(hour=0, minute=0, second=0, microsecond=0)
-    
-    notifications = []
-    
-    # 1. Overspend alert (today's spending > daily average)
-    seven_days_ago = now - timedelta(days=7)
-    week_txns = await db.transactions.find({"user_id": user_id, "type": "debit", "date": {"$gte": seven_days_ago}}).to_list(500)
-    today_txns = await db.transactions.find({"user_id": user_id, "type": "debit", "date": {"$gte": today_start}}).to_list(100)
-    
-    daily_avg = sum(t["amount"] for t in week_txns) / 7 if week_txns else 0
-    today_total = sum(t["amount"] for t in today_txns)
-    
-    if today_total > daily_avg * 1.5 and today_total > 200:
-        notifications.append({
-            "type": "overspend",
-            "title": "Spending Alert",
-            "body": f"You've spent ₹{today_total:.0f} today — {((today_total/daily_avg - 1)*100):.0f}% above your daily average",
-            "priority": "high"
-        })
-    
-    # 2. Savings celebration
-    if today_total < daily_avg * 0.5 and daily_avg > 100:
-        saved = daily_avg - today_total
-        notifications.append({
-            "type": "savings",
-            "title": "Great Job!",
-            "body": f"You saved ₹{saved:.0f} today compared to your average. Keep it up!",
-            "priority": "low"
-        })
-    
-    # 3. Streak reminder (no txn today by evening)
-    if not today_txns and now.hour >= 18:
-        user = await db.users.find_one({"_id": ObjectId(user_id)})
-        notifications.append({
-            "type": "streak",
-            "title": "Don't break your streak!",
-            "body": "You haven't tracked any expenses today. Add one to keep your streak going!",
-            "priority": "medium"
-        })
-    
-    # 4. Budget alerts
-    budgets = await db.budgets.find({"user_id": user_id}).to_list(50)
-    thirty_days_ago = now - timedelta(days=30)
-    for b in budgets:
-        spent = sum(t["amount"] for t in week_txns if t["category"] == b["category"]) if b["period"] == "weekly" else 0
-        if b["period"] == "monthly":
-            month_txns = await db.transactions.find({"user_id": user_id, "category": b["category"], "type": "debit", "date": {"$gte": thirty_days_ago}}).to_list(500)
-            spent = sum(t["amount"] for t in month_txns)
-        pct = (spent / b["amount"] * 100) if b["amount"] > 0 else 0
-        if pct >= 100:
-            notifications.append({"type": "budget_exceeded", "title": f"{b['category']} Budget Exceeded!", "body": f"₹{spent:.0f} of ₹{b['amount']:.0f} — time to slow down", "priority": "high"})
-        elif pct >= 80:
-            notifications.append({"type": "budget_warning", "title": f"{b['category']} Budget at {pct:.0f}%", "body": f"₹{spent:.0f} of ₹{b['amount']:.0f} — be careful this week", "priority": "medium"})
-    
-    # 5. Payday detection (large credit today)
-    today_credits = [t for t in today_txns if t.get("type") == "credit"]
-    if not today_credits:
-        all_today = await db.transactions.find({"user_id": user_id, "type": "credit", "date": {"$gte": today_start}}).to_list(10)
-        today_credits = all_today
-    for c in today_credits:
-        if c["amount"] >= 10000:
-            notifications.append({
-                "type": "payday",
-                "title": "Payday Detected!",
-                "body": f"₹{c['amount']:.0f} credited. Let's plan your money for this month!",
-                "priority": "medium"
-            })
-            break
-    
-    return {"notifications": notifications, "count": len(notifications)}
+# [extracted to routers/ - was /notifications/smart-triggers at lines 1364..1438]
 
 # ============== A/B TEST SYSTEM ==============
 import hashlib as _hashlib
 
-@api_router.get("/ab/paywall-group")
-async def get_ab_group(user_id: str = Depends(get_current_user)):
-    """Assign user to A/B test group for paywall placement"""
-    from bson import ObjectId
-    user = await db.users.find_one({"_id": ObjectId(user_id)})
-    
-    group = user.get("ab_paywall_group")
-    if not group:
-        # Deterministic 50/50 split based on user_id hash
-        h = int(_hashlib.md5(user_id.encode()).hexdigest(), 16)
-        group = "A" if h % 2 == 0 else "B"
-        await db.users.update_one({"_id": ObjectId(user_id)}, {"$set": {"ab_paywall_group": group}})
-    
-    return {
-        "group": group,
-        "placement": "after_overspend" if group == "A" else "profile_tab",
-        "description": "Group A: Paywall shown after overspend insight. Group B: Paywall in profile tab."
-    }
+# [extracted to routers/ - was /ab/paywall-group at lines 1443..1460]
 
-@api_router.post("/ab/track-event")
-async def track_ab_event(event: dict, user_id: str = Depends(get_current_user)):
-    """Track A/B test conversion events"""
-    await db.ab_events.insert_one({
-        "user_id": user_id,
-        "event": event.get("event", "view"),  # "view", "click", "convert"
-        "group": event.get("group", ""),
-        "placement": event.get("placement", ""),
-        "created_at": datetime.utcnow()
-    })
-    return {"tracked": True}
+# [extracted to routers/ - was /ab/track-event at lines 1462..1472]
 
-@api_router.get("/ab/results")
-async def get_ab_results():
-    """Get A/B test results (admin)"""
-    pipeline_a = [
-        {"$match": {"group": "A"}},
-        {"$group": {"_id": "$event", "count": {"$sum": 1}}}
-    ]
-    pipeline_b = [
-        {"$match": {"group": "B"}},
-        {"$group": {"_id": "$event", "count": {"$sum": 1}}}
-    ]
-    a_results = {r["_id"]: r["count"] for r in await db.ab_events.aggregate(pipeline_a).to_list(10)}
-    b_results = {r["_id"]: r["count"] for r in await db.ab_events.aggregate(pipeline_b).to_list(10)}
-    
-    return {
-        "group_A": {"placement": "after_overspend", "events": a_results, "conversion_rate": (a_results.get("convert", 0) / max(a_results.get("view", 1), 1)) * 100},
-        "group_B": {"placement": "profile_tab", "events": b_results, "conversion_rate": (b_results.get("convert", 0) / max(b_results.get("view", 1), 1)) * 100},
-    }
+# [extracted to routers/ - was /ab/results at lines 1474..1491]
 
 # ============== STORY CARD DATA ==============
-@api_router.get("/share/score-card")
-async def get_score_card_data(user_id: str = Depends(get_current_user)):
-    """Get data for generating shareable score card"""
-    from bson import ObjectId
-    user = await db.users.find_one({"_id": ObjectId(user_id)})
-    thirty_days_ago = datetime.utcnow() - timedelta(days=30)
-    txns = await db.transactions.find({"user_id": user_id, "date": {"$gte": thirty_days_ago}}).to_list(1000)
-    
-    total_saved = sum(t["amount"] for t in txns if t["type"] == "credit") - sum(t["amount"] for t in txns if t["type"] == "debit")
-    score = user.get("money_score", 50)
-    
-    # Calculate streak
-    today = datetime.utcnow().replace(hour=0, minute=0, second=0, microsecond=0)
-    streak = 0
-    for i in range(365):
-        day_start = today - timedelta(days=i)
-        day_end = day_start + timedelta(days=1)
-        has = await db.transactions.find_one({"user_id": user_id, "date": {"$gte": day_start, "$lt": day_end}})
-        if has: streak += 1
-        elif i > 0: break
-    
-    return {
-        "name": user.get("name", "User"),
-        "score": score,
-        "streak": streak,
-        "total_saved": max(total_saved, 0),
-        "transaction_count": len(txns),
-        "month": datetime.utcnow().strftime("%B %Y"),
-    }
+# [extracted to routers/ - was /share/score-card at lines 1494..1522]
 
 # ============== PUSH NOTIFICATION CRON ==============
 import httpx
@@ -1540,220 +958,20 @@ async def send_expo_push(token: str, title: str, body: str, data: dict = None):
         logging.error(f"Push send error: {e}")
         return False
 
-@api_router.post("/notifications/cron-check")
-async def cron_check_notifications():
-    """Cron endpoint: check all users for pending notifications and send pushes"""
-    users = await db.users.find({"push_token": {"$exists": True, "$ne": None}}).to_list(10000)
-    sent_count = 0
-    
-    for user in users:
-        user_id = str(user["_id"])
-        token = user.get("push_token", "")
-        if not token: continue
-        
-        now = datetime.utcnow()
-        today_start = now.replace(hour=0, minute=0, second=0, microsecond=0)
-        seven_days_ago = now - timedelta(days=7)
-        thirty_days_ago = now - timedelta(days=30)
-        
-        # Check: already sent today?
-        already_sent = await db.sent_notifications.find_one({"user_id": user_id, "date": {"$gte": today_start}})
-        if already_sent: continue
-        
-        # Gather data
-        today_txns = await db.transactions.find({"user_id": user_id, "type": "debit", "date": {"$gte": today_start}}).to_list(100)
-        week_txns = await db.transactions.find({"user_id": user_id, "type": "debit", "date": {"$gte": seven_days_ago}}).to_list(500)
-        
-        today_total = sum(t["amount"] for t in today_txns)
-        daily_avg = sum(t["amount"] for t in week_txns) / 7 if week_txns else 0
-        
-        notification = None
-        
-        # 1. Overspend
-        if today_total > daily_avg * 1.5 and today_total > 200:
-            notification = {"title": "Spending Alert ⚠️", "body": f"₹{today_total:.0f} spent today — above your daily average. Watch out!"}
-        
-        # 2. Budget breach
-        if not notification:
-            budgets = await db.budgets.find({"user_id": user_id}).to_list(50)
-            for b in budgets:
-                m_txns = await db.transactions.find({"user_id": user_id, "category": b["category"], "type": "debit", "date": {"$gte": thirty_days_ago}}).to_list(500)
-                spent = sum(t["amount"] for t in m_txns)
-                pct = (spent / b["amount"] * 100) if b["amount"] > 0 else 0
-                if pct >= 100:
-                    notification = {"title": f"{b['category']} Budget Exceeded! 🚨", "body": f"₹{spent:.0f} of ₹{b['amount']:.0f} limit. Time to cut back."}
-                    break
-                elif pct >= 80:
-                    notification = {"title": f"{b['category']} Budget Warning ⚠️", "body": f"{pct:.0f}% used (₹{spent:.0f}/₹{b['amount']:.0f}). Slow down!"}
-                    break
-        
-        # 3. Streak reminder (evening)
-        if not notification and not today_txns and now.hour >= 18:
-            notification = {"title": "Track your expenses! 📝", "body": "Don't break your streak — add today's expenses now."}
-        
-        # 4. Savings celebration
-        if not notification and today_total < daily_avg * 0.5 and daily_avg > 100 and today_txns:
-            saved = daily_avg - today_total
-            notification = {"title": "Great saving today! 🎉", "body": f"You saved ₹{saved:.0f} compared to your average. Keep it up!"}
-        
-        if notification:
-            success = await send_expo_push(token, notification["title"], notification["body"])
-            if success:
-                await db.sent_notifications.insert_one({"user_id": user_id, "date": now, **notification})
-                sent_count += 1
-    
-    return {"users_checked": len(users), "notifications_sent": sent_count}
+# [extracted to routers/ - was /notifications/cron-check at lines 1543..1605]
 
 # ============== DATA PROTECTION & COMPLIANCE ROUTES ==============
 # GDPR Art. 15/20 + India DPDP Act 2023 Sec. 11 — Right to Access & Portability
-@api_router.get("/privacy/data-export")
-async def export_user_data(user_id: str = Depends(get_current_user)):
-    """Export all user data in portable JSON format (GDPR Art. 20 / DPDP Sec. 11)"""
-    from bson import ObjectId
-    user = await db.users.find_one({"_id": ObjectId(user_id)}, {"password": 0, "_id": 0})
-    if not user:
-        raise HTTPException(status_code=404, detail="User not found")
-
-    transactions = await db.transactions.find({"user_id": user_id}, {"_id": 0}).to_list(10000)
-    budgets = await db.budgets.find({"user_id": user_id}, {"_id": 0}).to_list(100)
-
-    # Convert datetime objects for JSON serialization
-    def serialize(obj):
-        if isinstance(obj, datetime):
-            return obj.isoformat()
-        return obj
-
-    export_data = {
-        "export_info": {
-            "app": "MintU",
-            "exported_at": datetime.now(timezone.utc).isoformat(),
-            "format_version": "1.0",
-            "legal_basis": "GDPR Art. 20 / India DPDP Act 2023 Sec. 11"
-        },
-        "user_profile": {k: serialize(v) for k, v in user.items()},
-        "transactions": [{k: serialize(v) for k, v in t.items()} for t in transactions],
-        "budgets": [{k: serialize(v) for k, v in b.items()} for b in budgets],
-        "data_summary": {
-            "total_transactions": len(transactions),
-            "total_budgets": len(budgets),
-            "account_created": serialize(user.get("created_at", ""))
-        }
-    }
-
-    # Audit log
-    await db.audit_logs.insert_one({
-        "timestamp": datetime.now(timezone.utc),
-        "action": "DATA_EXPORT",
-        "user_id": user_id,
-        "details": "User requested full data export"
-    })
-
-    return export_data
+# [extracted to routers/ - was /privacy/data-export at lines 1609..1651]
 
 # GDPR Art. 17 + India DPDP Act 2023 Sec. 12 — Right to Erasure
-@api_router.delete("/privacy/delete-account")
-async def delete_user_account(user_id: str = Depends(get_current_user)):
-    """Permanently delete all user data (GDPR Art. 17 / DPDP Sec. 12)"""
-    from bson import ObjectId
-
-    # Audit BEFORE deletion
-    await db.audit_logs.insert_one({
-        "timestamp": datetime.now(timezone.utc),
-        "action": "ACCOUNT_DELETION",
-        "user_id": user_id,
-        "details": "User requested account deletion — all data erased"
-    })
-
-    # Delete all user data
-    await db.transactions.delete_many({"user_id": user_id})
-    await db.budgets.delete_many({"user_id": user_id})
-    await db.otps.delete_many({"phone": (await db.users.find_one({"_id": ObjectId(user_id)}, {"phone": 1}))["phone"]})
-    await db.users.delete_one({"_id": ObjectId(user_id)})
-
-    return {
-        "message": "Account and all associated data permanently deleted",
-        "legal_basis": "GDPR Art. 17 / India DPDP Act 2023 Sec. 12",
-        "deleted_at": datetime.now(timezone.utc).isoformat()
-    }
+# [extracted to routers/ - was /privacy/delete-account at lines 1654..1677]
 
 # GDPR Art. 13-14 + DPDP Sec. 5 — Privacy Notice
-@api_router.get("/privacy/policy")
-async def get_privacy_policy():
-    """Return privacy policy and data processing details"""
-    return {
-        "app": "MintU",
-        "version": "1.0",
-        "last_updated": "2026-04-15",
-        "data_controller": "MintU Finance Technologies",
-        "legal_frameworks": [
-            "India Digital Personal Data Protection Act (DPDP) 2023",
-            "EU General Data Protection Regulation (GDPR) 2018",
-            "India Information Technology Act 2000 (IT Act)",
-            "RBI Master Direction on Digital Payment Security Controls 2021",
-            "PCI-DSS v4.0 (Payment Card Industry Data Security Standard)"
-        ],
-        "data_collected": {
-            "phone_number": {"purpose": "Authentication", "retention": "Until account deletion", "legal_basis": "Consent + Contract"},
-            "name": {"purpose": "Personalization", "retention": "Until account deletion", "legal_basis": "Consent"},
-            "transactions": {"purpose": "Expense tracking & insights", "retention": f"{DATA_RETENTION_DAYS} days", "legal_basis": "Consent + Legitimate Interest"},
-            "sms_text": {"purpose": "Expense extraction", "retention": "NOT STORED — processed and discarded", "legal_basis": "Consent"},
-            "budgets": {"purpose": "Budget tracking", "retention": "Until account deletion", "legal_basis": "Consent"},
-        },
-        "data_not_collected": [
-            "Bank account numbers",
-            "Card details",
-            "Aadhaar/PAN numbers",
-            "Location data",
-            "Contact list",
-            "Full SMS inbox"
-        ],
-        "third_party_sharing": {
-            "openai": {"purpose": "AI insights generation", "data_shared": "Anonymized spending summaries only", "no_PII": True}
-        },
-        "user_rights": {
-            "access": "GET /api/privacy/data-export",
-            "deletion": "DELETE /api/privacy/delete-account",
-            "portability": "GET /api/privacy/data-export (JSON format)",
-            "rectification": "Contact support to correct data",
-            "objection": "Disable AI insights in settings"
-        },
-        "security_measures": [
-            "Passwords hashed with bcrypt (cost factor 12)",
-            "OTPs hashed before storage, auto-deleted after expiry",
-            "JWT tokens with expiration",
-            "Rate limiting on all endpoints",
-            "IP-based brute force protection",
-            "Audit logging of all API access",
-            "Security headers (X-Frame-Options, CSP, HSTS)",
-            "Input sanitization against XSS/injection",
-            "No sensitive data in API responses",
-            "SMS text processed and immediately discarded"
-        ],
-        "data_breach_notification": "Within 72 hours as per GDPR Art. 33 and DPDP Sec. 8",
-        "dpo_contact": "privacy@mintu.app"
-    }
+# [extracted to routers/ - was /privacy/policy at lines 1680..1734]
 
 # Data retention cleanup endpoint
-@api_router.post("/privacy/cleanup-expired")
-async def cleanup_expired_data():
-    """Remove expired OTPs and rate limit entries — called by cron"""
-    now = datetime.now(timezone.utc)
-
-    # Clean expired OTPs
-    otp_result = await db.otps.delete_many({"expires_at": {"$lt": now}})
-
-    # Clean old rate limit entries (older than 2 minutes)
-    rl_result = await db.rate_limits.delete_many({"window": {"$lt": time.time() - 120}})
-
-    # Clean audit logs older than 90 days (configurable)
-    ninety_days_ago = now - timedelta(days=90)
-    audit_result = await db.audit_logs.delete_many({"timestamp": {"$lt": ninety_days_ago}})
-
-    return {
-        "expired_otps_removed": otp_result.deleted_count,
-        "rate_limits_cleaned": rl_result.deleted_count,
-        "old_audit_logs_removed": audit_result.deleted_count
-    }
+# [extracted to routers/ - was /privacy/cleanup-expired at lines 1737..1756]
 
 # ============== PHASE 1: RETENTION ENGINE — Built for 1.46B Indians ==============
 
@@ -1804,292 +1022,15 @@ class ChatMessage(BaseModel):
 # /reports/weekly moved to routers/analytics.py
 
 # 4. SMART BUDGET AUTO-CREATION
-@api_router.get("/budgets/smart-suggest")
-async def smart_budget_suggestions(user_id: str = Depends(get_current_user)):
-    """AI-powered budget suggestions based on spending habits"""
-    from bson import ObjectId
-    now = datetime.utcnow()
-    
-    # Analyze last 60 days of spending
-    sixty_days_ago = now - timedelta(days=60)
-    pipeline = [
-        {"$match": {"user_id": user_id, "type": {"$in": ["expense", "debit"]}, "date": {"$gte": sixty_days_ago}}},
-        {"$group": {"_id": "$category", "total": {"$sum": "$amount"}, "count": {"$sum": 1}, "avg": {"$avg": "$amount"}}}
-    ]
-    spending = {}
-    async for doc in db.transactions.aggregate(pipeline):
-        spending[doc["_id"]] = {"total": doc["total"], "count": doc["count"], "avg": doc["avg"]}
-    
-    if not spending:
-        return {"suggestions": [], "message": "Track expenses for a week and I'll suggest smart budgets for you! 📊"}
-    
-    # Calculate monthly projections (scale 60 days → 30 days)
-    total_monthly = sum(s["total"] for s in spending.values()) / 2
-    
-    # Indian benchmark budgets (% of income)
-    INDIAN_BENCHMARKS = {
-        "Food": 0.25, "Transport": 0.10, "Entertainment": 0.08,
-        "Shopping": 0.10, "Bills": 0.20, "Health": 0.05,
-        "Education": 0.08, "Groceries": 0.15, "Other": 0.10,
-    }
-    
-    # Existing budgets
-    existing = await db.budgets.find({"user_id": user_id}).to_list(20)
-    existing_cats = {b["category"] for b in existing}
-    
-    suggestions = []
-    for cat, data in sorted(spending.items(), key=lambda x: x[1]["total"], reverse=True):
-        monthly_avg = data["total"] / 2  # 60 days → monthly
-        benchmark_pct = INDIAN_BENCHMARKS.get(cat, 0.10)
-        
-        # Suggest 10-15% less than current spending (achievable)
-        suggested = int(monthly_avg * 0.88 / 100) * 100  # Round to nearest 100
-        suggested = max(suggested, 500)  # Minimum ₹500
-        
-        is_new = cat not in existing_cats
-        status = "over" if monthly_avg > suggested else "under"
-        
-        suggestions.append({
-            "category": cat,
-            "current_monthly_avg": round(monthly_avg),
-            "suggested_budget": suggested,
-            "is_new": is_new,
-            "message": f"You spend ~₹{monthly_avg:,.0f}/mo on {cat}. I'd cap it at ₹{suggested:,.0f}",
-            "savings_potential": max(0, int(monthly_avg - suggested)),
-            "confidence": "high" if data["count"] >= 5 else "medium" if data["count"] >= 2 else "low",
-        })
-    
-    total_potential_savings = sum(s["savings_potential"] for s in suggestions)
-    
-    return {
-        "suggestions": suggestions[:8],
-        "total_potential_savings": total_potential_savings,
-        "message": f"Following these budgets could save you ₹{total_potential_savings:,.0f}/month! 🎯",
-        "auto_apply_available": True
-    }
+# [extracted to routers/ - was /budgets/smart-suggest at lines 1807..1869]
 
-@api_router.post("/budgets/auto-apply")
-async def auto_apply_budgets(user_id: str = Depends(get_current_user)):
-    """Auto-apply AI-suggested budgets"""
-    suggestions = await smart_budget_suggestions(user_id)
-    applied = 0
-    for s in suggestions.get("suggestions", []):
-        if s["is_new"] and s["confidence"] != "low":
-            await db.budgets.insert_one({
-                "user_id": user_id,
-                "category": s["category"],
-                "amount": s["suggested_budget"],
-                "period": "monthly",
-                "auto_created": True,
-                "created_at": datetime.utcnow()
-            })
-            applied += 1
-    return {"applied_count": applied, "message": f"Auto-created {applied} smart budgets! 🎯"}
+# [extracted to routers/ - was /budgets/auto-apply at lines 1871..1887]
 
 # 5. AI SMART ALERTS
-@api_router.get("/alerts/smart")
-async def smart_alerts(user_id: str = Depends(get_current_user)):
-    """AI Smart Alerts — intelligent, non-annoying nudges"""
-    from bson import ObjectId
-    now = datetime.utcnow()
-    today_start = now.replace(hour=0, minute=0, second=0, microsecond=0)
-    week_start = now - timedelta(days=now.weekday())
-    month_start = now.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
-    
-    user = await db.users.find_one({"_id": ObjectId(user_id)})
-    alerts = []
-    
-    # 1. Daily spending alert
-    today_pipeline = [
-        {"$match": {"user_id": user_id, "type": {"$in": ["expense", "debit"]}, "date": {"$gte": today_start}}},
-        {"$group": {"_id": None, "total": {"$sum": "$amount"}, "count": {"$sum": 1}}}
-    ]
-    today_docs = await db.transactions.aggregate(today_pipeline).to_list(1)
-    today_total = today_docs[0]["total"] if today_docs else 0
-    
-    # Compare with daily average
-    month_pipeline = [
-        {"$match": {"user_id": user_id, "type": {"$in": ["expense", "debit"]}, "date": {"$gte": month_start}}},
-        {"$group": {"_id": None, "total": {"$sum": "$amount"}}}
-    ]
-    month_docs = await db.transactions.aggregate(month_pipeline).to_list(1)
-    month_total = month_docs[0]["total"] if month_docs else 0
-    days_elapsed = max(1, (now - month_start).days)
-    daily_avg = month_total / days_elapsed
-    
-    if today_total > daily_avg * 1.5 and today_total > 200:
-        alerts.append({
-            "type": "overspend_today",
-            "severity": "warning",
-            "emoji": "👀",
-            "title": f"You spent ₹{today_total:,.0f} today",
-            "message": f"That's {today_total/max(daily_avg,1):.1f}x your daily average of ₹{daily_avg:,.0f}. Worth it?",
-            "action": "review_transactions"
-        })
-    
-    # 2. Weekend spike detection (Fri-Sun)
-    if now.weekday() >= 4:  # Friday onwards
-        weekend_pipeline = [
-            {"$match": {"user_id": user_id, "type": {"$in": ["expense", "debit"]}, "date": {"$gte": today_start - timedelta(days=now.weekday()-4) if now.weekday() >= 4 else today_start}}},
-            {"$group": {"_id": None, "total": {"$sum": "$amount"}}}
-        ]
-        weekend_docs = await db.transactions.aggregate(weekend_pipeline).to_list(1)
-        weekend_total = weekend_docs[0]["total"] if weekend_docs else 0
-        if weekend_total > daily_avg * 2:
-            alerts.append({
-                "type": "weekend_spike",
-                "severity": "info",
-                "emoji": "🍻",
-                "title": "Weekend spending spike detected",
-                "message": f"₹{weekend_total:,.0f} since Friday. That's your weekend tax! 😅",
-                "action": "view_insights"
-            })
-    
-    # 3. Streak alerts
-    streak = user.get("streak_days", 0) if user else 0
-    if streak >= 5:
-        alerts.append({
-            "type": "streak_strong",
-            "severity": "success",
-            "emoji": "🔥",
-            "title": f"{streak}-day streak! Keep going!",
-            "message": f"You're in the top 10% of consistent trackers. Don't break it!",
-            "action": "log_expense"
-        })
-    elif streak >= 2:
-        alerts.append({
-            "type": "streak_building",
-            "severity": "info",
-            "emoji": "⚡",
-            "title": f"{streak}-day streak building!",
-            "message": f"Just {7 - streak} more days for a weekly badge! 🏅",
-            "action": "log_expense"
-        })
-    
-    # 4. Budget alerts
-    budgets = await db.budgets.find({"user_id": user_id}).to_list(20)
-    for b in budgets:
-        cat = b["category"]
-        spent_pipeline = [
-            {"$match": {"user_id": user_id, "category": cat, "type": {"$in": ["expense", "debit"]}, "date": {"$gte": month_start}}},
-            {"$group": {"_id": None, "total": {"$sum": "$amount"}}}
-        ]
-        spent_docs = await db.transactions.aggregate(spent_pipeline).to_list(1)
-        spent = spent_docs[0]["total"] if spent_docs else 0
-        pct = (spent / max(b["amount"], 1)) * 100
-        
-        if pct >= 100:
-            alerts.append({
-                "type": "budget_exceeded",
-                "severity": "danger",
-                "emoji": "🚨",
-                "title": f"{cat} budget exceeded!",
-                "message": f"₹{spent:,.0f} of ₹{b['amount']:,.0f} ({pct:.0f}%). Time to slow down!",
-                "action": "view_budget"
-            })
-        elif pct >= 80:
-            alerts.append({
-                "type": "budget_warning",
-                "severity": "warning",
-                "emoji": "⚠️",
-                "title": f"{cat} budget almost done",
-                "message": f"₹{spent:,.0f} of ₹{b['amount']:,.0f} used ({pct:.0f}%). Only ₹{b['amount']-spent:,.0f} left!",
-                "action": "view_budget"
-            })
-    
-    # 5. Savings rate alert
-    income_pipeline = [
-        {"$match": {"user_id": user_id, "type": {"$in": ["income", "credit"]}, "date": {"$gte": month_start}}},
-        {"$group": {"_id": None, "total": {"$sum": "$amount"}}}
-    ]
-    income_docs = await db.transactions.aggregate(income_pipeline).to_list(1)
-    total_income = income_docs[0]["total"] if income_docs else 0
-    
-    if total_income > 0:
-        savings_rate = ((total_income - month_total) / total_income) * 100
-        if savings_rate > 30:
-            alerts.append({
-                "type": "savings_star",
-                "severity": "success",
-                "emoji": "🌟",
-                "title": f"Savings rate: {savings_rate:.0f}%!",
-                "message": f"You're saving ₹{total_income-month_total:,.0f} this month. That's better than most Indians! 🇮🇳",
-                "action": "view_insights"
-            })
-    
-    # 6. Money score milestone
-    score = user.get("money_score", 50) if user else 50
-    if score >= 90:
-        alerts.append({
-            "type": "score_elite",
-            "severity": "success", 
-            "emoji": "👑",
-            "title": "Elite Money Score: " + str(score),
-            "message": "Top 5% of all users! You're a financial rockstar! 🎸",
-            "action": "share_score"
-        })
-    
-    return {"alerts": alerts[:6], "count": len(alerts)}  # Max 6 alerts
+# [extracted to routers/ - was /alerts/smart at lines 1890..2032]
 
 # 6. SHAREABLE STATS CARD
-@api_router.get("/share/stats-card")
-async def shareable_stats_card(user_id: str = Depends(get_current_user)):
-    """Generate shareable stats for WhatsApp/Instagram"""
-    from bson import ObjectId
-    user = await db.users.find_one({"_id": ObjectId(user_id)})
-    now = datetime.utcnow()
-    month_start = now.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
-    
-    # Monthly stats
-    pipeline = [
-        {"$match": {"user_id": user_id, "date": {"$gte": month_start}}},
-        {"$group": {
-            "_id": "$type",
-            "total": {"$sum": "$amount"},
-            "count": {"$sum": 1}
-        }}
-    ]
-    stats = {}
-    async for doc in db.transactions.aggregate(pipeline):
-        stats[doc["_id"]] = doc["total"]
-    
-    income = stats.get("income", 0)
-    expense = stats.get("expense", 0)
-    saved = max(0, income - expense)
-    score = user.get("money_score", 50) if user else 50
-    streak = user.get("streak_days", 0) if user else 0
-    name = user.get("name", "MintU User") if user else "MintU User"
-    
-    # Build shareable texts
-    whatsapp_text = f"💸 {name}'s Money Report — {now.strftime('%B %Y')}\n\n"
-    whatsapp_text += f"💰 Saved: ₹{saved:,.0f}\n"
-    whatsapp_text += f"📊 Money Score: {score}/100\n"
-    whatsapp_text += f"🔥 Streak: {streak} days\n\n"
-    whatsapp_text += f"Track your money smartly with MintU! 🚀\n📲 Download: {APP_DOWNLOAD_LINK}"
-    
-    instagram_caption = f"I saved ₹{saved:,.0f} this month using MintU 💸\n\nMoney Score: {score}/100 ⭐\n🔥 {streak}-day tracking streak\n\n📲 Download MintU: {APP_DOWNLOAD_LINK}\n\n#MintU #MoneyManagement #Savings #FinancialFreedom #India"
-    
-    return {
-        "name": name,
-        "month": now.strftime("%B %Y"),
-        "income": income,
-        "expense": expense,
-        "saved": saved,
-        "money_score": score,
-        "streak": streak,
-        "whatsapp_text": whatsapp_text,
-        "instagram_caption": instagram_caption,
-        "card_data": {
-            "headline": f"I saved ₹{saved:,.0f} this month! 💸",
-            "subtitle": f"Money Score: {score}/100",
-            "stats": [
-                {"label": "Income", "value": f"₹{income:,.0f}", "color": "green"},
-                {"label": "Expenses", "value": f"₹{expense:,.0f}", "color": "red"},
-                {"label": "Saved", "value": f"₹{saved:,.0f}", "color": "blue"},
-            ],
-            "badge": f"🔥 {streak}-day streak" if streak > 0 else "📊 Start tracking!",
-        }
-    }
+# [extracted to routers/ - was /share/stats-card at lines 2035..2092]
 
 # 7. DATABASE INDEXES for 1.46B scale
 @app.on_event("startup")
@@ -2274,78 +1215,7 @@ def route_to_agent(message: str) -> str:
 
 # ============== AUTO-UPDATE BUDGET ON EXPENSE ==============
 
-@api_router.get("/budgets/live")
-async def live_budget_status(user_id: str = Depends(get_current_user)):
-    """Get real-time budget status with actual spending from ALL sources (transactions + splits)"""
-    from bson import ObjectId
-    now = datetime.utcnow()
-    month_start = now.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
-    
-    budgets = await db.budgets.find({"user_id": user_id}).to_list(30)
-    
-    # Get spending from transactions
-    txn_pipe = [
-        {"$match": {"user_id": user_id, "type": {"$in": ["expense", "debit"]}, "date": {"$gte": month_start}}},
-        {"$group": {"_id": "$category", "total": {"$sum": "$amount"}, "count": {"$sum": 1}}}
-    ]
-    txn_spending = {}
-    async for doc in db.transactions.aggregate(txn_pipe):
-        txn_spending[doc["_id"]] = doc["total"]
-    
-    # Get spending from split expenses (user's share)
-    split_expenses = await db.split_expenses.find({"created_at": {"$gte": month_start}}).to_list(500)
-    split_spending = {}
-    for exp in split_expenses:
-        splits = exp.get("splits", {})
-        if isinstance(splits, dict) and user_id in splits:
-            cat = exp.get("category", "Other")
-            split_spending[cat] = split_spending.get(cat, 0) + splits[user_id]
-    
-    # Combine spending
-    all_spending = {}
-    for cat in set(list(txn_spending.keys()) + list(split_spending.keys())):
-        all_spending[cat] = txn_spending.get(cat, 0) + split_spending.get(cat, 0)
-    
-    result = []
-    for b in budgets:
-        cat = b["category"]
-        spent = all_spending.get(cat, 0)
-        pct = (spent / max(b["amount"], 1)) * 100
-        remaining = max(0, b["amount"] - spent)
-        
-        if pct >= 100: status = "exceeded"
-        elif pct >= 80: status = "warning"
-        elif pct >= 50: status = "on_track"
-        else: status = "healthy"
-        
-        result.append({
-            "id": str(b["_id"]),
-            "category": cat,
-            "budget": b["amount"],
-            "spent": round(spent, 2),
-            "from_transactions": round(txn_spending.get(cat, 0), 2),
-            "from_splits": round(split_spending.get(cat, 0), 2),
-            "remaining": round(remaining, 2),
-            "percentage": round(pct, 1),
-            "status": status,
-            "period": b.get("period", "monthly"),
-        })
-    
-    result.sort(key=lambda x: x["percentage"], reverse=True)
-    
-    total_budgeted = sum(b["amount"] for b in budgets)
-    total_spent = sum(r["spent"] for r in result)
-    
-    return {
-        "budgets": result,
-        "summary": {
-            "total_budgeted": total_budgeted,
-            "total_spent": round(total_spent, 2),
-            "total_remaining": round(max(0, total_budgeted - total_spent), 2),
-            "overall_pct": round((total_spent / max(total_budgeted, 1)) * 100, 1),
-            "sources": {"transactions": round(sum(txn_spending.values()), 2), "splits": round(sum(split_spending.values()), 2)},
-        }
-    }
+# [extracted to routers/ - was /budgets/live at lines 2277..2348]
 async def create_recurring_split(data: dict, user_id: str = Depends(get_current_user)):
     """Create a recurring split expense (monthly rent, subscriptions)"""
     from bson import ObjectId
@@ -2422,31 +1292,9 @@ UPI_APPS = [
     {"id": "bhim", "name": "BHIM", "package": "in.org.npci.upiapp", "color": "#00695C", "icon": "shield-checkmark"},
 ]
 
-@api_router.get("/upi/apps")
-async def get_upi_apps(user_id: str = Depends(get_current_user)):
-    """Get list of supported UPI apps"""
-    return {"apps": UPI_APPS}
+# [extracted to routers/ - was /upi/apps at lines 2425..2428]
 
-@api_router.post("/upi/generate-qr")
-async def generate_upi_qr(data: dict, user_id: str = Depends(get_current_user)):
-    """Generate UPI QR code data for receiving payments"""
-    from bson import ObjectId
-    user = await db.users.find_one({"_id": ObjectId(user_id)})
-    upi_id = user.get("upi_id", "") if user else ""
-    if not upi_id:
-        raise HTTPException(status_code=400, detail="Set your UPI ID first in Profile")
-    
-    amount = data.get("amount", 0)
-    name = user.get("name", "MintU User")
-    
-    qr_string = f"upi://pay?pa={upi_id}&pn={name}&am={amount:.2f}&cu=INR&tn=MintU%20Payment"
-    
-    return {
-        "qr_data": qr_string,
-        "upi_id": upi_id,
-        "name": name,
-        "amount": amount
-    }
+# [extracted to routers/ - was /upi/generate-qr at lines 2430..2449]
 
 # ============== SETTLEMENT GAMIFICATION ==============
 
@@ -2482,18 +1330,24 @@ from routers import (
     user as user_router,
     splits as splits_router,
     ai as ai_router,
+    cash as cash_router,
+    notifications as notifications_router,
+    sms as sms_router,
+    premium as premium_router,
+    ab as ab_router,
+    share as share_router,
+    privacy as privacy_router,
+    budgets_ext as budgets_ext_router,
+    alerts as alerts_router,
+    upi as upi_router,
+    insights_ext as insights_ext_router,
 )
-api_router.include_router(news_router.router)
-api_router.include_router(referral_router.router)
-api_router.include_router(gamification_router.router)
-api_router.include_router(content_router.router)
-api_router.include_router(transactions_router.router)
-api_router.include_router(budgets_router.router)
-api_router.include_router(family_router.router)
-api_router.include_router(analytics_router.router)
-api_router.include_router(user_router.router)
-api_router.include_router(splits_router.router)
-api_router.include_router(ai_router.router)
+for r in (news_router, referral_router, gamification_router, content_router,
+          transactions_router, budgets_router, family_router, analytics_router,
+          user_router, splits_router, ai_router, cash_router, notifications_router,
+          sms_router, premium_router, ab_router, share_router, privacy_router,
+          budgets_ext_router, alerts_router, upi_router, insights_ext_router):
+    api_router.include_router(r.router)
 
 # Include router
 app.include_router(api_router)
