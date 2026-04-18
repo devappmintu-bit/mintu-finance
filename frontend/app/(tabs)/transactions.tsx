@@ -9,7 +9,8 @@ import api from '../../utils/api';
 import { format } from 'date-fns';
 import { useLangStore } from '../../store/langStore';
 import { t } from '../../utils/i18n';
-import { COLORS, RADIUS, SPACING, CATEGORIES, CATEGORY_LIST } from '../../utils/theme';
+import { COLORS, RADIUS, SPACING, CATEGORIES, CATEGORY_LIST, SHADOW } from '../../utils/theme';
+import PressableGlass from '../../components/PressableGlass';
 import Toast from 'react-native-toast-message';
 import { TransactionsSkeleton } from '../../components/SkeletonLoader';
 import { PieChart } from 'react-native-gifted-charts';
@@ -19,21 +20,21 @@ const TxnRow = memo(function TxnRow({ item, lang, onLongPress }: { item: any; la
   const cat = CATEGORIES[item.category] || CATEGORIES.Other;
   const isCash = item.source === 'cash' || item.source === 'cash_recurring';
   return (
-    <TouchableOpacity testID={`txn-${item.id}`} style={styles.txnCard} onLongPress={() => onLongPress(item.id)} activeOpacity={0.7}>
+    <PressableGlass testID={`txn-${item.id}`} feedback="light" onLongPress={() => onLongPress(item.id)} style={styles.txnCard}>
       <View style={[styles.txnIcon, { backgroundColor: cat.color + '18' }]}>
         <Ionicons name={cat.icon as any} size={20} color={cat.color} />
       </View>
       <View style={styles.txnInfo}>
         <Text style={styles.txnDesc} numberOfLines={1}>{item.description}</Text>
         <View style={styles.txnMetaRow}>
-          <Text style={styles.txnMeta}>{item.category} · {format(new Date(item.date), 'MMM dd')}</Text>
+          <Text style={styles.txnMeta} numberOfLines={1}>{item.category} · {format(new Date(item.date), 'MMM dd')}</Text>
           {isCash && <View style={styles.cashBadge}><Text style={styles.cashBadgeText}>{t('cash', lang)}</Text></View>}
         </View>
       </View>
-      <Text style={[styles.txnAmount, { color: item.type === 'credit' ? COLORS.accent.moneyIn : COLORS.accent.moneyOut }]}>
+      <Text style={[styles.txnAmount, { color: item.type === 'credit' ? COLORS.accent.moneyIn : COLORS.accent.moneyOut }]} numberOfLines={1}>
         {item.type === 'credit' ? '+' : '-'}₹{item.amount.toFixed(0)}
       </Text>
-    </TouchableOpacity>
+    </PressableGlass>
   );
 });
 
@@ -333,8 +334,8 @@ const styles = StyleSheet.create({
   pageTitle: { fontSize: 28, fontWeight: '800', color: COLORS.text.primary, letterSpacing: -0.5 },
   pageSubtitle: { fontSize: 13, color: COLORS.text.muted },
   headerActions: { flexDirection: 'row', gap: 10 },
-  actionBtn: { width: 44, height: 44, borderRadius: 22, backgroundColor: COLORS.bg.secondary, borderWidth: 1, borderColor: COLORS.border.subtle, justifyContent: 'center', alignItems: 'center' },
-  addBtn: { width: 44, height: 44, borderRadius: 22, backgroundColor: COLORS.accent.primary, justifyContent: 'center', alignItems: 'center' },
+  actionBtn: { width: 44, height: 44, borderRadius: 22, backgroundColor: 'rgba(255,255,255,0.9)', borderWidth: 1, borderColor: COLORS.border.subtle, justifyContent: 'center', alignItems: 'center', ...SHADOW.sm },
+  addBtn: { width: 44, height: 44, borderRadius: 22, backgroundColor: COLORS.accent.primary, justifyContent: 'center', alignItems: 'center', ...SHADOW.md },
   // Quick bar
   quickBar: { flexDirection: 'row', paddingHorizontal: SPACING.lg, marginBottom: SPACING.md, gap: 10 },
   quickInputWrap: { flex: 1, flexDirection: 'row', alignItems: 'center', backgroundColor: COLORS.bg.card, borderRadius: RADIUS.full, paddingHorizontal: SPACING.lg, borderWidth: 1, borderColor: COLORS.border.card },
@@ -344,7 +345,7 @@ const styles = StyleSheet.create({
   voiceBtnActive: { backgroundColor: COLORS.accent.moneyOut },
   // List
   listContent: { padding: SPACING.lg, paddingTop: 0 },
-  txnCard: { flexDirection: 'row', alignItems: 'center', backgroundColor: COLORS.bg.card, borderRadius: RADIUS.xl, padding: SPACING.lg, marginBottom: 10, borderWidth: 1, borderColor: COLORS.border.card },
+  txnCard: { flexDirection: 'row', alignItems: 'center', backgroundColor: 'rgba(255,255,255,0.9)', borderRadius: 20, padding: SPACING.lg, marginBottom: 10, borderWidth: 1, borderColor: 'rgba(255,255,255,0.6)', ...SHADOW.sm },
   txnIcon: { width: 44, height: 44, borderRadius: 16, justifyContent: 'center', alignItems: 'center', marginRight: SPACING.md },
   txnInfo: { flex: 1 },
   txnDesc: { fontSize: 15, fontWeight: '600', color: COLORS.text.primary },

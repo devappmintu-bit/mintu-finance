@@ -7,7 +7,8 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import api from '../../utils/api';
-import { COLORS, RADIUS, SPACING, CATEGORIES, CATEGORY_LIST } from '../../utils/theme';
+import { COLORS, RADIUS, SPACING, CATEGORIES, CATEGORY_LIST, SHADOW } from '../../utils/theme';
+import PressableGlass from '../../components/PressableGlass';
 import { useLangStore } from '../../store/langStore';
 import { t } from '../../utils/i18n';
 import Toast from 'react-native-toast-message';
@@ -88,16 +89,16 @@ export default function BudgetScreen() {
     const statusColor = isOver ? COLORS.accent.moneyOut : isWarn ? '#F59E0B' : COLORS.accent.moneyIn;
 
     return (
-      <TouchableOpacity style={s.card} onPress={() => openEdit(item)} onLongPress={() => handleDelete(item.id, item.category)} activeOpacity={0.7}>
+      <PressableGlass style={s.card} onPress={() => openEdit(item)} onLongPress={() => handleDelete(item.id, item.category)} feedback="light">
         <View style={s.cardRow}>
           <View style={[s.catDot, { backgroundColor: cat.color }]} />
           <View style={{ flex: 1 }}>
-            <Text style={s.catName}>{item.category}</Text>
+            <Text style={s.catName} numberOfLines={1}>{item.category}</Text>
             <Text style={s.period}>{item.period}</Text>
           </View>
           <View style={{ alignItems: 'flex-end' }}>
-            <Text style={[s.spentAmt, { color: statusColor }]}>₹{spent.toFixed(0)}</Text>
-            <Text style={s.limitAmt}>of ₹{limit.toFixed(0)}</Text>
+            <Text style={[s.spentAmt, { color: statusColor }]} numberOfLines={1}>₹{spent.toFixed(0)}</Text>
+            <Text style={s.limitAmt} numberOfLines={1}>of ₹{limit.toFixed(0)}</Text>
           </View>
         </View>
         {isOver && (
@@ -118,7 +119,7 @@ export default function BudgetScreen() {
             <Text style={[s.overText, { color: COLORS.accent.moneyIn }]}>₹{remaining.toFixed(0)} remaining</Text>
           </View>
         )}
-      </TouchableOpacity>
+      </PressableGlass>
     );
   };
 
@@ -131,9 +132,9 @@ export default function BudgetScreen() {
           <Text style={s.title}>Budgets</Text>
           <Text style={s.sub}>{budgets.length} active</Text>
         </View>
-        <TouchableOpacity style={s.addBtn} onPress={openAdd}>
+        <PressableGlass style={s.addBtn} onPress={openAdd} feedback="medium">
           <Ionicons name="add" size={22} color="#fff" />
-        </TouchableOpacity>
+        </PressableGlass>
       </View>
 
       <FlatList
@@ -245,7 +246,7 @@ const s = StyleSheet.create({
   header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: SPACING.lg, paddingVertical: SPACING.md },
   title: { fontSize: 28, fontWeight: '800', color: COLORS.text.primary },
   sub: { fontSize: 13, color: COLORS.text.muted },
-  addBtn: { width: 44, height: 44, borderRadius: 22, backgroundColor: COLORS.accent.primary, justifyContent: 'center', alignItems: 'center' },
+  addBtn: { width: 44, height: 44, borderRadius: 22, backgroundColor: COLORS.accent.primary, justifyContent: 'center', alignItems: 'center', ...SHADOW.md },
   list: { padding: SPACING.lg },
   // Summary
   summaryRow: { flexDirection: 'row', gap: 8, marginBottom: SPACING.lg },
@@ -253,7 +254,7 @@ const s = StyleSheet.create({
   sumLabel: { fontSize: 11, color: COLORS.text.muted, marginBottom: 4 },
   sumVal: { fontSize: 17, fontWeight: '800', color: COLORS.text.primary },
   // Card
-  card: { backgroundColor: COLORS.bg.card, borderRadius: RADIUS.xl, padding: SPACING.lg, marginBottom: 10, borderWidth: 1, borderColor: COLORS.border.card },
+  card: { backgroundColor: 'rgba(255,255,255,0.9)', borderRadius: 20, padding: SPACING.lg, marginBottom: 10, borderWidth: 1, borderColor: 'rgba(255,255,255,0.6)', ...SHADOW.sm },
   cardRow: { flexDirection: 'row', alignItems: 'center', gap: 12 },
   catDot: { width: 10, height: 10, borderRadius: 5 },
   catName: { fontSize: 16, fontWeight: '700', color: COLORS.text.primary },
