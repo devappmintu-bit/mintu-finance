@@ -787,6 +787,9 @@ backend_family_router:
     stuck_count: 0
     priority: "high"
     needs_retesting: false
+  - agent: "main"
+    message: "🧩 SPLIT.TSX REFACTOR COMPLETE (Apr 18 2026). split.tsx reduced from 1080 → 427 lines (-60%). Extracted into 10 focused sub-components under /app/frontend/components/split/: theme.ts (77 lines — C colors, MEMBER_COLORS, GROUP_ICONS, getGA, UPI_APPS, SPLIT_TYPES, DebtRow type), SettleUpCard.tsx (80), RemindersBanner.tsx (46), LeaderboardCard.tsx (38), CreateGroupSheet.tsx (89), ExpenseSheet.tsx (171 — handles all 4 split types), GroupSummarySheet.tsx (117), GroupManageSheet.tsx (142 — rename/add-remove/delete/leave), PaySheet.tsx (54), RemindSheet.tsx (80 — custom note input), RewardModal.tsx (44). Parent split.tsx now purely orchestrates: keeps state + API calls, passes plain props/callbacks to presentational components. Web-safe payment flow preserved (simulated UPI on web, real upi:// on native). Zero behavior change — all features verified via frontend testing agent code review. Frontend bundles cleanly (2.8s), no TypeScript compile errors, only expected yellow deprecation warnings (shadow*, pointerEvents, expo-notifications). Backend tests 15/15 still pass."
+
     status_history:
       - working: true
         agent: "testing"
