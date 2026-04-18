@@ -663,10 +663,26 @@ metadata:
 
 test_plan:
   current_focus:
-    - "Shadow* deprecation fix + AI CTA auto-open modals"
+    - "MintU 2.0 Phase 1 — Dynamic Home + Predictive AI + Weekly Share"
   stuck_tasks: []
   test_all: false
-  test_priority: "low_first"
+  test_priority: "high_first"
+
+mintu_2_phase1:
+  - task: "MintU 2.0 Phase 1 — Dynamic Home Insights, Predictive AI, Weekly WhatsApp Share"
+    implemented: true
+    working: true
+    file: "/app/backend/routers/analytics.py + /app/frontend/components/home/InsightsCard.tsx + /app/frontend/app/(tabs)/index.tsx"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+      - working: true
+        agent: "testing"
+        comment: "✅ ALL 51/51 ASSERTIONS PASSED — (1) GET /api/home/snapshot returns {mtd_spend, mtd_income, savings_rate, projected_month_end, daily_avg, day_of_month, days_in_month, sparkline (7 days), this_week_total, last_week_total, week_change_pct, top_category, pace_headline, pace_emoji, tier {current, next, progress_pct, score, streak_days}, transaction_count}. (2) GET /api/ai/predict returns {mtd_spend, daily_avg, projected_month_end, overspend_alerts (severity enum), waste_comparisons (chai/SIP/km comparisons), category_predictions (top 5, ≤5), headline}. (3) Data consistency: snapshot.mtd_spend==predict.mtd_spend (27149.0 exact). (4) Zero regressions across 6 existing endpoints. (5) Zero 500s/NameError/ImportError in logs."
+      - working: "NA"
+        agent: "main"
+        comment: "FRONTEND: New /app/frontend/components/home/InsightsCard.tsx with SVG sparkline (7-day), tier badge with emoji+progress bar, pace headline, top category, savings rate. /app/frontend/app/(tabs)/index.tsx updated to (a) fetch /home/snapshot in Phase-1 load, (b) fetch /ai/predict in Phase-2 load, (c) replace static ₹0 stats row with InsightsCard, (d) add new 'Predictive Insights' card with AI badge showing overspending alerts (amber/red severity) + waste comparisons (chai/SIP equivalencies), (e) upgrade Weekly Report card with green 'Share Weekly Report' WhatsApp button that opens WhatsApp with full context (tier, streak, score, top category, app link) or falls back to native Share. Bundle compiles cleanly."
 
 mintu_2_0_analytics:
   - task: "MintU 2.0 — GET /api/home/snapshot (unified home insights)"
