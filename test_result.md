@@ -661,6 +661,19 @@ test_plan:
   test_all: false
   test_priority: "completed"
 
+phase_6_rollback_smoke:
+  - task: "Phase 6 Rollback Regression Smoke Test"
+    implemented: true
+    working: true
+    file: "/app/backend/server.py"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+      - working: true
+        agent: "testing"
+        comment: "✅ PHASE 6 ROLLBACK REGRESSION SMOKE TEST PASSED (post-splits.py revert) — ALL 5/5 ENDPOINTS 200 OK. Auth used password login fallback (POST /api/auth/login with phone 9876543210 / password test123) because OTP path was rate-limited (429) during the test window; login returned valid JWT. Results: (1) GET /api/user/me → 200 (135 bytes) ✅. (2) GET /api/transactions?limit=5 → 200 (1143 bytes) ✅. (3) GET /api/stats/overview → 200 (233 bytes) ✅. (4) GET /api/split/groups → 200 (7046 bytes, 15 groups — split endpoints still served from server.py as expected after splits.py extraction rollback) ✅. (5) GET /api/gamification/status → 200 (1193 bytes) ✅. Backend is stable at Phase 6 state; no regression from the attempted+reverted splits.py refactor."
+
 backend_analytics_router:
   - task: "Analytics Router Extraction Smoke Test"
     implemented: true
