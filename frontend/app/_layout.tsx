@@ -51,6 +51,7 @@ export default function RootLayout() {
         <Stack.Screen name="auth" />
         <Stack.Screen name="(tabs)" />
         <Stack.Screen name="premium" options={{ animation: 'slide_from_right' }} />
+        <Stack.Screen name="yearly" options={{ animation: 'slide_from_right' }} />
       </Stack>
       <Toast config={toastConfig} position="bottom" bottomOffset={100} />
     </>

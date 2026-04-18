@@ -169,7 +169,7 @@ export default function ProfileScreen() {
             </Text>
           </View>
 
-          {/* Pills row: Referrals + My Code */}
+          {/* Pills row: Referrals + My Code + Yearly Stats */}
           <View style={s.heroPillRow}>
             <TouchableOpacity style={s.heroPill} onPress={() => setRefExpanded(true)}>
               <Ionicons name="people" size={16} color="#F59E0B" />
@@ -178,6 +178,10 @@ export default function ProfileScreen() {
             <TouchableOpacity style={s.heroPill} onPress={shareGeneric}>
               <Ionicons name="qr-code" size={16} color="#8B5CF6" />
               <Text style={s.heroPillText}>My Code</Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={s.heroPill} onPress={() => router.push('/yearly' as any)}>
+              <Ionicons name="bar-chart" size={16} color="#10B981" />
+              <Text style={s.heroPillText}>Year View</Text>
             </TouchableOpacity>
           </View>
         </View>

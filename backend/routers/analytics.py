@@ -554,3 +554,176 @@ async def ai_predict(user_id: str = Depends(get_current_user)):
             if total > 0 else "📭 No spending data yet — add transactions to unlock predictions"
         ),
     }
+
+# ============== MINTU 2.0 — YEARLY ANALYTICS DASHBOARD (12-month view) ==============
+@router.get("/analytics/yearly")
+async def analytics_yearly(year: int = 0, user_id: str = Depends(get_current_user)):
+    """Return 12 months of income + expense + category breakdown for yearly dashboard.
+    If year=0, returns the trailing 12 months ending this month.
+    Else returns calendar year Jan-Dec of `year`.
+    """
+    from calendar import monthrange
+
+    now = datetime.utcnow()
+    if year == 0:
+        # Trailing 12 months
+        months = []
+        for i in range(11, -1, -1):
+            d = now.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+            month = d.month - i
+            year_adj = d.year
+            while month <= 0:
+                month += 12
+                year_adj -= 1
+            start = datetime(year_adj, month, 1)
+            last_day = monthrange(year_adj, month)[1]
+            end = datetime(year_adj, month, last_day, 23, 59, 59)
+            months.append((start, end, start.strftime("%b %y")))
+        mode = "trailing_12"
+        label = "Last 12 months"
+    else:
+        # Calendar year
+        months = []
+        for m in range(1, 13):
+            start = datetime(year, m, 1)
+            last_day = monthrange(year, m)[1]
+            end = datetime(year, m, last_day, 23, 59, 59)
+            months.append((start, end, start.strftime("%b")))
+        mode = "calendar"
+        label = f"Calendar {year}"
+
+    overall_start = months[0][0]
+    overall_end = months[-1][1]
+
+    # Bulk fetch all transactions in range
+    txns = await db.transactions.find({
+        "user_id": user_id,
+        "date": {"$gte": overall_start, "$lte": overall_end},
+    }).to_list(50000)
+
+    # Aggregate per month
+    monthly: list = []
+    yearly_cat: dict = {}
+    yearly_income = 0.0
+    yearly_expense = 0.0
+    month_of_max_spend = None
+    month_of_min_spend = None
+    best_savings_month = None
+    best_savings_rate = -1.0
+
+    for start, end, lbl in months:
+        income_m = 0.0
+        expense_m = 0.0
+        cats_m: dict = {}
+        txn_count_m = 0
+        for t in txns:
+            td = t.get("date")
+            if not td or td < start or td > end:
+                continue
+            amt = float(t.get("amount", 0))
+            if t.get("type") in ("credit", "income"):
+                income_m += amt
+            else:
+                expense_m += amt
+                cats_m[t.get("category", "Other")] = cats_m.get(t.get("category", "Other"), 0) + amt
+                yearly_cat[t.get("category", "Other")] = yearly_cat.get(t.get("category", "Other"), 0) + amt
+            txn_count_m += 1
+        yearly_income += income_m
+        yearly_expense += expense_m
+        savings = income_m - expense_m
+        rate = round((savings / max(income_m, 1)) * 100, 1) if income_m > 0 else 0
+        top_cat = max(cats_m, key=cats_m.get) if cats_m else None
+        monthly.append({
+            "label": lbl,
+            "month_num": start.month,
+            "year": start.year,
+            "income": round(income_m, 2),
+            "expense": round(expense_m, 2),
+            "savings": round(savings, 2),
+            "savings_rate": rate,
+            "txn_count": txn_count_m,
+            "top_category": top_cat,
+        })
+
+    # Track best/worst
+    for m in monthly:
+        if m["expense"] > 0:
+            if month_of_max_spend is None or m["expense"] > month_of_max_spend["expense"]:
+                month_of_max_spend = m
+            if month_of_min_spend is None or m["expense"] < month_of_min_spend["expense"]:
+                month_of_min_spend = m
+        if m["income"] > 0 and m["savings_rate"] > best_savings_rate:
+            best_savings_rate = m["savings_rate"]
+            best_savings_month = m
+
+    yearly_savings = yearly_income - yearly_expense
+    yearly_savings_rate = round((yearly_savings / max(yearly_income, 1)) * 100, 1) if yearly_income > 0 else 0
+
+    # Top 5 categories year-wide
+    top_cats_list = sorted(yearly_cat.items(), key=lambda x: x[1], reverse=True)[:5]
+    top_cats_total = sum(v for _, v in top_cats_list) or 1
+    top_cats = [
+        {"name": k, "amount": round(v, 2), "pct": round((v / top_cats_total) * 100, 1)}
+        for k, v in top_cats_list
+    ]
+
+    # Month-over-month momentum
+    non_zero = [m for m in monthly if m["expense"] > 0]
+    momentum = "steady"
+    momentum_pct = 0
+    if len(non_zero) >= 2:
+        first_half = non_zero[:len(non_zero) // 2]
+        second_half = non_zero[len(non_zero) // 2:]
+        first_avg = sum(m["expense"] for m in first_half) / max(len(first_half), 1)
+        second_avg = sum(m["expense"] for m in second_half) / max(len(second_half), 1)
+        if first_avg > 0:
+            momentum_pct = round(((second_avg - first_avg) / first_avg) * 100, 1)
+            if momentum_pct > 15:
+                momentum = "rising"
+            elif momentum_pct < -15:
+                momentum = "falling"
+
+    # Yearly narrative headline
+    if yearly_expense == 0:
+        headline = "No spending tracked yet — add transactions to see your year"
+    elif yearly_savings_rate >= 30:
+        headline = f"Stellar year! You saved {yearly_savings_rate}% · ₹{int(yearly_savings):,}"
+    elif yearly_savings_rate >= 15:
+        headline = f"Good year. {yearly_savings_rate}% savings rate · push for 30%+"
+    elif yearly_savings_rate >= 0:
+        headline = f"Tight year — {yearly_savings_rate}% savings. Time to cut discretionary spend"
+    else:
+        headline = f"Spending exceeded income by ₹{int(abs(yearly_savings)):,} — review recurring bills"
+
+    return {
+        "mode": mode,
+        "label": label,
+        "year": year if year > 0 else now.year,
+        "monthly": monthly,
+        "yearly": {
+            "income": round(yearly_income, 2),
+            "expense": round(yearly_expense, 2),
+            "savings": round(yearly_savings, 2),
+            "savings_rate": yearly_savings_rate,
+            "avg_monthly_spend": round(yearly_expense / 12, 2),
+            "avg_monthly_income": round(yearly_income / 12, 2),
+            "txn_count": len(txns),
+        },
+        "top_categories": top_cats,
+        "momentum": {
+            "direction": momentum,
+            "change_pct": momentum_pct,
+            "commentary": (
+                f"Your spending rose {momentum_pct}% in the second half" if momentum == "rising"
+                else f"Your spending fell {abs(momentum_pct)}% in the second half — great job!" if momentum == "falling"
+                else "Your spending stayed steady across the year"
+            ),
+        },
+        "highlights": {
+            "highest_spend_month": month_of_max_spend,
+            "lowest_spend_month": month_of_min_spend,
+            "best_savings_month": best_savings_month,
+        },
+        "headline": headline,
+    }
+

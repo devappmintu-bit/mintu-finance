@@ -1,0 +1,367 @@
+/**
+ * MintU 2.0 — Yearly Analytics Dashboard (12-month view)
+ * Features: monthly bar chart (income + expense), year stats, category breakdown, momentum, highlights.
+ */
+import React, { useEffect, useMemo, useState } from 'react';
+import {
+  View, Text, StyleSheet, ScrollView, TouchableOpacity, ActivityIndicator, RefreshControl,
+} from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import { Ionicons } from '@expo/vector-icons';
+import { LinearGradient } from 'expo-linear-gradient';
+import Svg, { Rect, Line, Text as SvgText } from 'react-native-svg';
+import { router } from 'expo-router';
+import api from '../utils/api';
+import { COLORS, shadowStyle } from '../utils/theme';
+
+const CHART_H = 180;
+const BAR_WIDTH = 22;
+const BAR_GAP = 6;
+const PAD_L = 28;
+const PAD_R = 16;
+const PAD_T = 12;
+const PAD_B = 30;
+
+const fmtINR = (n: number) => {
+  if (n >= 10000000) return `₹${(n / 10000000).toFixed(1)}Cr`;
+  if (n >= 100000) return `₹${(n / 100000).toFixed(1)}L`;
+  if (n >= 1000) return `₹${(n / 1000).toFixed(1)}K`;
+  return `₹${Math.round(n)}`;
+};
+
+type Monthly = {
+  label: string;
+  month_num: number;
+  year: number;
+  income: number;
+  expense: number;
+  savings: number;
+  savings_rate: number;
+  txn_count: number;
+  top_category: string | null;
+};
+
+function BarChart({ data }: { data: Monthly[] }) {
+  const [selected, setSelected] = useState<number | null>(null);
+  const { maxVal, chartW } = useMemo(() => {
+    const maxVal = Math.max(1, ...data.flatMap(d => [d.income, d.expense]));
+    const chartW = PAD_L + PAD_R + data.length * (BAR_WIDTH + BAR_GAP);
+    return { maxVal, chartW };
+  }, [data]);
+
+  const plotH = CHART_H - PAD_T - PAD_B;
+  const gridValues = [0.25, 0.5, 0.75, 1];
+
+  return (
+    <View>
+      <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+        <Svg width={Math.max(chartW, 340)} height={CHART_H}>
+          {/* Grid lines */}
+          {gridValues.map((g, i) => {
+            const y = PAD_T + plotH * (1 - g);
+            return (
+              <React.Fragment key={i}>
+                <Line x1={PAD_L} y1={y} x2={chartW - PAD_R} y2={y} stroke={COLORS.border.subtle} strokeDasharray="3,3" strokeWidth={1} />
+                <SvgText x={4} y={y + 4} fontSize={9} fill={COLORS.text.muted} fontWeight="600">{fmtINR(maxVal * g)}</SvgText>
+              </React.Fragment>
+            );
+          })}
+
+          {/* Bars */}
+          {data.map((m, i) => {
+            const x = PAD_L + i * (BAR_WIDTH + BAR_GAP);
+            const incomeH = (m.income / maxVal) * plotH;
+            const expenseH = (m.expense / maxVal) * plotH;
+            const halfW = (BAR_WIDTH - 2) / 2;
+            const isSel = selected === i;
+            return (
+              <React.Fragment key={i}>
+                {/* Income bar (green, left half) */}
+                <Rect
+                  x={x}
+                  y={PAD_T + (plotH - incomeH)}
+                  width={halfW}
+                  height={incomeH}
+                  fill={isSel ? '#059669' : '#10B981'}
+                  rx={2}
+                  onPress={() => setSelected(i === selected ? null : i)}
+                />
+                {/* Expense bar (red, right half) */}
+                <Rect
+                  x={x + halfW + 2}
+                  y={PAD_T + (plotH - expenseH)}
+                  width={halfW}
+                  height={expenseH}
+                  fill={isSel ? '#DC2626' : '#EF4444'}
+                  rx={2}
+                  onPress={() => setSelected(i === selected ? null : i)}
+                />
+                {/* Month label */}
+                <SvgText
+                  x={x + BAR_WIDTH / 2}
+                  y={CHART_H - 14}
+                  fontSize={9}
+                  fill={isSel ? COLORS.text.primary : COLORS.text.muted}
+                  fontWeight={isSel ? '800' : '600'}
+                  textAnchor="middle"
+                >
+                  {m.label.split(' ')[0]}
+                </SvgText>
+              </React.Fragment>
+            );
+          })}
+        </Svg>
+      </ScrollView>
+
+      {/* Legend */}
+      <View style={s.legendRow}>
+        <View style={s.legendItem}>
+          <View style={[s.legendDot, { backgroundColor: '#10B981' }]} />
+          <Text style={s.legendText}>Income</Text>
+        </View>
+        <View style={s.legendItem}>
+          <View style={[s.legendDot, { backgroundColor: '#EF4444' }]} />
+          <Text style={s.legendText}>Expense</Text>
+        </View>
+      </View>
+
+      {selected !== null && data[selected] && (
+        <View style={s.selectedCard}>
+          <Text style={s.selectedLabel}>{data[selected].label}</Text>
+          <View style={s.selectedGrid}>
+            <View style={s.selectedCell}>
+              <Text style={[s.selectedVal, { color: '#10B981' }]}>{fmtINR(data[selected].income)}</Text>
+              <Text style={s.selectedSub}>Income</Text>
+            </View>
+            <View style={s.selectedCell}>
+              <Text style={[s.selectedVal, { color: '#EF4444' }]}>{fmtINR(data[selected].expense)}</Text>
+              <Text style={s.selectedSub}>Expense</Text>
+            </View>
+            <View style={s.selectedCell}>
+              <Text style={[s.selectedVal, { color: '#8B5CF6' }]}>{data[selected].savings_rate}%</Text>
+              <Text style={s.selectedSub}>Saved</Text>
+            </View>
+          </View>
+          {data[selected].top_category && (
+            <Text style={s.selectedTop}>Top: {data[selected].top_category}</Text>
+          )}
+        </View>
+      )}
+    </View>
+  );
+}
+
+export default function YearlyDashboard() {
+  const [data, setData] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
+
+  const load = async () => {
+    try {
+      const res = await api.get('/analytics/yearly');
+      setData(res.data);
+    } catch {} finally { setLoading(false); setRefreshing(false); }
+  };
+
+  useEffect(() => { load(); }, []);
+
+  if (loading) {
+    return (
+      <SafeAreaView style={s.container}>
+        <ActivityIndicator size="large" color="#8B5CF6" style={{ marginTop: 80 }} />
+      </SafeAreaView>
+    );
+  }
+
+  return (
+    <SafeAreaView style={s.container} edges={['top']}>
+      <View style={s.header}>
+        <TouchableOpacity onPress={() => router.back()} style={s.backBtn}>
+          <Ionicons name="chevron-back" size={22} color={COLORS.text.primary} />
+        </TouchableOpacity>
+        <Text style={s.headerTitle}>Yearly Dashboard</Text>
+        <View style={{ width: 32 }} />
+      </View>
+
+      <ScrollView
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); load(); }} tintColor="#8B5CF6" />}
+      >
+        {/* Hero headline */}
+        <LinearGradient colors={['#8B5CF6', '#6366F1']} style={s.hero}>
+          <Text style={s.heroLabel}>{data?.label || 'Last 12 months'}</Text>
+          <Text style={s.heroHeadline}>{data?.headline}</Text>
+          <View style={s.heroStats}>
+            <View style={s.heroStat}>
+              <Text style={s.heroStatV}>{fmtINR(data?.yearly?.income || 0)}</Text>
+              <Text style={s.heroStatL}>Income</Text>
+            </View>
+            <View style={s.heroDiv} />
+            <View style={s.heroStat}>
+              <Text style={s.heroStatV}>{fmtINR(data?.yearly?.expense || 0)}</Text>
+              <Text style={s.heroStatL}>Spent</Text>
+            </View>
+            <View style={s.heroDiv} />
+            <View style={s.heroStat}>
+              <Text style={s.heroStatV}>{data?.yearly?.savings_rate || 0}%</Text>
+              <Text style={s.heroStatL}>Saved</Text>
+            </View>
+          </View>
+        </LinearGradient>
+
+        {/* Bar chart */}
+        <View style={s.card}>
+          <Text style={s.cardTitle}>📊 Monthly breakdown</Text>
+          <Text style={s.cardSub}>Tap a month to see details</Text>
+          {data?.monthly && <BarChart data={data.monthly} />}
+        </View>
+
+        {/* Momentum */}
+        {data?.momentum && data.yearly.expense > 0 && (
+          <View style={[s.card, { backgroundColor: data.momentum.direction === 'falling' ? '#ECFDF5' : data.momentum.direction === 'rising' ? '#FEF2F2' : '#F3F4F6' }]}>
+            <View style={s.momentumRow}>
+              <Ionicons
+                name={data.momentum.direction === 'rising' ? 'trending-up' : data.momentum.direction === 'falling' ? 'trending-down' : 'remove'}
+                size={22}
+                color={data.momentum.direction === 'rising' ? '#DC2626' : data.momentum.direction === 'falling' ? '#059669' : '#6B7280'}
+              />
+              <View style={{ flex: 1 }}>
+                <Text style={s.momentumTitle}>Momentum · {data.momentum.direction.toUpperCase()}</Text>
+                <Text style={s.momentumDetail}>{data.momentum.commentary}</Text>
+              </View>
+            </View>
+          </View>
+        )}
+
+        {/* Top categories */}
+        {data?.top_categories?.length > 0 && (
+          <View style={s.card}>
+            <Text style={s.cardTitle}>🥇 Top spending categories</Text>
+            {data.top_categories.map((c: any, i: number) => (
+              <View key={i} style={s.catRow}>
+                <View style={s.catRank}>
+                  <Text style={s.catRankNum}>{i + 1}</Text>
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text style={s.catName}>{c.name}</Text>
+                  <View style={s.catBar}>
+                    <View style={[s.catBarFill, { width: `${c.pct}%`, backgroundColor: ['#8B5CF6', '#EC4899', '#F59E0B', '#10B981', '#3B82F6'][i] }]} />
+                  </View>
+                </View>
+                <View style={{ alignItems: 'flex-end' }}>
+                  <Text style={s.catAmt}>{fmtINR(c.amount)}</Text>
+                  <Text style={s.catPct}>{c.pct}%</Text>
+                </View>
+              </View>
+            ))}
+          </View>
+        )}
+
+        {/* Highlights */}
+        {data?.highlights && (data.highlights.highest_spend_month || data.highlights.best_savings_month) && (
+          <View style={s.card}>
+            <Text style={s.cardTitle}>✨ Highlights</Text>
+            {data.highlights.highest_spend_month && (
+              <View style={s.highRow}>
+                <Text style={s.highEmoji}>💸</Text>
+                <View style={{ flex: 1 }}>
+                  <Text style={s.highTitle}>Highest spend month</Text>
+                  <Text style={s.highSub}>{data.highlights.highest_spend_month.label} · {fmtINR(data.highlights.highest_spend_month.expense)}</Text>
+                </View>
+              </View>
+            )}
+            {data.highlights.lowest_spend_month && (
+              <View style={s.highRow}>
+                <Text style={s.highEmoji}>🎯</Text>
+                <View style={{ flex: 1 }}>
+                  <Text style={s.highTitle}>Lowest spend month</Text>
+                  <Text style={s.highSub}>{data.highlights.lowest_spend_month.label} · {fmtINR(data.highlights.lowest_spend_month.expense)}</Text>
+                </View>
+              </View>
+            )}
+            {data.highlights.best_savings_month && (
+              <View style={s.highRow}>
+                <Text style={s.highEmoji}>🏆</Text>
+                <View style={{ flex: 1 }}>
+                  <Text style={s.highTitle}>Best savings month</Text>
+                  <Text style={s.highSub}>{data.highlights.best_savings_month.label} · {data.highlights.best_savings_month.savings_rate}% saved</Text>
+                </View>
+              </View>
+            )}
+          </View>
+        )}
+
+        {/* Averages */}
+        <View style={s.card}>
+          <Text style={s.cardTitle}>📐 Monthly averages</Text>
+          <View style={s.avgGrid}>
+            <View style={s.avgCell}>
+              <Text style={[s.avgVal, { color: '#10B981' }]}>{fmtINR(data?.yearly?.avg_monthly_income || 0)}</Text>
+              <Text style={s.avgLbl}>Avg income/mo</Text>
+            </View>
+            <View style={s.avgDiv} />
+            <View style={s.avgCell}>
+              <Text style={[s.avgVal, { color: '#EF4444' }]}>{fmtINR(data?.yearly?.avg_monthly_spend || 0)}</Text>
+              <Text style={s.avgLbl}>Avg spend/mo</Text>
+            </View>
+            <View style={s.avgDiv} />
+            <View style={s.avgCell}>
+              <Text style={[s.avgVal, { color: '#8B5CF6' }]}>{data?.yearly?.txn_count || 0}</Text>
+              <Text style={s.avgLbl}>Transactions</Text>
+            </View>
+          </View>
+        </View>
+
+        <View style={{ height: 40 }} />
+      </ScrollView>
+    </SafeAreaView>
+  );
+}
+
+const s = StyleSheet.create({
+  container: { flex: 1, backgroundColor: COLORS.bg.primary },
+  header: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 12, paddingVertical: 12, backgroundColor: '#FFFFFF', borderBottomWidth: 1, borderBottomColor: COLORS.border.subtle },
+  backBtn: { padding: 6 },
+  headerTitle: { flex: 1, fontSize: 17, fontWeight: '800', color: COLORS.text.primary, textAlign: 'center' },
+  hero: { margin: 12, padding: 18, borderRadius: 18, ...shadowStyle('#8B5CF6', 6, 16, 0.25, 6) },
+  heroLabel: { color: 'rgba(255,255,255,0.8)', fontSize: 11, fontWeight: '800', letterSpacing: 1 },
+  heroHeadline: { color: '#fff', fontSize: 16, fontWeight: '800', marginTop: 4, lineHeight: 22 },
+  heroStats: { flexDirection: 'row', marginTop: 16, paddingTop: 14, borderTopWidth: 1, borderTopColor: 'rgba(255,255,255,0.25)' },
+  heroStat: { flex: 1, alignItems: 'center' },
+  heroStatV: { color: '#fff', fontSize: 16, fontWeight: '900' },
+  heroStatL: { color: 'rgba(255,255,255,0.85)', fontSize: 11, fontWeight: '700', marginTop: 2 },
+  heroDiv: { width: 1, height: 28, backgroundColor: 'rgba(255,255,255,0.3)', alignSelf: 'center' },
+  card: { backgroundColor: '#FFFFFF', margin: 12, padding: 16, borderRadius: 16, borderWidth: 1, borderColor: COLORS.border.card, ...shadowStyle('#2E1F1A', 2, 10, 0.05, 2) },
+  cardTitle: { fontSize: 15, fontWeight: '800', color: COLORS.text.primary },
+  cardSub: { fontSize: 11, color: COLORS.text.muted, marginTop: 2, marginBottom: 10 },
+  legendRow: { flexDirection: 'row', justifyContent: 'center', gap: 16, marginTop: 8 },
+  legendItem: { flexDirection: 'row', alignItems: 'center', gap: 5 },
+  legendDot: { width: 10, height: 10, borderRadius: 2 },
+  legendText: { fontSize: 11, color: COLORS.text.muted, fontWeight: '600' },
+  selectedCard: { marginTop: 10, padding: 12, backgroundColor: COLORS.bg.subtle, borderRadius: 10, borderWidth: 1, borderColor: '#8B5CF640' },
+  selectedLabel: { fontSize: 13, fontWeight: '800', color: '#8B5CF6', marginBottom: 8 },
+  selectedGrid: { flexDirection: 'row' },
+  selectedCell: { flex: 1, alignItems: 'center' },
+  selectedVal: { fontSize: 14, fontWeight: '800' },
+  selectedSub: { fontSize: 10, color: COLORS.text.muted, fontWeight: '600', marginTop: 2 },
+  selectedTop: { fontSize: 11, color: COLORS.text.secondary, textAlign: 'center', marginTop: 8, fontStyle: 'italic' },
+  momentumRow: { flexDirection: 'row', alignItems: 'center', gap: 12 },
+  momentumTitle: { fontSize: 13, fontWeight: '800', color: COLORS.text.primary, letterSpacing: 0.3 },
+  momentumDetail: { fontSize: 12, color: COLORS.text.secondary, marginTop: 2 },
+  catRow: { flexDirection: 'row', alignItems: 'center', gap: 10, marginTop: 10 },
+  catRank: { width: 24, height: 24, borderRadius: 12, backgroundColor: '#8B5CF615', justifyContent: 'center', alignItems: 'center' },
+  catRankNum: { fontSize: 11, fontWeight: '800', color: '#8B5CF6' },
+  catName: { fontSize: 13, fontWeight: '700', color: COLORS.text.primary },
+  catBar: { height: 5, backgroundColor: COLORS.bg.subtle, borderRadius: 999, overflow: 'hidden', marginTop: 4 },
+  catBarFill: { height: '100%', borderRadius: 999 },
+  catAmt: { fontSize: 12, fontWeight: '800', color: COLORS.text.primary },
+  catPct: { fontSize: 10, fontWeight: '700', color: COLORS.text.muted },
+  highRow: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: COLORS.border.subtle },
+  highEmoji: { fontSize: 20 },
+  highTitle: { fontSize: 12, fontWeight: '800', color: COLORS.text.muted, letterSpacing: 0.3 },
+  highSub: { fontSize: 13, fontWeight: '700', color: COLORS.text.primary, marginTop: 2 },
+  avgGrid: { flexDirection: 'row', alignItems: 'center', marginTop: 8 },
+  avgCell: { flex: 1, alignItems: 'center' },
+  avgVal: { fontSize: 15, fontWeight: '800' },
+  avgLbl: { fontSize: 11, fontWeight: '600', color: COLORS.text.muted, marginTop: 2 },
+  avgDiv: { width: 1, height: 32, backgroundColor: COLORS.border.subtle },
+});
