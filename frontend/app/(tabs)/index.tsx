@@ -17,6 +17,8 @@ import { router } from 'expo-router';
 import Toast from 'react-native-toast-message';
 import { HomeSkeleton } from '../../components/SkeletonLoader';
 import InsightsCard from '../../components/home/InsightsCard';
+import DailyQuestCard from '../../components/DailyQuestCard';
+import Confetti from '../../components/Confetti';
 
 const APP_LINK = 'https://mintu.app/download';
 
@@ -37,6 +39,7 @@ export default function HomeScreen() {
   const [news, setNews] = useState<any[]>([]);
   const [fomoItems, setFomoItems] = useState<any[]>([]);
   const [coinsStatus, setCoinsStatus] = useState<any>(null);
+  const [showConfetti, setShowConfetti] = useState(false);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
 
@@ -83,6 +86,10 @@ export default function HomeScreen() {
           setFomoItems(fomoRes.data?.items || []);
           if (predRes.data) setPredict(predRes.data);
           if (coinsRes.data) setCoinsStatus(coinsRes.data);
+          // Trigger confetti if we just awarded daily-open coins
+          if (_openCoinsAward?.data?.awarded && _openCoinsAward.data.awarded > 0) {
+            setShowConfetti(true);
+          }
         } catch (e) { console.error('Phase2 err', e); }
       });
     } catch (error) {
@@ -138,6 +145,7 @@ export default function HomeScreen() {
 
   return (
     <SafeAreaView style={styles.container}>
+      <Confetti trigger={showConfetti} onDone={() => setShowConfetti(false)} />
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scroll}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={COLORS.accent.primary} />}>
 
@@ -160,6 +168,9 @@ export default function HomeScreen() {
             <View style={styles.avatarBadge}><Ionicons name="settings-sharp" size={10} color="#fff" /></View>
           </TouchableOpacity>
         </View>
+
+        {/* MintU 2.0 — Daily Quest Card (habit loop) */}
+        <DailyQuestCard coinsStatus={coinsStatus} />
 
         {/* MintU 2.0 — Top-of-home Pill Row (Coins + Percentile + Streak) */}
         {(coinsStatus || leaderboard || snapshot) && (

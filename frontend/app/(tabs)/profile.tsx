@@ -386,15 +386,30 @@ export default function ProfileScreen() {
                   </View>
                 </View>
 
-                {/* Next Milestone */}
-                {referral.next_milestone?.friends_needed > 0 && (
-                  <View style={s.refMilestone}>
-                    <Ionicons name="flag" size={14} color="#F59E0B" />
-                    <Text style={s.refMilestoneText}>
-                      Invite <Text style={{ fontWeight: '800', color: COLORS.accent.primary }}>{referral.next_milestone.friends_needed}</Text> more to unlock <Text style={{ fontWeight: '800' }}>{referral.next_milestone.reward}</Text>
-                    </Text>
-                  </View>
-                )}
+                {/* Next Milestone with progress bar */}
+                {referral.next_milestone?.friends_needed > 0 && (() => {
+                  const current = referral.referral_count || 0;
+                  const target = (referral.next_milestone?.target ?? (current + referral.next_milestone.friends_needed)) || 1;
+                  const prevTarget = (referral.reward_tiers || []).filter((t: any) => t.unlocked).slice(-1)[0]?.target || 0;
+                  const pct = Math.min(100, Math.round(((current - prevTarget) / Math.max(target - prevTarget, 1)) * 100));
+                  return (
+                    <View style={s.refMilestoneWrap}>
+                      <View style={s.refMilestone}>
+                        <Ionicons name="flag" size={14} color="#F59E0B" />
+                        <Text style={s.refMilestoneText}>
+                          Invite <Text style={{ fontWeight: '800', color: COLORS.accent.primary }}>{referral.next_milestone.friends_needed}</Text> more to unlock <Text style={{ fontWeight: '800' }}>{referral.next_milestone.reward}</Text>
+                        </Text>
+                      </View>
+                      <View style={s.refProgressTrack}>
+                        <View style={[s.refProgressFill, { width: `${pct}%` }]} />
+                      </View>
+                      <View style={s.refProgressLabels}>
+                        <Text style={s.refProgressLbl}>{current}</Text>
+                        <Text style={s.refProgressLbl}>{target}</Text>
+                      </View>
+                    </View>
+                  );
+                })()}
 
                 {/* Referral Code */}
                 <View style={s.refCodeBox}>
@@ -600,6 +615,11 @@ const s = StyleSheet.create({
   refStatLbl: { fontSize: 10, fontWeight: '600', color: COLORS.text.muted, marginTop: 2 },
   refStatDivider: { width: 1, height: 28, backgroundColor: '#FDE68A' },
   refMilestone: { flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: '#FEF3C7', borderRadius: 10, padding: 10, marginTop: 10 },
+  refMilestoneWrap: { marginTop: 10 },
+  refProgressTrack: { height: 6, backgroundColor: '#F59E0B20', borderRadius: 999, overflow: 'hidden', marginTop: 8 },
+  refProgressFill: { height: '100%', backgroundColor: '#F59E0B', borderRadius: 999 },
+  refProgressLabels: { flexDirection: 'row', justifyContent: 'space-between', marginTop: 4 },
+  refProgressLbl: { fontSize: 10, fontWeight: '700', color: COLORS.text.muted },
   refMilestoneText: { flex: 1, fontSize: 12, color: '#92400E', lineHeight: 17 },
   refCodeBox: { flexDirection: 'row', alignItems: 'center', backgroundColor: COLORS.bg.primary, borderWidth: 1, borderColor: COLORS.accent.primary + '30', borderStyle: 'dashed', borderRadius: 14, padding: 14, marginTop: 12 },
   refCodeLbl: { fontSize: 9, fontWeight: '800', letterSpacing: 1, color: COLORS.text.muted },
