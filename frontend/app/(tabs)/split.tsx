@@ -18,6 +18,7 @@ import SettleUpCard from '../../components/split/SettleUpCard';
 import RemindersBanner from '../../components/split/RemindersBanner';
 import LeaderboardCard from '../../components/split/LeaderboardCard';
 import CreateGroupSheet from '../../components/split/CreateGroupSheet';
+import ContactPickerSheet from '../../components/split/ContactPickerSheet';
 import ExpenseSheet from '../../components/split/ExpenseSheet';
 import GroupSummarySheet from '../../components/split/GroupSummarySheet';
 import GroupManageSheet from '../../components/split/GroupManageSheet';
@@ -108,9 +109,9 @@ export default function SplitScreen() {
   const close = () => { setModal(''); setRemindTarget(null); setEditingExpense(null); };
 
   // GROUP CRUD
-  const createGroup = async (name: string, phones: string[]) => {
+  const createGroup = async (name: string, phones: string[], emoji?: string) => {
     try {
-      await api.post('/split/groups', { name, members: phones });
+      await api.post('/split/groups', { name, members: phones, ...(emoji ? { custom_emoji: emoji } : {}) });
       close(); fetchData();
       Toast.show({ type: 'success', text1: 'Group Created!', text2: `${name} is ready` });
     } catch (e: any) { Toast.show({ type: 'error', text1: 'Error', text2: e.response?.data?.detail || 'Failed' }); }
@@ -388,6 +389,7 @@ export default function SplitScreen() {
           </View>
         ) : groups.map((gr: any) => {
           const av = getGA(gr.name);
+          const displayEmoji = gr.custom_emoji || av.emoji;
           return (
             <PressableGlass
               key={gr.id}
@@ -396,7 +398,7 @@ export default function SplitScreen() {
               style={s.groupCard}
             >
               <LinearGradient colors={av.colors.map(c => c + '20') as any} style={s.groupAv}>
-                <Text style={s.groupEmoji}>{av.emoji}</Text>
+                <Text style={s.groupEmoji}>{displayEmoji}</Text>
               </LinearGradient>
               <View style={s.groupInfo}>
                 <Text style={s.groupName} numberOfLines={1}>{gr.name}</Text>
@@ -415,7 +417,7 @@ export default function SplitScreen() {
       </ScrollView>
 
       {/* === SHEETS — lazy-mounted (only the active one renders) === */}
-      {modal === 'create' && <CreateGroupSheet visible={true} onClose={close} onCreate={createGroup} />}
+      {modal === 'create' && <ContactPickerSheet visible={true} onClose={close} onCreate={createGroup} />}
       {modal === 'expense' && <ExpenseSheet visible={true} onClose={close} group={selectedGroup} currentUserId={user?.id} editing={editingExpense} onSubmit={submitExpense} />}
       {modal === 'summary' && (
         <GroupSummarySheet

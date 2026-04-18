@@ -88,19 +88,58 @@ export default function GroupChat({ group, onClose, onAddExpense, onManage }: Pr
       );
     }
 
-    // Expense card
+    // Expense card (GPay-style: big amount, avatars, progress bar, X/N paid)
     if (item.type === 'expense' && item.expense_data) {
       const ed = item.expense_data;
+      const totalSplits = ed.split_count || ed.splits_count || 0;
+      // Count paid: 1 (the payer) + anyone with a settlement toward this expense (approximated via group-level)
+      const paidCount = ed.paid_count != null ? ed.paid_count : 1;
+      const progressPct = totalSplits > 0 ? Math.min(100, (paidCount / totalSplits) * 100) : 100;
+      const isFullyPaid = paidCount >= totalSplits;
+      const memberNames: string[] = ed.member_names || [];
       return (
         <View style={[s.msgRow, isMe ? s.msgRowR : s.msgRowL]}>
           {!isMe && <View style={[s.avatar, { backgroundColor: MEMBER_COLORS[0] + '20' }]}><Text style={[s.avatarT, { color: MEMBER_COLORS[0] }]}>{(item.sender_name || '?')[0]}</Text></View>}
-          <View style={{ maxWidth: '78%' }}>
+          <View style={{ maxWidth: '82%' }}>
             {!isMe && <Text style={s.senderName}>{item.sender_name}</Text>}
             <View style={s.expenseCard}>
-              <Text style={s.expenseLabel}>Split request</Text>
-              <Text style={s.expenseAmount}>₹{ed.amount?.toLocaleString()}</Text>
-              <Text style={s.expenseMeta}>{item.content} · {ed.split_count} people</Text>
-              <Text style={s.expensePaid}>Paid by {ed.paid_by}</Text>
+              <View style={s.expHead}>
+                <View style={[s.expEmojiWrap]}>
+                  <Ionicons name="receipt" size={16} color={COLORS.accent.primary} />
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text style={s.expTitle} numberOfLines={1}>{item.content}</Text>
+                  <Text style={s.expSub} numberOfLines={1}>Paid by {ed.paid_by} · {totalSplits} {totalSplits === 1 ? 'person' : 'people'}</Text>
+                </View>
+              </View>
+              <Text style={s.expenseAmount}>₹{Number(ed.amount || 0).toLocaleString('en-IN', { maximumFractionDigits: 0 })}</Text>
+              {/* Avatar stack */}
+              {memberNames.length > 0 && (
+                <View style={s.avatarStack}>
+                  {memberNames.slice(0, 5).map((nm, i) => (
+                    <View key={i} style={[s.stackAvatar, { backgroundColor: MEMBER_COLORS[i % MEMBER_COLORS.length] + '22', marginLeft: i === 0 ? 0 : -10, zIndex: 5 - i }]}>
+                      <Text style={[s.stackAvT, { color: MEMBER_COLORS[i % MEMBER_COLORS.length] }]}>{(nm || '?')[0].toUpperCase()}</Text>
+                    </View>
+                  ))}
+                  {memberNames.length > 5 && (
+                    <View style={[s.stackAvatar, { backgroundColor: COLORS.bg.secondary, marginLeft: -10 }]}>
+                      <Text style={[s.stackAvT, { color: COLORS.text.secondary }]}>+{memberNames.length - 5}</Text>
+                    </View>
+                  )}
+                </View>
+              )}
+              {/* Progress bar */}
+              <View style={s.progressTrack}>
+                <View style={[s.progressFill, { width: `${progressPct}%`, backgroundColor: isFullyPaid ? COLORS.accent.moneyIn : COLORS.accent.primary }]} />
+              </View>
+              <View style={s.expFooter}>
+                <Text style={[s.expStatus, isFullyPaid && { color: COLORS.accent.moneyIn }]}>
+                  {isFullyPaid ? '✅ All settled' : `${paidCount} of ${totalSplits} paid`}
+                </Text>
+                {!isFullyPaid && (
+                  <Text style={s.expPerPerson}>₹{Math.round((ed.amount || 0) / Math.max(totalSplits, 1)).toLocaleString('en-IN')} each</Text>
+                )}
+              </View>
             </View>
             <Text style={[s.time, isMe && { textAlign: 'right' }]}>{formatTime(item.created_at)}</Text>
           </View>
@@ -326,11 +365,31 @@ const s = StyleSheet.create({
   systemLine: { flex: 1, height: 1, backgroundColor: COLORS.border.subtle },
   systemText: { fontSize: 11, color: COLORS.text.muted, textAlign: 'center' },
   // Expense card
-  expenseCard: { backgroundColor: COLORS.bg.card, borderRadius: RADIUS.xl, padding: 16, borderWidth: 1, borderColor: COLORS.border.card, minWidth: 200 },
+  expenseCard: {
+    backgroundColor: COLORS.bg.card,
+    borderRadius: RADIUS.xl,
+    padding: 16,
+    borderWidth: 1,
+    borderColor: COLORS.border.card,
+    minWidth: 240,
+    gap: 10,
+  },
+  expHead: { flexDirection: 'row', alignItems: 'center', gap: 10 },
+  expEmojiWrap: { width: 32, height: 32, borderRadius: 10, backgroundColor: COLORS.accent.primary + '15', justifyContent: 'center', alignItems: 'center' },
+  expTitle: { fontSize: 14, fontWeight: '700', color: COLORS.text.primary },
+  expSub: { fontSize: 11, color: COLORS.text.muted, marginTop: 1 },
   expenseLabel: { fontSize: 12, fontWeight: '600', color: COLORS.text.muted },
-  expenseAmount: { fontSize: 28, fontWeight: '800', color: COLORS.text.primary, marginTop: 4 },
-  expenseMeta: { fontSize: 12, color: COLORS.text.muted, marginTop: 6 },
-  expensePaid: { fontSize: 11, color: COLORS.accent.moneyIn, fontWeight: '600', marginTop: 4 },
+  expenseAmount: { fontSize: 28, fontWeight: '800', color: COLORS.text.primary },
+  expenseMeta: { fontSize: 12, color: COLORS.text.muted },
+  expensePaid: { fontSize: 11, color: COLORS.accent.moneyIn, fontWeight: '600' },
+  avatarStack: { flexDirection: 'row', alignItems: 'center', marginTop: 2 },
+  stackAvatar: { width: 28, height: 28, borderRadius: 14, justifyContent: 'center', alignItems: 'center', borderWidth: 2, borderColor: COLORS.bg.card },
+  stackAvT: { fontSize: 11, fontWeight: '700' },
+  progressTrack: { height: 4, backgroundColor: COLORS.bg.secondary, borderRadius: 2, overflow: 'hidden' },
+  progressFill: { height: '100%', borderRadius: 2 },
+  expFooter: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
+  expStatus: { fontSize: 12, fontWeight: '700', color: COLORS.accent.primary },
+  expPerPerson: { fontSize: 11, color: COLORS.text.muted, fontWeight: '600' },
   // Sticker bar
   stickerBar: { paddingHorizontal: 12, paddingVertical: 8, borderTopWidth: 1, borderTopColor: COLORS.border.subtle, backgroundColor: COLORS.bg.card },
   stickerBtn: { width: 44, height: 44, borderRadius: 12, backgroundColor: COLORS.bg.primary, justifyContent: 'center', alignItems: 'center' },

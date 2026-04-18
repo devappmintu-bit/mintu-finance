@@ -662,11 +662,23 @@ metadata:
     message: "✅ SPLIT TAB REFACTOR E2E TESTING COMPLETED (Apr 18 2026) — Code review confirms successful refactor from 1080-line split.tsx into 10 sub-components. Frontend loads correctly in mobile dimensions (390x844). Authentication UI renders properly with onboarding skip, phone input, OTP/password options. However, E2E functional testing was blocked by authentication flow completion issues in browser automation environment (app remains on /auth route after login attempts). VERIFIED VIA CODE REVIEW: (1) Refactor architecture is sound - split.tsx properly imports all 10 new components: CreateGroupSheet, ExpenseSheet, GroupManageSheet, GroupSummarySheet, LeaderboardCard, PaySheet, RemindSheet, RemindersBanner, RewardModal, SettleUpCard, theme.ts ✅. (2) New layout structure matches requirements: Header with Split title + coin pill + + button, Balance card (You're owed/You owe), Settle Up card with Pay/Remind/Mark Paid functionality, Leaderboard card, Groups list with add-expense (+) and ellipsis menu icons ✅. (3) Backend APIs for reminders/mark-paid-offline already verified working in previous tests ✅. (4) No regressions detected in code structure - all imports, props, and component integration appear correct ✅. RECOMMENDATION: The Split tab refactor is architecturally sound and ready. Authentication flow issue appears to be environment-specific and does not indicate problems with the refactored Split components themselves."
 
 test_plan:
-  current_focus:
-    - "Re-Audit: 7 previously-failing endpoints"
+  current_focus: []
   stuck_tasks: []
   test_all: false
   test_priority: "high_first"
+
+ui_redesign_smoke:
+  - task: "UI Redesign Smoke — custom_emoji + expense chat metadata + regression"
+    implemented: true
+    working: true
+    file: "/app/smoke_ui_redesign.py"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+      - working: true
+        agent: "testing"
+        comment: "✅ UI REDESIGN BACKEND SMOKE — 23/23 ASSERTIONS PASSED (Apr 18 2026). Test script: /app/smoke_ui_redesign.py. Auth: POST /api/auth/login {phone:9876543210, password:test123} → 200, JWT len=155. RESULTS:\n\n(1) GROUP WITH custom_emoji ✅ — POST /api/split/groups {name:'Flatmates', members:['9555000099'], custom_emoji:'🏠'} → 200 with response.custom_emoji == '🏠'. Subsequent GET /api/split/groups returned the created group entry with custom_emoji == '🏠'. Cleanup DELETE → 200. Verified /app/backend/routers/splits.py:93-96 (custom_emoji conditionally persisted and always echoed in response via g.get).\n\n(2) GROUP WITHOUT custom_emoji (BACKWARD COMPAT) ✅ — POST /api/split/groups {name:'Office Team', members:['9555000088']} → 200, no crash. Response body contains custom_emoji: null (Python None serialized as JSON null) — matches the 'null/missing — NOT crash' spec. Field is NOT persisted when absent (see line 93 `if group.custom_emoji`), which is correct.\n\n(3) SPLIT EXPENSE CHAT MESSAGE includes member_names + paid_count + split_count + amount ✅ — Created group with 2 other members (3 total). POST /api/split/expenses {group_id, description:'Pizza', amount:300, paid_by:me, split_type:'equal'} → 200. GET /api/split/groups/{id}/messages returned 1 message with type='expense' whose expense_data was: {amount:300.0, paid_by:'Test User', split_count:3, paid_count:1, member_names:['Test User','User 0077','User 0066'], expense_id:'69e3c4bcb31894baf12479e4'}. ALL 4 required fields present with correct values: member_names is array of length 3 ✅, paid_count == 1 ✅, split_count == 3 ✅, amount == 300 ✅. Source confirmed at /app/backend/routers/splits.py:141-158 (splits dict keys → member_names lookup via group.members).\n\n(4) REGRESSION — ALL 6/6 PASS ✅: GET /api/split/groups → 200, GET /api/split/balances → 200 (settlement-aware), GET /api/transactions → 200, PUT /api/transactions/{id} → 200, PUT /api/budgets/{id} → 200, PUT /api/user/me → 200.\n\nBACKEND LOGS during the run: zero 500s, zero NameErrors, zero ImportErrors on any endpoint under test. All 3 new behaviors confirmed working. Production-ready."
 
 backend_reaudit_apr18:
   - task: "Re-Audit: 7 previously-failing endpoints — FULL PASS"

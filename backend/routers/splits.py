@@ -33,6 +33,7 @@ SETTLEMENT_REWARDS = {
 class SplitGroupCreate(BaseModel):
     name: str
     members: List[str]  # List of phone numbers
+    custom_emoji: Optional[str] = None  # Optional user-selected emoji icon (overrides auto-derived)
 
 
 class SplitExpenseCreate(BaseModel):
@@ -89,8 +90,10 @@ async def create_split_group(group: SplitGroupCreate, user_id: str = Depends(get
             members.append({"user_id": mid, "name": m.get("name", f"User {p[-4:]}"), "phone": p})
     
     g = {"name": group.name, "members": members, "created_by": user_id, "created_at": datetime.utcnow()}
+    if group.custom_emoji:
+        g["custom_emoji"] = group.custom_emoji
     result = await db.split_groups.insert_one(g)
-    return {"id": str(result.inserted_id), "name": g["name"], "members": members}
+    return {"id": str(result.inserted_id), "name": g["name"], "members": members, "custom_emoji": g.get("custom_emoji")}
 
 
 @api_router.get("/split/groups")
@@ -138,9 +141,19 @@ async def add_split_expense(expense: SplitExpenseCreate, user_id: str = Depends(
     # Auto-insert chat message for the expense
     payer_name = next((m["name"] for m in group["members"] if m["user_id"] == user_id), "Someone")
     member_count = len(splits)
+    # Collect display names for the avatar stack in the chat card
+    split_member_names = [next((m["name"] for m in group["members"] if m["user_id"] == uid), "?") for uid in splits.keys()]
     await db.split_messages.insert_one({
         "group_id": expense.group_id, "type": "expense", "sender_id": user_id, "sender_name": payer_name,
-        "content": expense.description, "expense_data": {"amount": expense.amount, "paid_by": payer_name, "split_count": member_count, "expense_id": str(result.inserted_id)},
+        "content": expense.description,
+        "expense_data": {
+            "amount": expense.amount,
+            "paid_by": payer_name,
+            "split_count": member_count,
+            "paid_count": 1,  # payer auto-counts as paid
+            "member_names": split_member_names,
+            "expense_id": str(result.inserted_id),
+        },
         "created_at": datetime.utcnow()
     })
     return {"id": str(result.inserted_id), **{k: v for k, v in exp_doc.items() if k != "_id"}, "created_at": exp_doc["created_at"]}

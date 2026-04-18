@@ -11,7 +11,8 @@
     "ios": {
       "supportsTablet": true,
       "infoPlist": {
-        "NSMicrophoneUsageDescription": "Record voice to add expenses hands-free"
+        "NSMicrophoneUsageDescription": "Record voice to add expenses hands-free",
+        "NSContactsUsageDescription": "Pick friends to split group expenses"
       }
     },
     "android": {
@@ -20,7 +21,7 @@
         "backgroundColor": "#000"
       },
       "edgeToEdgeEnabled": true,
-      "permissions": ["RECORD_AUDIO"]
+      "permissions": ["RECORD_AUDIO", "READ_CONTACTS"]
     },
     "web": {
       "bundler": "metro",
