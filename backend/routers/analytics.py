@@ -413,6 +413,11 @@ async def home_snapshot(user_id: str = Depends(get_current_user)):
 
     # Pace headline
     savings_rate = round(((mtd_income - mtd_spend) / max(mtd_income, 1)) * 100, 1) if mtd_income > 0 else 0
+    # Safety cap: clamp to realistic band (prevent misleading 99% savings when user hasn't tracked expenses).
+    if savings_rate > 95:
+        savings_rate = 95.0
+    if savings_rate < -200:
+        savings_rate = -200.0
     if mtd_spend == 0:
         pace_headline = "No spending tracked yet this month"
         pace_emoji = "📭"

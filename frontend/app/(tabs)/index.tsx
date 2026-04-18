@@ -172,6 +172,12 @@ export default function HomeScreen() {
         {/* MintU 2.0 — Daily Quest Card (habit loop) */}
         <DailyQuestCard coinsStatus={coinsStatus} />
 
+        {/* Transparency Notice — RBI-friendly data freshness disclosure */}
+        <View style={styles.transparencyStrip}>
+          <Ionicons name="information-circle-outline" size={14} color="#475569" />
+          <Text style={styles.transparencyText}>Data updates when you refresh or add transactions · Pull down to sync</Text>
+        </View>
+
         {/* MintU 2.0 — Top-of-home Pill Row (Coins + Percentile + Streak) */}
         {(coinsStatus || leaderboard || snapshot) && (
           <View style={styles.pillRow}>
@@ -555,6 +561,9 @@ const styles = StyleSheet.create({
   predictCard: { backgroundColor: '#FFFFFF', borderRadius: RADIUS.card, padding: 14, marginBottom: SPACING.lg, borderWidth: 1, borderColor: '#8B5CF630', ...shadowStyle('#8B5CF6', 2, 10, 0.08, 3) },
   // MintU 2.0 — Top-of-home pill row (gamification)
   pillRow: { flexDirection: 'row', gap: 8, marginBottom: 14, flexWrap: 'wrap' },
+  // Transparency notice strip — RBI-friendly data freshness disclosure
+  transparencyStrip: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingVertical: 8, paddingHorizontal: 12, backgroundColor: '#F1F5F9', borderRadius: 10, marginBottom: 10 },
+  transparencyText: { flex: 1, fontSize: 10.5, color: '#475569', fontWeight: '600', lineHeight: 14 },
   pill: { flexDirection: 'row', alignItems: 'center', gap: 5, paddingHorizontal: 12, paddingVertical: 8, borderRadius: 999, borderWidth: 1, position: 'relative' },
   pillCoin: { backgroundColor: '#FEF3C7', borderColor: '#F59E0B40' },
   pillRank: { backgroundColor: '#DBEAFE', borderColor: '#3B82F640' },
