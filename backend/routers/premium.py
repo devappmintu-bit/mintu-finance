@@ -46,6 +46,10 @@ router = APIRouter(tags=["premium"])
 api_router = router  # extracted code uses @api_router.*
 
 
+class CreateOrderRequest(BaseModel):
+    plan: str  # "monthly", "yearly", "intro"
+
+
 
 @api_router.get("/premium/status")
 async def get_premium_status(user_id: str = Depends(get_current_user)):

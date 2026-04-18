@@ -3,6 +3,7 @@
 Lazy-imports any helpers still living in server.py via _srv() shim.
 """
 import os
+import re
 import json
 import logging
 import hashlib
@@ -15,6 +16,17 @@ from fastapi import APIRouter, Depends, HTTPException, Request
 from pydantic import BaseModel
 
 from core import db, get_current_user, cache_get, cache_set, cache_clear_prefix
+
+
+class RecurringExpenseCreate(BaseModel):
+    description: str
+    amount: float
+    category: str
+    frequency: str  # "daily", "weekly", "monthly"
+
+
+class QuickCashEntry(BaseModel):
+    text: str  # e.g. "₹50 auto", "200 sabzi", "milk 50"
 
 
 def _srv():

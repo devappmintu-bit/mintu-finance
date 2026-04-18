@@ -46,6 +46,10 @@ router = APIRouter(tags=["notifications"])
 api_router = router  # extracted code uses @api_router.*
 
 
+class PushTokenRegister(BaseModel):
+    push_token: str
+
+
 
 @api_router.post("/notifications/register-token")
 async def register_push_token(data: PushTokenRegister, user_id: str = Depends(get_current_user)):
