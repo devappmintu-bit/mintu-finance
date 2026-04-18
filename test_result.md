@@ -661,6 +661,19 @@ test_plan:
   test_all: false
   test_priority: "completed"
 
+backend_family_router:
+  - task: "Family Router Extraction Smoke Test"
+    implemented: true
+    working: true
+    file: "/app/backend/routers/family.py"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+      - working: true
+        agent: "testing"
+        comment: "✅ FAMILY ROUTER SMOKE TEST PASSED (Apr 18 2026) - ALL 7/7 ENDPOINTS 200 OK, ZERO 500s. After extraction of family endpoints to routers/family.py (server.py: 4702 → 4541 lines), all flows verified: (1) POST /api/family/create {name:'Test Family'} → 200 with id=69e33b99d7f0dd069da129f7, owner=Test User, members[1] ✅. (2) GET /api/family/my-groups → 200 array, includes new family ✅. (3) POST /api/family/{id}/budget {category:Groceries, amount:10000, period:monthly} → 200 with id ✅. (4) GET /api/family/{id}/budgets → 200 with group_name='Test Family', members[1], budgets[1] (Groceries: spent ₹2800 aggregated from member transactions, member_spending dict populated) ✅. (5) GET /api/family/{id}/summary → 200 with total_income ₹76000, total_expense ₹25500, balance ₹50500, member_count=1, member_stats[1] ✅. REGRESSION: (6) GET /api/budgets → 200 array of 6 personal budgets with spent amounts (budgets_router still mounted) ✅. (7) GET /api/transactions?limit=5 → 200 array of 5 transactions ✅. Refactor is production-safe; no regression."
+
 test_credentials:
   - phone: "9876543210"
     otp: "123456"
