@@ -200,7 +200,7 @@ async def get_daily_lesson(user_id: str = Depends(get_current_user), lang: str =
 
 @api_router.post("/ai/chat")
 async def ai_financial_coach(msg: ChatMessage, user_id: str = Depends(get_current_user)):
-    """AI Financial Coach — personalized advice based on real spending data"""
+    """AI Financial Coach — structured, data-aware, actionable (mirrors /ai/agent-chat format)."""
     from bson import ObjectId
     
     # Gather user's financial context
@@ -211,64 +211,122 @@ async def ai_financial_coach(msg: ChatMessage, user_id: str = Depends(get_curren
     now = datetime.utcnow()
     month_start = now.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
     
-    # Aggregate spending data
+    # Aggregate spending
     pipeline = [
         {"$match": {"user_id": user_id, "date": {"$gte": month_start}}},
         {"$group": {"_id": "$category", "total": {"$sum": "$amount"}, "count": {"$sum": 1}}}
     ]
-    category_spend = {doc["_id"]: doc["total"] async for doc in db.transactions.aggregate(pipeline)}
-    total_expense = sum(v for v in category_spend.values())
+    category_spend = {}
+    async for doc in db.transactions.aggregate(pipeline):
+        category_spend[doc["_id"]] = {"total": doc["total"], "count": doc["count"]}
+    total_expense = sum(v["total"] for v in category_spend.values())
+    total_txn_count = sum(v["count"] for v in category_spend.values())
     
+    # Income
     income_pipeline = [
         {"$match": {"user_id": user_id, "type": {"$in": ["income", "credit"]}, "date": {"$gte": month_start}}},
-        {"$group": {"_id": None, "total": {"$sum": "$amount"}}}
+        {"$group": {"_id": None, "total": {"$sum": "$amount"}, "count": {"$sum": 1}}}
     ]
     income_docs = await db.transactions.aggregate(income_pipeline).to_list(1)
     total_income = income_docs[0]["total"] if income_docs else 0
+    income_count = income_docs[0]["count"] if income_docs else 0
     
-    budgets = await db.budgets.find({"user_id": user_id}).to_list(20)
-    budget_info = {b["category"]: b["amount"] for b in budgets}
+    # Budgets + duplicate detection
+    budgets = await db.budgets.find({"user_id": user_id}).to_list(50)
+    budget_cats = [b["category"] for b in budgets]
+    duplicate_budgets = sorted({c for c in budget_cats if budget_cats.count(c) > 1})
     
-    # Build rich context for AI
-    context = f"""User: {user.get('name', 'User')} | Money Score: {user.get('money_score', 50)}/100
-Monthly Income: ₹{total_income:,.0f} | Monthly Expenses: ₹{total_expense:,.0f} | Savings: ₹{max(0, total_income - total_expense):,.0f}
-Category-wise spending this month: {', '.join(f'{k}: ₹{v:,.0f}' for k, v in category_spend.items()) or 'No data yet'}
-Budgets set: {', '.join(f'{k}: ₹{v:,.0f}' for k, v in budget_info.items()) or 'None'}
-Streak: {user.get('streak_days', 0)} days
-India context: Average Indian household spends ~₹15,000-25,000/month. User is in India."""
+    # Data mode
+    if total_txn_count == 0:
+        data_mode = "no_data"
+    elif total_txn_count < 5 or income_count == 0:
+        data_mode = "partial"
+    else:
+        data_mode = "full"
+    
+    # Detected issues
+    detected_issues = []
+    if duplicate_budgets:
+        detected_issues.append(f"Duplicate budgets for: {', '.join(duplicate_budgets)}")
+    if total_txn_count > 0 and income_count == 0:
+        detected_issues.append("No income recorded this month — savings rate cannot be computed accurately")
+    if total_txn_count == 0:
+        detected_issues.append("No transactions tracked yet this month")
+    if total_income > 0 and total_expense > total_income * 2:
+        detected_issues.append(f"Expenses (₹{total_expense:,.0f}) exceed 2x income (₹{total_income:,.0f}) — possible untracked income")
+    
+    # Rule-based CTAs
+    msg_lower = (msg.message or "").lower()
+    suggested_ctas = []
+    if total_txn_count == 0:
+        suggested_ctas.append({"id": "scan_sms", "label": "Scan SMS for expenses", "icon": "scan", "action": "navigate:/transactions?openSmsScan=1"})
+        suggested_ctas.append({"id": "add_expense", "label": "Add first expense", "icon": "add-circle", "action": "navigate:/transactions?openAdd=1"})
+    elif income_count == 0:
+        suggested_ctas.append({"id": "add_income", "label": "Add income", "icon": "cash", "action": "navigate:/transactions?openAdd=1&type=credit"})
+    if duplicate_budgets:
+        suggested_ctas.append({"id": "fix_budget", "label": "Fix duplicate budgets", "icon": "build", "action": "navigate:/budget"})
+    if total_txn_count > 0 and len(budgets) == 0:
+        suggested_ctas.append({"id": "set_budget", "label": "Set a budget", "icon": "pie-chart", "action": "navigate:/budget"})
+    if any(k in msg_lower for k in ["split", "owe", "friend", "group"]):
+        suggested_ctas.append({"id": "open_split", "label": "Open Splits", "icon": "people", "action": "navigate:/split"})
+    if any(k in msg_lower for k in ["report", "weekly", "trend", "insight"]):
+        suggested_ctas.append({"id": "weekly_report", "label": "View weekly report", "icon": "bar-chart", "action": "navigate:/"})
+    seen = set()
+    suggested_ctas = [c for c in suggested_ctas if not (c["id"] in seen or seen.add(c["id"]))][:3]
+    
+    savings_rate_val = round(((total_income - total_expense) / max(total_income, 1)) * 100, 1) if total_income > 0 else 0
+    
+    # Build structured context
+    context = f"""USER FINANCIAL PROFILE:
+Name: {user.get('name', 'User')} | Money Score: {user.get('money_score', 50)}/100
+Monthly Income: ₹{total_income:,.0f} ({income_count} txns) | Monthly Expenses: ₹{total_expense:,.0f} ({total_txn_count} txns)
+Savings: ₹{max(0, total_income - total_expense):,.0f} | Savings Rate: {savings_rate_val}%
+DATA MODE: {data_mode.upper()}
+DETECTED ISSUES: {'; '.join(detected_issues) if detected_issues else 'None'}
 
-    system_prompt = f"""You are MintU AI Coach — a warm, professional, personalized Indian money mentor. Think of yourself as a trusted friend with a finance degree.
+CATEGORY SPENDING (This Month):
+{chr(10).join(f'  {cat}: ₹{data["total"]:,.0f} ({data["count"]} txns)' for cat, data in sorted(category_spend.items(), key=lambda x: x[1]["total"], reverse=True)) or '  No data yet'}
 
-TONE & PERSONALITY:
-- Warm, friendly, encouraging — NEVER preachy or condescending
-- Celebrate small wins ("Loved that you saved ₹400 on Zomato this week!")
-- Honest when needed, but always kind — never shame spending
-- Use the user's name when you have it
-- Occasional emojis for warmth (💡 🎯 💪 🌟) — not every sentence
+BUDGETS: {', '.join(f'{b["category"]}: ₹{b["amount"]:,.0f}' for b in budgets) or 'None'}"""
 
-FORMATTING (CRITICAL — output in WhatsApp-style markdown):
-- Lead with a **bold one-line headline** using ** (will render bold in chat)
-- Use **bold** for key numbers (e.g. **₹2,400**, **15%**)
-- Break advice into short digestible chunks using line breaks (never wall-of-text)
-- Bullet points with "•" or emoji prefixes for lists
-- End with ONE clear, specific action they can do TODAY
-- Keep responses 4-8 short lines (including spacing)
+    mode_rules = {
+        "no_data": "\nMODE: NO_DATA — DO NOT give financial advice. Guide them to add their first expense, scan SMS, or set income.",
+        "partial": "\nMODE: PARTIAL_DATA — Provide LOW-CONFIDENCE insights. Explicitly mention confidence is limited. Suggest what data to add.",
+        "full": "\nMODE: FULL_DATA — Deliver SPECIFIC, data-grounded recommendations using exact categories and ₹ amounts.",
+    }
 
-PERSONALIZATION:
-- ALWAYS reference their actual data from the context below
-- Name specific merchants/categories from their transactions
-- Quote real amounts (not generic "₹X")
-- Compare current behavior to their past (e.g. "vs last week you're down 12%")
+    system_prompt = f"""You are MintU AI Coach — a product-native financial assistant for Indian users.
 
-USER'S FINANCIAL CONTEXT:
 {context}
+{mode_rules[data_mode]}
+
+MANDATORY RESPONSE STRUCTURE — use EXACTLY this 4-block format:
+
+**[Direct Answer]**
+One sentence directly answering the question.
+
+**Your Snapshot:**
+• Income: ₹<amount> this month
+• Expenses: ₹<amount> this month
+• <one more relevant data point>
+
+**Key Insight:**
+• <ONE specific observation from their actual data OR a detected issue from the list above>
+
+**Next Step:**
+• <ONE concrete action they can take right now>
 
 RULES:
-- India-specific advice only (SIPs via Groww/Zerodha, ELSS, NPS, PPF, FD rates, UPI, credit cards, Swiggy/Zomato etc.)
-- NEVER give advice without grounding it in their data
-- NEVER use jargon without explaining it simply
-- End every response with a concrete, actionable next step
-- If you lack data, say so warmly ("I don't see enough yet — track 5-10 expenses and I'll give you a much sharper plan!")""" + get_lang_instruction(msg.lang or "en")
+- Friendly but PROFESSIONAL. Zero slang (never "yaar", "bro", "dude", "yaan").
+- Every line is a bullet or bold header. No paragraphs.
+- Total response: 6-8 lines max.
+- Use ₹ with thousands separators (₹12,500).
+- Maximum ONE emoji per response.
+- NEVER invent numbers — use only values from USER FINANCIAL PROFILE above.
+- If detected issues exist, surface them in Key Insight.
+- Avoid generic advice — every insight must reference a specific category, amount, or behavior.
+- India-specific only (SIPs via Groww/Zerodha, ELSS, NPS, PPF, UPI, Swiggy/Zomato).
+""" + get_lang_instruction(msg.lang or "en")
 
     try:
         llm_key = os.environ.get("EMERGENT_LLM_KEY", "")
@@ -283,24 +341,56 @@ RULES:
         
         return {
             "reply": response_text,
+            "mode": data_mode,
+            "issues": detected_issues,
+            "ctas": suggested_ctas,
             "context_used": {
                 "money_score": user.get("money_score", 50),
                 "monthly_expense": total_expense,
                 "monthly_income": total_income,
-                "top_category": max(category_spend, key=category_spend.get) if category_spend else None,
+                "savings_rate": savings_rate_val,
+                "transaction_count": total_txn_count,
+                "top_category": max(category_spend, key=lambda k: category_spend[k]["total"]) if category_spend else None,
             }
         }
     except Exception as e:
         logging.error(f"AI Coach error: {e}")
-        # Fallback: rule-based advice
-        savings_rate = ((total_income - total_expense) / max(total_income, 1)) * 100 if total_income > 0 else 0
-        if savings_rate > 30:
-            reply = f"You're saving {savings_rate:.0f}% — that's solid, yaar! 💪 Consider putting ₹{int((total_income-total_expense)*0.5):,} into a SIP for long-term wealth."
-        elif savings_rate > 10:
-            reply = f"Saving {savings_rate:.0f}% is decent, but let's push to 30%. Your top spend is {max(category_spend, key=category_spend.get) if category_spend else 'unknown'} — can we cut ₹500 there?"
+        # Structured rule-based fallback
+        if data_mode == "no_data":
+            reply = (
+                "**Let's get started**\n\n"
+                "**Your Snapshot:**\n"
+                "• No transactions tracked this month yet\n\n"
+                "**Key Insight:**\n"
+                "• I cannot provide personalized advice without transaction data\n\n"
+                "**Next Step:**\n"
+                "• Scan your SMS inbox or add your first expense"
+            )
         else:
-            reply = f"Your savings rate is {savings_rate:.0f}% — let's fix this! Start with cutting ₹200/week from discretionary spending. Small steps = big results. 🚀"
-        return {"reply": reply, "context_used": {"money_score": user.get("money_score", 50), "monthly_expense": total_expense}}
+            top_cat = max(category_spend, key=lambda k: category_spend[k]["total"]) if category_spend else "—"
+            reply = (
+                f"**Quick summary**\n\n"
+                f"**Your Snapshot:**\n"
+                f"• Income: ₹{total_income:,.0f} | Expenses: ₹{total_expense:,.0f}\n"
+                f"• Top category: {top_cat}\n\n"
+                f"**Key Insight:**\n"
+                f"• {detected_issues[0] if detected_issues else f'Tracking {total_txn_count} transactions across {len(category_spend)} categories'}\n\n"
+                f"**Next Step:**\n"
+                f"• {suggested_ctas[0]['label'] if suggested_ctas else 'Keep tracking expenses for sharper insights'}"
+            )
+        return {
+            "reply": reply,
+            "mode": data_mode,
+            "issues": detected_issues,
+            "ctas": suggested_ctas,
+            "context_used": {
+                "money_score": user.get("money_score", 50),
+                "monthly_expense": total_expense,
+                "monthly_income": total_income,
+                "savings_rate": savings_rate_val,
+                "transaction_count": total_txn_count,
+            }
+        }
 
 
 @api_router.get("/waste-detector")

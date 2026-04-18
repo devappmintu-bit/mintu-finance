@@ -171,6 +171,24 @@ export default function InsightsScreen() {
             </View>
           )}
 
+          {/* Partial-mode prompt: sharpen insights by adding more data */}
+          {!isUser && !item.loading && item.mode === 'partial' && (
+            <TouchableOpacity
+              style={styles.sharpenBtn}
+              onPress={() => router.push('/transactions' as any)}
+              activeOpacity={0.85}
+            >
+              <View style={styles.sharpenIconWrap}>
+                <Ionicons name="sparkles" size={14} color="#F59E0B" />
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.sharpenTitle}>Sharpen insights</Text>
+                <Text style={styles.sharpenSub}>Add more transactions to unlock high-confidence analysis</Text>
+              </View>
+              <Ionicons name="arrow-forward" size={14} color="#F59E0B" />
+            </TouchableOpacity>
+          )}
+
           {/* Action CTAs */}
           {!isUser && !item.loading && item.ctas && item.ctas.length > 0 && (
             <View style={styles.ctaRow}>
@@ -283,6 +301,11 @@ const styles = StyleSheet.create({
   // Detected issues
   issuesBox: { flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: '#FFF4E5', borderLeftWidth: 3, borderLeftColor: '#E65100', paddingVertical: 8, paddingHorizontal: 10, borderRadius: 8, marginTop: 8 },
   issuesText: { flex: 1, fontSize: 12, color: '#7C2D12', fontWeight: '500', lineHeight: 17 },
+  // Partial-mode sharpen insights nudge
+  sharpenBtn: { flexDirection: 'row', alignItems: 'center', gap: 10, backgroundColor: '#FFFBEB', borderWidth: 1, borderColor: '#F59E0B40', borderRadius: 12, padding: 10, marginTop: 8 },
+  sharpenIconWrap: { width: 28, height: 28, borderRadius: 14, backgroundColor: '#F59E0B20', justifyContent: 'center', alignItems: 'center' },
+  sharpenTitle: { fontSize: 12, fontWeight: '800', color: '#92400E' },
+  sharpenSub: { fontSize: 11, color: '#B45309', marginTop: 1 },
   // CTA action buttons
   ctaRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginTop: 10 },
   ctaBtn: { flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: COLORS.accent.primary + '12', borderWidth: 1, borderColor: COLORS.accent.primary + '35', paddingHorizontal: 12, paddingVertical: 8, borderRadius: 999 },

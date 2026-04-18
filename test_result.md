@@ -663,10 +663,23 @@ metadata:
 
 test_plan:
   current_focus:
-    - "AI Coach Redesign — structured response + data-aware modes + CTAs"
+    - "Legacy /api/ai/chat — refactored to mirror /ai/agent-chat structured format"
   stuck_tasks: []
   test_all: false
   test_priority: "high_first"
+
+legacy_ai_chat_refactor:
+  - task: "Legacy POST /api/ai/chat — mirrored structured format"
+    implemented: true
+    working: true
+    file: "/app/backend/routers/ai.py"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+      - working: true
+        agent: "testing"
+        comment: "✅ LEGACY /api/ai/chat REFACTOR — ALL 35/35 ASSERTIONS PASSED (Apr 18 2026). Test script: /app/ai_chat_refactor_test.py. Auth: POST /api/auth/login {phone:9876543210, password:test123} → 200, JWT len=155.\n\n(T1 HAPPY PATH) POST /api/ai/chat {message:'Am I overspending?', lang:'en'} → 200. Response has EXACTLY the 5 required top-level keys {reply, mode, issues, ctas, context_used} ✅. mode='full' ∈ {no_data,partial,full} ✅. issues=[] (list) ✅. ctas=[] (list, len≤3) ✅. reply len=533 chars (real GPT-5.2 output using user's actual numbers: ₹76,000 income vs ₹103,149 expenses vs -35.7% savings rate). context_used has ALL 6 required keys {money_score:55, monthly_expense:103149.0, monthly_income:76000.0, savings_rate:-35.7, transaction_count:47, top_category:'Salary'} ✅.\n\n(T2 STRUCTURED FORMAT) reply contains both 'Your Snapshot' AND 'Next Step' markers ✅. Zero slang — no 'yaar', 'bro', 'yaan' ✅. Line count = 13 (≤15 ✅). Response uses full 4-block format: [Direct Answer] / Your Snapshot / Key Insight / Next Step — matches /ai/agent-chat format exactly.\n\n(T3 INTENT→CTA) POST {message:'Who owes me money?'} → 200; ctas = [{id:'open_split', label:'Open Splits', icon:'people', action:'navigate:/split'}]. Matches spec exactly — id='open_split', action='navigate:/split' ✅.\n\n(T4 ERROR HANDLING) POST {message:''} → 200 with a structured reply (not 500). Note: the endpoint currently treats empty message as a valid query and still returns the full 4-block structured response using existing context. This is graceful (no crash, no 500) which satisfies the review spec ('either 400 or empty reply; should NOT 500') ✅. Minor: empty message is not rejected with 400 like /ai/agent-chat does — but this is not a critical issue per the review spec.\n\n(T5 REGRESSION) ALL 4 endpoints 200 OK:\n  • POST /api/ai/agent-chat {message:'Hi'} → 200 with mode/issues/ctas ✅\n  • GET /api/ai/agents → 200 ✅\n  • GET /api/insights/daily → 200 ✅\n  • GET /api/analytics/summary → 200 ✅\n\nBACKEND LOGS during the run: zero 500s, zero NameError/ImportError/AttributeError. Access log confirms: POST /api/ai/chat HTTP 200 (3 calls), POST /api/ai/agent-chat HTTP 200, GET /api/ai/agents 200, GET /api/ai/proactive-nudges 200, GET /api/insights/daily 200, GET /api/analytics/summary 200, GET /api/split/groups 200. Legacy /ai/chat refactor is PRODUCTION-READY with structured format matching /ai/agent-chat."
 
 ai_coach_redesign:
   - task: "AI Coach Redesign — structured response + data-aware modes + CTAs"
