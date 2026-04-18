@@ -64,7 +64,7 @@ UPI_APPS = _lazy("UPI_APPS")
 @api_router.get("/upi/apps")
 async def get_upi_apps(user_id: str = Depends(get_current_user)):
     """Get list of supported UPI apps"""
-    return {"apps": UPI_APPS}
+    return {"apps": list(UPI_APPS)}
 
 
 @api_router.post("/upi/generate-qr")

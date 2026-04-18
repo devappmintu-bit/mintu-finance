@@ -67,7 +67,7 @@ SAMPLE_INDIAN_SMS = _lazy("SAMPLE_INDIAN_SMS")
 @api_router.get("/sms/sample-inbox")
 async def get_sample_sms_inbox():
     """Return sample Indian bank SMS for demo auto-import"""
-    return {"messages": SAMPLE_INDIAN_SMS, "count": len(SAMPLE_INDIAN_SMS)}
+    return {"messages": list(SAMPLE_INDIAN_SMS), "count": len(SAMPLE_INDIAN_SMS)}
 
 
 @api_router.post("/sms/bulk-parse")
