@@ -4638,12 +4638,14 @@ from routers import (
     gamification as gamification_router,
     content as content_router,
     transactions as transactions_router,
+    budgets as budgets_router,
 )
 api_router.include_router(news_router.router)
 api_router.include_router(referral_router.router)
 api_router.include_router(gamification_router.router)
 api_router.include_router(content_router.router)
 api_router.include_router(transactions_router.router)
+api_router.include_router(budgets_router.router)
 
 # Include router
 app.include_router(api_router)

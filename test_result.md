@@ -266,11 +266,11 @@ backend:
 
   - task: "Budget Management"
     implemented: true
-    working: false
+    working: true
     file: "/app/backend/routers/budgets.py"
-    stuck_count: 1
+    stuck_count: 0
     priority: "high"
-    needs_retesting: true
+    needs_retesting: false
     status_history:
       - working: "NA"
         agent: "main"
@@ -281,6 +281,9 @@ backend:
       - working: false
         agent: "testing"
         comment: "❌ CRITICAL REGRESSION AFTER BUDGETS REFACTOR (Apr 18 2026): The budgets router at /app/backend/routers/budgets.py is correctly implemented (POST/GET/DELETE /budgets with upsert logic, spent computation, 404 on invalid id), and `from routers.budgets import BudgetCreate` is imported in server.py line 244 — BUT the router itself is NEVER mounted onto api_router. server.py line 4635 imports only: news, referral, gamification, content, transactions. `budgets` is missing from both the import tuple (line 4635-4641) and the include_router calls (line 4642-4646). Meanwhile the original in-server handlers were removed (line 895-896 comment: 'Core CRUD moved to routers/budgets.py'). RESULT: ALL 3 core budget endpoints return 404 'Not Found'. Test 1 POST /api/budgets → 404 (expected 200). Tests 2/3/4/5 blocked by dependency on test 1. Regression test 6 (GET /api/transactions) and 7 (GET /api/gamification/status) likely still work but were not reached due to early abort. FIX: In /app/backend/server.py add `budgets as budgets_router,` to the import tuple (around line 4640) and `api_router.include_router(budgets_router.router)` after line 4646. One-line functional fix — DO NOT reset needs_retesting until verified."
+      - working: true
+        agent: "testing"
+        comment: "✅ BUDGETS ROUTER NOW MOUNTED (Apr 18 2026) — ALL 3 REVIEW ENDPOINTS RETURN 200 OK! Verified fix in server.py line 4641/4648 (budgets_router imported + included). Results: (1) POST /api/budgets {category:Food, amount:5000, period:monthly} → 200 with id=69dffd117327eb8685495774, spent=0, created_at set. Upsert semantics preserved. (2) GET /api/budgets → 200 array with multiple budgets; each has spent computed against period window (e.g. Food: spent=₹9,850 this month). (3) DELETE /api/budgets/{id} → 200 with message='Budget deleted'. Backend access log confirms 200s on /api/budgets, /api/budgets/{id}. Regression on transactions, user/me, referral/enhanced-status still 200 as before. Budget management is production-ready."
 
   - task: "Stats Overview"
     implemented: true
