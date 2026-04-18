@@ -1,7 +1,7 @@
 import { Stack } from 'expo-router';
 import { useEffect } from 'react';
 import { StatusBar } from 'expo-status-bar';
-import { LogBox } from 'react-native';
+import { LogBox, Platform } from 'react-native';
 import Toast from 'react-native-toast-message';
 import { toastConfig } from '../components/ToastConfig';
 import { useAuthStore } from '../store/authStore';
@@ -9,13 +9,29 @@ import { useLangStore } from '../store/langStore';
 
 // Silence noisy, non-actionable deprecation warnings from RN core + libs.
 // These warnings are informational for future RN versions and don't affect runtime.
-LogBox.ignoreLogs([
+const NOISY_PATTERNS = [
   '"shadow*" style props are deprecated',
   'props.pointerEvents is deprecated',
   '[expo-av]',
   '[expo-notifications]',
   'Listening to push token changes is not yet fully supported on web',
-]);
+];
+LogBox.ignoreLogs(NOISY_PATTERNS);
+
+// react-native-web routes warnings through console.warn — LogBox does not intercept there.
+// Patch it once at startup so 3rd-party library deprecations don't spam the browser console.
+if (Platform.OS === 'web' && typeof console !== 'undefined' && !(console as any).__mintuFiltered) {
+  const origWarn = console.warn.bind(console);
+  const origError = console.error.bind(console);
+  const shouldSuppress = (args: any[]) => {
+    const first = args[0];
+    if (typeof first !== 'string') return false;
+    return NOISY_PATTERNS.some(p => first.includes(p));
+  };
+  console.warn = (...args: any[]) => { if (!shouldSuppress(args)) origWarn(...args); };
+  console.error = (...args: any[]) => { if (!shouldSuppress(args)) origError(...args); };
+  (console as any).__mintuFiltered = true;
+}
 
 export default function RootLayout() {
   const loadFromStorage = useAuthStore((state) => state.loadFromStorage);
