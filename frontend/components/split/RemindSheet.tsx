@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, StyleSheet, Modal, TouchableOpacity, TextInput, KeyboardAvoidingView, Platform } from 'react-native';
+import { View, Text, StyleSheet, Modal, TouchableOpacity, TextInput, KeyboardAvoidingView, Platform, Linking } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { COLORS } from '../../utils/theme';
@@ -17,6 +17,25 @@ export default function RemindSheet({ visible, onClose, target, onSend }: Props)
   useEffect(() => { if (visible) setNote(''); }, [visible]);
 
   const remindeeName = target?.direction === 'owed_to_me' ? target?.from_name : target?.to_name;
+
+  const shareWhatsApp = async () => {
+    if (!target) return;
+    const amt = `₹${target.amount.toFixed(0)}`;
+    const grp = `${target.group_emoji} ${target.group_name}`;
+    const msg = (
+      `Hey ${remindeeName}! 👋\n\n` +
+      `Quick reminder — you owe me ${amt} for ${grp}.\n` +
+      (note ? `\n${note}\n` : '') +
+      `\nSettle via UPI in 1 tap 👉 https://mintu.app/settle\n\nSent from MintU 💸`
+    );
+    try {
+      const wa = `whatsapp://send?text=${encodeURIComponent(msg)}`;
+      const can = await Linking.canOpenURL(wa);
+      if (can) { Linking.openURL(wa); onSend(note.trim()); return; }
+    } catch {}
+    // Fall back to posting to in-app chat if WhatsApp not installed
+    onSend(note.trim());
+  };
 
   return (
     <Modal visible={visible} animationType="slide" transparent>
@@ -48,10 +67,16 @@ export default function RemindSheet({ visible, onClose, target, onSend }: Props)
               <Text style={s.remindHint}>
                 {`Will post a reminder in the group chat${Platform.OS !== 'web' ? ' + open WhatsApp' : ''}. 1 reminder/hour limit.`}
               </Text>
-              <TouchableOpacity onPress={() => onSend(note.trim())}>
+              <TouchableOpacity onPress={shareWhatsApp} activeOpacity={0.85}>
+                <LinearGradient colors={['#25D366', '#128C7E']} style={s.primaryBtn}>
+                  <Ionicons name="logo-whatsapp" size={18} color={C.inv} />
+                  <Text style={s.primaryBtnText}> Remind on WhatsApp</Text>
+                </LinearGradient>
+              </TouchableOpacity>
+              <TouchableOpacity onPress={() => onSend(note.trim())} activeOpacity={0.85} style={{ marginTop: 10 }}>
                 <LinearGradient colors={['#F59E0B', '#FB923C']} style={s.primaryBtn}>
                   <Ionicons name="notifications" size={18} color={C.inv} />
-                  <Text style={s.primaryBtnText}> Send Reminder</Text>
+                  <Text style={s.primaryBtnText}> In-app Reminder</Text>
                 </LinearGradient>
               </TouchableOpacity>
             </>

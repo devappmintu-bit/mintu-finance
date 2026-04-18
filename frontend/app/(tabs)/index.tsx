@@ -36,6 +36,7 @@ export default function HomeScreen() {
   const [avatar, setAvatar] = useState<string>('');
   const [news, setNews] = useState<any[]>([]);
   const [fomoItems, setFomoItems] = useState<any[]>([]);
+  const [coinsStatus, setCoinsStatus] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
 
@@ -59,7 +60,7 @@ export default function HomeScreen() {
       // Phase 2: Secondary data (deferred until after critical-path paint)
       InteractionManager.runAfterInteractions(async () => {
         try {
-          const [lessonRes, alertsRes, reportRes, lbRes, gameRes, cotdRes, newsRes, fomoRes, predRes] = await Promise.all([
+          const [lessonRes, alertsRes, reportRes, lbRes, gameRes, cotdRes, newsRes, fomoRes, predRes, coinsRes, _openCoinsAward] = await Promise.all([
             api.get(`/money-school/dynamic?lang=${lang}`).catch(() => ({ data: null })),
             api.get('/alerts/smart').catch(() => ({ data: { alerts: [] } })),
             api.get('/reports/weekly').catch(() => ({ data: null })),
@@ -69,6 +70,8 @@ export default function HomeScreen() {
             api.get('/news/india-finance').catch(() => ({ data: { articles: [] } })),
             api.get('/referral/fomo-feed').catch(() => ({ data: { items: [] } })),
             api.get('/ai/predict').catch(() => ({ data: null })),
+            api.get('/coins/status').catch(() => ({ data: null })),
+            api.post('/coins/award', { action: 'open_app_daily' }).catch(() => ({ data: null })),
           ]);
           if (lessonRes.data) setDailyLesson(lessonRes.data);
           setSmartAlerts(alertsRes.data?.alerts || []);
@@ -79,6 +82,7 @@ export default function HomeScreen() {
           setNews(newsRes.data?.articles || []);
           setFomoItems(fomoRes.data?.items || []);
           if (predRes.data) setPredict(predRes.data);
+          if (coinsRes.data) setCoinsStatus(coinsRes.data);
         } catch (e) { console.error('Phase2 err', e); }
       });
     } catch (error) {
@@ -156,6 +160,33 @@ export default function HomeScreen() {
             <View style={styles.avatarBadge}><Ionicons name="settings-sharp" size={10} color="#fff" /></View>
           </TouchableOpacity>
         </View>
+
+        {/* MintU 2.0 — Top-of-home Pill Row (Coins + Percentile + Streak) */}
+        {(coinsStatus || leaderboard || snapshot) && (
+          <View style={styles.pillRow}>
+            {coinsStatus && (
+              <TouchableOpacity style={[styles.pill, styles.pillCoin]} onPress={() => router.push('/(tabs)/rewards')} activeOpacity={0.7}>
+                <Text style={styles.pillEmoji}>🪙</Text>
+                <Text style={styles.pillValue}>{coinsStatus.balance}</Text>
+                <Text style={styles.pillLabel}>coins</Text>
+                {coinsStatus.today_earned > 0 && <View style={styles.pillGlow}><Text style={styles.pillGlowT}>+{coinsStatus.today_earned}</Text></View>}
+              </TouchableOpacity>
+            )}
+            {leaderboard?.percentile > 0 && (
+              <TouchableOpacity style={[styles.pill, styles.pillRank]} onPress={() => router.push('/(tabs)/rewards')} activeOpacity={0.7}>
+                <Text style={styles.pillEmoji}>🏆</Text>
+                <Text style={styles.pillValue}>Top {Math.max(1, 100 - leaderboard.percentile)}%</Text>
+              </TouchableOpacity>
+            )}
+            {(snapshot?.tier?.streak_days ?? user?.streak_days ?? 0) > 0 && (
+              <View style={[styles.pill, styles.pillStreak]}>
+                <Text style={styles.pillEmoji}>🔥</Text>
+                <Text style={styles.pillValue}>{snapshot?.tier?.streak_days ?? user?.streak_days ?? 0}</Text>
+                <Text style={styles.pillLabel}>day streak</Text>
+              </View>
+            )}
+          </View>
+        )}
 
         {/* CARD OF THE DAY */}
         {cardOfDay && (
@@ -511,6 +542,17 @@ const styles = StyleSheet.create({
   weeklyCard: { backgroundColor: 'rgba(255,255,255,0.92)', borderRadius: RADIUS.card, padding: SPACING.xl, marginBottom: SPACING.lg, borderWidth: 1, borderColor: COLORS.accent.secondary + '25', ...shadowStyle('#2E1F1A', 2, 10, 0.04, 3) },
   // MintU 2.0 — Predictive insights card (Waste detector + overspending)
   predictCard: { backgroundColor: '#FFFFFF', borderRadius: RADIUS.card, padding: 14, marginBottom: SPACING.lg, borderWidth: 1, borderColor: '#8B5CF630', ...shadowStyle('#8B5CF6', 2, 10, 0.08, 3) },
+  // MintU 2.0 — Top-of-home pill row (gamification)
+  pillRow: { flexDirection: 'row', gap: 8, marginBottom: 14, flexWrap: 'wrap' },
+  pill: { flexDirection: 'row', alignItems: 'center', gap: 5, paddingHorizontal: 12, paddingVertical: 8, borderRadius: 999, borderWidth: 1, position: 'relative' },
+  pillCoin: { backgroundColor: '#FEF3C7', borderColor: '#F59E0B40' },
+  pillRank: { backgroundColor: '#DBEAFE', borderColor: '#3B82F640' },
+  pillStreak: { backgroundColor: '#FEE2E2', borderColor: '#EF444440' },
+  pillEmoji: { fontSize: 14 },
+  pillValue: { fontSize: 13, fontWeight: '800', color: COLORS.text.primary },
+  pillLabel: { fontSize: 11, fontWeight: '600', color: COLORS.text.muted },
+  pillGlow: { position: 'absolute', top: -6, right: -4, backgroundColor: '#10B981', paddingHorizontal: 6, paddingVertical: 1, borderRadius: 999, borderWidth: 2, borderColor: '#FFFFFF' },
+  pillGlowT: { fontSize: 9, fontWeight: '800', color: '#FFFFFF', letterSpacing: 0.3 },
   predictHeader: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 10 },
   predictTitle: { flex: 1, fontSize: 11, fontWeight: '800', color: '#8B5CF6', letterSpacing: 0.8 },
   aiBadge: { backgroundColor: '#8B5CF6', paddingHorizontal: 8, paddingVertical: 2, borderRadius: 4 },

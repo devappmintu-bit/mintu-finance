@@ -684,6 +684,19 @@ mintu_2_phase1:
         agent: "main"
         comment: "FRONTEND: New /app/frontend/components/home/InsightsCard.tsx with SVG sparkline (7-day), tier badge with emoji+progress bar, pace headline, top category, savings rate. /app/frontend/app/(tabs)/index.tsx updated to (a) fetch /home/snapshot in Phase-1 load, (b) fetch /ai/predict in Phase-2 load, (c) replace static ₹0 stats row with InsightsCard, (d) add new 'Predictive Insights' card with AI badge showing overspending alerts (amber/red severity) + waste comparisons (chai/SIP equivalencies), (e) upgrade Weekly Report card with green 'Share Weekly Report' WhatsApp button that opens WhatsApp with full context (tier, streak, score, top category, app link) or falls back to native Share. Bundle compiles cleanly."
 
+mintu_2_0_phase2_coins:
+  - task: "MintU 2.0 Phase 2 — Coins/Rewards (award + status)"
+    implemented: true
+    working: true
+    file: "/app/backend/routers/analytics.py"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+      - working: true
+        agent: "testing"
+        comment: "✅ MINTU 2.0 PHASE 2 COINS — ALL 37/37 ASSERTIONS PASSED (Apr 18 2026). Test script: /app/coins_test.py. Auth POST /api/auth/login {phone:9876543210, password:test123} → 200, JWT(155). RESULTS:\n\n(T1 HAPPY PATH) POST /api/coins/award {action:'add_transaction'} → 200 with keys {awarded:5, reason:'ok', action:'add_transaction', label:'Add a transaction', balance:5, daily_cap:50, daily_awarded:5}. All required keys present; awarded≥0, balance≥0, reason∈{ok, daily_cap_reached} ✅.\n\n(T2 DAILY CAP) POST /api/coins/award {action:'open_app_daily'} × 3 in sequence → all 200. Call 1: awarded=3, reason='ok' (rule amount=3, cap=3 — full cap hit in single call). Call 2: awarded=0, reason='daily_cap_reached'. Call 3: awarded=0, reason='daily_cap_reached'. daily_cap=3 and daily_awarded=3 returned in cap-reached payload ✅. Deduplication and cap math (rule.amount=3, rule.daily_cap=3) perfect.\n\n(T3 INVALID ACTION) POST /api/coins/award {action:'nonexistent_action'} → 200 with {awarded:0, reason:'invalid_action', balance:0}. NO 500 ✅ — router returns early with reason='invalid_action' when action not in COIN_RULES.\n\n(T4 MULTIPLE ACTIONS) Sequential awards with balance monotone-increasing:\n  • POST {action:'add_transaction'} → awarded=5, balance=13 ✅\n  • POST {action:'scan_sms'} → awarded=10, balance=23 ✅\n  • POST {action:'settle_split'} → awarded=15, balance=38 ✅\nExpected amounts (5/10/15) matched exactly; balance increments correctly after each call; ledger persists via db.coin_ledger.insert_one + $inc on users.coins.\n\n(T5 GET /api/coins/status) → 200 with all required keys {balance:38, today_earned:38, today_breakdown, next_actions, streak_days, rules}. Invariant today_earned == sum(today_breakdown[*].total) = 38 ✅. next_actions is array of {id,label,reward} dicts (first: {id:'add_transaction', label:'Add a transaction', reward:5}) ✅. rules contains all 8 action types: open_app_daily, add_transaction, scan_sms, settle_split, complete_lesson, set_budget, add_income, share_report ✅.\n\n(T6 REGRESSION) Previous MintU 2.0 endpoints all 200 OK:\n  • GET /api/home/snapshot → 200 with tier+sparkline+pace_headline ✅\n  • GET /api/ai/predict → 200 with overspend_alerts+waste_comparisons ✅\n  • POST /api/ai/agent-chat {message:'hi',lang:'en'} → 200 with mode/issues/ctas ✅\n  • GET /api/leaderboard/savings → 200 with percentile=94 ✅\n\nBACKEND LOGS during the run: zero 500s, zero NameError/ImportError from analytics.py. Access log confirms 200 OK on all /api/coins/award and /api/coins/status calls. COIN_RULES dict (8 actions), _compute via $sum aggregation on coin_ledger for daily cap enforcement, and $inc on users.coins for balance — all functioning correctly. Coins/Rewards gamification is PRODUCTION-READY."
+
 mintu_2_0_analytics:
   - task: "MintU 2.0 — GET /api/home/snapshot (unified home insights)"
     implemented: true

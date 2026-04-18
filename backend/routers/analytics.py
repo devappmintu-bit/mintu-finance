@@ -178,6 +178,104 @@ async def savings_leaderboard(user_id: str = Depends(get_current_user)):
     }
 
 
+# ============== MINTU 2.0 — COINS & REWARDS (habit loop) ==============
+# Award rules: simple, non-cumulative within a window to prevent farming.
+COIN_RULES = {
+    "add_transaction": {"amount": 5, "daily_cap": 50, "label": "Add a transaction"},
+    "scan_sms": {"amount": 10, "daily_cap": 50, "label": "Scan SMS for expenses"},
+    "settle_split": {"amount": 15, "daily_cap": 60, "label": "Settle a split"},
+    "complete_lesson": {"amount": 20, "daily_cap": 40, "label": "Complete a Money School lesson"},
+    "open_app_daily": {"amount": 3, "daily_cap": 3, "label": "Open MintU today"},
+    "set_budget": {"amount": 10, "daily_cap": 10, "label": "Set a new budget"},
+    "add_income": {"amount": 10, "daily_cap": 20, "label": "Log income"},
+    "share_report": {"amount": 15, "daily_cap": 15, "label": "Share a report"},
+}
+
+
+@router.post("/coins/award")
+async def award_coins(data: dict, user_id: str = Depends(get_current_user)):
+    """Award coins for a user action, capped daily to prevent abuse."""
+    action = data.get("action", "")
+    if action not in COIN_RULES:
+        return {"awarded": 0, "reason": "invalid_action", "balance": 0}
+
+    rule = COIN_RULES[action]
+    today_start = datetime.utcnow().replace(hour=0, minute=0, second=0, microsecond=0)
+
+    # Check daily cap
+    today_awarded = 0
+    async for d in db.coin_ledger.aggregate([
+        {"$match": {"user_id": user_id, "action": action, "at": {"$gte": today_start}}},
+        {"$group": {"_id": None, "total": {"$sum": "$amount"}}},
+    ]):
+        today_awarded = d["total"]
+
+    remaining_cap = max(0, rule["daily_cap"] - today_awarded)
+    to_award = min(rule["amount"], remaining_cap)
+    if to_award <= 0:
+        user = await db.users.find_one({"_id": ObjectId(user_id)}) or {}
+        return {"awarded": 0, "reason": "daily_cap_reached", "balance": user.get("coins", 0), "daily_cap": rule["daily_cap"], "daily_awarded": today_awarded}
+
+    # Persist ledger + increment user.coins
+    await db.coin_ledger.insert_one({"user_id": user_id, "action": action, "amount": to_award, "at": datetime.utcnow()})
+    await db.users.update_one({"_id": ObjectId(user_id)}, {"$inc": {"coins": to_award}})
+
+    user = await db.users.find_one({"_id": ObjectId(user_id)}) or {}
+    return {
+        "awarded": to_award,
+        "reason": "ok",
+        "action": action,
+        "label": rule["label"],
+        "balance": user.get("coins", 0),
+        "daily_cap": rule["daily_cap"],
+        "daily_awarded": today_awarded + to_award,
+    }
+
+
+@router.get("/coins/status")
+async def coins_status(user_id: str = Depends(get_current_user)):
+    """Return coin balance + today's earnings + next streakable actions."""
+    user = await db.users.find_one({"_id": ObjectId(user_id)}) or {}
+    balance = user.get("coins", 0)
+    today_start = datetime.utcnow().replace(hour=0, minute=0, second=0, microsecond=0)
+
+    today_breakdown: dict = {}
+    async for d in db.coin_ledger.aggregate([
+        {"$match": {"user_id": user_id, "at": {"$gte": today_start}}},
+        {"$group": {"_id": "$action", "total": {"$sum": "$amount"}, "count": {"$sum": 1}}},
+    ]):
+        today_breakdown[d["_id"]] = {"total": d["total"], "count": d["count"]}
+
+    today_total = sum(b["total"] for b in today_breakdown.values())
+
+    # Suggest next action based on what they haven't done today
+    actions_done = set(today_breakdown.keys())
+    next_actions = []
+    for action_id, rule in COIN_RULES.items():
+        if action_id not in actions_done:
+            next_actions.append({
+                "id": action_id,
+                "label": rule["label"],
+                "reward": rule["amount"],
+            })
+        elif today_breakdown[action_id]["total"] < rule["daily_cap"]:
+            remaining = rule["daily_cap"] - today_breakdown[action_id]["total"]
+            next_actions.append({
+                "id": action_id,
+                "label": rule["label"],
+                "reward": min(rule["amount"], remaining),
+            })
+
+    return {
+        "balance": balance,
+        "today_earned": today_total,
+        "today_breakdown": today_breakdown,
+        "next_actions": next_actions[:4],
+        "streak_days": user.get("streak_days", 0),
+        "rules": COIN_RULES,
+    }
+
+
 # ============== FRIEND COMPARISON ==============
 @router.get("/leaderboard/friends")
 async def friend_comparison(user_id: str = Depends(get_current_user)):
