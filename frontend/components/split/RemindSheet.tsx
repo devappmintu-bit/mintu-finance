@@ -37,6 +37,30 @@ export default function RemindSheet({ visible, onClose, target, onSend }: Props)
     onSend(note.trim());
   };
 
+  const inviteToSettle = async () => {
+    if (!target) return;
+    try {
+      // Lazy import to avoid circular deps
+      const api = (await import('../../utils/api')).default;
+      const res = await api.post('/split/invite-to-settle', {
+        target_user_id: (target as any).from_id || (target as any).to_id,
+        target_name: remindeeName,
+        target_phone: (target as any).phone || '',
+        amount: target.amount,
+        group_name: target.group_name,
+        note,
+      });
+      const url = res.data?.whatsapp_url;
+      if (url) {
+        Linking.openURL(url);
+        onSend(note.trim());
+      }
+    } catch (e) {
+      // Fallback to plain WA share
+      shareWhatsApp();
+    }
+  };
+
   return (
     <Modal visible={visible} animationType="slide" transparent>
       <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={s.mBg}>
@@ -67,7 +91,13 @@ export default function RemindSheet({ visible, onClose, target, onSend }: Props)
               <Text style={s.remindHint}>
                 {`Will post a reminder in the group chat${Platform.OS !== 'web' ? ' + open WhatsApp' : ''}. 1 reminder/hour limit.`}
               </Text>
-              <TouchableOpacity onPress={shareWhatsApp} activeOpacity={0.85}>
+              <TouchableOpacity onPress={inviteToSettle} activeOpacity={0.85}>
+                <LinearGradient colors={['#8B5CF6', '#6366F1']} style={s.primaryBtn}>
+                  <Ionicons name="card" size={18} color={C.inv} />
+                  <Text style={s.primaryBtnText}> Invite to Settle (UPI)</Text>
+                </LinearGradient>
+              </TouchableOpacity>
+              <TouchableOpacity onPress={shareWhatsApp} activeOpacity={0.85} style={{ marginTop: 10 }}>
                 <LinearGradient colors={['#25D366', '#128C7E']} style={s.primaryBtn}>
                   <Ionicons name="logo-whatsapp" size={18} color={C.inv} />
                   <Text style={s.primaryBtnText}> Remind on WhatsApp</Text>

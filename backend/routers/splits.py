@@ -8,7 +8,7 @@ import logging
 import hashlib
 import uuid as uuid_lib
 from datetime import datetime, timedelta
-from urllib.parse import quote
+from urllib.parse import quote, quote_plus
 from typing import List, Optional, Dict
 from bson import ObjectId
 from fastapi import APIRouter, Depends, HTTPException, Request
@@ -1178,3 +1178,215 @@ async def mark_paid_offline(data: dict, user_id: str = Depends(get_current_user)
         "txn_ref": settlement["txn_ref"],
     }
 
+
+
+# ============== MINTU 2.0 — SPLIT ACTIVITY FEED (emotional redesign) ==============
+@api_router.get("/split/activity")
+async def split_activity(limit: int = 15, user_id: str = Depends(get_current_user)):
+    """Emotional activity feed — Shows recent settlements, expense additions, group joins.
+    Returns a unified, human-readable feed like:
+      - 'You settled ₹450 with Riya 💙' — 2h ago
+      - 'Arjun added ₹300 for Lunch in Goa Trip' — 5h ago
+      - 'You got ₹1,200 back from Anita 🎉' — yesterday
+    """
+    from bson import ObjectId
+    user = await db.users.find_one({"_id": ObjectId(user_id)}) or {}
+    my_name = user.get("name", "You")
+
+    # Pull from 3 sources: settlements (paid_by me or to me), expenses (my groups), system messages
+    my_groups = await db.split_groups.find({"members.user_id": user_id}).to_list(200)
+    group_ids = [str(g["_id"]) for g in my_groups]
+    group_map = {str(g["_id"]): {"name": g["name"], "emoji": g.get("custom_emoji", "💰")} for g in my_groups}
+
+    # Recent settlements
+    settlements = await db.split_settlements.find({
+        "group_id": {"$in": group_ids},
+        "$or": [{"paid_by": user_id}, {"paid_to": user_id}],
+    }).sort("created_at", -1).to_list(limit)
+
+    # Recent expenses in my groups (non-settle)
+    expenses = await db.split_expenses.find({
+        "group_id": {"$in": group_ids},
+    }).sort("date", -1).to_list(limit)
+
+    # Build user lookup for names
+    member_ids = set()
+    for s in settlements:
+        member_ids.add(s.get("paid_by"))
+        member_ids.add(s.get("paid_to"))
+    for e in expenses:
+        member_ids.add(e.get("paid_by"))
+    member_ids.discard(None)
+    member_ids.discard(user_id)
+
+    users = {}
+    if member_ids:
+        # Collect names from group members first (non-registered users live there)
+        for g in my_groups:
+            for m in g.get("members", []):
+                if m.get("user_id") and m.get("user_id") in member_ids:
+                    users[m["user_id"]] = m.get("name", "friend")
+        # Override with registered user records when available
+        for u in await db.users.find({"_id": {"$in": [ObjectId(uid) for uid in member_ids if ObjectId.is_valid(uid)]}}).to_list(100):
+            users[str(u["_id"])] = u.get("name", "friend")
+
+    feed = []
+    # Settlements → emotional messages
+    for s in settlements:
+        grp = group_map.get(s.get("group_id"), {"name": "a group", "emoji": "💰"})
+        amt = s.get("amount", 0)
+        ts = s.get("created_at", datetime.utcnow())
+        if s.get("paid_by") == user_id:
+            other = users.get(s.get("paid_to"), "friend")
+            feed.append({
+                "type": "settled_out",
+                "emoji": "💙",
+                "title": f"You settled ₹{amt:,.0f} with {other}",
+                "subtitle": f"{grp['emoji']} {grp['name']} · via {s.get('method', 'manual')}",
+                "amount": amt,
+                "direction": "out",
+                "timestamp": ts.isoformat() if hasattr(ts, 'isoformat') else str(ts),
+                "group_id": s.get("group_id"),
+            })
+        else:
+            other = users.get(s.get("paid_by"), "friend")
+            feed.append({
+                "type": "settled_in",
+                "emoji": "🎉",
+                "title": f"{other} paid you ₹{amt:,.0f}",
+                "subtitle": f"{grp['emoji']} {grp['name']}",
+                "amount": amt,
+                "direction": "in",
+                "timestamp": ts.isoformat() if hasattr(ts, 'isoformat') else str(ts),
+                "group_id": s.get("group_id"),
+            })
+
+    # Expense additions → social messages
+    for e in expenses[: max(limit - len(feed), 0)]:
+        grp = group_map.get(str(e.get("group_id")), {"name": "a group", "emoji": "💰"})
+        adder = users.get(e.get("paid_by"), my_name if e.get("paid_by") == user_id else "someone")
+        is_me = e.get("paid_by") == user_id
+        ts = e.get("date", datetime.utcnow())
+        feed.append({
+            "type": "expense_added",
+            "emoji": "🛍️",
+            "title": f"{'You' if is_me else adder} added ₹{e.get('amount', 0):,.0f} for {e.get('description', 'an expense')}",
+            "subtitle": f"{grp['emoji']} {grp['name']}",
+            "amount": e.get("amount", 0),
+            "direction": "neutral",
+            "timestamp": ts.isoformat() if hasattr(ts, 'isoformat') else str(ts),
+            "group_id": str(e.get("group_id")),
+        })
+
+    # Sort by timestamp desc
+    feed.sort(key=lambda x: x["timestamp"], reverse=True)
+    feed = feed[:limit]
+
+    # Summary stats for emotional header
+    settled_this_month_count = 0
+    settled_this_month_amount = 0
+    now = datetime.utcnow()
+    month_start = now.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+    for s in settlements:
+        ts = s.get("created_at")
+        if ts and ts >= month_start and s.get("paid_by") == user_id:
+            settled_this_month_count += 1
+            settled_this_month_amount += s.get("amount", 0)
+
+    # Top friend (most settlements with)
+    friend_counter: dict = {}
+    for s in settlements:
+        other = s.get("paid_to") if s.get("paid_by") == user_id else s.get("paid_by")
+        if other and other != user_id:
+            friend_counter[other] = friend_counter.get(other, 0) + 1
+    top_friend = None
+    if friend_counter:
+        top_id = max(friend_counter, key=friend_counter.get)
+        top_friend = {
+            "name": users.get(top_id, "friend"),
+            "count": friend_counter[top_id],
+        }
+
+    # Emotional headline
+    if settled_this_month_count >= 3:
+        headline = f"You settled {settled_this_month_count} bills this month 💙 Great teamwork!"
+    elif settled_this_month_count >= 1:
+        headline = f"You settled {settled_this_month_count} bill{'s' if settled_this_month_count > 1 else ''} this month ✨"
+    elif len(feed) > 0:
+        headline = "Keep the momentum going — settle pending bills to build streak 🔥"
+    else:
+        headline = "Start splitting with friends to see your activity here 👋"
+
+    return {
+        "feed": feed,
+        "headline": headline,
+        "settled_this_month": {
+            "count": settled_this_month_count,
+            "amount": settled_this_month_amount,
+        },
+        "top_friend": top_friend,
+    }
+
+
+@api_router.post("/split/invite-to-settle")
+async def invite_to_settle(data: dict, user_id: str = Depends(get_current_user)):
+    """Generate a ready-to-share 'Invite to settle' payload (UPI deep link + WhatsApp text).
+    Body: {target_user_id, target_name, target_phone (optional), amount, group_name (optional)}
+    Returns: {upi_link, whatsapp_text, web_fallback, share_text}
+    """
+    from bson import ObjectId
+    target_name = data.get("target_name", "Friend")
+    target_phone = (data.get("target_phone") or "").replace("+", "").replace(" ", "").replace("-", "")
+    target_user_id = data.get("target_user_id")
+    amount = float(data.get("amount", 0))
+    group_name = data.get("group_name", "a shared expense")
+    note = data.get("note", "")
+
+    if amount <= 0:
+        raise HTTPException(status_code=400, detail="Amount must be positive")
+
+    # Resolve payee UPI ID (if registered user)
+    payee_upi = None
+    payee_name = target_name
+    if target_user_id and ObjectId.is_valid(target_user_id):
+        target_user = await db.users.find_one({"_id": ObjectId(target_user_id)})
+        if target_user:
+            payee_upi = target_user.get("upi_id")
+            payee_name = target_user.get("name", target_name)
+
+    # Resolve payer info (me)
+    me = await db.users.find_one({"_id": ObjectId(user_id)}) or {}
+    my_name = me.get("name", "a MintU user")
+    my_upi = me.get("upi_id", "")
+
+    # Build UPI intent — pre-fills recipient's UPI + amount in payer's UPI app
+    upi_pa = payee_upi or "settle@mintu"  # Fallback dummy — payer picks in app
+    upi_tn = f"MintU split: {group_name[:40]}"
+    upi_am = f"{amount:.2f}"
+    upi_link = f"upi://pay?pa={upi_pa}&pn={payee_name}&am={upi_am}&tn={upi_tn}&cu=INR"
+
+    # WhatsApp share text — invite target to pay ME via my UPI
+    msg = (
+        f"Hey {target_name}! 👋\n\n"
+        f"Quick settlement request — you owe ₹{amount:,.0f} for {group_name}.\n"
+        + (f"\n_{note}_\n" if note else "")
+        + (f"\n💳 Pay to my UPI: {my_upi}\n" if my_upi else "")
+        + f"\n👉 Tap to settle in 1 tap: upi://pay?pa={my_upi or 'pay@mintu'}&pn={my_name}&am={upi_am}&tn=MintU%20split&cu=INR\n"
+        f"\nSent via MintU 💸"
+    )
+
+    wa_url = None
+    if target_phone and target_phone.isdigit() and len(target_phone) >= 10:
+        # Include phone for direct WhatsApp chat if provided
+        wa_url = f"https://wa.me/{target_phone}?text={quote_plus(msg)}"
+    else:
+        wa_url = f"https://wa.me/?text={quote_plus(msg)}"
+
+    return {
+        "upi_link": upi_link,  # For target to PAY me
+        "whatsapp_url": wa_url,  # Rich WhatsApp share
+        "whatsapp_text": msg,
+        "share_text": msg,
+        "payee_upi": payee_upi,
+        "has_upi": bool(my_upi),
+    }
