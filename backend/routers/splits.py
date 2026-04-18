@@ -1199,7 +1199,7 @@ async def split_activity(limit: int = 15, user_id: str = Depends(get_current_use
     group_map = {str(g["_id"]): {"name": g["name"], "emoji": g.get("custom_emoji", "💰")} for g in my_groups}
 
     # Recent settlements
-    settlements = await db.split_settlements.find({
+    settlements = await db.settlements.find({
         "group_id": {"$in": group_ids},
         "$or": [{"paid_by": user_id}, {"paid_to": user_id}],
     }).sort("created_at", -1).to_list(limit)
