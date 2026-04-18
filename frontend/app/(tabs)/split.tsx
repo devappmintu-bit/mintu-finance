@@ -12,6 +12,7 @@ import api from '../../utils/api';
 import { useAuthStore } from '../../store/authStore';
 import { COLORS, RADIUS, SPACING } from '../../utils/theme';
 import { SplitSkeleton } from '../../components/SkeletonLoader';
+import GroupChat from '../../components/GroupChat';
 
 // Warm Glass theme — matches app palette
 const C = {
@@ -97,6 +98,7 @@ export default function SplitScreen() {
   const [addPhoneVal, setAddPhoneVal] = useState('');
   const [renameVal, setRenameVal] = useState('');
   const [showRename, setShowRename] = useState(false);
+  const [chatGroup, setChatGroup] = useState<any>(null);
 
   const fetchData = useCallback(async () => {
     try {
@@ -304,7 +306,7 @@ export default function SplitScreen() {
         ) : groups.map((gr: any) => {
           const av = getGA(gr.name);
           return (
-            <TouchableOpacity key={gr.id} style={s.groupCard} onPress={() => openSummary(gr)} activeOpacity={0.7}>
+            <TouchableOpacity key={gr.id} style={s.groupCard} onPress={() => setChatGroup(gr)} activeOpacity={0.7}>
               <LinearGradient colors={av.colors.map(c => c + '20')} style={s.groupAv}>
                 <Text style={s.groupEmoji}>{av.emoji}</Text>
               </LinearGradient>
@@ -620,6 +622,18 @@ export default function SplitScreen() {
             </TouchableOpacity>
           </View>
         </View>
+      </Modal>
+
+      {/* === GROUP CHAT === */}
+      <Modal visible={!!chatGroup} animationType="slide">
+        {chatGroup && (
+          <GroupChat
+            group={chatGroup}
+            onClose={() => { setChatGroup(null); fetchData(); }}
+            onAddExpense={(gr) => { setChatGroup(null); openAddExpense(gr); }}
+            onManage={(gr) => { setChatGroup(null); openManage(gr); }}
+          />
+        )}
       </Modal>
     </SafeAreaView>
   );

@@ -1776,6 +1776,14 @@ async def add_split_expense(expense: SplitExpenseCreate, user_id: str = Depends(
         "created_at": datetime.utcnow()
     }
     result = await db.split_expenses.insert_one(exp_doc)
+    # Auto-insert chat message for the expense
+    payer_name = next((m["name"] for m in group["members"] if m["user_id"] == user_id), "Someone")
+    member_count = len(splits)
+    await db.split_messages.insert_one({
+        "group_id": expense.group_id, "type": "expense", "sender_id": user_id, "sender_name": payer_name,
+        "content": expense.description, "expense_data": {"amount": expense.amount, "paid_by": payer_name, "split_count": member_count, "expense_id": str(result.inserted_id)},
+        "created_at": datetime.utcnow()
+    })
     return {"id": str(result.inserted_id), **{k: v for k, v in exp_doc.items() if k != "_id"}, "created_at": exp_doc["created_at"]}
 
 @api_router.get("/split/groups/{group_id}/expenses")
@@ -4310,10 +4318,56 @@ async def edit_expense(expense_id: str, data: dict, user_id: str = Depends(get_c
 async def leave_group(group_id: str, user_id: str = Depends(get_current_user)):
     """Leave a split group"""
     from bson import ObjectId
+    user = await db.users.find_one({"_id": ObjectId(user_id)}) if ObjectId.is_valid(user_id) else await db.users.find_one({"phone": user_id})
+    name = user.get("name", "Someone") if user else "Someone"
     await db.split_groups.update_one(
         {"_id": ObjectId(group_id)},
         {"$pull": {"members": {"user_id": user_id}}}
     )
+    # System message
+    await db.split_messages.insert_one({"group_id": group_id, "type": "system", "content": f"{name} left the group", "created_at": datetime.utcnow()})
+    return {"message": "Left group"}
+
+# ============== GROUP CHAT ==============
+@api_router.get("/split/groups/{group_id}/messages")
+async def get_group_messages(group_id: str, limit: int = 50, user_id: str = Depends(get_current_user)):
+    """Get chat messages for a group"""
+    messages = await db.split_messages.find(
+        {"group_id": group_id}
+    ).sort("created_at", 1).limit(limit).to_list(limit)
+    result = []
+    for m in messages:
+        result.append({
+            "id": str(m["_id"]),
+            "group_id": m["group_id"],
+            "type": m.get("type", "text"),
+            "content": m.get("content", ""),
+            "sender_id": m.get("sender_id"),
+            "sender_name": m.get("sender_name"),
+            "emoji": m.get("emoji"),
+            "expense_data": m.get("expense_data"),
+            "created_at": m.get("created_at", datetime.utcnow()).isoformat(),
+        })
+    return result
+
+@api_router.post("/split/groups/{group_id}/messages")
+async def send_group_message(group_id: str, data: dict, user_id: str = Depends(get_current_user)):
+    """Send a chat message to a group"""
+    from bson import ObjectId
+    user = await db.users.find_one({"_id": ObjectId(user_id)}) if ObjectId.is_valid(user_id) else await db.users.find_one({"phone": user_id})
+    name = user.get("name", "User") if user else "User"
+    msg_type = data.get("type", "text")
+    msg = {
+        "group_id": group_id,
+        "sender_id": user_id,
+        "sender_name": name,
+        "type": msg_type,
+        "content": data.get("content", ""),
+        "emoji": data.get("emoji"),
+        "created_at": datetime.utcnow(),
+    }
+    result = await db.split_messages.insert_one(msg)
+    return {"id": str(result.inserted_id), "message": "Sent"}
     return {"message": "Left group"}
 
 # ============== DYNAMIC MONEY SCHOOL (AI-POWERED DAILY) ==============
