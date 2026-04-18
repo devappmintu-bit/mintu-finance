@@ -662,10 +662,24 @@ metadata:
     message: "✅ SPLIT TAB REFACTOR E2E TESTING COMPLETED (Apr 18 2026) — Code review confirms successful refactor from 1080-line split.tsx into 10 sub-components. Frontend loads correctly in mobile dimensions (390x844). Authentication UI renders properly with onboarding skip, phone input, OTP/password options. However, E2E functional testing was blocked by authentication flow completion issues in browser automation environment (app remains on /auth route after login attempts). VERIFIED VIA CODE REVIEW: (1) Refactor architecture is sound - split.tsx properly imports all 10 new components: CreateGroupSheet, ExpenseSheet, GroupManageSheet, GroupSummarySheet, LeaderboardCard, PaySheet, RemindSheet, RemindersBanner, RewardModal, SettleUpCard, theme.ts ✅. (2) New layout structure matches requirements: Header with Split title + coin pill + + button, Balance card (You're owed/You owe), Settle Up card with Pay/Remind/Mark Paid functionality, Leaderboard card, Groups list with add-expense (+) and ellipsis menu icons ✅. (3) Backend APIs for reminders/mark-paid-offline already verified working in previous tests ✅. (4) No regressions detected in code structure - all imports, props, and component integration appear correct ✅. RECOMMENDATION: The Split tab refactor is architecturally sound and ready. Authentication flow issue appears to be environment-specific and does not indicate problems with the refactored Split components themselves."
 
 test_plan:
-  current_focus: []
+  current_focus:
+    - "Profile Real Stats (Financial Snapshot)"
   stuck_tasks: []
   test_all: false
   test_priority: "high_first"
+
+production_grade_audit:
+  - task: "Profile Real Stats (Financial Snapshot)"
+    implemented: true
+    working: "NA"
+    file: "/app/frontend/app/(tabs)/profile.tsx"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+      - working: "NA"
+        agent: "main"
+        comment: "Added a 'Your Financial Snapshot' card to Profile screen below the Hero card. Pulls real data from /api/analytics/summary (total_income, total_expense, category_breakdown, transaction_count) and displays: (1) Monthly Spend (₹), (2) Savings Rate (%, color-coded green/amber/red), (3) Top spending category with amount, (4) Transaction count for last 30 days. Card is conditional — only shown when user has real activity. Also removed hardcoded dummy offers ('₹850 instant discount' × 2) from payment section, replacing with neutral factual labels ('Tokenized · Secure', 'All major banks supported', 'Paytm · Mobikwik · Amazon Pay'). Cleaned up unicode escape sequences (\\ud83c\\udfc6 etc) to actual emojis. Added a green 'Aligned with RBI data localization guidelines · India servers' trust strip with shield icon above version line in footer. Backend endpoint /api/analytics/summary already verified working in previous tests (41/41 reaudit pass)."
 
 ui_redesign_smoke:
   - task: "UI Redesign Smoke — custom_emoji + expense chat metadata + regression"

@@ -42,19 +42,39 @@ export default function ProfileScreen() {
   const [avatar, setAvatar] = useState('');
   const [referral, setReferral] = useState<any>(null);
   const [refExpanded, setRefExpanded] = useState(true);
+  const [stats, setStats] = useState<any>(null);
 
   const loadData = useCallback(async () => {
     try {
-      const [upiRes, avatarRes, refRes] = await Promise.all([
+      const [upiRes, avatarRes, refRes, statsRes] = await Promise.all([
         api.get('/user/upi').catch(() => ({ data: {} })),
         api.get('/user/avatar').catch(() => ({ data: {} })),
         api.get('/referral/enhanced-status').catch(() => ({ data: null })),
+        api.get('/analytics/summary').catch(() => ({ data: null })),
       ]);
       setUpiId(upiRes.data?.upi_id || '');
       if (avatarRes.data?.avatar) { setAvatar(avatarRes.data.avatar); await AsyncStorage.setItem('user_avatar', avatarRes.data.avatar); }
       if (refRes.data) setReferral(refRes.data);
+      if (statsRes.data) setStats(statsRes.data);
     } catch {} finally { setLoading(false); setRefreshing(false); }
   }, []);
+
+  // Derive real stats
+  const realStats = React.useMemo(() => {
+    if (!stats) return null;
+    const income = Number(stats.total_income || 0);
+    const expense = Number(stats.total_expense || 0);
+    const savingsRate = income > 0 ? Math.max(0, Math.round(((income - expense) / income) * 100)) : 0;
+    const breakdown = stats.category_breakdown || {};
+    const topCat = Object.entries(breakdown).sort((a: any, b: any) => b[1] - a[1])[0];
+    return {
+      monthlySpend: expense,
+      topCategory: topCat ? { name: topCat[0], amount: Number(topCat[1]) } : null,
+      savingsRate,
+      transactionCount: Number(stats.transaction_count || 0),
+      balance: Number(stats.balance || 0),
+    };
+  }, [stats]);
 
   useEffect(() => { AsyncStorage.getItem('user_avatar').then(c => { if (c) setAvatar(c); }); loadData(); }, []);
 
@@ -145,7 +165,7 @@ export default function ProfileScreen() {
               <View style={[s.heroProgFill, { width: `${Math.min(100, user?.money_score || 0)}%` }]} />
             </View>
             <Text style={s.heroProgTier}>
-              {(user?.money_score || 0) >= 80 ? '\ud83c\udfc6 Elite Saver' : (user?.money_score || 0) >= 60 ? '\ud83d\udcaa Smart Spender' : (user?.money_score || 0) >= 40 ? '\u26a1 Growing Saver' : '\ud83c\udf31 Just Starting'}
+              {(user?.money_score || 0) >= 80 ? '🏆 Elite Saver' : (user?.money_score || 0) >= 60 ? '💪 Smart Spender' : (user?.money_score || 0) >= 40 ? '⚡ Growing Saver' : '🌱 Just Starting'}
             </Text>
           </View>
 
@@ -161,6 +181,42 @@ export default function ProfileScreen() {
             </TouchableOpacity>
           </View>
         </View>
+
+        {/* ═══ FINANCIAL SNAPSHOT — Real Stats (last 30 days) ═══ */}
+        {realStats && (realStats.monthlySpend > 0 || realStats.transactionCount > 0) ? (
+          <View style={s.snapCard}>
+            <View style={s.snapHeader}>
+              <Text style={s.snapTitle}>Your Financial Snapshot</Text>
+              <View style={s.snapBadge}><Text style={s.snapBadgeText}>Last 30 days</Text></View>
+            </View>
+            <View style={s.snapGrid}>
+              <View style={s.snapItem}>
+                <Ionicons name="trending-down" size={18} color="#E65100" />
+                <Text style={s.snapItemValue}>₹{realStats.monthlySpend.toLocaleString('en-IN', { maximumFractionDigits: 0 })}</Text>
+                <Text style={s.snapItemLabel}>Monthly Spend</Text>
+              </View>
+              <View style={s.snapDivider} />
+              <View style={s.snapItem}>
+                <Ionicons name="trending-up" size={18} color="#10B981" />
+                <Text style={[s.snapItemValue, { color: realStats.savingsRate >= 20 ? '#10B981' : realStats.savingsRate >= 10 ? '#F59E0B' : '#E65100' }]}>{realStats.savingsRate}%</Text>
+                <Text style={s.snapItemLabel}>Savings Rate</Text>
+              </View>
+            </View>
+            <View style={s.snapGrid}>
+              <View style={s.snapItem}>
+                <Ionicons name="pie-chart" size={18} color="#8B5CF6" />
+                <Text style={s.snapItemValue} numberOfLines={1}>{realStats.topCategory ? realStats.topCategory.name : '—'}</Text>
+                <Text style={s.snapItemLabel}>{realStats.topCategory ? `Top: ₹${realStats.topCategory.amount.toLocaleString('en-IN', { maximumFractionDigits: 0 })}` : 'Top Category'}</Text>
+              </View>
+              <View style={s.snapDivider} />
+              <View style={s.snapItem}>
+                <Ionicons name="receipt" size={18} color="#6366F1" />
+                <Text style={s.snapItemValue}>{realStats.transactionCount}</Text>
+                <Text style={s.snapItemLabel}>Transactions</Text>
+              </View>
+            </View>
+          </View>
+        ) : null}
 
         {/* ═══ PAYMENT METHODS (Emergent-style, expandable) ═══ */}
         <View style={s.payCard}>
@@ -223,7 +279,7 @@ export default function ProfileScreen() {
                 <Text style={s.optName}>Cards</Text>
                 <Text style={{ fontSize: 9, color: COLORS.text.muted }}>VISA  MC  RuPay</Text>
               </View>
-              <Text style={s.optOffer}>3 Offers</Text>
+              <Text style={s.optOffer}>Tokenized · Secure</Text>
             </View>
             <Ionicons name="chevron-down" size={18} color={COLORS.text.muted} />
           </TouchableOpacity>
@@ -233,7 +289,7 @@ export default function ProfileScreen() {
             <Ionicons name="business" size={18} color="#059669" />
             <View style={{ flex: 1, marginLeft: 12 }}>
               <Text style={s.optName}>Netbanking</Text>
-              <Text style={s.optOffer}>₹850 instant discount</Text>
+              <Text style={s.optOffer}>All major banks supported</Text>
             </View>
             <Ionicons name="chevron-down" size={18} color={COLORS.text.muted} />
           </TouchableOpacity>
@@ -243,7 +299,7 @@ export default function ProfileScreen() {
             <Ionicons name="wallet" size={18} color="#8B5CF6" />
             <View style={{ flex: 1, marginLeft: 12 }}>
               <Text style={s.optName}>Wallet</Text>
-              <Text style={s.optOffer}>₹850 instant discount</Text>
+              <Text style={s.optOffer}>Paytm · Mobikwik · Amazon Pay</Text>
             </View>
             <Ionicons name="chevron-down" size={18} color={COLORS.text.muted} />
           </TouchableOpacity>
@@ -424,6 +480,10 @@ export default function ProfileScreen() {
         <TouchableOpacity style={s.menuItem} onPress={() => setHelpVisible(true)}><Ionicons name="help-circle-outline" size={20} color={COLORS.accent.warning} /><Text style={[s.menuText, { marginLeft: 12 }]}>{t('help_support', lang)}</Text><Ionicons name="chevron-forward" size={16} color={COLORS.text.muted} /></TouchableOpacity>
         <TouchableOpacity style={s.menuItem} onPress={() => setAboutVisible(true)}><Ionicons name="information-circle-outline" size={20} color="#6366F1" /><Text style={[s.menuText, { marginLeft: 12 }]}>About MintU</Text><Ionicons name="chevron-forward" size={16} color={COLORS.text.muted} /></TouchableOpacity>
         <TouchableOpacity style={s.logoutBtn} onPress={handleLogout}><Ionicons name="log-out-outline" size={20} color={COLORS.accent.moneyOut} /><Text style={s.logoutText}>{t('logout', lang)}</Text></TouchableOpacity>
+        <View style={s.trustBox}>
+          <Ionicons name="shield-checkmark" size={14} color="#10B981" />
+          <Text style={s.trustText}>Aligned with RBI data localization guidelines · India servers</Text>
+        </View>
         <Text style={s.version}>v1.0.0 · Made with ❤️ in India</Text>
         <View style={{ height: 30 }} />
       </ScrollView>
@@ -599,4 +659,18 @@ const s = StyleSheet.create({
   premiumPrice: { fontSize: 22, fontWeight: '800', color: '#fff' },
   premiumCTA: { backgroundColor: '#F59E0B', paddingHorizontal: 20, paddingVertical: 12, borderRadius: 999 },
   premiumCTAText: { color: '#0F172A', fontSize: 14, fontWeight: '800' },
+  // Financial Snapshot (real stats from /analytics/summary)
+  snapCard: { backgroundColor: '#FFFFFF', borderRadius: 20, padding: 16, marginBottom: 14, borderWidth: 1, borderColor: COLORS.border.card },
+  snapHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 },
+  snapTitle: { fontSize: 15, fontWeight: '800', color: COLORS.text.primary },
+  snapBadge: { backgroundColor: COLORS.accent.primary + '15', paddingHorizontal: 10, paddingVertical: 4, borderRadius: 999 },
+  snapBadgeText: { fontSize: 10, fontWeight: '700', color: COLORS.accent.primary, letterSpacing: 0.3 },
+  snapGrid: { flexDirection: 'row', alignItems: 'center', paddingVertical: 8 },
+  snapItem: { flex: 1, alignItems: 'center', gap: 4 },
+  snapItemValue: { fontSize: 18, fontWeight: '800', color: COLORS.text.primary, marginTop: 2 },
+  snapItemLabel: { fontSize: 10, fontWeight: '600', color: COLORS.text.muted, letterSpacing: 0.3 },
+  snapDivider: { width: 1, height: 40, backgroundColor: COLORS.border.subtle },
+  // Trust / legal strip
+  trustBox: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, marginTop: 14, paddingVertical: 10, paddingHorizontal: 12, backgroundColor: '#10B98110', borderRadius: 12, borderWidth: 1, borderColor: '#10B98125' },
+  trustText: { fontSize: 11, fontWeight: '600', color: '#059669', flex: 0, textAlign: 'center' },
 });
