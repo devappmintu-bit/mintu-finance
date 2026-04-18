@@ -25,10 +25,46 @@ except Exception:  # pragma: no cover
 
 INDIA_POPULATION_2025 = 1_460_000_000
 
-# Lazy server-helper accessor
+# Pydantic model for /ai/chat — kept local to avoid circular import.
+class ChatMessage(BaseModel):
+    message: str
+    lang: Optional[str] = "en"
+
+
+# Lazy server-helper accessor — these live in server.py for now (too entangled to extract yet).
 def _srv():
     import server  # noqa: PLC0415
     return server
+
+
+# Shim attributes that route to server.py at call-time (dict-style lookups need a real dict).
+def _lazy_attr(name):
+    """Returns a callable or dict that proxies to server.<name> lazily."""
+    class _Proxy:
+        def __call__(self, *a, **kw):
+            return getattr(_srv(), name)(*a, **kw)
+        def __getitem__(self, k):
+            return getattr(_srv(), name)[k]
+        def __iter__(self):
+            return iter(getattr(_srv(), name))
+        def __len__(self):
+            return len(getattr(_srv(), name))
+        def items(self):
+            return getattr(_srv(), name).items()
+        def values(self):
+            return getattr(_srv(), name).values()
+        def keys(self):
+            return getattr(_srv(), name).keys()
+    return _Proxy()
+
+# Bind names used by the extracted endpoints:
+AGENT_PROFILES = _lazy_attr("AGENT_PROFILES")
+MONEY_SCHOOL_LESSONS = _lazy_attr("MONEY_SCHOOL_LESSONS")
+route_to_agent = _lazy_attr("route_to_agent")
+get_system_prompt = _lazy_attr("get_system_prompt")
+generate_insights_with_ai = _lazy_attr("generate_insights_with_ai")
+get_lang_instruction = _lazy_attr("get_lang_instruction")
+calculate_money_score = _lazy_attr("calculate_money_score")
 
 router = APIRouter(tags=["ai"])
 api_router = router  # so extracted @api_router.xxx decorators keep working
@@ -116,7 +152,7 @@ async def transcribe_voice(file: UploadFile = File(...), user_id: str = Depends(
 @api_router.get("/money-school/lessons")
 async def get_money_school_lessons():
     """Get all financial literacy lessons"""
-    return {"lessons": MONEY_SCHOOL_LESSONS, "total": len(MONEY_SCHOOL_LESSONS)}
+    return {"lessons": _srv().MONEY_SCHOOL_LESSONS, "total": len(_srv().MONEY_SCHOOL_LESSONS)}
 
 
 @api_router.get("/money-school/daily")
@@ -438,8 +474,8 @@ async def agentic_ai_chat(data: dict, user_id: str = Depends(get_current_user)):
         raise HTTPException(status_code=400, detail="Message required")
     
     # Route to appropriate agent
-    agent_id = route_to_agent(message)
-    agent = AGENT_PROFILES[agent_id]
+    agent_id = _srv().route_to_agent(message)
+    agent = _srv().AGENT_PROFILES[agent_id]
     
     # Gather comprehensive financial context
     user = await db.users.find_one({"_id": ObjectId(user_id)})
@@ -870,7 +906,7 @@ async def list_agents(user_id: str = Depends(get_current_user)):
     """List all available AI agents"""
     return {"agents": [
         {"id": k, "name": v["name"], "emoji": v["emoji"], "description": v["description"]}
-        for k, v in AGENT_PROFILES.items()
+        for k, v in _srv().AGENT_PROFILES.items()
     ]}
 
 
