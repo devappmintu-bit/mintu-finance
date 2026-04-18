@@ -14,6 +14,8 @@ import { t, LANGUAGES } from '../../utils/i18n';
 import api from '../../utils/api';
 import { COLORS, RADIUS, SPACING, shadowStyle } from '../../utils/theme';
 import Toast from 'react-native-toast-message';
+import { useFocusEffect } from 'expo-router';
+import { shareSmart, copyToClipboard } from '../../utils/share';
 import HelpSupport from '../../components/HelpSupport';
 import AboutMintU from '../../components/AboutMintU';
 
@@ -78,6 +80,11 @@ export default function ProfileScreen() {
 
   useEffect(() => { AsyncStorage.getItem('user_avatar').then(c => { if (c) setAvatar(c); }); loadData(); }, []);
 
+  // Auto-refresh on tab focus (e.g., user returns from Premium / Yearly dashboard)
+  useFocusEffect(
+    React.useCallback(() => { loadData(); }, [loadData])
+  );
+
   const handleLogout = () => Alert.alert(t('logout', lang), t('logout_confirm', lang), [
     { text: t('cancel', lang), style: 'cancel' },
     { text: t('logout', lang), style: 'destructive', onPress: async () => { await AsyncStorage.removeItem('user_avatar'); await logout(); router.replace('/'); } },
@@ -101,30 +108,26 @@ export default function ProfileScreen() {
 
   const copyCode = async () => {
     if (!referral?.referral_code) return;
-    try {
-      // Web fallback using navigator.clipboard, otherwise expo-clipboard is not installed — use Share as fallback
-      if (Platform.OS === 'web' && (navigator as any)?.clipboard) {
-        await (navigator as any).clipboard.writeText(referral.referral_code);
-      }
-      Toast.show({ type: 'success', text1: 'Code Copied!', text2: referral.referral_code, position: 'bottom' });
-    } catch { Toast.show({ type: 'error', text1: 'Copy failed — tap Share instead' }); }
+    await copyToClipboard(referral.referral_code, `Code ${referral.referral_code} copied!`);
   };
 
-  const shareWhatsApp = () => {
+  const shareWhatsApp = async () => {
     const text = referral?.whatsapp_text || referral?.share_text || '';
-    const url = `whatsapp://send?text=${encodeURIComponent(text)}`;
-    Linking.canOpenURL(url).then(ok => { ok ? Linking.openURL(url) : Share.share({ message: text }); }).catch(() => Share.share({ message: text }));
+    await shareSmart({ message: text, title: 'MintU Referral', preferWhatsApp: true });
   };
 
-  const shareGeneric = () => {
+  const shareGeneric = async () => {
     const text = referral?.share_text || '';
-    Share.share({ message: text });
+    await shareSmart({ message: text, title: 'MintU' });
   };
 
   const shareScoreCard = async () => {
     try {
       const r = await api.get('/referral/money-score-card');
-      Share.share({ message: r.data?.share_text || r.data?.whatsapp_text || 'My MintU Money Score!' });
+      await shareSmart({
+        message: r.data?.share_text || r.data?.whatsapp_text || 'My MintU Money Score!',
+        title: 'My MintU Score',
+      });
     } catch {
       Toast.show({ type: 'error', text1: 'Error', text2: 'Could not generate score card' });
     }
@@ -496,12 +499,36 @@ export default function ProfileScreen() {
         </TouchableOpacity>
         <TouchableOpacity style={s.menuItem}><Ionicons name="notifications-outline" size={20} color={COLORS.accent.primary} /><Text style={[s.menuText, { marginLeft: 12 }]}>{t('notifications', lang)}</Text><Ionicons name="chevron-forward" size={16} color={COLORS.text.muted} /></TouchableOpacity>
         <TouchableOpacity style={s.menuItem} onPress={() => setPrivacyVisible(true)}><Ionicons name="shield-checkmark-outline" size={20} color={COLORS.accent.secondary} /><Text style={[s.menuText, { marginLeft: 12 }]}>Privacy & Security</Text><Ionicons name="chevron-forward" size={16} color={COLORS.text.muted} /></TouchableOpacity>
+        <TouchableOpacity style={s.menuItem} onPress={() => router.push('/legal/privacy' as any)}><Ionicons name="document-text-outline" size={20} color="#6366F1" /><Text style={[s.menuText, { marginLeft: 12 }]}>Privacy Policy</Text><Ionicons name="chevron-forward" size={16} color={COLORS.text.muted} /></TouchableOpacity>
+        <TouchableOpacity style={s.menuItem} onPress={() => router.push('/legal/terms' as any)}><Ionicons name="reader-outline" size={20} color="#6366F1" /><Text style={[s.menuText, { marginLeft: 12 }]}>Terms of Service</Text><Ionicons name="chevron-forward" size={16} color={COLORS.text.muted} /></TouchableOpacity>
+        <TouchableOpacity style={s.menuItem} onPress={() => router.push('/legal/data-protection' as any)}><Ionicons name="lock-closed-outline" size={20} color="#10B981" /><Text style={[s.menuText, { marginLeft: 12 }]}>Data Protection</Text><Ionicons name="chevron-forward" size={16} color={COLORS.text.muted} /></TouchableOpacity>
         <TouchableOpacity style={s.menuItem} onPress={() => setHelpVisible(true)}><Ionicons name="help-circle-outline" size={20} color={COLORS.accent.warning} /><Text style={[s.menuText, { marginLeft: 12 }]}>{t('help_support', lang)}</Text><Ionicons name="chevron-forward" size={16} color={COLORS.text.muted} /></TouchableOpacity>
         <TouchableOpacity style={s.menuItem} onPress={() => setAboutVisible(true)}><Ionicons name="information-circle-outline" size={20} color="#6366F1" /><Text style={[s.menuText, { marginLeft: 12 }]}>About MintU</Text><Ionicons name="chevron-forward" size={16} color={COLORS.text.muted} /></TouchableOpacity>
         <TouchableOpacity style={s.logoutBtn} onPress={handleLogout}><Ionicons name="log-out-outline" size={20} color={COLORS.accent.moneyOut} /><Text style={s.logoutText}>{t('logout', lang)}</Text></TouchableOpacity>
+
+        {/* Trust Signals — 3-badge strip */}
+        <View style={s.trustSignalsRow}>
+          <View style={s.trustSig}>
+            <Text style={s.trustSigEmoji}>🔒</Text>
+            <Text style={s.trustSigText}>Bank-grade{'\n'}encryption</Text>
+          </View>
+          <View style={s.trustSig}>
+            <Text style={s.trustSigEmoji}>🇮🇳</Text>
+            <Text style={s.trustSigText}>Data stored{'\n'}in India</Text>
+          </View>
+          <View style={s.trustSig}>
+            <Text style={s.trustSigEmoji}>✅</Text>
+            <Text style={s.trustSigText}>RBI-aligned{'\n'}practices</Text>
+          </View>
+        </View>
+
         <View style={s.trustBox}>
           <Ionicons name="shield-checkmark" size={14} color="#10B981" />
           <Text style={s.trustText}>Aligned with RBI data localization guidelines · India servers</Text>
+        </View>
+        <View style={s.transparencyBox}>
+          <Ionicons name="information-circle-outline" size={13} color="#475569" />
+          <Text style={s.transparencyText}>MintU does not auto-sync bank data. Updates happen on refresh.</Text>
         </View>
         <Text style={s.version}>v1.0.0 · Made with ❤️ in India</Text>
         <View style={{ height: 30 }} />
@@ -697,4 +724,12 @@ const s = StyleSheet.create({
   // Trust / legal strip
   trustBox: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, marginTop: 14, paddingVertical: 10, paddingHorizontal: 12, backgroundColor: '#10B98110', borderRadius: 12, borderWidth: 1, borderColor: '#10B98125' },
   trustText: { fontSize: 11, fontWeight: '600', color: '#059669', flex: 0, textAlign: 'center' },
+  // Trust Signals — 3-badge premium strip
+  trustSignalsRow: { flexDirection: 'row', gap: 8, marginTop: 16 },
+  trustSig: { flex: 1, alignItems: 'center', gap: 6, paddingVertical: 14, paddingHorizontal: 6, backgroundColor: '#FFFFFF', borderRadius: 14, borderWidth: 1, borderColor: COLORS.border.card },
+  trustSigEmoji: { fontSize: 22 },
+  trustSigText: { fontSize: 10.5, fontWeight: '700', color: COLORS.text.secondary, textAlign: 'center', lineHeight: 13 },
+  // Transparency notice
+  transparencyBox: { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 10, paddingVertical: 8, paddingHorizontal: 12, backgroundColor: '#F1F5F9', borderRadius: 10 },
+  transparencyText: { flex: 1, fontSize: 10.5, color: '#475569', fontWeight: '600', lineHeight: 14 },
 });
