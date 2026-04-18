@@ -5,7 +5,6 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
-import { Audio } from 'expo-av';
 import api from '../../utils/api';
 import { format } from 'date-fns';
 import { useLangStore } from '../../store/langStore';
@@ -52,10 +51,6 @@ export default function TransactionsScreen() {
   const [notifText, setNotifText] = useState('');
   const [notifLoading, setNotifLoading] = useState(false);
   const [notifExpanded, setNotifExpanded] = useState(false);
-  const [recording, setRecording] = useState<Audio.Recording | null>(null);
-  const [isRecording, setIsRecording] = useState(false);
-  const [voiceLoading, setVoiceLoading] = useState(false);
-  const pulseAnim = useRef(new Animated.Value(1)).current;
   // Insights data
   const [waste, setWaste] = useState<any>(null);
   const [stats, setStats] = useState<any>(null);
@@ -79,19 +74,6 @@ export default function TransactionsScreen() {
 
   const fetchTransactions = fetchAll;
 
-  useEffect(() => {
-    if (isRecording) {
-      Animated.loop(
-        Animated.sequence([
-          Animated.timing(pulseAnim, { toValue: 1.3, duration: 600, useNativeDriver: true }),
-          Animated.timing(pulseAnim, { toValue: 1, duration: 600, useNativeDriver: true }),
-        ])
-      ).start();
-    } else {
-      pulseAnim.setValue(1);
-    }
-  }, [isRecording]);
-
   const handleAdd = async () => {
     if (!formData.amount || !formData.description) { Alert.alert(t('error', lang), 'Please fill all fields'); return; }
     try {
@@ -102,17 +84,31 @@ export default function TransactionsScreen() {
     } catch (e) { Alert.alert(t('error', lang), 'Failed to add'); }
   };
 
+  // Unified SMS parser — handles both single bank notification AND multiple pasted SMS messages.
+  // Splits on blank lines (\n\n) or "---" dividers. Falls back to single-message parse.
   const handleParseSMS = async () => {
-    if (!smsText.trim()) { Alert.alert(t('error', lang), 'Paste SMS text'); return; }
+    const raw = smsText.trim();
+    if (!raw) { Alert.alert(t('error', lang), 'Paste SMS text'); return; }
     setSmsLoading(true);
     try {
-      await api.post('/transactions/parse-sms', { sms_text: smsText });
-      setSmsModalVisible(false); setSmsText(''); fetchTransactions();
-      Toast.show({ type: 'success', text1: 'Done!', text2: 'Transaction added from SMS!' });
+      // Split into multiple messages on blank lines or "---" dividers
+      const parts = raw.split(/\n\s*\n|^---$/gm).map(s => s.trim()).filter(s => s.length > 10);
+      if (parts.length > 1) {
+        // Multi-message flow — call bulk parse endpoint
+        const res = await api.post('/sms/parse-bulk', { messages: parts });
+        setSmsModalVisible(false); setSmsText(''); fetchTransactions();
+        Toast.show({ type: 'success', text1: `Parsed ${res.data?.parsed || 0} messages!`, text2: `${res.data?.failed || 0} skipped` });
+      } else {
+        // Single message
+        await api.post('/transactions/parse-sms', { sms_text: raw });
+        setSmsModalVisible(false); setSmsText(''); fetchTransactions();
+        Toast.show({ type: 'success', text1: 'Done!', text2: 'Transaction added from SMS!' });
+      }
     } catch (e: any) { Alert.alert(t('error', lang), e.response?.data?.detail || 'Could not parse'); }
     finally { setSmsLoading(false); }
   };
 
+  // Inline bank-notification parse (quick-entry variant) — same logic.
   const handleNotifParse = async () => {
     if (!notifText.trim()) { Alert.alert('Error', 'Paste your bank notification text'); return; }
     setNotifLoading(true);
@@ -134,52 +130,7 @@ export default function TransactionsScreen() {
     finally { setCashLoading(false); }
   };
 
-  // Voice recording
-  const startRecording = async () => {
-    try {
-      const { status } = await Audio.requestPermissionsAsync();
-      if (status !== 'granted') { Alert.alert(t('error', lang), 'Microphone permission needed'); return; }
-      await Audio.setAudioModeAsync({ allowsRecordingIOS: true, playsInSilentModeIOS: true });
-      const { recording: rec } = await Audio.Recording.createAsync(Audio.RecordingOptionsPresets.HIGH_QUALITY);
-      setRecording(rec);
-      setIsRecording(true);
-    } catch (e) { Alert.alert(t('error', lang), 'Failed to start recording'); }
-  };
-
-  const stopRecording = async () => {
-    if (!recording) return;
-    setIsRecording(false);
-    setVoiceLoading(true);
-    try {
-      await recording.stopAndUnloadAsync();
-      const uri = recording.getURI();
-      setRecording(null);
-      if (!uri) { Alert.alert(t('error', lang), 'No audio recorded'); setVoiceLoading(false); return; }
-
-      // Upload to backend for Whisper transcription
-      const formData = new FormData();
-      formData.append('file', { uri, name: 'audio.m4a', type: 'audio/m4a' } as any);
-      const res = await api.post('/voice/transcribe', formData, {
-        headers: { 'Content-Type': 'multipart/form-data' },
-        timeout: 30000,
-      });
-
-      const text = res.data.transcribed_text;
-      if (text) {
-        setCashText(text);
-        // Auto-submit
-        try {
-          await api.post('/cash/quick-entry', { text });
-          setCashText(''); fetchTransactions();
-          Alert.alert(t('success', lang), `Added: "${text}"`);
-        } catch (e2: any) {
-          // If auto-parse fails, just put text in input
-          setCashText(text);
-        }
-      }
-    } catch (e: any) { Alert.alert(t('error', lang), 'Voice processing failed. Try again.'); }
-    finally { setVoiceLoading(false); }
-  };
+  // [Voice transcription removed — SMS paste is the primary input method.]
 
   const handleDelete = (id: string) => {
     Alert.alert(t('delete', lang), 'Remove this transaction?', [
@@ -233,20 +184,14 @@ export default function TransactionsScreen() {
             </TouchableOpacity>
           ) : null}
         </View>
-        {/* Voice Button */}
+        {/* SMS Paste button — replaces Voice (Phase 10 cleanup) */}
         <TouchableOpacity
-          testID="voice-input-btn"
-          style={[styles.voiceBtn, isRecording && styles.voiceBtnActive]}
-          onPress={isRecording ? stopRecording : startRecording}
-          disabled={voiceLoading}
+          testID="sms-input-btn"
+          style={styles.voiceBtn}
+          onPress={() => setSmsModalVisible(true)}
+          activeOpacity={0.8}
         >
-          {voiceLoading ? (
-            <ActivityIndicator size="small" color={COLORS.bg.primary} />
-          ) : (
-            <Animated.View style={{ transform: [{ scale: isRecording ? pulseAnim : 1 }] }}>
-              <Ionicons name={isRecording ? 'stop' : 'mic'} size={20} color={isRecording ? '#fff' : COLORS.bg.primary} />
-            </Animated.View>
-          )}
+          <Ionicons name="chatbubble-ellipses" size={20} color={COLORS.bg.primary} />
         </TouchableOpacity>
       </View>
 
@@ -352,21 +297,28 @@ export default function TransactionsScreen() {
             </View>
             <View style={styles.smsBanner}>
               <Ionicons name="sparkles" size={18} color={COLORS.accent.warning} />
-              <Text style={styles.smsBannerText}>{t('ai_extract', lang)}</Text>
+              <Text style={styles.smsBannerText}>AI auto-parses bank SMS, UPI alerts & notifications</Text>
             </View>
-            {/* Bank Notification Paste */}
-            <Text style={styles.formLabel}>Paste bank notification or SMS</Text>
-            <TextInput style={styles.notifInput} placeholder="e.g. HDFC Bank: Rs 500.00 debited from A/c XX1234..." placeholderTextColor={COLORS.text.muted} value={notifText} onChangeText={setNotifText} multiline numberOfLines={3} textAlignVertical="top" />
-            <TouchableOpacity style={[styles.notifParseBtn, (notifLoading || !notifText.trim()) && { opacity: 0.5 }]} onPress={handleNotifParse} disabled={notifLoading || !notifText.trim()}>
-              {notifLoading ? <ActivityIndicator size="small" color="#fff" /> : (
-                <><Ionicons name="sparkles" size={14} color="#fff" /><Text style={styles.notifParseTxt}>AI Parse & Add</Text></>
+            {/* UNIFIED PASTE — one or multiple messages */}
+            <Text style={styles.formLabel}>Paste SMS or bank notifications</Text>
+            <Text style={{ fontSize: 11, color: COLORS.text.muted, marginBottom: 8 }}>\ud83d\udca1 Paste multiple by separating with blank lines — AI detects and parses each</Text>
+            <TextInput
+              style={[styles.smsInput, { minHeight: 140 }]}
+              placeholder={`HDFC Bank: Rs 500.00 debited from A/c XX1234...\n\nSBI: Rs 120 UPI paid to SWIGGY\n\nICICI: Credit card XX9876 charged Rs 2,499 at AMAZON`}
+              placeholderTextColor={COLORS.text.muted}
+              value={smsText}
+              onChangeText={setSmsText}
+              multiline
+              numberOfLines={8}
+              textAlignVertical="top"
+            />
+            <TouchableOpacity testID="parse-sms-btn" style={[styles.submitBtn, smsLoading && { opacity: 0.6 }]} onPress={handleParseSMS} disabled={smsLoading || !smsText.trim()}>
+              {smsLoading ? <ActivityIndicator color={COLORS.bg.primary} /> : (
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                  <Ionicons name="sparkles" size={16} color={COLORS.bg.primary} />
+                  <Text style={styles.submitText}>AI Parse & Add All</Text>
+                </View>
               )}
-            </TouchableOpacity>
-            {/* Bulk SMS Paste */}
-            <Text style={[styles.formLabel, { marginTop: 16 }]}>Or paste multiple SMS messages</Text>
-            <TextInput style={styles.smsInput} placeholder={t('paste_sms', lang)} placeholderTextColor={COLORS.text.muted} value={smsText} onChangeText={setSmsText} multiline numberOfLines={5} textAlignVertical="top" />
-            <TouchableOpacity testID="parse-sms-btn" style={[styles.submitBtn, smsLoading && { opacity: 0.6 }]} onPress={handleParseSMS} disabled={smsLoading}>
-              {smsLoading ? <ActivityIndicator color={COLORS.bg.primary} /> : <Text style={styles.submitText}>{t('parse_add', lang)}</Text>}
             </TouchableOpacity>
           </View>
         </KeyboardAvoidingView>

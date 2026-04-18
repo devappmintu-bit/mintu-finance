@@ -55,6 +55,8 @@ def _lazy(name):
         def __iter__(self): return iter(getattr(_srv(), name))
         def __len__(self): return len(getattr(_srv(), name))
     return _P()
+parse_sms_with_ai = _lazy_attr("parse_sms_with_ai")
+calculate_money_score = _lazy_attr("calculate_money_score")
 SAMPLE_INDIAN_SMS = _lazy("SAMPLE_INDIAN_SMS")
 
 
