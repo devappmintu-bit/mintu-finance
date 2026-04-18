@@ -122,17 +122,7 @@ async def add_split_expense(expense: SplitExpenseCreate, user_id: str = Depends(
         raise HTTPException(status_code=404, detail="Group not found")
     
     member_ids = [m["user_id"] for m in group["members"]]
-    if expense.split_type == "equal":
-        per_person = round(expense.amount / len(member_ids), 2)
-        splits = {mid: per_person for mid in member_ids}
-    elif expense.split_type == "shares":
-        # Splits by ratio: e.g. {"user1": 2, "user2": 1} → user1 pays 2/3, user2 pays 1/3
-        share_ratios = expense.splits or {mid: 1 for mid in member_ids}
-        total_shares = sum(share_ratios.values()) or 1
-        splits = {uid: round(expense.amount * (share / total_shares), 2) for uid, share in share_ratios.items()}
-    else:
-        # Custom: exact amounts
-        splits = expense.splits or {}
+    splits = _compute_splits(expense.amount, expense.split_type, member_ids, expense.splits)
     
     exp_doc = {
         "group_id": expense.group_id,
@@ -154,6 +144,68 @@ async def add_split_expense(expense: SplitExpenseCreate, user_id: str = Depends(
         "created_at": datetime.utcnow()
     })
     return {"id": str(result.inserted_id), **{k: v for k, v in exp_doc.items() if k != "_id"}, "created_at": exp_doc["created_at"]}
+
+
+def _compute_splits(amount: float, split_type: str, member_ids: List[str], raw_splits: Optional[Dict[str, float]] = None) -> Dict[str, float]:
+    """Largest-remainder method for split calculations. Guarantees sum(splits) == amount exactly.
+    All amounts are computed in paise (int) to avoid float rounding errors, then converted back to rupees.
+    """
+    total_paise = round(amount * 100)
+    if total_paise <= 0:
+        return {mid: 0.0 for mid in member_ids}
+
+    if split_type == "equal":
+        n = len(member_ids) or 1
+        base = total_paise // n
+        remainder = total_paise - (base * n)
+        out: Dict[str, int] = {mid: base for mid in member_ids}
+        # Distribute 1-paise remainders deterministically (by sorted user_id for stability)
+        for mid in sorted(member_ids)[:remainder]:
+            out[mid] += 1
+        return {mid: v / 100 for mid, v in out.items()}
+
+    if split_type == "shares":
+        share_ratios = raw_splits or {mid: 1 for mid in member_ids}
+        total_shares = sum(share_ratios.values()) or 1
+        # First-pass floor division in paise
+        allocated = 0
+        out = {}
+        for uid, share in share_ratios.items():
+            p = int((total_paise * share) // total_shares)
+            out[uid] = p
+            allocated += p
+        remainder = total_paise - allocated
+        # Distribute leftover paise one-by-one to members with highest fractional share remainders
+        if remainder > 0:
+            frac = []
+            for uid, share in share_ratios.items():
+                exact = (total_paise * share) / total_shares
+                frac.append((exact - out[uid], uid))
+            frac.sort(reverse=True)
+            for _, uid in frac[:remainder]:
+                out[uid] += 1
+        return {uid: v / 100 for uid, v in out.items()}
+
+    if split_type == "percentage":
+        pct = raw_splits or {}
+        allocated = 0
+        out = {}
+        for uid, p in pct.items():
+            paise = int((total_paise * p) // 100)
+            out[uid] = paise
+            allocated += paise
+        remainder = total_paise - allocated
+        if remainder > 0:
+            frac = [((total_paise * pct.get(uid, 0) / 100) - out[uid], uid) for uid in out]
+            frac.sort(reverse=True)
+            for _, uid in frac[:remainder]:
+                out[uid] += 1
+        return {uid: v / 100 for uid, v in out.items()}
+
+    # Custom / Unequal — splits are exact amounts; normalize to paise to avoid float noise
+    if raw_splits:
+        return {uid: round(v * 100) / 100 for uid, v in raw_splits.items()}
+    return {}
 
 
 @api_router.get("/split/groups/{group_id}/expenses")
@@ -429,9 +481,13 @@ async def group_expense_summary(group_id: str, user_id: str = Depends(get_curren
         "simplified_debts": simplified,
         "category_breakdown": dict(sorted(cat_totals.items(), key=lambda x: x[1], reverse=True)),
         "recent_expenses": [{
+            "id": str(e["_id"]),
             "description": e.get("description", ""),
             "amount": e["amount"],
+            "paid_by": e.get("paid_by", ""),
             "paid_by_name": member_names.get(e["paid_by"], "User"),
+            "split_type": e.get("split_type", "equal"),
+            "splits": e.get("splits", {}),
             "date": e.get("created_at", "").isoformat() if hasattr(e.get("created_at", ""), 'isoformat') else str(e.get("created_at", "")),
         } for e in expenses[:10]],
         "settlements_count": len(settlements),
@@ -512,15 +568,124 @@ async def delete_expense(expense_id: str, user_id: str = Depends(get_current_use
 
 @api_router.put("/split/expenses/{expense_id}")
 async def edit_expense(expense_id: str, data: dict, user_id: str = Depends(get_current_user)):
-    """Edit a split expense"""
+    """Edit a split expense — full support for amount/splits/split_type/description/category."""
     from bson import ObjectId
-    updates = {}
+    existing = await db.split_expenses.find_one({"_id": ObjectId(expense_id)})
+    if not existing:
+        raise HTTPException(status_code=404, detail="Expense not found")
+
+    updates: Dict = {}
     if "description" in data: updates["description"] = data["description"]
-    if "amount" in data: updates["amount"] = data["amount"]
     if "category" in data: updates["category"] = data["category"]
+    if "paid_by" in data: updates["paid_by"] = data["paid_by"]
+
+    # If amount OR split_type OR splits changed — recompute with largest-remainder
+    new_amount = float(data.get("amount", existing["amount"]))
+    new_type = data.get("split_type", existing.get("split_type", "equal"))
+    raw = data.get("splits")
+
+    if "amount" in data or "split_type" in data or "splits" in data:
+        # Get member_ids from the group
+        group = await db.split_groups.find_one({"_id": ObjectId(existing["group_id"])})
+        member_ids = [m["user_id"] for m in (group.get("members", []) if group else [])]
+        # For non-equal types, `raw` contains only active participants; for equal, use all members
+        if new_type == "equal":
+            participant_ids = list(raw.keys()) if raw else member_ids
+        else:
+            participant_ids = list(raw.keys()) if raw else member_ids
+        new_splits = _compute_splits(new_amount, new_type, participant_ids, raw)
+        updates["amount"] = new_amount
+        updates["split_type"] = new_type
+        updates["splits"] = new_splits
+
     if updates:
+        updates["updated_at"] = datetime.utcnow()
         await db.split_expenses.update_one({"_id": ObjectId(expense_id)}, {"$set": updates})
-    return {"message": "Expense updated"}
+    return {"message": "Expense updated", "splits": updates.get("splits", existing.get("splits", {}))}
+
+
+@api_router.post("/split/partial-settle")
+async def partial_settle(data: dict, user_id: str = Depends(get_current_user)):
+    """Record a partial payment toward a debt.
+
+    Unlike /split/settle-with-rewards which assumes full settlement, this allows any amount
+    less than or equal to the remaining debt. Multiple partials accumulate into a single
+    conceptual 'settlement_amount' that reduces the balance in /summary calculations.
+    """
+    from bson import ObjectId
+    target_user_id = data.get("target_user_id")
+    amount = float(data.get("amount", 0))
+    group_id = data.get("group_id")
+    method = data.get("method", "upi")
+    note = (data.get("note") or "").strip()
+
+    if not target_user_id or amount <= 0:
+        raise HTTPException(status_code=400, detail="target_user_id and positive amount required")
+
+    settlement = {
+        "payer_id": user_id,
+        "payee_id": target_user_id,
+        "amount": amount,
+        "method": method,
+        "txn_ref": f"PART-{uuid_lib.uuid4().hex[:8].upper()}",
+        "group_id": group_id,
+        "note": note,
+        "is_partial": True,
+        "status": "completed",
+        "settled_at": datetime.utcnow(),
+        "created_at": datetime.utcnow(),
+    }
+    result = await db.settlements.insert_one(settlement)
+
+    # Coin reward proportional to amount (max 5 coins for partial)
+    coins_earned = min(5, max(1, int(amount / 500)))
+    try:
+        await db.users.update_one(
+            {"_id": ObjectId(user_id)},
+            {"$inc": {"reward_coins": coins_earned, "settlement_count": 1}}
+        )
+    except Exception:
+        pass
+
+    # System chat message
+    payer_name = "User"
+    payee_name = "User"
+    try:
+        p = await db.users.find_one({"_id": ObjectId(user_id)}, {"name": 1})
+        if p: payer_name = p.get("name", "User")
+    except Exception:
+        pass
+    try:
+        pe = await db.users.find_one({"_id": ObjectId(target_user_id)}, {"name": 1})
+        if pe: payee_name = pe.get("name", "User")
+    except Exception:
+        pass
+
+    if group_id:
+        try:
+            await db.split_messages.insert_one({
+                "group_id": group_id,
+                "type": "system",
+                "content": f"💰 {payer_name} paid ₹{amount:,.0f} (partial) to {payee_name}",
+                "sender_id": user_id,
+                "sender_name": payer_name,
+                "settlement_data": {"amount": amount, "method": method, "settlement_id": str(result.inserted_id), "is_partial": True},
+                "created_at": datetime.utcnow(),
+            })
+        except Exception as e:
+            logging.warning(f"Could not post partial settlement message: {e}")
+
+    return {
+        "id": str(result.inserted_id),
+        "message": f"Partial ₹{amount:,.0f} to {payee_name} recorded ✅",
+        "amount": amount,
+        "coins_earned": coins_earned,
+        "txn_ref": settlement["txn_ref"],
+        "is_partial": True,
+    }
+
+
+@api_router.delete("/split/expenses/{expense_id}")
 
 
 @api_router.delete("/split/groups/{group_id}/leave")

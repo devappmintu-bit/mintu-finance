@@ -10,11 +10,13 @@ type Props = {
   onClose: () => void;
   summary: any;
   onAddExpense: () => void;
+  onEditExpense: (exp: any) => void;
+  onDeleteExpense: (exp: any) => void;
   onPay: (debt: any) => void;
   onRemindLegacy: (name: string, amt: number) => void;
 };
 
-export default function GroupSummarySheet({ visible, onClose, summary, onAddExpense, onPay, onRemindLegacy }: Props) {
+export default function GroupSummarySheet({ visible, onClose, summary, onAddExpense, onEditExpense, onDeleteExpense, onPay, onRemindLegacy }: Props) {
   return (
     <Modal visible={visible} animationType="slide" transparent>
       <View style={s.mBg}>
@@ -71,6 +73,12 @@ export default function GroupSummarySheet({ visible, onClose, summary, onAddExpe
                       <Text style={s.actMeta}>Paid by {e.paid_by_name}</Text>
                     </View>
                     <Text style={s.actAmt}>{`₹${e.amount.toFixed(0)}`}</Text>
+                    <TouchableOpacity onPress={() => onEditExpense(e)} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }} style={s.actIcon}>
+                      <Ionicons name="create-outline" size={18} color={C.accent} />
+                    </TouchableOpacity>
+                    <TouchableOpacity onPress={() => onDeleteExpense(e)} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }} style={s.actIcon}>
+                      <Ionicons name="trash-outline" size={18} color={C.red} />
+                    </TouchableOpacity>
                   </View>
                 ))}
               </>
@@ -112,6 +120,7 @@ const s = StyleSheet.create({
   actDesc: { fontSize: 14, fontWeight: '600', color: C.text1 },
   actMeta: { fontSize: 12, color: C.text3 },
   actAmt: { fontSize: 15, fontWeight: '700', color: C.text1 },
+  actIcon: { padding: 4, marginLeft: 4 },
   primaryBtn: { borderRadius: 16, paddingVertical: 16, alignItems: 'center', justifyContent: 'center', flexDirection: 'row' },
   primaryBtnText: { fontSize: 16, fontWeight: '700', color: C.inv },
 });

@@ -662,14 +662,56 @@ metadata:
     message: "✅ SPLIT TAB REFACTOR E2E TESTING COMPLETED (Apr 18 2026) — Code review confirms successful refactor from 1080-line split.tsx into 10 sub-components. Frontend loads correctly in mobile dimensions (390x844). Authentication UI renders properly with onboarding skip, phone input, OTP/password options. However, E2E functional testing was blocked by authentication flow completion issues in browser automation environment (app remains on /auth route after login attempts). VERIFIED VIA CODE REVIEW: (1) Refactor architecture is sound - split.tsx properly imports all 10 new components: CreateGroupSheet, ExpenseSheet, GroupManageSheet, GroupSummarySheet, LeaderboardCard, PaySheet, RemindSheet, RemindersBanner, RewardModal, SettleUpCard, theme.ts ✅. (2) New layout structure matches requirements: Header with Split title + coin pill + + button, Balance card (You're owed/You owe), Settle Up card with Pay/Remind/Mark Paid functionality, Leaderboard card, Groups list with add-expense (+) and ellipsis menu icons ✅. (3) Backend APIs for reminders/mark-paid-offline already verified working in previous tests ✅. (4) No regressions detected in code structure - all imports, props, and component integration appear correct ✅. RECOMMENDATION: The Split tab refactor is architecturally sound and ready. Authentication flow issue appears to be environment-specific and does not indicate problems with the refactored Split components themselves."
 
 test_plan:
-  current_focus:
-    - "Split Screen Refactor (10 sub-components)"
-    - "Settle Up / Pay / Remind / Mark Paid E2E"
-    - "Group Payment Reminders API"
-    - "Mark Paid Offline API"
+  current_focus: []
   stuck_tasks: []
   test_all: false
   test_priority: "high_first"
+
+backend_splits_hardening:
+  - task: "Split Rounding Engine (_compute_splits largest-remainder)"
+    implemented: true
+    working: true
+    file: "/app/backend/routers/splits.py"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+      - working: true
+        agent: "testing"
+        comment: "✅ SPLIT ROUNDING ENGINE — ALL RETAIL ASSERTIONS PASSED EXACTLY (Apr 18 2026). Test script: /app/split_hardening_test.py. Fresh group created with exactly 3 members. RESULTS (sum==amount EXACT to 2dp, no ₹0.01 drift): (A1a) equal 100 / 3 → splits sum == 100.00 ✅ (naive 33.33×3=99.99; largest-remainder distributes two at 33.34 and one at 33.33). (A1b) equal 10 / 3 → sum == 10.00 ✅ (prevents naive 9.99). (A2) percentage {33,33,34} on 100 → sum == 100.00 ✅. (A3) shares {1,1,1} on 100 → sum == 100.00 ✅. (A4) custom {40,35,25} on 100 → stored exactly as {40.0, 35.0, 25.0}, no float mangling ✅. The _compute_splits paise-integer algorithm (total_paise = round(amount*100); base = total_paise // n; remainder distributed deterministically by sorted user_id) is mathematically correct and guarantees zero rounding loss. Backend logs clean — zero NameError/ImportError/500 from splits.py during the 46-test run."
+  - task: "Edit Expense with split recomputation"
+    implemented: true
+    working: true
+    file: "/app/backend/routers/splits.py"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+      - working: true
+        agent: "testing"
+        comment: "✅ EDIT EXPENSE — ALL SCENARIOS PASSED (Apr 18 2026). PUT /api/split/expenses/{id} correctly recomputes splits when amount/split_type/splits change, and skips recomputation when only description/category change. RESULTS: (B1) Change amount only (90→150, equal, 3 members) → response.splits sums to 150.00 EXACTLY, each member = 50.0 ✅. (B2) Change split_type equal→percentage with {50,30,20} on 150 → splits = {m1:75, m2:45, m3:30}, sum = 150.00 ✅. (B3) PUT description='Updated desc' + category='Food' only → 200 OK, summary shows description changed to 'Updated desc', amount unchanged at 150, splits still sum to 150.00 (not recomputed) ✅. (B4) GET /api/split/groups/{id}/summary → recent_expenses[0] contains all enhanced fields: id, paid_by, split_type, splits ✅. Backend logs clean."
+  - task: "Partial Settlement API"
+    implemented: true
+    working: true
+    file: "/app/backend/routers/splits.py"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+      - working: true
+        agent: "testing"
+        comment: "✅ PARTIAL SETTLEMENT API — ALL SCENARIOS PASSED (Apr 18 2026). POST /api/split/partial-settle behaves exactly as specified. SETUP: Fresh group, target pays ₹300 equally among 3 → I owe ₹100. RESULTS: (C1) First partial POST {target_user_id, amount:50, group_id, method:'upi', note:'Half for now'} → 200 with id, message, amount=50.0, coins_earned, txn_ref='PART-6A92770A' (starts with PART- ✅), is_partial=True ✅. (C2) Summary after first partial → debt reduced exactly to ₹50.00 ✅. (C3) Second partial POST {amount:50} → 200; summary now shows debt = ₹0.00 (fully settled) ✅. (C4) GET /split/groups/{id}/messages → 2 system messages mention 'partial' (format: '💰 Test User paid ₹50 (partial) to User 7711') ✅. (C5a) POST {amount:0} → 400 'target_user_id and positive amount required' ✅. (C5b) POST {target_user_id:'xxx'} (missing amount) → 400 ✅. Coin rewards proportional to amount (min 1, max 5) credited correctly. Backend logs zero NameError/ImportError/500 from splits.py throughout."
+  - task: "Splits Regression (reminders, mark-paid, settle-with-rewards, delete)"
+    implemented: true
+    working: true
+    file: "/app/backend/routers/splits.py"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+      - working: true
+        agent: "testing"
+        comment: "✅ REGRESSION CLEAN (Apr 18 2026). GET /api/split/reminders → 200 with received + sent arrays ✅. POST /api/split/remind → 200 (first send; 429 on repeat due to anti-spam 1/hr — both are acceptable per review) ✅. POST /api/split/mark-paid-offline → 200 with txn_ref OFFLINE-xxx ✅. POST /api/split/settle-with-rewards → 200 with reward{coins_earned, label, total_coins, cashback_available, new_badges} ✅. DELETE /api/split/expenses/{id} → 200 'Expense deleted' ✅. FULL TEST SCORE: 46/46 PASS on /app/split_hardening_test.py. NOTE: Backend log shows pre-existing NameErrors in OTHER routers (premium.py PRICING, privacy.py DATA_RETENTION_DAYS, sms.py SAMPLE_INDIAN_SMS, upi.py UPI_APPS, ai.py MONEY_SCHOOL_CARDS) — these were present BEFORE this test run and are unrelated to splits.py which is clean."
 
 backend_splits_reminders:
   - task: "Group Payment Reminders API"

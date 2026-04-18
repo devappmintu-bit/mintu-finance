@@ -11,10 +11,11 @@ type Props = {
   onClose: () => void;
   group: any;
   currentUserId?: string;
-  onSubmit: (payload: { description: string; amount: number; split_type: string; splits: Record<string, number> }) => void;
+  editing?: any; // if provided, edits existing expense instead of creating
+  onSubmit: (payload: { description: string; amount: number; split_type: string; splits: Record<string, number>; expense_id?: string }) => void;
 };
 
-export default function ExpenseSheet({ visible, onClose, group, currentUserId, onSubmit }: Props) {
+export default function ExpenseSheet({ visible, onClose, group, currentUserId, editing, onSubmit }: Props) {
   const [amount, setAmount] = useState('');
   const [desc, setDesc] = useState('');
   const [splitType, setSplitType] = useState('equal');
@@ -23,12 +24,27 @@ export default function ExpenseSheet({ visible, onClose, group, currentUserId, o
 
   useEffect(() => {
     if (visible && group) {
-      setAmount(''); setDesc(''); setSplitType('equal');
       const on: Record<string, boolean> = {}; const a: Record<string, string> = {};
       (group.members || []).forEach((m: any) => { on[m.user_id] = true; a[m.user_id] = ''; });
+      if (editing) {
+        setAmount(String(editing.amount || ''));
+        setDesc(editing.description || '');
+        const st = editing.split_type || 'equal';
+        setSplitType(st);
+        const sp = editing.splits || {};
+        (group.members || []).forEach((m: any) => {
+          on[m.user_id] = m.user_id in sp;
+          if (st === 'custom') a[m.user_id] = sp[m.user_id] != null ? String(sp[m.user_id]) : '';
+          else if (st === 'percentage' && editing.amount) a[m.user_id] = sp[m.user_id] != null ? String(Math.round((sp[m.user_id] / editing.amount) * 100)) : '';
+          else if (st === 'shares') a[m.user_id] = '1';
+          else a[m.user_id] = '';
+        });
+      } else {
+        setAmount(''); setDesc(''); setSplitType('equal');
+      }
       setMemberOn(on); setMemberAmts(a);
     }
-  }, [visible, group]);
+  }, [visible, group, editing]);
 
   const getSplit = (mid: string) => {
     const amt = parseFloat(amount) || 0;
@@ -61,7 +77,7 @@ export default function ExpenseSheet({ visible, onClose, group, currentUserId, o
     } else {
       en.forEach(id => { splits[id] = parseFloat(memberAmts[id]) || 0; });
     }
-    onSubmit({ description: desc || 'Expense', amount: amt, split_type: splitType, splits });
+    onSubmit({ description: desc || 'Expense', amount: amt, split_type: splitType, splits, expense_id: editing?.id });
   };
 
   return (
@@ -70,7 +86,7 @@ export default function ExpenseSheet({ visible, onClose, group, currentUserId, o
         <View style={[s.sheet, { maxHeight: '92%' }]}>
           <View style={s.handle} />
           <TouchableOpacity style={s.closeFloat} onPress={onClose}><Ionicons name="close-circle" size={28} color={C.text4} /></TouchableOpacity>
-          <Text style={s.expLabel}>Split expense</Text>
+          <Text style={s.expLabel}>{editing ? 'Edit expense' : 'Split expense'}</Text>
           <View style={s.amtRow}>
             <Text style={s.rupee}>{'₹'}</Text>
             <TextInput style={s.amtInput} value={amount} onChangeText={setAmount} keyboardType="numeric" placeholder="0" placeholderTextColor={C.text4} />
@@ -130,7 +146,7 @@ export default function ExpenseSheet({ visible, onClose, group, currentUserId, o
           </ScrollView>
           <TouchableOpacity onPress={handleSubmit}>
             <LinearGradient colors={[C.accent, C.accentLight]} style={s.primaryBtn}>
-              <Text style={s.primaryBtnText}>{`Split ₹${amount || '0'}`}</Text>
+              <Text style={s.primaryBtnText}>{editing ? `Update ₹${amount || '0'}` : `Split ₹${amount || '0'}`}</Text>
             </LinearGradient>
           </TouchableOpacity>
         </View>

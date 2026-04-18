@@ -40,6 +40,7 @@ export default function SplitScreen() {
   const [lastReward, setLastReward] = useState<any>(null);
   const [chatGroup, setChatGroup] = useState<any>(null);
   const [remindTarget, setRemindTarget] = useState<DebtRow | null>(null);
+  const [editingExpense, setEditingExpense] = useState<any>(null);
 
   // Flatten simplified_debts across all groups for main-screen Settle Up list
   const fetchSettleRows = useCallback(async (grps: any[]) => {
@@ -87,7 +88,7 @@ export default function SplitScreen() {
   }, [fetchSettleRows]);
 
   useEffect(() => { fetchData(); }, []);
-  const close = () => { setModal(''); setRemindTarget(null); };
+  const close = () => { setModal(''); setRemindTarget(null); setEditingExpense(null); };
 
   // GROUP CRUD
   const createGroup = async (name: string, phones: string[]) => {
@@ -155,14 +156,40 @@ export default function SplitScreen() {
   };
 
   // EXPENSE CRUD
-  const openAddExpense = (gr: any) => { setSelectedGroup(gr); setModal('expense'); };
-  const submitExpense = async (payload: { description: string; amount: number; split_type: string; splits: Record<string, number> }) => {
+  const openAddExpense = (gr: any) => { setSelectedGroup(gr); setEditingExpense(null); setModal('expense'); };
+  const openEditExpense = (exp: any) => { setEditingExpense(exp); setModal('expense'); };
+  const submitExpense = async (payload: { description: string; amount: number; split_type: string; splits: Record<string, number>; expense_id?: string }) => {
     if (!selectedGroup) return;
     try {
-      await api.post('/split/expenses', { group_id: selectedGroup.id, paid_by: user?.id, ...payload });
-      close(); fetchData();
-      Toast.show({ type: 'success', text1: 'Added!', text2: `₹${payload.amount} split among ${Object.keys(payload.splits).length} people` });
+      if (payload.expense_id) {
+        await api.put(`/split/expenses/${payload.expense_id}`, {
+          description: payload.description, amount: payload.amount,
+          split_type: payload.split_type, splits: payload.splits,
+        });
+        close();
+        // Refresh summary if user was viewing it
+        if (groupSummary) openSummary(selectedGroup);
+        fetchData();
+        Toast.show({ type: 'success', text1: 'Updated!', text2: `₹${payload.amount.toFixed(0)} re-split` });
+      } else {
+        await api.post('/split/expenses', { group_id: selectedGroup.id, paid_by: user?.id, ...payload });
+        close(); fetchData();
+        Toast.show({ type: 'success', text1: 'Added!', text2: `₹${payload.amount} split among ${Object.keys(payload.splits).length} people` });
+      }
     } catch (e: any) { Toast.show({ type: 'error', text1: 'Error', text2: e.response?.data?.detail || 'Failed' }); }
+  };
+  const deleteExpense = (exp: any) => {
+    Alert.alert('Delete expense?', `Delete "${exp.description}" (₹${exp.amount.toFixed(0)})?`, [
+      { text: 'Cancel', style: 'cancel' },
+      { text: 'Delete', style: 'destructive', onPress: async () => {
+        try {
+          await api.delete(`/split/expenses/${exp.id}`);
+          Toast.show({ type: 'success', text1: 'Deleted ✅' });
+          if (selectedGroup) openSummary(selectedGroup);
+          fetchData();
+        } catch (e: any) { Toast.show({ type: 'error', text1: 'Error', text2: e?.response?.data?.detail || 'Failed' }); }
+      }},
+    ]);
   };
 
   // SUMMARY & MANAGE
@@ -220,6 +247,19 @@ export default function SplitScreen() {
       const r = await api.post('/split/settle-with-rewards', { target_user_id: t.to_id, amount: t.amount, method: t.method || 'upi', group_id: t.group_id });
       setLastReward(r.data.reward); setModal('reward'); fetchData();
     } catch { Toast.show({ type: 'error', text1: 'Error', text2: 'Could not settle' }); }
+  };
+
+  const partialSettle = async (partialAmt: number) => {
+    if (!payTarget) return;
+    const { to_id, to_name, group_id } = payTarget;
+    try {
+      const r = await api.post('/split/partial-settle', { target_user_id: to_id, amount: partialAmt, method: 'upi', group_id });
+      close();
+      Toast.show({ type: 'success', text1: `Partial ₹${partialAmt.toFixed(0)} paid to ${to_name}`, text2: `+${r.data.coins_earned} 🪙` });
+      fetchData();
+    } catch (e: any) {
+      Toast.show({ type: 'error', text1: 'Error', text2: e?.response?.data?.detail || 'Failed' });
+    }
   };
 
   const markPaidOffline = (row: DebtRow, method: 'cash' | 'bank_transfer' = 'cash') => {
@@ -354,12 +394,14 @@ export default function SplitScreen() {
 
       {/* === SHEETS === */}
       <CreateGroupSheet visible={modal === 'create'} onClose={close} onCreate={createGroup} />
-      <ExpenseSheet visible={modal === 'expense'} onClose={close} group={selectedGroup} currentUserId={user?.id} onSubmit={submitExpense} />
+      <ExpenseSheet visible={modal === 'expense'} onClose={close} group={selectedGroup} currentUserId={user?.id} editing={editingExpense} onSubmit={submitExpense} />
       <GroupSummarySheet
         visible={modal === 'summary'}
         onClose={close}
         summary={groupSummary}
         onAddExpense={() => { close(); setTimeout(() => openAddExpense(selectedGroup), 200); }}
+        onEditExpense={(exp: any) => { close(); setTimeout(() => openEditExpense(exp), 200); }}
+        onDeleteExpense={deleteExpense}
         onPay={(d: any) => { setPayTarget({ to_id: d.to_id, to_name: d.to_name, amount: d.amount, group_id: selectedGroup?.id }); setModal('pay'); }}
         onRemindLegacy={remindLegacy}
       />
@@ -380,6 +422,7 @@ export default function SplitScreen() {
         target={payTarget}
         onPayUPI={payViaUPI}
         onPayCash={() => { setModal(''); if (payTarget) settleReward({ ...payTarget, method: 'cash' }); }}
+        onPayPartial={partialSettle}
       />
       <RemindSheet visible={modal === 'remind'} onClose={close} target={remindTarget} onSend={sendReminder} />
       <RewardModal visible={modal === 'reward'} reward={lastReward} onClose={() => { close(); fetchData(); }} />
