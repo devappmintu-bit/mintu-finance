@@ -15,6 +15,29 @@ import Toast from 'react-native-toast-message';
 import { TransactionsSkeleton } from '../../components/SkeletonLoader';
 import { PieChart } from 'react-native-gifted-charts';
 
+// Pure, memoized row — prevents re-renders on unrelated parent state changes (e.g. modals).
+const TxnRow = memo(function TxnRow({ item, lang, onLongPress }: { item: any; lang: string; onLongPress: (id: string) => void }) {
+  const cat = CATEGORIES[item.category] || CATEGORIES.Other;
+  const isCash = item.source === 'cash' || item.source === 'cash_recurring';
+  return (
+    <TouchableOpacity testID={`txn-${item.id}`} style={styles.txnCard} onLongPress={() => onLongPress(item.id)} activeOpacity={0.7}>
+      <View style={[styles.txnIcon, { backgroundColor: cat.color + '18' }]}>
+        <Ionicons name={cat.icon as any} size={20} color={cat.color} />
+      </View>
+      <View style={styles.txnInfo}>
+        <Text style={styles.txnDesc} numberOfLines={1}>{item.description}</Text>
+        <View style={styles.txnMetaRow}>
+          <Text style={styles.txnMeta}>{item.category} · {format(new Date(item.date), 'MMM dd')}</Text>
+          {isCash && <View style={styles.cashBadge}><Text style={styles.cashBadgeText}>{t('cash', lang)}</Text></View>}
+        </View>
+      </View>
+      <Text style={[styles.txnAmount, { color: item.type === 'credit' ? COLORS.accent.moneyIn : COLORS.accent.moneyOut }]}>
+        {item.type === 'credit' ? '+' : '-'}₹{item.amount.toFixed(0)}
+      </Text>
+    </TouchableOpacity>
+  );
+});
+
 export default function TransactionsScreen() {
   const { lang } = useLangStore();
   const [transactions, setTransactions] = useState<any[]>([]);
@@ -165,27 +188,9 @@ export default function TransactionsScreen() {
     ]);
   };
 
-  const renderTxn = useCallback(({ item }: { item: any }) => {
-    const cat = CATEGORIES[item.category] || CATEGORIES.Other;
-    const isCash = item.source === 'cash' || item.source === 'cash_recurring';
-    return (
-      <TouchableOpacity testID={`txn-${item.id}`} style={styles.txnCard} onLongPress={() => handleDelete(item.id)} activeOpacity={0.7}>
-        <View style={[styles.txnIcon, { backgroundColor: cat.color + '18' }]}>
-          <Ionicons name={cat.icon as any} size={20} color={cat.color} />
-        </View>
-        <View style={styles.txnInfo}>
-          <Text style={styles.txnDesc} numberOfLines={1}>{item.description}</Text>
-          <View style={styles.txnMetaRow}>
-            <Text style={styles.txnMeta}>{item.category} · {format(new Date(item.date), 'MMM dd')}</Text>
-            {isCash && <View style={styles.cashBadge}><Text style={styles.cashBadgeText}>{t('cash', lang)}</Text></View>}
-          </View>
-        </View>
-        <Text style={[styles.txnAmount, { color: item.type === 'credit' ? COLORS.accent.moneyIn : COLORS.accent.moneyOut }]}>
-          {item.type === 'credit' ? '+' : '-'}₹{item.amount.toFixed(0)}
-        </Text>
-      </TouchableOpacity>
-    );
-  }, [lang]);
+  const renderTxn = useCallback(({ item }: { item: any }) => (
+    <TxnRow item={item} lang={lang} onLongPress={handleDelete} />
+  ), [lang]);
 
   if (loading) return <SafeAreaView style={styles.container}><TransactionsSkeleton /></SafeAreaView>;
 
