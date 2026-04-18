@@ -1,4 +1,5 @@
 """Referral router — invite codes, redemption, leaderboard, Pro-day rewards."""
+import logging
 import uuid as uuid_lib
 from datetime import datetime, timedelta
 from bson import ObjectId
