@@ -30,6 +30,7 @@ export default function HomeScreen() {
   const [gamification, setGamification] = useState<any>(null);
   const [cardOfDay, setCardOfDay] = useState<any>(null);
   const [avatar, setAvatar] = useState<string>('');
+  const [news, setNews] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
 
@@ -49,13 +50,14 @@ export default function HomeScreen() {
       setLoading(false); // Show content immediately
 
       // Phase 2: Secondary data (below the fold, loaded async)
-      const [lessonRes, alertsRes, reportRes, lbRes, gameRes, cotdRes] = await Promise.all([
+      const [lessonRes, alertsRes, reportRes, lbRes, gameRes, cotdRes, newsRes] = await Promise.all([
         api.get(`/money-school/dynamic?lang=${lang}`).catch(() => ({ data: null })),
         api.get('/alerts/smart').catch(() => ({ data: { alerts: [] } })),
         api.get('/reports/weekly').catch(() => ({ data: null })),
         api.get('/leaderboard/savings').catch(() => ({ data: null })),
         api.get('/gamification/status').catch(() => ({ data: null })),
         api.get('/card-of-the-day').catch(() => ({ data: null })),
+        api.get('/news/india-finance').catch(() => ({ data: { articles: [] } })),
       ]);
       if (lessonRes.data) setDailyLesson(lessonRes.data);
       setSmartAlerts(alertsRes.data?.alerts || []);
@@ -63,6 +65,7 @@ export default function HomeScreen() {
       if (lbRes.data) setLeaderboard(lbRes.data);
       if (gameRes.data) setGamification(gameRes.data);
       if (cotdRes.data) setCardOfDay(cotdRes.data);
+      setNews(newsRes.data?.articles || []);
     } catch (error) {
       console.error('Dashboard fetch error:', error);
     } finally {
@@ -329,33 +332,24 @@ export default function HomeScreen() {
         )}
 
         {/* RECENT TRANSACTIONS */}
+        {/* INDIA FINANCE NEWS */}
         <View style={styles.txnSection}>
           <View style={styles.txnHeader}>
-            <Text style={styles.sectionTitle}>{t('recent_transactions', lang)}</Text>
-            <TouchableOpacity onPress={() => router.push('/(tabs)/transactions')}>
-              <Text style={styles.seeAllLink}>{t('view_all', lang)}</Text>
-            </TouchableOpacity>
+            <Text style={styles.sectionTitle}>India Finance Today</Text>
           </View>
-          {recentTxns.length === 0 ? (
-            <View style={styles.emptyState}><Text style={styles.emptyText}>No transactions yet. Start tracking!</Text></View>
+          {news.length === 0 ? (
+            <View style={styles.emptyState}><ActivityIndicator size="small" color={COLORS.accent.primary} /><Text style={[styles.emptyText, { marginTop: 8 }]}>Loading updates...</Text></View>
           ) : (
-            recentTxns.map((txn: any, i: number) => {
-              const cat = CATEGORIES[txn.category] || { icon: 'help-circle', color: '#64748B' };
-              return (
-                <View key={i} style={styles.txnRow}>
-                  <View style={[styles.txnIcon, { backgroundColor: cat.color + '15' }]}>
-                    <Ionicons name={cat.icon as any} size={18} color={cat.color} />
-                  </View>
-                  <View style={styles.txnInfo}>
-                    <Text style={styles.txnDesc} numberOfLines={1}>{txn.description || txn.category}</Text>
-                    <Text style={styles.txnDate}>{new Date(txn.date).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })}</Text>
-                  </View>
-                  <Text style={[styles.txnAmt, { color: txn.type === 'credit' ? '#10B981' : '#EF4444' }]}>
-                    {txn.type === 'credit' ? '+' : '-'}₹{txn.amount?.toLocaleString()}
-                  </Text>
+            news.map((article: any, i: number) => (
+              <View key={i} style={[styles.cotdCard, { borderLeftColor: article.category === 'alert' ? '#EF4444' : article.category === 'market' ? '#10B981' : article.category === 'scheme' ? '#6366F1' : COLORS.accent.primary }]}>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 4 }}>
+                  <Text style={{ fontSize: 16 }}>{article.emoji}</Text>
+                  <Text style={{ fontSize: 9, fontWeight: '700', letterSpacing: 0.8, color: COLORS.text.muted, textTransform: 'uppercase' }}>{article.category} · {article.source}</Text>
                 </View>
-              );
-            })
+                <Text style={{ fontSize: 14, fontWeight: '700', color: COLORS.text.primary, lineHeight: 20 }}>{article.title}</Text>
+                <Text style={{ fontSize: 12, color: COLORS.text.secondary, marginTop: 4, lineHeight: 18 }}>{article.summary}</Text>
+              </View>
+            ))
           )}
         </View>
         <View style={{ height: 24 }} />

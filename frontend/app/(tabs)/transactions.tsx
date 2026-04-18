@@ -256,45 +256,34 @@ export default function TransactionsScreen() {
         initialNumToRender={10}
         ListHeaderComponent={
           <>
-            {/* AI Waste Detector */}
-            {waste && waste.category_waste?.length > 0 && (
-              <View style={styles.wasteCard}>
-                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 6 }}>
-                  <Ionicons name="flame" size={14} color="#EF4444" />
-                  <Text style={styles.wasteTitle}>AI Waste Detector</Text>
+            {/* AI Expense Report Card */}
+            {waste && waste.ai_recommendation ? (
+              <View style={styles.reportCard}>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 8 }}>
+                  <Ionicons name="sparkles" size={16} color={COLORS.accent.primary} />
+                  <Text style={styles.reportTitle}>AI Expense Report</Text>
                 </View>
-                {waste.category_waste.slice(0, 2).map((w: any, i: number) => (
-                  <View key={i} style={{ marginBottom: 6 }}>
-                    <Text style={styles.wasteShock}>{w.shock_text}</Text>
-                    {w.peer_comparison?.text ? <Text style={styles.wastePeer}>👥 {w.peer_comparison.text}</Text> : null}
+                {waste.overall_trend_pct !== undefined && waste.prev_month_total > 0 && (
+                  <View style={[styles.trendRow, { backgroundColor: waste.overall_trend_pct > 0 ? '#FEF2F2' : '#F0FDF4' }]}>
+                    <Ionicons name={waste.overall_trend_pct > 0 ? 'trending-up' : 'trending-down'} size={14} color={waste.overall_trend_pct > 0 ? '#EF4444' : '#10B981'} />
+                    <Text style={{ fontSize: 12, fontWeight: '700', color: waste.overall_trend_pct > 0 ? '#EF4444' : '#10B981' }}>
+                      {Math.abs(waste.overall_trend_pct).toFixed(0)}% {waste.overall_trend_pct > 0 ? 'more' : 'less'} than last month
+                    </Text>
+                    <Text style={{ fontSize: 11, color: COLORS.text.muted, marginLeft: 'auto' }}>₹{waste.total_monthly_expense?.toLocaleString()}</Text>
+                  </View>
+                )}
+                {waste.category_waste?.slice(0, 3).map((w: any, i: number) => (
+                  <View key={i} style={styles.insightRow}>
+                    <Text style={{ fontSize: 13, fontWeight: '600', color: COLORS.text.primary }}>{w.shock_text}</Text>
+                    {w.peer_comparison?.text ? <Text style={{ fontSize: 11, color: '#9CA3AF', marginTop: 2 }}>👥 {w.peer_comparison.text}</Text> : null}
                   </View>
                 ))}
-                {waste.ai_recommendation ? (
-                  <View style={styles.aiRecCard}><Ionicons name="sparkles" size={12} color={COLORS.accent.primary} /><Text style={styles.aiRecText}>{waste.ai_recommendation}</Text></View>
-                ) : null}
-              </View>
-            )}
-            {/* Expense Breakdown Pie Chart */}
-            {stats?.category_breakdown && Object.keys(stats.category_breakdown).length > 0 && (() => {
-              const pieData = Object.entries(stats.category_breakdown).map(([cat, amt]: [string, any]) => ({ value: amt, color: CATEGORIES[cat]?.color || '#64748B', text: cat }));
-              const total = pieData.reduce((s, d) => s + d.value, 0);
-              return (
-                <View style={styles.pieCard}>
-                  <Text style={styles.pieTitleText}>Expense Breakdown</Text>
-                  <View style={{ alignItems: 'center', marginVertical: 10 }}>
-                    <PieChart data={pieData} donut radius={60} innerRadius={40} innerCircleColor={COLORS.bg.card}
-                      centerLabelComponent={() => (<View style={{ alignItems: 'center' }}><Text style={{ fontSize: 14, fontWeight: '800', color: COLORS.text.primary }}>₹{total.toFixed(0)}</Text></View>)} />
-                  </View>
-                  {pieData.slice(0, 4).map((item, i) => (
-                    <View key={i} style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 4 }}>
-                      <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: item.color, marginRight: 8 }} />
-                      <Text style={{ flex: 1, fontSize: 12, color: COLORS.text.secondary }}>{item.text}</Text>
-                      <Text style={{ fontSize: 12, fontWeight: '600', color: COLORS.text.primary }}>₹{item.value.toFixed(0)}</Text>
-                    </View>
-                  ))}
+                <View style={styles.aiRecBox}>
+                  <Ionicons name="bulb" size={14} color="#F59E0B" />
+                  <Text style={styles.aiRecTxt}>{waste.ai_recommendation}</Text>
                 </View>
-              );
-            })()}
+              </View>
+            ) : null}
             <Text style={styles.sectionLabel}>Transactions</Text>
           </>
         }
@@ -455,4 +444,11 @@ const styles = StyleSheet.create({
   pieCard: { backgroundColor: 'rgba(255,255,255,0.92)', borderRadius: RADIUS.xl, padding: 14, marginBottom: 12, borderWidth: 1, borderColor: 'rgba(238,221,204,0.6)' },
   pieTitleText: { fontSize: 14, fontWeight: '700', color: COLORS.text.primary },
   sectionLabel: { fontSize: 14, fontWeight: '700', color: COLORS.text.muted, marginBottom: 8, marginTop: 4 },
+  // AI Report Card
+  reportCard: { backgroundColor: 'rgba(255,255,255,0.92)', borderRadius: RADIUS.xl, padding: 16, marginBottom: 14, borderWidth: 1, borderColor: 'rgba(238,221,204,0.6)', shadowColor: '#2E1F1A', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.04, shadowRadius: 10, elevation: 2 },
+  reportTitle: { fontSize: 15, fontWeight: '700', color: COLORS.text.primary },
+  trendRow: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 12, paddingVertical: 8, borderRadius: RADIUS.full, marginBottom: 10 },
+  insightRow: { paddingVertical: 8, borderBottomWidth: 1, borderBottomColor: COLORS.border.subtle },
+  aiRecBox: { flexDirection: 'row', gap: 8, backgroundColor: '#FFFBEB', padding: 12, borderRadius: RADIUS.lg, marginTop: 10, borderWidth: 1, borderColor: '#FDE68A' },
+  aiRecTxt: { flex: 1, fontSize: 12, fontWeight: '500', color: '#78716C', lineHeight: 18 },
 });

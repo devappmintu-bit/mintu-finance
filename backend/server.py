@@ -3328,6 +3328,92 @@ async def card_of_the_day(refresh: bool = False, user_id: str = Depends(get_curr
         card = DAILY_CARDS[day_index]
     return {**card, "app_link": APP_DOWNLOAD_LINK}
 
+
+# INDIA FINANCIAL NEWS (AI-generated daily updates)
+@api_router.get("/news/india-finance")
+async def india_finance_news(user_id: str = Depends(get_current_user)):
+    """AI-generated India-specific daily financial news, schemes, and trends"""
+    from datetime import date
+    today = date.today().isoformat()
+    # Check cache
+    cached = await db.news_cache.find_one({"date": today})
+    if cached and cached.get("articles"):
+        return {"date": today, "articles": cached["articles"]}
+    try:
+        prompt = f"""Generate 6 India-specific financial news items for {today}. Mix these types:
+1. Government scheme update (PM schemes, tax changes, RBI policy)
+2. Market trend (Sensex/Nifty, gold, rupee)
+3. Personal finance tip for young Indians
+4. Banking/UPI/digital payment news
+5. Investment opportunity (SIP, mutual funds, FD rates)
+6. Consumer alert (scam warning, price change, deadline reminder)
+
+For EACH item return JSON: {{"title": "...", "summary": "2 sentences max", "category": "scheme|market|tip|banking|investment|alert", "emoji": "relevant emoji", "source": "credible source name"}}
+Return ONLY a JSON array of 6 items. No markdown."""
+        chat = LlmChat(api_key=os.environ.get("EMERGENT_LLM_KEY", ""), session_id=f"news_{today}", system_message="You are an Indian financial news editor. Today is " + today + ". Generate realistic, timely news.").with_model("openai", "gpt-5.2")
+        resp = await chat.send_message(UserMessage(text=prompt))
+        resp_text = resp.strip() if isinstance(resp, str) else str(resp)
+        import json as json_mod
+        articles = json_mod.loads(resp_text) if resp_text.startswith("[") else json_mod.loads(resp_text[resp_text.index("["):resp_text.rindex("]")+1])
+        await db.news_cache.update_one({"date": today}, {"$set": {"date": today, "articles": articles}}, upsert=True)
+        return {"date": today, "articles": articles}
+    except Exception as e:
+        logging.warning(f"News generation failed: {e}")
+        return {"date": today, "articles": [
+            {"title": "RBI keeps repo rate unchanged at 6.5%", "summary": "The Reserve Bank maintained its policy rate, signaling stable lending rates for home and personal loans.", "category": "banking", "emoji": "🏦", "source": "RBI"},
+            {"title": "Sensex hits new high above 85,000", "summary": "Indian markets rallied on strong FII inflows and positive global cues. IT and banking stocks led gains.", "category": "market", "emoji": "📈", "source": "NSE"},
+            {"title": "New PM Vishwakarma Scheme deadline extended", "summary": "Artisans and craftsmen can now apply until March 2026 for subsidized loans up to ₹3 lakh.", "category": "scheme", "emoji": "🏛️", "source": "PIB"},
+        ]}
+
+# AI EXPENSE REPORT CARD
+@api_router.get("/reports/ai-expense-card")
+async def ai_expense_report(user_id: str = Depends(get_current_user)):
+    """AI-generated personalized expense report with insights"""
+    from bson import ObjectId
+    now = datetime.utcnow()
+    month_start = now.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+    prev_month_start = (month_start - timedelta(days=1)).replace(day=1)
+    # Current month data
+    pipeline = [{"$match": {"user_id": user_id, "type": {"$in": ["expense", "debit"]}, "date": {"$gte": month_start}}}, {"$group": {"_id": "$category", "total": {"$sum": "$amount"}, "count": {"$sum": 1}}}]
+    categories = {}
+    async for doc in db.transactions.aggregate(pipeline):
+        categories[doc["_id"]] = {"total": doc["total"], "count": doc["count"]}
+    # Previous month
+    prev_pipeline = [{"$match": {"user_id": user_id, "type": {"$in": ["expense", "debit"]}, "date": {"$gte": prev_month_start, "$lt": month_start}}}, {"$group": {"_id": "$category", "total": {"$sum": "$amount"}, "count": {"$sum": 1}}}]
+    prev_categories = {}
+    async for doc in db.transactions.aggregate(prev_pipeline):
+        prev_categories[doc["_id"]] = {"total": doc["total"], "count": doc["count"]}
+    total = sum(c["total"] for c in categories.values())
+    prev_total = sum(c["total"] for c in prev_categories.values())
+    txn_count = sum(c["count"] for c in categories.values())
+    # Income
+    income_pipeline = [{"$match": {"user_id": user_id, "type": {"$in": ["income", "credit"]}, "date": {"$gte": month_start}}}, {"$group": {"_id": None, "total": {"$sum": "$amount"}}}]
+    income = 0
+    async for doc in db.transactions.aggregate(income_pipeline):
+        income = doc["total"]
+    savings_rate = round(((income - total) / max(income, 1)) * 100) if income > 0 else 0
+    cat_summary = "\n".join([f"- {cat}: ₹{d['total']:,.0f} ({d['count']} txns)" for cat, d in sorted(categories.items(), key=lambda x: x[1]["total"], reverse=True)[:6]])
+    try:
+        prompt = f"""Generate a personalized monthly expense report for an Indian user:
+Income: ₹{income:,.0f} | Expenses: ₹{total:,.0f} | Savings Rate: {savings_rate}%
+Last Month Expenses: ₹{prev_total:,.0f} | Change: {((total-prev_total)/max(prev_total,1)*100):+.0f}%
+Transaction Count: {txn_count}
+Category Breakdown:
+{cat_summary}
+
+Generate a JSON report with these EXACT keys:
+{{"headline": "catchy 5-word summary", "health_grade": "A/B/C/D/F", "health_color": "green/yellow/red", "savings_rate": {savings_rate}, "top_insight": "1 sentence key finding", "highlights": ["3-4 bullet point insights"], "recommendations": ["2-3 actionable tips"], "comparison_text": "vs last month comparison"}}
+Return ONLY valid JSON."""
+        chat = LlmChat(api_key=os.environ.get("EMERGENT_LLM_KEY", ""), session_id=f"report_{user_id}_{now.timestamp()}", system_message="You are a certified financial planner analyzing an Indian user's expenses.").with_model("openai", "gpt-5.2")
+        resp = await chat.send_message(UserMessage(text=prompt))
+        resp_text = resp.strip() if isinstance(resp, str) else str(resp)
+        import json as json_mod
+        report = json_mod.loads(resp_text) if resp_text.startswith("{") else json_mod.loads(resp_text[resp_text.index("{"):resp_text.rindex("}")+1])
+    except Exception as e:
+        logging.warning(f"AI report failed: {e}")
+        report = {"headline": "Your Monthly Snapshot", "health_grade": "B", "health_color": "yellow", "savings_rate": savings_rate, "top_insight": f"You spent ₹{total:,.0f} across {len(categories)} categories this month.", "highlights": [f"Total: ₹{total:,.0f} across {txn_count} transactions", f"Savings rate: {savings_rate}%"], "recommendations": ["Review your top spending category", "Set a weekly budget limit"], "comparison_text": f"{'📈' if total > prev_total else '📉'} {abs(((total-prev_total)/max(prev_total,1)*100)):,.0f}% vs last month"}
+    return {"total_expense": total, "total_income": income, "savings_rate": savings_rate, "txn_count": txn_count, "prev_total": prev_total, "categories": {k: v["total"] for k, v in categories.items()}, "report": report}
+
 # 1. SAVINGS LEADERBOARD
 @api_router.get("/leaderboard/savings")
 async def savings_leaderboard(user_id: str = Depends(get_current_user)):
