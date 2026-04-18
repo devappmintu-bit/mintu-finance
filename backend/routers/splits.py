@@ -63,37 +63,66 @@ SETTLEMENT_BADGES = [
 
 @api_router.post("/split/groups")
 async def create_split_group(group: SplitGroupCreate, user_id: str = Depends(get_current_user)):
+    """Create a split group. Real users only — phones that don't match any registered
+    MintU user are stored as `pending_invites` (by phone) instead of creating fake
+    placeholder users like "User 1234". The group surfaces these as invite-pending
+    rows and the real user joins automatically once they sign up with that phone."""
     from bson import ObjectId
     user = await db.users.find_one({"_id": ObjectId(user_id)})
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+
+    # Start with the creator as the first member.
     members = [{"user_id": user_id, "name": user["name"], "phone": user["phone"]}]
-    
+    pending_invites: List[dict] = []
+    seen_phones = {user.get("phone")}
+
     for phone in group.members:
         p = phone.strip().replace("+91", "").replace(" ", "")[-10:]
         if len(p) != 10 or not p.isdigit():
             continue
-        # Check if already added
-        if any(m["phone"] == p for m in members):
+        if p in seen_phones:  # Phone-level dedup
             continue
-        
-        m = await db.users.find_one({"phone": p})
-        if not m:
-            # Auto-create placeholder user
-            result = await db.users.insert_one({
-                "phone": p, "name": f"User {p[-4:]}", "money_score": 50,
-                "streak_days": 0, "created_at": datetime.utcnow(),
-                "reward_coins": 0, "settlement_count": 0,
-            })
-            m = {"_id": result.inserted_id, "name": f"User {p[-4:]}", "phone": p}
-        
-        mid = str(m["_id"])
-        if mid != user_id:
-            members.append({"user_id": mid, "name": m.get("name", f"User {p[-4:]}"), "phone": p})
-    
-    g = {"name": group.name, "members": members, "created_by": user_id, "created_at": datetime.utcnow()}
+        seen_phones.add(p)
+
+        existing = await db.users.find_one({"phone": p})
+        if existing:
+            mid = str(existing["_id"])
+            if mid == user_id:
+                continue
+            if not any(m["user_id"] == mid for m in members):  # user_id dedup
+                members.append({
+                    "user_id": mid,
+                    "name": existing.get("name") or f"+91 {p}",
+                    "phone": p,
+                })
+        else:
+            # Do NOT auto-create placeholder user. Track as pending invite.
+            if not any(pi["phone"] == p for pi in pending_invites):
+                pending_invites.append({"phone": p, "invited_at": datetime.utcnow()})
+
+    # Minimum 2 members (including creator) to create a group
+    total_participants = len(members) + len(pending_invites)
+    if total_participants < 2:
+        raise HTTPException(status_code=400, detail="Groups need at least 2 people. Add a friend's phone number.")
+
+    g = {
+        "name": group.name.strip() or "Untitled Group",
+        "members": members,
+        "pending_invites": pending_invites,
+        "created_by": user_id,
+        "created_at": datetime.utcnow(),
+    }
     if group.custom_emoji:
         g["custom_emoji"] = group.custom_emoji
     result = await db.split_groups.insert_one(g)
-    return {"id": str(result.inserted_id), "name": g["name"], "members": members, "custom_emoji": g.get("custom_emoji")}
+    return {
+        "id": str(result.inserted_id),
+        "name": g["name"],
+        "members": members,
+        "pending_invites": pending_invites,
+        "custom_emoji": g.get("custom_emoji"),
+    }
 
 
 @api_router.get("/split/groups")

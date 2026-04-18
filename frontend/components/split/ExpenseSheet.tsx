@@ -146,7 +146,7 @@ export default function ExpenseSheet({ visible, onClose, group, currentUserId, e
           </ScrollView>
           <TouchableOpacity onPress={handleSubmit}>
             <LinearGradient colors={[C.accent, C.accentLight]} style={s.primaryBtn}>
-              <Text style={s.primaryBtnText}>{editing ? `Update ₹${amount || '0'}` : `Split ₹${amount || '0'}`}</Text>
+              <Text style={s.primaryBtnText}>{editing ? `Update ₹${amount || '0'}` : (desc.trim() ? `Split ₹${amount || '0'} for ${desc.trim()}` : `Split ₹${amount || '0'}`)}</Text>
             </LinearGradient>
           </TouchableOpacity>
         </View>
