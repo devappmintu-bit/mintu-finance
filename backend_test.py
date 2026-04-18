@@ -1,4 +1,14 @@
-"""Smoke test for budgets router refactor + regression on transactions & gamification."""
+"""Analytics router extraction smoke test + regression (Apr 18 2026).
+
+Tests:
+ 1. GET /api/stats/overview
+ 2. GET /api/reports/weekly
+ 3. GET /api/leaderboard/savings
+ 4. GET /api/leaderboard/friends
+ 5. GET /api/transactions            (regression)
+ 6. GET /api/family/my-groups        (regression)
+ 7. GET /api/budgets                 (regression)
+"""
 import sys
 import requests
 
@@ -15,55 +25,81 @@ def auth() -> str:
     return r.json()["token"]
 
 
+def _check(name, r, required_keys=None, list_ok=False):
+    if r.status_code != 200:
+        return (name, False, r.status_code, r.text[:300])
+    try:
+        data = r.json()
+    except Exception as e:
+        return (name, False, r.status_code, f"JSON decode err: {e}; body={r.text[:200]}")
+    if list_ok and isinstance(data, list):
+        return (name, True, r.status_code, f"list(len={len(data)})")
+    if required_keys:
+        missing = [k for k in required_keys if k not in data]
+        if missing:
+            return (name, False, r.status_code, f"missing keys: {missing}; keys={list(data.keys())[:15]}")
+    return (name, True, r.status_code, f"keys={list(data.keys())[:15]}" if isinstance(data, dict) else str(data)[:200])
+
+
 def run():
     results = []
     token = auth()
     h = {"Authorization": f"Bearer {token}"}
 
-    # Cleanup any leftover Food budget
-    try:
-        rc = requests.get(f"{BASE}/budgets", headers=h, timeout=30)
-        if rc.status_code == 200:
-            for b in rc.json():
-                if b.get("category") == "Food":
-                    requests.delete(f"{BASE}/budgets/{b['id']}", headers=h, timeout=30)
-    except Exception:
-        pass
+    # 1. Stats overview
+    r = requests.get(f"{BASE}/stats/overview", headers=h, timeout=30)
+    results.append(_check(
+        "1. GET /api/stats/overview", r,
+        required_keys=["total_income", "total_expense", "balance", "transaction_count", "category_breakdown"],
+    ))
 
-    r = requests.post(f"{BASE}/budgets", json={"category": "Food", "amount": 5000, "period": "monthly"}, headers=h, timeout=30)
-    ok1 = r.status_code == 200 and "id" in r.json()
-    results.append(("1. POST /api/budgets create", ok1, r.status_code, r.text[:250]))
-    if not ok1:
-        return results
-    budget_id = r.json()["id"]
+    # 2. Weekly report
+    r = requests.get(f"{BASE}/reports/weekly", headers=h, timeout=30)
+    results.append(_check(
+        "2. GET /api/reports/weekly", r,
+        required_keys=["period", "total_spent", "mood", "top_category", "shareable_text"],
+    ))
 
-    r = requests.get(f"{BASE}/budgets", headers=h, timeout=30)
-    ok2 = False
-    if r.status_code == 200 and isinstance(r.json(), list):
-        food = [b for b in r.json() if b.get("category") == "Food"]
-        ok2 = len(food) >= 1 and "spent" in food[0]
-    results.append(("2. GET /api/budgets (Food + spent)", ok2, r.status_code, str(r.json())[:250]))
+    # 3. Savings leaderboard
+    r = requests.get(f"{BASE}/leaderboard/savings", headers=h, timeout=30)
+    results.append(_check(
+        "3. GET /api/leaderboard/savings", r,
+        required_keys=["user_rank", "percentile", "top_10", "monthly_saved"],
+    ))
+    # extra sanity: top_10 is list
+    if r.status_code == 200:
+        try:
+            d = r.json()
+            assert isinstance(d.get("top_10"), list), "top_10 not list"
+        except Exception as e:
+            results.append(("3b. leaderboard/savings top_10 is list", False, r.status_code, str(e)))
+        else:
+            results.append(("3b. leaderboard/savings top_10 is list", True, 200, f"len={len(d['top_10'])}, rank={d.get('user_rank')}, pct={d.get('percentile')}"))
 
-    r = requests.post(f"{BASE}/budgets", json={"category": "Food", "amount": 6000, "period": "monthly"}, headers=h, timeout=30)
-    upsert_id = r.json().get("id") if r.status_code == 200 else None
-    ok3 = r.status_code == 200 and upsert_id == budget_id and r.json().get("amount") == 6000
-    results.append(("3. POST upsert same category", ok3, r.status_code, r.text[:250]))
+    # 4. Friends comparison (may return empty friends + message if no split groups)
+    r = requests.get(f"{BASE}/leaderboard/friends", headers=h, timeout=30)
+    if r.status_code == 200:
+        data = r.json()
+        has_friends_key = "friends" in data
+        ok = has_friends_key and (
+            isinstance(data.get("friends"), list)
+        )
+        results.append(("4. GET /api/leaderboard/friends", ok, 200,
+                        f"friends_len={len(data.get('friends', []))}, has_message={'message' in data}, keys={list(data.keys())}"))
+    else:
+        results.append(("4. GET /api/leaderboard/friends", False, r.status_code, r.text[:300]))
 
-    r = requests.delete(f"{BASE}/budgets/{budget_id}", headers=h, timeout=30)
-    ok4 = r.status_code == 200 and r.json().get("message") == "Budget deleted"
-    results.append(("4. DELETE /api/budgets/{id}", ok4, r.status_code, r.text[:250]))
-
-    r = requests.delete(f"{BASE}/budgets/000000000000000000000000", headers=h, timeout=30)
-    ok5 = r.status_code == 404
-    results.append(("5. DELETE invalid id -> 404", ok5, r.status_code, r.text[:250]))
-
+    # 5. Transactions regression
     r = requests.get(f"{BASE}/transactions", headers=h, timeout=30)
-    ok6 = r.status_code == 200 and isinstance(r.json(), list)
-    results.append(("6. GET /api/transactions", ok6, r.status_code, str(r.json())[:150]))
+    results.append(_check("5. GET /api/transactions", r, list_ok=True))
 
-    r = requests.get(f"{BASE}/gamification/status", headers=h, timeout=30)
-    ok7 = r.status_code == 200 and "streak" in r.json()
-    results.append(("7. GET /api/gamification/status", ok7, r.status_code, str(r.json())[:200]))
+    # 6. Family my-groups regression
+    r = requests.get(f"{BASE}/family/my-groups", headers=h, timeout=30)
+    results.append(_check("6. GET /api/family/my-groups", r, list_ok=True))
+
+    # 7. Budgets regression
+    r = requests.get(f"{BASE}/budgets", headers=h, timeout=30)
+    results.append(_check("7. GET /api/budgets", r, list_ok=True))
 
     return results
 
@@ -75,13 +111,15 @@ if __name__ == "__main__":
         print("FATAL:", e)
         sys.exit(1)
 
-    print("\n===== BUDGETS REFACTOR SMOKE TEST =====")
+    print("\n===== ANALYTICS ROUTER EXTRACTION SMOKE TEST =====")
     passed = 0
     for name, ok, status, body in results:
         flag = "PASS" if ok else "FAIL"
         print(f"[{flag}] {name} -> HTTP {status}")
         if not ok:
             print(f"       body: {body}")
+        else:
+            print(f"       {body}")
         passed += int(bool(ok))
     print(f"\n{passed}/{len(results)} passed")
     sys.exit(0 if passed == len(results) else 2)

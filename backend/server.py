@@ -896,32 +896,7 @@ async def get_weekly_insights(user_id: str = Depends(get_current_user)):
 #   POST /budgets, GET /budgets, DELETE /budgets/{id}
 # Advanced/AI/family-budget endpoints remain in server.py (see below).
 
-@api_router.get("/stats/overview")
-async def get_stats_overview(user_id: str = Depends(get_current_user)):
-    # Get transactions from last 30 days
-    thirty_days_ago = datetime.utcnow() - timedelta(days=30)
-    transactions = await db.transactions.find({
-        "user_id": user_id,
-        "date": {"$gte": thirty_days_ago}
-    }).to_list(1000)
-    
-    total_income = sum(t["amount"] for t in transactions if t["type"] == "credit")
-    total_expense = sum(t["amount"] for t in transactions if t["type"] == "debit")
-    
-    # Category breakdown
-    category_breakdown = {}
-    for trans in transactions:
-        if trans["type"] == "debit":
-            cat = trans["category"]
-            category_breakdown[cat] = category_breakdown.get(cat, 0) + trans["amount"]
-    
-    return {
-        "total_income": total_income,
-        "total_expense": total_expense,
-        "balance": total_income - total_expense,
-        "transaction_count": len(transactions),
-        "category_breakdown": category_breakdown
-    }
+# /stats/overview moved to routers/analytics.py
 
 # ============== VOICE INPUT (Whisper STT) ==============
 from fastapi import UploadFile, File
@@ -2350,76 +2325,7 @@ Be specific, actionable, use Indian context. Sound like a smart friend, not a bo
     return result
 
 # 3. WEEKLY REPORT
-@api_router.get("/reports/weekly")
-async def weekly_report(user_id: str = Depends(get_current_user)):
-    """Weekly Report — emotional + actionable summary"""
-    from bson import ObjectId
-    now = datetime.utcnow()
-    week_start = now - timedelta(days=now.weekday())
-    week_start = week_start.replace(hour=0, minute=0, second=0, microsecond=0)
-    prev_week_start = week_start - timedelta(days=7)
-    
-    user = await db.users.find_one({"_id": ObjectId(user_id)})
-    
-    # This week's spending
-    this_week_pipeline = [
-        {"$match": {"user_id": user_id, "type": {"$in": ["expense", "debit"]}, "date": {"$gte": week_start}}},
-        {"$group": {"_id": "$category", "total": {"$sum": "$amount"}, "count": {"$sum": 1}}}
-    ]
-    this_week = {}
-    async for doc in db.transactions.aggregate(this_week_pipeline):
-        this_week[doc["_id"]] = doc["total"]
-    
-    # Last week's spending
-    last_week_pipeline = [
-        {"$match": {"user_id": user_id, "type": {"$in": ["expense", "debit"]}, "date": {"$gte": prev_week_start, "$lt": week_start}}},
-        {"$group": {"_id": "$category", "total": {"$sum": "$amount"}}}
-    ]
-    last_week = {}
-    async for doc in db.transactions.aggregate(last_week_pipeline):
-        last_week[doc["_id"]] = doc["total"]
-    
-    this_total = sum(this_week.values())
-    last_total = sum(last_week.values())
-    change_pct = ((this_total - last_total) / max(last_total, 1) * 100) if last_total > 0 else 0
-    
-    # Top waste category
-    top_category = max(this_week, key=this_week.get) if this_week else "Nothing tracked"
-    top_amount = this_week.get(top_category, 0)
-    
-    # Mood determination
-    if change_pct < -10:
-        mood = "🎉"
-        mood_text = "Great week! You spent less than last week"
-    elif change_pct < 5:
-        mood = "😊"
-        mood_text = "Steady week — spending is stable"
-    elif change_pct < 20:
-        mood = "👀"
-        mood_text = "Watch out! Spending crept up a bit"
-    else:
-        mood = "🔥"
-        mood_text = "Big spending week! Let's course-correct"
-    
-    # Savings suggestion
-    potential_save = int(this_total * 0.15)  # Suggest saving 15% more
-    
-    report = {
-        "period": f"{week_start.strftime('%b %d')} - {now.strftime('%b %d, %Y')}",
-        "total_spent": this_total,
-        "last_week_spent": last_total,
-        "change_pct": round(change_pct, 1),
-        "mood": mood,
-        "mood_text": mood_text,
-        "top_category": {"name": top_category, "amount": top_amount},
-        "category_breakdown": {k: v for k, v in sorted(this_week.items(), key=lambda x: x[1], reverse=True)},
-        "savings_suggestion": f"Cut ₹{potential_save:,} next week by reducing {top_category} spending",
-        "streak": user.get("streak_days", 0) if user else 0,
-        "money_score": user.get("money_score", 50) if user else 50,
-        "headline": f"You {'wasted' if change_pct > 10 else 'spent'} ₹{this_total:,.0f} this week {mood}",
-        "shareable_text": f"My week: ₹{this_total:,.0f} spent | Top: {top_category} ₹{top_amount:,.0f} | Score: {user.get('money_score', 50) if user else 50}/100 💸 #MintU"
-    }
-    return report
+# /reports/weekly moved to routers/analytics.py
 
 # 4. SMART BUDGET AUTO-CREATION
 @api_router.get("/budgets/smart-suggest")
@@ -2836,147 +2742,7 @@ Return ONLY valid JSON."""
     return result
 
 # 1. SAVINGS LEADERBOARD
-@api_router.get("/leaderboard/savings")
-async def savings_leaderboard(user_id: str = Depends(get_current_user)):
-    """Global savings leaderboard with user's rank and percentile"""
-    from bson import ObjectId
-    now = datetime.utcnow()
-    month_start = now.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
-    
-    # Get all users with their money scores
-    all_users = await db.users.find(
-        {"money_score": {"$exists": True}},
-        {"name": 1, "money_score": 1, "phone": 1, "streak_days": 1}
-    ).sort("money_score", -1).to_list(100)
-    
-    # Find current user's position
-    user_rank = 0
-    user_score = 0
-    total_users = len(all_users)
-    
-    for i, u in enumerate(all_users):
-        if str(u["_id"]) == user_id:
-            user_rank = i + 1
-            user_score = u.get("money_score", 0)
-            break
-    
-    # Percentile (higher is better)
-    percentile = max(1, min(99, int(((total_users - user_rank) / max(total_users, 1)) * 100))) if user_rank > 0 else 50
-    
-    # Build top 10 leaderboard (anonymize phone numbers)
-    top_10 = []
-    for i, u in enumerate(all_users[:10]):
-        is_me = str(u["_id"]) == user_id
-        phone = u.get("phone", "")
-        masked_phone = f"***{phone[-4:]}" if len(phone) >= 4 else "****"
-        top_10.append({
-            "rank": i + 1,
-            "name": u.get("name", "MintU User"),
-            "score": u.get("money_score", 0),
-            "streak": u.get("streak_days", 0),
-            "is_me": is_me,
-            "phone_masked": masked_phone,
-        })
-    
-    # Get user's monthly savings for comparison text
-    user_txn_pipeline = [
-        {"$match": {"user_id": user_id, "date": {"$gte": month_start}}},
-        {"$group": {"_id": "$type", "total": {"$sum": "$amount"}}}
-    ]
-    user_stats = {}
-    async for doc in db.transactions.aggregate(user_txn_pipeline):
-        user_stats[doc["_id"]] = doc["total"]
-    
-    income = user_stats.get("credit", 0)
-    expense = user_stats.get("debit", 0)
-    saved = max(0, income - expense)
-    
-    # Motivational comparison text
-    if percentile >= 80:
-        comparison_text = f"🏆 You're in the top {100-percentile}% of savers! Financial rockstar!"
-    elif percentile >= 60:
-        comparison_text = f"💪 You save better than {percentile}% of users. Push for top 20%!"
-    elif percentile >= 40:
-        comparison_text = f"👀 You're in the middle — {percentile}% of users save less than you. Room to grow!"
-    else:
-        comparison_text = f"🚀 {percentile}% of users save less than you. Small changes = big results!"
-    
-    return {
-        "user_rank": user_rank,
-        "total_users": total_users,
-        "percentile": percentile,
-        "user_score": user_score,
-        "monthly_saved": saved,
-        "comparison_text": comparison_text,
-        "top_10": top_10,
-        "motivations": [
-            f"You saved more than {percentile}% of users this week 👀",
-            f"Your Money Score: {user_score}/100 — {'Top tier!' if user_score >= 75 else 'Getting there!'}",
-            f"{'🔥 ' + str(all_users[user_rank-1].get('streak_days', 0)) + '-day streak!' if user_rank > 0 and user_rank <= len(all_users) else ''}",
-        ]
-    }
-
-# 2. FRIEND COMPARISON
-@api_router.get("/leaderboard/friends")
-async def friend_comparison(user_id: str = Depends(get_current_user)):
-    """Compare savings with friends from split groups"""
-    from bson import ObjectId
-    
-    # Get friends from split groups
-    groups = await db.split_groups.find({"members.user_id": user_id}).to_list(20)
-    friend_ids = set()
-    for g in groups:
-        for m in g.get("members", []):
-            if m["user_id"] != user_id:
-                friend_ids.add(m["user_id"])
-    
-    if not friend_ids:
-        return {"friends": [], "message": "Add friends in Split groups to compare savings! 👥"}
-    
-    # Get friend data
-    user = await db.users.find_one({"_id": ObjectId(user_id)})
-    user_score = user.get("money_score", 50) if user else 50
-    user_name = user.get("name", "You") if user else "You"
-    
-    friends = []
-    for fid in friend_ids:
-        try:
-            friend = await db.users.find_one({"_id": ObjectId(fid)})
-            if friend:
-                f_score = friend.get("money_score", 50)
-                diff = user_score - f_score
-                if diff > 10:
-                    taunt = f"You're crushing it vs {friend['name']}! 😎"
-                elif diff > 0:
-                    taunt = f"Slightly ahead of {friend['name']} — keep it up!"
-                elif diff > -10:
-                    taunt = f"{friend['name']} is just ahead — catch up! 💪"
-                else:
-                    taunt = f"{friend['name']} is killing it! Time to step up 😏"
-                
-                friends.append({
-                    "name": friend.get("name", "Friend"),
-                    "score": f_score,
-                    "streak": friend.get("streak_days", 0),
-                    "diff": diff,
-                    "taunt": taunt,
-                    "ahead": diff > 0,
-                })
-        except Exception:
-            continue
-    
-    # Sort: friends beating you first (to motivate)
-    friends.sort(key=lambda x: x["diff"])
-    
-    winning_count = sum(1 for f in friends if f["ahead"])
-    total = len(friends)
-    
-    return {
-        "you": {"name": user_name, "score": user_score},
-        "friends": friends,
-        "summary": f"You're beating {winning_count}/{total} friends 🏆" if total > 0 else "No friends to compare yet",
-        "challenge_text": f"Hey! My MintU score is {user_score}. Can you beat me? 😏 Download MintU!"
-    }
+# /leaderboard/savings and /leaderboard/friends moved to routers/analytics.py
 
 # 3. ENHANCED REFERRAL WITH PRO REWARDS
 # /referral/enhanced-status moved to routers/referral.py
@@ -4475,6 +4241,7 @@ from routers import (
     transactions as transactions_router,
     budgets as budgets_router,
     family as family_router,
+    analytics as analytics_router,
 )
 api_router.include_router(news_router.router)
 api_router.include_router(referral_router.router)
@@ -4483,6 +4250,7 @@ api_router.include_router(content_router.router)
 api_router.include_router(transactions_router.router)
 api_router.include_router(budgets_router.router)
 api_router.include_router(family_router.router)
+api_router.include_router(analytics_router.router)
 
 # Include router
 app.include_router(api_router)

@@ -661,6 +661,19 @@ test_plan:
   test_all: false
   test_priority: "completed"
 
+backend_analytics_router:
+  - task: "Analytics Router Extraction Smoke Test"
+    implemented: true
+    working: true
+    file: "/app/backend/routers/analytics.py"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+      - working: true
+        agent: "testing"
+        comment: "✅ ANALYTICS ROUTER SMOKE TEST PASSED (Apr 18 2026) - ALL 8/8 ENDPOINTS 200 OK, ZERO 500s. After extraction of 4 analytics endpoints to routers/analytics.py (server.py: 4541 → 4309 lines), all flows verified via /app/backend_test.py: (1) GET /api/stats/overview → 200 with total_income, total_expense, balance, transaction_count, category_breakdown ✅. (2) GET /api/reports/weekly → 200 with period, total_spent, last_week_spent, change_pct, mood, mood_text, top_category, category_breakdown, savings_suggestion, streak, money_score, headline, shareable_text ✅. (3) GET /api/leaderboard/savings → 200 with user_rank=3, percentile=91, top_10 (list of 10), monthly_saved, comparison_text, motivations; top_10 verified as list ✅. (4) GET /api/leaderboard/friends → 200 with you/friends/summary/challenge_text (friends_len=10 since user has split groups — the review's 'likely empty' note was contingent on no split groups; shape still valid) ✅. REGRESSION: (5) GET /api/transactions → 200 list(45) ✅. (6) GET /api/family/my-groups → 200 list(3) ✅. (7) GET /api/budgets → 200 list(4) ✅. Router is correctly imported at server.py:4244 and mounted at server.py:4253. Refactor is production-safe; no regression."
+
 backend_family_router:
   - task: "Family Router Extraction Smoke Test"
     implemented: true
