@@ -110,7 +110,27 @@ export default function RewardsScreen() {
       >
         <Text style={s.pageTitle}>Rewards</Text>
 
-        {/* Streak + Score Share */}
+        {/* LEADERBOARD — TOP POSITION */}
+        {leaderboard && (
+          <View style={s.leaderboardCard}>
+            <View style={s.rankHero}>
+              <View style={s.rankCircle}><Text style={s.rankNum}>#{leaderboard.user_rank || '?'}</Text></View>
+              <View style={s.rankInfo}><Text style={s.rankTitle}>Your Rank</Text><Text style={s.rankPercentile}>Top {100 - (leaderboard.percentile || 50)}% of {leaderboard.total_users || 0} users</Text></View>
+              <View style={s.rankScore}><Text style={s.rankScoreNum}>{leaderboard.user_score || 0}</Text><Text style={s.rankScoreLabel}>Score</Text></View>
+            </View>
+            <Text style={s.comparisonText}>{leaderboard.comparison_text}</Text>
+            {(leaderboard.top_10 || []).slice(0, 5).map((entry: any, i: number) => (
+              <View key={i} style={[s.lbRow, entry.is_me && s.lbRowMe]}>
+                <Text style={[s.lbRank, i === 0 && { color: '#F59E0B' }, i === 1 && { color: '#94A3B8' }, i === 2 && { color: '#B45309' }]}>{i === 0 ? '🥇' : i === 1 ? '🥈' : i === 2 ? '🥉' : `#${entry.rank}`}</Text>
+                <Text style={[s.lbName, entry.is_me && { fontWeight: '800', color: COLORS.accent.primary }]}>{entry.is_me ? 'You' : entry.name}</Text>
+                <Text style={s.lbScore}>{entry.score}</Text>
+                {entry.streak > 0 && <Text style={s.lbStreak}>🔥{entry.streak}</Text>}
+              </View>
+            ))}
+          </View>
+        )}
+
+        {/* Streak */}
         <View style={s.streakCard}>
           <View style={s.streakRow}>
             <View style={s.streakCircle}>
@@ -177,175 +197,6 @@ export default function RewardsScreen() {
                 </View>
               ))}
             </ScrollView>
-          </>
-        )}
-
-        {/* Referral — Enhanced with Pro Rewards */}
-        <Text style={s.section}>Invite Friends — Earn Pro!</Text>
-        <View style={s.referralCard}>
-          <Text style={s.referralTitle}>Share MintU, Get Pro Days!</Text>
-          {/* Enhanced reward tiers */}
-          <View style={s.referralTiers}>
-            {(enhancedRef?.reward_tiers || [
-              { friends: 1, reward: '+3 days Pro', icon: 'star', unlocked: false },
-              { friends: 3, reward: '+7 days Pro', icon: 'diamond', unlocked: false },
-              { friends: 5, reward: '1 month Pro', icon: 'trophy', unlocked: false },
-              { friends: 10, reward: 'Lifetime Pro', icon: 'crown', unlocked: false },
-            ]).map((t: any, i: number) => (
-              <View key={i} style={[s.tierRow, t.unlocked && s.tierComplete]}>
-                <Ionicons name={t.icon as any} size={16} color={t.unlocked ? COLORS.accent.primary : COLORS.text.muted} />
-                <Text style={[s.tierText, t.unlocked && { color: COLORS.accent.primary, fontWeight: '700' }]}>
-                  {t.friends} friend{t.friends > 1 ? 's' : ''} → {t.reward}
-                </Text>
-                {t.unlocked && <Ionicons name="checkmark-circle" size={16} color={COLORS.accent.primary} />}
-              </View>
-            ))}
-          </View>
-          {/* Progress */}
-          {enhancedRef?.next_milestone && enhancedRef.next_milestone.friends_needed > 0 && (
-            <View style={s.nextMilestone}>
-              <Text style={s.milestoneText}>
-                {enhancedRef.next_milestone.friends_needed} more invite{enhancedRef.next_milestone.friends_needed > 1 ? 's' : ''} → {enhancedRef.next_milestone.reward}
-              </Text>
-            </View>
-          )}
-          {/* Pro days earned */}
-          {(enhancedRef?.total_pro_days_earned || 0) > 0 && (
-            <View style={s.proDaysEarned}>
-              <Ionicons name="sparkles" size={16} color={COLORS.accent.primary} />
-              <Text style={s.proDaysText}>🎉 You've earned {enhancedRef.total_pro_days_earned} Pro days!</Text>
-            </View>
-          )}
-          <View style={s.codeBox}>
-            <Text style={s.codeLabel}>Your Code</Text>
-            <Text style={s.codeText}>{enhancedRef?.referral_code || referral?.referral_code}</Text>
-          </View>
-          <View style={s.shareRow}>
-            <TouchableOpacity testID="share-whatsapp-btn" style={s.whatsappBtn} onPress={() => shareWhatsApp(enhancedRef?.whatsapp_text || referral?.share_text || '')}>
-              <Ionicons name="logo-whatsapp" size={20} color="#fff" />
-              <Text style={s.whatsappTxt}>Share on WhatsApp</Text>
-            </TouchableOpacity>
-            <TouchableOpacity style={s.copyBtn} onPress={() => { Share.share({ message: enhancedRef?.share_text || referral?.share_text || '' }); }}>
-              <Ionicons name="copy" size={18} color={COLORS.text.primary} />
-            </TouchableOpacity>
-          </View>
-          <Text style={s.referralCount}>{enhancedRef?.referral_count || referral?.referral_count || 0} friends invited</Text>
-        </View>
-
-        {/* Savings Leaderboard */}
-        <Text style={s.section}>Leaderboard</Text>
-        {leaderboard && (
-          <View style={s.leaderboardCard}>
-            {/* User's rank */}
-            <View style={s.rankHero}>
-              <View style={s.rankCircle}>
-                <Text style={s.rankNum}>#{leaderboard.user_rank || '?'}</Text>
-              </View>
-              <View style={s.rankInfo}>
-                <Text style={s.rankTitle}>Your Rank</Text>
-                <Text style={s.rankPercentile}>Top {100 - (leaderboard.percentile || 50)}% of {leaderboard.total_users || 0} users</Text>
-              </View>
-              <View style={s.rankScore}>
-                <Text style={s.rankScoreNum}>{leaderboard.user_score || 0}</Text>
-                <Text style={s.rankScoreLabel}>Score</Text>
-              </View>
-            </View>
-            <Text style={s.comparisonText}>{leaderboard.comparison_text}</Text>
-            
-            {/* Top 10 */}
-            {(leaderboard.top_10 || []).slice(0, 5).map((entry: any, i: number) => (
-              <View key={i} style={[s.lbRow, entry.is_me && s.lbRowMe]}>
-                <Text style={[s.lbRank, i === 0 && { color: '#F59E0B' }, i === 1 && { color: '#94A3B8' }, i === 2 && { color: '#B45309' }]}>
-                  {i === 0 ? '🥇' : i === 1 ? '🥈' : i === 2 ? '🥉' : `#${entry.rank}`}
-                </Text>
-                <Text style={[s.lbName, entry.is_me && { fontWeight: '800', color: COLORS.accent.primary }]}>{entry.is_me ? 'You' : entry.name}</Text>
-                <Text style={s.lbScore}>{entry.score}</Text>
-                {entry.streak > 0 && <Text style={s.lbStreak}>🔥{entry.streak}</Text>}
-              </View>
-            ))}
-          </View>
-        )}
-
-        {/* Friend Comparison */}
-        {friendComparison && friendComparison.friends?.length > 0 && (
-          <>
-            <Text style={s.section}>vs Friends</Text>
-            <View style={s.friendCard}>
-              <Text style={s.friendSummary}>{friendComparison.summary}</Text>
-              {friendComparison.friends.map((f: any, i: number) => (
-                <View key={i} style={s.friendRow}>
-                  <View style={[s.friendAvatar, { backgroundColor: f.ahead ? COLORS.accent.moneyOut + '15' : COLORS.accent.moneyIn + '15' }]}>
-                    <Ionicons name="person" size={16} color={f.ahead ? COLORS.accent.moneyOut : COLORS.accent.moneyIn} />
-                  </View>
-                  <View style={s.friendInfo}>
-                    <Text style={s.friendName}>{f.name}</Text>
-                    <Text style={s.friendTaunt}>{f.taunt}</Text>
-                  </View>
-                  <View style={[s.friendDiff, { backgroundColor: f.ahead ? COLORS.accent.moneyIn + '15' : COLORS.accent.moneyOut + '15' }]}>
-                    <Text style={[s.friendDiffText, { color: f.ahead ? COLORS.accent.moneyIn : COLORS.accent.moneyOut }]}>
-                      {f.ahead ? '+' : ''}{f.diff}
-                    </Text>
-                  </View>
-                </View>
-              ))}
-              <TouchableOpacity style={s.challengeBtn} onPress={() => shareWhatsApp(friendComparison.challenge_text)}>
-                <Ionicons name="logo-whatsapp" size={16} color="#fff" />
-                <Text style={s.challengeBtnText}>Challenge Friends</Text>
-              </TouchableOpacity>
-            </View>
-          </>
-        )}
-
-        {/* Premium Upgrade - A/B tested placement */}
-        {!premium?.is_premium && (
-          <>
-            <Text style={s.section}>Go Premium</Text>
-            <View style={s.premiumCard}>
-              <View style={s.premiumHeader}>
-                <Ionicons name="diamond" size={24} color="#8B5CF6" />
-                <Text style={s.premiumTitle}>MintU Premium</Text>
-              </View>
-              {abGroup?.group && (
-                <View style={s.abBadge}>
-                  <Text style={s.abBadgeText}>Test: {abGroup.placement === 'after_overspend' ? 'Smart Trigger' : 'Always Visible'}</Text>
-                </View>
-              )}
-              {paywall?.waste_estimate > 0 && (
-                <TouchableOpacity style={s.wasteAlert} onPress={() => trackABEvent('click')}>
-                  <Text style={s.wasteText}>{paywall.hook_text}</Text>
-                  <Text style={s.wasteSub}>{paywall.sub_text}</Text>
-                </TouchableOpacity>
-              )}
-              {/* Pricing Cards */}
-              <View style={s.pricingRow}>
-                <TouchableOpacity style={s.pricingCard} onPress={() => Alert.alert('Coming Soon', 'Payment integration coming soon!')}>
-                  <Text style={s.pricingLabel}>Intro</Text>
-                  <Text style={s.pricingPrice}>{'\u20B9'}29</Text>
-                  <Text style={s.pricingPeriod}>first month</Text>
-                </TouchableOpacity>
-                <TouchableOpacity style={[s.pricingCard, s.pricingBest]}>
-                  <View style={s.bestBadge}><Text style={s.bestBadgeText}>BEST VALUE</Text></View>
-                  <Text style={[s.pricingLabel, { color: '#fff' }]}>Yearly</Text>
-                  <Text style={[s.pricingPrice, { color: '#fff' }]}>{'\u20B9'}499</Text>
-                  <Text style={[s.pricingPeriod, { color: 'rgba(255,255,255,0.7)' }]}>per year (58% off)</Text>
-                </TouchableOpacity>
-                <TouchableOpacity style={s.pricingCard}>
-                  <Text style={s.pricingLabel}>Monthly</Text>
-                  <Text style={s.pricingPrice}>{'\u20B9'}99</Text>
-                  <Text style={s.pricingPeriod}>per month</Text>
-                </TouchableOpacity>
-              </View>
-              {/* Features */}
-              {paywall?.features?.slice(0, 4).map((f: any, i: number) => (
-                <View key={i} style={s.featureRow}>
-                  <Ionicons name="checkmark-circle" size={18} color={COLORS.accent.primary} />
-                  <View style={s.featureInfo}>
-                    <Text style={s.featureName}>{f.name}</Text>
-                    <Text style={s.featureDesc}>{f.desc}</Text>
-                  </View>
-                </View>
-              ))}
-            </View>
           </>
         )}
 
