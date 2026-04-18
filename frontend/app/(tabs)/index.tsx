@@ -196,55 +196,7 @@ export default function HomeScreen() {
           </View>
         )}
 
-        {/* GO PREMIUM */}
-        <View style={styles.premiumBanner}>
-          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
-            <Ionicons name="diamond" size={22} color="#8B5CF6" />
-            <View style={{ flex: 1 }}>
-              <Text style={{ fontSize: 15, fontWeight: '700', color: COLORS.text.primary }}>MintU Premium</Text>
-              <Text style={{ fontSize: 12, color: COLORS.text.muted, marginTop: 2 }}>AI insights, unlimited budgets, priority support</Text>
-            </View>
-            <TouchableOpacity style={styles.premiumBtn}>
-              <Text style={styles.premiumBtnText}>₹29/mo</Text>
-            </TouchableOpacity>
-          </View>
-        </View>
-
-        {/* REWARDS HIGHLIGHT */}
-        {gamification && (
-          <View style={styles.rewardsCard}>
-            <View style={styles.rewardsHeader}>
-              <Ionicons name="trophy" size={16} color="#F59E0B" />
-              <Text style={styles.rewardsTitle}>YOUR REWARDS</Text>
-              <TouchableOpacity onPress={() => router.push('/(tabs)/rewards')} style={styles.seeAllBtn}>
-                <Text style={styles.seeAllText}>See All</Text>
-                <Ionicons name="chevron-forward" size={14} color={COLORS.accent.primary} />
-              </TouchableOpacity>
-            </View>
-            <View style={styles.rewardsBadges}>
-              <View style={styles.rewardItem}>
-                <Text style={styles.rewardEmoji}>🔥</Text>
-                <Text style={styles.rewardVal}>{gamification.streak || 0}</Text>
-                <Text style={styles.rewardLabel}>Streak</Text>
-              </View>
-              <View style={styles.rewardItem}>
-                <Text style={styles.rewardEmoji}>🏅</Text>
-                <Text style={styles.rewardVal}>{gamification.badges?.length || 0}</Text>
-                <Text style={styles.rewardLabel}>Badges</Text>
-              </View>
-              <View style={styles.rewardItem}>
-                <Text style={styles.rewardEmoji}>⚡</Text>
-                <Text style={styles.rewardVal}>{gamification.challenges_completed || 0}</Text>
-                <Text style={styles.rewardLabel}>Challenges</Text>
-              </View>
-              <View style={styles.rewardItem}>
-                <Text style={styles.rewardEmoji}>👑</Text>
-                <Text style={[styles.rewardVal, { color: scoreColor }]}>{score}</Text>
-                <Text style={styles.rewardLabel}>Score</Text>
-              </View>
-            </View>
-          </View>
-        )}
+        {/* GO PREMIUM and REWARDS HIGHLIGHT moved to Profile tab (Phase 10 redesign) */}
 
         {/* WEEKLY REPORT */}
         {weeklyReport && weeklyReport.total_spent > 0 && (
@@ -277,24 +229,93 @@ export default function HomeScreen() {
           </View>
         )}
 
-        {/* INDIA FINANCE NEWS */}
-        <View style={styles.txnSection}>
-          <View style={styles.txnHeader}>
-            <Text style={styles.sectionTitle}>India Finance Today</Text>
+        {/* LEADERBOARD PREVIEW — Top 3 podium + your rank */}
+        {leaderboard?.top_10 && leaderboard.top_10.length > 0 && (
+          <TouchableOpacity style={styles.lbCard} activeOpacity={0.9} onPress={() => router.push('/(tabs)/rewards')}>
+            <View style={styles.lbHeader}>
+              <Ionicons name="trophy" size={18} color="#F59E0B" />
+              <Text style={styles.lbTitle}>Savings Leaderboard</Text>
+              <Ionicons name="chevron-forward" size={16} color={COLORS.text.muted} />
+            </View>
+            <View style={styles.lbMetaRow}>
+              <View style={styles.lbMetaBox}>
+                <Text style={styles.lbMetaNum}>#{leaderboard.user_rank || '-'}</Text>
+                <Text style={styles.lbMetaLbl}>Your Rank</Text>
+              </View>
+              <View style={[styles.lbMetaBox, { borderLeftWidth: 1, borderRightWidth: 1, borderColor: '#FDE68A' }]}>
+                <Text style={[styles.lbMetaNum, { color: '#10B981' }]}>{leaderboard.percentile || 0}%</Text>
+                <Text style={styles.lbMetaLbl}>Percentile</Text>
+              </View>
+              <View style={styles.lbMetaBox}>
+                <Text style={[styles.lbMetaNum, { color: '#8B5CF6' }]}>{leaderboard.user_score || 0}</Text>
+                <Text style={styles.lbMetaLbl}>Score</Text>
+              </View>
+            </View>
+            <View style={styles.lbTop3Row}>
+              {[1, 0, 2].map((idx) => {
+                const p = leaderboard.top_10[idx];
+                if (!p) return <View key={idx} style={{ flex: 1 }} />;
+                const medals = ['\ud83e\udd47', '\ud83e\udd48', '\ud83e\udd49'];
+                const heights = [80, 60, 50];
+                const colors = ['#F59E0B', '#94A3B8', '#C77632'];
+                const rank = p.rank;
+                return (
+                  <View key={idx} style={styles.lbPodium}>
+                    <Text style={{ fontSize: 22, marginBottom: 4 }}>{medals[rank - 1]}</Text>
+                    <View style={[styles.lbPodiumBar, { height: heights[rank - 1], backgroundColor: colors[rank - 1] }]}>
+                      <Text style={styles.lbPodiumRank}>{rank}</Text>
+                    </View>
+                    <Text style={styles.lbPodiumName} numberOfLines={1}>{p.is_me ? 'You' : p.name.split(' ')[0]}</Text>
+                    <Text style={styles.lbPodiumScore}>{p.score}/100</Text>
+                  </View>
+                );
+              })}
+            </View>
+            <Text style={{ fontSize: 12, color: COLORS.text.secondary, marginTop: 12, textAlign: 'center', fontStyle: 'italic' }}>
+              {leaderboard.comparison_text || `You're in the top ${100 - (leaderboard.percentile || 50)}% of savers!`}
+            </Text>
+          </TouchableOpacity>
+        )}
+
+        {/* INDIA FINANCE NEWS — Horizontal snap carousel */}
+        <View style={{ marginBottom: SPACING.lg, marginHorizontal: -SPACING.lg }}>
+          <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: SPACING.lg, marginBottom: SPACING.sm }}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+              <Ionicons name="newspaper" size={16} color={COLORS.accent.primary} />
+              <Text style={styles.sectionTitle}>India Finance Today</Text>
+            </View>
+            {news.length > 0 && <Text style={{ fontSize: 11, color: COLORS.text.muted }}>Swipe →</Text>}
           </View>
           {news.length === 0 ? (
-            <View style={styles.emptyState}><ActivityIndicator size="small" color={COLORS.accent.primary} /><Text style={[styles.emptyText, { marginTop: 8 }]}>Loading updates...</Text></View>
+            <View style={[styles.emptyState, { marginHorizontal: SPACING.lg }]}><ActivityIndicator size="small" color={COLORS.accent.primary} /><Text style={[styles.emptyText, { marginTop: 8 }]}>Loading updates...</Text></View>
           ) : (
-            news.map((article: any, i: number) => (
-              <View key={i} style={[styles.cotdCard, { borderLeftColor: article.category === 'alert' ? '#EF4444' : article.category === 'market' ? '#10B981' : article.category === 'scheme' ? '#6366F1' : COLORS.accent.primary }]}>
-                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 4 }}>
-                  <Text style={{ fontSize: 16 }}>{article.emoji}</Text>
-                  <Text style={{ fontSize: 9, fontWeight: '700', letterSpacing: 0.8, color: COLORS.text.muted, textTransform: 'uppercase' }}>{article.category} · {article.source}</Text>
-                </View>
-                <Text style={{ fontSize: 14, fontWeight: '700', color: COLORS.text.primary, lineHeight: 20 }}>{article.title}</Text>
-                <Text style={{ fontSize: 12, color: COLORS.text.secondary, marginTop: 4, lineHeight: 18 }}>{article.summary}</Text>
-              </View>
-            ))
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              snapToInterval={278}
+              decelerationRate="fast"
+              contentContainerStyle={{ paddingHorizontal: SPACING.lg, gap: 12 }}
+            >
+              {news.map((article: any, i: number) => {
+                const catColor = article.category === 'alert' ? '#EF4444' : article.category === 'market' ? '#10B981' : article.category === 'scheme' ? '#6366F1' : article.category === 'tip' ? '#F59E0B' : COLORS.accent.primary;
+                return (
+                  <View key={i} style={[styles.newsCard, { borderTopColor: catColor }]}>
+                    <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
+                      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, flex: 1 }}>
+                        <View style={[styles.newsCatDot, { backgroundColor: catColor }]} />
+                        <Text style={[styles.newsCat, { color: catColor }]} numberOfLines={1}>{article.category}</Text>
+                      </View>
+                      <Text style={{ fontSize: 22 }}>{article.emoji}</Text>
+                    </View>
+                    <Text style={styles.newsTitle} numberOfLines={3}>{article.title}</Text>
+                    <Text style={styles.newsSummary} numberOfLines={4}>{article.summary}</Text>
+                    <View style={styles.newsFooter}>
+                      <Text style={styles.newsSource} numberOfLines={1}>{article.source}</Text>
+                    </View>
+                  </View>
+                );
+              })}
+            </ScrollView>
           )}
         </View>
         <View style={{ height: 24 }} />
@@ -383,6 +404,28 @@ const styles = StyleSheet.create({
   weeklySuggestion: { fontSize: 13, color: COLORS.text.secondary, lineHeight: 19, fontStyle: 'italic' },
   // School
   schoolCard: { backgroundColor: COLORS.bg.card, borderRadius: RADIUS.card, padding: SPACING.xl, marginBottom: SPACING.lg, borderWidth: 1, borderColor: '#8B5CF625' },
+  // Horizontal news cards
+  newsCard: { width: 266, backgroundColor: 'rgba(255,255,255,0.96)', borderRadius: RADIUS.lg, padding: 14, borderWidth: 1, borderColor: COLORS.border.card, borderTopWidth: 3 },
+  newsCatDot: { width: 6, height: 6, borderRadius: 3 },
+  newsCat: { fontSize: 10, fontWeight: '800', letterSpacing: 1, textTransform: 'uppercase' },
+  newsTitle: { fontSize: 14, fontWeight: '700', color: COLORS.text.primary, lineHeight: 20, marginBottom: 6 },
+  newsSummary: { fontSize: 12, color: COLORS.text.secondary, lineHeight: 18, marginBottom: 10 },
+  newsFooter: { borderTopWidth: 1, borderTopColor: COLORS.border.subtle, paddingTop: 8, marginTop: 'auto' },
+  newsSource: { fontSize: 11, fontWeight: '600', color: COLORS.text.muted },
+  // Leaderboard preview on Home
+  lbCard: { backgroundColor: 'rgba(255,255,255,0.96)', borderRadius: RADIUS.card, padding: SPACING.lg, marginBottom: SPACING.lg, borderWidth: 1, borderColor: '#F59E0B20' },
+  lbHeader: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 12 },
+  lbTitle: { fontSize: 14, fontWeight: '800', color: COLORS.text.primary, flex: 1 },
+  lbMetaRow: { flexDirection: 'row', justifyContent: 'space-around', backgroundColor: '#FFFBEB', borderRadius: 12, paddingVertical: 10, marginBottom: 12 },
+  lbMetaBox: { alignItems: 'center', flex: 1 },
+  lbMetaNum: { fontSize: 18, fontWeight: '800', color: '#92400E' },
+  lbMetaLbl: { fontSize: 10, color: COLORS.text.muted, marginTop: 2, fontWeight: '600' },
+  lbTop3Row: { flexDirection: 'row', alignItems: 'flex-end', justifyContent: 'center', gap: 12, marginTop: 4 },
+  lbPodium: { alignItems: 'center', flex: 1, maxWidth: 90 },
+  lbPodiumBar: { width: '100%', borderRadius: 8, justifyContent: 'flex-end', alignItems: 'center', paddingBottom: 6 },
+  lbPodiumRank: { fontSize: 20, fontWeight: '800', color: '#fff' },
+  lbPodiumName: { fontSize: 11, fontWeight: '700', color: COLORS.text.primary, marginTop: 6, textAlign: 'center' },
+  lbPodiumScore: { fontSize: 10, color: COLORS.text.muted, marginTop: 1 },
   schoolHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: SPACING.md },
   schoolBadge: { flexDirection: 'row', alignItems: 'center', gap: 6 },
   schoolBadgeText: { fontSize: 11, fontWeight: '700', letterSpacing: 0.8, color: '#8B5CF6' },

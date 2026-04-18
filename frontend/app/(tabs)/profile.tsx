@@ -37,6 +37,8 @@ export default function ProfileScreen() {
   const [editName, setEditName] = useState('');
   const [upiId, setUpiId] = useState('');
   const [upiExpanded, setUpiExpanded] = useState(false);
+  const [payExpanded, setPayExpanded] = useState(false);
+  const [premiumExpanded, setPremiumExpanded] = useState(false);
   const [avatar, setAvatar] = useState('');
   const [referral, setReferral] = useState<any>(null);
   const [refExpanded, setRefExpanded] = useState(true);
@@ -104,26 +106,65 @@ export default function ProfileScreen() {
   return (
     <SafeAreaView style={s.bg}>
       <ScrollView contentContainerStyle={s.scroll} refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); loadData(); }} tintColor={COLORS.accent.primary} />}>
-        {/* ═══ PROFILE CARD ═══ */}
-        <View style={s.profileCard}>
-          <TouchableOpacity onPress={pickAvatar} onLongPress={avatar ? removeAvatar : undefined}>
-            {avatar ? <Image source={{ uri: avatar }} style={s.avatar} /> : (
-              <View style={s.avatarPlace}><Ionicons name="person" size={32} color={COLORS.accent.primary} /></View>
-            )}
-            <View style={s.camBadge}><Ionicons name="camera" size={10} color="#fff" /></View>
+        {/* ═══ PROFILE HERO CARD — Samsung Health Style ═══ */}
+        <View style={s.heroCard}>
+          {/* Edit button top-right */}
+          <TouchableOpacity style={s.editBtn} onPress={() => { setEditName(user?.name || ''); setEditNameVisible(true); }}>
+            <Ionicons name="create-outline" size={16} color={COLORS.text.muted} />
           </TouchableOpacity>
-          <View style={{ flex: 1, marginLeft: 14 }}>
-            <TouchableOpacity onPress={() => { setEditName(user?.name || ''); setEditNameVisible(true); }} style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-              <Text style={s.name}>{user?.name || 'User'}</Text>
-              <Ionicons name="create-outline" size={14} color={COLORS.accent.primary} />
+
+          {/* Avatar */}
+          <TouchableOpacity onPress={pickAvatar} onLongPress={avatar ? removeAvatar : undefined} style={s.heroAvatarWrap}>
+            {avatar ? <Image source={{ uri: avatar }} style={s.heroAvatar} /> : (
+              <View style={s.heroAvatarPlace}>
+                <Text style={s.heroAvatarInitial}>{(user?.name || 'U').charAt(0).toUpperCase()}</Text>
+              </View>
+            )}
+            <View style={s.heroCamBadge}><Ionicons name="camera" size={11} color="#fff" /></View>
+          </TouchableOpacity>
+
+          <Text style={s.heroName}>{user?.name || 'User'}</Text>
+          <Text style={s.heroPhone}>{user?.phone}</Text>
+
+          {/* Money Score progress */}
+          <View style={s.heroProgWrap}>
+            <View style={s.heroProgHeader}>
+              <Text style={s.heroProgLabel}>Money Score</Text>
+              <Text style={s.heroProgValue}>{user?.money_score || 0}/100</Text>
+            </View>
+            <View style={s.heroProgBar}>
+              <View style={[s.heroProgFill, { width: `${Math.min(100, user?.money_score || 0)}%` }]} />
+            </View>
+            <Text style={s.heroProgTier}>
+              {(user?.money_score || 0) >= 80 ? '\ud83c\udfc6 Elite Saver' : (user?.money_score || 0) >= 60 ? '\ud83d\udcaa Smart Spender' : (user?.money_score || 0) >= 40 ? '\u26a1 Growing Saver' : '\ud83c\udf31 Just Starting'}
+            </Text>
+          </View>
+
+          {/* Pills row: Referrals + My Code */}
+          <View style={s.heroPillRow}>
+            <TouchableOpacity style={s.heroPill} onPress={() => setRefExpanded(true)}>
+              <Ionicons name="people" size={16} color="#F59E0B" />
+              <Text style={s.heroPillText}>{referral?.referral_count || 0} Referrals</Text>
             </TouchableOpacity>
-            <Text style={s.phone}>{user?.phone}</Text>
+            <TouchableOpacity style={s.heroPill} onPress={shareGeneric}>
+              <Ionicons name="qr-code" size={16} color="#8B5CF6" />
+              <Text style={s.heroPillText}>My Code</Text>
+            </TouchableOpacity>
           </View>
         </View>
 
-        {/* ═══ PAYMENT METHODS (Emergent-style) ═══ */}
+        {/* ═══ PAYMENT METHODS (Emergent-style, expandable) ═══ */}
         <View style={s.payCard}>
-          <Text style={s.payTitle}>Payment Options</Text>
+          <TouchableOpacity style={s.payHeaderRow} onPress={() => setPayExpanded(!payExpanded)} activeOpacity={0.7}>
+            <View style={s.payIconBox}><Ionicons name="card" size={20} color="#6366F1" /></View>
+            <View style={{ flex: 1 }}>
+              <Text style={s.payTitle}>Payment Options</Text>
+              <Text style={s.paySub}>{upiId ? 'UPI linked \u2022 Cards, Wallets ready' : 'Tap to set up UPI & cards'}</Text>
+            </View>
+            <Ionicons name={payExpanded ? 'chevron-up' : 'chevron-down'} size={18} color={COLORS.text.muted} />
+          </TouchableOpacity>
+          {payExpanded && (
+          <>
 
           {/* Recommended */}
           {upiId ? (
@@ -197,6 +238,46 @@ export default function ProfileScreen() {
             </View>
             <Ionicons name="chevron-down" size={18} color={COLORS.text.muted} />
           </TouchableOpacity>
+          </>
+          )}
+        </View>
+
+        {/* ═══ MINTU PREMIUM — Expandable ═══ */}
+        <View style={s.premiumCard}>
+          <TouchableOpacity style={s.premiumHeader} onPress={() => setPremiumExpanded(!premiumExpanded)} activeOpacity={0.8}>
+            <View style={s.premiumIconBox}><Ionicons name="diamond" size={22} color="#fff" /></View>
+            <View style={{ flex: 1 }}>
+              <Text style={s.premiumTitle}>MintU Premium</Text>
+              <Text style={s.premiumSub}>Unlock unlimited AI, reports & ad-free</Text>
+            </View>
+            <Ionicons name={premiumExpanded ? 'chevron-up' : 'chevron-down'} size={18} color="rgba(255,255,255,0.9)" />
+          </TouchableOpacity>
+          {premiumExpanded && (
+            <View style={s.premiumBody}>
+              {[
+                { icon: 'infinite', text: 'Unlimited AI Coach conversations' },
+                { icon: 'flash', text: 'Priority GPT-5.2 responses (no queue)' },
+                { icon: 'bar-chart', text: 'Advanced analytics & custom reports' },
+                { icon: 'trophy', text: 'Exclusive badges & leaderboard perks' },
+                { icon: 'close-circle', text: 'Zero ads, ever' },
+              ].map((f, i) => (
+                <View key={i} style={s.premiumFeatureRow}>
+                  <View style={s.premiumCheck}><Ionicons name="checkmark" size={12} color="#fff" /></View>
+                  <Ionicons name={f.icon as any} size={16} color="#F59E0B" />
+                  <Text style={s.premiumFeatureText}>{f.text}</Text>
+                </View>
+              ))}
+              <View style={s.premiumPriceRow}>
+                <View>
+                  <Text style={s.premiumPriceStrike}>₹999/yr</Text>
+                  <Text style={s.premiumPrice}>₹499/yr</Text>
+                </View>
+                <TouchableOpacity style={s.premiumCTA} onPress={() => Toast.show({ type: 'info', text1: 'Coming soon!', text2: 'Premium launches next week' })}>
+                  <Text style={s.premiumCTAText}>Upgrade →</Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+          )}
         </View>
 
         {/* ═══ INVITE & EARN — Full Referral Dashboard ═══ */}
@@ -466,4 +547,43 @@ const s = StyleSheet.create({
   refRecentAvatar: { width: 30, height: 30, borderRadius: 15, backgroundColor: COLORS.accent.primary + '15', justifyContent: 'center', alignItems: 'center' },
   refRecentInitial: { fontSize: 13, fontWeight: '800', color: COLORS.accent.primary },
   refRecentName: { flex: 1, fontSize: 13, fontWeight: '600', color: COLORS.text.primary },
+  // Hero Profile Card (Samsung-Health style)
+  heroCard: { backgroundColor: '#FFFFFF', borderRadius: 24, padding: 24, marginBottom: 14, alignItems: 'center', borderWidth: 1, borderColor: COLORS.border.card, position: 'relative' },
+  editBtn: { position: 'absolute', top: 14, right: 14, width: 36, height: 36, borderRadius: 18, backgroundColor: COLORS.bg.primary, justifyContent: 'center', alignItems: 'center', zIndex: 2 },
+  heroAvatarWrap: { position: 'relative', marginTop: 4 },
+  heroAvatar: { width: 96, height: 96, borderRadius: 48, borderWidth: 3, borderColor: COLORS.accent.primary + '30' },
+  heroAvatarPlace: { width: 96, height: 96, borderRadius: 48, backgroundColor: COLORS.accent.primary + '18', justifyContent: 'center', alignItems: 'center', borderWidth: 3, borderColor: COLORS.accent.primary + '40' },
+  heroAvatarInitial: { fontSize: 40, fontWeight: '800', color: COLORS.accent.primary },
+  heroCamBadge: { position: 'absolute', bottom: 2, right: 2, width: 28, height: 28, borderRadius: 14, backgroundColor: COLORS.accent.primary, justifyContent: 'center', alignItems: 'center', borderWidth: 3, borderColor: '#fff' },
+  heroName: { fontSize: 22, fontWeight: '800', color: COLORS.text.primary, marginTop: 12 },
+  heroPhone: { fontSize: 13, color: COLORS.text.muted, marginTop: 2 },
+  heroProgWrap: { width: '100%', marginTop: 18, backgroundColor: '#F8F9FB', borderRadius: 14, padding: 14 },
+  heroProgHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 },
+  heroProgLabel: { fontSize: 12, fontWeight: '600', color: COLORS.text.muted, letterSpacing: 0.3 },
+  heroProgValue: { fontSize: 14, fontWeight: '800', color: COLORS.accent.primary },
+  heroProgBar: { height: 8, backgroundColor: COLORS.border.subtle, borderRadius: 4, overflow: 'hidden' },
+  heroProgFill: { height: '100%', backgroundColor: COLORS.accent.primary, borderRadius: 4 },
+  heroProgTier: { fontSize: 11, color: COLORS.text.secondary, marginTop: 8, textAlign: 'center', fontWeight: '600' },
+  heroPillRow: { flexDirection: 'row', gap: 10, marginTop: 18, width: '100%' },
+  heroPill: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, paddingVertical: 12, backgroundColor: COLORS.bg.primary, borderRadius: 999, borderWidth: 1, borderColor: COLORS.border.card },
+  heroPillText: { fontSize: 13, fontWeight: '700', color: COLORS.text.primary },
+  // Payment expandable header
+  payHeaderRow: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 4 },
+  payIconBox: { width: 40, height: 40, borderRadius: 12, backgroundColor: '#6366F115', justifyContent: 'center', alignItems: 'center' },
+  paySub: { fontSize: 12, color: COLORS.text.muted, marginTop: 2 },
+  // Premium card
+  premiumCard: { backgroundColor: '#0F172A', borderRadius: 20, marginBottom: 14, borderWidth: 1, borderColor: '#F59E0B40', overflow: 'hidden' },
+  premiumHeader: { flexDirection: 'row', alignItems: 'center', gap: 12, padding: 16 },
+  premiumIconBox: { width: 42, height: 42, borderRadius: 14, backgroundColor: '#F59E0B', justifyContent: 'center', alignItems: 'center' },
+  premiumTitle: { fontSize: 16, fontWeight: '800', color: '#fff' },
+  premiumSub: { fontSize: 12, color: 'rgba(255,255,255,0.7)', marginTop: 2 },
+  premiumBody: { padding: 16, paddingTop: 0, borderTopWidth: 1, borderTopColor: 'rgba(255,255,255,0.1)' },
+  premiumFeatureRow: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 8 },
+  premiumCheck: { width: 20, height: 20, borderRadius: 10, backgroundColor: '#10B981', justifyContent: 'center', alignItems: 'center' },
+  premiumFeatureText: { flex: 1, fontSize: 13, color: 'rgba(255,255,255,0.9)' },
+  premiumPriceRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 14, paddingTop: 14, borderTopWidth: 1, borderTopColor: 'rgba(255,255,255,0.1)' },
+  premiumPriceStrike: { fontSize: 14, color: 'rgba(255,255,255,0.5)', textDecorationLine: 'line-through' },
+  premiumPrice: { fontSize: 22, fontWeight: '800', color: '#fff' },
+  premiumCTA: { backgroundColor: '#F59E0B', paddingHorizontal: 20, paddingVertical: 12, borderRadius: 999 },
+  premiumCTAText: { color: '#0F172A', fontSize: 14, fontWeight: '800' },
 });
