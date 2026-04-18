@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import {
   View, Text, StyleSheet, ScrollView, TouchableOpacity, Alert, ActivityIndicator,
-  Modal, FlatList, TextInput, Image, RefreshControl, Linking,
+  Modal, FlatList, TextInput, Image, RefreshControl, Linking, Share, Platform,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -38,15 +38,19 @@ export default function ProfileScreen() {
   const [upiId, setUpiId] = useState('');
   const [upiExpanded, setUpiExpanded] = useState(false);
   const [avatar, setAvatar] = useState('');
+  const [referral, setReferral] = useState<any>(null);
+  const [refExpanded, setRefExpanded] = useState(true);
 
   const loadData = useCallback(async () => {
     try {
-      const [upiRes, avatarRes] = await Promise.all([
+      const [upiRes, avatarRes, refRes] = await Promise.all([
         api.get('/user/upi').catch(() => ({ data: {} })),
         api.get('/user/avatar').catch(() => ({ data: {} })),
+        api.get('/referral/enhanced-status').catch(() => ({ data: null })),
       ]);
       setUpiId(upiRes.data?.upi_id || '');
       if (avatarRes.data?.avatar) { setAvatar(avatarRes.data.avatar); await AsyncStorage.setItem('user_avatar', avatarRes.data.avatar); }
+      if (refRes.data) setReferral(refRes.data);
     } catch {} finally { setLoading(false); setRefreshing(false); }
   }, []);
 
@@ -72,6 +76,28 @@ export default function ProfileScreen() {
   };
 
   const removeAvatar = () => Alert.alert('Remove Photo?', '', [{ text: 'Cancel', style: 'cancel' }, { text: 'Remove', style: 'destructive', onPress: async () => { setAvatar(''); await AsyncStorage.removeItem('user_avatar'); try { await api.post('/user/avatar', { avatar: '' }); } catch {} } }]);
+
+  const copyCode = async () => {
+    if (!referral?.referral_code) return;
+    try {
+      // Web fallback using navigator.clipboard, otherwise expo-clipboard is not installed — use Share as fallback
+      if (Platform.OS === 'web' && (navigator as any)?.clipboard) {
+        await (navigator as any).clipboard.writeText(referral.referral_code);
+      }
+      Toast.show({ type: 'success', text1: 'Code Copied!', text2: referral.referral_code, position: 'bottom' });
+    } catch { Toast.show({ type: 'error', text1: 'Copy failed — tap Share instead' }); }
+  };
+
+  const shareWhatsApp = () => {
+    const text = referral?.whatsapp_text || referral?.share_text || '';
+    const url = `whatsapp://send?text=${encodeURIComponent(text)}`;
+    Linking.canOpenURL(url).then(ok => { ok ? Linking.openURL(url) : Share.share({ message: text }); }).catch(() => Share.share({ message: text }));
+  };
+
+  const shareGeneric = () => {
+    const text = referral?.share_text || '';
+    Share.share({ message: text });
+  };
 
   const currentLang = LANGUAGES.find(l => l.code === lang);
 
@@ -172,6 +198,125 @@ export default function ProfileScreen() {
             <Ionicons name="chevron-down" size={18} color={COLORS.text.muted} />
           </TouchableOpacity>
         </View>
+
+        {/* ═══ INVITE & EARN — Full Referral Dashboard ═══ */}
+        {referral && (
+          <View style={s.refCard}>
+            {/* Header */}
+            <TouchableOpacity onPress={() => setRefExpanded(!refExpanded)} activeOpacity={0.7} style={s.refHeader}>
+              <View style={s.refIconBox}>
+                <Ionicons name="gift" size={22} color="#F59E0B" />
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={s.refTitle}>Invite & Earn Pro</Text>
+                <Text style={s.refSub}>Share MintU, get free Pro days</Text>
+              </View>
+              <View style={s.refCountPill}>
+                <Text style={s.refCountNum}>{referral.referral_count || 0}</Text>
+                <Text style={s.refCountLabel}>Invited</Text>
+              </View>
+              <Ionicons name={refExpanded ? 'chevron-up' : 'chevron-down'} size={18} color={COLORS.text.muted} style={{ marginLeft: 6 }} />
+            </TouchableOpacity>
+
+            {refExpanded && (
+              <>
+                {/* Stats Strip */}
+                <View style={s.refStats}>
+                  <View style={s.refStatBox}>
+                    <Text style={s.refStatNum}>{referral.referral_count || 0}</Text>
+                    <Text style={s.refStatLbl}>Friends</Text>
+                  </View>
+                  <View style={s.refStatDivider} />
+                  <View style={s.refStatBox}>
+                    <Text style={[s.refStatNum, { color: '#10B981' }]}>{referral.total_pro_days_earned || 0}</Text>
+                    <Text style={s.refStatLbl}>Pro Days Earned</Text>
+                  </View>
+                  <View style={s.refStatDivider} />
+                  <View style={s.refStatBox}>
+                    <Text style={[s.refStatNum, { color: '#8B5CF6' }]}>
+                      {(referral.reward_tiers || []).filter((t: any) => t.unlocked).length}/{(referral.reward_tiers || []).length}
+                    </Text>
+                    <Text style={s.refStatLbl}>Tiers</Text>
+                  </View>
+                </View>
+
+                {/* Next Milestone */}
+                {referral.next_milestone?.friends_needed > 0 && (
+                  <View style={s.refMilestone}>
+                    <Ionicons name="flag" size={14} color="#F59E0B" />
+                    <Text style={s.refMilestoneText}>
+                      Invite <Text style={{ fontWeight: '800', color: COLORS.accent.primary }}>{referral.next_milestone.friends_needed}</Text> more to unlock <Text style={{ fontWeight: '800' }}>{referral.next_milestone.reward}</Text>
+                    </Text>
+                  </View>
+                )}
+
+                {/* Referral Code */}
+                <View style={s.refCodeBox}>
+                  <View style={{ flex: 1 }}>
+                    <Text style={s.refCodeLbl}>YOUR REFERRAL CODE</Text>
+                    <Text style={s.refCode}>{referral.referral_code}</Text>
+                  </View>
+                  <TouchableOpacity style={s.refCopyBtn} onPress={copyCode}>
+                    <Ionicons name="copy-outline" size={16} color={COLORS.accent.primary} />
+                    <Text style={s.refCopyText}>Copy</Text>
+                  </TouchableOpacity>
+                </View>
+
+                {/* Share Buttons */}
+                <View style={s.refShareRow}>
+                  <TouchableOpacity style={[s.refShareBtn, { backgroundColor: '#25D366' }]} onPress={shareWhatsApp}>
+                    <Ionicons name="logo-whatsapp" size={18} color="#fff" />
+                    <Text style={s.refShareText}>WhatsApp</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity style={[s.refShareBtn, { backgroundColor: COLORS.accent.primary }]} onPress={shareGeneric}>
+                    <Ionicons name="share-social" size={18} color="#fff" />
+                    <Text style={s.refShareText}>Share</Text>
+                  </TouchableOpacity>
+                </View>
+
+                {/* Reward Tiers */}
+                <Text style={s.refTiersTitle}>REWARD MILESTONES</Text>
+                {(referral.reward_tiers || []).map((tier: any, i: number) => {
+                  const iconName = tier.icon === 'crown' ? 'ribbon' : tier.icon;
+                  return (
+                    <View key={i} style={[s.tierRow, tier.unlocked && s.tierRowUnlocked]}>
+                      <View style={[s.tierIcon, { backgroundColor: tier.unlocked ? '#10B98115' : COLORS.bg.secondary }]}>
+                        <Ionicons name={iconName as any} size={16} color={tier.unlocked ? '#10B981' : COLORS.text.muted} />
+                      </View>
+                      <View style={{ flex: 1 }}>
+                        <Text style={[s.tierFriends, tier.unlocked && { color: '#10B981' }]}>{tier.friends} friend{tier.friends > 1 ? 's' : ''}</Text>
+                        <Text style={s.tierReward}>{tier.reward}</Text>
+                      </View>
+                      {tier.unlocked ? (
+                        <View style={s.tierBadge}>
+                          <Ionicons name="checkmark-circle" size={18} color="#10B981" />
+                        </View>
+                      ) : (
+                        <Ionicons name="lock-closed" size={14} color={COLORS.text.muted} />
+                      )}
+                    </View>
+                  );
+                })}
+
+                {/* Recent Referrals */}
+                {(referral.recent_referrals || []).length > 0 && (
+                  <>
+                    <Text style={s.refTiersTitle}>RECENT REFERRALS</Text>
+                    {referral.recent_referrals.map((r: any, i: number) => (
+                      <View key={i} style={s.refRecentRow}>
+                        <View style={s.refRecentAvatar}>
+                          <Text style={s.refRecentInitial}>{(r.name || 'F').charAt(0).toUpperCase()}</Text>
+                        </View>
+                        <Text style={s.refRecentName}>{r.name}</Text>
+                        <Ionicons name="checkmark-circle" size={16} color="#10B981" />
+                      </View>
+                    ))}
+                  </>
+                )}
+              </>
+            )}
+          </View>
+        )}
 
         {/* ═══ SETTINGS ═══ */}
         <Text style={s.secTitle}>Settings</Text>
@@ -286,4 +431,39 @@ const s = StyleSheet.create({
   privCard: { backgroundColor: COLORS.bg.card, borderRadius: 16, padding: 16, marginBottom: 10, borderWidth: 1, borderColor: COLORS.border.card },
   privTitle: { fontSize: 14, fontWeight: '700', color: COLORS.text.primary, marginTop: 8 },
   privDesc: { fontSize: 13, color: COLORS.text.secondary, lineHeight: 20, marginTop: 4 },
+  // Invite / Referral
+  refCard: { backgroundColor: 'rgba(255,255,255,0.96)', borderRadius: 20, padding: 16, marginBottom: 14, borderWidth: 1, borderColor: 'rgba(245,158,11,0.25)', shadowColor: '#F59E0B', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.06, shadowRadius: 10, elevation: 3 },
+  refHeader: { flexDirection: 'row', alignItems: 'center', gap: 12 },
+  refIconBox: { width: 44, height: 44, borderRadius: 14, backgroundColor: '#FEF3C7', justifyContent: 'center', alignItems: 'center' },
+  refTitle: { fontSize: 16, fontWeight: '800', color: COLORS.text.primary },
+  refSub: { fontSize: 12, color: COLORS.text.muted, marginTop: 2 },
+  refCountPill: { alignItems: 'center', backgroundColor: '#FEF3C7', paddingHorizontal: 10, paddingVertical: 6, borderRadius: 10, minWidth: 56 },
+  refCountNum: { fontSize: 18, fontWeight: '800', color: '#92400E' },
+  refCountLabel: { fontSize: 9, fontWeight: '700', color: '#92400E', letterSpacing: 0.5 },
+  refStats: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#FFFBEB', borderRadius: 14, paddingVertical: 12, marginTop: 14 },
+  refStatBox: { flex: 1, alignItems: 'center' },
+  refStatNum: { fontSize: 20, fontWeight: '800', color: '#F59E0B' },
+  refStatLbl: { fontSize: 10, fontWeight: '600', color: COLORS.text.muted, marginTop: 2 },
+  refStatDivider: { width: 1, height: 28, backgroundColor: '#FDE68A' },
+  refMilestone: { flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: '#FEF3C7', borderRadius: 10, padding: 10, marginTop: 10 },
+  refMilestoneText: { flex: 1, fontSize: 12, color: '#92400E', lineHeight: 17 },
+  refCodeBox: { flexDirection: 'row', alignItems: 'center', backgroundColor: COLORS.bg.primary, borderWidth: 1, borderColor: COLORS.accent.primary + '30', borderStyle: 'dashed', borderRadius: 14, padding: 14, marginTop: 12 },
+  refCodeLbl: { fontSize: 9, fontWeight: '800', letterSpacing: 1, color: COLORS.text.muted },
+  refCode: { fontSize: 20, fontWeight: '800', color: COLORS.accent.primary, letterSpacing: 1.5, marginTop: 2 },
+  refCopyBtn: { flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: COLORS.accent.primary + '12', paddingHorizontal: 14, paddingVertical: 10, borderRadius: 999 },
+  refCopyText: { fontSize: 13, fontWeight: '700', color: COLORS.accent.primary },
+  refShareRow: { flexDirection: 'row', gap: 10, marginTop: 12 },
+  refShareBtn: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, paddingVertical: 13, borderRadius: 999 },
+  refShareText: { fontSize: 14, fontWeight: '700', color: '#fff' },
+  refTiersTitle: { fontSize: 10, fontWeight: '800', letterSpacing: 1, color: COLORS.text.muted, marginTop: 18, marginBottom: 8 },
+  tierRow: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 10, paddingHorizontal: 4, borderTopWidth: 1, borderTopColor: COLORS.border.subtle },
+  tierRowUnlocked: { backgroundColor: '#F0FDF4', borderRadius: 10, paddingHorizontal: 10, borderTopColor: 'transparent' },
+  tierIcon: { width: 32, height: 32, borderRadius: 10, justifyContent: 'center', alignItems: 'center' },
+  tierFriends: { fontSize: 13, fontWeight: '700', color: COLORS.text.primary },
+  tierReward: { fontSize: 11, color: COLORS.text.muted, marginTop: 1 },
+  tierBadge: {},
+  refRecentRow: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 8 },
+  refRecentAvatar: { width: 30, height: 30, borderRadius: 15, backgroundColor: COLORS.accent.primary + '15', justifyContent: 'center', alignItems: 'center' },
+  refRecentInitial: { fontSize: 13, fontWeight: '800', color: COLORS.accent.primary },
+  refRecentName: { flex: 1, fontSize: 13, fontWeight: '600', color: COLORS.text.primary },
 });

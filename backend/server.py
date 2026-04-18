@@ -3817,6 +3817,18 @@ AGENT_PROFILES = {
         "description": "Subscription savings, cost alternatives, inflation-aware advice, investment tips",
         "triggers": ["subscription", "save money", "alternative", "cheaper", "invest", "sip", "fd", "mutual fund", "insurance", "tax", "market", "inflation", "switch", "plan"],
     },
+    "money_school": {
+        "name": "Money School",
+        "emoji": "🎓",
+        "description": "Financial education — explains concepts, strategies, and basics",
+        "triggers": [
+            "teach me", "explain", "what is", "what are", "how does", "how do", "learn",
+            "basics", "beginner", "understand", "tell me about", "educate",
+            "50/30/20", "credit score", "cibil", "emergency fund", "compound", "diversif",
+            "elss", "nps", "ppf", "epf", "reit", "index fund", "stock", "equity", "debt fund",
+            "hra", "80c", "80d", "old regime", "new regime", "tax regime",
+        ],
+    },
 }
 
 def route_to_agent(message: str) -> str:
@@ -4003,7 +4015,34 @@ RULES:
 - Calculate actual savings ("Switching to annual Netflix = ₹600/year saved")
 - Consider user's income level for investment advice
 - Tax tips relevant to Indian tax slabs
-- Be specific — name products, amounts, percentages"""
+- Be specific — name products, amounts, percentages""",
+
+        "money_school": f"""You are MintU's {agent['emoji']} Money School — a friendly Indian finance TEACHER who explains concepts clearly.
+
+CAPABILITIES:
+- Teach finance basics: SIPs, mutual funds, stocks, FDs, PPF, NPS, ELSS, REITs, index funds
+- Explain tax concepts: 80C, 80D, HRA, old vs new regime, ELSS, capital gains
+- Credit & loans: CIBIL score, how to improve it, home/personal/education loans
+- Budget frameworks: 50/30/20 rule, envelope method, zero-based budgeting
+- Protection: emergency funds, term insurance, health insurance
+- Advanced: compound interest, diversification, asset allocation, inflation
+
+TEACHING PERSONALITY:
+- Like a friendly IIM professor who explains complex things simply
+- Use relatable Indian analogies (SIP = pocket-money jar, diversification = thali not biryani-only)
+- Give concrete ₹ numbers and real Indian examples (Zerodha, Groww, HDFC, SBI, LIC)
+- Structure answers: **What it is → Why it matters → How to start → Common mistakes**
+- Always connect back to the user's actual situation if their data is relevant
+
+{financial_context}
+
+RULES:
+- Keep tone encouraging — no finance-bro jargon
+- Break concepts into 3-4 digestible points with emojis
+- End with ONE specific actionable next step (e.g., "Start a ₹500 SIP in a Nifty50 index fund")
+- If user is new to the concept, explain WHY before HOW
+- Never give specific stock/fund picks (only education)
+- Max 5-6 short paragraphs"""
     }
 
     # Global conversational instruction for ALL agents

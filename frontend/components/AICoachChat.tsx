@@ -12,13 +12,22 @@ import { COLORS, RADIUS, SPACING } from '../utils/theme';
 
 type ChatMsg = { role: 'user' | 'ai'; text: string; loading?: boolean; agent?: string; agentEmoji?: string; ts?: number };
 
-const QUICK_CHIPS = [
+const PERSONAL_CHIPS = [
   { label: 'Am I overspending?', emoji: '\ud83d\udcca' },
   { label: 'Set a food budget', emoji: '\ud83c\udfaf' },
   { label: 'Who owes me?', emoji: '\ud83e\udd1d' },
   { label: 'Weekly report', emoji: '\ud83d\udcc8' },
-  { label: 'Save on subscriptions', emoji: '\ud83e\udde0' },
-  { label: 'Best SIP for me?', emoji: '\ud83d\udcb0' },
+];
+
+const SCHOOL_CHIPS = [
+  { label: 'Teach me about SIPs', emoji: '\ud83c\udf93' },
+  { label: 'How to save income tax?', emoji: '\ud83d\udcb0' },
+  { label: 'What is a mutual fund?', emoji: '\ud83e\udde0' },
+  { label: 'Improve my credit score', emoji: '\ud83d\udcb3' },
+  { label: '50/30/20 budget rule', emoji: '\u2696\ufe0f' },
+  { label: 'Investing basics for beginners', emoji: '\ud83d\udcc8' },
+  { label: 'Emergency fund explained', emoji: '\ud83d\udee1\ufe0f' },
+  { label: 'Best savings tips', emoji: '\ud83d\udca1' },
 ];
 
 const TypingDots = () => {
@@ -54,7 +63,7 @@ export default function AICoachChat({ onClose }: { onClose: () => void }) {
   useEffect(() => {
     setMessages([{
       role: 'ai',
-      text: `Hey ${user?.name || 'there'}! \ud83d\udc4b\n\nI'm your personal AI money coach. Ask me anything about:\n\n\ud83d\udcb8 Spending analysis\n\ud83c\udfaf Budget management\n\ud83e\udd1d Split bills\n\ud83d\udcca Weekly insights\n\ud83d\udcb0 Investment tips`,
+      text: `Hey ${user?.name || 'there'}! \ud83d\udc4b\n\nI'm your AI money coach **+ personal finance teacher**. Ask me about:\n\n\ud83d\udcb8 **Your Money** — spending, budgets, splits\n\ud83c\udf93 **Money School** — SIPs, tax, credit score, investing\n\ud83d\udca1 Smart tips & weekly insights\n\nTap a chip below or type anything!`,
       agent: 'MintU AI', agentEmoji: '\u2728', ts: Date.now(),
     }]);
   }, []);
@@ -146,14 +155,26 @@ export default function AICoachChat({ onClose }: { onClose: () => void }) {
           contentContainerStyle={s.chatList} onContentSizeChange={() => flatRef.current?.scrollToEnd({ animated: true })} showsVerticalScrollIndicator={false} />
 
         {messages.length <= 2 && (
-          <View style={s.chipsWrap}>
-            {QUICK_CHIPS.map((c, i) => (
-              <TouchableOpacity key={i} style={s.chip} onPress={() => sendMessage(c.label)} disabled={chatLoading}>
-                <Text style={s.chipEmoji}>{c.emoji}</Text>
-                <Text style={s.chipText}>{c.label}</Text>
-              </TouchableOpacity>
-            ))}
-          </View>
+          <ScrollView style={{ maxHeight: 260 }} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
+            <Text style={s.chipSection}>\ud83d\udcca ANALYZE MY MONEY</Text>
+            <View style={s.chipsWrap}>
+              {PERSONAL_CHIPS.map((c, i) => (
+                <TouchableOpacity key={`p${i}`} style={s.chip} onPress={() => sendMessage(c.label)} disabled={chatLoading}>
+                  <Text style={s.chipEmoji}>{c.emoji}</Text>
+                  <Text style={s.chipText}>{c.label}</Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+            <Text style={s.chipSection}>\ud83c\udf93 MONEY SCHOOL</Text>
+            <View style={s.chipsWrap}>
+              {SCHOOL_CHIPS.map((c, i) => (
+                <TouchableOpacity key={`s${i}`} style={[s.chip, s.chipSchool]} onPress={() => sendMessage(c.label)} disabled={chatLoading}>
+                  <Text style={s.chipEmoji}>{c.emoji}</Text>
+                  <Text style={s.chipText}>{c.label}</Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+          </ScrollView>
         )}
 
         <View style={s.inputRow}>
@@ -187,7 +208,9 @@ const s = StyleSheet.create({
   msgText: { fontSize: 14, lineHeight: 21, color: COLORS.text.primary },
   timeLabel: { fontSize: 9, color: COLORS.text.muted, marginTop: 3, marginLeft: 4 },
   chipsWrap: { flexDirection: 'row', flexWrap: 'wrap', paddingHorizontal: 16, paddingBottom: 8, gap: 7 },
+  chipSection: { fontSize: 10, fontWeight: '800', letterSpacing: 1, color: COLORS.text.muted, paddingHorizontal: 16, paddingTop: 10, paddingBottom: 6 },
   chip: { flexDirection: 'row', alignItems: 'center', gap: 5, backgroundColor: COLORS.bg.card, paddingHorizontal: 12, paddingVertical: 9, borderRadius: 999, borderWidth: 1, borderColor: COLORS.border.card },
+  chipSchool: { backgroundColor: '#8B5CF610', borderColor: '#8B5CF625' },
   chipEmoji: { fontSize: 13 },
   chipText: { fontSize: 12, fontWeight: '500', color: COLORS.text.secondary },
   inputRow: { flexDirection: 'row', paddingHorizontal: 16, paddingVertical: 10, gap: 8, borderTopWidth: 1, borderTopColor: COLORS.border.subtle },

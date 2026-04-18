@@ -196,6 +196,20 @@ export default function HomeScreen() {
           </View>
         )}
 
+        {/* GO PREMIUM */}
+        <View style={styles.premiumBanner}>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+            <Ionicons name="diamond" size={22} color="#8B5CF6" />
+            <View style={{ flex: 1 }}>
+              <Text style={{ fontSize: 15, fontWeight: '700', color: COLORS.text.primary }}>MintU Premium</Text>
+              <Text style={{ fontSize: 12, color: COLORS.text.muted, marginTop: 2 }}>AI insights, unlimited budgets, priority support</Text>
+            </View>
+            <TouchableOpacity style={styles.premiumBtn}>
+              <Text style={styles.premiumBtnText}>₹29/mo</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+
         {/* REWARDS HIGHLIGHT */}
         {gamification && (
           <View style={styles.rewardsCard}>
@@ -263,36 +277,6 @@ export default function HomeScreen() {
           </View>
         )}
 
-        {/* MONEY SCHOOL — AI-Powered Dynamic Cards */}
-        {dailyLesson && (
-          <View style={{ marginBottom: SPACING.lg }}>
-            <View style={styles.schoolHeader}>
-              <View style={styles.schoolBadge}><Ionicons name="school" size={14} color="#8B5CF6" /><Text style={styles.schoolBadgeText}>MONEY SCHOOL</Text></View>
-              <TouchableOpacity onPress={refreshLesson}><Ionicons name="refresh" size={16} color={COLORS.text.muted} /></TouchableOpacity>
-            </View>
-            {dailyLesson.progress && (
-              <View style={styles.xpRow}>
-                <Text style={styles.xpText}>{dailyLesson.progress.level?.emoji} {dailyLesson.progress.level?.name}</Text>
-                <Text style={styles.xpVal}>{dailyLesson.progress.xp} XP</Text>
-              </View>
-            )}
-            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 12 }}>
-              {(dailyLesson.cards || [dailyLesson]).map((card: any, i: number) => (
-                <View key={i} style={[styles.schoolCardH, { borderLeftColor: card.color || '#8B5CF6' }]}>
-                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 6 }}>
-                    <Text style={{ fontSize: 18 }}>{card.emoji || '📚'}</Text>
-                    <Text style={[styles.schoolCardType, { color: card.color || '#8B5CF6' }]}>{(card.type || 'tip').toUpperCase()}</Text>
-                    {card.xp && <Text style={styles.schoolXpBadge}>+{card.xp}XP</Text>}
-                  </View>
-                  <Text style={styles.schoolCardTitle}>{card.title}</Text>
-                  <Text style={styles.schoolCardBody}>{card.body || card.personal_tip || card.content || ''}</Text>
-                </View>
-              ))}
-            </ScrollView>
-          </View>
-        )}
-
-        {/* RECENT TRANSACTIONS */}
         {/* INDIA FINANCE NEWS */}
         <View style={styles.txnSection}>
           <View style={styles.txnHeader}>
@@ -370,6 +354,10 @@ const styles = StyleSheet.create({
   alertBody: { flex: 1 },
   alertTitle: { fontSize: 14, fontWeight: '700', marginBottom: 2 },
   alertMsg: { fontSize: 13, color: COLORS.text.secondary, lineHeight: 19 },
+  // Premium banner
+  premiumBanner: { backgroundColor: 'rgba(139,92,246,0.06)', borderRadius: RADIUS.card, padding: 16, marginBottom: SPACING.lg, borderWidth: 1, borderColor: 'rgba(139,92,246,0.15)' },
+  premiumBtn: { backgroundColor: '#8B5CF6', paddingHorizontal: 16, paddingVertical: 8, borderRadius: RADIUS.full },
+  premiumBtnText: { fontSize: 13, fontWeight: '700', color: '#fff' },
   // Rewards
   rewardsCard: { backgroundColor: 'rgba(255,255,255,0.92)', borderRadius: RADIUS.card, padding: SPACING.xl, marginBottom: SPACING.lg, borderWidth: 1, borderColor: '#F59E0B25', shadowColor: '#2E1F1A', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.04, shadowRadius: 10, elevation: 3 },
   rewardsHeader: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: SPACING.md },
