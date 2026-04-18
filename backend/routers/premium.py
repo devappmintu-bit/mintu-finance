@@ -64,6 +64,8 @@ def _lazy(name):
         def values(self): return getattr(_srv(), name).values()
     return _P()
 PREMIUM_FEATURES = _lazy("PREMIUM_FEATURES")
+PRICING = _lazy("PRICING")
+razorpay_client = _lazy("razorpay_client")
 
 
 
