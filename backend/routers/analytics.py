@@ -232,3 +232,227 @@ async def friend_comparison(user_id: str = Depends(get_current_user)):
         "summary": f"You're beating {winning}/{total} friends 🏆" if total else "No friends to compare yet",
         "challenge_text": f"Hey! My MintU score is {user_score}. Can you beat me? 😏 Download MintU!",
     }
+
+
+# ============== MINTU 2.0 — HOME SNAPSHOT (dynamic insights) ==============
+@router.get("/home/snapshot")
+async def home_snapshot(user_id: str = Depends(get_current_user)):
+    """Unified Home insights — sparkline, pace prediction, top category, score level."""
+    now = datetime.utcnow()
+    today_start = now.replace(hour=0, minute=0, second=0, microsecond=0)
+    month_start = now.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+    days_in_month = (now.replace(month=now.month % 12 + 1, day=1) - timedelta(days=1)).day if now.month < 12 else 31
+    day_of_month = now.day
+
+    user = await db.users.find_one({"_id": ObjectId(user_id)}) or {}
+
+    # 7-day spend sparkline (today + 6 previous days)
+    week_start = today_start - timedelta(days=6)
+    daily_spend = []
+    for i in range(7):
+        day = week_start + timedelta(days=i)
+        next_day = day + timedelta(days=1)
+        total = 0
+        async for doc in db.transactions.aggregate([
+            {"$match": {"user_id": user_id, "type": {"$in": ["debit", "expense"]}, "date": {"$gte": day, "$lt": next_day}}},
+            {"$group": {"_id": None, "total": {"$sum": "$amount"}}},
+        ]):
+            total = doc["total"]
+        daily_spend.append({"day": day.strftime("%a"), "date": day.strftime("%b %d"), "amount": total})
+
+    # Month-to-date spend + pace prediction
+    mtd_txns = await db.transactions.find({
+        "user_id": user_id,
+        "type": {"$in": ["debit", "expense"]},
+        "date": {"$gte": month_start},
+    }).to_list(2000)
+    mtd_spend = sum(t["amount"] for t in mtd_txns)
+    daily_avg = mtd_spend / max(day_of_month, 1)
+    projected_month_end = daily_avg * days_in_month
+
+    # MTD income
+    mtd_income_docs = await db.transactions.aggregate([
+        {"$match": {"user_id": user_id, "type": {"$in": ["credit", "income"]}, "date": {"$gte": month_start}}},
+        {"$group": {"_id": None, "total": {"$sum": "$amount"}}},
+    ]).to_list(1)
+    mtd_income = mtd_income_docs[0]["total"] if mtd_income_docs else 0
+
+    # Top category this month
+    cat_totals: dict = {}
+    for t in mtd_txns:
+        cat_totals[t["category"]] = cat_totals.get(t["category"], 0) + t["amount"]
+    top_cat_name = max(cat_totals, key=cat_totals.get) if cat_totals else None
+    top_cat = {"name": top_cat_name, "amount": cat_totals[top_cat_name], "pct": round((cat_totals[top_cat_name] / max(mtd_spend, 1)) * 100, 1)} if top_cat_name else None
+
+    # Last week vs this week
+    last_week_start = today_start - timedelta(days=13)
+    last_week_end = today_start - timedelta(days=7)
+    last_week_docs = await db.transactions.aggregate([
+        {"$match": {"user_id": user_id, "type": {"$in": ["debit", "expense"]}, "date": {"$gte": last_week_start, "$lt": last_week_end}}},
+        {"$group": {"_id": None, "total": {"$sum": "$amount"}}},
+    ]).to_list(1)
+    last_week_total = last_week_docs[0]["total"] if last_week_docs else 0
+    this_week_total = sum(d["amount"] for d in daily_spend)
+    week_change_pct = ((this_week_total - last_week_total) / last_week_total * 100) if last_week_total > 0 else 0
+
+    # Money Score tier
+    score = user.get("money_score", 50)
+    tiers = [
+        {"min": 0, "name": "Just Starting", "emoji": "🌱", "color": "#94A3B8"},
+        {"min": 35, "name": "Growing Saver", "emoji": "🌿", "color": "#6366F1"},
+        {"min": 55, "name": "Consistent", "emoji": "🌳", "color": "#10B981"},
+        {"min": 70, "name": "Smart Spender", "emoji": "⭐", "color": "#F59E0B"},
+        {"min": 85, "name": "Money Expert", "emoji": "🏆", "color": "#EC4899"},
+        {"min": 95, "name": "Wealth Sage", "emoji": "👑", "color": "#7C3AED"},
+    ]
+    current_tier = tiers[0]
+    next_tier = tiers[1]
+    for i, t in enumerate(tiers):
+        if score >= t["min"]:
+            current_tier = t
+            next_tier = tiers[i + 1] if i + 1 < len(tiers) else None
+    progress_to_next = ((score - current_tier["min"]) / (next_tier["min"] - current_tier["min"]) * 100) if next_tier else 100
+
+    # Pace headline
+    savings_rate = round(((mtd_income - mtd_spend) / max(mtd_income, 1)) * 100, 1) if mtd_income > 0 else 0
+    if mtd_spend == 0:
+        pace_headline = "No spending tracked yet this month"
+        pace_emoji = "📭"
+    elif mtd_income > 0 and projected_month_end > mtd_income:
+        pace_headline = f"At this pace, you'll overshoot income by ₹{int(projected_month_end - mtd_income):,}"
+        pace_emoji = "🚨"
+    elif savings_rate >= 30:
+        pace_headline = f"On track to save {savings_rate:.0f}% — great pace!"
+        pace_emoji = "🎯"
+    elif savings_rate >= 10:
+        pace_headline = f"Saving {savings_rate:.0f}% — push for 20%+"
+        pace_emoji = "💪"
+    else:
+        pace_headline = f"Saving only {savings_rate:.0f}% — room to grow"
+        pace_emoji = "🌱"
+
+    return {
+        "mtd_spend": mtd_spend,
+        "mtd_income": mtd_income,
+        "savings_rate": savings_rate,
+        "projected_month_end": round(projected_month_end),
+        "daily_avg": round(daily_avg),
+        "day_of_month": day_of_month,
+        "days_in_month": days_in_month,
+        "sparkline": daily_spend,
+        "this_week_total": this_week_total,
+        "last_week_total": last_week_total,
+        "week_change_pct": round(week_change_pct, 1),
+        "top_category": top_cat,
+        "pace_headline": pace_headline,
+        "pace_emoji": pace_emoji,
+        "tier": {
+            "current": current_tier,
+            "next": next_tier,
+            "progress_pct": round(progress_to_next, 0),
+            "score": score,
+            "streak_days": user.get("streak_days", 0),
+        },
+        "transaction_count": len(mtd_txns),
+    }
+
+
+# ============== MINTU 2.0 — AI PREDICTIVE INSIGHTS ==============
+@router.get("/ai/predict")
+async def ai_predict(user_id: str = Depends(get_current_user)):
+    """Predictive insights: month-end projection, overspending alerts, relatable waste comparisons."""
+    now = datetime.utcnow()
+    month_start = now.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+    day_of_month = now.day
+    days_in_month = (now.replace(month=now.month % 12 + 1, day=1) - timedelta(days=1)).day if now.month < 12 else 31
+
+    txns = await db.transactions.find({
+        "user_id": user_id,
+        "type": {"$in": ["debit", "expense"]},
+        "date": {"$gte": month_start},
+    }).to_list(3000)
+
+    cat_totals: dict = {}
+    for t in txns:
+        cat_totals[t["category"]] = cat_totals.get(t["category"], 0) + t["amount"]
+    total = sum(cat_totals.values())
+
+    # Budgets
+    budgets = await db.budgets.find({"user_id": user_id}).to_list(50)
+    overspend_alerts = []
+    for b in budgets:
+        spent = cat_totals.get(b["category"], 0)
+        pct = (spent / max(b["amount"], 1)) * 100
+        if pct >= 90:
+            overspend_alerts.append({
+                "category": b["category"],
+                "spent": spent,
+                "budget": b["amount"],
+                "pct": round(pct, 0),
+                "severity": "critical" if pct >= 100 else "warning",
+                "message": f"{b['category']} is at {pct:.0f}% of budget — {'exceeded' if pct >= 100 else 'slow down'}",
+            })
+
+    # Relatable "waste" comparisons — based on categories users often overspend
+    comparisons = []
+    dining_like = sum(cat_totals.get(c, 0) for c in ["Food", "Dining", "Entertainment", "Coffee"])
+    if dining_like >= 500:
+        chai_count = int(dining_like / 20)
+        sip_equiv = int(dining_like / 400) * 400
+        comparisons.append({
+            "icon": "cafe",
+            "title": "Food & Dining",
+            "amount": dining_like,
+            "comparison": f"≈ {chai_count} chais, or a ₹{sip_equiv:,}/month SIP for 1 year = ₹{sip_equiv * 12:,}",
+        })
+    transport = cat_totals.get("Transport", 0)
+    if transport >= 300:
+        km_eq = int(transport / 12)  # Avg petrol rate
+        comparisons.append({
+            "icon": "car",
+            "title": "Transport",
+            "amount": transport,
+            "comparison": f"≈ {km_eq} km of fuel, or {int(transport / 50)} auto rides",
+        })
+    shopping = sum(cat_totals.get(c, 0) for c in ["Shopping", "Clothing"])
+    if shopping >= 1000:
+        comparisons.append({
+            "icon": "bag",
+            "title": "Shopping",
+            "amount": shopping,
+            "comparison": f"≈ ₹{int(shopping / 12):,}/month invested in Nifty50 over 5 yrs = ~₹{int(shopping / 12 * 12 * 5 * 1.12):,}",
+        })
+
+    # Projected month-end
+    daily_avg = total / max(day_of_month, 1)
+    projected = daily_avg * days_in_month
+    remaining_days = days_in_month - day_of_month
+    projected_remaining = daily_avg * remaining_days
+
+    # Category trend predictions (current pace → month-end per category)
+    cat_predictions = []
+    for cat, amt in sorted(cat_totals.items(), key=lambda x: x[1], reverse=True)[:5]:
+        cat_daily = amt / max(day_of_month, 1)
+        cat_projection = cat_daily * days_in_month
+        cat_predictions.append({
+            "category": cat,
+            "mtd": amt,
+            "projected": round(cat_projection),
+            "daily_avg": round(cat_daily),
+        })
+
+    return {
+        "mtd_spend": total,
+        "daily_avg": round(daily_avg),
+        "projected_month_end": round(projected),
+        "projected_remaining_days": round(projected_remaining),
+        "day_of_month": day_of_month,
+        "days_in_month": days_in_month,
+        "overspend_alerts": overspend_alerts,
+        "waste_comparisons": comparisons,
+        "category_predictions": cat_predictions,
+        "headline": (
+            f"📊 At this pace: ₹{int(projected):,} by month-end"
+            if total > 0 else "📭 No spending data yet — add transactions to unlock predictions"
+        ),
+    }

@@ -16,6 +16,7 @@ import { BarChart } from 'react-native-gifted-charts';
 import { router } from 'expo-router';
 import Toast from 'react-native-toast-message';
 import { HomeSkeleton } from '../../components/SkeletonLoader';
+import InsightsCard from '../../components/home/InsightsCard';
 
 const APP_LINK = 'https://mintu.app/download';
 
@@ -23,6 +24,8 @@ export default function HomeScreen() {
   const { user, setUser } = useAuthStore();
   const { lang } = useLangStore();
   const [stats, setStats] = useState<any>(null);
+  const [snapshot, setSnapshot] = useState<any>(null);
+  const [predict, setPredict] = useState<any>(null);
   const [recentTxns, setRecentTxns] = useState<any[]>([]);
   const [dailyLesson, setDailyLesson] = useState<any>(null);
   const [smartAlerts, setSmartAlerts] = useState<any[]>([]);
@@ -39,22 +42,24 @@ export default function HomeScreen() {
   const fetchData = useCallback(async () => {
     try {
       // Phase 1: Critical data (shown above the fold)
-      const [profileRes, statsRes, txnRes, avatarRes] = await Promise.all([
+      const [profileRes, statsRes, txnRes, avatarRes, snapRes] = await Promise.all([
         api.get('/user/me'),
         api.get('/stats/overview'),
         api.get('/transactions?limit=5'),
         api.get('/user/avatar'),
+        api.get('/home/snapshot').catch(() => ({ data: null })),
       ]);
       setUser(profileRes.data);
       setStats(statsRes.data);
       setRecentTxns(Array.isArray(txnRes.data) ? txnRes.data.slice(0, 4) : []);
       if (avatarRes.data?.avatar) setAvatar(avatarRes.data.avatar);
+      if (snapRes.data) setSnapshot(snapRes.data);
       setLoading(false); // Show content immediately
 
       // Phase 2: Secondary data (deferred until after critical-path paint)
       InteractionManager.runAfterInteractions(async () => {
         try {
-          const [lessonRes, alertsRes, reportRes, lbRes, gameRes, cotdRes, newsRes, fomoRes] = await Promise.all([
+          const [lessonRes, alertsRes, reportRes, lbRes, gameRes, cotdRes, newsRes, fomoRes, predRes] = await Promise.all([
             api.get(`/money-school/dynamic?lang=${lang}`).catch(() => ({ data: null })),
             api.get('/alerts/smart').catch(() => ({ data: { alerts: [] } })),
             api.get('/reports/weekly').catch(() => ({ data: null })),
@@ -63,6 +68,7 @@ export default function HomeScreen() {
             api.get('/card-of-the-day').catch(() => ({ data: null })),
             api.get('/news/india-finance').catch(() => ({ data: { articles: [] } })),
             api.get('/referral/fomo-feed').catch(() => ({ data: { items: [] } })),
+            api.get('/ai/predict').catch(() => ({ data: null })),
           ]);
           if (lessonRes.data) setDailyLesson(lessonRes.data);
           setSmartAlerts(alertsRes.data?.alerts || []);
@@ -72,6 +78,7 @@ export default function HomeScreen() {
           if (cotdRes.data) setCardOfDay(cotdRes.data);
           setNews(newsRes.data?.articles || []);
           setFomoItems(fomoRes.data?.items || []);
+          if (predRes.data) setPredict(predRes.data);
         } catch (e) { console.error('Phase2 err', e); }
       });
     } catch (error) {
@@ -164,24 +171,55 @@ export default function HomeScreen() {
           </View>
         )}
 
-        {/* FINANCIAL STATS — Compact */}
-        <View style={styles.statsRow}>
-          <View style={[styles.statBox, { borderColor: '#10B98120' }]}>
-            <Ionicons name="arrow-down-circle" size={18} color="#10B981" />
-            <Text style={[styles.statVal, { color: '#10B981' }]}>₹{(stats?.total_income || 0).toLocaleString()}</Text>
-            <Text style={styles.statLabel}>{t('income', lang)}</Text>
+        {/* FINANCIAL INSIGHTS — MintU 2.0 Dynamic Pulse Card */}
+        {snapshot ? (
+          <InsightsCard snapshot={snapshot} onPressSparkline={() => router.push('/(tabs)/transactions')} />
+        ) : (
+          <View style={styles.statsRow}>
+            <View style={[styles.statBox, { borderColor: '#10B98120' }]}>
+              <Ionicons name="arrow-down-circle" size={18} color="#10B981" />
+              <Text style={[styles.statVal, { color: '#10B981' }]}>₹{(stats?.total_income || 0).toLocaleString()}</Text>
+              <Text style={styles.statLabel}>{t('income', lang)}</Text>
+            </View>
+            <View style={[styles.statBox, { borderColor: '#EF444420' }]}>
+              <Ionicons name="arrow-up-circle" size={18} color="#EF4444" />
+              <Text style={[styles.statVal, { color: '#EF4444' }]}>₹{(stats?.total_expense || 0).toLocaleString()}</Text>
+              <Text style={styles.statLabel}>{t('expenses', lang)}</Text>
+            </View>
+            <View style={[styles.statBox, { borderColor: COLORS.accent.primary + '20' }]}>
+              <Ionicons name="wallet" size={18} color={COLORS.accent.primary} />
+              <Text style={[styles.statVal, { color: COLORS.accent.primary }]}>₹{((stats?.total_income || 0) - (stats?.total_expense || 0)).toLocaleString()}</Text>
+              <Text style={styles.statLabel}>{t('balance', lang)}</Text>
+            </View>
           </View>
-          <View style={[styles.statBox, { borderColor: '#EF444420' }]}>
-            <Ionicons name="arrow-up-circle" size={18} color="#EF4444" />
-            <Text style={[styles.statVal, { color: '#EF4444' }]}>₹{(stats?.total_expense || 0).toLocaleString()}</Text>
-            <Text style={styles.statLabel}>{t('expenses', lang)}</Text>
+        )}
+
+        {/* PREDICTIVE ALERTS — Waste Detector + Overspending (from /ai/predict) */}
+        {predict && (predict.overspend_alerts?.length > 0 || predict.waste_comparisons?.length > 0) && (
+          <View style={styles.predictCard}>
+            <View style={styles.predictHeader}>
+              <Ionicons name="analytics" size={16} color="#8B5CF6" />
+              <Text style={styles.predictTitle}>PREDICTIVE INSIGHTS</Text>
+              <View style={styles.aiBadge}><Text style={styles.aiBadgeText}>AI</Text></View>
+            </View>
+            {predict.overspend_alerts?.slice(0, 2).map((a: any, i: number) => (
+              <TouchableOpacity key={'ov' + i} style={[styles.predictRow, a.severity === 'critical' && styles.predictRowCrit]} onPress={() => router.push('/(tabs)/budget')} activeOpacity={0.7}>
+                <Ionicons name={a.severity === 'critical' ? 'alert-circle' : 'warning'} size={16} color={a.severity === 'critical' ? '#EF4444' : '#F59E0B'} />
+                <Text style={styles.predictText} numberOfLines={2}>{a.message}</Text>
+                <Ionicons name="chevron-forward" size={14} color={COLORS.text.muted} />
+              </TouchableOpacity>
+            ))}
+            {predict.waste_comparisons?.slice(0, 1).map((c: any, i: number) => (
+              <View key={'ws' + i} style={styles.wasteRow}>
+                <Ionicons name={c.icon as any} size={16} color="#E65100" />
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.wasteTitle}>{c.title}: ₹{c.amount.toLocaleString('en-IN')}</Text>
+                  <Text style={styles.wasteSub} numberOfLines={2}>{c.comparison}</Text>
+                </View>
+              </View>
+            ))}
           </View>
-          <View style={[styles.statBox, { borderColor: COLORS.accent.primary + '20' }]}>
-            <Ionicons name="wallet" size={18} color={COLORS.accent.primary} />
-            <Text style={[styles.statVal, { color: COLORS.accent.primary }]}>₹{((stats?.total_income || 0) - (stats?.total_expense || 0)).toLocaleString()}</Text>
-            <Text style={styles.statLabel}>{t('balance', lang)}</Text>
-          </View>
-        </View>
+        )}
 
         {/* FOMO GROWTH FEED — carousel */}
         {fomoItems.length > 0 && (
@@ -260,6 +298,33 @@ export default function HomeScreen() {
               )}
             </View>
             <Text style={styles.weeklySuggestion}>{weeklyReport.savings_suggestion}</Text>
+            <TouchableOpacity
+              style={styles.shareBtn}
+              activeOpacity={0.85}
+              onPress={async () => {
+                const snap = snapshot || {};
+                const tierEmoji = snap.tier?.current?.emoji || '💰';
+                const tierName = snap.tier?.current?.name || 'MintU';
+                const txt = (
+                  `${weeklyReport.mood} My MintU Weekly Report\n\n` +
+                  `${weeklyReport.headline}\n\n` +
+                  `${tierEmoji} Tier: ${tierName}\n` +
+                  `🔥 Streak: ${snap.tier?.streak_days || user?.streak_days || 0} days\n` +
+                  `📊 Score: ${snap.tier?.score || user?.money_score || 50}/100\n\n` +
+                  (weeklyReport.top_category?.amount ? `Top: ${weeklyReport.top_category.name} — ₹${Math.round(weeklyReport.top_category.amount).toLocaleString('en-IN')}\n` : '') +
+                  `\nTrack your money with MintU 👉 ${APP_LINK}`
+                );
+                try {
+                  const wa = `whatsapp://send?text=${encodeURIComponent(txt)}`;
+                  const canWA = await Linking.canOpenURL(wa);
+                  if (canWA) { Linking.openURL(wa); return; }
+                  await Share.share({ message: txt });
+                } catch { Toast.show({ type: 'error', text1: 'Could not share' }); }
+              }}
+            >
+              <Ionicons name="logo-whatsapp" size={16} color="#fff" />
+              <Text style={styles.shareBtnText}>Share Weekly Report</Text>
+            </TouchableOpacity>
           </View>
         )}
 
@@ -444,6 +509,21 @@ const styles = StyleSheet.create({
   rewardLabel: { fontSize: 10, color: COLORS.text.muted, fontWeight: '600' },
   // Weekly
   weeklyCard: { backgroundColor: 'rgba(255,255,255,0.92)', borderRadius: RADIUS.card, padding: SPACING.xl, marginBottom: SPACING.lg, borderWidth: 1, borderColor: COLORS.accent.secondary + '25', ...shadowStyle('#2E1F1A', 2, 10, 0.04, 3) },
+  // MintU 2.0 — Predictive insights card (Waste detector + overspending)
+  predictCard: { backgroundColor: '#FFFFFF', borderRadius: RADIUS.card, padding: 14, marginBottom: SPACING.lg, borderWidth: 1, borderColor: '#8B5CF630', ...shadowStyle('#8B5CF6', 2, 10, 0.08, 3) },
+  predictHeader: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 10 },
+  predictTitle: { flex: 1, fontSize: 11, fontWeight: '800', color: '#8B5CF6', letterSpacing: 0.8 },
+  aiBadge: { backgroundColor: '#8B5CF6', paddingHorizontal: 8, paddingVertical: 2, borderRadius: 4 },
+  aiBadgeText: { color: '#fff', fontSize: 9, fontWeight: '800', letterSpacing: 0.5 },
+  predictRow: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingVertical: 10, paddingHorizontal: 10, backgroundColor: '#FEF3C7', borderRadius: 10, marginBottom: 6 },
+  predictRowCrit: { backgroundColor: '#FEE2E2' },
+  predictText: { flex: 1, fontSize: 12, color: COLORS.text.primary, fontWeight: '600', lineHeight: 17 },
+  wasteRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 8, paddingVertical: 10, paddingHorizontal: 10, backgroundColor: '#FFF4E5', borderRadius: 10, borderLeftWidth: 3, borderLeftColor: '#E65100' },
+  wasteTitle: { fontSize: 13, fontWeight: '800', color: '#7C2D12' },
+  wasteSub: { fontSize: 11, color: '#92400E', marginTop: 2, lineHeight: 15 },
+  // WhatsApp share button for weekly report
+  shareBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, marginTop: 12, paddingVertical: 12, borderRadius: 12, backgroundColor: '#25D366' },
+  shareBtnText: { color: '#fff', fontSize: 13, fontWeight: '800' },
   weeklyHeader: { flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: SPACING.md },
   weeklyLabel: { fontSize: 11, fontWeight: '700', letterSpacing: 0.8, color: COLORS.accent.secondary, flex: 1 },
   weeklyPeriod: { fontSize: 11, color: COLORS.text.muted },

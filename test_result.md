@@ -668,6 +668,33 @@ test_plan:
   test_all: false
   test_priority: "low_first"
 
+mintu_2_0_analytics:
+  - task: "MintU 2.0 — GET /api/home/snapshot (unified home insights)"
+    implemented: true
+    working: true
+    file: "/app/backend/routers/analytics.py"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+      - working: true
+        agent: "testing"
+        comment: "✅ MINTU 2.0 HOME SNAPSHOT — ALL 24/24 SHAPE ASSERTIONS PASSED (Apr 18 2026). Test script: /app/mintu2_snapshot_predict_test.py. Auth POST /api/auth/login {phone:9876543210, password:test123} → 200, JWT 155 chars. GET /api/home/snapshot → 200. Full response validated:\n\n• Numbers (all verified): mtd_spend=27149.0, mtd_income=76000.0, savings_rate=64.3, projected_month_end=45248, daily_avg=1508, this_week_total=27149.0, last_week_total=0, week_change_pct=0 ✅\n• Ints: day_of_month=18 (1-31 ✅), days_in_month=30 (28-31 ✅)\n• sparkline: list len==7 ✅; every item has {day,date,amount} (e.g. {day:'Fri',date:'Apr 18',amount:27149.0}); last item's date='Apr 18' matches today UTC ✅; all amounts non-negative ✅\n• top_category: {name:'Food', amount:11499.0, pct:42.4} — all 3 keys ✅\n• pace_headline='On track to save 64% — great pace!' (non-empty str ✅), pace_emoji='🎯' ✅\n• tier.current={name:'Consistent', emoji:'🌳', color:'#10B981', min:55} — all 4 keys ✅\n• tier.next={name:'Smart Spender', emoji:'⭐', color:'#F59E0B', min:70} ✅\n• tier.progress_pct=0.0 (0-100 ✅), tier.score=55 (0-100 ✅), tier.streak_days=0 (int≥0 ✅)\n• transaction_count=39 (int≥0 ✅)\n\nBackend access log confirms GET /api/home/snapshot HTTP 200 — zero 500s, zero NameError/ImportError. Production-ready."
+
+  - task: "MintU 2.0 — GET /api/ai/predict (predictive insights)"
+    implemented: true
+    working: true
+    file: "/app/backend/routers/analytics.py"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+      - working: true
+        agent: "testing"
+        comment: "✅ MINTU 2.0 AI PREDICT — ALL 14/14 SHAPE ASSERTIONS PASSED (Apr 18 2026). GET /api/ai/predict → 200. Full response validated:\n\n• mtd_spend=27149.0, daily_avg=1508, projected_month_end=45248 ✅\n• day_of_month=18, days_in_month=30 ✅\n• overspend_alerts: list of 4 items; each has {category, spent, budget, pct, severity, message} with severity ∈ {critical, warning} ✅ (e.g. Food at 114% → severity='critical', message='Food is at 114% of budget — exceeded')\n• waste_comparisons: list of 3 items; each has {icon, title, amount, comparison} (Food & Dining, Transport, Shopping) ✅\n• category_predictions: list of 5 items (≤5 ✅); each has {category, mtd, projected, daily_avg}\n• headline='📊 At this pace: ₹45,248 by month-end' (non-empty ✅)\n\nCONSISTENCY (T4) ✅: /home/snapshot.mtd_spend (27149.0) == /ai/predict.mtd_spend (27149.0) exact match. projected_month_end (45248) ≥ mtd_spend (27149.0) ✅.\n\nREGRESSION (T5) ALL 6/6 PASS ✅:\n  • POST /api/ai/agent-chat {message:'test', lang:'en'} → 200 with mode/issues/ctas (keys=['reply','agent','mode','issues','ctas','context'])\n  • POST /api/ai/chat {message:'test', lang:'en'} → 200 with mode/issues/ctas\n  • GET /api/reports/weekly → 200\n  • GET /api/analytics/summary → 200\n  • GET /api/leaderboard/savings → 200\n  • GET /api/split/groups → 200\n\nBackend logs clean, zero 500s/NameErrors. Both MintU 2.0 analytics endpoints are PRODUCTION-READY."
+
+
+
 shadow_and_cta_polish:
   - task: "Shadow* deprecation warnings + AI CTA auto-open modals"
     implemented: true
