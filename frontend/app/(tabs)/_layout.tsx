@@ -6,24 +6,22 @@ import Svg, { Defs, LinearGradient, Stop, Path, Circle, Rect } from 'react-nativ
 import { COLORS } from '../../utils/theme';
 import AICoachChat from '../../components/AICoachChat';
 
-const MintUIcon = () => (
-  <Svg width={28} height={28} viewBox="0 0 240 240">
+const MintUCoinIcon = () => (
+  <Svg width={32} height={32} viewBox="0 0 240 240">
     <Defs>
-      <LinearGradient id="mbg2" x1="0%" y1="0%" x2="100%" y2="100%">
-        <Stop offset="0%" stopColor="#FFFFFF" />
-        <Stop offset="100%" stopColor="#D8FFF3" />
+      <LinearGradient id="coinBg" x1="0%" y1="0%" x2="100%" y2="100%">
+        <Stop offset="0%" stopColor="#E65100" />
+        <Stop offset="100%" stopColor="#FF7D33" />
       </LinearGradient>
-      <LinearGradient id="mf2" x1="0%" y1="0%" x2="100%" y2="100%">
-        <Stop offset="0%" stopColor="#00C48A" />
-        <Stop offset="55%" stopColor="#009EAA" />
-        <Stop offset="100%" stopColor="#0082CC" />
+      <LinearGradient id="mFillC" x1="0%" y1="0%" x2="100%" y2="100%">
+        <Stop offset="0%" stopColor="#FFFFFF" />
+        <Stop offset="100%" stopColor="#FFF3E0" />
       </LinearGradient>
     </Defs>
-    <Rect x="10" y="10" width="220" height="220" rx="52" fill="url(#mbg2)" stroke="rgba(0,180,130,0.25)" strokeWidth="3" />
-    <Path d="M52 11 Q120 8 188 11 Q210 11 220 30 L220 70 Q120 45 20 70 L20 30 Q20 11 52 11Z" fill="rgba(255,255,255,0.5)" />
-    <Path d="M 62 145 C 62 145, 62 78, 64 72 C 66 66, 70 64, 76 68 C 82 72, 94 95, 102 108 C 108 118, 114 126, 120 126 C 126 126, 132 118, 138 108 C 146 95, 158 72, 164 68 C 170 64, 174 66, 176 72 C 178 78, 178 145, 178 145 C 176 149, 172 150, 168 148 C 166 146, 166 102, 164 92 C 162 86, 158 80, 154 84 C 148 90, 136 114, 128 124 C 124 130, 122 133, 120 133 C 118 133, 116 130, 112 124 C 104 114, 92 90, 86 84 C 82 80, 78 86, 76 92 C 74 102, 74 146, 72 148 C 68 150, 64 149, 62 145 Z" fill="url(#mf2)" />
-    <Circle cx="120" cy="124" r="5" fill="white" stroke="#00C48A" strokeWidth="1.5" />
-    <Circle cx="120" cy="124" r="2" fill="#00C48A" />
+    <Circle cx="120" cy="120" r="110" fill="url(#coinBg)" />
+    <Circle cx="120" cy="120" r="95" fill="none" stroke="rgba(255,255,255,0.25)" strokeWidth="2" />
+    <Path d="M 75 140 C 75 140, 75 82, 77 77 C 79 72, 82 70, 87 73 C 92 76, 102 95, 108 106 C 112 113, 116 120, 120 120 C 124 120, 128 113, 132 106 C 138 95, 148 76, 153 73 C 158 70, 161 72, 163 77 C 165 82, 165 140, 165 140 C 163 143, 160 144, 157 142 C 155 140, 155 105, 153 97 C 151 92, 148 88, 145 90 C 140 94, 132 112, 127 120 C 124 125, 122 127, 120 127 C 118 127, 116 125, 113 120 C 108 112, 100 94, 95 90 C 92 88, 89 92, 87 97 C 85 105, 85 140, 83 142 C 80 144, 77 143, 75 140 Z" fill="url(#mFillC)" />
+    <Circle cx="120" cy="120" r="4" fill="#E65100" stroke="#fff" strokeWidth="1.5" />
   </Svg>
 );
 
@@ -37,32 +35,30 @@ export default function TabLayout() {
           headerShown: false,
           tabBarStyle: st.tabBar,
           tabBarActiveTintColor: COLORS.accent.primary,
-          tabBarInactiveTintColor: COLORS.text.muted,
+          tabBarInactiveTintColor: '#A0A0A0',
           tabBarLabelStyle: st.tabLabel,
+          tabBarIconStyle: { marginBottom: -2 },
         }}
       >
-        <Tabs.Screen name="index" options={{ title: 'Home', tabBarIcon: ({ color, focused }) => <Ionicons name={focused ? 'home' : 'home-outline'} size={22} color={color} /> }} />
-        <Tabs.Screen name="transactions" options={{ title: 'Expenses', tabBarIcon: ({ color, focused }) => <Ionicons name={focused ? 'receipt' : 'receipt-outline'} size={22} color={color} /> }} />
-        {/* Center elevated AI Coach */}
+        <Tabs.Screen name="index" options={{ title: 'Home', tabBarIcon: ({ color, focused }) => <Ionicons name={focused ? 'home' : 'home-outline'} size={24} color={color} /> }} />
+        <Tabs.Screen name="transactions" options={{ title: 'Expenses', tabBarIcon: ({ color, focused }) => <Ionicons name={focused ? 'receipt' : 'receipt-outline'} size={24} color={color} /> }} />
+        {/* CENTER — Elevated AI Coach (Kiwi style) */}
         <Tabs.Screen name="insights" options={{
           title: '',
           tabBarIcon: () => (
-            <TouchableOpacity style={st.centerBtn} onPress={() => setAiVisible(true)} activeOpacity={0.85}>
-              <View style={st.centerInner}>
-                <MintUIcon />
-              </View>
+            <TouchableOpacity style={st.centerBtn} onPress={() => setAiVisible(true)} activeOpacity={0.8}>
+              <MintUCoinIcon />
             </TouchableOpacity>
           ),
           tabBarLabel: () => <Text style={st.centerLabel}>AI Coach</Text>,
           listeners: { tabPress: (e) => { e.preventDefault(); setAiVisible(true); } },
         }} />
-        <Tabs.Screen name="budget" options={{ title: 'Budget', tabBarIcon: ({ color, focused }) => <Ionicons name={focused ? 'pie-chart' : 'pie-chart-outline'} size={22} color={color} /> }} />
-        <Tabs.Screen name="split" options={{ title: 'Split', tabBarIcon: ({ color, focused }) => <Ionicons name={focused ? 'git-compare' : 'git-compare-outline'} size={22} color={color} /> }} />
+        <Tabs.Screen name="budget" options={{ title: 'Budget', tabBarIcon: ({ color, focused }) => <Ionicons name={focused ? 'pie-chart' : 'pie-chart-outline'} size={24} color={color} /> }} />
+        <Tabs.Screen name="split" options={{ title: 'Split', tabBarIcon: ({ color, focused }) => <Ionicons name={focused ? 'people' : 'people-outline'} size={24} color={color} /> }} />
         <Tabs.Screen name="profile" options={{ href: null }} />
         <Tabs.Screen name="rewards" options={{ href: null }} />
       </Tabs>
 
-      {/* AI Coach Modal */}
       <Modal visible={aiVisible} animationType="slide" presentationStyle="pageSheet">
         <AICoachChat onClose={() => setAiVisible(false)} />
       </Modal>
@@ -72,34 +68,30 @@ export default function TabLayout() {
 
 const st = StyleSheet.create({
   tabBar: {
-    backgroundColor: COLORS.bg.primary,
-    borderTopWidth: 0,
-    height: Platform.OS === 'ios' ? 90 : 72,
-    paddingBottom: Platform.OS === 'ios' ? 26 : 8,
-    paddingTop: 6,
-    shadowColor: '#2E1F1A',
-    shadowOffset: { width: 0, height: -4 },
-    shadowOpacity: 0.06,
-    shadowRadius: 16,
-    elevation: 16,
+    backgroundColor: '#FFFFFF',
+    borderTopWidth: 1,
+    borderTopColor: '#F0F0F0',
+    height: Platform.OS === 'ios' ? 88 : 68,
+    paddingBottom: Platform.OS === 'ios' ? 24 : 8,
+    paddingTop: 8,
+    elevation: 0,
   },
-  tabLabel: { fontSize: 10, fontWeight: '600', marginTop: 2 },
+  tabLabel: { fontSize: 11, fontWeight: '600', marginTop: 2 },
   centerBtn: {
-    width: 64,
-    height: 64,
-    borderRadius: 32,
-    backgroundColor: COLORS.bg.primary,
+    width: 60,
+    height: 60,
+    borderRadius: 30,
+    backgroundColor: '#1A1A2E',
     justifyContent: 'center',
     alignItems: 'center',
-    marginTop: -28,
-    borderWidth: 3,
-    borderColor: COLORS.accent.primary + '30',
-    shadowColor: COLORS.accent.primary,
+    marginTop: -24,
+    borderWidth: 4,
+    borderColor: '#FFFFFF',
+    shadowColor: '#000',
     shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 12,
-    elevation: 12,
+    shadowOpacity: 0.15,
+    shadowRadius: 8,
+    elevation: 8,
   },
-  centerInner: { justifyContent: 'center', alignItems: 'center' },
-  centerLabel: { fontSize: 9, fontWeight: '700', color: COLORS.accent.primary, marginTop: -2 },
+  centerLabel: { fontSize: 10, fontWeight: '600', color: COLORS.accent.primary, marginTop: 0 },
 });

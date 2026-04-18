@@ -142,46 +142,7 @@ export default function HomeScreen() {
           </TouchableOpacity>
         </View>
 
-        {/* LEADERBOARD — Top position */}
-        {leaderboard && (
-          <View style={styles.lbCard}>
-            <View style={styles.lbHeader}>
-              <Ionicons name="trophy" size={18} color="#F59E0B" />
-              <Text style={styles.lbTitle}>LEADERBOARD</Text>
-              <View style={styles.lbRankPill}>
-                <Text style={styles.lbRankText}>#{leaderboard.user_rank}</Text>
-              </View>
-            </View>
-            <Text style={styles.lbComparison}>{leaderboard.comparison_text}</Text>
-            <View style={styles.lbStatsRow}>
-              <View style={styles.lbStatBox}>
-                <Text style={[styles.lbStatNum, { color: scoreColor }]}>{score}</Text>
-                <Text style={styles.lbStatLabel}>Score</Text>
-              </View>
-              <View style={styles.lbStatDivider} />
-              <View style={styles.lbStatBox}>
-                <Text style={styles.lbStatNum}>Top {Math.max(1, 100 - (leaderboard.percentile || 50))}%</Text>
-                <Text style={styles.lbStatLabel}>Rank</Text>
-              </View>
-              <View style={styles.lbStatDivider} />
-              <View style={styles.lbStatBox}>
-                <Text style={styles.lbStatNum}>{leaderboard.total_users}</Text>
-                <Text style={styles.lbStatLabel}>Users</Text>
-              </View>
-            </View>
-            {/* Mini leaderboard */}
-            {(leaderboard.top_10 || []).slice(0, 3).map((e: any, i: number) => (
-              <View key={i} style={[styles.lbRow, e.is_me && styles.lbRowMe]}>
-                <Text style={styles.lbMedal}>{i === 0 ? '🥇' : i === 1 ? '🥈' : '🥉'}</Text>
-                <Text style={[styles.lbName, e.is_me && { fontWeight: '800', color: COLORS.accent.primary }]}>{e.is_me ? 'You' : e.name}</Text>
-                <Text style={styles.lbScore}>{e.score}</Text>
-                {e.streak > 0 && <Text style={styles.lbStreak}>🔥{e.streak}</Text>}
-              </View>
-            ))}
-          </View>
-        )}
-
-        {/* CARD OF THE DAY — Eye-catching */}
+        {/* CARD OF THE DAY */}
         {cardOfDay && (
           <View style={[styles.cotdCard, { borderLeftColor: cardOfDay.color || COLORS.accent.primary }]}>
             <View style={styles.cotdHeader}>
