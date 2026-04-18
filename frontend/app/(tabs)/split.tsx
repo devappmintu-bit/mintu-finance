@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import {
   View, Text, StyleSheet, ScrollView, TouchableOpacity, Modal,
-  Alert, Platform, Linking, Share, RefreshControl,
+  Alert, Platform, Linking, Share, RefreshControl, InteractionManager,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -41,10 +41,14 @@ export default function SplitScreen() {
   const [chatGroup, setChatGroup] = useState<any>(null);
   const [remindTarget, setRemindTarget] = useState<DebtRow | null>(null);
   const [editingExpense, setEditingExpense] = useState<any>(null);
+  const settleRowsCacheKey = React.useRef<string>('');
 
-  // Flatten simplified_debts across all groups for main-screen Settle Up list
+  // Flatten simplified_debts across all groups for main-screen Settle Up list.
+  // Cache by groups signature so we don't redundantly fetch N summaries on every data refresh.
   const fetchSettleRows = useCallback(async (grps: any[]) => {
-    if (!user?.id || !grps?.length) { setSettleRows([]); return; }
+    if (!user?.id || !grps?.length) { setSettleRows([]); settleRowsCacheKey.current = ''; return; }
+    const key = grps.map((g: any) => `${g.id}:${g.members?.length || 0}`).sort().join('|');
+    if (key === settleRowsCacheKey.current) return; // Same groups → skip heavy recompute
     try {
       const summaries = await Promise.all(
         grps.map((g: any) => api.get(`/split/groups/${g.id}/summary`).then(r => ({ g, d: r.data })).catch(() => null))
@@ -68,23 +72,34 @@ export default function SplitScreen() {
       });
       rows.sort((a, b) => b.amount - a.amount);
       setSettleRows(rows);
+      settleRowsCacheKey.current = key;
     } catch (e) { console.error('settleRows', e); }
   }, [user?.id]);
 
   const fetchData = useCallback(async () => {
     try {
-      const [gR, bR, lR, rR] = await Promise.all([
+      // Phase 1 — critical: groups + balances (block render)
+      const [gR, bR] = await Promise.all([
         api.get('/split/groups'),
         api.get('/split/balances'),
-        api.get('/split/settlement-leaderboard').catch(() => ({ data: null })),
-        api.get('/split/reminders').catch(() => ({ data: { received: [], sent: [] } })),
       ]);
       setGroups(gR.data); setBalances(bR.data);
-      if (lR.data) setSettleLB(lR.data);
-      if (rR.data) setReminders({ received: rR.data.received || [], sent: rR.data.sent || [] });
-      fetchSettleRows(gR.data);
-    } catch (e) { console.error(e); }
-    finally { setLoading(false); setRefreshing(false); }
+      setLoading(false);
+
+      // Phase 2 — deferred: leaderboard + reminders + heavy settleRows recompute
+      InteractionManager.runAfterInteractions(async () => {
+        try {
+          const [lR, rR] = await Promise.all([
+            api.get('/split/settlement-leaderboard').catch(() => ({ data: null })),
+            api.get('/split/reminders').catch(() => ({ data: { received: [], sent: [] } })),
+          ]);
+          if (lR.data) setSettleLB(lR.data);
+          if (rR.data) setReminders({ received: rR.data.received || [], sent: rR.data.sent || [] });
+          fetchSettleRows(gR.data);
+        } catch (e) { console.error('split phase2', e); }
+        finally { setRefreshing(false); }
+      });
+    } catch (e) { console.error(e); setLoading(false); setRefreshing(false); }
   }, [fetchSettleRows]);
 
   useEffect(() => { fetchData(); }, []);
@@ -392,40 +407,46 @@ export default function SplitScreen() {
         <View style={{ height: 30 }} />
       </ScrollView>
 
-      {/* === SHEETS === */}
-      <CreateGroupSheet visible={modal === 'create'} onClose={close} onCreate={createGroup} />
-      <ExpenseSheet visible={modal === 'expense'} onClose={close} group={selectedGroup} currentUserId={user?.id} editing={editingExpense} onSubmit={submitExpense} />
-      <GroupSummarySheet
-        visible={modal === 'summary'}
-        onClose={close}
-        summary={groupSummary}
-        onAddExpense={() => { close(); setTimeout(() => openAddExpense(selectedGroup), 200); }}
-        onEditExpense={(exp: any) => { close(); setTimeout(() => openEditExpense(exp), 200); }}
-        onDeleteExpense={deleteExpense}
-        onPay={(d: any) => { setPayTarget({ to_id: d.to_id, to_name: d.to_name, amount: d.amount, group_id: selectedGroup?.id }); setModal('pay'); }}
-        onRemindLegacy={remindLegacy}
-      />
-      <GroupManageSheet
-        visible={modal === 'manage'}
-        onClose={close}
-        manage={groupManage}
-        currentUserId={user?.id}
-        onRename={renameGroup}
-        onAddMember={addMember}
-        onRemoveMember={removeMember}
-        onDelete={deleteGroup}
-        onLeave={leaveGroup}
-      />
-      <PaySheet
-        visible={modal === 'pay'}
-        onClose={close}
-        target={payTarget}
-        onPayUPI={payViaUPI}
-        onPayCash={() => { setModal(''); if (payTarget) settleReward({ ...payTarget, method: 'cash' }); }}
-        onPayPartial={partialSettle}
-      />
-      <RemindSheet visible={modal === 'remind'} onClose={close} target={remindTarget} onSend={sendReminder} />
-      <RewardModal visible={modal === 'reward'} reward={lastReward} onClose={() => { close(); fetchData(); }} />
+      {/* === SHEETS — lazy-mounted (only the active one renders) === */}
+      {modal === 'create' && <CreateGroupSheet visible={true} onClose={close} onCreate={createGroup} />}
+      {modal === 'expense' && <ExpenseSheet visible={true} onClose={close} group={selectedGroup} currentUserId={user?.id} editing={editingExpense} onSubmit={submitExpense} />}
+      {modal === 'summary' && (
+        <GroupSummarySheet
+          visible={true}
+          onClose={close}
+          summary={groupSummary}
+          onAddExpense={() => { close(); setTimeout(() => openAddExpense(selectedGroup), 200); }}
+          onEditExpense={(exp: any) => { close(); setTimeout(() => openEditExpense(exp), 200); }}
+          onDeleteExpense={deleteExpense}
+          onPay={(d: any) => { setPayTarget({ to_id: d.to_id, to_name: d.to_name, amount: d.amount, group_id: selectedGroup?.id }); setModal('pay'); }}
+          onRemindLegacy={remindLegacy}
+        />
+      )}
+      {modal === 'manage' && (
+        <GroupManageSheet
+          visible={true}
+          onClose={close}
+          manage={groupManage}
+          currentUserId={user?.id}
+          onRename={renameGroup}
+          onAddMember={addMember}
+          onRemoveMember={removeMember}
+          onDelete={deleteGroup}
+          onLeave={leaveGroup}
+        />
+      )}
+      {modal === 'pay' && (
+        <PaySheet
+          visible={true}
+          onClose={close}
+          target={payTarget}
+          onPayUPI={payViaUPI}
+          onPayCash={() => { setModal(''); if (payTarget) settleReward({ ...payTarget, method: 'cash' }); }}
+          onPayPartial={partialSettle}
+        />
+      )}
+      {modal === 'remind' && <RemindSheet visible={true} onClose={close} target={remindTarget} onSend={sendReminder} />}
+      {modal === 'reward' && <RewardModal visible={true} reward={lastReward} onClose={() => { close(); fetchData(); }} />}
 
       {/* === GROUP CHAT === */}
       <Modal visible={!!chatGroup} animationType="slide">

@@ -1,7 +1,7 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, memo } from 'react';
 import {
   View, Text, StyleSheet, ScrollView, RefreshControl, TouchableOpacity, ActivityIndicator,
-  Image, Share, Linking, Alert,
+  Image, Share, Linking, Alert, InteractionManager,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -50,25 +50,29 @@ export default function HomeScreen() {
       if (avatarRes.data?.avatar) setAvatar(avatarRes.data.avatar);
       setLoading(false); // Show content immediately
 
-      // Phase 2: Secondary data (below the fold, loaded async)
-      const [lessonRes, alertsRes, reportRes, lbRes, gameRes, cotdRes, newsRes, fomoRes] = await Promise.all([
-        api.get(`/money-school/dynamic?lang=${lang}`).catch(() => ({ data: null })),
-        api.get('/alerts/smart').catch(() => ({ data: { alerts: [] } })),
-        api.get('/reports/weekly').catch(() => ({ data: null })),
-        api.get('/leaderboard/savings').catch(() => ({ data: null })),
-        api.get('/gamification/status').catch(() => ({ data: null })),
-        api.get('/card-of-the-day').catch(() => ({ data: null })),
-        api.get('/news/india-finance').catch(() => ({ data: { articles: [] } })),
-        api.get('/referral/fomo-feed').catch(() => ({ data: { items: [] } })),
-      ]);
-      if (lessonRes.data) setDailyLesson(lessonRes.data);
-      setSmartAlerts(alertsRes.data?.alerts || []);
-      if (reportRes.data) setWeeklyReport(reportRes.data);
-      if (lbRes.data) setLeaderboard(lbRes.data);
-      if (gameRes.data) setGamification(gameRes.data);
-      if (cotdRes.data) setCardOfDay(cotdRes.data);
-      setNews(newsRes.data?.articles || []);
-      setFomoItems(fomoRes.data?.items || []);
+      // Phase 2: Secondary data (deferred until after critical-path paint)
+      InteractionManager.runAfterInteractions(async () => {
+        try {
+          const [lessonRes, alertsRes, reportRes, lbRes, gameRes, cotdRes, newsRes, fomoRes] = await Promise.all([
+            api.get(`/money-school/dynamic?lang=${lang}`).catch(() => ({ data: null })),
+            api.get('/alerts/smart').catch(() => ({ data: { alerts: [] } })),
+            api.get('/reports/weekly').catch(() => ({ data: null })),
+            api.get('/leaderboard/savings').catch(() => ({ data: null })),
+            api.get('/gamification/status').catch(() => ({ data: null })),
+            api.get('/card-of-the-day').catch(() => ({ data: null })),
+            api.get('/news/india-finance').catch(() => ({ data: { articles: [] } })),
+            api.get('/referral/fomo-feed').catch(() => ({ data: { items: [] } })),
+          ]);
+          if (lessonRes.data) setDailyLesson(lessonRes.data);
+          setSmartAlerts(alertsRes.data?.alerts || []);
+          if (reportRes.data) setWeeklyReport(reportRes.data);
+          if (lbRes.data) setLeaderboard(lbRes.data);
+          if (gameRes.data) setGamification(gameRes.data);
+          if (cotdRes.data) setCardOfDay(cotdRes.data);
+          setNews(newsRes.data?.articles || []);
+          setFomoItems(fomoRes.data?.items || []);
+        } catch (e) { console.error('Phase2 err', e); }
+      });
     } catch (error) {
       console.error('Dashboard fetch error:', error);
     } finally {
