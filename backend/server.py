@@ -240,10 +240,8 @@ class TransactionResponse(BaseModel):
 class SMSParseRequest(BaseModel):
     sms_text: str
 
-class BudgetCreate(BaseModel):
-    category: str
-    amount: float
-    period: str = "monthly"  # "daily", "weekly", "monthly"
+# BudgetCreate moved to routers/budgets.py — re-exported for back-compat.
+from routers.budgets import BudgetCreate  # noqa: F401, E402
 
 class BudgetResponse(BaseModel):
     id: str
@@ -893,93 +891,10 @@ async def get_weekly_insights(user_id: str = Depends(get_current_user)):
         "generated_at": now
     }
 
-@api_router.post("/budgets")
-async def create_budget(budget: BudgetCreate, user_id: str = Depends(get_current_user)):
-    # Check if budget exists for category
-    existing = await db.budgets.find_one({
-        "user_id": user_id,
-        "category": budget.category
-    })
-    
-    if existing:
-        # Update existing
-        from bson import ObjectId
-        await db.budgets.update_one(
-            {"_id": existing["_id"]},
-            {"$set": {"amount": budget.amount, "period": budget.period}}
-        )
-        return {
-            "id": str(existing["_id"]),
-            "user_id": user_id,
-            "category": budget.category,
-            "amount": budget.amount,
-            "period": budget.period,
-            "spent": existing.get("spent", 0),
-            "created_at": existing.get("created_at", datetime.utcnow())
-        }
-    
-    # Create new
-    budget_dict = budget.dict()
-    budget_dict["user_id"] = user_id
-    budget_dict["spent"] = 0
-    budget_dict["created_at"] = datetime.utcnow()
-    
-    result = await db.budgets.insert_one(budget_dict)
-    
-    return {
-        "id": str(result.inserted_id),
-        "user_id": user_id,
-        "category": budget_dict["category"],
-        "amount": budget_dict["amount"],
-        "period": budget_dict["period"],
-        "spent": 0,
-        "created_at": budget_dict["created_at"]
-    }
-
-@api_router.get("/budgets")
-async def get_budgets(user_id: str = Depends(get_current_user)):
-    budgets = await db.budgets.find({"user_id": user_id}).to_list(100)
-    
-    # Calculate spent for each budget
-    seven_days_ago = datetime.utcnow() - timedelta(days=7)
-    thirty_days_ago = datetime.utcnow() - timedelta(days=30)
-    
-    for budget in budgets:
-        # Determine date range based on period
-        if budget["period"] == "daily":
-            start_date = datetime.utcnow().replace(hour=0, minute=0, second=0, microsecond=0)
-        elif budget["period"] == "weekly":
-            start_date = seven_days_ago
-        else:  # monthly
-            start_date = thirty_days_ago
-        
-        # Calculate spent
-        transactions = await db.transactions.find({
-            "user_id": user_id,
-            "category": budget["category"],
-            "type": "debit",
-            "date": {"$gte": start_date}
-        }).to_list(1000)
-        
-        spent = sum(t["amount"] for t in transactions)
-        budget["spent"] = spent
-        budget["id"] = str(budget["_id"])
-        del budget["_id"]
-    
-    return budgets
-
-@api_router.delete("/budgets/{budget_id}")
-async def delete_budget(budget_id: str, user_id: str = Depends(get_current_user)):
-    from bson import ObjectId
-    result = await db.budgets.delete_one({
-        "_id": ObjectId(budget_id),
-        "user_id": user_id
-    })
-    
-    if result.deleted_count == 0:
-        raise HTTPException(status_code=404, detail="Budget not found")
-    
-    return {"message": "Budget deleted"}
+# ============== BUDGETS ==============
+# Core CRUD moved to routers/budgets.py:
+#   POST /budgets, GET /budgets, DELETE /budgets/{id}
+# Advanced/AI/family-budget endpoints remain in server.py (see below).
 
 @api_router.get("/stats/overview")
 async def get_stats_overview(user_id: str = Depends(get_current_user)):

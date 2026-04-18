@@ -1,132 +1,87 @@
-"""Smoke test for transactions refactor - Apr 18 2026."""
-import os
+"""Smoke test for budgets router refactor + regression on transactions & gamification."""
 import sys
 import requests
-import json
 
 BASE = "https://mintu-finance.preview.emergentagent.com/api"
 PHONE = "9876543210"
 OTP = "123456"
 
 
-def log(msg):
-    print(msg, flush=True)
-
-
-def main():
-    results = []
-    # Auth
+def auth() -> str:
     r = requests.post(f"{BASE}/auth/send-otp", json={"phone": PHONE}, timeout=30)
-    log(f"send-otp: {r.status_code}")
+    assert r.status_code == 200, f"send-otp failed: {r.status_code} {r.text}"
     r = requests.post(f"{BASE}/auth/verify-otp", json={"phone": PHONE, "otp": OTP}, timeout=30)
     assert r.status_code == 200, f"verify-otp failed: {r.status_code} {r.text}"
-    token = r.json()["token"]
-    H = {"Authorization": f"Bearer {token}"}
-    log(f"verify-otp: 200, token acquired")
+    return r.json()["token"]
 
-    # 1. POST /api/transactions
-    payload = {"amount": 250, "category": "Food", "description": "Pizza", "type": "debit"}
-    r = requests.post(f"{BASE}/transactions", json=payload, headers=H, timeout=30)
-    log(f"\n[1] POST /api/transactions -> {r.status_code}")
-    if r.status_code != 200:
-        log(f"  BODY: {r.text[:500]}")
-        results.append(("POST /transactions", False, r.status_code))
+
+def run():
+    results = []
+    token = auth()
+    h = {"Authorization": f"Bearer {token}"}
+
+    # Cleanup any leftover Food budget
+    try:
+        rc = requests.get(f"{BASE}/budgets", headers=h, timeout=30)
+        if rc.status_code == 200:
+            for b in rc.json():
+                if b.get("category") == "Food":
+                    requests.delete(f"{BASE}/budgets/{b['id']}", headers=h, timeout=30)
+    except Exception:
+        pass
+
+    r = requests.post(f"{BASE}/budgets", json={"category": "Food", "amount": 5000, "period": "monthly"}, headers=h, timeout=30)
+    ok1 = r.status_code == 200 and "id" in r.json()
+    results.append(("1. POST /api/budgets create", ok1, r.status_code, r.text[:250]))
+    if not ok1:
         return results
-    body = r.json()
-    txn_id = body.get("id")
-    log(f"  id: {txn_id}")
-    log(f"  keys: {list(body.keys())}")
-    results.append(("POST /transactions", bool(txn_id), r.status_code))
+    budget_id = r.json()["id"]
 
-    # 2. GET /api/transactions?limit=5
-    r = requests.get(f"{BASE}/transactions?limit=5", headers=H, timeout=30)
-    log(f"\n[2] GET /api/transactions?limit=5 -> {r.status_code}")
-    ok = False
-    if r.status_code == 200:
-        body = r.json()
-        log(f"  returned {len(body) if isinstance(body, list) else 'N/A'} txns")
-        found = False
-        if isinstance(body, list):
-            for t in body:
-                if t.get("id") == txn_id or t.get("_id") == txn_id:
-                    found = True
-                    break
-            ok = len(body) > 0 and found
-            log(f"  new txn at top: {body[0].get('id') == txn_id if body else False}")
-            log(f"  new txn in list: {found}")
-        else:
-            log(f"  BODY (not list): {str(body)[:300]}")
-    else:
-        log(f"  BODY: {r.text[:500]}")
-    results.append(("GET /transactions?limit=5", ok, r.status_code))
+    r = requests.get(f"{BASE}/budgets", headers=h, timeout=30)
+    ok2 = False
+    if r.status_code == 200 and isinstance(r.json(), list):
+        food = [b for b in r.json() if b.get("category") == "Food"]
+        ok2 = len(food) >= 1 and "spent" in food[0]
+    results.append(("2. GET /api/budgets (Food + spent)", ok2, r.status_code, str(r.json())[:250]))
 
-    # 3. DELETE /api/transactions/{id}
-    r = requests.delete(f"{BASE}/transactions/{txn_id}", headers=H, timeout=30)
-    log(f"\n[3] DELETE /api/transactions/{txn_id} -> {r.status_code}")
-    ok = False
-    if r.status_code == 200:
-        body = r.json()
-        log(f"  body: {body}")
-        ok = body.get("message") == "Transaction deleted"
-    else:
-        log(f"  BODY: {r.text[:500]}")
-    results.append(("DELETE /transactions/{id}", ok, r.status_code))
+    r = requests.post(f"{BASE}/budgets", json={"category": "Food", "amount": 6000, "period": "monthly"}, headers=h, timeout=30)
+    upsert_id = r.json().get("id") if r.status_code == 200 else None
+    ok3 = r.status_code == 200 and upsert_id == budget_id and r.json().get("amount") == 6000
+    results.append(("3. POST upsert same category", ok3, r.status_code, r.text[:250]))
 
-    # 4. POST /api/transactions/parse-sms
-    sms = {"sms_text": "Your A/C XXXX123 debited Rs.599 for SWIGGY on 15-Apr. Avl bal Rs.8000."}
-    r = requests.post(f"{BASE}/transactions/parse-sms", json=sms, headers=H, timeout=60)
-    log(f"\n[4] POST /api/transactions/parse-sms -> {r.status_code}")
-    ok = False
-    if r.status_code == 200:
-        body = r.json()
-        log(f"  keys: {list(body.keys())}")
-        log(f"  body: {json.dumps(body, default=str)[:500]}")
-        ok = True
-    else:
-        log(f"  BODY: {r.text[:500]}")
-    results.append(("POST /transactions/parse-sms", ok, r.status_code))
+    r = requests.delete(f"{BASE}/budgets/{budget_id}", headers=h, timeout=30)
+    ok4 = r.status_code == 200 and r.json().get("message") == "Budget deleted"
+    results.append(("4. DELETE /api/budgets/{id}", ok4, r.status_code, r.text[:250]))
 
-    # 5. GET /api/gamification/status
-    r = requests.get(f"{BASE}/gamification/status", headers=H, timeout=30)
-    log(f"\n[5] GET /api/gamification/status -> {r.status_code}")
-    ok = r.status_code == 200
-    if ok:
-        body = r.json()
-        log(f"  keys: {list(body.keys())}")
-    else:
-        log(f"  BODY: {r.text[:500]}")
-    results.append(("GET /gamification/status", ok, r.status_code))
+    r = requests.delete(f"{BASE}/budgets/000000000000000000000000", headers=h, timeout=30)
+    ok5 = r.status_code == 404
+    results.append(("5. DELETE invalid id -> 404", ok5, r.status_code, r.text[:250]))
 
-    # 6. GET /api/waste-detector
-    r = requests.get(f"{BASE}/waste-detector", headers=H, timeout=60)
-    log(f"\n[6] GET /api/waste-detector -> {r.status_code}")
-    ok = r.status_code == 200
-    if ok:
-        body = r.json()
-        log(f"  keys: {list(body.keys())}")
-    else:
-        log(f"  BODY: {r.text[:500]}")
-    results.append(("GET /waste-detector", ok, r.status_code))
+    r = requests.get(f"{BASE}/transactions", headers=h, timeout=30)
+    ok6 = r.status_code == 200 and isinstance(r.json(), list)
+    results.append(("6. GET /api/transactions", ok6, r.status_code, str(r.json())[:150]))
+
+    r = requests.get(f"{BASE}/gamification/status", headers=h, timeout=30)
+    ok7 = r.status_code == 200 and "streak" in r.json()
+    results.append(("7. GET /api/gamification/status", ok7, r.status_code, str(r.json())[:200]))
 
     return results
 
 
 if __name__ == "__main__":
     try:
-        results = main()
+        results = run()
     except AssertionError as e:
-        log(f"ASSERTION FAIL: {e}")
-        sys.exit(2)
-    except Exception as e:
-        log(f"EXCEPTION: {type(e).__name__}: {e}")
-        sys.exit(3)
+        print("FATAL:", e)
+        sys.exit(1)
 
-    log("\n" + "=" * 60)
-    log("SUMMARY")
-    log("=" * 60)
-    passed = sum(1 for _, ok, _ in results if ok)
-    for name, ok, code in results:
-        mark = "PASS" if ok else "FAIL"
-        log(f"  [{mark}] {name} (HTTP {code})")
-    log(f"\n{passed}/{len(results)} passed")
-    sys.exit(0 if passed == len(results) else 1)
+    print("\n===== BUDGETS REFACTOR SMOKE TEST =====")
+    passed = 0
+    for name, ok, status, body in results:
+        flag = "PASS" if ok else "FAIL"
+        print(f"[{flag}] {name} -> HTTP {status}")
+        if not ok:
+            print(f"       body: {body}")
+        passed += int(bool(ok))
+    print(f"\n{passed}/{len(results)} passed")
+    sys.exit(0 if passed == len(results) else 2)
