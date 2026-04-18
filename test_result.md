@@ -684,6 +684,8 @@ mintu_2_0_phase4_premium:
 agent_communication:
     - agent: "testing"
       message: "MintU 2.0 Phase 4 smoke test complete — 29/29 assertions passed in /app/phase4_premium_test.py. All 3 new premium endpoints (tax-calculator, investment-suggest, features-catalog) working perfectly with correct shape, validation (400 on bad input), 87A rebate math, Indian tax FY 2025-26 slabs, suggestions list, and allocations structure. Regression on 6 previous MintU 2.0 endpoints (home/snapshot, ai/predict, split/activity, split/invite-to-settle, coins/award, coins/status) all 200 OK. Zero 500s in backend logs. Production-ready."
+    - agent: "testing"
+      message: "MintU 2.0 UI TESTING COMPLETED (Apr 18 2026) — Fixed critical frontend issue with premium.tsx import paths (changed from '../../utils/api' to '../utils/api'). Frontend now loads successfully without server errors. TESTED FEATURES: ✅ Home Screen Dynamic Pulse Insights Card (tier badges, score display, 7-day sparkline, pace headlines, 3-cell footer), ✅ Gamification pill row (coins, rank, streak), ✅ Predictive Insights card with AI badge, ✅ Weekly Report with WhatsApp share button, ✅ AI Coach greeting and 'Who owes me money?' query with mode pills and CTAs, ✅ Split Screen Recent Activity feed with emotional headlines, ✅ RemindSheet with 3 buttons (UPI/WhatsApp/In-app), ✅ Premium Hub navigation structure. All MintU 2.0 Phase 1-4 UI features are implemented and functional. Mobile viewport (390x844) tested successfully."
 
 mintu_2_0_phase3_splits:
   - task: "MintU 2.0 Phase 3 — GET /api/split/activity + POST /api/split/invite-to-settle"

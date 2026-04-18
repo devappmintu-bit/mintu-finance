@@ -12,8 +12,8 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { router } from 'expo-router';
-import api from '../../utils/api';
-import { COLORS, shadowStyle } from '../../utils/theme';
+import api from '../utils/api';
+import { COLORS, shadowStyle } from '../utils/theme';
 
 type Tab = 'tax' | 'invest' | 'features';
 

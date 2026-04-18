@@ -12,7 +12,7 @@
         "issue": "Frontend web preview not accessible - ngrok tunnel failing with 502 errors. Infrastructure issue, not code issue. Errors: 'failed to start tunnel', 'session closed', 'remote gone away', 'TypeError: Cannot read properties of undefined (reading body)'",
         "testID": "N/A",
         "priority": "INFRASTRUCTURE",
-        "reproduction": "Both URLs return 502: https://mintu-finance.preview.emergentagent.com and https://891878bf-7d71-467e-8ad5-049e6d338d9a.preview.emergentagent.com. Metro bundler starts but tunnel connection fails repeatedly."
+        "reproduction": "Both URLs return 502: https://mintu-finance.preview.emergentagent.com and https://mintu-finance.preview.emergentagent.com. Metro bundler starts but tunnel connection fails repeatedly."
       }
     ],
     "design_issues": [],
