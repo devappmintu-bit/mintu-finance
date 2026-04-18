@@ -983,3 +983,80 @@ agent_communication:
 
   - agent: "testing"
     message: "Post lazy-proxy fix smoke test PASSED — zero NameErrors, all endpoints OK (Apr 18 2026). Test script /app/backend_test.py, 14/14 assertions pass. AUTH: POST /api/auth/login {phone:9876543210, pw:test123} → 200 (JWT len=155, field name is `token` not `access_token`). CORE: GET /user/me 200 ✅, /split/groups 200 ✅, /split/balances 200 ✅, /split/reminders 200 ✅. GROWTH: /referral/fomo-feed 200 (1 item) ✅, /referral/money-score-card 200 (score=55, title='Getting Better', emoji='💪') ✅, /referral/enhanced-status 200 ✅. PREMIUM (PRICING LAZY-PROXY VERIFIED): GET /premium/status → 200 with pricing={monthly, yearly, intro} — all 3 plans have 'price' field populated from server.py PRICING dict via the new _lazy proxy that now implements __contains__ and .get(). The earlier NameError is GONE. GET /premium/paywall-trigger 200 (also references PRICING, confirms proxy works in 2 call sites) ✅. LAZY-PROXY FOR UPI_APPS / SAMPLE_INDIAN_SMS / DATA_RETENTION_DAYS: GET /upi/apps 200, GET /sms/sample-inbox 200, GET /privacy/policy 200 — none crash with NameError ✅. GET /premium/pricing → 404 (no such dedicated route exists in premium.py; pricing data is returned via /premium/status — acceptable per review 'any upi endpoint' flexibility). BACKEND ERR.LOG: grep NameError|ImportError on lines written during the test → ZERO matches. CRITICAL ASSERTIONS MET: ✅ Zero 500s across all 11 tested endpoints. ✅ Zero NameError/ImportError in backend.err.log. ✅ /premium/status (the endpoint that actually serves PRICING data) returns full plan details including monthly/yearly. MINOR LATENT ISSUE (NOT BLOCKING, NOT A REGRESSION FROM THIS PATCH — same behaviour existed before): the `_P` proxy objects for UPI_APPS (routers/upi.py:60) and SAMPLE_INDIAN_SMS (routers/sms.py:63) are placed directly inside response dicts as `{\"apps\": UPI_APPS}` / `{\"messages\": SAMPLE_INDIAN_SMS}`. FastAPI's jsonable_encoder does not recognize these custom Proxy objects as iterables, so it serializes them as empty `{}` rather than the underlying list contents (confirmed: /upi/apps body is `{\"apps\":{}}`, /sms/sample-inbox body is `{\"messages\":{}, \"count\":12}` — `count` uses __len__ which works, so the proxy IS wired to the real list, but the list body itself isn't emitted). This is unrelated to the lazy-proxy __contains__/get fix that was the target of this smoke test, but main agent should fix by materializing these proxies via `list(UPI_APPS)` / `list(SAMPLE_INDIAN_SMS)` at response time, OR by using the real server-module attribute directly in these two routers. Does NOT affect /premium/* endpoints (which access PRICING via subscript and iteration through a richer proxy that includes items/keys/values — those serialize correctly). ALL REVIEW-REQUEST SUCCESS CRITERIA ARE GREEN."
+
+
+  - agent: "testing"
+    message: |
+      🔍 COMPREHENSIVE CRUD + CALCULATION AUDIT (Apr 18 2026) — /app/backend_test.py.
+      Auth via password fallback (phone 9876543210 / pw test123) → JWT 155-char. Cleared rate_limits before run.
+      
+      ==================== MODULE 1 (TRANSACTIONS): 10/15 pass ====================
+      ✅ 1.1 POST /api/transactions — 200, returns id + all fields echoed
+      ✅ 1.2a GET /api/transactions — 200, contains new txn
+      ❌ 1.2b ?category=Food filter — **NO FILTER SUPPORT** in backend (routers/transactions.py:64 only accepts `limit` kwarg). Returned 47 txns total, 27 were non-Food. Review spec requires filter to work.
+      ❌ 1.2c ?type=debit filter — same bug, returned 47 total with 10 non-debit.
+      ❌ 1.3 PUT /api/transactions/{id} — **405 Method Not Allowed — NO UPDATE ENDPOINT EXISTS** in routers/transactions.py. Only POST/GET/DELETE/parse-sms are defined. This is a CRITICAL missing CRUD operation per review spec.
+      ✅ 1.4 DELETE /api/transactions/{id} — 200, verified gone via subsequent GET
+      ✅ 1.5 Category preservation — manual POST correctly stores `Salary`, `Food`, `Transport`, `Shopping` (backend has no auto-categorizer but preserves client-provided category)
+      ✅ 1.5 SMS parse — POST /api/transactions/parse-sms with Zomato SMS correctly returns amount=450, category='Food' via AI parsing
+      ❌ 1.6a GET /api/analytics/summary — **404 (endpoint does not exist)**. Also /analytics/monthly → 404. Backend exposes /api/stats/overview (fields: total_income, total_expense, balance, category_breakdown) which works correctly. Review spec endpoints must be created or review should use /stats/overview.
+      ✅ 1.6 Summary calculations EXACT — created 3 txns (100+200+300) in unique category, /stats/overview category_breakdown returned exactly 600.00.
+      
+      ==================== MODULE 2 (SPLITS): 13/16 pass ====================
+      ✅ 2.1 POST /split/groups — 3 members created correctly
+      ✅ 2.2a Equal split 300/3 — splits sum EXACTLY 300.00
+      ✅ 2.2b Equal split 100/3 (largest-remainder) — splits sum EXACTLY 100.00 (33.34 + 33.33 + 33.33). Split engine is mathematically correct.
+      ✅ 2.3a PUT /split/expenses/{id} amount=600 — recomputed sum=600.00 EXACT
+      ✅ 2.3b PUT percentage 50/30/20 of 600 — returned exactly {300.0, 180.0, 120.0}
+      ✅ 2.4 DELETE expense — 200
+      ✅ 2.5 PUT rename group — reflected in /manage
+      ✅ 2.6 Add/remove members — both 200
+      ✅ 2.7 DELETE group — 200
+      ✅ 2.8a Create 2-member group + 1000 expense paid by other — 200
+      ❌ 2.8b GET /api/split/balances — **CALCULATION BUG: returned total_you_owe=600.0 instead of expected 500.0**. Root cause: fresh 2-member group should only contribute 500 debt, but the number is inflated by stale balances from OTHER groups user belongs to.
+      ❌ 2.8c After POST /split/partial-settle amount=200 → total_you_owe STILL 600.0 (unchanged!). Expected drop to 300.
+      ❌ 2.8d After POST /split/settle-with-rewards amount=300 → total_you_owe STILL 600.0 (unchanged!). Expected 0.
+      🚨 **CRITICAL CALCULATION BUG IN /api/split/balances**: The endpoint (routers/splits.py:225-252) iterates only db.split_expenses and computes net from splits. It **never consults the db.settlements collection**. Therefore partial-settle, settle-with-rewards, and mark-paid-offline do NOT reduce the displayed balance. This is a real-time sync bug — the Balance card will show inflated debts indefinitely. Note: /split/groups/{id}/summary DOES factor in settlements correctly (lines 437-440), so there's an inconsistency. FIX: subtract settlements from balances computation in /split/balances.
+      
+      ==================== MODULE 3 (BUDGETS): 8/10 pass ====================
+      ✅ 3.1 POST /budgets {category, amount, period} — 200 with id
+      ❌ 3.1b POST with `limit` key (review spec) — 422 validation error. Backend Pydantic BudgetCreate expects `amount` not `limit`. Either rename field or accept both.
+      ✅ 3.2a GET /budgets — includes new entry
+      ✅ 3.2b GET /budgets/live — includes category with spent/remaining/percentage/status
+      ❌ 3.3a PUT /api/budgets/{id} — **405 Method Not Allowed — NO PUT ENDPOINT**. Backend uses POST upsert semantics (same category re-POST updates). Review spec requires dedicated PUT. Add PUT handler.
+      ✅ 3.3b POST upsert workaround works (amount:5000 → 6000)
+      ✅ 3.4a Budget tracking accuracy — 3 expenses (1000+1500+2000=4500) correctly tracked as spent=4500.00, remaining=500, pct=90% ✅ CALCULATION CORRECT
+      ✅ 3.4b 4th expense pushes to spent=5500, status="exceeded" ✅
+      ✅ 3.5 DELETE budget — 200
+      
+      ==================== MODULE 4 (PROFILE): 5/8 pass ====================
+      ✅ 4.1 GET /user/me — 200 with id, name, phone, money_score
+      ❌ 4.2a PUT /api/user/me {name} — **405 Method Not Allowed**. Backend exposes PUT /user/profile (in routers/user.py:35) not /user/me. Route mismatch with review spec.
+      ✅ 4.2b PUT /user/profile {name} — 200 (actual endpoint works)
+      ❌ 4.2c PUT /user/me {monthly_income:50000} — **405**. Even on /user/profile, only `name` is accepted (routers/user.py:39-43). No `monthly_income` field in user model or update handler.
+      ❌ 4.2d PUT /user/me {language:"hi"} — **405**. No `language` field support.
+      ✅ 4.3 POST /user/upi — 200, validation works
+      ✅ 4.3 GET /user/upi — 200 with masked
+      ✅ 4.4 POST /user/avatar — 200 (base64 upload works)
+      
+      ==================== MODULE 5 (SMOKE): 13/13 pass ====================
+      All returned 200 except /insights/waste which returned 404 (acceptable per spec "200 OR graceful 4xx"). Full list, all non-500:
+      /alerts/smart 200, /reports/weekly 200, /leaderboard/savings 200, /gamification/status 200, /news/india-finance 200, /referral/fomo-feed 200, /referral/enhanced-status 200, /referral/money-score-card 200, /money-school/dynamic?lang=en 200, /card-of-the-day 200, /insights/waste 404 (correct endpoint is /waste-detector 200), /waste-detector 200, /premium/status 200.
+      Backend logs: ZERO NameError / ImportError / 500 during entire audit run.
+      
+      ==================== CRITICAL BUGS FOUND ====================
+      1. /api/split/balances IGNORES settlements — financial/real-time sync bug. Partial-settle/settle-with-rewards don't reduce shown debts. (routers/splits.py:225-252)
+      2. PUT /api/transactions/{id} missing — no way to edit a transaction (405). Must add update handler in routers/transactions.py.
+      3. PUT /api/budgets/{id} missing — 405. Only POST upsert works. Must add update handler in routers/budgets.py.
+      4. PUT /api/user/me missing — 405. Backend route is /user/profile and only handles `name`. Need /user/me with support for `name`, `monthly_income`, `language`.
+      5. GET /api/transactions query filters (?category=, ?type=) not implemented — backend ignores them and returns all.
+      6. /api/analytics/summary and /api/analytics/monthly don't exist — review spec expects them.
+      
+      MODULE STATUS (per review format):
+      MODULE 1 (TRANSACTIONS): 10/15 pass — NEEDS_FIX (missing PUT + filters + analytics/summary)
+      MODULE 2 (GROUPS/SPLITS): 13/16 pass — NEEDS_FIX (/split/balances ignores settlements)
+      MODULE 3 (BUDGETS): 8/10 pass — NEEDS_FIX (missing PUT; `limit` vs `amount` naming)
+      MODULE 4 (PROFILE): 5/8 pass — NEEDS_FIX (missing PUT /user/me with monthly_income/language)
+      MODULE 5 (SMOKE): 13/13 pass — SAFE TO PROCEED (zero 500s)
+      
+      Positive findings: Split engine math is flawless (largest-remainder correct). Budget tracking sum is correct. SMS parser categorizes correctly. Summary totals are exact. No 500 errors anywhere. Core CRUD for each module's primary object (create/read/delete) works; only UPDATE semantics are missing for transactions/budgets/user, and /split/balances has a settlement-sync bug.
