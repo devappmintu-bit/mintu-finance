@@ -1,140 +1,164 @@
 """
-Targeted backend test per review request:
-1. GET /api/referral/enhanced-status — verify 200 and required fields
-2. POST /api/ai/agent-chat — verify new money_school agent routing
+Smoke test for MintU backend optimizations (Apr 2026)
+Focus: caching on waste-detector (5 min) and ai-expense-card (10 min),
+cache invalidation on new transaction, Money School agent routing.
 """
-import os
+import time
 import requests
 
-BASE = os.environ.get("BACKEND_URL", "https://mintu-finance.preview.emergentagent.com").rstrip("/") + "/api"
+BACKEND_URL = "https://mintu-finance.preview.emergentagent.com"
+API = f"{BACKEND_URL}/api"
+
 PHONE = "9876543210"
 OTP = "123456"
 
 results = []
 
-def log(name, ok, detail=""):
-    marker = "PASS" if ok else "FAIL"
-    print(f"[{marker}] {name} — {detail}")
-    results.append((name, ok, detail))
 
-
-def get_token():
-    r = requests.post(f"{BASE}/auth/send-otp", json={"phone": PHONE}, timeout=30)
-    if r.status_code != 200:
-        raise Exception(f"send-otp failed: {r.status_code} {r.text[:200]}")
-    r = requests.post(f"{BASE}/auth/verify-otp", json={"phone": PHONE, "otp": OTP}, timeout=30)
-    if r.status_code != 200:
-        raise Exception(f"verify-otp failed: {r.status_code} {r.text[:200]}")
-    data = r.json()
-    token = data.get("token") or data.get("access_token")
-    if not token:
-        raise Exception(f"No token in response: {data}")
-    return token
-
-
-def test_enhanced_status(token):
-    r = requests.get(f"{BASE}/referral/enhanced-status",
-                     headers={"Authorization": f"Bearer {token}"}, timeout=30)
-    if r.status_code != 200:
-        log("GET /referral/enhanced-status status 200", False,
-            f"got {r.status_code}: {r.text[:200]}")
-        return
-    data = r.json()
-    required = ["referral_code", "referral_count", "total_pro_days_earned", "reward_tiers",
-                "next_milestone", "recent_referrals", "share_text", "whatsapp_text"]
-    missing = [k for k in required if k not in data]
-    if missing:
-        log("enhanced-status required fields", False, f"missing: {missing}")
-        return
-    log("enhanced-status required fields", True, f"all {len(required)} present")
-
-    tiers = data["reward_tiers"]
-    if not isinstance(tiers, list) or len(tiers) != 4:
-        log("reward_tiers length=4", False,
-            f"got {len(tiers) if isinstance(tiers, list) else 'non-list'}")
-        return
-    tier_fields = ["friends", "reward", "pro_days", "icon", "unlocked"]
-    for i, t in enumerate(tiers):
-        missing_tier = [k for k in tier_fields if k not in t]
-        if missing_tier:
-            log(f"reward_tier[{i}] fields", False, f"missing: {missing_tier}")
-            return
-    log("reward_tiers (4 tiers, all required fields)", True,
-        f"tiers at friends: {[t['friends'] for t in tiers]}")
-    log("GET /referral/enhanced-status overall", True,
-        f"code={data['referral_code']}, count={data['referral_count']}, "
-        f"pro_days={data['total_pro_days_earned']}")
-
-
-def test_agent_chat(token):
-    headers = {"Authorization": f"Bearer {token}", "Content-Type": "application/json"}
-    cases = [
-        ("Teach me about SIPs", True),
-        ("What is CIBIL credit score?", True),
-        ("Explain the 50/30/20 budget rule", True),
-        ("How much did I spend on food?", False),  # should NOT route to money_school
-    ]
-    for msg, should_be_money_school in cases:
-        try:
-            r = requests.post(f"{BASE}/ai/agent-chat",
-                              headers=headers,
-                              json={"message": msg, "lang": "en"},
-                              timeout=90)
-        except Exception as e:
-            log(f"agent-chat '{msg[:40]}'", False, f"request error: {e}")
-            continue
-        if r.status_code != 200:
-            log(f"agent-chat '{msg[:40]}' 200", False,
-                f"got {r.status_code}: {r.text[:200]}")
-            continue
-        data = r.json()
-        reply = data.get("reply", "")
-        agent = data.get("agent", {})
-        if not reply or not isinstance(reply, str) or len(reply.strip()) < 5:
-            log(f"agent-chat '{msg[:40]}' reply non-empty", False,
-                f"reply='{str(reply)[:80]}'")
-            continue
-        if not isinstance(agent, dict):
-            log(f"agent-chat '{msg[:40]}' agent object", False, f"agent={agent}")
-            continue
-        agent_id = agent.get("id", "")
-        agent_name = agent.get("name", "")
-        agent_emoji = agent.get("emoji", "")
-        routed_money_school = (agent_id == "money_school")
-
-        if should_be_money_school:
-            if routed_money_school and agent_name == "Money School" and agent_emoji == "🎓":
-                log(f"agent-chat '{msg[:40]}' -> Money School 🎓", True,
-                    f"reply_chars={len(reply)}, agent_name='{agent_name}', emoji='{agent_emoji}'")
-            else:
-                log(f"agent-chat '{msg[:40]}' -> Money School 🎓", False,
-                    f"got id='{agent_id}', name='{agent_name}', emoji='{agent_emoji}'")
-        else:
-            if not routed_money_school:
-                log(f"agent-chat unrelated '{msg[:40]}' NOT money_school", True,
-                    f"routed to '{agent_id}' ({agent_name})")
-            else:
-                log(f"agent-chat unrelated '{msg[:40]}' NOT money_school", False,
-                    "incorrectly routed to money_school")
+def record(name, ok, detail=""):
+    status = "PASS" if ok else "FAIL"
+    line = f"[{status}] {name} :: {detail}"
+    print(line)
+    results.append((ok, name, detail))
 
 
 def main():
-    print(f"Base URL: {BASE}")
-    try:
-        token = get_token()
-        log("Auth (OTP)", True, "token obtained")
-    except Exception as e:
-        log("Auth (OTP)", False, str(e))
-    else:
-        test_enhanced_status(token)
-        test_agent_chat(token)
+    session = requests.Session()
 
-    passed = sum(1 for _, ok, _ in results if ok)
+    # 1) Send OTP
+    t0 = time.time()
+    r = session.post(f"{API}/auth/send-otp", json={"phone": PHONE}, timeout=30)
+    ok = r.status_code == 200
+    record("POST /api/auth/send-otp", ok, f"status={r.status_code} ms={int((time.time()-t0)*1000)} body={r.text[:120]}")
+    if not ok:
+        return
+
+    # 2) Verify OTP
+    t0 = time.time()
+    r = session.post(f"{API}/auth/verify-otp", json={"phone": PHONE, "otp": OTP}, timeout=30)
+    ok = r.status_code == 200
+    body = r.json() if ok else {}
+    token = body.get("access_token") or body.get("token")
+    record("POST /api/auth/verify-otp", ok and bool(token), f"status={r.status_code} ms={int((time.time()-t0)*1000)} has_token={bool(token)}")
+    if not token:
+        return
+    headers = {"Authorization": f"Bearer {token}"}
+
+    # 3) GET /api/user/me
+    t0 = time.time()
+    r = session.get(f"{API}/user/me", headers=headers, timeout=30)
+    record("GET /api/user/me", r.status_code == 200, f"status={r.status_code} ms={int((time.time()-t0)*1000)}")
+
+    # 4a) GET /api/waste-detector (1st call)
+    t0 = time.time()
+    r1 = session.get(f"{API}/waste-detector", headers=headers, timeout=60)
+    t_wd1 = int((time.time()-t0)*1000)
+    record("GET /api/waste-detector (1st)", r1.status_code == 200, f"status={r1.status_code} ms={t_wd1}")
+
+    # 4b) GET /api/waste-detector (2nd call - should be cache hit)
+    t0 = time.time()
+    r2 = session.get(f"{API}/waste-detector", headers=headers, timeout=60)
+    t_wd2 = int((time.time()-t0)*1000)
+    record("GET /api/waste-detector (2nd - cache hit)", r2.status_code == 200, f"status={r2.status_code} ms={t_wd2}")
+    cache_improved = t_wd2 < t_wd1
+    record("waste-detector cache speedup (2nd < 1st)", cache_improved, f"1st={t_wd1}ms 2nd={t_wd2}ms delta={t_wd1 - t_wd2}ms")
+
+    # 5) GET /api/reports/ai-expense-card
+    t0 = time.time()
+    r = session.get(f"{API}/reports/ai-expense-card", headers=headers, timeout=60)
+    t_aec1 = int((time.time()-t0)*1000)
+    record("GET /api/reports/ai-expense-card (1st)", r.status_code == 200, f"status={r.status_code} ms={t_aec1}")
+    # Second call - should hit 10-min cache
+    t0 = time.time()
+    r = session.get(f"{API}/reports/ai-expense-card", headers=headers, timeout=60)
+    t_aec2 = int((time.time()-t0)*1000)
+    record("GET /api/reports/ai-expense-card (2nd - cache hit)", r.status_code == 200, f"status={r.status_code} ms={t_aec2} (1st={t_aec1}ms)")
+
+    # 6) POST /api/transactions (Food ₹100) -- should clear cache
+    txn_payload = {
+        "type": "debit",
+        "amount": 100,
+        "category": "Food",
+        "description": "Smoke test lunch",
+        "merchant": "Swiggy"
+    }
+    t0 = time.time()
+    r = session.post(f"{API}/transactions", headers=headers, json=txn_payload, timeout=30)
+    ok = r.status_code in (200, 201)
+    txn_id = None
+    try:
+        j = r.json()
+        txn_id = j.get("id") or j.get("transaction", {}).get("id") or j.get("_id")
+    except Exception:
+        pass
+    record("POST /api/transactions (Food ₹100)", ok, f"status={r.status_code} ms={int((time.time()-t0)*1000)} id={txn_id}")
+
+    # 7) GET /api/waste-detector again - should be a MISS (cache invalidated)
+    t0 = time.time()
+    r = session.get(f"{API}/waste-detector", headers=headers, timeout=60)
+    t_wd3 = int((time.time()-t0)*1000)
+    record("GET /api/waste-detector (after txn - cache cleared)", r.status_code == 200, f"status={r.status_code} ms={t_wd3} (cached 2nd was {t_wd2}ms)")
+    cache_cleared = t_wd3 > (t_wd2 + 100) or t_wd3 > 500
+    record("waste-detector cache cleared heuristic (3rd slower than 2nd)", cache_cleared, f"2nd(cached)={t_wd2}ms 3rd(after-txn)={t_wd3}ms")
+
+    # 8) GET /api/referral/enhanced-status
+    t0 = time.time()
+    r = session.get(f"{API}/referral/enhanced-status", headers=headers, timeout=30)
+    ok = r.status_code == 200
+    detail = f"status={r.status_code} ms={int((time.time()-t0)*1000)}"
+    if ok:
+        body = r.json()
+        keys = list(body.keys())
+        detail += f" keys={keys[:8]} code={body.get('referral_code')}"
+    record("GET /api/referral/enhanced-status", ok, detail)
+
+    # 9) POST /api/ai/agent-chat -- Money School routing
+    t0 = time.time()
+    r = session.post(
+        f"{API}/ai/agent-chat",
+        headers=headers,
+        json={"message": "Teach me about SIPs"},
+        timeout=120,
+    )
+    ok = r.status_code == 200
+    agent_name = ""
+    agent_emoji = ""
+    reply_len = 0
+    if ok:
+        body = r.json()
+        agent = body.get("agent") or {}
+        agent_name = agent.get("name", "")
+        agent_emoji = agent.get("emoji", "")
+        reply_len = len((body.get("reply") or body.get("message") or ""))
+    money_school_ok = ok and agent_name == "Money School"
+    record(
+        "POST /api/ai/agent-chat 'Teach me about SIPs' -> Money School",
+        money_school_ok,
+        f"status={r.status_code} ms={int((time.time()-t0)*1000)} agent='{agent_name}' emoji='{agent_emoji}' reply_len={reply_len}",
+    )
+
+    # Cleanup
+    if txn_id:
+        try:
+            session.delete(f"{API}/transactions/{txn_id}", headers=headers, timeout=15)
+        except Exception:
+            pass
+
+    # Summary
+    print("\n" + "="*70)
+    print("SMOKE TEST SUMMARY")
+    print("="*70)
+    passed = sum(1 for r in results if r[0])
     total = len(results)
-    print("\n=== SUMMARY ===")
-    for n, ok, d in results:
-        print(f"{'PASS' if ok else 'FAIL'}: {n} — {d}")
-    print(f"\n{passed}/{total} passed")
+    print(f"PASSED: {passed}/{total}")
+    for ok, name, detail in results:
+        print(f"  {'PASS' if ok else 'FAIL'} {name}  -- {detail}")
+    print("\nCACHE PERFORMANCE:")
+    print(f"  waste-detector 1st call:              {t_wd1} ms")
+    print(f"  waste-detector 2nd call (cached):     {t_wd2} ms  (speedup: {t_wd1-t_wd2} ms)")
+    print(f"  waste-detector after txn (cleared):   {t_wd3} ms")
+    print(f"  ai-expense-card 1st call:             {t_aec1} ms")
+    print(f"  ai-expense-card 2nd call (cached):    {t_aec2} ms  (speedup: {t_aec1-t_aec2} ms)")
 
 
 if __name__ == "__main__":

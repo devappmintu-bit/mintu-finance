@@ -11,13 +11,16 @@ import time
 import json as json_module
 from pathlib import Path
 from pydantic import BaseModel, Field, validator
-from typing import List, Optional, Dict
-from datetime import datetime, timedelta, timezone
+from typing import List, Optional, Dict, Any, Callable
+from datetime import datetime, timedelta, timezone, date as date_cls
+from functools import wraps
 import jwt
 import bcrypt
 import re
 import random
 import string
+import uuid as uuid_lib
+from bson import ObjectId
 from emergentintegrations.llm.chat import LlmChat, UserMessage
 from emergentintegrations.llm.openai import OpenAISpeechToText
 
@@ -33,6 +36,27 @@ db = client[os.environ['DB_NAME']]
 JWT_SECRET = os.environ['JWT_SECRET']
 JWT_ALGORITHM = "HS256"
 JWT_EXPIRATION_DAYS = 30
+
+# ============== IN-MEMORY TTL CACHE (lightweight — for hot AI endpoints) ==============
+_CACHE: Dict[str, tuple] = {}  # key -> (value, expires_at)
+
+def cache_get(key: str) -> Optional[Any]:
+    v = _CACHE.get(key)
+    if not v:
+        return None
+    value, expires = v
+    if time.time() > expires:
+        _CACHE.pop(key, None)
+        return None
+    return value
+
+def cache_set(key: str, value: Any, ttl_seconds: int = 300) -> None:
+    _CACHE[key] = (value, time.time() + ttl_seconds)
+
+def cache_clear_prefix(prefix: str) -> None:
+    for k in list(_CACHE.keys()):
+        if k.startswith(prefix):
+            _CACHE.pop(k, None)
 
 # ============== SECURITY CONFIGURATION ==============
 RATE_LIMIT_WINDOW = 60  # seconds
@@ -822,9 +846,12 @@ async def create_transaction(transaction: TransactionCreate, user_id: str = Depe
     
     result = await db.transactions.insert_one(trans_dict)
     
+    # Invalidate per-user AI caches
+    cache_clear_prefix(f"waste:{user_id}")
+    cache_clear_prefix(f"expense_report:{user_id}")
+    
     # Update money score
     new_score = await calculate_money_score(user_id)
-    from bson import ObjectId
     await db.users.update_one(
         {"_id": ObjectId(user_id)},
         {"$set": {"money_score": new_score}}
@@ -1875,7 +1902,6 @@ async def add_members_to_group(group_id: str, data: dict, user_id: str = Depends
     return {"added": added, "message": f"Added {len(added)} member(s): {', '.join(added)}"}
 
 # ============== 1. REFERRAL SYSTEM ==============
-import uuid as uuid_lib
 
 @api_router.get("/referral/my-code")
 async def get_referral_code(user_id: str = Depends(get_current_user)):
@@ -2766,8 +2792,12 @@ RULES:
 # 2. WASTE DETECTOR
 @api_router.get("/waste-detector")
 async def waste_detector(user_id: str = Depends(get_current_user)):
-    """AI-powered Waste Detector — dynamic analysis with peer comparisons & trend insights"""
-    from bson import ObjectId
+    """AI-powered Waste Detector — dynamic analysis with peer comparisons & trend insights (cached 5min/user)"""
+    # Check cache first (per-user, 5 min TTL)
+    cache_key = f"waste:{user_id}"
+    cached = cache_get(cache_key)
+    if cached:
+        return cached
     now = datetime.utcnow()
     month_start = now.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
     prev_month_start = (month_start - timedelta(days=1)).replace(day=1)
@@ -2863,7 +2893,7 @@ Be specific, actionable, use Indian context. Sound like a smart friend, not a bo
         logging.warning(f"Waste AI recommendation failed: {e}")
         ai_recommendation = ""
     
-    return {
+    result = {
         "total_monthly_expense": total_expense,
         "prev_month_total": prev_total,
         "overall_trend_pct": round(overall_trend_pct, 1),
@@ -2877,6 +2907,8 @@ Be specific, actionable, use Indian context. Sound like a smart friend, not a bo
         },
         "shareable_text": f"I spent ₹{total_expense:,.0f} this month... that's {overall_equivs[0]['emoji']} {overall_equivs[0]['text']}! 😱 Check yours on MintU" if overall_equivs else f"I tracked ₹{total_expense:,.0f} this month with MintU 💸"
     }
+    cache_set(cache_key, result, ttl_seconds=300)
+    return result
 
 # 3. WEEKLY REPORT
 @api_router.get("/reports/weekly")
@@ -3368,8 +3400,11 @@ Return ONLY a JSON array of 6 items. No markdown."""
 # AI EXPENSE REPORT CARD
 @api_router.get("/reports/ai-expense-card")
 async def ai_expense_report(user_id: str = Depends(get_current_user)):
-    """AI-generated personalized expense report with insights"""
-    from bson import ObjectId
+    """AI-generated personalized expense report with insights (cached 10min/user)"""
+    cache_key = f"expense_report:{user_id}"
+    cached = cache_get(cache_key)
+    if cached:
+        return cached
     now = datetime.utcnow()
     month_start = now.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
     prev_month_start = (month_start - timedelta(days=1)).replace(day=1)
@@ -3412,7 +3447,9 @@ Return ONLY valid JSON."""
     except Exception as e:
         logging.warning(f"AI report failed: {e}")
         report = {"headline": "Your Monthly Snapshot", "health_grade": "B", "health_color": "yellow", "savings_rate": savings_rate, "top_insight": f"You spent ₹{total:,.0f} across {len(categories)} categories this month.", "highlights": [f"Total: ₹{total:,.0f} across {txn_count} transactions", f"Savings rate: {savings_rate}%"], "recommendations": ["Review your top spending category", "Set a weekly budget limit"], "comparison_text": f"{'📈' if total > prev_total else '📉'} {abs(((total-prev_total)/max(prev_total,1)*100)):,.0f}% vs last month"}
-    return {"total_expense": total, "total_income": income, "savings_rate": savings_rate, "txn_count": txn_count, "prev_total": prev_total, "categories": {k: v["total"] for k, v in categories.items()}, "report": report}
+    result = {"total_expense": total, "total_income": income, "savings_rate": savings_rate, "txn_count": txn_count, "prev_total": prev_total, "categories": {k: v["total"] for k, v in categories.items()}, "report": report}
+    cache_set(cache_key, result, ttl_seconds=600)
+    return result
 
 # 1. SAVINGS LEADERBOARD
 @api_router.get("/leaderboard/savings")
@@ -3622,7 +3659,6 @@ async def enhanced_referral_status(user_id: str = Depends(get_current_user)):
 # ============== FEATURE: UPI PAYMENT INTEGRATION ==============
 
 import re as regex_module
-import uuid as uuid_lib
 
 UPI_REGEX = r'^[a-zA-Z0-9._-]+@[a-zA-Z0-9]+$'
 

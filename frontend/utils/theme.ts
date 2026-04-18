@@ -1,5 +1,5 @@
 // MintU Design System v2 — Warm Indian Aesthetic
-import { StyleSheet } from 'react-native';
+import { Platform } from 'react-native';
 
 export const COLORS = {
   bg: {
@@ -84,4 +84,42 @@ export const ONBOARDING_IMAGES = {
   save: 'https://static.prod-images.emergentagent.com/jobs/6b84bb29-30c5-4f1f-8532-223619c96941/images/08cef8bb2a5c1d6cf8de4d5625f5d37b62620544049b4422f1100cd0d67b7a75.png',
   grow: 'https://static.prod-images.emergentagent.com/jobs/6b84bb29-30c5-4f1f-8532-223619c96941/images/3b885da80db448d847e1f6c097bc17ef6849177ca6b8a3dfaaf4ac612fcab49c.png',
   welcome: 'https://static.prod-images.emergentagent.com/jobs/6b84bb29-30c5-4f1f-8532-223619c96941/images/e7523de09ef2fe49176945c99e41d56b3e71bc7de9f23f12afdde9f01e568d54.png',
+};
+
+// ============== SHADOW PRESETS ==============
+// Use these instead of raw shadow* props (deprecated on web per RN 0.76+).
+// boxShadow works on web; elevation still required for Android; native iOS ignores boxShadow.
+type ShadowStyle = {
+  boxShadow?: string;
+  elevation?: number;
+  shadowColor?: string;
+  shadowOffset?: { width: number; height: number };
+  shadowOpacity?: number;
+  shadowRadius?: number;
+};
+
+const makeShadow = (offsetY: number, blur: number, opacity: number, elev: number, color = '46,31,26'): ShadowStyle => {
+  const rgba = `rgba(${color},${opacity})`;
+  // iOS: use the native shadow props; Web & Android: use boxShadow + elevation
+  if (Platform.OS === 'ios') {
+    return {
+      shadowColor: `rgb(${color})`,
+      shadowOffset: { width: 0, height: offsetY },
+      shadowOpacity: opacity,
+      shadowRadius: blur,
+    };
+  }
+  return {
+    boxShadow: `0 ${offsetY}px ${blur}px ${rgba}`,
+    elevation: elev,
+  };
+};
+
+export const SHADOW = {
+  none: {} as ShadowStyle,
+  xs: makeShadow(1, 4, 0.04, 1),
+  sm: makeShadow(2, 8, 0.05, 2),
+  md: makeShadow(2, 12, 0.06, 3),
+  lg: makeShadow(4, 16, 0.08, 5),
+  xl: makeShadow(6, 24, 0.10, 8),
 };
