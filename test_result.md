@@ -700,6 +700,19 @@ backend_user_router:
         agent: "testing"
         comment: "✅ USER ROUTER EXTRACTION SMOKE TEST PASSED (Apr 18 2026) - ALL 10/10 TESTS 200/400 AS EXPECTED, ZERO 500s. After extracting /user/* endpoints to routers/user.py and UPI helpers to core/upi.py (server.py: 4309 → 4220 lines), all flows verified via /app/user_router_test.py: (1) GET /api/user/me → 200 with id/phone/name/money_score/created_at ✅. (2) PUT /api/user/profile {name:'Test Updated'} → 200, name persisted ✅. (3) POST /api/user/upi {upi_id:'test@okicici'} → 200 with masked='te****@okicici' ✅. (4) GET /api/user/upi → 200 with upi_id='test@okicici' + masked='te****@okicici' + name ✅. (5) POST /api/user/upi {upi_id:'invalid format'} → 400 'Invalid UPI ID format. Use format: name@bank' (validate_upi_id from core/upi.py working) ✅. (6) GET /api/user/avatar → 200 with avatar+name keys ✅. (7) PUT /api/user/biometric {enabled:true} → 200 with biometric_enabled=true ✅. REGRESSION: (8) GET /api/split/pay-intent/{user_id}?amount=100 → 200 with proper upi://pay deep link (mask_upi_id re-export from core/upi.py at server.py:2707 working) ✅. (9) GET /api/transactions → 200 list of 45 ✅. (10) GET /api/stats/overview → 200 with 5 keys ✅. Router imported at server.py:4145 and mounted at server.py:4164. Refactor is production-safe; no regression."
 
+backend_splits_router:
+  - task: "Splits Router Extraction Smoke Test (Phase 7)"
+    implemented: true
+    working: true
+    file: "/app/backend/routers/splits.py"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+      - working: true
+        agent: "testing"
+        comment: "✅ SPLITS ROUTER EXTRACTION SMOKE TEST PASSED (Apr 18 2026) - ALL 14/14 TESTS 200 OK, ZERO 500s. After AST-based extraction of 22 /split/* endpoints to routers/splits.py (server.py: 4220 → 3623 lines, -599 / -14.2%), full flow verified via /app/splits_refactor_test.py using password login fallback (OTP was rate-limited). Results: (auth) POST /api/auth/login {phone:9876543210,pw:test123} → 200 with JWT + user_id ✅. (1) GET /api/split/groups → 200 list(15) ✅. (2) POST /api/split/groups {name:'Test Refactor', members:['9999888877']} → 200 with id=69e34223628077fc39d8e8f2 ✅. NOTE: review-request body used `members:[{name,phone}]` which the SplitGroupCreate schema (`members: List[str]`) rejects with 422 — this is pre-existing schema behavior, not a refactor bug; retest used correct `List[str]` body. (3) GET /api/split/balances → 200 list ✅. (4) POST /api/split/expenses {group_id, description:'Lunch', amount:500, split_type:'equal', paid_by:user_id, participants:[]} → 200 with expense_id ✅. (5) GET /api/split/groups/{id}/expenses → 200 list(1) ✅. (6) GET /api/split/groups/{id}/summary → 200 with group_name, member_count, total_expenses, total_spent, simplified_debts, category_breakdown ✅. (7) GET /api/split/groups/{id}/messages → 200 list(1) ✅. (8) POST /api/split/groups/{id}/messages {text:'Hey team', type:'text'} → 200 ✅. (9) GET /api/split/settlement-leaderboard → 200 with leaderboard+my_stats keys ✅. (10) DELETE /api/split/groups/{id} → 200 ✅. REGRESSION: (11) GET /api/user/me → 200 phone=9876543210 ✅. (12) GET /api/transactions?limit=5 → 200 list(5) ✅. (13) GET /api/stats/overview → 200 with total_income/expense/balance/transaction_count/category_breakdown ✅. Backend access log confirms all /api/split/* routed through the new router with 200s. Refactor is production-safe; zero regressions on splits or unrelated domains."
+
 backend_family_router:
   - task: "Family Router Extraction Smoke Test"
     implemented: true
