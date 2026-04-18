@@ -674,6 +674,19 @@ backend_analytics_router:
         agent: "testing"
         comment: "✅ ANALYTICS ROUTER SMOKE TEST PASSED (Apr 18 2026) - ALL 8/8 ENDPOINTS 200 OK, ZERO 500s. After extraction of 4 analytics endpoints to routers/analytics.py (server.py: 4541 → 4309 lines), all flows verified via /app/backend_test.py: (1) GET /api/stats/overview → 200 with total_income, total_expense, balance, transaction_count, category_breakdown ✅. (2) GET /api/reports/weekly → 200 with period, total_spent, last_week_spent, change_pct, mood, mood_text, top_category, category_breakdown, savings_suggestion, streak, money_score, headline, shareable_text ✅. (3) GET /api/leaderboard/savings → 200 with user_rank=3, percentile=91, top_10 (list of 10), monthly_saved, comparison_text, motivations; top_10 verified as list ✅. (4) GET /api/leaderboard/friends → 200 with you/friends/summary/challenge_text (friends_len=10 since user has split groups — the review's 'likely empty' note was contingent on no split groups; shape still valid) ✅. REGRESSION: (5) GET /api/transactions → 200 list(45) ✅. (6) GET /api/family/my-groups → 200 list(3) ✅. (7) GET /api/budgets → 200 list(4) ✅. Router is correctly imported at server.py:4244 and mounted at server.py:4253. Refactor is production-safe; no regression."
 
+backend_user_router:
+  - task: "User Router Extraction Smoke Test"
+    implemented: true
+    working: true
+    file: "/app/backend/routers/user.py"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+      - working: true
+        agent: "testing"
+        comment: "✅ USER ROUTER EXTRACTION SMOKE TEST PASSED (Apr 18 2026) - ALL 10/10 TESTS 200/400 AS EXPECTED, ZERO 500s. After extracting /user/* endpoints to routers/user.py and UPI helpers to core/upi.py (server.py: 4309 → 4220 lines), all flows verified via /app/user_router_test.py: (1) GET /api/user/me → 200 with id/phone/name/money_score/created_at ✅. (2) PUT /api/user/profile {name:'Test Updated'} → 200, name persisted ✅. (3) POST /api/user/upi {upi_id:'test@okicici'} → 200 with masked='te****@okicici' ✅. (4) GET /api/user/upi → 200 with upi_id='test@okicici' + masked='te****@okicici' + name ✅. (5) POST /api/user/upi {upi_id:'invalid format'} → 400 'Invalid UPI ID format. Use format: name@bank' (validate_upi_id from core/upi.py working) ✅. (6) GET /api/user/avatar → 200 with avatar+name keys ✅. (7) PUT /api/user/biometric {enabled:true} → 200 with biometric_enabled=true ✅. REGRESSION: (8) GET /api/split/pay-intent/{user_id}?amount=100 → 200 with proper upi://pay deep link (mask_upi_id re-export from core/upi.py at server.py:2707 working) ✅. (9) GET /api/transactions → 200 list of 45 ✅. (10) GET /api/stats/overview → 200 with 5 keys ✅. Router imported at server.py:4145 and mounted at server.py:4164. Refactor is production-safe; no regression."
+
 backend_family_router:
   - task: "Family Router Extraction Smoke Test"
     implemented: true

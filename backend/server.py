@@ -762,20 +762,8 @@ async def resend_otp(request: OTPSendRequest):
     """Alias for send-otp with same rate limiting"""
     return await send_otp(request)
 
-@api_router.get("/user/me")
-async def get_user_profile(user_id: str = Depends(get_current_user)):
-    from bson import ObjectId
-    user = await db.users.find_one({"_id": ObjectId(user_id)})
-    if not user:
-        raise HTTPException(status_code=404, detail="User not found")
-    
-    return {
-        "id": str(user["_id"]),
-        "phone": user["phone"],
-        "name": user["name"],
-        "money_score": user.get("money_score", 50),
-        "created_at": user["created_at"]
-    }
+# /user/me moved to routers/user.py
+# (see api_router.include_router(user_router.router) below)
 
 # ============== TRANSACTIONS ==============
 # Moved to routers/transactions.py (see app.include_router below).
@@ -1202,22 +1190,7 @@ async def check_budget_alerts(user_id: str = Depends(get_current_user)):
 class BiometricToggle(BaseModel):
     enabled: bool
 
-@api_router.put("/user/biometric")
-async def toggle_biometric(data: BiometricToggle, user_id: str = Depends(get_current_user)):
-    """Enable/disable biometric auth for user"""
-    from bson import ObjectId
-    await db.users.update_one(
-        {"_id": ObjectId(user_id)},
-        {"$set": {"biometric_enabled": data.enabled}}
-    )
-    return {"biometric_enabled": data.enabled}
-
-@api_router.get("/user/biometric")
-async def get_biometric_status(user_id: str = Depends(get_current_user)):
-    """Check if biometric is enabled"""
-    from bson import ObjectId
-    user = await db.users.find_one({"_id": ObjectId(user_id)}, {"biometric_enabled": 1})
-    return {"biometric_enabled": user.get("biometric_enabled", False) if user else False}
+# /user/biometric (PUT+GET) moved to routers/user.py
 
 # ============== BULK SMS IMPORT ==============
 SAMPLE_INDIAN_SMS = [
@@ -2660,25 +2633,7 @@ async def create_indexes():
 from core.content import APP_DOWNLOAD_LINK, DAILY_CARDS  # noqa: F401
 
 # Profile photo upload
-@api_router.post("/user/avatar")
-async def upload_avatar(data: dict, user_id: str = Depends(get_current_user)):
-    """Upload profile photo as base64"""
-    from bson import ObjectId
-    avatar_b64 = data.get("avatar", "")
-    if not avatar_b64:
-        raise HTTPException(status_code=400, detail="No avatar data")
-    # Limit size to ~500KB base64
-    if len(avatar_b64) > 700_000:
-        raise HTTPException(status_code=400, detail="Image too large. Max 500KB")
-    await db.users.update_one({"_id": ObjectId(user_id)}, {"$set": {"avatar": avatar_b64}})
-    return {"message": "Avatar updated!"}
-
-@api_router.get("/user/avatar")
-async def get_avatar(user_id: str = Depends(get_current_user)):
-    """Get profile photo"""
-    from bson import ObjectId
-    user = await db.users.find_one({"_id": ObjectId(user_id)}, {"avatar": 1, "name": 1})
-    return {"avatar": user.get("avatar", "") if user else "", "name": user.get("name", "") if user else ""}
+# /user/avatar (POST+GET) moved to routers/user.py
 
 # Card of the Day — moved to routers/content.py
 # Endpoint: GET /card-of-the-day (mounted via api_router.include_router(content_router.router))
@@ -2748,57 +2703,11 @@ Return ONLY valid JSON."""
 # /referral/enhanced-status moved to routers/referral.py
 
 # ============== FEATURE: UPI PAYMENT INTEGRATION ==============
+# UPI helpers moved to core/upi.py — re-exported for back-compat.
+from core.upi import validate_upi_id, mask_upi_id  # noqa: F401
 
-import re as regex_module
-
-UPI_REGEX = r'^[a-zA-Z0-9._-]+@[a-zA-Z0-9]+$'
-
-def validate_upi_id(upi_id: str) -> bool:
-    """Validate UPI ID format (e.g., name@okicici, phone@ybl)"""
-    return bool(regex_module.match(UPI_REGEX, upi_id)) and len(upi_id) <= 50
-
-def mask_upi_id(upi_id: str) -> str:
-    """Mask UPI ID for privacy (show ****@bank)"""
-    if not upi_id or '@' not in upi_id:
-        return '****'
-    parts = upi_id.split('@')
-    name = parts[0]
-    bank = parts[1]
-    masked = name[:2] + '****' if len(name) > 2 else '****'
-    return f"{masked}@{bank}"
-
-@api_router.post("/user/upi")
-async def save_upi_id(data: dict, user_id: str = Depends(get_current_user)):
-    """Save or update user's UPI ID"""
-    from bson import ObjectId
-    upi_id = data.get("upi_id", "").strip()
-    if not upi_id:
-        raise HTTPException(status_code=400, detail="UPI ID is required")
-    if not validate_upi_id(upi_id):
-        raise HTTPException(status_code=400, detail="Invalid UPI ID format. Use format: name@bank")
-    await db.users.update_one({"_id": ObjectId(user_id)}, {"$set": {"upi_id": upi_id}})
-    return {"message": "UPI ID saved", "upi_id": mask_upi_id(upi_id)}
-
-@api_router.put("/user/profile")
-async def update_profile(data: dict, user_id: str = Depends(get_current_user)):
-    """Update user profile (name, etc.)"""
-    from bson import ObjectId
-    updates = {}
-    if "name" in data and data["name"].strip():
-        updates["name"] = data["name"].strip()
-    if not updates:
-        raise HTTPException(status_code=400, detail="No valid fields to update")
-    await db.users.update_one({"_id": ObjectId(user_id)}, {"$set": updates})
-    return {"message": "Profile updated", **updates}
-
-
-@api_router.get("/user/upi")
-async def get_upi_id(user_id: str = Depends(get_current_user)):
-    """Get user's UPI ID"""
-    from bson import ObjectId
-    user = await db.users.find_one({"_id": ObjectId(user_id)}, {"upi_id": 1, "name": 1})
-    upi = user.get("upi_id", "") if user else ""
-    return {"upi_id": upi, "masked": mask_upi_id(upi), "name": user.get("name", "") if user else ""}
+# /user/upi, /user/profile moved to routers/user.py
+# The split-related /split/pay-intent endpoint below still lives in server.py.
 
 @api_router.get("/split/pay-intent/{target_user_id}")
 async def generate_upi_pay_intent(target_user_id: str, amount: float, user_id: str = Depends(get_current_user)):
@@ -4242,6 +4151,7 @@ from routers import (
     budgets as budgets_router,
     family as family_router,
     analytics as analytics_router,
+    user as user_router,
 )
 api_router.include_router(news_router.router)
 api_router.include_router(referral_router.router)
@@ -4251,6 +4161,7 @@ api_router.include_router(transactions_router.router)
 api_router.include_router(budgets_router.router)
 api_router.include_router(family_router.router)
 api_router.include_router(analytics_router.router)
+api_router.include_router(user_router.router)
 
 # Include router
 app.include_router(api_router)
