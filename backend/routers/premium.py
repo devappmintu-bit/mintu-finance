@@ -30,6 +30,9 @@ def _lazy_attr(name):
         def __len__(self): return len(getattr(_srv(), name))
         def items(self): return getattr(_srv(), name).items()
         def keys(self): return getattr(_srv(), name).keys()
+        def __contains__(self, k): return k in getattr(_srv(), name)
+
+        def get(self, k, default=None): return getattr(_srv(), name).get(k, default)
         def values(self): return getattr(_srv(), name).values()
     return _Proxy()
 
@@ -61,6 +64,9 @@ def _lazy(name):
         def __len__(self): return len(getattr(_srv(), name))
         def items(self): return getattr(_srv(), name).items()
         def keys(self): return getattr(_srv(), name).keys()
+        def __contains__(self, k): return k in getattr(_srv(), name)
+
+        def get(self, k, default=None): return getattr(_srv(), name).get(k, default)
         def values(self): return getattr(_srv(), name).values()
     return _P()
 PREMIUM_FEATURES = _lazy("PREMIUM_FEATURES")
