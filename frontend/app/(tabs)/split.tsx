@@ -74,11 +74,27 @@ const SPLIT_TYPES = [
   { id: 'percentage', icon: 'pie-chart', label: '%' },
 ];
 
+// Build a flat "Settle Up" list across all groups — each entry is a pending debt row.
+// We use simplified_debts from each group summary: rows where `from_id === me` (I owe) OR `to_id === me` (they owe me).
+type DebtRow = {
+  group_id: string;
+  group_name: string;
+  group_emoji: string;
+  from_id: string;
+  from_name: string;
+  to_id: string;
+  to_name: string;
+  amount: number;
+  direction: 'i_owe' | 'owed_to_me';
+};
+
 export default function SplitScreen() {
   const { user } = useAuthStore();
   const [groups, setGroups] = useState<any[]>([]);
   const [balances, setBalances] = useState<any>(null);
   const [settleLB, setSettleLB] = useState<any>(null);
+  const [settleRows, setSettleRows] = useState<DebtRow[]>([]);
+  const [reminders, setReminders] = useState<{ received: any[]; sent: any[] }>({ received: [], sent: [] });
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [modal, setModal] = useState('');
@@ -99,19 +115,54 @@ export default function SplitScreen() {
   const [renameVal, setRenameVal] = useState('');
   const [showRename, setShowRename] = useState(false);
   const [chatGroup, setChatGroup] = useState<any>(null);
+  const [remindNote, setRemindNote] = useState('');
+  const [remindTarget, setRemindTarget] = useState<DebtRow | null>(null);
+
+  // Fetch simplified debts across all groups in parallel and flatten into one list
+  const fetchSettleRows = useCallback(async (grps: any[]) => {
+    if (!user?.id || !grps?.length) { setSettleRows([]); return; }
+    try {
+      const summaries = await Promise.all(
+        grps.map((g: any) => api.get(`/split/groups/${g.id}/summary`).then(r => ({ g, d: r.data })).catch(() => null))
+      );
+      const rows: DebtRow[] = [];
+      summaries.forEach((s: any) => {
+        if (!s) return;
+        const { g, d } = s;
+        const emoji = getGA(g.name).emoji;
+        (d?.simplified_debts || []).forEach((db: any) => {
+          if (db.from_id === user.id || db.to_id === user.id) {
+            rows.push({
+              group_id: g.id, group_name: g.name, group_emoji: emoji,
+              from_id: db.from_id, from_name: db.from_name,
+              to_id: db.to_id, to_name: db.to_name,
+              amount: db.amount,
+              direction: db.from_id === user.id ? 'i_owe' : 'owed_to_me',
+            });
+          }
+        });
+      });
+      rows.sort((a, b) => b.amount - a.amount);
+      setSettleRows(rows);
+    } catch (e) { console.error('settleRows', e); }
+  }, [user?.id]);
 
   const fetchData = useCallback(async () => {
     try {
-      const [gR, bR, lR] = await Promise.all([
+      const [gR, bR, lR, rR] = await Promise.all([
         api.get('/split/groups'), api.get('/split/balances'),
         api.get('/split/settlement-leaderboard').catch(() => ({ data: null })),
+        api.get('/split/reminders').catch(() => ({ data: { received: [], sent: [] } })),
       ]);
-      setGroups(gR.data); setBalances(bR.data); if (lR.data) setSettleLB(lR.data);
+      setGroups(gR.data); setBalances(bR.data);
+      if (lR.data) setSettleLB(lR.data);
+      if (rR.data) setReminders({ received: rR.data.received || [], sent: rR.data.sent || [] });
+      fetchSettleRows(gR.data);
     } catch (e) { console.error(e); }
     finally { setLoading(false); setRefreshing(false); }
-  }, []);
+  }, [fetchSettleRows]);
   useEffect(() => { fetchData(); }, []);
-  const close = () => { setModal(''); setShowRename(false); };
+  const close = () => { setModal(''); setShowRename(false); setRemindNote(''); setRemindTarget(null); };
 
   // GROUP CRUD
   const createGroup = async () => {
@@ -225,15 +276,129 @@ export default function SplitScreen() {
   // PAYMENTS
   const payViaUPI = async () => {
     if (!payTarget) return;
-    try { const r = await api.get(`/split/pay-intent/${payTarget.to_id}?amount=${payTarget.amount}`); setModal(''); await Linking.openURL(r.data.upi_link);
-      setTimeout(() => Alert.alert('Payment Status', 'Did it go through?', [{ text: 'No', style: 'cancel' }, { text: 'Yes', onPress: () => settleReward(payTarget) }]), 3000);
-    } catch { setModal(''); Alert.alert('UPI Not Available', 'Mark as cash?', [{ text: 'Cancel', style: 'cancel' }, { text: 'Cash', onPress: () => settleReward({ ...payTarget, method: 'cash' }) }]); }
+    const amount = payTarget.amount;
+    const targetId = payTarget.to_id;
+    const targetName = payTarget.to_name;
+    try {
+      const r = await api.get(`/split/pay-intent/${targetId}?amount=${amount}`);
+      setModal('');
+      if (Platform.OS === 'web') {
+        // Web can't open upi:// — simulate payment confirmation flow directly
+        setTimeout(() => Alert.alert(
+          'Simulated Payment',
+          `Pay ₹${amount.toFixed(0)} to ${targetName}?\n(UPI deep-link only works on phone. Confirming will mark as paid.)`,
+          [
+            { text: 'Cancel', style: 'cancel' },
+            { text: 'Confirm Paid', onPress: () => settleReward({ to_id: targetId, to_name: targetName, amount, method: 'upi', group_id: payTarget.group_id }) },
+          ]
+        ), 100);
+        return;
+      }
+      // Native — open UPI app
+      await Linking.openURL(r.data.upi_link);
+      setTimeout(() => Alert.alert('Payment Status', 'Did the payment go through?', [
+        { text: 'No', style: 'cancel' },
+        { text: 'Yes, Paid', onPress: () => settleReward({ to_id: targetId, to_name: targetName, amount, method: 'upi', group_id: payTarget.group_id }) },
+      ]), 2500);
+    } catch (e: any) {
+      setModal('');
+      const msg = e?.response?.data?.detail || '';
+      if (msg.includes('UPI')) {
+        Alert.alert('UPI Not Set Up', `${targetName} hasn't added their UPI ID yet. Pay in cash instead?`, [
+          { text: 'Cancel', style: 'cancel' },
+          { text: 'Mark as Cash', onPress: () => settleReward({ to_id: targetId, to_name: targetName, amount, method: 'cash', group_id: payTarget.group_id }) },
+        ]);
+      } else {
+        Alert.alert('Payment Error', 'Could not start payment. Try marking as cash?', [
+          { text: 'Cancel', style: 'cancel' },
+          { text: 'Mark Cash', onPress: () => settleReward({ to_id: targetId, to_name: targetName, amount, method: 'cash', group_id: payTarget.group_id }) },
+        ]);
+      }
+    }
   };
   const settleReward = async (t: any) => {
-    try { const r = await api.post('/split/settle-with-rewards', { target_user_id: t.to_id, amount: t.amount, method: t.method || 'upi', group_id: selectedGroup?.id }); setLastReward(r.data.reward); setModal('reward'); fetchData(); } catch { Toast.show({ type: 'error', text1: 'Error', text2: 'Could not settle' }); }
+    try { const r = await api.post('/split/settle-with-rewards', { target_user_id: t.to_id, amount: t.amount, method: t.method || 'upi', group_id: t.group_id || selectedGroup?.id }); setLastReward(r.data.reward); setModal('reward'); fetchData(); } catch { Toast.show({ type: 'error', text1: 'Error', text2: 'Could not settle' }); }
   };
+
+  // Pay directly from a DebtRow (main-screen Settle Up)
+  const payDebtRow = (row: DebtRow) => {
+    setPayTarget({ to_id: row.to_id, to_name: row.to_name, amount: row.amount, group_id: row.group_id });
+    setSelectedGroup({ id: row.group_id, name: row.group_name });
+    setModal('pay');
+  };
+
+  // Mark a debt as paid offline (cash/bank)
+  const markPaidOffline = (row: DebtRow, method: 'cash' | 'bank_transfer' = 'cash') => {
+    Alert.alert(
+      'Mark as Paid?',
+      `Mark ₹${row.amount.toFixed(0)} to ${row.to_name} as paid in ${method === 'cash' ? 'cash' : 'bank transfer'}?`,
+      [
+        { text: 'Cancel', style: 'cancel' },
+        { text: 'Yes', onPress: async () => {
+          try {
+            const r = await api.post('/split/mark-paid-offline', {
+              target_user_id: row.to_id, amount: row.amount, group_id: row.group_id, method,
+            });
+            Toast.show({ type: 'success', text1: 'Marked as paid ✅', text2: r.data.message });
+            fetchData();
+          } catch (e: any) {
+            Toast.show({ type: 'error', text1: 'Error', text2: e?.response?.data?.detail || 'Failed' });
+          }
+        }},
+      ]
+    );
+  };
+
+  // Open remind modal for a specific debt (supports custom note)
+  const openRemind = (row: DebtRow) => {
+    setRemindTarget(row);
+    setRemindNote('');
+    setModal('remind');
+  };
+
+  // Send reminder: calls backend (records + posts system msg) then opens WhatsApp
+  const sendReminder = async () => {
+    if (!remindTarget) return;
+    // For "owed_to_me" direction, I'm reminding the other person (from_id=them)
+    const targetUserId = remindTarget.direction === 'owed_to_me' ? remindTarget.from_id : remindTarget.to_id;
+    const targetName = remindTarget.direction === 'owed_to_me' ? remindTarget.from_name : remindTarget.to_name;
+    try {
+      const r = await api.post('/split/remind', {
+        target_user_id: targetUserId,
+        amount: remindTarget.amount,
+        group_id: remindTarget.group_id,
+        note: remindNote.trim(),
+      });
+      close();
+      Toast.show({ type: 'success', text1: `Reminded ${targetName} 🔔`, text2: 'Opening WhatsApp...' });
+      // Try opening WhatsApp (native only — web will just show toast)
+      if (Platform.OS !== 'web' && r.data.whatsapp_link) {
+        setTimeout(() => {
+          Linking.openURL(r.data.whatsapp_link).catch(() => {
+            Share.share({ message: r.data.whatsapp_text });
+          });
+        }, 400);
+      }
+    } catch (e: any) {
+      const msg = e?.response?.data?.detail || 'Failed';
+      if (String(msg).toLowerCase().includes('already sent')) {
+        Toast.show({ type: 'info', text1: 'Already Reminded', text2: 'Wait 1 hour before sending again' });
+        close();
+      } else {
+        Toast.show({ type: 'error', text1: 'Error', text2: msg });
+      }
+    }
+  };
+
+  // Dismiss a received reminder
+  const dismissReminder = async (rid: string) => {
+    try { await api.post(`/split/reminders/${rid}/dismiss`); fetchData(); } catch {}
+  };
+
+  // Legacy WhatsApp-only remind (kept for Summary modal)
   const remind = (name: string, amt: number) => {
     const t = `Hey ${name}! You owe ₹${amt.toFixed(0)} on MintU. Settle up?\n\uD83D\uDCF2 https://mintu.app/download`;
+    if (Platform.OS === 'web') { Toast.show({ type: 'success', text1: 'Reminder link', text2: t.slice(0, 60) + '...' }); return; }
     Linking.openURL(`whatsapp://send?text=${encodeURIComponent(t)}`).catch(() => Share.share({ message: t }));
   };
 
@@ -277,6 +442,85 @@ export default function SplitScreen() {
             </View>
           </View>
         </View>
+
+        {/* RECEIVED REMINDERS BANNER */}
+        {reminders.received.length > 0 && (
+          <View style={s.remBanner}>
+            <View style={s.remBannerHead}>
+              <Ionicons name="notifications" size={16} color="#92400E" />
+              <Text style={s.remBannerTitle}>
+                {reminders.received.length === 1 ? '1 Payment Reminder' : `${reminders.received.length} Payment Reminders`}
+              </Text>
+            </View>
+            {reminders.received.slice(0, 2).map((rem: any) => (
+              <View key={rem.id} style={s.remRow}>
+                <View style={{ flex: 1 }}>
+                  <Text style={s.remText}>
+                    <Text style={{ fontWeight: '700' }}>{rem.sender_name}</Text> reminded you about{' '}
+                    <Text style={{ fontWeight: '700', color: C.red }}>₹{rem.amount.toFixed(0)}</Text>
+                  </Text>
+                  {rem.note ? <Text style={s.remNote}>"{rem.note}"</Text> : null}
+                </View>
+                <TouchableOpacity onPress={() => dismissReminder(rem.id)} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+                  <Ionicons name="close" size={18} color="#92400E" />
+                </TouchableOpacity>
+              </View>
+            ))}
+          </View>
+        )}
+
+        {/* SETTLE UP SECTION (on-screen pay + remind) */}
+        {settleRows.length > 0 && (
+          <View style={s.settleCard}>
+            <View style={s.settleHead}>
+              <Ionicons name="flash" size={14} color={C.accent} />
+              <Text style={s.settleTitle}>SETTLE UP</Text>
+              <View style={{ flex: 1 }} />
+              <Text style={s.settleCount}>{settleRows.length}</Text>
+            </View>
+            {settleRows.slice(0, 4).map((row: DebtRow, i: number) => (
+              <View key={`${row.from_id}-${row.to_id}-${i}`} style={s.settleRow}>
+                <Text style={s.settleEmoji}>{row.group_emoji}</Text>
+                <View style={{ flex: 1, minWidth: 0 }}>
+                  <Text numberOfLines={1} style={s.settleName}>
+                    {row.direction === 'i_owe' ? `To ${row.to_name}` : `From ${row.from_name}`}
+                  </Text>
+                  <Text numberOfLines={1} style={s.settleGroup}>{row.group_name}</Text>
+                </View>
+                <Text style={[s.settleAmt, { color: row.direction === 'i_owe' ? C.red : C.green }]}>
+                  ₹{row.amount.toFixed(0)}
+                </Text>
+                {row.direction === 'i_owe' ? (
+                  <>
+                    <TouchableOpacity onPress={() => payDebtRow(row)} style={{ marginLeft: 8 }}>
+                      <LinearGradient colors={[C.accent, C.accentLight]} style={s.settleBtn}>
+                        <Ionicons name="flash" size={12} color={C.inv} />
+                        <Text style={s.settleBtnT}>Pay</Text>
+                      </LinearGradient>
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                      onPress={() => markPaidOffline(row, 'cash')}
+                      style={s.settleIconBtn}
+                      hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                    >
+                      <Ionicons name="checkmark-done" size={18} color={C.text3} />
+                    </TouchableOpacity>
+                  </>
+                ) : (
+                  <TouchableOpacity onPress={() => openRemind(row)} style={{ marginLeft: 8 }}>
+                    <LinearGradient colors={['#F59E0B', '#FB923C']} style={s.settleBtn}>
+                      <Ionicons name="notifications" size={12} color={C.inv} />
+                      <Text style={s.settleBtnT}>Remind</Text>
+                    </LinearGradient>
+                  </TouchableOpacity>
+                )}
+              </View>
+            ))}
+            {settleRows.length > 4 && (
+              <Text style={s.settleMore}>+ {settleRows.length - 4} more — tap a group to see all</Text>
+            )}
+          </View>
+        )}
 
         {/* LEADERBOARD */}
         {settleLB && settleLB.leaderboard?.length > 0 && (
@@ -624,6 +868,50 @@ export default function SplitScreen() {
         </View>
       </Modal>
 
+      {/* === REMIND MODAL === */}
+      <Modal visible={modal === 'remind'} animationType="slide" transparent>
+        <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={s.mBg}>
+          <View style={s.sheet}>
+            <View style={s.handle} />
+            <View style={s.sheetH}>
+              <Ionicons name="notifications" size={22} color="#F59E0B" />
+              <Text style={[s.sheetT, { flex: 1 }]}>Send Reminder</Text>
+              <TouchableOpacity onPress={close}><Ionicons name="close-circle" size={28} color={C.text4} /></TouchableOpacity>
+            </View>
+            {remindTarget && (
+              <>
+                <View style={s.remindInfo}>
+                  <Text style={s.remindInfoN}>
+                    {remindTarget.direction === 'owed_to_me' ? remindTarget.from_name : remindTarget.to_name}
+                  </Text>
+                  <Text style={s.remindInfoG}>{remindTarget.group_emoji} {remindTarget.group_name}</Text>
+                  <Text style={s.remindInfoA}>₹{remindTarget.amount.toFixed(0)}</Text>
+                </View>
+                <Text style={s.label}>Add a friendly note (optional)</Text>
+                <TextInput
+                  style={[s.input, { minHeight: 80, textAlignVertical: 'top', paddingTop: 12 }]}
+                  multiline
+                  placeholder="e.g. Hey, remember the Goa trip?"
+                  placeholderTextColor={C.text4}
+                  value={remindNote}
+                  onChangeText={setRemindNote}
+                  maxLength={200}
+                />
+                <Text style={s.remindHint}>
+                  Will post a reminder in the group chat{Platform.OS !== 'web' ? ' + open WhatsApp' : ''}. 1 reminder/hour limit.
+                </Text>
+                <TouchableOpacity onPress={sendReminder}>
+                  <LinearGradient colors={['#F59E0B', '#FB923C']} style={s.primaryBtn}>
+                    <Ionicons name="notifications" size={18} color={C.inv} />
+                    <Text style={s.primaryBtnText}> Send Reminder</Text>
+                  </LinearGradient>
+                </TouchableOpacity>
+              </>
+            )}
+          </View>
+        </KeyboardAvoidingView>
+      </Modal>
+
       {/* === GROUP CHAT === */}
       <Modal visible={!!chatGroup} animationType="slide">
         {chatGroup && (
@@ -655,6 +943,33 @@ const s = StyleSheet.create({
   balV: { fontSize: 26, fontWeight: '800' },
   balL: { fontSize: 12, color: C.text3, marginTop: 4 },
   balD: { width: 1, height: 40, backgroundColor: C.border },
+  // Reminders banner
+  remBanner: { backgroundColor: '#FEF3C7', borderRadius: 16, padding: 14, marginBottom: 12, borderWidth: 1, borderColor: '#FDE68A' },
+  remBannerHead: { flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 6 },
+  remBannerTitle: { fontSize: 12, fontWeight: '800', letterSpacing: 0.5, color: '#92400E' },
+  remRow: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 6 },
+  remText: { fontSize: 13, color: '#78350F', lineHeight: 18 },
+  remNote: { fontSize: 12, color: '#92400E', fontStyle: 'italic', marginTop: 2 },
+  // Settle Up card
+  settleCard: { backgroundColor: C.card, borderRadius: 20, padding: 14, marginBottom: 16, borderWidth: 1, borderColor: C.cardBorder },
+  settleHead: { flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 10 },
+  settleTitle: { fontSize: 11, fontWeight: '800', letterSpacing: 1, color: C.accent },
+  settleCount: { fontSize: 11, fontWeight: '700', color: C.text3, backgroundColor: C.accentDim, paddingHorizontal: 8, paddingVertical: 2, borderRadius: 10 },
+  settleRow: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingVertical: 10, borderTopWidth: 1, borderTopColor: C.border },
+  settleEmoji: { fontSize: 20 },
+  settleName: { fontSize: 14, fontWeight: '700', color: C.text1 },
+  settleGroup: { fontSize: 11, color: C.text3, marginTop: 1 },
+  settleAmt: { fontSize: 15, fontWeight: '800', marginLeft: 6 },
+  settleBtn: { flexDirection: 'row', alignItems: 'center', gap: 3, paddingHorizontal: 10, paddingVertical: 6, borderRadius: 10 },
+  settleBtnT: { fontSize: 12, fontWeight: '700', color: C.inv },
+  settleIconBtn: { width: 34, height: 34, borderRadius: 10, justifyContent: 'center', alignItems: 'center', marginLeft: 4, backgroundColor: COLORS.bg.primary, borderWidth: 1, borderColor: C.border },
+  settleMore: { fontSize: 12, color: C.text3, textAlign: 'center', marginTop: 8, fontStyle: 'italic' },
+  // Remind modal info
+  remindInfo: { alignItems: 'center', paddingVertical: 12, marginBottom: 12, borderBottomWidth: 1, borderBottomColor: C.border },
+  remindInfoN: { fontSize: 18, fontWeight: '700', color: C.text1 },
+  remindInfoG: { fontSize: 13, color: C.text3, marginTop: 2 },
+  remindInfoA: { fontSize: 28, fontWeight: '800', color: C.red, marginTop: 8 },
+  remindHint: { fontSize: 11, color: C.text3, textAlign: 'center', marginVertical: 10, fontStyle: 'italic' },
   // Leaderboard
   lbCard: { backgroundColor: '#FFFBEB', borderRadius: 20, padding: 16, marginBottom: 16, borderWidth: 1, borderColor: '#FDE68A' },
   lbHead: { flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 8 },

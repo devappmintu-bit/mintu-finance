@@ -6,6 +6,7 @@ import os
 import json
 import logging
 import hashlib
+import uuid as uuid_lib
 from datetime import datetime, timedelta
 from urllib.parse import quote
 from typing import List, Optional, Dict
@@ -19,6 +20,14 @@ from core.upi import mask_upi_id
 router = APIRouter(tags=["splits"])
 api_router = router  # so extracted @api_router.xxx keeps working
 
+
+# Local copy of settlement reward tiers (also in server.py for legacy refs)
+SETTLEMENT_REWARDS = {
+    "instant": {"coins": 15, "label": "Lightning Settler ⚡", "hours": 1},
+    "same_day": {"coins": 10, "label": "Quick Payer 🏃", "hours": 24},
+    "on_time": {"coins": 5, "label": "Reliable 👍", "hours": 72},
+    "late": {"coins": 1, "label": "Better Late 🐢", "hours": 999999},
+}
 
 
 class SplitGroupCreate(BaseModel):
@@ -696,4 +705,232 @@ async def redeem_coins(data: dict, user_id: str = Depends(get_current_user)):
     await db.users.update_one({"_id": ObjectId(user_id)}, {"$inc": {"reward_coins": -coins_to_redeem}})
 
     return {"redeemed": coins_to_redeem, "cashback": cashback, "remaining_coins": available - coins_to_redeem}
+
+
+# ============== PAYMENT REMINDERS ==============
+
+@api_router.post("/split/remind")
+async def send_payment_reminder(data: dict, user_id: str = Depends(get_current_user)):
+    """Send a payment reminder to a friend who owes you money.
+
+    Records the reminder in DB, posts a system message in the group chat (if group_id given),
+    and returns a WhatsApp share text + local push payload for the frontend to use.
+    Throttled to 1 reminder per (sender, recipient, group) per hour to avoid spam.
+    """
+    target_user_id = data.get("target_user_id")
+    amount = float(data.get("amount", 0))
+    group_id = data.get("group_id")
+    note = (data.get("note") or "").strip()
+
+    if not target_user_id or amount <= 0:
+        raise HTTPException(status_code=400, detail="target_user_id and positive amount required")
+
+    # Anti-spam: 1 reminder/hour per pair
+    one_hour_ago = datetime.utcnow() - timedelta(hours=1)
+    recent = await db.split_reminders.find_one({
+        "sender_id": user_id,
+        "recipient_id": target_user_id,
+        "group_id": group_id,
+        "created_at": {"$gt": one_hour_ago},
+    })
+    if recent:
+        raise HTTPException(status_code=429, detail="Reminder already sent. Wait an hour before sending again.")
+
+    sender = None
+    recipient = None
+    try:
+        sender = await db.users.find_one({"_id": ObjectId(user_id)}, {"name": 1, "phone": 1})
+    except Exception:
+        pass
+    try:
+        recipient = await db.users.find_one({"_id": ObjectId(target_user_id)}, {"name": 1, "phone": 1})
+    except Exception:
+        pass
+
+    sender_name = (sender or {}).get("name", "A friend")
+    recipient_name = (recipient or {}).get("name", "User")
+    recipient_phone = (recipient or {}).get("phone", "")
+
+    reminder = {
+        "sender_id": user_id,
+        "sender_name": sender_name,
+        "recipient_id": target_user_id,
+        "recipient_name": recipient_name,
+        "recipient_phone": recipient_phone,
+        "amount": amount,
+        "group_id": group_id,
+        "note": note,
+        "status": "pending",
+        "created_at": datetime.utcnow(),
+    }
+    result = await db.split_reminders.insert_one(reminder)
+    reminder_id = str(result.inserted_id)
+
+    # System message in group chat so recipient sees it in chat feed
+    if group_id:
+        try:
+            await db.split_messages.insert_one({
+                "group_id": group_id,
+                "type": "system",
+                "content": f"🔔 {sender_name} reminded {recipient_name} about ₹{amount:,.0f}",
+                "sender_id": user_id,
+                "sender_name": sender_name,
+                "reminder_data": {"amount": amount, "recipient_id": target_user_id, "reminder_id": reminder_id},
+                "created_at": datetime.utcnow(),
+            })
+        except Exception as e:
+            logging.warning(f"Could not post reminder system message: {e}")
+
+    # WhatsApp deep link (works only if recipient has WhatsApp on that phone)
+    wa_text = f"Hey {recipient_name}! Friendly reminder: you owe ₹{amount:,.0f} on MintU.\nTap to settle: https://mintu.app/settle\n— {sender_name}"
+    if note:
+        wa_text = f"Hey {recipient_name}! {note}\n\nYou owe ₹{amount:,.0f}. Settle here: https://mintu.app/settle\n— {sender_name}"
+
+    wa_phone = recipient_phone if recipient_phone else ""
+    wa_link = f"https://wa.me/91{wa_phone}?text={quote(wa_text)}" if wa_phone else f"whatsapp://send?text={quote(wa_text)}"
+
+    return {
+        "id": reminder_id,
+        "message": f"Reminded {recipient_name} ✅",
+        "whatsapp_link": wa_link,
+        "whatsapp_text": wa_text,
+        "recipient_name": recipient_name,
+        "amount": amount,
+    }
+
+
+@api_router.get("/split/reminders")
+async def get_my_reminders(user_id: str = Depends(get_current_user)):
+    """Get pending reminders received by current user + reminders sent by current user.
+
+    Used to show a yellow banner on main Split screen: 'Ravi reminded you about ₹500'.
+    """
+    received = await db.split_reminders.find({
+        "recipient_id": user_id,
+        "status": "pending",
+    }).sort("created_at", -1).to_list(20)
+
+    sent = await db.split_reminders.find({
+        "sender_id": user_id,
+    }).sort("created_at", -1).to_list(20)
+
+    def _ser(r):
+        return {
+            "id": str(r["_id"]),
+            "sender_id": r.get("sender_id"),
+            "sender_name": r.get("sender_name", "Friend"),
+            "recipient_id": r.get("recipient_id"),
+            "recipient_name": r.get("recipient_name", "User"),
+            "amount": r.get("amount", 0),
+            "group_id": r.get("group_id"),
+            "note": r.get("note", ""),
+            "status": r.get("status", "pending"),
+            "created_at": r.get("created_at", datetime.utcnow()).isoformat() if hasattr(r.get("created_at"), "isoformat") else str(r.get("created_at", "")),
+        }
+
+    return {
+        "received": [_ser(r) for r in received],
+        "sent": [_ser(r) for r in sent],
+        "received_count": len(received),
+    }
+
+
+@api_router.post("/split/reminders/{reminder_id}/dismiss")
+async def dismiss_reminder(reminder_id: str, user_id: str = Depends(get_current_user)):
+    """Dismiss a received reminder (mark as read)"""
+    from bson import ObjectId
+    try:
+        await db.split_reminders.update_one(
+            {"_id": ObjectId(reminder_id), "recipient_id": user_id},
+            {"$set": {"status": "dismissed", "dismissed_at": datetime.utcnow()}}
+        )
+    except Exception as e:
+        raise HTTPException(status_code=404, detail="Reminder not found")
+    return {"message": "Dismissed"}
+
+
+@api_router.post("/split/mark-paid-offline")
+async def mark_paid_offline(data: dict, user_id: str = Depends(get_current_user)):
+    """Mark a debt as paid offline (cash/bank transfer) without triggering UPI flow.
+
+    Creates a settlement record + posts a system message in group chat.
+    Used when a user says 'I already paid in cash' without going through UPI.
+    """
+    target_user_id = data.get("target_user_id")
+    amount = float(data.get("amount", 0))
+    group_id = data.get("group_id")
+    method = data.get("method", "cash")  # cash | bank_transfer | other
+    note = (data.get("note") or "").strip()
+
+    if not target_user_id or amount <= 0:
+        raise HTTPException(status_code=400, detail="target_user_id and positive amount required")
+
+    settlement = {
+        "payer_id": user_id,
+        "payee_id": target_user_id,
+        "amount": amount,
+        "method": method,
+        "txn_ref": f"OFFLINE-{uuid_lib.uuid4().hex[:8].upper()}",
+        "group_id": group_id,
+        "note": note,
+        "status": "completed",
+        "is_offline": True,
+        "settled_at": datetime.utcnow(),
+        "created_at": datetime.utcnow(),
+    }
+    result = await db.settlements.insert_one(settlement)
+
+    # Award smaller coin reward for offline settlements (1 coin, honor system)
+    try:
+        await db.users.update_one(
+            {"_id": ObjectId(user_id)},
+            {"$inc": {"reward_coins": 1, "settlement_count": 1}}
+        )
+    except Exception:
+        pass
+
+    # Auto-dismiss any pending reminders for this debt
+    try:
+        await db.split_reminders.update_many(
+            {"recipient_id": user_id, "sender_id": target_user_id, "status": "pending"},
+            {"$set": {"status": "settled", "dismissed_at": datetime.utcnow()}}
+        )
+    except Exception:
+        pass
+
+    # System message in group chat
+    payer_name = "User"
+    payee_name = "User"
+    try:
+        p = await db.users.find_one({"_id": ObjectId(user_id)}, {"name": 1})
+        if p: payer_name = p.get("name", "User")
+    except Exception:
+        pass
+    try:
+        pe = await db.users.find_one({"_id": ObjectId(target_user_id)}, {"name": 1})
+        if pe: payee_name = pe.get("name", "User")
+    except Exception:
+        pass
+
+    if group_id:
+        try:
+            method_label = {"cash": "💵 cash", "bank_transfer": "🏦 bank transfer", "other": "✅"}.get(method, "offline")
+            await db.split_messages.insert_one({
+                "group_id": group_id,
+                "type": "system",
+                "content": f"✅ {payer_name} paid ₹{amount:,.0f} to {payee_name} ({method_label})",
+                "sender_id": user_id,
+                "sender_name": payer_name,
+                "settlement_data": {"amount": amount, "method": method, "settlement_id": str(result.inserted_id)},
+                "created_at": datetime.utcnow(),
+            })
+        except Exception as e:
+            logging.warning(f"Could not post settlement system message: {e}")
+
+    return {
+        "id": str(result.inserted_id),
+        "message": f"₹{amount:,.0f} marked as paid to {payee_name} ✅",
+        "method": method,
+        "txn_ref": settlement["txn_ref"],
+    }
 

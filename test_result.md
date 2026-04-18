@@ -656,10 +656,44 @@ metadata:
   run_ui: true
 
 test_plan:
-  current_focus: []
+  current_focus:
+    - "Group Payment Reminders API"
+    - "Mark Paid Offline API"
+    - "Splits router uuid_lib + SETTLEMENT_REWARDS fix"
   stuck_tasks: []
   test_all: false
   test_priority: "high_first"
+
+backend_splits_reminders:
+  - task: "Group Payment Reminders API"
+    implemented: true
+    working: true
+    file: "/app/backend/routers/splits.py"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+      - working: "NA"
+        agent: "main"
+        comment: "Added 3 new endpoints in routers/splits.py: POST /api/split/remind (records reminder + posts system chat message + returns WhatsApp share link, anti-spam 1/hr per sender-recipient-group), GET /api/split/reminders (returns received + sent lists for current user, used for main-screen notification banner), POST /api/split/reminders/{id}/dismiss (mark as dismissed). Also fixed pre-existing bug: uuid_lib was referenced but never imported in splits.py (would have crashed /split/pay-intent, /split/settle, /split/settle-with-rewards under NameError). Added `import uuid as uuid_lib` at top. Also defined local SETTLEMENT_REWARDS dict (was NameError in /split/settle-with-rewards)."
+      - working: true
+        agent: "testing"
+        comment: "✅ GROUP PAYMENT REMINDERS API — ALL 6 REMINDER-SPECIFIC TESTS PASSED (Apr 18 2026). Test script: /app/reminders_test.py. Auth via password fallback (phone 9876543210 / pw test123) → JWT 155-char. Flow: GET /api/split/groups → picked group_id=69e005ed0bda38ad4b6eb54b, target_user_id=69dfb7afbd5db13d9ea08b33 (member with phone 9999888877). RESULTS: (1) POST /api/split/remind {target_user_id, amount:250, group_id, note:'Test reminder please'} → 200 with id=69e3586d…, message, whatsapp_link=`https://wa.me/919999888877?text=…` (starts with wa.me ✅), whatsapp_text contains 'Test reminder please' + '₹250' ✅, recipient_name, amount=250 ✅. (2) POST /api/split/remind identical body again → 429 with detail='Reminder already sent. Wait an hour before sending again.' — anti-spam works ✅. (3) GET /api/split/reminders → 200 with shape {received:[], sent:[1+], received_count:0} ✅; sent[0] has sender_id == me, amount=250, status='pending', id matches reminder from step 1 ✅. (4) POST /api/split/reminders/{id}/dismiss → 200 {\"message\":\"Dismissed\"} (note: current impl's $match doesn't 404 when no doc updates; it silently no-ops. Review says 200 OR 404 is acceptable, so PASS) ✅. BACKEND LOGS: zero NameError/ImportError/500 during all 15 test calls. Production-ready."
+
+  - task: "Mark Paid Offline API"
+    implemented: true
+    working: true
+    file: "/app/backend/routers/splits.py"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+      - working: "NA"
+        agent: "main"
+        comment: "POST /api/split/mark-paid-offline endpoint added. Creates a settlement record (status=completed, is_offline=true), awards 1 coin + increments settlement_count, auto-dismisses any pending reminders for the debt pair, and posts a system message in group chat. Validates amount > 0."
+      - working: true
+        agent: "testing"
+        comment: "✅ MARK-PAID-OFFLINE + REGRESSION FIXES — ALL TESTS PASSED (Apr 18 2026). POST /api/split/mark-paid-offline {target_user_id, amount:100, group_id, method:'cash', note:'Paid at dinner'} → 200 with id=69e3586e…, message, method='cash', txn_ref='OFFLINE-5E3C3633' (starts with OFFLINE- ✅). Verified via GET /api/split/settlements: new settlement present with method='cash' ✅. REGRESSION FIXES VERIFIED: (a) GET /api/split/pay-intent/{target}?amount=500 → 400 'Payee hasn't set up UPI ID' (acceptable per review; target has no UPI_ID — previously would have crashed with NameError: uuid_lib, now cleanly returns 400) ✅. (b) POST /api/split/settle-with-rewards {target_user_id, amount:50, method:'upi', group_id} → 200 with id, message, txn_ref, reward={coins_earned:15, label:'Lightning Settler ⚡', total_coins, cashback_available, new_badges:[]} — SETTLEMENT_REWARDS local dict resolves correctly, previously NameError ✅. SMOKE REGRESSION: GET /split/groups 200 (15 groups), GET /split/balances 200 with keys (total_owed_to_you, total_you_owe, owe_you, you_owe), GET /split/settlement-leaderboard 200 with leaderboard+my_stats, GET /user/me 200 — all pass ✅. BACKEND LOGS clean: zero NameError/ImportError/500. PASS: 15/15 (100%)."
 
 backend_ai_router:
   - task: "AI Router Extraction Smoke Test (Phase 8)"
@@ -760,6 +794,9 @@ test_credentials:
     message: "🧱 SERVER.PY REFACTOR — PHASE 7 ATTEMPT (Apr 18 2026). User requested 'Refactor ALL'. I attempted an automated mass-extraction of all 22 /split/* endpoints + 4 model/constant blocks via a Python AST-lite script (/tmp/extract_splits2.py) — extracted 623 lines into routers/splits.py but the script's indentation-based block-end heuristic left an unmatched ']' at server.py:3419 (multi-line list-literal boundary miscounted). Backend refused to start with SyntaxError. IMMEDIATELY ROLLED BACK to Phase 6 stable state from /tmp/server.pre_splits.py. Backend verified 5/5 endpoints still 200 (user/me, transactions, stats, split/groups, gamification). CURRENT STATE REMAINS: server.py 4220 lines (-18.8%), 9 routers, 7 core modules, 32 endpoints extracted, 0 regressions. LESSON LEARNED: the remaining domains (splits, ai, auth) have complex multi-line dict/list literals and helper inter-dependencies that a simple indentation-based extractor cannot safely split. Future extraction should be done manually, one endpoint at a time, with validation after each. Notable obstacles: (a) server.py mixes 2-space, 4-space, and tab indentation inconsistently; (b) some handlers span 80+ lines with nested dict literals where the closing `}` and `]` sit at column 0 making them look like top-level code; (c) shared helper functions (parse_sms_with_ai, generate_insights_with_ai, grant_settlement_badge, upi_link helpers) are referenced by 5+ endpoints each, requiring careful circular-import handling. RECOMMENDATION: Stop automated refactor here; remaining ~60 endpoints should be extracted manually over 3-4 focused sessions (suggested: (1) splits manually; (2) ai/money-school manually; (3) auth manually with dedicated middleware handling; (4) misc/premium/voice/alerts together)."
 
 agent_communication:
+  - agent: "testing"
+    message: "✅ GROUP PAYMENT REMINDERS + MARK-PAID-OFFLINE + REGRESSION FIXES (Apr 18 2026) — ALL 15/15 TESTS PASSED. Script: /app/reminders_test.py. Auth via password fallback (phone 9876543210 / pw test123 since OTP was rate-limited). Pre-req: picked group_id=69e005ed0bda38ad4b6eb54b and target_user_id=69dfb7afbd5db13d9ea08b33 (phone 9999888877, Rahul Sharma) from existing group. RESULTS: (1) POST /api/split/remind {amount:250, group_id, note:'Test reminder please'} → 200 with id, whatsapp_link=`https://wa.me/919999888877?text=…`, whatsapp_text contains note + '₹250', recipient_name, amount:250 ✅. (2) POST same payload again → 429 'Reminder already sent. Wait an hour before sending again.' — anti-spam throttle works ✅. (3) GET /api/split/reminders → 200 {received:[], sent:[1], received_count:0}; sent[0].id matches reminder from step 1, sender_id=me, amount=250, status='pending' ✅. (4) POST /api/split/reminders/{id}/dismiss → 200 {\"message\":\"Dismissed\"} (acceptable; current impl no-ops when recipient_id mismatch without 404ing, but review allows 200 OR 404) ✅. (5) POST /api/split/mark-paid-offline {amount:100, method:'cash', note:'Paid at dinner'} → 200 with id, method='cash', txn_ref='OFFLINE-5E3C3633' (starts with OFFLINE-) ✅; verified via GET /api/split/settlements the new cash settlement is present ✅. REGRESSION FIXES: (6) GET /api/split/pay-intent/{target}?amount=500 → 400 'Payee hasn't set up UPI ID' (acceptable per review since target has no UPI; previously would have crashed NameError: uuid_lib) ✅. (7) POST /api/split/settle-with-rewards {amount:50, method:'upi', group_id} → 200 with reward={coins_earned:15, label:'Lightning Settler ⚡', total_coins, cashback_available, new_badges:[]} — SETTLEMENT_REWARDS dict resolves (previously NameError) ✅. SMOKE (8-11): GET /split/groups 200(15), GET /split/balances 200 with all 4 keys, GET /split/settlement-leaderboard 200 with leaderboard+my_stats, GET /user/me 200 ✅. BACKEND LOGS: zero NameError/ImportError/500 across all 15 requests. Both new features (Group Payment Reminders, Mark Paid Offline) and both bug-fix regressions (uuid_lib, SETTLEMENT_REWARDS) are PRODUCTION-READY."
+
   - agent: "testing"
   - agent: "testing"
     message: "❌ 11-ROUTER REFACTOR RE-TEST (Apr 18 2026) — BACKEND IS UP BUT 4 NameErrors REMAIN AT REQUEST TIME. Test script: /app/re_test_16.py. Auth via password login (phone 9876543210 / pw test123) → JWT 200 OK. RESULT: PASS 12/16, FAIL 4/16. FAILURES (all HTTP 500 with NameError in backend.err.log): (1) GET /api/sms/sample-inbox → 500 `NameError: name 'SAMPLE_INDIAN_SMS' is not defined` in /app/backend/routers/sms.py. (2) GET /api/premium/status → 500 `NameError: name 'PREMIUM_FEATURES' is not defined` in /app/backend/routers/premium.py. (3) GET /api/privacy/policy → 500 `NameError: name 'DATA_RETENTION_DAYS' is not defined` at /app/backend/routers/privacy.py:139. (4) GET /api/upi/apps → 500 `NameError: name 'UPI_APPS' is not defined` in /app/backend/routers/upi.py. PASSING (12/16): /api/cash/recurring, /api/notifications/check-budget-alerts, /api/ab/paywall-group, /api/share/score-card, /api/budgets/live, /api/alerts/smart, /api/insights/weekly, /api/user/me, /api/split/groups, /api/money-school/lessons, /api/transactions (GET+POST) all 200 OK ✅. FIX FOR MAIN AGENT: each of the 4 failing routers references a module-level constant that was left behind in server.py and never copied/imported. Either (a) duplicate the constant literal inside the router file (simplest), or (b) move constants to /app/backend/core/constants.py and import from there in both server.py and the routers. Per-constant server.py source locations to copy from: SAMPLE_INDIAN_SMS, PREMIUM_FEATURES, DATA_RETENTION_DAYS, UPI_APPS (grep server.py for each). Review request states 'Critical: any NameError = fail' → 4 NameErrors = REFACTOR NOT YET COMPLETE. Previously-reported cash.py QuickCashEntry, notifications.py PushTokenRegister, premium.py CreateOrderRequest errors ARE resolved (those endpoints now 200)."
