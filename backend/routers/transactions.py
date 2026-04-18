@@ -1,6 +1,6 @@
 """Transactions router — CRUD + SMS parsing for user spending records."""
 from datetime import datetime
-from typing import Optional, List
+from typing import Optional, List, Dict
 from bson import ObjectId
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
@@ -62,11 +62,61 @@ async def create_transaction(transaction: TransactionCreate, user_id: str = Depe
 
 
 @router.get("")
-async def get_transactions(user_id: str = Depends(get_current_user), limit: int = 100) -> List[dict]:
-    txns = await db.transactions.find({"user_id": user_id}).sort("date", -1).limit(limit).to_list(limit)
-    for t in txns:
-        t["id"] = str(t.pop("_id"))
-    return txns
+async def get_transactions(
+    user_id: str = Depends(get_current_user),
+    limit: int = 100,
+    category: Optional[str] = None,
+    type: Optional[str] = None,
+    source: Optional[str] = None,
+) -> List[dict]:
+    """List the current user's transactions with optional filters.
+
+    Query params (all optional):
+      * category  — e.g. "Food", "Transport"
+      * type      — "debit" or "credit"
+      * source    — "manual", "sms", "cash", etc.
+      * limit     — max rows (default 100)
+    """
+    query: Dict = {"user_id": user_id}
+    if category: query["category"] = category
+    if type: query["type"] = type
+    if source: query["source"] = source
+    rows = await db.transactions.find(query).sort("date", -1).to_list(limit)
+    for r in rows:
+        r["id"] = str(r["_id"]); del r["_id"]
+    return rows
+
+
+@router.put("/{transaction_id}")
+async def update_transaction(transaction_id: str, data: dict, user_id: str = Depends(get_current_user)):
+    """Update an existing transaction. Owner-only.
+
+    Updatable fields: description, amount, type, category, source, date, notes.
+    """
+    from bson import ObjectId
+    ALLOWED = {"description", "amount", "type", "category", "source", "date", "notes"}
+    updates = {k: v for k, v in data.items() if k in ALLOWED}
+    if not updates:
+        raise HTTPException(status_code=400, detail="No updatable fields provided")
+    if "amount" in updates:
+        try:
+            updates["amount"] = float(updates["amount"])
+            if updates["amount"] < 0:
+                raise ValueError
+        except Exception:
+            raise HTTPException(status_code=400, detail="amount must be a non-negative number")
+    updates["updated_at"] = datetime.utcnow()
+    result = await db.transactions.update_one(
+        {"_id": ObjectId(transaction_id), "user_id": user_id},
+        {"$set": updates},
+    )
+    if result.matched_count == 0:
+        raise HTTPException(status_code=404, detail="Transaction not found")
+    _invalidate_caches(user_id)
+    row = await db.transactions.find_one({"_id": ObjectId(transaction_id)})
+    if row:
+        row["id"] = str(row["_id"]); del row["_id"]
+    return row or {"id": transaction_id, **updates}
 
 
 @router.delete("/{transaction_id}")

@@ -224,29 +224,66 @@ async def get_group_expenses(group_id: str, user_id: str = Depends(get_current_u
 
 @api_router.get("/split/balances")
 async def get_overall_balances(user_id: str = Depends(get_current_user)):
-    """Get overall who owes you / you owe across all groups"""
+    """Get overall who owes you / you owe across all groups.
+
+    CRITICAL: subtracts completed settlements (including partial + offline) so the
+    balance reflects what's actually owed after payments. Mirrors the logic used in
+    /split/groups/{id}/summary so both endpoints stay in sync.
+    """
     groups = await db.split_groups.find({"members.user_id": user_id}).to_list(50)
-    people = {}  # name -> net amount (positive = they owe you)
-    
+    # Aggregate by the OTHER user's id (stable key across name changes)
+    # Positive balance = they owe me; Negative = I owe them.
+    by_uid: Dict[str, float] = {}
+    uid_to_name: Dict[str, str] = {}
+
     for g in groups:
         expenses = await db.split_expenses.find({"group_id": str(g["_id"])}).to_list(500)
         name_map = {m["user_id"]: m["name"] for m in g["members"]}
+        uid_to_name.update(name_map)
         for exp in expenses:
             payer = exp["paid_by"]
             for uid, amt in exp.get("splits", {}).items():
                 if uid == payer: continue
-                other_name = name_map.get(uid if payer == user_id else payer, "Unknown")
                 if payer == user_id:
-                    people[other_name] = people.get(other_name, 0) + amt
+                    by_uid[uid] = by_uid.get(uid, 0) + amt
                 elif uid == user_id:
-                    people[other_name] = people.get(other_name, 0) - amt
-    
-    owe_you = {n: v for n, v in people.items() if v > 0}
-    you_owe = {n: abs(v) for n, v in people.items() if v < 0}
-    
+                    by_uid[payer] = by_uid.get(payer, 0) - amt
+
+    # Apply settlements (including partial + offline) — reduces the outstanding debt.
+    # payer_id is the person who paid; payee_id is the receiver.
+    settlements = await db.settlements.find({
+        "$or": [{"payer_id": user_id}, {"payee_id": user_id}]
+    }).to_list(1000)
+    for st in settlements:
+        amt = float(st.get("amount", 0))
+        if amt <= 0: continue
+        if st.get("payer_id") == user_id:
+            # I paid them → reduces the amount I owed them (which was negative)
+            other = st.get("payee_id")
+            if other:
+                by_uid[other] = by_uid.get(other, 0) + amt
+        elif st.get("payee_id") == user_id:
+            # They paid me → reduces the amount they owed me (which was positive)
+            other = st.get("payer_id")
+            if other:
+                by_uid[other] = by_uid.get(other, 0) - amt
+
+    # Build response dicts keyed by NAME (backwards-compat with frontend)
+    owe_you: Dict[str, float] = {}
+    you_owe: Dict[str, float] = {}
+    # Filter small residual rounding noise (< ₹0.50)
+    for other_uid, v in by_uid.items():
+        if abs(v) < 0.5:
+            continue
+        nm = uid_to_name.get(other_uid, "Unknown")
+        if v > 0:
+            owe_you[nm] = round(v, 2)
+        else:
+            you_owe[nm] = round(abs(v), 2)
+
     return {
-        "total_owed_to_you": sum(owe_you.values()),
-        "total_you_owe": sum(you_owe.values()),
+        "total_owed_to_you": round(sum(owe_you.values()), 2),
+        "total_you_owe": round(sum(you_owe.values()), 2),
         "owe_you": owe_you,
         "you_owe": you_owe
     }

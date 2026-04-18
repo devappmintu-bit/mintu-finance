@@ -663,11 +663,23 @@ metadata:
 
 test_plan:
   current_focus:
-    - "FOMO Feed API (growth loop)"
-    - "Money Score Card Share API"
+    - "Re-Audit: 7 previously-failing endpoints"
   stuck_tasks: []
   test_all: false
   test_priority: "high_first"
+
+backend_reaudit_apr18:
+  - task: "Re-Audit: 7 previously-failing endpoints — FULL PASS"
+    implemented: true
+    working: true
+    file: "/app/reaudit_test.py"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+      - working: true
+        agent: "testing"
+        comment: "✅ RE-AUDIT PASSED — 41/41 ASSERTIONS (100%) ON 7 PREVIOUSLY-FAILING ENDPOINTS (Apr 18 2026). Test script /app/reaudit_test.py. Auth: POST /api/auth/login {phone:9876543210, password:test123} → 200 JWT(155). RESULTS BY ITEM:\n\n(1) /split/balances REAL-TIME SYNC — CRITICAL FINANCIAL BUG FIXED ✅. Created group 'Audit Balance Test', other member paid ₹1000 split equally (I owe 500). Initial GET /split/balances → total_you_owe=500.00 for this pair (32,285.74 overall incl. pre-existing). POST /split/partial-settle {target_user_id, amount:200, group_id, method:upi} → 200 with txn_ref=PART-C9D10B2E, is_partial=True, coins_earned=1. GET /split/balances AGAIN → total_you_owe dropped by EXACTLY 200.00 (delta=200.0). Specific you_owe[User 0001] = 300.00 (was 500, 500-200=300 ✅). The new settlement-deduction logic in routers/splits.py:254-269 correctly subtracts completed settlements (payer_id/payee_id match) from balance calculation. PRIOR BUG where balances ignored settlements is FIXED.\n\n(2) PUT /api/transactions/{id} ✅ — 200 OK. Created debit txn id=69e3bff95027496ee43eee02, PUT {amount:999, description:'Updated'} → 200 with response body amount=999.0. GET /transactions?limit=200 confirmed persisted amount=999.0. /app/backend/routers/transactions.py:90 PUT handler validates amount >= 0, updates via db.transactions.update_one with user_id ownership, returns refreshed doc.\n\n(3) GET /api/transactions filters ✅ — Fixtures: 2 Food debit + 1 Transport debit + 1 Food credit (marked with AUDIT-xxx prefix). (a) ?category=Food → 3 of 3 matching fixtures, 0 non-Food in entire result. (b) ?type=debit → 3 of 3 debit fixtures, 0 credits in result. (c) ?category=Food&type=debit → 2 of 2 combined fixtures, 0 mismatched in result. Filter logic in routers/transactions.py:64-87 uses query dict building correctly.\n\n(4) PUT /api/budgets/{id} + limit alias ✅ — POST /budgets {category:'AuditCat-ff5960', limit:3000, period:'monthly'} → 200 with amount=3000.0 (limit alias resolved via BudgetCreate.resolved_amount() routers/budgets.py:19-23). PUT /budgets/{id} {limit:5000} → 200, amount=5000.0. PUT /budgets/{id} {amount:6000} → 200, amount=6000.0. Both alias and native field work in PUT via routers/budgets.py:69-76. Cleanup DELETE succeeded.\n\n(5) PUT /api/user/me ✅ — All 3 calls return 200 (previously 405 Method Not Allowed): {name:'Test Audit'} → 200, {monthly_income:75000} → 200, {language:'hi'} → 200. GET /api/user/me confirms name persisted. Fix was adding `@router.put(\"/me\")` decorator stacked with `@router.put(\"/profile\")` in routers/user.py:35-36.\n\n(6) /analytics/summary + /analytics/monthly ✅ — Both return 200 (previously 404). total_income=76000, total_expense=26549, balance=49451, transaction_count=47, category_breakdown populated. Implemented via decorator stack in routers/analytics.py:12-14 that mounts /stats/overview + /analytics/summary + /analytics/monthly on same handler.\n\n(7) /insights/waste ✅ — 200 (previously 404). Returns total_monthly_expense=27149.0, category_waste array with equivalences. Dual-route via @api_router.get('/waste-detector') + @api_router.get('/insights/waste') stack in routers/ai.py:306-307.\n\nREGRESSION — ALL 6 PASS ✅: GET /transactions → 200, /budgets → 200, /user/me → 200, /split/groups → 200, /split/balances → 200, /stats/overview → 200. Zero regressions.\n\nBACKEND LOGS: During the reaudit test run there were ZERO 500s, ZERO NameErrors on the 7 tested endpoints (all show 200 OK in /var/log/supervisor/backend.out.log). Pre-existing NameErrors in unrelated routers (premium.py PRICING, privacy.py, upi.py, sms.py) from other test runs are documented; they do NOT affect this audit scope.\n\nVERDICT: All 7 previously-failing items NOW PASS. Production-ready."
 
 backend_growth_features:
   - task: "FOMO Feed API"

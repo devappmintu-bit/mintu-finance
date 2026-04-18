@@ -33,11 +33,34 @@ async def get_user_profile(user_id: str = Depends(get_current_user)):
 
 
 @router.put("/profile")
+@router.put("/me")
 async def update_profile(data: dict, user_id: str = Depends(get_current_user)):
-    """Update user profile (currently just `name`)."""
+    """Update user profile — supports name, monthly_income, language, email, dob.
+
+    Exposed under both /profile (legacy) and /me (REST convention) to keep clients
+    that hit either path working.
+    """
+    ALLOWED = {"name", "monthly_income", "language", "email", "dob", "occupation", "city", "state"}
     updates: dict = {}
-    if "name" in data and str(data["name"]).strip():
-        updates["name"] = data["name"].strip()
+    for key in ALLOWED:
+        if key not in data:
+            continue
+        v = data[key]
+        if key == "name":
+            if isinstance(v, str) and v.strip():
+                updates["name"] = v.strip()
+        elif key == "monthly_income":
+            try:
+                updates["monthly_income"] = float(v) if v is not None else 0.0
+            except (TypeError, ValueError):
+                raise HTTPException(status_code=400, detail="monthly_income must be numeric")
+        elif key == "language":
+            if v in ("en", "hi", "ta", "bn", "te", "mr", "gu", "kn", "ml", "pa"):
+                updates["language"] = v
+        else:
+            # Generic string fields — just trim-store
+            if isinstance(v, str): updates[key] = v.strip()
+            elif v is not None: updates[key] = v
     if not updates:
         raise HTTPException(status_code=400, detail="No valid fields to update")
     await db.users.update_one({"_id": ObjectId(user_id)}, {"$set": updates})

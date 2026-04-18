@@ -304,6 +304,7 @@ RULES:
 
 
 @api_router.get("/waste-detector")
+@api_router.get("/insights/waste")
 async def waste_detector(user_id: str = Depends(get_current_user)):
     """AI-powered Waste Detector — dynamic analysis with peer comparisons & trend insights (cached 5min/user)"""
     # Check cache first (per-user, 5 min TTL)

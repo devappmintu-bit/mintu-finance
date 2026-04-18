@@ -10,6 +10,8 @@ router = APIRouter(tags=["analytics"])
 
 # ============== STATS OVERVIEW ==============
 @router.get("/stats/overview")
+@router.get("/analytics/summary")
+@router.get("/analytics/monthly")
 async def get_stats_overview(user_id: str = Depends(get_current_user)):
     thirty_days_ago = datetime.utcnow() - timedelta(days=30)
     txns = await db.transactions.find({
