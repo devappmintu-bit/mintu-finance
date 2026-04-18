@@ -663,10 +663,27 @@ metadata:
 
 test_plan:
   current_focus:
-    - "MintU 2.0 Phase 3 — Split Activity Feed + Invite-to-Settle"
+    - "MintU 2.0 Phase 4 — Premium Monetization (tax-calculator + investment-suggest + features-catalog)"
   stuck_tasks: []
   test_all: false
   test_priority: "high_first"
+
+mintu_2_0_phase4_premium:
+  - task: "MintU 2.0 Phase 4 — Premium Monetization (tax-calculator + investment-suggest + features-catalog)"
+    implemented: true
+    working: true
+    file: "/app/backend/routers/premium.py"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+      - working: true
+        agent: "testing"
+        comment: "✅ MINTU 2.0 PHASE 4 PREMIUM — ALL 29/29 ASSERTIONS PASSED (Apr 18 2026). Test script: /app/phase4_premium_test.py. Auth POST /api/auth/login {phone:9876543210, password:test123} → 200, JWT(155). RESULTS:\n\n(T1 TAX-CALCULATOR HAPPY PATH) POST /api/premium/tax-calculator {annual_income:1500000, section_80c:50000, section_80d:15000} → 200. All 7 required top-level keys present {input, new_regime, old_regime, recommended_regime, savings_by_choosing_recommended, suggestions, disclaimer} ✅. new_regime has all 7 numeric fields (taxable_income=1425000, tax_before_rebate=93750, rebate_87a=0, tax_after_rebate=93750, cess_4pct=3750, total_tax=97500, effective_rate_pct=6.5) ✅. old_regime has all 8 keys including total_deductions=115000, total_tax=237120 ✅. recommended_regime='new' ∈ {new,old} ✅. savings_by_choosing_recommended=139620.0 (non-negative number) ✅. suggestions array of 3 items including 'Invest ₹100,000 more in 80C (ELSS/PPF)' exactly as spec requires ✅.\n\n(T2 ZERO INCOME) POST {annual_income:0} → 400 with detail='annual_income must be positive' ✅.\n\n(T3 LOW INCOME REBATE) POST {annual_income:800000} → 200 with new_regime.total_tax=0.0 (87A rebate fully applied: taxable=725000, tax_pre=16250, rebate capped at 16250, tax_after=0) ✅.\n\n(T4 INVESTMENT-SUGGEST HAPPY PATH) POST /api/premium/investment-suggest {monthly_income:75000, monthly_expenses:50000, age:28, risk:medium} → 200. All 6 required top keys present {investible_monthly, allocations, annual_investment, projected_10yr, emergency_fund_target, disclaimer} ✅. investible_monthly=25000.0 exact ✅. allocations array of 5 items ✅. Each allocation has all 9 required fields {id, title, amount, pct, why, products (list), platform, icon, color} ✅.\n\n(T5 NO SURPLUS) POST {monthly_income:40000, monthly_expenses:45000} → 200 with investible_monthly=0 ✅, headline='No surplus to invest. Focus on reducing expenses first.' containing both 'no surplus' and 'reducing expenses' keywords ✅.\n\n(T6 FEATURES-CATALOG) GET /api/premium/features-catalog → 200. All 6 required top keys present {is_premium:false (bool), tier:'Free', price, sections, cta_text, cta_highlight} ✅. price={monthly:99, annual:899, annual_savings_pct:24} with all 3 required keys ✅. sections is list of exactly 4 items (ai, tax, invest, perks) ✅. Every section has {id, title, emoji, features} and every feature has {name, free:bool, premium:bool} (optional badge) ✅.\n\n(T7 VALIDATION) POST /tax-calculator {annual_income:-1000} → 400 'annual_income must be positive' ✅. POST /investment-suggest {monthly_income:0} → 400 'monthly_income must be positive' ✅. POST /investment-suggest {monthly_income:-500} → 400 'monthly_income must be positive' ✅.\n\n(T8 REGRESSION) ALL 6 PREVIOUS MINTU 2.0 ENDPOINTS STILL 200 OK:\n  • GET /api/home/snapshot → 200 ✅\n  • GET /api/ai/predict → 200 ✅\n  • GET /api/split/activity → 200 ✅\n  • POST /api/split/invite-to-settle {target_name, amount:500, group_name} → 200 (upi_link + whatsapp_url returned) ✅\n  • POST /api/coins/award {action:add_transaction} → 200 (awarded=5, balance=53, daily_cap=50) ✅\n  • GET /api/coins/status → 200 ✅\n\nBACKEND LOGS during the run: zero 500s, zero NameError/ImportError. Access log confirms POST /api/premium/tax-calculator 200 OK, POST /api/premium/investment-suggest 200 OK, GET /api/premium/features-catalog 200 OK. MintU 2.0 Phase 4 Premium monetization endpoints are PRODUCTION-READY."
+
+agent_communication:
+    - agent: "testing"
+      message: "MintU 2.0 Phase 4 smoke test complete — 29/29 assertions passed in /app/phase4_premium_test.py. All 3 new premium endpoints (tax-calculator, investment-suggest, features-catalog) working perfectly with correct shape, validation (400 on bad input), 87A rebate math, Indian tax FY 2025-26 slabs, suggestions list, and allocations structure. Regression on 6 previous MintU 2.0 endpoints (home/snapshot, ai/predict, split/activity, split/invite-to-settle, coins/award, coins/status) all 200 OK. Zero 500s in backend logs. Production-ready."
 
 mintu_2_0_phase3_splits:
   - task: "MintU 2.0 Phase 3 — GET /api/split/activity + POST /api/split/invite-to-settle"

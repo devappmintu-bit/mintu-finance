@@ -337,8 +337,8 @@ export default function ProfileScreen() {
                   <Text style={s.premiumPriceStrike}>₹999/yr</Text>
                   <Text style={s.premiumPrice}>₹499/yr</Text>
                 </View>
-                <TouchableOpacity style={s.premiumCTA} onPress={() => Toast.show({ type: 'info', text1: 'Coming soon!', text2: 'Premium launches next week' })}>
-                  <Text style={s.premiumCTAText}>Upgrade →</Text>
+                <TouchableOpacity style={s.premiumCTA} onPress={() => router.push('/premium' as any)}>
+                  <Text style={s.premiumCTAText}>Explore →</Text>
                 </TouchableOpacity>
               </View>
             </View>
