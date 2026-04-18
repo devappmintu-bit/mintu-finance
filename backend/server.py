@@ -3566,6 +3566,19 @@ async def save_upi_id(data: dict, user_id: str = Depends(get_current_user)):
     await db.users.update_one({"_id": ObjectId(user_id)}, {"$set": {"upi_id": upi_id}})
     return {"message": "UPI ID saved", "upi_id": mask_upi_id(upi_id)}
 
+@api_router.put("/user/profile")
+async def update_profile(data: dict, user_id: str = Depends(get_current_user)):
+    """Update user profile (name, etc.)"""
+    from bson import ObjectId
+    updates = {}
+    if "name" in data and data["name"].strip():
+        updates["name"] = data["name"].strip()
+    if not updates:
+        raise HTTPException(status_code=400, detail="No valid fields to update")
+    await db.users.update_one({"_id": ObjectId(user_id)}, {"$set": updates})
+    return {"message": "Profile updated", **updates}
+
+
 @api_router.get("/user/upi")
 async def get_upi_id(user_id: str = Depends(get_current_user)):
     """Get user's UPI ID"""

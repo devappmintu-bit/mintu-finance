@@ -29,6 +29,10 @@ export default function ProfileScreen() {
   const [langModalVisible, setLangModalVisible] = useState(false);
   const [aboutVisible, setAboutVisible] = useState(false);
   const [helpVisible, setHelpVisible] = useState(false);
+  const [privacyVisible, setPrivacyVisible] = useState(false);
+  const [editNameVisible, setEditNameVisible] = useState(false);
+  const [editName, setEditName] = useState('');
+  const [paymentMethods, setPaymentMethods] = useState<any[]>([]);
   const [upiId, setUpiId] = useState('');
   const [upiSaving, setUpiSaving] = useState(false);
   const [avatar, setAvatar] = useState('');
@@ -76,6 +80,15 @@ export default function ProfileScreen() {
     finally { setUpiSaving(false); }
   };
 
+  const updateName = async () => {
+    if (!editName.trim()) return;
+    try {
+      await api.put('/user/profile', { name: editName.trim() });
+      Toast.show({ type: 'success', text1: 'Name Updated!' });
+      setEditNameVisible(false); loadData();
+    } catch { Toast.show({ type: 'error', text1: 'Error' }); }
+  };
+
   const pickAvatar = async () => {
     const result = await ImagePicker.launchImageLibraryAsync({ mediaTypes: ['images'], allowsEditing: true, aspect: [1, 1], quality: 0.5, base64: true });
     if (!result.canceled && result.assets[0].base64) {
@@ -118,7 +131,10 @@ export default function ProfileScreen() {
             )}
             <View style={p.camBadge}><Ionicons name="camera" size={11} color="#fff" /></View>
           </TouchableOpacity>
-          <Text style={p.userName}>{user?.name || 'User'}</Text>
+          <TouchableOpacity onPress={() => { setEditName(user?.name || ''); setEditNameVisible(true); }} style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+            <Text style={p.userName}>{user?.name || 'User'}</Text>
+            <Ionicons name="create-outline" size={16} color={COLORS.accent.primary} />
+          </TouchableOpacity>
           <Text style={p.userPhone}>{user?.phone}</Text>
         </View>
 
@@ -228,6 +244,30 @@ export default function ProfileScreen() {
           </View>
         )}
 
+        {/* ═══ PAYMENT METHODS ═══ */}
+        <View style={p.payCard}>
+          <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+              <Ionicons name="wallet" size={18} color={COLORS.accent.primary} />
+              <Text style={p.cardTitle}>Payment Methods</Text>
+            </View>
+          </View>
+          {upiId ? (
+            <View style={p.payMethod}>
+              <View style={[p.payIcon, { backgroundColor: '#6366F112' }]}><Ionicons name="card" size={18} color="#6366F1" /></View>
+              <View style={{ flex: 1 }}>
+                <Text style={p.payName}>UPI</Text>
+                <Text style={p.payDetail}>{upiId}</Text>
+              </View>
+              <Ionicons name="checkmark-circle" size={20} color={COLORS.accent.moneyIn} />
+            </View>
+          ) : null}
+          <TouchableOpacity style={p.addPayBtn}>
+            <Ionicons name="add-circle-outline" size={18} color={COLORS.accent.primary} />
+            <Text style={p.addPayText}>Add Card / Bank Account</Text>
+          </TouchableOpacity>
+        </View>
+
         {/* ═══ SETTINGS ═══ */}
         <Text style={p.sectionTitle}>Settings</Text>
 
@@ -240,17 +280,11 @@ export default function ProfileScreen() {
           <Ionicons name="chevron-forward" size={16} color={COLORS.text.muted} />
         </TouchableOpacity>
 
-        {[
-          { icon: 'notifications-outline', label: t('notifications', lang), color: COLORS.accent.primary },
-          { icon: 'shield-checkmark-outline', label: t('privacy_security', lang), color: COLORS.accent.secondary },
-          { icon: 'download-outline', label: t('export_data', lang), color: '#059669' },
-        ].map((item, i) => (
-          <TouchableOpacity key={i} style={p.menuItem}>
-            <Ionicons name={item.icon as any} size={20} color={item.color} />
-            <Text style={[p.menuText, { marginLeft: 12 }]}>{item.label}</Text>
-            <Ionicons name="chevron-forward" size={16} color={COLORS.text.muted} />
-          </TouchableOpacity>
-        ))}
+        <TouchableOpacity style={p.menuItem} onPress={() => setPrivacyVisible(true)}>
+          <Ionicons name="shield-checkmark-outline" size={20} color={COLORS.accent.secondary} />
+          <Text style={[p.menuText, { marginLeft: 12 }]}>Privacy & Security</Text>
+          <Ionicons name="chevron-forward" size={16} color={COLORS.text.muted} />
+        </TouchableOpacity>
 
         {/* Help & Support */}
         <TouchableOpacity style={p.menuItem} onPress={() => setHelpVisible(true)}>
@@ -302,6 +336,42 @@ export default function ProfileScreen() {
       <Modal visible={aboutVisible} animationType="slide">
         <AboutMintU onClose={() => setAboutVisible(false)} />
       </Modal>
+
+      {/* Edit Name Modal */}
+      <Modal visible={editNameVisible} animationType="fade" transparent>
+        <View style={p.mBg}>
+          <View style={[p.sheet, { maxHeight: 280 }]}>
+            <View style={p.handle} />
+            <Text style={p.sheetTitle}>Edit Name</Text>
+            <TextInput style={[p.upiInput, { marginTop: 16, marginBottom: 16, borderColor: COLORS.border.subtle }]} value={editName} onChangeText={setEditName} placeholder="Your name" placeholderTextColor={COLORS.text.muted} autoFocus />
+            <TouchableOpacity style={[p.upiSave, { width: '100%', height: 48, borderRadius: 24, flexDirection: 'row', justifyContent: 'center', alignItems: 'center', gap: 8 }]} onPress={updateName}>
+              <Text style={{ color: '#fff', fontSize: 16, fontWeight: '700' }}>Save</Text>
+            </TouchableOpacity>
+            <TouchableOpacity onPress={() => setEditNameVisible(false)} style={{ paddingVertical: 12, alignItems: 'center' }}>
+              <Text style={{ color: COLORS.text.muted, fontSize: 14 }}>Cancel</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
+
+      {/* Privacy & Security Modal */}
+      <Modal visible={privacyVisible} animationType="slide">
+        <SafeAreaView style={p.bg}>
+          <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 20, paddingVertical: 14, borderBottomWidth: 1, borderBottomColor: COLORS.border.subtle }}>
+            <Text style={p.sheetTitle}>Privacy & Security</Text>
+            <TouchableOpacity onPress={() => setPrivacyVisible(false)}><Ionicons name="close" size={24} color={COLORS.text.primary} /></TouchableOpacity>
+          </View>
+          <ScrollView contentContainerStyle={{ padding: 20 }}>
+            <View style={p.card}><Ionicons name="shield-checkmark" size={20} color="#10B981" /><Text style={[p.cardTitle, { marginTop: 8 }]}>Data Encryption</Text><Text style={{ fontSize: 13, color: COLORS.text.secondary, lineHeight: 20, marginTop: 4 }}>All personal and financial data is encrypted using AES-256 at rest and protected by TLS 1.3 during transmission. Your passwords are hashed with bcrypt (10 salt rounds).</Text></View>
+            <View style={p.card}><Ionicons name="lock-closed" size={20} color="#6366F1" /><Text style={[p.cardTitle, { marginTop: 8 }]}>Authentication Security</Text><Text style={{ fontSize: 13, color: COLORS.text.secondary, lineHeight: 20, marginTop: 4 }}>Phone-based OTP verification ensures only you can access your account. Sessions expire after 30 days of inactivity. JWT tokens are cryptographically signed.</Text></View>
+            <View style={p.card}><Ionicons name="eye-off" size={20} color="#E65100" /><Text style={[p.cardTitle, { marginTop: 8 }]}>Data Privacy</Text><Text style={{ fontSize: 13, color: COLORS.text.secondary, lineHeight: 20, marginTop: 4 }}>MintU does NOT sell, share, or monetize your financial data. We process transactions locally and only use anonymized, aggregated data for product improvements. Compliant with IT Act 2000 and RBI data localization norms.</Text></View>
+            <View style={p.card}><Ionicons name="server" size={20} color="#059669" /><Text style={[p.cardTitle, { marginTop: 8 }]}>Data Storage</Text><Text style={{ fontSize: 13, color: COLORS.text.secondary, lineHeight: 20, marginTop: 4 }}>All data is stored on encrypted servers within India, complying with RBI's data localization mandate. Regular backups ensure data integrity. You can request data deletion at any time.</Text></View>
+            <View style={p.card}><Ionicons name="finger-print" size={20} color="#D32F2F" /><Text style={[p.cardTitle, { marginTop: 8 }]}>Access Control</Text><Text style={{ fontSize: 13, color: COLORS.text.secondary, lineHeight: 20, marginTop: 4 }}>Role-based access control (RBAC) ensures employees cannot access your personal data. API rate limiting (1000 req/min) prevents abuse. All access attempts are logged and audited.</Text></View>
+            <View style={p.card}><Ionicons name="document-text" size={20} color={COLORS.accent.secondary} /><Text style={[p.cardTitle, { marginTop: 8 }]}>Your Rights</Text><Text style={{ fontSize: 13, color: COLORS.text.secondary, lineHeight: 20, marginTop: 4 }}>You have the right to: Access all your data (Export), Request data deletion, Opt out of analytics, File grievances with our Data Protection Officer at dpo@mintu.app. We respond within 48 hours.</Text></View>
+            <View style={{ height: 40 }} />
+          </ScrollView>
+        </SafeAreaView>
+      </Modal>
     </SafeAreaView>
   );
 }
@@ -351,6 +421,14 @@ const p = StyleSheet.create({
   // Card
   card: { backgroundColor: COLORS.bg.card, borderRadius: RADIUS.xl, padding: 16, marginBottom: 14, borderWidth: 1, borderColor: COLORS.border.card },
   cardTitle: { fontSize: 15, fontWeight: '700', color: COLORS.text.primary },
+  // Payment Methods
+  payCard: { backgroundColor: COLORS.bg.card, borderRadius: RADIUS.xl, padding: 16, marginBottom: 14, borderWidth: 1, borderColor: COLORS.border.card },
+  payMethod: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: COLORS.border.subtle },
+  payIcon: { width: 40, height: 40, borderRadius: 14, justifyContent: 'center', alignItems: 'center' },
+  payName: { fontSize: 14, fontWeight: '600', color: COLORS.text.primary },
+  payDetail: { fontSize: 12, color: COLORS.text.muted, marginTop: 1 },
+  addPayBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, paddingVertical: 14, marginTop: 8, borderRadius: RADIUS.full, backgroundColor: COLORS.accent.primary + '08', borderWidth: 1, borderColor: COLORS.accent.primary + '20' },
+  addPayText: { fontSize: 13, fontWeight: '600', color: COLORS.accent.primary },
   // Settings
   sectionTitle: { fontSize: 16, fontWeight: '700', color: COLORS.text.primary, marginTop: 8, marginBottom: 10 },
   menuItem: { flexDirection: 'row', alignItems: 'center', backgroundColor: COLORS.bg.card, borderRadius: RADIUS.lg, padding: 14, marginBottom: 6, borderWidth: 1, borderColor: COLORS.border.card },
