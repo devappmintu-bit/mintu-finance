@@ -3838,7 +3838,14 @@ def route_to_agent(message: str) -> str:
     for agent_id, profile in AGENT_PROFILES.items():
         score = sum(1 for trigger in profile["triggers"] if trigger in msg_lower)
         scores[agent_id] = score
-    
+
+    # Educational-intent boost: if the message clearly looks like a learning question,
+    # give Money School priority over other agents that may share keywords (e.g. "sip" → market_intel).
+    edu_markers = ("teach me", "explain", "what is", "what are", "how does", "how do",
+                    "basics", "beginner", "tell me about", "help me understand", "learn about")
+    if any(m in msg_lower for m in edu_markers):
+        scores["money_school"] = scores.get("money_school", 0) + 3
+
     best = max(scores, key=scores.get)
     if scores[best] == 0:
         return "insights_agent"  # Default to insights for general queries
