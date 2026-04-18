@@ -345,66 +345,8 @@ async def parse_sms_with_ai(sms_text: str) -> Dict:
         logging.error(f"AI SMS parsing error: {str(e)}")
         return None
 
-async def calculate_money_score(user_id: str) -> int:
-    """Calculate daily money score (0-100) based on spending patterns"""
-    try:
-        # Get transactions from last 7 days
-        seven_days_ago = datetime.utcnow() - timedelta(days=7)
-        transactions = await db.transactions.find({
-            "user_id": user_id,
-            "date": {"$gte": seven_days_ago}
-        }).to_list(1000)
-        
-        if not transactions:
-            return 50  # Neutral score if no data
-        
-        # Calculate metrics
-        total_debit = sum(t["amount"] for t in transactions if t["type"] == "debit")
-        total_credit = sum(t["amount"] for t in transactions if t["type"] == "credit")
-        
-        # Get budgets
-        budgets = await db.budgets.find({"user_id": user_id}).to_list(100)
-        
-        score = 50  # Base score
-        
-        # Factor 1: Spending vs Income (+/- 20 points)
-        if total_credit > 0:
-            spending_ratio = total_debit / total_credit
-            if spending_ratio < 0.5:
-                score += 20
-            elif spending_ratio < 0.7:
-                score += 10
-            elif spending_ratio > 1.0:
-                score -= 20
-            elif spending_ratio > 0.9:
-                score -= 10
-        
-        # Factor 2: Budget adherence (+/- 20 points)
-        if budgets:
-            budget_violations = 0
-            for budget in budgets:
-                category_spending = sum(
-                    t["amount"] for t in transactions 
-                    if t["type"] == "debit" and t["category"] == budget["category"]
-                )
-                if category_spending > budget["amount"]:
-                    budget_violations += 1
-            
-            budget_score = max(0, 20 - (budget_violations * 10))
-            score += budget_score - 10
-        
-        # Factor 3: Transaction consistency (+/- 10 points)
-        if len(transactions) < 3:
-            score -= 10  # Too few transactions
-        elif len(transactions) > 20:
-            score -= 5  # Too many transactions (overspending?)
-        else:
-            score += 10  # Good transaction frequency
-        
-        return max(0, min(100, score))
-    except Exception as e:
-        logging.error(f"Money score calculation error: {str(e)}")
-        return 50
+# calculate_money_score moved to core/scoring.py — re-exported for back-compat.
+from core.scoring import calculate_money_score  # noqa: F401
 
 async def generate_insights_with_ai(user_id: str, money_score: int, spending_summary: Dict[str, float], lang: str = "en") -> Dict:
     """Generate personalized spending insights using AI — Enhanced Engine v2"""
@@ -837,107 +779,10 @@ async def get_user_profile(user_id: str = Depends(get_current_user)):
         "created_at": user["created_at"]
     }
 
-@api_router.post("/transactions")
-async def create_transaction(transaction: TransactionCreate, user_id: str = Depends(get_current_user)):
-    trans_dict = transaction.dict()
-    trans_dict["user_id"] = user_id
-    trans_dict["date"] = transaction.date or datetime.utcnow()
-    trans_dict["created_at"] = datetime.utcnow()
-    
-    result = await db.transactions.insert_one(trans_dict)
-    
-    # Invalidate per-user AI caches
-    cache_clear_prefix(f"waste:{user_id}")
-    cache_clear_prefix(f"expense_report:{user_id}")
-    
-    # Update money score
-    new_score = await calculate_money_score(user_id)
-    await db.users.update_one(
-        {"_id": ObjectId(user_id)},
-        {"$set": {"money_score": new_score}}
-    )
-    
-    return {
-        "id": str(result.inserted_id),
-        "user_id": user_id,
-        "amount": trans_dict["amount"],
-        "category": trans_dict["category"],
-        "description": trans_dict["description"],
-        "type": trans_dict["type"],
-        "date": trans_dict["date"],
-        "created_at": trans_dict["created_at"]
-    }
-
-@api_router.get("/transactions")
-async def get_transactions(user_id: str = Depends(get_current_user), limit: int = 100):
-    transactions = await db.transactions.find(
-        {"user_id": user_id}
-    ).sort("date", -1).limit(limit).to_list(limit)
-    
-    for trans in transactions:
-        trans["id"] = str(trans["_id"])
-        del trans["_id"]
-    
-    return transactions
-
-@api_router.delete("/transactions/{transaction_id}")
-async def delete_transaction(transaction_id: str, user_id: str = Depends(get_current_user)):
-    from bson import ObjectId
-    result = await db.transactions.delete_one({
-        "_id": ObjectId(transaction_id),
-        "user_id": user_id
-    })
-    
-    if result.deleted_count == 0:
-        raise HTTPException(status_code=404, detail="Transaction not found")
-    
-    # Recalculate money score
-    new_score = await calculate_money_score(user_id)
-    await db.users.update_one(
-        {"_id": ObjectId(user_id)},
-        {"$set": {"money_score": new_score}}
-    )
-    
-    return {"message": "Transaction deleted"}
-
-@api_router.post("/transactions/parse-sms")
-async def parse_sms(sms_data: SMSParseRequest, user_id: str = Depends(get_current_user)):
-    parsed = await parse_sms_with_ai(sms_data.sms_text)
-    
-    if not parsed:
-        raise HTTPException(status_code=400, detail="Could not parse SMS. Please add manually.")
-    
-    # Create transaction
-    trans_dict = {
-        "user_id": user_id,
-        "amount": parsed["amount"],
-        "category": parsed["category"],
-        "description": parsed.get("description", parsed.get("merchant", "Transaction")),
-        "type": parsed["type"],
-        "date": datetime.utcnow(),
-        "created_at": datetime.utcnow()
-    }
-    
-    result = await db.transactions.insert_one(trans_dict)
-    
-    # Update money score
-    new_score = await calculate_money_score(user_id)
-    from bson import ObjectId
-    await db.users.update_one(
-        {"_id": ObjectId(user_id)},
-        {"$set": {"money_score": new_score}}
-    )
-    
-    return {
-        "id": str(result.inserted_id),
-        "user_id": user_id,
-        "amount": trans_dict["amount"],
-        "category": trans_dict["category"],
-        "description": trans_dict["description"],
-        "type": trans_dict["type"],
-        "date": trans_dict["date"],
-        "created_at": trans_dict["created_at"]
-    }
+# ============== TRANSACTIONS ==============
+# Moved to routers/transactions.py (see app.include_router below).
+# Endpoints: POST /transactions, GET /transactions, DELETE /transactions/{id}, POST /transactions/parse-sms
+# Pydantic models (TransactionCreate, SMSParseRequest) now live in routers/transactions.py
 
 @api_router.get("/insights/daily")
 async def get_daily_insights(user_id: str = Depends(get_current_user), lang: str = "en"):
@@ -4877,11 +4722,13 @@ from routers import (
     referral as referral_router,
     gamification as gamification_router,
     content as content_router,
+    transactions as transactions_router,
 )
 api_router.include_router(news_router.router)
 api_router.include_router(referral_router.router)
 api_router.include_router(gamification_router.router)
 api_router.include_router(content_router.router)
+api_router.include_router(transactions_router.router)
 
 # Include router
 app.include_router(api_router)

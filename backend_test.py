@@ -1,127 +1,132 @@
-"""Smoke test after server.py refactor — news + referral modular routers.
-Verifies that extracted routers still return the correct shape and status codes.
-"""
+"""Smoke test for transactions refactor - Apr 18 2026."""
+import os
 import sys
 import requests
+import json
 
 BASE = "https://mintu-finance.preview.emergentagent.com/api"
 PHONE = "9876543210"
 OTP = "123456"
 
 
-def login():
+def log(msg):
+    print(msg, flush=True)
+
+
+def main():
+    results = []
+    # Auth
     r = requests.post(f"{BASE}/auth/send-otp", json={"phone": PHONE}, timeout=30)
-    assert r.status_code == 200, f"send-otp failed: {r.status_code} {r.text}"
+    log(f"send-otp: {r.status_code}")
     r = requests.post(f"{BASE}/auth/verify-otp", json={"phone": PHONE, "otp": OTP}, timeout=30)
     assert r.status_code == 200, f"verify-otp failed: {r.status_code} {r.text}"
-    j = r.json()
-    token = j.get("token") or j.get("access_token")
-    assert token, f"no token in verify-otp response: {j}"
-    return {"Authorization": f"Bearer {token}"}
+    token = r.json()["token"]
+    H = {"Authorization": f"Bearer {token}"}
+    log(f"verify-otp: 200, token acquired")
 
+    # 1. POST /api/transactions
+    payload = {"amount": 250, "category": "Food", "description": "Pizza", "type": "debit"}
+    r = requests.post(f"{BASE}/transactions", json=payload, headers=H, timeout=30)
+    log(f"\n[1] POST /api/transactions -> {r.status_code}")
+    if r.status_code != 200:
+        log(f"  BODY: {r.text[:500]}")
+        results.append(("POST /transactions", False, r.status_code))
+        return results
+    body = r.json()
+    txn_id = body.get("id")
+    log(f"  id: {txn_id}")
+    log(f"  keys: {list(body.keys())}")
+    results.append(("POST /transactions", bool(txn_id), r.status_code))
 
-def run():
-    results = []
-    try:
-        headers = login()
-        print("[auth] OK")
-    except Exception as e:
-        print(f"[auth] FAIL: {e}")
-        sys.exit(1)
-
-    # 1. news/india-finance
-    r = requests.get(f"{BASE}/news/india-finance", headers=headers, timeout=60)
-    ok = r.status_code == 200
-    shape_ok = False
-    if ok:
-        j = r.json()
-        shape_ok = "date" in j and "articles" in j and isinstance(j["articles"], list)
-    detail = (
-        f"date={r.json().get('date')}, articles={len(r.json().get('articles', []))}"
-        if ok and shape_ok else r.text[:300]
-    )
-    results.append(("GET /news/india-finance", r.status_code, shape_ok, detail))
-
-    # 2. referral/my-code
-    r = requests.get(f"{BASE}/referral/my-code", headers=headers, timeout=30)
-    ok = r.status_code == 200
-    shape_ok = False
-    if ok:
-        j = r.json()
-        shape_ok = all(k in j for k in ("referral_code", "tier", "rewards"))
-    detail = (
-        f"code={r.json().get('referral_code')}, tier={r.json().get('tier')}"
-        if ok and shape_ok else r.text[:300]
-    )
-    results.append(("GET /referral/my-code", r.status_code, shape_ok, detail))
-
-    # 3. referral/enhanced-status (8 fields)
-    r = requests.get(f"{BASE}/referral/enhanced-status", headers=headers, timeout=30)
-    ok = r.status_code == 200
-    shape_ok = False
-    missing = []
-    if ok:
-        j = r.json()
-        required = [
-            "referral_code", "referral_count", "total_pro_days_earned",
-            "reward_tiers", "next_milestone", "recent_referrals",
-            "share_text", "whatsapp_text",
-        ]
-        missing = [k for k in required if k not in j]
-        shape_ok = len(missing) == 0
-    detail = (
-        f"8 fields OK, code={r.json().get('referral_code')}, tiers={len(r.json().get('reward_tiers', []))}"
-        if ok and shape_ok else f"missing={missing} body={r.text[:200]}"
-    )
-    results.append(("GET /referral/enhanced-status", r.status_code, shape_ok, detail))
-
-    # 4. referral/leaderboard
-    r = requests.get(f"{BASE}/referral/leaderboard", timeout=30)
-    ok = r.status_code == 200
-    shape_ok = False
-    if ok:
-        j = r.json()
-        shape_ok = "leaderboard" in j and isinstance(j["leaderboard"], list)
-    detail = (
-        f"leaderboard entries={len(r.json().get('leaderboard', []))}"
-        if ok and shape_ok else r.text[:200]
-    )
-    results.append(("GET /referral/leaderboard", r.status_code, shape_ok, detail))
-
-    # 5. referral/apply with bogus code → expect 404
-    r = requests.post(f"{BASE}/referral/apply", headers=headers, json={"code": "BOGUSCODE"}, timeout=30)
-    expected_404 = r.status_code == 404
-    # Acceptable alternate: 400 "already used" — means user already applied a code earlier
-    already_applied = r.status_code == 400 and "already" in r.text.lower()
-    passed = expected_404 or already_applied
-    detail = f"got {r.status_code}: {r.text[:200]}"
-    results.append(("POST /referral/apply (BOGUSCODE → 404)", r.status_code, passed, detail))
-
-    print("\n=== SMOKE TEST RESULTS ===")
-    all_pass = True
-    for name, status, shape_ok, detail in results:
-        mark = "✅" if shape_ok else "❌"
-        if not shape_ok:
-            all_pass = False
-        print(f"{mark} {name} → HTTP {status} | {detail}")
-
-    any_500 = any(r[1] >= 500 for r in results)
-    if any_500:
-        print("\n❌❌❌ 500 ERROR DETECTED - refactor is broken!")
-        sys.exit(2)
-
-    apply_row = results[-1]
-    if apply_row[1] == 400 and "already" in apply_row[3].lower():
-        print("\nNOTE: /referral/apply returned 400 (already used) instead of 404. "
-              "Acceptable — test user already has a referral record. "
-              "The error-path plumbing is still intact (server did not 500).")
-
-    if all_pass:
-        print("\n🎉 ALL 5 ENDPOINTS PASSED — refactor is clean.")
-        sys.exit(0)
+    # 2. GET /api/transactions?limit=5
+    r = requests.get(f"{BASE}/transactions?limit=5", headers=H, timeout=30)
+    log(f"\n[2] GET /api/transactions?limit=5 -> {r.status_code}")
+    ok = False
+    if r.status_code == 200:
+        body = r.json()
+        log(f"  returned {len(body) if isinstance(body, list) else 'N/A'} txns")
+        found = False
+        if isinstance(body, list):
+            for t in body:
+                if t.get("id") == txn_id or t.get("_id") == txn_id:
+                    found = True
+                    break
+            ok = len(body) > 0 and found
+            log(f"  new txn at top: {body[0].get('id') == txn_id if body else False}")
+            log(f"  new txn in list: {found}")
+        else:
+            log(f"  BODY (not list): {str(body)[:300]}")
     else:
-        sys.exit(1)
+        log(f"  BODY: {r.text[:500]}")
+    results.append(("GET /transactions?limit=5", ok, r.status_code))
+
+    # 3. DELETE /api/transactions/{id}
+    r = requests.delete(f"{BASE}/transactions/{txn_id}", headers=H, timeout=30)
+    log(f"\n[3] DELETE /api/transactions/{txn_id} -> {r.status_code}")
+    ok = False
+    if r.status_code == 200:
+        body = r.json()
+        log(f"  body: {body}")
+        ok = body.get("message") == "Transaction deleted"
+    else:
+        log(f"  BODY: {r.text[:500]}")
+    results.append(("DELETE /transactions/{id}", ok, r.status_code))
+
+    # 4. POST /api/transactions/parse-sms
+    sms = {"sms_text": "Your A/C XXXX123 debited Rs.599 for SWIGGY on 15-Apr. Avl bal Rs.8000."}
+    r = requests.post(f"{BASE}/transactions/parse-sms", json=sms, headers=H, timeout=60)
+    log(f"\n[4] POST /api/transactions/parse-sms -> {r.status_code}")
+    ok = False
+    if r.status_code == 200:
+        body = r.json()
+        log(f"  keys: {list(body.keys())}")
+        log(f"  body: {json.dumps(body, default=str)[:500]}")
+        ok = True
+    else:
+        log(f"  BODY: {r.text[:500]}")
+    results.append(("POST /transactions/parse-sms", ok, r.status_code))
+
+    # 5. GET /api/gamification/status
+    r = requests.get(f"{BASE}/gamification/status", headers=H, timeout=30)
+    log(f"\n[5] GET /api/gamification/status -> {r.status_code}")
+    ok = r.status_code == 200
+    if ok:
+        body = r.json()
+        log(f"  keys: {list(body.keys())}")
+    else:
+        log(f"  BODY: {r.text[:500]}")
+    results.append(("GET /gamification/status", ok, r.status_code))
+
+    # 6. GET /api/waste-detector
+    r = requests.get(f"{BASE}/waste-detector", headers=H, timeout=60)
+    log(f"\n[6] GET /api/waste-detector -> {r.status_code}")
+    ok = r.status_code == 200
+    if ok:
+        body = r.json()
+        log(f"  keys: {list(body.keys())}")
+    else:
+        log(f"  BODY: {r.text[:500]}")
+    results.append(("GET /waste-detector", ok, r.status_code))
+
+    return results
 
 
 if __name__ == "__main__":
-    run()
+    try:
+        results = main()
+    except AssertionError as e:
+        log(f"ASSERTION FAIL: {e}")
+        sys.exit(2)
+    except Exception as e:
+        log(f"EXCEPTION: {type(e).__name__}: {e}")
+        sys.exit(3)
+
+    log("\n" + "=" * 60)
+    log("SUMMARY")
+    log("=" * 60)
+    passed = sum(1 for _, ok, _ in results if ok)
+    for name, ok, code in results:
+        mark = "PASS" if ok else "FAIL"
+        log(f"  [{mark}] {name} (HTTP {code})")
+    log(f"\n{passed}/{len(results)} passed")
+    sys.exit(0 if passed == len(results) else 1)
