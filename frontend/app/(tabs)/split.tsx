@@ -11,6 +11,8 @@ import api from '../../utils/api';
 import { useAuthStore } from '../../store/authStore';
 import { SplitSkeleton } from '../../components/SkeletonLoader';
 import GroupChat from '../../components/GroupChat';
+import PressableGlass from '../../components/PressableGlass';
+import { SHADOW } from '../../utils/theme';
 import { C, getGA, DebtRow } from '../../components/split/theme';
 import SettleUpCard from '../../components/split/SettleUpCard';
 import RemindersBanner from '../../components/split/RemindersBanner';
@@ -342,11 +344,11 @@ export default function SplitScreen() {
           <Text style={s.title}>Split</Text>
           <View style={s.headerR}>
             <View style={s.coinPill}><Text style={s.coinText}>🪙 {coins}</Text></View>
-            <TouchableOpacity onPress={() => setModal('create')}>
+            <PressableGlass onPress={() => setModal('create')} feedback="medium">
               <LinearGradient colors={[C.accent, C.accentLight]} style={s.addBtn}>
                 <Ionicons name="add" size={22} color={C.inv} />
               </LinearGradient>
-            </TouchableOpacity>
+            </PressableGlass>
           </View>
         </View>
 
@@ -387,21 +389,26 @@ export default function SplitScreen() {
         ) : groups.map((gr: any) => {
           const av = getGA(gr.name);
           return (
-            <TouchableOpacity key={gr.id} style={s.groupCard} onPress={() => setChatGroup(gr)} activeOpacity={0.7}>
+            <PressableGlass
+              key={gr.id}
+              onPress={() => setChatGroup(gr)}
+              feedback="light"
+              style={s.groupCard}
+            >
               <LinearGradient colors={av.colors.map(c => c + '20') as any} style={s.groupAv}>
                 <Text style={s.groupEmoji}>{av.emoji}</Text>
               </LinearGradient>
               <View style={s.groupInfo}>
-                <Text style={s.groupName}>{gr.name}</Text>
-                <Text style={s.groupMeta}>{`${gr.members?.length || 0} members`}</Text>
+                <Text style={s.groupName} numberOfLines={1}>{gr.name}</Text>
+                <Text style={s.groupMeta} numberOfLines={1}>{`${gr.members?.length || 0} members`}</Text>
               </View>
-              <TouchableOpacity onPress={() => openAddExpense(gr)} hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}>
+              <PressableGlass onPress={() => openAddExpense(gr)} feedback="light" hitSlop={12}>
                 <Ionicons name="add-circle" size={30} color={C.accent} />
-              </TouchableOpacity>
-              <TouchableOpacity onPress={() => openManage(gr)} hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }} style={{ marginLeft: 8 }}>
+              </PressableGlass>
+              <PressableGlass onPress={() => openManage(gr)} feedback="light" hitSlop={12} style={{ marginLeft: 8 }}>
                 <Ionicons name="ellipsis-vertical" size={20} color={C.text3} />
-              </TouchableOpacity>
-            </TouchableOpacity>
+              </PressableGlass>
+            </PressableGlass>
           );
         })}
         <View style={{ height: 30 }} />
@@ -471,18 +478,34 @@ const s = StyleSheet.create({
   headerR: { flexDirection: 'row', alignItems: 'center', gap: 10 },
   coinPill: { paddingHorizontal: 14, paddingVertical: 6, borderRadius: 20, backgroundColor: C.goldDim, borderWidth: 1, borderColor: 'rgba(255,179,0,0.2)' },
   coinText: { fontSize: 14, fontWeight: '700', color: '#92400E' },
-  addBtn: { width: 44, height: 44, borderRadius: 22, justifyContent: 'center', alignItems: 'center' },
-  balCard: { backgroundColor: C.card, borderRadius: 24, padding: 22, marginBottom: 16, borderWidth: 1, borderColor: C.cardBorder },
+  addBtn: { width: 44, height: 44, borderRadius: 22, justifyContent: 'center', alignItems: 'center', ...SHADOW.md },
+  balCard: {
+    backgroundColor: 'rgba(255,255,255,0.92)',
+    borderRadius: 24, padding: 22, marginBottom: 16,
+    borderWidth: 1, borderColor: 'rgba(255,255,255,0.7)',
+    ...SHADOW.lg,
+  },
   balRow: { flexDirection: 'row', alignItems: 'center' },
   balH: { flex: 1, alignItems: 'center' },
   balV: { fontSize: 26, fontWeight: '800' },
   balL: { fontSize: 12, color: C.text3, marginTop: 4 },
   balD: { width: 1, height: 40, backgroundColor: C.border },
   section: { fontSize: 16, fontWeight: '700', color: C.text1, marginBottom: 12 },
-  emptyCard: { backgroundColor: C.card, borderRadius: 24, padding: 40, alignItems: 'center', borderWidth: 1, borderColor: C.cardBorder, gap: 8 },
+  emptyCard: {
+    backgroundColor: 'rgba(255,255,255,0.8)',
+    borderRadius: 24, padding: 40, alignItems: 'center',
+    borderWidth: 1, borderColor: 'rgba(255,255,255,0.6)', gap: 8,
+    ...SHADOW.sm,
+  },
   emptyTitle: { fontSize: 16, fontWeight: '700', color: C.text3 },
   emptyText: { fontSize: 13, color: C.text4 },
-  groupCard: { flexDirection: 'row', alignItems: 'center', backgroundColor: C.card, borderRadius: 16, padding: 14, marginBottom: 8, borderWidth: 1, borderColor: C.cardBorder },
+  groupCard: {
+    flexDirection: 'row', alignItems: 'center',
+    backgroundColor: 'rgba(255,255,255,0.9)',
+    borderRadius: 20, padding: 14, marginBottom: 10,
+    borderWidth: 1, borderColor: 'rgba(255,255,255,0.65)',
+    ...SHADOW.sm,
+  },
   groupAv: { width: 44, height: 44, borderRadius: 14, justifyContent: 'center', alignItems: 'center', marginRight: 12 },
   groupEmoji: { fontSize: 20 },
   groupInfo: { flex: 1 },

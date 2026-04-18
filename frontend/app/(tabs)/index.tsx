@@ -10,7 +10,8 @@ import { useAuthStore } from '../../store/authStore';
 import { useLangStore } from '../../store/langStore';
 import { t } from '../../utils/i18n';
 import api from '../../utils/api';
-import { COLORS, RADIUS, SPACING, CATEGORIES } from '../../utils/theme';
+import { COLORS, RADIUS, SPACING, CATEGORIES, SHADOW } from '../../utils/theme';
+import PressableGlass from '../../components/PressableGlass';
 import { BarChart } from 'react-native-gifted-charts';
 import { router } from 'expo-router';
 import Toast from 'react-native-toast-message';
@@ -187,22 +188,22 @@ export default function HomeScreen() {
           <View style={styles.fomoSection}>
             <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.fomoScroll}>
               {fomoItems.map((item: any) => (
-                <TouchableOpacity
+                <PressableGlass
                   key={item.id}
-                  style={[styles.fomoCard, item.type === 'streak_break' && styles.fomoCardDanger, item.type === 'invite_nudge' && styles.fomoCardAccent]}
-                  activeOpacity={0.85}
+                  feedback="light"
                   onPress={() => {
                     if (item.type === 'invite_nudge' || item.type === 'friend_saving') router.push('/(tabs)/profile');
                     else if (item.type === 'streak_break') router.push('/(tabs)/transactions');
                     else router.push('/(tabs)/rewards');
                   }}
+                  style={[styles.fomoCard, item.type === 'streak_break' && styles.fomoCardDanger, item.type === 'invite_nudge' && styles.fomoCardAccent]}
                 >
                   <Text style={styles.fomoIcon}>{item.icon}</Text>
                   <Text style={styles.fomoText} numberOfLines={2}>{item.text}</Text>
                   <View style={styles.fomoCtaRow}>
                     <Text style={styles.fomoCta}>{item.cta} →</Text>
                   </View>
-                </TouchableOpacity>
+                </PressableGlass>
               ))}
             </ScrollView>
           </View>
@@ -405,9 +406,18 @@ const styles = StyleSheet.create({
   sectionTitle: { fontSize: 16, fontWeight: '700', color: COLORS.text.primary, marginBottom: SPACING.sm },
   fomoSection: { marginBottom: SPACING.lg, marginTop: -4 },
   fomoScroll: { gap: 10, paddingRight: 8 },
-  fomoCard: { width: 260, padding: 14, borderRadius: 18, backgroundColor: 'rgba(230,81,0,0.06)', borderWidth: 1, borderColor: 'rgba(230,81,0,0.18)', gap: 6 },
-  fomoCardDanger: { backgroundColor: '#FEF2F2', borderColor: '#FECACA' },
-  fomoCardAccent: { backgroundColor: '#FEF3C7', borderColor: '#FDE68A' },
+  fomoCard: {
+    width: 260,
+    padding: 14,
+    borderRadius: 20,
+    backgroundColor: 'rgba(255,255,255,0.9)',
+    borderWidth: 1,
+    borderColor: 'rgba(230,81,0,0.18)',
+    gap: 6,
+    ...SHADOW.sm,
+  },
+  fomoCardDanger: { backgroundColor: 'rgba(254,242,242,0.95)', borderColor: '#FECACA' },
+  fomoCardAccent: { backgroundColor: 'rgba(254,243,199,0.95)', borderColor: '#FDE68A' },
   fomoIcon: { fontSize: 22 },
   fomoText: { fontSize: 13, fontWeight: '600', color: COLORS.text.primary, lineHeight: 18 },
   fomoCtaRow: { marginTop: 4 },

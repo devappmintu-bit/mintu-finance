@@ -1,8 +1,9 @@
 import React from 'react';
-import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
+import { View, Text, StyleSheet } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
-import { COLORS } from '../../utils/theme';
+import { COLORS, SHADOW } from '../../utils/theme';
+import PressableGlass from '../PressableGlass';
 import { C, DebtRow } from './theme';
 
 type Props = {
@@ -31,50 +32,61 @@ export default function SettleUpCard({ rows, onPay, onRemind, onMarkPaid }: Prop
             </Text>
             <Text numberOfLines={1} style={s.settleGroup}>{row.group_name}</Text>
           </View>
-          <Text style={[s.settleAmt, { color: row.direction === 'i_owe' ? C.red : C.green }]}>
-            {`₹${row.amount.toFixed(0)}`}
+          <Text style={[s.settleAmt, { color: row.direction === 'i_owe' ? C.red : C.green }]} numberOfLines={1}>
+            {`\u20b9${row.amount.toFixed(0)}`}
           </Text>
           {row.direction === 'i_owe' ? (
             <>
-              <TouchableOpacity onPress={() => onPay(row)} style={{ marginLeft: 8 }}>
+              <PressableGlass onPress={() => onPay(row)} feedback="medium" style={{ marginLeft: 8 }}>
                 <LinearGradient colors={[C.accent, C.accentLight]} style={s.settleBtn}>
                   <Ionicons name="flash" size={12} color={C.inv} />
                   <Text style={s.settleBtnT}>Pay</Text>
                 </LinearGradient>
-              </TouchableOpacity>
-              <TouchableOpacity onPress={() => onMarkPaid(row, 'cash')} style={s.settleIconBtn} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+              </PressableGlass>
+              <PressableGlass onPress={() => onMarkPaid(row, 'cash')} feedback="light" style={s.settleIconBtn} hitSlop={8}>
                 <Ionicons name="checkmark-done" size={18} color={C.text3} />
-              </TouchableOpacity>
+              </PressableGlass>
             </>
           ) : (
-            <TouchableOpacity onPress={() => onRemind(row)} style={{ marginLeft: 8 }}>
+            <PressableGlass onPress={() => onRemind(row)} feedback="light" style={{ marginLeft: 8 }}>
               <LinearGradient colors={['#F59E0B', '#FB923C']} style={s.settleBtn}>
                 <Ionicons name="notifications" size={12} color={C.inv} />
                 <Text style={s.settleBtnT}>Remind</Text>
               </LinearGradient>
-            </TouchableOpacity>
+            </PressableGlass>
           )}
         </View>
       ))}
       {rows.length > 4 && (
-        <Text style={s.settleMore}>{`+ ${rows.length - 4} more — tap a group to see all`}</Text>
+        <Text style={s.settleMore}>{`+ ${rows.length - 4} more \u2014 tap a group to see all`}</Text>
       )}
     </View>
   );
 }
 
 const s = StyleSheet.create({
-  settleCard: { backgroundColor: C.card, borderRadius: 20, padding: 14, marginBottom: 16, borderWidth: 1, borderColor: C.cardBorder },
+  settleCard: {
+    backgroundColor: 'rgba(255,255,255,0.88)',
+    borderRadius: 22,
+    padding: 14,
+    marginBottom: 16,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.6)',
+    ...SHADOW.md,
+  },
   settleHead: { flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 10 },
   settleTitle: { fontSize: 11, fontWeight: '800', letterSpacing: 1, color: C.accent },
   settleCount: { fontSize: 11, fontWeight: '700', color: C.text3, backgroundColor: C.accentDim, paddingHorizontal: 8, paddingVertical: 2, borderRadius: 10 },
-  settleRow: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingVertical: 10, borderTopWidth: 1, borderTopColor: C.border },
+  settleRow: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingVertical: 10, borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: C.border },
   settleEmoji: { fontSize: 20 },
   settleName: { fontSize: 14, fontWeight: '700', color: C.text1 },
   settleGroup: { fontSize: 11, color: C.text3, marginTop: 1 },
   settleAmt: { fontSize: 15, fontWeight: '800', marginLeft: 6 },
-  settleBtn: { flexDirection: 'row', alignItems: 'center', gap: 3, paddingHorizontal: 10, paddingVertical: 6, borderRadius: 10 },
+  settleBtn: { flexDirection: 'row', alignItems: 'center', gap: 3, paddingHorizontal: 10, paddingVertical: 6, borderRadius: 12 },
   settleBtnT: { fontSize: 12, fontWeight: '700', color: C.inv },
-  settleIconBtn: { width: 34, height: 34, borderRadius: 10, justifyContent: 'center', alignItems: 'center', marginLeft: 4, backgroundColor: COLORS.bg.primary, borderWidth: 1, borderColor: C.border },
+  settleIconBtn: {
+    width: 34, height: 34, borderRadius: 12, justifyContent: 'center', alignItems: 'center', marginLeft: 4,
+    backgroundColor: COLORS.bg.primary, borderWidth: 1, borderColor: C.border,
+  },
   settleMore: { fontSize: 12, color: C.text3, textAlign: 'center', marginTop: 8, fontStyle: 'italic' },
 });
