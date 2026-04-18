@@ -656,10 +656,25 @@ metadata:
   run_ui: true
 
 test_plan:
-  current_focus: []
-  stuck_tasks: []
+  current_focus:
+    - "AI Router Extraction Smoke Test (Phase 8)"
+  stuck_tasks:
+    - "AI Router Extraction Smoke Test (Phase 8)"
   test_all: false
-  test_priority: "completed"
+  test_priority: "stuck_first"
+
+backend_ai_router:
+  - task: "AI Router Extraction Smoke Test (Phase 8)"
+    implemented: true
+    working: false
+    file: "/app/backend/routers/ai.py"
+    stuck_count: 1
+    priority: "high"
+    needs_retesting: true
+    status_history:
+      - working: false
+        agent: "testing"
+        comment: "❌ CRITICAL REFACTOR BUG — BACKEND IS 502 DOWN (Apr 18 2026). routers/ai.py fails at module import with `NameError: name 'ChatMessage' is not defined` at line 163 (@api_router.post('/ai/chat') handler signature: `async def ai_financial_coach(msg: ChatMessage, ...)`). This prevents `from routers import (...)` in server.py:2473 from succeeding, which crashes the entire FastAPI app on startup. Supervisor reports backend RUNNING but uvicorn's child SpawnProcess-38 died with this traceback; /api/* returns 502 Bad Gateway at the ingress. ROOT CAUSE: Endpoints were extracted from server.py into /app/backend/routers/ai.py but several server-level symbols they reference were NOT imported. ChatMessage is defined in server.py:1793 (BaseModel) and is referenced as a type annotation in ai.py:163, but ai.py only imports from `core` + `core.content` + emergentintegrations. Grep of routers/ai.py for undefined server-level names returns: ChatMessage, calculate_money_score, MONEY_SCHOOL_LESSONS, AGENT_PROFILES, route_to_agent, generate_insights_with_ai, get_lang_instruction — all used directly (not via the lazy `_srv()` accessor that IS defined at line 29-31). Because ChatMessage is used as a Pydantic type annotation in a function signature (evaluated at def time), lazy access won't work for this one — it must be a real import. FIX OPTIONS FOR MAIN AGENT: (a) At the top of routers/ai.py, do lazy import inside a module-level try block: `from server import ChatMessage, calculate_money_score, MONEY_SCHOOL_LESSONS, AGENT_PROFILES, route_to_agent, generate_insights_with_ai, get_lang_instruction` — but this will create a circular import (server → routers.ai → server). (b) Move ChatMessage, AGENT_PROFILES, MONEY_SCHOOL_LESSONS, calculate_money_score, route_to_agent, generate_insights_with_ai, get_lang_instruction out of server.py into a new core/ai_helpers.py (or core/models.py for ChatMessage alone) and import from there in both server.py and routers/ai.py — recommended. (c) Replace the `ChatMessage` annotation with a local BaseModel duplicate in ai.py for /ai/chat and look up the others via `_srv()` inside each handler — quickest to unblock. UNTIL THIS IS FIXED, 0/14 review-request endpoints can be tested because the entire backend is offline. No AI endpoint, no split/user/transactions regression — everything 502. Test script /app/ai_router_test.py is ready to run once the import error is resolved."
 
 phase_6_rollback_smoke:
   - task: "Phase 6 Rollback Regression Smoke Test"
