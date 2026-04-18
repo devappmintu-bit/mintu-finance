@@ -1,6 +1,7 @@
 import React, { useRef } from 'react';
 import { StyleSheet, Dimensions, Animated, PanResponder } from 'react-native';
 import Svg, { Defs, LinearGradient, Stop, Path, Circle, Ellipse, Rect } from 'react-native-svg';
+import { shadowStyle } from '../utils/theme';
 
 const { width: SW, height: SH } = Dimensions.get('window');
 const SIZE = 58;
@@ -87,11 +88,7 @@ const styles = StyleSheet.create({
     borderColor: 'rgba(0,196,138,0.3)',
     justifyContent: 'center',
     alignItems: 'center',
-    shadowColor: '#00C48A',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 12,
-    elevation: 15,
+    ...shadowStyle('#00C48A', 4, 12, 0.3, 15),
     zIndex: 9999,
   },
 });

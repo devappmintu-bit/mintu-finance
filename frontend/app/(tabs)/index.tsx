@@ -10,7 +10,7 @@ import { useAuthStore } from '../../store/authStore';
 import { useLangStore } from '../../store/langStore';
 import { t } from '../../utils/i18n';
 import api from '../../utils/api';
-import { COLORS, RADIUS, SPACING, CATEGORIES, SHADOW } from '../../utils/theme';
+import { COLORS, RADIUS, SPACING, CATEGORIES, SHADOW, shadowStyle } from '../../utils/theme';
 import PressableGlass from '../../components/PressableGlass';
 import { BarChart } from 'react-native-gifted-charts';
 import { router } from 'expo-router';
@@ -390,7 +390,7 @@ const styles = StyleSheet.create({
   lbScore: { fontSize: 16, fontWeight: '700', color: '#F59E0B' },
   lbStreak: { fontSize: 12, color: '#EF4444' },
   // Card of the Day
-  cotdCard: { backgroundColor: 'rgba(255,255,255,0.92)', borderRadius: RADIUS.card, padding: SPACING.xl, marginBottom: SPACING.lg, borderLeftWidth: 4, borderWidth: 1, borderColor: 'rgba(238,221,204,0.6)', shadowColor: '#2E1F1A', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.04, shadowRadius: 12, elevation: 3 },
+  cotdCard: { backgroundColor: 'rgba(255,255,255,0.92)', borderRadius: RADIUS.card, padding: SPACING.xl, marginBottom: SPACING.lg, borderLeftWidth: 4, borderWidth: 1, borderColor: 'rgba(238,221,204,0.6)', ...shadowStyle('#2E1F1A', 2, 12, 0.04, 3) },
   cotdHeader: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 8 },
   cotdEmoji: { fontSize: 22 },
   cotdType: { fontSize: 13, fontWeight: '700', letterSpacing: 0.5, flex: 1 },
@@ -398,7 +398,7 @@ const styles = StyleSheet.create({
   cotdText: { fontSize: 15, fontWeight: '500', color: COLORS.text.secondary, lineHeight: 23 },
   // Stats row
   statsRow: { flexDirection: 'row', gap: 8, marginBottom: SPACING.lg },
-  statBox: { flex: 1, backgroundColor: 'rgba(255,255,255,0.92)', borderRadius: RADIUS.lg, padding: SPACING.md, alignItems: 'center', borderWidth: 1, gap: 4, shadowColor: '#2E1F1A', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.03, shadowRadius: 8, elevation: 2 },
+  statBox: { flex: 1, backgroundColor: 'rgba(255,255,255,0.92)', borderRadius: RADIUS.lg, padding: SPACING.md, alignItems: 'center', borderWidth: 1, gap: 4, ...shadowStyle('#2E1F1A', 1, 8, 0.03, 2) },
   statVal: { fontSize: 15, fontWeight: '800' },
   statLabel: { fontSize: 10, color: COLORS.text.muted, fontWeight: '600' },
   // Alerts
@@ -432,7 +432,7 @@ const styles = StyleSheet.create({
   premiumBtn: { backgroundColor: '#8B5CF6', paddingHorizontal: 16, paddingVertical: 8, borderRadius: RADIUS.full },
   premiumBtnText: { fontSize: 13, fontWeight: '700', color: '#fff' },
   // Rewards
-  rewardsCard: { backgroundColor: 'rgba(255,255,255,0.92)', borderRadius: RADIUS.card, padding: SPACING.xl, marginBottom: SPACING.lg, borderWidth: 1, borderColor: '#F59E0B25', shadowColor: '#2E1F1A', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.04, shadowRadius: 10, elevation: 3 },
+  rewardsCard: { backgroundColor: 'rgba(255,255,255,0.92)', borderRadius: RADIUS.card, padding: SPACING.xl, marginBottom: SPACING.lg, borderWidth: 1, borderColor: '#F59E0B25', ...shadowStyle('#2E1F1A', 2, 10, 0.04, 3) },
   rewardsHeader: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: SPACING.md },
   rewardsTitle: { fontSize: 12, fontWeight: '800', letterSpacing: 1, color: '#92400E', flex: 1 },
   seeAllBtn: { flexDirection: 'row', alignItems: 'center', gap: 2 },
@@ -443,7 +443,7 @@ const styles = StyleSheet.create({
   rewardVal: { fontSize: 20, fontWeight: '800', color: COLORS.text.primary },
   rewardLabel: { fontSize: 10, color: COLORS.text.muted, fontWeight: '600' },
   // Weekly
-  weeklyCard: { backgroundColor: 'rgba(255,255,255,0.92)', borderRadius: RADIUS.card, padding: SPACING.xl, marginBottom: SPACING.lg, borderWidth: 1, borderColor: COLORS.accent.secondary + '25', shadowColor: '#2E1F1A', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.04, shadowRadius: 10, elevation: 3 },
+  weeklyCard: { backgroundColor: 'rgba(255,255,255,0.92)', borderRadius: RADIUS.card, padding: SPACING.xl, marginBottom: SPACING.lg, borderWidth: 1, borderColor: COLORS.accent.secondary + '25', ...shadowStyle('#2E1F1A', 2, 10, 0.04, 3) },
   weeklyHeader: { flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: SPACING.md },
   weeklyLabel: { fontSize: 11, fontWeight: '700', letterSpacing: 0.8, color: COLORS.accent.secondary, flex: 1 },
   weeklyPeriod: { fontSize: 11, color: COLORS.text.muted },
@@ -489,7 +489,7 @@ const styles = StyleSheet.create({
   xpRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 },
   xpText: { fontSize: 13, fontWeight: '600', color: '#8B5CF6' },
   xpVal: { fontSize: 13, fontWeight: '700', color: '#F59E0B' },
-  schoolCardH: { width: 280, backgroundColor: 'rgba(255,255,255,0.92)', borderRadius: RADIUS.card, padding: SPACING.lg, borderWidth: 1, borderColor: 'rgba(238,221,204,0.6)', borderLeftWidth: 4, shadowColor: '#2E1F1A', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.04, shadowRadius: 10, elevation: 3 },
+  schoolCardH: { width: 280, backgroundColor: 'rgba(255,255,255,0.92)', borderRadius: RADIUS.card, padding: SPACING.lg, borderWidth: 1, borderColor: 'rgba(238,221,204,0.6)', borderLeftWidth: 4, ...shadowStyle('#2E1F1A', 2, 10, 0.04, 3) },
   schoolCardType: { fontSize: 10, fontWeight: '700', letterSpacing: 0.8 },
   schoolXpBadge: { fontSize: 10, fontWeight: '700', color: '#F59E0B', backgroundColor: '#FEF3C7', paddingHorizontal: 6, paddingVertical: 2, borderRadius: 4 },
   schoolCardTitle: { fontSize: 15, fontWeight: '700', color: COLORS.text.primary, marginBottom: 6 },

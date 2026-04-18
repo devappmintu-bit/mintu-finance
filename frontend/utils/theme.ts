@@ -123,3 +123,25 @@ export const SHADOW = {
   lg: makeShadow(4, 16, 0.08, 5),
   xl: makeShadow(6, 24, 0.10, 8),
 };
+
+// Inline colored shadow helper — replaces deprecated inline shadow* props on web/Android.
+// Use as: `...shadowStyle('#00C48A', 4, 12, 0.3, 5)` in any StyleSheet.create block.
+const hexToRgba = (hex: string, opacity: number) => {
+  const h = hex.replace('#', '');
+  const r = parseInt(h.substring(0, 2), 16);
+  const g = parseInt(h.substring(2, 4), 16);
+  const b = parseInt(h.substring(4, 6), 16);
+  return `rgba(${r},${g},${b},${opacity})`;
+};
+export const shadowStyle = (color: string, offsetY: number, blur: number, opacity: number, elev = 0): ShadowStyle => {
+  if (Platform.OS === 'ios') {
+    return {
+      shadowColor: color,
+      shadowOffset: { width: 0, height: offsetY },
+      shadowOpacity: opacity,
+      shadowRadius: blur,
+    };
+  }
+  const rgba = color.startsWith('#') ? hexToRgba(color, opacity) : color;
+  return { boxShadow: `0px ${offsetY}px ${blur}px ${rgba}`, elevation: elev };
+};

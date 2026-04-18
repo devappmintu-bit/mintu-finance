@@ -5,11 +5,12 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
+import { useLocalSearchParams, router } from 'expo-router';
 import api from '../../utils/api';
 import { format } from 'date-fns';
 import { useLangStore } from '../../store/langStore';
 import { t } from '../../utils/i18n';
-import { COLORS, RADIUS, SPACING, CATEGORIES, CATEGORY_LIST, SHADOW } from '../../utils/theme';
+import { COLORS, RADIUS, SPACING, CATEGORIES, CATEGORY_LIST, SHADOW, shadowStyle } from '../../utils/theme';
 import PressableGlass from '../../components/PressableGlass';
 import Toast from 'react-native-toast-message';
 import { TransactionsSkeleton } from '../../components/SkeletonLoader';
@@ -40,6 +41,7 @@ const TxnRow = memo(function TxnRow({ item, lang, onLongPress }: { item: any; la
 
 export default function TransactionsScreen() {
   const { lang } = useLangStore();
+  const params = useLocalSearchParams<{ openAdd?: string; openSmsScan?: string; type?: string }>();
   const [transactions, setTransactions] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [modalVisible, setModalVisible] = useState(false);
@@ -58,6 +60,23 @@ export default function TransactionsScreen() {
   const [refreshing, setRefreshing] = useState(false);
 
   useEffect(() => { fetchAll(); }, []);
+
+  // Auto-open add/SMS modals when arriving via AI Coach CTAs (e.g. /transactions?openAdd=1&type=credit)
+  useEffect(() => {
+    if (params.openAdd === '1') {
+      setFormData(prev => ({
+        ...prev,
+        type: params.type === 'credit' ? 'credit' : 'debit',
+        category: params.type === 'credit' ? 'Other' : 'Food',
+      }));
+      setModalVisible(true);
+      // Clear the query so it doesn't re-trigger on re-render
+      try { router.setParams({ openAdd: undefined, type: undefined } as any); } catch {}
+    } else if (params.openSmsScan === '1') {
+      setSmsModalVisible(true);
+      try { router.setParams({ openSmsScan: undefined } as any); } catch {}
+    }
+  }, [params.openAdd, params.openSmsScan, params.type]);
 
   const fetchAll = async () => {
     try {
@@ -403,7 +422,7 @@ const styles = StyleSheet.create({
   pieTitleText: { fontSize: 14, fontWeight: '700', color: COLORS.text.primary },
   sectionLabel: { fontSize: 14, fontWeight: '700', color: COLORS.text.muted, marginBottom: 8, marginTop: 4 },
   // AI Report Card
-  reportCard: { backgroundColor: 'rgba(255,255,255,0.92)', borderRadius: RADIUS.xl, padding: 16, marginBottom: 14, borderWidth: 1, borderColor: 'rgba(238,221,204,0.6)', shadowColor: '#2E1F1A', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.04, shadowRadius: 10, elevation: 2 },
+  reportCard: { backgroundColor: 'rgba(255,255,255,0.92)', borderRadius: RADIUS.xl, padding: 16, marginBottom: 14, borderWidth: 1, borderColor: 'rgba(238,221,204,0.6)', ...shadowStyle('#2E1F1A', 2, 10, 0.04, 2) },
   reportTitle: { fontSize: 15, fontWeight: '700', color: COLORS.text.primary },
   trendRow: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 12, paddingVertical: 8, borderRadius: RADIUS.full, marginBottom: 10 },
   insightRow: { paddingVertical: 8, borderBottomWidth: 1, borderBottomColor: COLORS.border.subtle },

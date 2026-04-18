@@ -663,10 +663,23 @@ metadata:
 
 test_plan:
   current_focus:
-    - "Legacy /api/ai/chat — refactored to mirror /ai/agent-chat structured format"
+    - "Shadow* deprecation fix + AI CTA auto-open modals"
   stuck_tasks: []
   test_all: false
-  test_priority: "high_first"
+  test_priority: "low_first"
+
+shadow_and_cta_polish:
+  - task: "Shadow* deprecation warnings + AI CTA auto-open modals"
+    implemented: true
+    working: "NA"
+    file: "/app/frontend/utils/theme.ts + multiple"
+    stuck_count: 0
+    priority: "low"
+    needs_retesting: false
+    status_history:
+      - working: "NA"
+        agent: "main"
+        comment: "Added shadowStyle(color, offsetY, blur, opacity, elev) helper to theme.ts that returns Platform-correct shadow (iOS native props) or boxShadow+elevation (Web/Android). Converted 14 inline shadow blocks across 8 files: DraggableAIBubble, ToastConfig, (tabs)/_layout, transactions, profile (3), index (5), app/index, onboarding. All app source files now zero shadow* props. Additionally, transactions.tsx now reads useLocalSearchParams for openAdd=1 / openSmsScan=1 / type=credit and auto-opens the corresponding modal when AI Coach CTAs navigate to it. Query params are cleared after open. Closes the loop between AI CTAs and the Transactions screen."
 
 legacy_ai_chat_refactor:
   - task: "Legacy POST /api/ai/chat — mirrored structured format"

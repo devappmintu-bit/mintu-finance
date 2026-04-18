@@ -5,7 +5,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Ionicons } from '@expo/vector-icons';
 import { useLangStore } from '../store/langStore';
 import { t } from '../utils/i18n';
-import { COLORS, RADIUS, SPACING, ONBOARDING_IMAGES } from '../utils/theme';
+import { COLORS, RADIUS, SPACING, ONBOARDING_IMAGES, shadowStyle } from '../utils/theme';
 
 const { width } = Dimensions.get('window');
 
@@ -99,7 +99,7 @@ const styles = StyleSheet.create({
   nextButton: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
     backgroundColor: COLORS.accent.primary, paddingVertical: 18, borderRadius: RADIUS.full, gap: 8,
-    shadowColor: COLORS.accent.primary, shadowOffset: { width: 0, height: 6 }, shadowOpacity: 0.3, shadowRadius: 16, elevation: 8,
+    ...shadowStyle(COLORS.accent.primary, 6, 16, 0.3, 8),
   },
   nextText: { fontSize: 17, fontWeight: '700', color: COLORS.text.inverse },
 });

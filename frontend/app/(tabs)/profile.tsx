@@ -12,7 +12,7 @@ import { useAuthStore } from '../../store/authStore';
 import { useLangStore } from '../../store/langStore';
 import { t, LANGUAGES } from '../../utils/i18n';
 import api from '../../utils/api';
-import { COLORS, RADIUS, SPACING } from '../../utils/theme';
+import { COLORS, RADIUS, SPACING, shadowStyle } from '../../utils/theme';
 import Toast from 'react-native-toast-message';
 import HelpSupport from '../../components/HelpSupport';
 import AboutMintU from '../../components/AboutMintU';
@@ -541,14 +541,14 @@ const s = StyleSheet.create({
   bg: { flex: 1, backgroundColor: COLORS.bg.primary },
   scroll: { padding: 16 },
   // Profile Card
-  profileCard: { flexDirection: 'row', alignItems: 'center', backgroundColor: 'rgba(255,255,255,0.92)', borderRadius: 20, padding: 18, marginBottom: 14, borderWidth: 1, borderColor: 'rgba(238,221,204,0.6)', shadowColor: '#2E1F1A', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.05, shadowRadius: 10, elevation: 3 },
+  profileCard: { flexDirection: 'row', alignItems: 'center', backgroundColor: 'rgba(255,255,255,0.92)', borderRadius: 20, padding: 18, marginBottom: 14, borderWidth: 1, borderColor: 'rgba(238,221,204,0.6)', ...shadowStyle('#2E1F1A', 2, 10, 0.05, 3) },
   avatar: { width: 64, height: 64, borderRadius: 32, borderWidth: 2, borderColor: COLORS.accent.primary + '25' },
   avatarPlace: { width: 64, height: 64, borderRadius: 32, backgroundColor: COLORS.accent.primary + '10', justifyContent: 'center', alignItems: 'center', borderWidth: 2, borderColor: COLORS.accent.primary + '25' },
   camBadge: { position: 'absolute', bottom: 0, right: 0, width: 22, height: 22, borderRadius: 11, backgroundColor: COLORS.accent.primary, justifyContent: 'center', alignItems: 'center', borderWidth: 2, borderColor: COLORS.bg.primary },
   name: { fontSize: 18, fontWeight: '800', color: COLORS.text.primary },
   phone: { fontSize: 13, color: COLORS.text.muted, marginTop: 2 },
   // Payment Card
-  payCard: { backgroundColor: 'rgba(255,255,255,0.92)', borderRadius: 20, padding: 18, marginBottom: 14, borderWidth: 1, borderColor: 'rgba(238,221,204,0.6)', shadowColor: '#2E1F1A', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.04, shadowRadius: 10, elevation: 2 },
+  payCard: { backgroundColor: 'rgba(255,255,255,0.92)', borderRadius: 20, padding: 18, marginBottom: 14, borderWidth: 1, borderColor: 'rgba(238,221,204,0.6)', ...shadowStyle('#2E1F1A', 2, 10, 0.04, 2) },
   payTitle: { fontSize: 17, fontWeight: '700', color: COLORS.text.primary, marginBottom: 14 },
   recSection: { marginBottom: 14 },
   recLabel: { fontSize: 12, fontWeight: '600', color: COLORS.text.muted, marginBottom: 8 },
@@ -586,7 +586,7 @@ const s = StyleSheet.create({
   privTitle: { fontSize: 14, fontWeight: '700', color: COLORS.text.primary, marginTop: 8 },
   privDesc: { fontSize: 13, color: COLORS.text.secondary, lineHeight: 20, marginTop: 4 },
   // Invite / Referral
-  refCard: { backgroundColor: 'rgba(255,255,255,0.96)', borderRadius: 20, padding: 16, marginBottom: 14, borderWidth: 1, borderColor: 'rgba(245,158,11,0.25)', shadowColor: '#F59E0B', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.06, shadowRadius: 10, elevation: 3 },
+  refCard: { backgroundColor: 'rgba(255,255,255,0.96)', borderRadius: 20, padding: 16, marginBottom: 14, borderWidth: 1, borderColor: 'rgba(245,158,11,0.25)', ...shadowStyle('#F59E0B', 2, 10, 0.06, 3) },
   refHeader: { flexDirection: 'row', alignItems: 'center', gap: 12 },
   refIconBox: { width: 44, height: 44, borderRadius: 14, backgroundColor: '#FEF3C7', justifyContent: 'center', alignItems: 'center' },
   refTitle: { fontSize: 16, fontWeight: '800', color: COLORS.text.primary },

@@ -1,7 +1,7 @@
 import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { COLORS, RADIUS, SPACING } from '../utils/theme';
+import { COLORS, RADIUS, SPACING, shadowStyle } from '../utils/theme';
 
 const ToastBase = ({ icon, iconColor, bgColor, borderColor, text1, text2 }: any) => (
   <View style={[styles.toast, { backgroundColor: bgColor, borderColor }]}>
@@ -56,11 +56,7 @@ const styles = StyleSheet.create({
     paddingVertical: 14,
     borderRadius: RADIUS.lg,
     borderWidth: 1,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.08,
-    shadowRadius: 12,
-    elevation: 6,
+    ...shadowStyle('#000', 4, 12, 0.08, 6),
   },
   textWrap: { flex: 1 },
   title: { fontSize: 14, fontWeight: '700', color: COLORS.text.primary },

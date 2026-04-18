@@ -3,7 +3,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { View, StyleSheet, Platform, Modal, TouchableOpacity, Text } from 'react-native';
 import { useState } from 'react';
 import Svg, { Defs, LinearGradient, Stop, Path, Circle, Rect } from 'react-native-svg';
-import { COLORS } from '../../utils/theme';
+import { COLORS, shadowStyle } from '../../utils/theme';
 import AICoachChat from '../../components/AICoachChat';
 
 const MintUCoinIcon = () => (
@@ -90,11 +90,7 @@ const st = StyleSheet.create({
     marginTop: -24,
     borderWidth: 4,
     borderColor: '#FFFFFF',
-    shadowColor: COLORS.accent.primary,
-    shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.35,
-    shadowRadius: 12,
-    elevation: 10,
+    ...shadowStyle(COLORS.accent.primary, 6, 12, 0.35, 10),
   },
   centerInner: {
     width: 52, height: 52, borderRadius: 26, justifyContent: 'center', alignItems: 'center',
