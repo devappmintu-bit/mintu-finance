@@ -5,20 +5,32 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
+import { router } from 'expo-router';
 import api from '../../utils/api';
 import { useAuthStore } from '../../store/authStore';
 import { useLangStore } from '../../store/langStore';
 import { COLORS, RADIUS, SPACING } from '../../utils/theme';
 
-type ChatMsg = { role: 'user' | 'ai'; text: string; loading?: boolean; agent?: string; agentEmoji?: string; ts?: number };
+type CTAButton = { id: string; label: string; icon: string; action: string };
+type ChatMsg = {
+  role: 'user' | 'ai';
+  text: string;
+  loading?: boolean;
+  agent?: string;
+  agentEmoji?: string;
+  ts?: number;
+  mode?: 'no_data' | 'partial' | 'full';
+  issues?: string[];
+  ctas?: CTAButton[];
+};
 
 const QUICK_CHIPS = [
   { label: 'Am I overspending?', emoji: '📊' },
-  { label: 'Set a food budget', emoji: '🎯' },
-  { label: 'Who owes me?', emoji: '🤝' },
-  { label: 'Weekly report', emoji: '📈' },
-  { label: 'Save on subscriptions', emoji: '🧠' },
-  { label: 'Best SIP for me?', emoji: '💰' },
+  { label: 'Where is my money going?', emoji: '💸' },
+  { label: 'Set a realistic budget', emoji: '🎯' },
+  { label: 'Who owes me money?', emoji: '🤝' },
+  { label: 'How can I save more?', emoji: '💡' },
+  { label: 'Weekly spending report', emoji: '📈' },
 ];
 
 // Typing dots animation
@@ -57,12 +69,24 @@ export default function InsightsScreen() {
   useEffect(() => {
     setMessages([{
       role: 'ai',
-      text: `Hey ${user?.name || 'there'}! 👋\n\nI'm your personal AI money coach. I can help you with:\n\n💸 Track & analyze spending\n🎯 Set & manage budgets\n🤝 Split bills with friends\n📊 Weekly insights & trends\n💰 Investment advice\n\nTry tapping a chip below or ask me anything!`,
+      text: `Hi ${user?.name || 'there'},\n\nI am your MintU financial assistant. I provide structured insights based on your actual transactions — not generic advice.\n\nTap a prompt below or type a question to get started.`,
       agent: 'MintU AI',
       agentEmoji: '✨',
       ts: Date.now(),
     }]);
   }, []);
+
+  // ─── CTA Handler — routes the AI's suggested action button ───
+  const handleCTA = (cta: CTAButton) => {
+    if (!cta?.action) return;
+    const [kind, payload] = cta.action.split(':');
+    if (kind === 'navigate' && payload) {
+      try { router.push(payload as any); } catch { /* noop */ }
+    } else if (kind === 'modal') {
+      // Trigger the relevant modal on target screen via query param
+      if (payload === 'sms_scan') router.push('/transactions?openSmsScan=1' as any);
+    }
+  };
 
   const sendMessage = async (text: string) => {
     if (!text.trim() || chatLoading) return;
@@ -80,11 +104,14 @@ export default function InsightsScreen() {
         agent: agentInfo?.name || 'AI Coach',
         agentEmoji: agentInfo?.emoji || '🤖',
         ts: Date.now(),
+        mode: res.data.mode,
+        issues: res.data.issues || [],
+        ctas: res.data.ctas || [],
       }]);
     } catch {
       setMessages(prev => [...prev.slice(0, -1), {
         role: 'ai',
-        text: "Something went wrong on my end 😅\nCould you try asking again?",
+        text: "I could not reach the server. Please check your connection and try again.",
         agent: 'MintU AI',
         agentEmoji: '⚠️',
         ts: Date.now(),
@@ -100,6 +127,13 @@ export default function InsightsScreen() {
 
   const renderChatMsg = ({ item, index }: { item: ChatMsg; index: number }) => {
     const isUser = item.role === 'user';
+    const modeMeta = item.mode === 'no_data'
+      ? { label: 'No data yet', color: '#94A3B8', bg: '#94A3B815' }
+      : item.mode === 'partial'
+      ? { label: 'Low confidence', color: '#F59E0B', bg: '#F59E0B15' }
+      : item.mode === 'full'
+      ? { label: 'High confidence', color: '#10B981', bg: '#10B98115' }
+      : null;
     return (
       <View style={[styles.msgContainer, isUser ? styles.msgContainerUser : styles.msgContainerAi]}>
         {!isUser && (
@@ -109,9 +143,17 @@ export default function InsightsScreen() {
             </View>
           </View>
         )}
-        <View style={{ maxWidth: '80%' }}>
+        <View style={{ maxWidth: '85%', flex: isUser ? 0 : 1 }}>
           {!isUser && item.agent && !item.loading && (
-            <Text style={styles.agentLabel}>{item.agentEmoji} {item.agent}</Text>
+            <View style={styles.aiMetaRow}>
+              <Text style={styles.agentLabel}>{item.agentEmoji} {item.agent}</Text>
+              {modeMeta && (
+                <View style={[styles.modePill, { backgroundColor: modeMeta.bg }]}>
+                  <View style={[styles.modeDot, { backgroundColor: modeMeta.color }]} />
+                  <Text style={[styles.modePillText, { color: modeMeta.color }]}>{modeMeta.label}</Text>
+                </View>
+              )}
+            </View>
           )}
           <View style={[styles.msgBubble, isUser ? styles.bubbleUser : styles.bubbleAi]}>
             {item.loading ? (
@@ -120,6 +162,28 @@ export default function InsightsScreen() {
               <Text style={[styles.msgText, isUser ? styles.textUser : styles.textAi]}>{item.text}</Text>
             )}
           </View>
+
+          {/* Detected issues (if any) */}
+          {!isUser && !item.loading && item.issues && item.issues.length > 0 && (
+            <View style={styles.issuesBox}>
+              <Ionicons name="alert-circle" size={13} color="#E65100" />
+              <Text style={styles.issuesText}>{item.issues[0]}</Text>
+            </View>
+          )}
+
+          {/* Action CTAs */}
+          {!isUser && !item.loading && item.ctas && item.ctas.length > 0 && (
+            <View style={styles.ctaRow}>
+              {item.ctas.map((cta, i) => (
+                <TouchableOpacity key={cta.id + i} style={styles.ctaBtn} onPress={() => handleCTA(cta)} activeOpacity={0.7}>
+                  <Ionicons name={cta.icon as any} size={14} color={COLORS.accent.primary} />
+                  <Text style={styles.ctaText} numberOfLines={1}>{cta.label}</Text>
+                  <Ionicons name="arrow-forward" size={12} color={COLORS.accent.primary} />
+                </TouchableOpacity>
+              ))}
+            </View>
+          )}
+
           {!item.loading && (
             <Text style={[styles.timeLabel, isUser && { textAlign: 'right' }]}>{formatTime(item.ts)}</Text>
           )}
@@ -204,14 +268,25 @@ const styles = StyleSheet.create({
   msgContainerAi: { justifyContent: 'flex-start' },
   aiAvatarWrap: { marginRight: 8, marginTop: 20 },
   aiAvatar: { width: 32, height: 32, borderRadius: 16, backgroundColor: COLORS.accent.primary + '12', justifyContent: 'center', alignItems: 'center' },
-  agentLabel: { fontSize: 11, fontWeight: '600', color: COLORS.accent.primary, marginBottom: 4, marginLeft: 4 },
+  agentLabel: { fontSize: 11, fontWeight: '600', color: COLORS.accent.primary },
+  aiMetaRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 6, marginLeft: 4 },
+  modePill: { flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: 8, paddingVertical: 2, borderRadius: 999 },
+  modeDot: { width: 6, height: 6, borderRadius: 3 },
+  modePillText: { fontSize: 10, fontWeight: '700', letterSpacing: 0.3 },
   msgBubble: { borderRadius: 20, paddingHorizontal: 16, paddingVertical: 12 },
   bubbleUser: { backgroundColor: COLORS.accent.primary, borderBottomRightRadius: 6 },
   bubbleAi: { backgroundColor: COLORS.bg.card, borderBottomLeftRadius: 6, borderWidth: 1, borderColor: COLORS.border.card },
-  msgText: { fontSize: 15, lineHeight: 22 },
+  msgText: { fontSize: 14, lineHeight: 21 },
   textUser: { color: '#fff' },
   textAi: { color: COLORS.text.primary },
   timeLabel: { fontSize: 10, color: COLORS.text.muted, marginTop: 4, marginLeft: 4 },
+  // Detected issues
+  issuesBox: { flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: '#FFF4E5', borderLeftWidth: 3, borderLeftColor: '#E65100', paddingVertical: 8, paddingHorizontal: 10, borderRadius: 8, marginTop: 8 },
+  issuesText: { flex: 1, fontSize: 12, color: '#7C2D12', fontWeight: '500', lineHeight: 17 },
+  // CTA action buttons
+  ctaRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginTop: 10 },
+  ctaBtn: { flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: COLORS.accent.primary + '12', borderWidth: 1, borderColor: COLORS.accent.primary + '35', paddingHorizontal: 12, paddingVertical: 8, borderRadius: 999 },
+  ctaText: { fontSize: 12, fontWeight: '700', color: COLORS.accent.primary, maxWidth: 180 },
   // Chips
   chipsWrap: { flexDirection: 'row', flexWrap: 'wrap', paddingHorizontal: SPACING.lg, paddingBottom: 8, gap: 8 },
   chip: { flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: COLORS.bg.card, paddingHorizontal: 14, paddingVertical: 10, borderRadius: RADIUS.full, borderWidth: 1, borderColor: COLORS.border.card },

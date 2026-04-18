@@ -481,7 +481,7 @@ Return ONLY valid JSON."""
 
 @api_router.post("/ai/agent-chat")
 async def agentic_ai_chat(data: dict, user_id: str = Depends(get_current_user)):
-    """Multi-agent AI finance assistant with memory and proactive behavior"""
+    """Product-native AI Financial Assistant — structured, data-aware, actionable."""
     from bson import ObjectId
     
     message = data.get("message", "")
@@ -509,29 +509,75 @@ async def agentic_ai_chat(data: dict, user_id: str = Depends(get_current_user)):
         category_spend[doc["_id"]] = {"total": doc["total"], "count": doc["count"]}
     
     total_expense = sum(c["total"] for c in category_spend.values())
+    total_txn_count = sum(c["count"] for c in category_spend.values())
     
     # Income
     income_pipe = [
         {"$match": {"user_id": user_id, "type": {"$in": ["income", "credit"]}, "date": {"$gte": month_start}}},
-        {"$group": {"_id": None, "total": {"$sum": "$amount"}}}
+        {"$group": {"_id": None, "total": {"$sum": "$amount"}, "count": {"$sum": 1}}}
     ]
     income_docs = await db.transactions.aggregate(income_pipe).to_list(1)
     total_income = income_docs[0]["total"] if income_docs else 0
+    income_count = income_docs[0]["count"] if income_docs else 0
     
-    # Budgets
-    budgets = await db.budgets.find({"user_id": user_id}).to_list(20)
+    # Budgets — collect all to detect duplicates
+    budgets = await db.budgets.find({"user_id": user_id}).to_list(50)
+    budget_categories = [b["category"] for b in budgets]
+    duplicate_budgets = sorted({c for c in budget_categories if budget_categories.count(c) > 1})
     budget_info = []
     for b in budgets:
         spent = category_spend.get(b["category"], {}).get("total", 0)
         pct = (spent / max(b["amount"], 1)) * 100
         budget_info.append(f"{b['category']}: ₹{spent:,.0f}/₹{b['amount']:,.0f} ({pct:.0f}%)")
     
-    # Split balances
-    balances = await db.split_expenses.find({"splits.user_id": user_id}).to_list(50)
-    
-    # Recent transactions (last 10)
+    # Recent transactions (last 7)
     recent_txns = await db.transactions.find({"user_id": user_id}).sort("date", -1).to_list(10)
-    recent_str = "\n".join([f"  - {t.get('description','?')}: ₹{t['amount']:,.0f} ({t.get('category','?')}) on {t['date'].strftime('%b %d') if t.get('date') else '?'}" for t in recent_txns[:7]])
+    recent_str = "\n".join([
+        f"  - {t.get('description','?')}: ₹{t['amount']:,.0f} ({t.get('category','?')}) on {t['date'].strftime('%b %d') if t.get('date') else '?'}"
+        for t in recent_txns[:7]
+    ])
+    
+    # ─── DATA MODE DETECTION ───
+    # no_data: 0 txns → guide onboarding only
+    # partial: 1-4 txns OR no income → low confidence insights
+    # full: 5+ txns AND income → strong insights
+    if total_txn_count == 0:
+        data_mode = "no_data"
+    elif total_txn_count < 5 or income_count == 0:
+        data_mode = "partial"
+    else:
+        data_mode = "full"
+    
+    # ─── APP ISSUE DETECTION ───
+    detected_issues = []
+    if duplicate_budgets:
+        detected_issues.append(f"Duplicate budgets for: {', '.join(duplicate_budgets)}")
+    if total_txn_count > 0 and income_count == 0:
+        detected_issues.append("No income recorded this month — savings rate cannot be computed accurately")
+    if total_txn_count == 0:
+        detected_issues.append("No transactions tracked yet this month")
+    if total_income > 0 and total_expense > total_income * 2:
+        detected_issues.append(f"Expenses (₹{total_expense:,.0f}) exceed 2x income (₹{total_income:,.0f}) — possible untracked income")
+    
+    # ─── RELEVANT CTAs (rule-based, based on data state + message intent) ───
+    suggested_ctas = []
+    msg_lower = message.lower()
+    if total_txn_count == 0:
+        suggested_ctas.append({"id": "scan_sms", "label": "Scan SMS for expenses", "icon": "scan", "action": "navigate:/transactions?openSmsScan=1"})
+        suggested_ctas.append({"id": "add_expense", "label": "Add first expense", "icon": "add-circle", "action": "navigate:/transactions?openAdd=1"})
+    elif income_count == 0:
+        suggested_ctas.append({"id": "add_income", "label": "Add income", "icon": "cash", "action": "navigate:/transactions?openAdd=1&type=credit"})
+    if duplicate_budgets:
+        suggested_ctas.append({"id": "fix_budget", "label": "Fix duplicate budgets", "icon": "build", "action": "navigate:/budget"})
+    if total_txn_count > 0 and len(budgets) == 0:
+        suggested_ctas.append({"id": "set_budget", "label": "Set a budget", "icon": "pie-chart", "action": "navigate:/budget"})
+    if any(k in msg_lower for k in ["split", "owe", "friend", "group"]):
+        suggested_ctas.append({"id": "open_split", "label": "Open Splits", "icon": "people", "action": "navigate:/split"})
+    if any(k in msg_lower for k in ["report", "weekly", "trend", "insight"]):
+        suggested_ctas.append({"id": "weekly_report", "label": "View weekly report", "icon": "bar-chart", "action": "navigate:/"})
+    # Dedup CTAs, max 3
+    seen_cta = set()
+    suggested_ctas = [c for c in suggested_ctas if not (c["id"] in seen_cta or seen_cta.add(c["id"]))][:3]
     
     # Load agent memory
     memory = await db.agent_memory.find_one({"user_id": user_id})
@@ -542,10 +588,13 @@ async def agentic_ai_chat(data: dict, user_id: str = Depends(get_current_user)):
         memory_context = f"\nUser Preferences: {prefs}\nKnown Habits: {', '.join(habits[:5])}"
     
     # Build agent-specific system prompt
+    savings_rate_val = round(((total_income - total_expense) / max(total_income, 1)) * 100, 1) if total_income > 0 else 0
     financial_context = f"""USER FINANCIAL PROFILE:
 Name: {user.get('name', 'User')} | Money Score: {user.get('money_score', 50)}/100 | Streak: {user.get('streak_days', 0)} days
-Monthly Income: ₹{total_income:,.0f} | Monthly Expenses: ₹{total_expense:,.0f} | Savings: ₹{max(0, total_income - total_expense):,.0f}
-Savings Rate: {((total_income - total_expense) / max(total_income, 1) * 100):.0f}%
+Monthly Income: ₹{total_income:,.0f} ({income_count} txns) | Monthly Expenses: ₹{total_expense:,.0f} ({total_txn_count} txns) | Savings: ₹{max(0, total_income - total_expense):,.0f}
+Savings Rate: {savings_rate_val}%
+DATA MODE: {data_mode.upper()}
+DETECTED ISSUES: {'; '.join(detected_issues) if detected_issues else 'None'}
 
 CATEGORY SPENDING (This Month):
 {chr(10).join(f'  {cat}: ₹{data["total"]:,.0f} ({data["count"]} txns)' for cat, data in sorted(category_spend.items(), key=lambda x: x[1]["total"], reverse=True)) or '  No data yet'}
@@ -558,149 +607,121 @@ RECENT TRANSACTIONS:
 {memory_context}"""
 
     agent_system_prompts = {
-        "expense_tracker": f"""You are MintU's {agent['emoji']} Expense Tracker Agent — an expert at categorizing and analyzing expenses.
+        "expense_tracker": f"""You are MintU's {agent['emoji']} Expense Tracker — a precise, data-first assistant for Indian users.
 
 CAPABILITIES:
-- Automatically categorize expenses into: Food, Transport, Entertainment, Shopping, Bills, Health, Education, Groceries, Other
-- Detect spending anomalies (unusual amounts, new merchants, spikes)
-- Identify recurring expenses
-- Flag potential duplicate charges
+- Categorize expenses: Food, Transport, Entertainment, Shopping, Bills, Health, Education, Groceries, Other
+- Detect spending anomalies and potential duplicate charges
+- Identify recurring expenses and miscategorization
 
-PERSONALITY: Precise, detail-oriented, helpful. Use specific numbers.
+{financial_context}""",
 
-{financial_context}
-
-RULES:
-- Reference ACTUAL transaction data — never make up numbers
-- If you spot an anomaly, explain why it's unusual
-- Suggest better categories if you see miscategorization
-- Be concise (max 4 sentences per insight)""",
-
-        "budget_manager": f"""You are MintU's {agent['emoji']} Budget Manager Agent — proactive budget optimizer for Indian users.
+        "budget_manager": f"""You are MintU's {agent['emoji']} Budget Manager — proactive budget optimizer for Indian users.
 
 CAPABILITIES:
-- Set and adjust dynamic budgets based on spending patterns
+- Set and adjust realistic budgets based on Indian cost-of-living benchmarks (25% food, 10% transport, 20% bills, 30% savings)
 - Alert when approaching/exceeding thresholds
-- Suggest realistic budget targets (based on Indian cost of living)
-- Recommend budget reallocation between categories
+- Suggest specific ₹ reallocation — never vague advice
 
-PERSONALITY: Firm but encouraging. Like a friendly financial advisor.
+{financial_context}""",
 
-{financial_context}
-
-RULES:
-- Use Indian benchmarks (25% food, 10% transport, 20% bills, 30% savings)
-- Suggest specific ₹ amounts, not vague advice
-- If budget exceeded, suggest specific cuts
-- Reference SIP, FD, PPF for savings recommendations""",
-
-        "split_manager": f"""You are MintU's {agent['emoji']} Split Manager Agent — fair split calculator and payment reminder.
+        "split_manager": f"""You are MintU's {agent['emoji']} Split Manager — fair split calculator and payment coordinator.
 
 CAPABILITIES:
-- Calculate fair splits (equal, by income, by consumption)
-- Track who owes whom
-- Generate payment reminders (friendly, not pushy)
-- Suggest settlement strategies (netting, UPI)
+- Calculate fair splits (equal, income-weighted, consumption-based)
+- Track balances across groups and suggest simplest settlement paths
+- Recommend UPI for instant settlements
 
-PERSONALITY: Diplomatic, fair, organized.
+{financial_context}""",
 
-{financial_context}
-
-RULES:
-- Always suggest the simplest settlement path
-- Recommend UPI for instant payments
-- Be sensitive about money between friends
-- Use casual Indian English""",
-
-        "insights_agent": f"""You are MintU's {agent['emoji']} Insights & Trends Agent — data storyteller who makes numbers interesting.
+        "insights_agent": f"""You are MintU's {agent['emoji']} Insights Agent — data storyteller who surfaces actionable patterns.
 
 CAPABILITIES:
-- Generate weekly/monthly spending summaries
-- Identify trends and patterns (rising/falling categories)
-- Compare current vs previous periods
-- Provide percentile comparisons with other users
-- Create digestible financial snapshots
+- Summarize weekly/monthly spending with specific ₹ comparisons
+- Identify rising/falling categories vs prior period
+- Surface one clear actionable pattern, not generic commentary
 
-PERSONALITY: Insightful, encouraging, data-driven but relatable.
+{financial_context}""",
 
-{financial_context}
-
-RULES:
-- Make insights ACTIONABLE — don't just report, suggest
-- Use comparisons ("30% more than last week")
-- Reference Indian context (festivals, seasons affecting spending)
-- Keep it punchy — max 3-4 key insights""",
-
-        "market_intel": f"""You are MintU's {agent['emoji']} Market Intelligence Agent — India's smartest money-saving advisor.
+        "market_intel": f"""You are MintU's {agent['emoji']} Market Intelligence — India-specific money-saving advisor.
 
 CAPABILITIES:
-- Identify subscription savings (Netflix annual vs monthly, etc.)
-- Suggest cheaper alternatives for services
-- Inflation-aware spending advice
-- Investment tips (SIP, FD, gold, NPS, PPF)
-- Tax-saving recommendations (80C, 80D, HRA)
-- Insurance optimization
+- Subscription savings, cheaper alternatives, inflation-aware advice
+- Tax-saving recommendations (80C, 80D, HRA, ELSS) grounded in user's income
+- Reference real Indian products only: Zerodha, Groww, HDFC, SBI, LIC
+- Never give specific stock picks (education only)
 
-PERSONALITY: Sharp, knowledgeable, like a fintech-savvy friend.
+{financial_context}""",
 
-{financial_context}
-
-RULES:
-- Reference REAL Indian products/services (Zerodha, Groww, HDFC, SBI)
-- Calculate actual savings ("Switching to annual Netflix = ₹600/year saved")
-- Consider user's income level for investment advice
-- Tax tips relevant to Indian tax slabs
-- Be specific — name products, amounts, percentages""",
-
-        "money_school": f"""You are MintU's {agent['emoji']} Money School — a friendly Indian finance TEACHER who explains concepts clearly.
+        "money_school": f"""You are MintU's {agent['emoji']} Money School — concise finance educator for Indian users.
 
 CAPABILITIES:
-- Teach finance basics: SIPs, mutual funds, stocks, FDs, PPF, NPS, ELSS, REITs, index funds
-- Explain tax concepts: 80C, 80D, HRA, old vs new regime, ELSS, capital gains
-- Credit & loans: CIBIL score, how to improve it, home/personal/education loans
-- Budget frameworks: 50/30/20 rule, envelope method, zero-based budgeting
-- Protection: emergency funds, term insurance, health insurance
-- Advanced: compound interest, diversification, asset allocation, inflation
+- Teach SIPs, mutual funds, FDs, PPF, NPS, ELSS, CIBIL, tax regimes, term/health insurance
+- Use relatable Indian analogies (SIP = pocket-money jar)
+- Reference real platforms: Zerodha, Groww, HDFC, SBI
 
-TEACHING PERSONALITY:
-- Like a friendly IIM professor who explains complex things simply
-- Use relatable Indian analogies (SIP = pocket-money jar, diversification = thali not biryani-only)
-- Give concrete ₹ numbers and real Indian examples (Zerodha, Groww, HDFC, SBI, LIC)
-- Structure answers: **What it is → Why it matters → How to start → Common mistakes**
-- Always connect back to the user's actual situation if their data is relevant
-
-{financial_context}
-
-RULES:
-- Keep tone encouraging — no finance-bro jargon
-- Break concepts into 3-4 digestible points with emojis
-- End with ONE specific actionable next step (e.g., "Start a ₹500 SIP in a Nifty50 index fund")
-- If user is new to the concept, explain WHY before HOW
-- Never give specific stock/fund picks (only education)
-- Max 5-6 short paragraphs"""
+{financial_context}"""
     }
 
-    # Global conversational instruction for ALL agents
-    CONVERSATIONAL_TONE = """
+    # ─── STRUCTURED RESPONSE RULES (replaces old conversational tone) ───
+    mode_rules = {
+        "no_data": """
+MODE: NO_DATA — User has zero transactions this month.
+- DO NOT give financial advice or recommendations.
+- Guide them to onboard: add first expense, scan SMS, or set monthly income.
+- Be welcoming but short. Acknowledge you cannot analyze without data.
+""",
+        "partial": """
+MODE: PARTIAL_DATA — User has < 5 transactions or no income recorded.
+- Provide LOW-CONFIDENCE insights — explicitly state the confidence is limited.
+- Suggest what data to add for sharper insights (e.g., "Add income to get savings-rate analysis").
+- Avoid strong recommendations like "cut ₹2000" when sample is tiny.
+""",
+        "full": """
+MODE: FULL_DATA — User has enough data for high-confidence insights.
+- Deliver SPECIFIC, data-grounded recommendations.
+- Reference exact categories, ₹ amounts, and percentages from their actual data.
+- Flag real issues from DETECTED ISSUES list above with actionable fixes.
+""",
+    }
 
-MANDATORY STYLE RULES (for ALL responses):
-- Talk like a FRIEND, not a robot. Be warm, natural, sometimes funny.
-- Use casual Indian English (yaar, bro, etc. when appropriate).
-- Start with a reaction or acknowledgment: "Oh nice!", "Hmm interesting...", "Okay so..."
-- Use 1-2 emojis per paragraph (not more). Place them naturally.
-- Format with short paragraphs, bullet points with emojis, and bold numbers.
-- Always highlight ₹ amounts in context: "that's ₹2,500 — almost a week's groceries!"
-- Ask a follow-up question at the end to keep conversation going.
-- Keep responses 3-5 short paragraphs max. No walls of text.
-- If giving advice, make it SPECIFIC to their data — never generic.
-- Reference Indian context: festivals, cricket, chai, local brands, UPI.
+    STRUCTURED_RESPONSE_RULES = f"""
+{mode_rules[data_mode]}
 
-BAD example: "Your food expenses are ₹8,000. Consider reducing."
-GOOD example: "₹8,000 on food this month — that's like ordering Swiggy every single day 😅 Want me to suggest a weekly meal budget that could save you ₹3,000?"
+MANDATORY RESPONSE STRUCTURE (for every response):
+Use EXACTLY this 4-block format with line breaks between blocks. NO preamble. NO sign-off.
+
+**[Direct Answer]**
+One sentence answering the question directly.
+
+**Your Snapshot:**
+• Income: ₹<amount> this month
+• Expenses: ₹<amount> this month
+• <one more relevant data point — top category, savings rate, or txn count>
+
+**Key Insight:**
+• <ONE specific observation grounded in their actual data, OR a detected issue from the list above>
+
+**Next Step:**
+• <ONE concrete action they can take right now — e.g., "Add your salary as income", "Scan SMS to catch missed expenses", "Merge duplicate Food budgets">
+
+TONE RULES:
+- Friendly but PROFESSIONAL. Zero slang — never "yaar", "bro", "dude", "yaan".
+- Every line is a bullet or a bold header. NO paragraphs longer than 2 lines.
+- Total response length: 6-8 lines max (excluding headers).
+- Use ₹ with thousands separators (₹12,500 not 12500).
+- Use bold markdown (**word**) only for headers and critical numbers.
+- Maximum ONE emoji per response, placed in the header of Key Insight or Next Step.
+
+CONTENT RULES:
+- NEVER invent numbers. Use only values from the USER FINANCIAL PROFILE above.
+- If DETECTED ISSUES exist, surface them in Key Insight.
+- Avoid generic advice (e.g., "save more", "track expenses") — every insight must reference a specific category, amount, or behavior from their data.
+- If asked a conceptual question (e.g., "What is SIP?"), reply briefly in the same 4-block format with Snapshot showing their income and a Next Step tailored to their capacity.
 """
 
     system_prompt = agent_system_prompts.get(agent_id, agent_system_prompts["insights_agent"])
-    system_prompt += CONVERSATIONAL_TONE
+    system_prompt += STRUCTURED_RESPONSE_RULES
     system_prompt += get_lang_instruction(lang)
     
     try:
@@ -735,18 +756,48 @@ GOOD example: "₹8,000 on food this month — that's like ordering Swiggy every
                 "name": agent["name"],
                 "emoji": agent["emoji"],
             },
+            "mode": data_mode,
+            "issues": detected_issues,
+            "ctas": suggested_ctas,
             "context": {
                 "money_score": user.get("money_score", 50) if user else 50,
                 "monthly_expense": total_expense,
                 "monthly_income": total_income,
-                "savings_rate": round(((total_income - total_expense) / max(total_income, 1)) * 100, 1) if total_income > 0 else 0,
+                "savings_rate": savings_rate_val,
+                "transaction_count": total_txn_count,
             }
         }
     except Exception as e:
         logging.error(f"Agent chat error: {e}")
+        # Structured fallback (rule-based, mirrors the 4-block format)
+        if data_mode == "no_data":
+            fallback_reply = (
+                "**Let's get started**\n\n"
+                "**Your Snapshot:**\n"
+                "• No transactions tracked this month yet\n\n"
+                "**Key Insight:**\n"
+                "• I cannot provide personalized advice without transaction data\n\n"
+                "**Next Step:**\n"
+                "• Scan your SMS inbox or add your first expense"
+            )
+        else:
+            top_cat = max(category_spend, key=lambda k: category_spend[k]['total']) if category_spend else "—"
+            fallback_reply = (
+                f"**Quick summary**\n\n"
+                f"**Your Snapshot:**\n"
+                f"• Income: ₹{total_income:,.0f} | Expenses: ₹{total_expense:,.0f}\n"
+                f"• Top category: {top_cat}\n\n"
+                f"**Key Insight:**\n"
+                f"• {detected_issues[0] if detected_issues else f'Tracking {total_txn_count} transactions across {len(category_spend)} categories'}\n\n"
+                f"**Next Step:**\n"
+                f"• {suggested_ctas[0]['label'] if suggested_ctas else 'Keep tracking expenses for sharper insights'}"
+            )
         return {
-            "reply": f"I'm having trouble right now. Here's a quick insight: Your monthly expenses are ₹{total_expense:,.0f} across {len(category_spend)} categories. {'Your top spend is ' + max(category_spend, key=lambda k: category_spend[k]['total']) + '.' if category_spend else 'Start tracking to get personalized insights!'}",
+            "reply": fallback_reply,
             "agent": {"id": agent_id, "name": agent["name"], "emoji": agent["emoji"]},
+            "mode": data_mode,
+            "issues": detected_issues,
+            "ctas": suggested_ctas,
             "context": {"money_score": user.get("money_score", 50) if user else 50}
         }
 

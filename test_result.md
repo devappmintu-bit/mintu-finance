@@ -663,10 +663,26 @@ metadata:
 
 test_plan:
   current_focus:
-    - "Profile Real Stats (Financial Snapshot)"
+    - "AI Coach Redesign — structured response + data-aware modes + CTAs"
   stuck_tasks: []
   test_all: false
   test_priority: "high_first"
+
+ai_coach_redesign:
+  - task: "AI Coach Redesign — structured response + data-aware modes + CTAs"
+    implemented: true
+    working: true
+    file: "/app/backend/routers/ai.py"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+      - working: "NA"
+        agent: "main"
+        comment: "REDESIGNED POST /api/ai/agent-chat to be a product-native financial assistant. Added data-mode detection (no_data/partial/full), app-issue detection (duplicate budgets, no income, no txns, expense > 2x income), 4-block structured response (Direct Answer / Your Snapshot / Key Insight / Next Step), rule-computed CTAs max 3 deduped, structured fallback on LLM error, trimmed agent prompts. Response payload: {reply, agent, mode, issues[], ctas[], context}."
+      - working: true
+        agent: "testing"
+        comment: "✅ AI COACH REDESIGN — ALL 25/25 ASSERTIONS PASSED (Apr 18 2026). Test script: /app/ai_coach_redesign_test.py. Auth via password fallback (phone 9876543210 / pw test123) → JWT len=155. RESULTS:\n\n(T1) HAPPY PATH — POST /api/ai/agent-chat {message:'Am I overspending?', lang:'en'} → 200. Response has all 6 required top-level keys {reply, agent, mode, issues, ctas, context}. reply non-empty (583 chars, real GPT-5.2 output). mode='full' ∈ allowed enum {no_data, partial, full} ✅. issues is list ✅. ctas is list, len=0 (≤3 ✅). agent={id:'budget_manager', name:'Budget Manager Agent', emoji:'🎯'} — all 3 required keys present ✅. context has all 5 required keys {money_score, monthly_expense, monthly_income, savings_rate, transaction_count} ✅. Real numbers surfaced: income ₹76,000, expense ₹103,149, savings_rate negative (overspending correctly detected).\n\n(T2) STRUCTURED 4-BLOCK FORMAT — reply contains BOTH 'Your Snapshot' AND 'Next Step' markers ✅. Zero slang — no 'yaar', no 'bro' ✅. Line count = 10 (≤ 15 ✅). Reply uses bold markdown **₹76,000**, bullets •, and header structure correctly.\n\n(T3) INTENT→CTA MAPPING — POST {message:'Who owes me?'} → 200; ctas = [{id:'open_split', label:'Open Splits', icon:'people', action:'navigate:/split'}]. Exactly matches spec: id='open_split' and action starts with 'navigate:/split' ✅.\n\n(T4) ERROR HANDLING — POST {message:''} → 400 with detail='Message required' ✅.\n\n(T5) REGRESSION SMOKE — ALL 5/5 ENDPOINTS 200 OK:\n  • GET /api/ai/agents → 200 keys=['agents']\n  • GET /api/ai/proactive-nudges → 200 keys=['nudges','count']\n  • GET /api/insights/daily → 200 keys=['money_score','insight_text','weekly_summary','spending_summary','recommendations','savings_tip']\n  • GET /api/analytics/summary → 200 keys=['total_income','total_expense','balance','transaction_count','category_breakdown']\n  • GET /api/split/groups → 200 list len=18\n\nBACKEND LOGS during the run: zero 500s, zero NameError/ImportError/AttributeError from routers/ai.py or any dependency. Only pre-existing MongoDB index-warning (unrelated, from startup). Lazy proxies for AGENT_PROFILES/route_to_agent still resolving correctly. AI Coach Redesign is PRODUCTION-READY."
 
 production_grade_audit:
   - task: "Profile Real Stats (Financial Snapshot)"
