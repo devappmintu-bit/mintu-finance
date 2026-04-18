@@ -1908,79 +1908,10 @@ async def add_members_to_group(group_id: str, data: dict, user_id: str = Depends
 # Endpoints: GET /referral/my-code, POST /referral/apply, GET /referral/leaderboard, GET /referral/enhanced-status
 
 # ============== 2. GAMIFICATION ENGINE ==============
-BADGES = {
-    "first_track": {"name": "First Step", "desc": "Tracked your first expense", "icon": "footsteps"},
-    "week_streak": {"name": "Week Warrior", "desc": "7-day tracking streak", "icon": "flame"},
-    "month_streak": {"name": "Streak Master", "desc": "30-day tracking streak", "icon": "trophy"},
-    "budget_master": {"name": "Budget Master", "desc": "Stayed within all budgets for a month", "icon": "shield-checkmark"},
-    "saver_pro": {"name": "Saver Pro", "desc": "Saved 20%+ of income", "icon": "cash"},
-    "impulse_killer": {"name": "Impulse Killer", "desc": "Completed a no-Swiggy challenge", "icon": "flash-off"},
-    "money_school": {"name": "Money Scholar", "desc": "Read 10 Money School lessons", "icon": "school"},
-    "family_leader": {"name": "Family CFO", "desc": "Created a family group", "icon": "people"},
-    "voice_tracker": {"name": "Voice Pro", "desc": "Added 10 expenses by voice", "icon": "mic"},
-    "score_80": {"name": "Elite Scorer", "desc": "Reached Money Score 80+", "icon": "star"},
-}
-
-WEEKLY_CHALLENGES = [
-    {"id": "no_swiggy_3", "title": "No Swiggy for 3 days", "desc": "Skip food delivery for 3 days", "category": "Food", "target_days": 3},
-    {"id": "save_500", "title": "Save ₹500 this week", "desc": "Reduce spending by ₹500 vs last week", "category": None, "target_amount": 500},
-    {"id": "cook_5", "title": "Cook 5 meals at home", "desc": "Track 5 home-cooked meals", "category": "Food", "target_count": 5},
-    {"id": "no_shopping", "title": "No Shopping Spree", "desc": "Zero shopping expenses for 5 days", "category": "Shopping", "target_days": 5},
-    {"id": "budget_all", "title": "Budget Everything", "desc": "Set budgets for all your spending categories", "category": None, "target_count": 5},
-    {"id": "cash_tracker", "title": "Cash Detective", "desc": "Track 10 cash expenses this week", "category": None, "target_count": 10},
-]
-
-@api_router.get("/gamification/status")
-async def get_gamification_status(user_id: str = Depends(get_current_user)):
-    """Get user's streak, badges, and active challenge"""
-    from bson import ObjectId
-    user = await db.users.find_one({"_id": ObjectId(user_id)})
-    
-    # Calculate streak
-    today = datetime.utcnow().replace(hour=0, minute=0, second=0, microsecond=0)
-    streak = 0
-    for i in range(365):
-        day_start = today - timedelta(days=i)
-        day_end = day_start + timedelta(days=1)
-        has_txn = await db.transactions.find_one({"user_id": user_id, "date": {"$gte": day_start, "$lt": day_end}})
-        if has_txn:
-            streak += 1
-        else:
-            if i > 0: break  # Allow today to not have txn yet
-    
-    # Get badges
-    user_badges = user.get("badges", [])
-    
-    # Auto-award badges
-    new_badges = []
-    txn_count = await db.transactions.count_documents({"user_id": user_id})
-    if txn_count >= 1 and "first_track" not in user_badges:
-        new_badges.append("first_track")
-    if streak >= 7 and "week_streak" not in user_badges:
-        new_badges.append("week_streak")
-    if streak >= 30 and "month_streak" not in user_badges:
-        new_badges.append("month_streak")
-    score = user.get("money_score", 0)
-    if score >= 80 and "score_80" not in user_badges:
-        new_badges.append("score_80")
-    
-    if new_badges:
-        user_badges.extend(new_badges)
-        await db.users.update_one({"_id": ObjectId(user_id)}, {"$set": {"badges": user_badges}})
-    
-    # Get active challenge
-    from datetime import date
-    week_num = date.today().isocalendar()[1]
-    active_challenge = WEEKLY_CHALLENGES[week_num % len(WEEKLY_CHALLENGES)]
-    
-    return {
-        "streak": streak,
-        "badges_earned": [{"id": b, **BADGES.get(b, {})} for b in user_badges],
-        "badges_available": [{"id": k, **v} for k, v in BADGES.items() if k not in user_badges],
-        "total_badges": len(user_badges),
-        "weekly_challenge": active_challenge,
-        "new_badges": [{"id": b, **BADGES.get(b, {})} for b in new_badges],
-    }
+# Moved to routers/gamification.py (see app.include_router below).
+# Endpoints: GET /gamification/status (streak, badges, weekly challenge).
+# BADGES + WEEKLY_CHALLENGES constants now live in routers/gamification.py
+# (importable via `from routers.gamification import BADGES, WEEKLY_CHALLENGES` if needed elsewhere).
 
 # ============== 3. PREMIUM/FREEMIUM SYSTEM ==============
 PREMIUM_FEATURES = {
@@ -3223,21 +3154,9 @@ async def create_indexes():
 # ============== PHASE 2: LEADERBOARD & ENHANCED REFERRAL ==============
 
 # App download link for shareable content
-APP_DOWNLOAD_LINK = "https://mintu.app/download"
-
-# Daily rotating cards for engagement
-DAILY_CARDS = [
-    {"type": "fact", "emoji": "💡", "title": "Did you know?", "text": "Indians who track expenses save 23% more than those who don't!", "color": "#3B82F6"},
-    {"type": "challenge", "emoji": "🎯", "title": "Today's Challenge", "text": "No unnecessary spending today! Can you do it? 💪", "color": "#8B5CF6"},
-    {"type": "quote", "emoji": "🧠", "title": "Money Wisdom", "text": "\"The habit of saving is itself an education\" — T. T. Munger", "color": "#059669"},
-    {"type": "tip", "emoji": "🔥", "title": "Pro Tip", "text": "Set up a SIP of just ₹500/month. In 10 years, it could be ₹1.1 lakh!", "color": "#F59E0B"},
-    {"type": "fact", "emoji": "📊", "title": "India Stat", "text": "Only 27% of Indians have a monthly budget. You're already ahead!", "color": "#EC4899"},
-    {"type": "challenge", "emoji": "⚡", "title": "Quick Win", "text": "Review your subscriptions today. Cancel one you don't use!", "color": "#10B981"},
-    {"type": "quote", "emoji": "💰", "title": "Wealth Quote", "text": "\"Don't save what's left after spending. Spend what's left after saving.\" — Warren Buffett", "color": "#6366F1"},
-    {"type": "tip", "emoji": "🏦", "title": "Smart Move", "text": "Keep 3 months expenses in a liquid fund. Better than savings account!", "color": "#0EA5E9"},
-    {"type": "fact", "emoji": "🇮🇳", "title": "Indian Finance", "text": "UPI processed 14 billion transactions last month. Track yours with MintU!", "color": "#EF4444"},
-    {"type": "challenge", "emoji": "🌟", "title": "Streak Builder", "text": "Log every expense today, no matter how small. Build that habit!", "color": "#F97316"},
-]
+# APP_DOWNLOAD_LINK + DAILY_CARDS moved to core/content.py.
+# Import for back-compat (other endpoints still use APP_DOWNLOAD_LINK).
+from core.content import APP_DOWNLOAD_LINK, DAILY_CARDS  # noqa: F401
 
 # Profile photo upload
 @api_router.post("/user/avatar")
@@ -3260,18 +3179,8 @@ async def get_avatar(user_id: str = Depends(get_current_user)):
     user = await db.users.find_one({"_id": ObjectId(user_id)}, {"avatar": 1, "name": 1})
     return {"avatar": user.get("avatar", "") if user else "", "name": user.get("name", "") if user else ""}
 
-# Card of the Day — rotates daily + random refresh
-@api_router.get("/card-of-the-day")
-async def card_of_the_day(refresh: bool = False, user_id: str = Depends(get_current_user)):
-    """Get daily rotating motivational/financial card"""
-    import random
-    from datetime import date
-    if refresh:
-        card = random.choice(DAILY_CARDS)
-    else:
-        day_index = date.today().toordinal() % len(DAILY_CARDS)
-        card = DAILY_CARDS[day_index]
-    return {**card, "app_link": APP_DOWNLOAD_LINK}
+# Card of the Day — moved to routers/content.py
+# Endpoint: GET /card-of-the-day (mounted via api_router.include_router(content_router.router))
 
 
 # INDIA FINANCIAL NEWS endpoint has been moved to routers/news.py
@@ -4963,9 +4872,16 @@ Make it FUN, specific, and actionable. Not generic boring advice.{lang_instr}"""
     }
 
 # Include modular domain routers first (so they share the /api prefix)
-from routers import news as news_router, referral as referral_router
+from routers import (
+    news as news_router,
+    referral as referral_router,
+    gamification as gamification_router,
+    content as content_router,
+)
 api_router.include_router(news_router.router)
 api_router.include_router(referral_router.router)
+api_router.include_router(gamification_router.router)
+api_router.include_router(content_router.router)
 
 # Include router
 app.include_router(api_router)
