@@ -60,11 +60,14 @@ def _lazy_attr(name):
 # Bind names used by the extracted endpoints:
 AGENT_PROFILES = _lazy_attr("AGENT_PROFILES")
 MONEY_SCHOOL_LESSONS = _lazy_attr("MONEY_SCHOOL_LESSONS")
+MONEY_SCHOOL_CARDS = _lazy_attr("MONEY_SCHOOL_CARDS")
+XP_LEVELS = _lazy_attr("XP_LEVELS")
 route_to_agent = _lazy_attr("route_to_agent")
 get_system_prompt = _lazy_attr("get_system_prompt")
 generate_insights_with_ai = _lazy_attr("generate_insights_with_ai")
 get_lang_instruction = _lazy_attr("get_lang_instruction")
 calculate_money_score = _lazy_attr("calculate_money_score")
+build_equivalences = _lazy_attr("build_equivalences")
 
 router = APIRouter(tags=["ai"])
 api_router = router  # so extracted @api_router.xxx decorators keep working
