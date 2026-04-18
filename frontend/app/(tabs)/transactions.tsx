@@ -13,6 +13,7 @@ import { t } from '../../utils/i18n';
 import { COLORS, RADIUS, SPACING, CATEGORIES, CATEGORY_LIST } from '../../utils/theme';
 import Toast from 'react-native-toast-message';
 import { TransactionsSkeleton } from '../../components/SkeletonLoader';
+import { PieChart } from 'react-native-gifted-charts';
 
 export default function TransactionsScreen() {
   const { lang } = useLangStore();
@@ -23,20 +24,37 @@ export default function TransactionsScreen() {
   const [smsText, setSmsText] = useState('');
   const [smsLoading, setSmsLoading] = useState(false);
   const [formData, setFormData] = useState({ amount: '', category: 'Food', description: '', type: 'debit' });
-  // Cash quick entry
   const [cashText, setCashText] = useState('');
   const [cashLoading, setCashLoading] = useState(false);
-  // Notification paste
   const [notifText, setNotifText] = useState('');
   const [notifLoading, setNotifLoading] = useState(false);
   const [notifExpanded, setNotifExpanded] = useState(false);
-  // Voice
   const [recording, setRecording] = useState<Audio.Recording | null>(null);
   const [isRecording, setIsRecording] = useState(false);
   const [voiceLoading, setVoiceLoading] = useState(false);
   const pulseAnim = useRef(new Animated.Value(1)).current;
+  // Insights data
+  const [waste, setWaste] = useState<any>(null);
+  const [stats, setStats] = useState<any>(null);
+  const [refreshing, setRefreshing] = useState(false);
 
-  useEffect(() => { fetchTransactions(); }, []);
+  useEffect(() => { fetchAll(); }, []);
+
+  const fetchAll = async () => {
+    try {
+      const [txnRes, wasteRes, statsRes] = await Promise.all([
+        api.get('/transactions'),
+        api.get('/waste-detector').catch(() => ({ data: null })),
+        api.get('/stats/overview').catch(() => ({ data: null })),
+      ]);
+      setTransactions(txnRes.data);
+      if (wasteRes.data) setWaste(wasteRes.data);
+      if (statsRes.data) setStats(statsRes.data);
+    } catch (e) { console.error(e); }
+    finally { setLoading(false); setRefreshing(false); }
+  };
+
+  const fetchTransactions = fetchAll;
 
   useEffect(() => {
     if (isRecording) {
@@ -50,12 +68,6 @@ export default function TransactionsScreen() {
       pulseAnim.setValue(1);
     }
   }, [isRecording]);
-
-  const fetchTransactions = async () => {
-    try { const res = await api.get('/transactions'); setTransactions(res.data); }
-    catch (e) { console.error(e); }
-    finally { setLoading(false); }
-  };
 
   const handleAdd = async () => {
     if (!formData.amount || !formData.description) { Alert.alert(t('error', lang), 'Please fill all fields'); return; }
@@ -242,7 +254,50 @@ export default function TransactionsScreen() {
         maxToRenderPerBatch={15}
         windowSize={10}
         initialNumToRender={10}
-        ListHeaderComponent={null}
+        ListHeaderComponent={
+          <>
+            {/* AI Waste Detector */}
+            {waste && waste.category_waste?.length > 0 && (
+              <View style={styles.wasteCard}>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 6 }}>
+                  <Ionicons name="flame" size={14} color="#EF4444" />
+                  <Text style={styles.wasteTitle}>AI Waste Detector</Text>
+                </View>
+                {waste.category_waste.slice(0, 2).map((w: any, i: number) => (
+                  <View key={i} style={{ marginBottom: 6 }}>
+                    <Text style={styles.wasteShock}>{w.shock_text}</Text>
+                    {w.peer_comparison?.text ? <Text style={styles.wastePeer}>👥 {w.peer_comparison.text}</Text> : null}
+                  </View>
+                ))}
+                {waste.ai_recommendation ? (
+                  <View style={styles.aiRecCard}><Ionicons name="sparkles" size={12} color={COLORS.accent.primary} /><Text style={styles.aiRecText}>{waste.ai_recommendation}</Text></View>
+                ) : null}
+              </View>
+            )}
+            {/* Expense Breakdown Pie Chart */}
+            {stats?.category_breakdown && Object.keys(stats.category_breakdown).length > 0 && (() => {
+              const pieData = Object.entries(stats.category_breakdown).map(([cat, amt]: [string, any]) => ({ value: amt, color: CATEGORIES[cat]?.color || '#64748B', text: cat }));
+              const total = pieData.reduce((s, d) => s + d.value, 0);
+              return (
+                <View style={styles.pieCard}>
+                  <Text style={styles.pieTitleText}>Expense Breakdown</Text>
+                  <View style={{ alignItems: 'center', marginVertical: 10 }}>
+                    <PieChart data={pieData} donut radius={60} innerRadius={40} innerCircleColor={COLORS.bg.card}
+                      centerLabelComponent={() => (<View style={{ alignItems: 'center' }}><Text style={{ fontSize: 14, fontWeight: '800', color: COLORS.text.primary }}>₹{total.toFixed(0)}</Text></View>)} />
+                  </View>
+                  {pieData.slice(0, 4).map((item, i) => (
+                    <View key={i} style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 4 }}>
+                      <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: item.color, marginRight: 8 }} />
+                      <Text style={{ flex: 1, fontSize: 12, color: COLORS.text.secondary }}>{item.text}</Text>
+                      <Text style={{ fontSize: 12, fontWeight: '600', color: COLORS.text.primary }}>₹{item.value.toFixed(0)}</Text>
+                    </View>
+                  ))}
+                </View>
+              );
+            })()}
+            <Text style={styles.sectionLabel}>Transactions</Text>
+          </>
+        }
         ListEmptyComponent={
           <View style={styles.empty}>
             <Ionicons name="receipt-outline" size={56} color={COLORS.text.muted} />
@@ -390,4 +445,14 @@ const styles = StyleSheet.create({
   notifInput: { backgroundColor: '#fff', borderRadius: RADIUS.lg, padding: SPACING.md, fontSize: 14, color: COLORS.text.primary, borderWidth: 1, borderColor: '#C7D2FE', minHeight: 70, textAlignVertical: 'top', marginBottom: SPACING.sm },
   notifParseBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, backgroundColor: '#6366F1', borderRadius: RADIUS.full, paddingVertical: 12 },
   notifParseTxt: { fontSize: 14, fontWeight: '600', color: '#fff' },
+  // Waste Detector & Pie Chart
+  wasteCard: { backgroundColor: '#FEF2F2', borderRadius: RADIUS.xl, padding: 14, marginBottom: 12, borderWidth: 1, borderColor: '#FECACA' },
+  wasteTitle: { fontSize: 13, fontWeight: '700', color: '#991B1B' },
+  wasteShock: { fontSize: 13, fontWeight: '600', color: COLORS.text.primary },
+  wastePeer: { fontSize: 11, color: '#9CA3AF', marginTop: 2 },
+  aiRecCard: { flexDirection: 'row', gap: 6, backgroundColor: COLORS.accent.primary + '08', padding: 10, borderRadius: RADIUS.lg, marginTop: 6 },
+  aiRecText: { flex: 1, fontSize: 12, color: COLORS.text.secondary, lineHeight: 17 },
+  pieCard: { backgroundColor: 'rgba(255,255,255,0.92)', borderRadius: RADIUS.xl, padding: 14, marginBottom: 12, borderWidth: 1, borderColor: 'rgba(238,221,204,0.6)' },
+  pieTitleText: { fontSize: 14, fontWeight: '700', color: COLORS.text.primary },
+  sectionLabel: { fontSize: 14, fontWeight: '700', color: COLORS.text.muted, marginBottom: 8, marginTop: 4 },
 });
