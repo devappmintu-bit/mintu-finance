@@ -1903,96 +1903,9 @@ async def add_members_to_group(group_id: str, data: dict, user_id: str = Depends
 
 # ============== 1. REFERRAL SYSTEM ==============
 
-@api_router.get("/referral/my-code")
-async def get_referral_code(user_id: str = Depends(get_current_user)):
-    """Get or generate user's unique referral code"""
-    from bson import ObjectId
-    user = await db.users.find_one({"_id": ObjectId(user_id)})
-    if not user:
-        raise HTTPException(status_code=404, detail="User not found")
-    
-    code = user.get("referral_code")
-    if not code:
-        code = f"MINTU{user['phone'][-4:]}{uuid_lib.uuid4().hex[:4].upper()}"
-        await db.users.update_one({"_id": ObjectId(user_id)}, {"$set": {"referral_code": code}})
-    
-    # Count referrals
-    referral_count = await db.referrals.count_documents({"referrer_id": user_id})
-    
-    tier = "none"
-    if referral_count >= 10: tier = "legend"
-    elif referral_count >= 3: tier = "premium"
-    elif referral_count >= 1: tier = "starter"
-    
-    return {
-        "referral_code": code,
-        "referral_count": referral_count,
-        "tier": tier,
-        "rewards": {
-            "starter": {"needed": 1, "reward": "Advanced insights (1 week)"},
-            "premium": {"needed": 3, "reward": "Premium features (1 month)"},
-            "legend": {"needed": 10, "reward": "Lifetime badge + perks"},
-        },
-        "share_text": f"I saved money with MintU! Join me and start tracking your expenses smartly. Use my code: {code}\nDownload: https://mintu.app/invite/{code}"
-    }
-
-@api_router.post("/referral/apply")
-async def apply_referral_code(code: dict, user_id: str = Depends(get_current_user)):
-    """Apply a referral code (for new users)"""
-    referral_code = code.get("code", "").strip().upper()
-    if not referral_code:
-        raise HTTPException(status_code=400, detail="Referral code required")
-    
-    # Check if already used
-    existing = await db.referrals.find_one({"referred_id": user_id})
-    if existing:
-        raise HTTPException(status_code=400, detail="You've already used a referral code")
-    
-    # Find referrer
-    referrer = await db.users.find_one({"referral_code": referral_code})
-    if not referrer:
-        raise HTTPException(status_code=404, detail="Invalid referral code")
-    
-    referrer_id = str(referrer["_id"])
-    if referrer_id == user_id:
-        raise HTTPException(status_code=400, detail="Cannot use your own code")
-    
-    # Record referral
-    await db.referrals.insert_one({
-        "referrer_id": referrer_id,
-        "referred_id": user_id,
-        "code": referral_code,
-        "created_at": datetime.utcnow()
-    })
-    
-    # Check if referrer hit new tier
-    count = await db.referrals.count_documents({"referrer_id": referrer_id})
-    from bson import ObjectId
-    if count >= 10:
-        await db.users.update_one({"_id": ObjectId(referrer_id)}, {"$set": {"premium_tier": "legend", "premium_until": None}})
-    elif count >= 3:
-        await db.users.update_one({"_id": ObjectId(referrer_id)}, {"$set": {"premium_tier": "premium", "premium_until": datetime.utcnow() + timedelta(days=30)}})
-    elif count >= 1:
-        await db.users.update_one({"_id": ObjectId(referrer_id)}, {"$set": {"premium_tier": "starter", "premium_until": datetime.utcnow() + timedelta(days=7)}})
-    
-    return {"message": "Referral applied! Welcome to MintU!", "referrer_name": referrer["name"]}
-
-@api_router.get("/referral/leaderboard")
-async def referral_leaderboard():
-    """Top referrers"""
-    pipeline = [
-        {"$group": {"_id": "$referrer_id", "count": {"$sum": 1}}},
-        {"$sort": {"count": -1}},
-        {"$limit": 10}
-    ]
-    results = await db.referrals.aggregate(pipeline).to_list(10)
-    from bson import ObjectId
-    leaderboard = []
-    for r in results:
-        user = await db.users.find_one({"_id": ObjectId(r["_id"])}, {"name": 1})
-        if user:
-            leaderboard.append({"name": user["name"], "referrals": r["count"]})
-    return {"leaderboard": leaderboard}
+# ============== 1. REFERRAL SYSTEM ==============
+# Moved to routers/referral.py (see app.include_router below).
+# Endpoints: GET /referral/my-code, POST /referral/apply, GET /referral/leaderboard, GET /referral/enhanced-status
 
 # ============== 2. GAMIFICATION ENGINE ==============
 BADGES = {
@@ -3361,41 +3274,8 @@ async def card_of_the_day(refresh: bool = False, user_id: str = Depends(get_curr
     return {**card, "app_link": APP_DOWNLOAD_LINK}
 
 
-# INDIA FINANCIAL NEWS (AI-generated daily updates)
-@api_router.get("/news/india-finance")
-async def india_finance_news(user_id: str = Depends(get_current_user)):
-    """AI-generated India-specific daily financial news, schemes, and trends"""
-    from datetime import date
-    today = date.today().isoformat()
-    # Check cache
-    cached = await db.news_cache.find_one({"date": today})
-    if cached and cached.get("articles"):
-        return {"date": today, "articles": cached["articles"]}
-    try:
-        prompt = f"""Generate 6 India-specific financial news items for {today}. Mix these types:
-1. Government scheme update (PM schemes, tax changes, RBI policy)
-2. Market trend (Sensex/Nifty, gold, rupee)
-3. Personal finance tip for young Indians
-4. Banking/UPI/digital payment news
-5. Investment opportunity (SIP, mutual funds, FD rates)
-6. Consumer alert (scam warning, price change, deadline reminder)
-
-For EACH item return JSON: {{"title": "...", "summary": "2 sentences max", "category": "scheme|market|tip|banking|investment|alert", "emoji": "relevant emoji", "source": "credible source name"}}
-Return ONLY a JSON array of 6 items. No markdown."""
-        chat = LlmChat(api_key=os.environ.get("EMERGENT_LLM_KEY", ""), session_id=f"news_{today}", system_message="You are an Indian financial news editor. Today is " + today + ". Generate realistic, timely news.").with_model("openai", "gpt-5.2")
-        resp = await chat.send_message(UserMessage(text=prompt))
-        resp_text = resp.strip() if isinstance(resp, str) else str(resp)
-        import json as json_mod
-        articles = json_mod.loads(resp_text) if resp_text.startswith("[") else json_mod.loads(resp_text[resp_text.index("["):resp_text.rindex("]")+1])
-        await db.news_cache.update_one({"date": today}, {"$set": {"date": today, "articles": articles}}, upsert=True)
-        return {"date": today, "articles": articles}
-    except Exception as e:
-        logging.warning(f"News generation failed: {e}")
-        return {"date": today, "articles": [
-            {"title": "RBI keeps repo rate unchanged at 6.5%", "summary": "The Reserve Bank maintained its policy rate, signaling stable lending rates for home and personal loans.", "category": "banking", "emoji": "🏦", "source": "RBI"},
-            {"title": "Sensex hits new high above 85,000", "summary": "Indian markets rallied on strong FII inflows and positive global cues. IT and banking stocks led gains.", "category": "market", "emoji": "📈", "source": "NSE"},
-            {"title": "New PM Vishwakarma Scheme deadline extended", "summary": "Artisans and craftsmen can now apply until March 2026 for subsidized loans up to ₹3 lakh.", "category": "scheme", "emoji": "🏛️", "source": "PIB"},
-        ]}
+# INDIA FINANCIAL NEWS endpoint has been moved to routers/news.py
+# (Mounted via `api_router.include_router(news_router.router)` below.)
 
 # AI EXPENSE REPORT CARD
 @api_router.get("/reports/ai-expense-card")
@@ -3595,66 +3475,7 @@ async def friend_comparison(user_id: str = Depends(get_current_user)):
     }
 
 # 3. ENHANCED REFERRAL WITH PRO REWARDS
-@api_router.get("/referral/enhanced-status")
-async def enhanced_referral_status(user_id: str = Depends(get_current_user)):
-    """Enhanced referral status with Pro day rewards"""
-    from bson import ObjectId
-    user = await db.users.find_one({"_id": ObjectId(user_id)})
-    if not user:
-        raise HTTPException(status_code=404, detail="User not found")
-    
-    code = user.get("referral_code")
-    if not code:
-        code = f"MINTU{user['phone'][-4:]}{uuid_lib.uuid4().hex[:4].upper()}"
-        await db.users.update_one({"_id": ObjectId(user_id)}, {"$set": {"referral_code": code}})
-    
-    # Get referral details
-    referrals = await db.referrals.find({"referrer_id": user_id}).sort("created_at", -1).to_list(50)
-    referral_count = len(referrals)
-    
-    # Enhanced reward tiers
-    reward_tiers = [
-        {"friends": 1, "reward": "+3 days Pro", "pro_days": 3, "icon": "star", "unlocked": referral_count >= 1},
-        {"friends": 3, "reward": "+7 days Pro", "pro_days": 7, "icon": "diamond", "unlocked": referral_count >= 3},
-        {"friends": 5, "reward": "1 month Pro", "pro_days": 30, "icon": "trophy", "unlocked": referral_count >= 5},
-        {"friends": 10, "reward": "Lifetime Pro", "pro_days": 365, "icon": "crown", "unlocked": referral_count >= 10},
-    ]
-    
-    # Calculate total earned Pro days
-    total_pro_days = 0
-    for tier in reward_tiers:
-        if tier["unlocked"]:
-            total_pro_days = tier["pro_days"]  # Highest unlocked tier
-    
-    # Next milestone
-    next_tier = None
-    for tier in reward_tiers:
-        if not tier["unlocked"]:
-            next_tier = tier
-            break
-    
-    # Recent referral activity
-    recent = []
-    for ref in referrals[:5]:
-        referred = await db.users.find_one({"_id": ObjectId(ref["referred_id"])}, {"name": 1})
-        recent.append({
-            "name": referred.get("name", "Friend") if referred else "Friend",
-            "date": ref["created_at"],
-        })
-    
-    return {
-        "referral_code": code,
-        "referral_count": referral_count,
-        "total_pro_days_earned": total_pro_days,
-        "reward_tiers": reward_tiers,
-        "next_milestone": {
-            "friends_needed": next_tier["friends"] - referral_count if next_tier else 0,
-            "reward": next_tier["reward"] if next_tier else "All unlocked! 🎉",
-        } if next_tier else {"friends_needed": 0, "reward": "All unlocked! 🎉"},
-        "recent_referrals": recent,
-        "share_text": f"🔥 I'm using MintU to track my money smartly! Use my code {code} and we both get Pro features. Download: https://mintu.app/invite/{code}",
-        "whatsapp_text": f"Hey! 👋 I found this amazing finance app called MintU. It tells you exactly where your money goes 💸\n\nUse my code: {code}\nDownload: https://mintu.app/invite/{code}\n\nWe both get Pro features for free! 🎁",
-    }
+# /referral/enhanced-status moved to routers/referral.py
 
 # ============== FEATURE: UPI PAYMENT INTEGRATION ==============
 
@@ -5140,6 +4961,11 @@ Make it FUN, specific, and actionable. Not generic boring advice.{lang_instr}"""
             "total_cards": len(all_cards),
         }
     }
+
+# Include modular domain routers first (so they share the /api prefix)
+from routers import news as news_router, referral as referral_router
+api_router.include_router(news_router.router)
+api_router.include_router(referral_router.router)
 
 # Include router
 app.include_router(api_router)
