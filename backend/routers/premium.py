@@ -50,6 +50,22 @@ class CreateOrderRequest(BaseModel):
     plan: str  # "monthly", "yearly", "intro"
 
 
+def _srv():
+    import server  # noqa: PLC0415
+    return server
+def _lazy(name):
+    class _P:
+        def __call__(self, *a, **kw): return getattr(_srv(), name)(*a, **kw)
+        def __getitem__(self, k): return getattr(_srv(), name)[k]
+        def __iter__(self): return iter(getattr(_srv(), name))
+        def __len__(self): return len(getattr(_srv(), name))
+        def items(self): return getattr(_srv(), name).items()
+        def keys(self): return getattr(_srv(), name).keys()
+        def values(self): return getattr(_srv(), name).values()
+    return _P()
+PREMIUM_FEATURES = _lazy("PREMIUM_FEATURES")
+
+
 
 @api_router.get("/premium/status")
 async def get_premium_status(user_id: str = Depends(get_current_user)):

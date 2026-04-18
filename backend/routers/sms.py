@@ -45,6 +45,18 @@ CATEGORIES = _lazy_attr("CATEGORIES")
 router = APIRouter(tags=["sms"])
 api_router = router  # extracted code uses @api_router.*
 
+def _srv():
+    import server  # noqa: PLC0415
+    return server
+def _lazy(name):
+    class _P:
+        def __call__(self, *a, **kw): return getattr(_srv(), name)(*a, **kw)
+        def __getitem__(self, k): return getattr(_srv(), name)[k]
+        def __iter__(self): return iter(getattr(_srv(), name))
+        def __len__(self): return len(getattr(_srv(), name))
+    return _P()
+SAMPLE_INDIAN_SMS = _lazy("SAMPLE_INDIAN_SMS")
+
 
 
 @api_router.get("/sms/sample-inbox")

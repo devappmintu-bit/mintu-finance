@@ -45,6 +45,11 @@ CATEGORIES = _lazy_attr("CATEGORIES")
 router = APIRouter(tags=["privacy"])
 api_router = router  # extracted code uses @api_router.*
 
+def _srv():
+    import server  # noqa: PLC0415
+    return server
+DATA_RETENTION_DAYS = type("_LazyInt", (), {"__int__": lambda s: getattr(_srv(), "DATA_RETENTION_DAYS"), "__index__": lambda s: getattr(_srv(), "DATA_RETENTION_DAYS"), "__repr__": lambda s: str(getattr(_srv(), "DATA_RETENTION_DAYS"))})()
+
 
 
 @api_router.get("/privacy/data-export")
