@@ -16,6 +16,14 @@ from pydantic import BaseModel
 
 from core import db, get_current_user, cache_get, cache_set, cache_clear_prefix
 from core.content import APP_DOWNLOAD_LINK
+from core.scoring import calculate_money_score
+from core.constants import (
+    INDIA_POPULATION_2025,
+    AGENT_PROFILES, route_to_agent,
+    MONEY_SCHOOL_LESSONS, MONEY_SCHOOL_CARDS, XP_LEVELS,
+    get_lang_instruction,
+    build_equivalences,
+)
 
 try:
     from emergentintegrations.llm.chat import LlmChat, UserMessage
@@ -23,7 +31,6 @@ try:
 except Exception:  # pragma: no cover
     LlmChat = UserMessage = OpenAISpeechToText = None  # type: ignore
 
-INDIA_POPULATION_2025 = 1_460_000_000
 
 # Pydantic model for /ai/chat — kept local to avoid circular import.
 class ChatMessage(BaseModel):
@@ -31,43 +38,17 @@ class ChatMessage(BaseModel):
     lang: Optional[str] = "en"
 
 
-# Lazy server-helper accessor — these live in server.py for now (too entangled to extract yet).
-def _srv():
-    import server  # noqa: PLC0415
-    return server
-
-
-# Shim attributes that route to server.py at call-time (dict-style lookups need a real dict).
-def _lazy_attr(name):
-    """Returns a callable or dict that proxies to server.<name> lazily."""
+# `generate_insights_with_ai` still lives in server.py (depends on db + LLM client
+# that are bootstrapped there). Resolve it lazily to avoid circular import.
+def _lazy_server_attr(name):
     class _Proxy:
         def __call__(self, *a, **kw):
-            return getattr(_srv(), name)(*a, **kw)
-        def __getitem__(self, k):
-            return getattr(_srv(), name)[k]
-        def __iter__(self):
-            return iter(getattr(_srv(), name))
-        def __len__(self):
-            return len(getattr(_srv(), name))
-        def items(self):
-            return getattr(_srv(), name).items()
-        def values(self):
-            return getattr(_srv(), name).values()
-        def keys(self):
-            return getattr(_srv(), name).keys()
+            import server  # noqa: PLC0415
+            return getattr(server, name)(*a, **kw)
     return _Proxy()
 
-# Bind names used by the extracted endpoints:
-AGENT_PROFILES = _lazy_attr("AGENT_PROFILES")
-MONEY_SCHOOL_LESSONS = _lazy_attr("MONEY_SCHOOL_LESSONS")
-MONEY_SCHOOL_CARDS = _lazy_attr("MONEY_SCHOOL_CARDS")
-XP_LEVELS = _lazy_attr("XP_LEVELS")
-route_to_agent = _lazy_attr("route_to_agent")
-get_system_prompt = _lazy_attr("get_system_prompt")
-generate_insights_with_ai = _lazy_attr("generate_insights_with_ai")
-get_lang_instruction = _lazy_attr("get_lang_instruction")
-calculate_money_score = _lazy_attr("calculate_money_score")
-build_equivalences = _lazy_attr("build_equivalences")
+
+generate_insights_with_ai = _lazy_server_attr("generate_insights_with_ai")
 
 router = APIRouter(tags=["ai"])
 api_router = router  # so extracted @api_router.xxx decorators keep working
