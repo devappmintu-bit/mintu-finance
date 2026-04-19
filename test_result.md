@@ -740,6 +740,21 @@ agent_communication:
       message: "✅ ROUND 2 ROUTER REFACTOR REGRESSION TEST COMPLETE (Apr 19 2026) — All 29 effective assertions passed in /app/backend_refactor_round2_test.py. All 11 refactored routers (ab, cash, alerts, privacy, budgets_ext, insights_ext, share, sms, upi, premium, notifications) return 200 with correct shape. All 5 bugs fixed during refactor are verified: (1) notifications send_expo_push lazy-wired ✅, (2) privacy timezone import ✅, (3) ab.py hashlib fix ✅, (4) privacy DATA_RETENTION_DAYS plain constant ✅, (5) premium duplicate shims cleaned ✅. Zero 500s, zero NameError, zero ImportError in backend logs during the entire run. Regression on auth/analytics/home/ai/news/gamification/coins/splits all 200 OK. News endpoint still under 500ms (213ms). The only 403 observed (POST /premium/ai-coach) is expected premium-tier gating at premium.py:174 — test user is free tier so 403 fires before the LlmChat call. Backend is stable and production-ready."
 
 backend_refactor_apr2026:
+  - task: "Three bug fixes + Premium redesign round (Apr 19 2026)"
+    implemented: true
+    working: true
+    file: "/app/frontend/app/(tabs)/transactions.tsx, /app/frontend/app/premium.tsx, /app/backend/routers/news.py, /app/frontend/components/home/NewsCarousel.tsx, /app/frontend/components/home/NewsStoryViewer.tsx, /app/frontend/utils/premium.ts"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+      - working: true
+        agent: "main"
+        comment: "Round 8: (1) SMS parser fix — frontend was calling /api/sms/parse-bulk (404) instead of /api/sms/bulk-parse. Also the placeholder had literal backslash-unicode characters rendering as raw text. Added 'Paste from clipboard' button using expo-clipboard for easier input. (2) News Today fix — cleared polluted `news_cache` with stale 'Seeded test news' rows from earlier testing agent. Added auto-regen in news.py: GET /api/news/india-finance now fires asyncio.create_task for background LLM refresh if cache is empty. Result: no more polluted cache, fresh articles every day. (3) Instagram-style story viewer — tap any news card to open NewsStoryViewer (fullscreen, 3s progress bars per story, tap left/right for prev/next, hold to pause, gradient card per category). (4) Premium redesign — added 4th chip tab 'School' for Money School. Money School is now Yearly-only: free/intro/monthly see a LockedState with upgrade CTA, only ₹499/yr unlocks the full 15-lesson library. Saffron theme already in place from round 5."
+      - working: true
+        agent: "testing"
+        comment: "✅ ALL 21/21 BACKEND TESTS PASSED (Apr 19 2026). Fix 1: /api/sms/bulk-parse parses HDFC/SBI SMS correctly (2/2 parsed). Fix 2: news endpoint returns 6 real LLM articles, is_fallback:false, all required fields present, no stale 'Seeded test news' strings. Fix 3: money-school/lessons still serves 15 lessons for yearly users. Regression: 9/9 existing endpoints still 200 OK. Zero 500s or NameErrors."
+
   - task: "GroupChat.tsx split — 416→268 lines + ExpenseMessage + ExpensesTab components"
     implemented: true
     working: true
