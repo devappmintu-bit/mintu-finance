@@ -2770,3 +2770,37 @@ metadata:
   last_round: 12
   test_sequence: 12
   run_ui: false
+
+# ============================================================================
+# ROUND 12 — Group Management redesign (final item)
+# ============================================================================
+
+frontend:
+  - task: "GroupManageSheet — sectioned redesign for simplicity + tracking"
+    implemented: true
+    file: "components/split/GroupManageSheet.tsx"
+    status_history:
+        - agent: "main"
+          comment: |
+            Rebuilt into 5 clear sections:
+            1. Identity (avatar stack + name + invite code)
+            2. Quick stats (Total spent · Your share · Most active member)
+            3. Actions (Rename / Add member / Share invite — collapsible
+               inline inputs so the sheet stays compact)
+            4. Members list (rows with admin badge + remove icon)
+            5. Danger zone (Leave / Delete) — red-tinted block separated
+               from the rest; destructive confirm dialogs on both.
+            Every stat is derived from the group summary (no hardcoded
+            values). Added "You" tag next to the current user. Smart
+            contextual labels (e.g. "Delete group (admins only)").
+
+  - task: "Round 12 backend smoke regression"
+    implemented: true
+    working: true
+    status_history:
+        - agent: "testing"
+          comment: |
+            14/14 smoke assertions PASSED. News URLs all use
+            news.google.com/search?q=... (rollback verified).
+            Premium mock-activate green. Leaderboard unified green.
+            Split/Transactions/Budgets CRUD green. Zero 500s/NameErrors.
