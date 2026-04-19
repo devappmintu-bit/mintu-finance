@@ -1,151 +1,129 @@
-"""Backend regression test for /api/notifications/send-test + existing notification endpoints.
-
-Runs against the public REACT_APP_BACKEND_URL.
-"""
-import os
-import sys
+"""MintU backend test — validate 3 fixes + regression endpoints (Apr 2026)."""
 import json
+import time
 import requests
-from pathlib import Path
 
-# Load the frontend .env to discover the public backend URL
-FRONTEND_ENV = Path("/app/frontend/.env")
-BASE = None
-if FRONTEND_ENV.exists():
-    for line in FRONTEND_ENV.read_text().splitlines():
-        if line.startswith("REACT_APP_BACKEND_URL="):
-            BASE = line.split("=", 1)[1].strip().strip('"').strip("'")
-            break
-
-if not BASE:
-    print("❌ Could not discover REACT_APP_BACKEND_URL in frontend/.env", file=sys.stderr)
-    sys.exit(1)
-
-API = f"{BASE}/api"
-print(f"🌐 Using backend: {API}")
-
+BASE = "https://mintu-finance.preview.emergentagent.com/api"
 PHONE = "9876543210"
 OTP = "123456"
+PASSWORD = "test123"
 
 results = []
+def log(name, ok, detail=""):
+    tag = "✅" if ok else "❌"
+    results.append((ok, name, detail))
+    print(f"{tag} {name} — {detail}")
 
+# ── AUTH ──────────────────────────────────────────────────────────────
+def login():
+    r = requests.post(f"{BASE}/auth/send-otp", json={"phone": PHONE}, timeout=15)
+    log("POST /auth/send-otp", r.status_code == 200, f"{r.status_code} {r.text[:100]}")
+    r = requests.post(f"{BASE}/auth/verify-otp", json={"phone": PHONE, "otp": OTP}, timeout=15)
+    ok = r.status_code == 200 and "token" in r.json()
+    log("POST /auth/verify-otp", ok, f"{r.status_code} token_len={len(r.json().get('token','')) if ok else 0}")
+    return r.json()["token"] if ok else None
 
-def record(name, passed, detail=""):
-    mark = "✅" if passed else "❌"
-    print(f"{mark} {name}  {detail}")
-    results.append({"name": name, "passed": passed, "detail": detail})
+token = login()
+assert token, "Auth failed — cannot continue"
+HEAD = {"Authorization": f"Bearer {token}"}
 
-
-# ── Step 1: send-otp ────────────────────────────────────────────
-r = requests.post(f"{API}/auth/send-otp", json={"phone": PHONE}, timeout=20)
-record("POST /auth/send-otp", r.status_code == 200, f"status={r.status_code} body={r.text[:200]}")
-
-# ── Step 2: verify-otp (existing user) ──────────────────────────
-r = requests.post(f"{API}/auth/verify-otp", json={"phone": PHONE, "otp": OTP}, timeout=20)
+# ── FIX 1: SMS Bulk Parse ─────────────────────────────────────────────
+print("\n════ FIX 1: SMS /bulk-parse ════")
+payload = {"messages": [
+    "HDFC Bank: Rs 500.00 debited from A/c XX1234 at SWIGGY on 20-APR-26. Avl Bal: Rs 45,320.00",
+    "SBI: Rs 120 UPI paid to Amazon via UPI Ref 123456. Avl Bal Rs 12,000",
+]}
+r = requests.post(f"{BASE}/sms/bulk-parse", json=payload, headers=HEAD, timeout=90)
 ok = r.status_code == 200
-token = None
+detail = f"{r.status_code}"
 if ok:
-    data = r.json()
-    token = data.get("token")
-    ok = bool(token)
-record("POST /auth/verify-otp", ok, f"status={r.status_code} token_len={len(token) if token else 0}")
+    body = r.json()
+    detail += f" parsed={body.get('parsed')} failed={body.get('failed')} total={body.get('total')}"
+    ok = ("parsed" in body and "failed" in body and "total" in body)
+else:
+    detail += f" body={r.text[:200]}"
+log("POST /sms/bulk-parse (2 valid SMS)", ok, detail)
 
-if not token:
-    print("❌ Cannot continue — no auth token.")
-    sys.exit(1)
+r2 = requests.post(f"{BASE}/sms/parse-bulk", json=payload, headers=HEAD, timeout=15)
+log("POST /sms/parse-bulk (old wrong path)", r2.status_code == 404, f"{r2.status_code} (expected 404)")
 
-headers = {"Authorization": f"Bearer {token}"}
+r3 = requests.post(f"{BASE}/sms/bulk-parse", json={"messages": []}, headers=HEAD, timeout=15)
+log("POST /sms/bulk-parse (empty)", r3.status_code == 400, f"{r3.status_code} {r3.text[:100]}")
 
-# ── Step 2.5: clear any existing push_token so we test the "no token" path first ──
-# Call the register endpoint with something, then we need to wipe it. There isn't a
-# public "delete token" endpoint, but we can test the "no token" path by first
-# ensuring user has none — we'll skip wiping and rely on sequence:
-# First test "with existing/cleared token" behaviour is environment-dependent; so:
-#   A) test send-test right now (whatever token state) and validate shape
-#   B) register a fake token and test again
+r4 = requests.post(f"{BASE}/sms/bulk-parse", json=payload, timeout=15)
+log("POST /sms/bulk-parse (no auth)", r4.status_code in (401, 422, 403), f"{r4.status_code}")
 
-# ── Step 3a: send-test (initial state — token may or may not exist) ─────
-r = requests.post(f"{API}/notifications/send-test", headers=headers, timeout=30)
+# ── FIX 2: India Finance News ─────────────────────────────────────────
+print("\n════ FIX 2: News /india-finance ════")
+r = requests.get(f"{BASE}/news/india-finance", headers=HEAD, timeout=30)
 ok = r.status_code == 200
-body = None
-try:
+detail = f"{r.status_code}"
+body = {}
+if ok:
     body = r.json()
-except Exception:
-    pass
-shape_ok = isinstance(body, dict) and "sent" in body and "message" in body and isinstance(body.get("sent"), bool) and isinstance(body.get("message"), str)
-record(
-    "POST /notifications/send-test (initial state)",
-    ok and shape_ok,
-    f"status={r.status_code} sent={body.get('sent') if body else 'n/a'} msg={(body.get('message') if body else r.text)[:120]}",
-)
-initial_body = body
+    articles = body.get("articles", [])
+    detail += f" articles={len(articles)} is_fallback={body.get('is_fallback')} updated_at={body.get('updated_at')}"
+    ok = len(articles) == 6
+log("GET /news/india-finance (1st call)", ok, detail)
 
-# ── Step 4: Register a fake Expo token ──────────────────────────
-fake_token = "ExponentPushToken[test-fake-token-mintu-regression]"
-r = requests.post(
-    f"{API}/notifications/register-token",
-    headers=headers,
-    json={"push_token": fake_token},
-    timeout=20,
-)
-record("POST /notifications/register-token (fake)", r.status_code == 200, f"status={r.status_code} body={r.text[:160]}")
+if body.get("articles"):
+    a = body["articles"][0]
+    fields_ok = all(k in a for k in ("title", "summary", "category", "emoji", "source"))
+    log("  article fields (title/summary/category/emoji/source)", fields_ok, f"keys={list(a.keys())}")
+    not_polluted = all("Seeded test news" not in art.get("title", "") for art in body["articles"])
+    log("  not polluted with 'Seeded test news'", not_polluted, "clean" if not_polluted else "STILL POLLUTED")
 
-# ── Step 5: send-test with fake token — should NOT crash, sent=false ────
-r = requests.post(f"{API}/notifications/send-test", headers=headers, timeout=30)
-ok_status = r.status_code == 200
-body = None
-try:
-    body = r.json()
-except Exception:
-    pass
-shape_ok = isinstance(body, dict) and "sent" in body and "message" in body
-# With a fake token the Expo API should reject it → sent:false, and the response must
-# not be 500. We also expect the "Could not deliver" message OR the "no token" message
-# if the token save raced (unlikely). The contract: NO crash, 200, sent is bool.
-sent_flag_is_bool = isinstance((body or {}).get("sent"), bool)
-record(
-    "POST /notifications/send-test (fake token, should not crash)",
-    ok_status and shape_ok and sent_flag_is_bool,
-    f"status={r.status_code} sent={(body or {}).get('sent')} msg={((body or {}).get('message') or r.text)[:140]}",
-)
+print("  … waiting 40s for background LLM regen …")
+time.sleep(40)
+r2 = requests.get(f"{BASE}/news/india-finance", headers=HEAD, timeout=30)
+if r2.status_code == 200:
+    b2 = r2.json()
+    fresh_ok = (b2.get("is_fallback") is False) and bool(b2.get("updated_at"))
+    log("GET /news/india-finance (post-regen)", fresh_ok,
+        f"is_fallback={b2.get('is_fallback')} updated_at={b2.get('updated_at')} articles={len(b2.get('articles',[]))}")
+    if b2.get("articles"):
+        first_title = b2["articles"][0].get("title", "")
+        log("  fresh LLM article title (sample)", True, first_title[:80])
+else:
+    log("GET /news/india-finance (post-regen)", False, f"{r2.status_code}")
 
-# Print extra detail for the main agent: what messaging did we get?
-if body:
-    print(f"   ↳ sent={body.get('sent')!r}, message={body.get('message')!r}")
-
-# ── Step 6: Regression — check-budget-alerts ────────────────────
-r = requests.get(f"{API}/notifications/check-budget-alerts", headers=headers, timeout=20)
+# ── FIX 3: Money School lessons ─────
+print("\n════ FIX 3: Money School /lessons (backend still open) ════")
+r = requests.get(f"{BASE}/money-school/lessons", headers=HEAD, timeout=15)
 ok = r.status_code == 200
-body = None
-try:
+if ok:
     body = r.json()
-except Exception:
-    pass
-shape_ok = isinstance(body, dict) and "alerts" in body and "total" in body
-record("GET /notifications/check-budget-alerts", ok and shape_ok, f"status={r.status_code} total={(body or {}).get('total')}")
+    lessons = body if isinstance(body, list) else body.get("lessons", [])
+    ok = isinstance(lessons, list) and len(lessons) > 0
+    log("GET /money-school/lessons", ok, f"{r.status_code} count={len(lessons)}")
+else:
+    log("GET /money-school/lessons", False, f"{r.status_code} {r.text[:200]}")
 
-# ── Step 7: Regression — smart-triggers (existing push endpoint) ─
-r = requests.get(f"{API}/notifications/smart-triggers", headers=headers, timeout=20)
-ok = r.status_code == 200
-body = None
-try:
-    body = r.json()
-except Exception:
-    pass
-shape_ok = isinstance(body, dict) and "notifications" in body and "count" in body
-record("GET /notifications/smart-triggers", ok and shape_ok, f"status={r.status_code} count={(body or {}).get('count')}")
+# ── REGRESSION ────────────────────────────────────────────────────────
+print("\n════ REGRESSION ════")
 
+def check(method, path, status_expected=200, **kw):
+    try:
+        r = requests.request(method, f"{BASE}{path}", headers=HEAD, timeout=30, **kw)
+        ok = r.status_code == status_expected
+        log(f"{method} {path}", ok, f"{r.status_code}")
+        return r
+    except Exception as e:
+        log(f"{method} {path}", False, f"EXCEPTION {e}")
+        return None
 
-# ── Summary ─────────────────────────────────────────────────────
-total = len(results)
-passed = sum(1 for x in results if x["passed"])
-print("\n" + "=" * 60)
-print(f"SUMMARY: {passed}/{total} passed")
-print("=" * 60)
-for x in results:
-    mark = "✅" if x["passed"] else "❌"
-    print(f"{mark} {x['name']}")
-    if not x["passed"]:
-        print(f"     └─ {x['detail']}")
+check("GET", "/transactions")
+check("GET", "/analytics/summary")
+check("GET", "/premium/status")
+check("POST", "/premium/tax-calculator", json={"annual_income": 1000000})
+check("POST", "/premium/investment-suggest", json={"monthly_income": 50000, "monthly_expenses": 30000})
+check("GET", "/money-school/daily")
+check("GET", "/money-school/dynamic")
+check("POST", "/notifications/register-token", json={"push_token": "ExponentPushToken[testtokenDoNotDeliver]"})
+check("POST", "/notifications/send-test")
 
-sys.exit(0 if passed == total else 1)
+# ── SUMMARY ──────────────────────────────────────────────────────────
+fail = [(n, d) for ok, n, d in results if not ok]
+print(f"\n════ SUMMARY ════ {len(results)-len(fail)}/{len(results)} passed")
+for n, d in fail:
+    print(f"  FAIL: {n} — {d}")

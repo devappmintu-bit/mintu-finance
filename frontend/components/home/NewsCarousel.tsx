@@ -1,7 +1,8 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, ActivityIndicator } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { COLORS, SPACING } from '../../utils/theme';
+import NewsStoryViewer from './NewsStoryViewer';
 
 interface Props {
   news: any[];
@@ -21,6 +22,8 @@ const categoryColor = (cat: string) => {
 };
 
 export default function NewsCarousel({ news, newsUpdatedAt, newsLoading, onRefresh }: Props) {
+  const [storyOpen, setStoryOpen] = useState(false);
+  const [storyStart, setStoryStart] = useState(0);
   return (
     <View style={{ marginBottom: SPACING.lg, marginHorizontal: -SPACING.lg }}>
       <View style={s.header}>
@@ -64,7 +67,12 @@ export default function NewsCarousel({ news, newsUpdatedAt, newsLoading, onRefre
           {news.map((article: any, i: number) => {
             const color = categoryColor(article.category);
             return (
-              <View key={i} style={[s.card, { borderTopColor: color }]}>
+              <TouchableOpacity
+                key={i}
+                style={[s.card, { borderTopColor: color }]}
+                activeOpacity={0.88}
+                onPress={() => { setStoryStart(i); setStoryOpen(true); }}
+              >
                 <View style={s.catRow}>
                   <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, flex: 1 }}>
                     <View style={[s.catDot, { backgroundColor: color }]} />
@@ -76,8 +84,12 @@ export default function NewsCarousel({ news, newsUpdatedAt, newsLoading, onRefre
                 <Text style={s.summary} numberOfLines={4}>{article.summary}</Text>
                 <View style={s.footer}>
                   <Text style={s.source} numberOfLines={1}>{article.source}</Text>
+                  <View style={s.readMore}>
+                    <Text style={s.readMoreText}>Tap to read</Text>
+                    <Ionicons name="chevron-forward" size={11} color={color} />
+                  </View>
                 </View>
-              </View>
+              </TouchableOpacity>
             );
           })}
           <View style={[s.card, s.endCard]}>
@@ -91,6 +103,13 @@ export default function NewsCarousel({ news, newsUpdatedAt, newsLoading, onRefre
           </View>
         </ScrollView>
       )}
+
+      <NewsStoryViewer
+        visible={storyOpen}
+        articles={news}
+        startIndex={storyStart}
+        onClose={() => setStoryOpen(false)}
+      />
     </View>
   );
 }
@@ -110,8 +129,10 @@ const s = StyleSheet.create({
   cat: { fontSize: 10, fontWeight: '800', letterSpacing: 1, textTransform: 'uppercase' },
   title: { fontSize: 14, fontWeight: '800', color: COLORS.text.primary, lineHeight: 19, marginBottom: 6 },
   summary: { fontSize: 12, color: COLORS.text.secondary, lineHeight: 17 },
-  footer: { marginTop: 10, paddingTop: 10, borderTopWidth: 1, borderTopColor: COLORS.border.subtle },
-  source: { fontSize: 10, fontWeight: '700', color: COLORS.text.muted, textTransform: 'uppercase', letterSpacing: 0.5 },
+  footer: { flexDirection: 'row', alignItems: 'center', marginTop: 10, paddingTop: 10, borderTopWidth: 1, borderTopColor: COLORS.border.subtle },
+  source: { fontSize: 10, fontWeight: '700', color: COLORS.text.muted, textTransform: 'uppercase', letterSpacing: 0.5, flex: 1 },
+  readMore: { flexDirection: 'row', alignItems: 'center', gap: 2 },
+  readMoreText: { fontSize: 10, fontWeight: '800', color: COLORS.accent.primary, letterSpacing: 0.3 },
   endCard: { justifyContent: 'center', alignItems: 'center', backgroundColor: COLORS.accent.primary + '08', borderColor: COLORS.accent.primary + '30' },
   endTitle: { fontSize: 14, fontWeight: '800', color: COLORS.text.primary, marginTop: 8 },
   endSub: { fontSize: 11, color: COLORS.text.muted, marginTop: 4, textAlign: 'center' },

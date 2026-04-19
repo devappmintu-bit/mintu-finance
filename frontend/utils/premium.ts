@@ -78,6 +78,7 @@ export const FEATURES = {
   AD_FREE: 'ad_free',
   EARLY_ACCESS: 'early_access',
   SMART_ALERTS: 'smart_alerts',
+  MONEY_SCHOOL: 'money_school',     // ⭐ Yearly-only: Financial education library
 } as const;
 export type Feature = typeof FEATURES[keyof typeof FEATURES];
 

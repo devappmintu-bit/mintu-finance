@@ -116,7 +116,7 @@ export default function TransactionsScreen() {
       const parts = raw.split(/\n\s*\n|^---$/gm).map(s => s.trim()).filter(s => s.length > 10);
       if (parts.length > 1) {
         // Multi-message flow — call bulk parse endpoint
-        const res = await api.post('/sms/parse-bulk', { messages: parts });
+        const res = await api.post('/sms/bulk-parse', { messages: parts });
         setSmsModalVisible(false); setSmsText(''); fetchTransactions();
         Toast.show({ type: 'success', text1: `Parsed ${res.data?.parsed || 0} messages!`, text2: `${res.data?.failed || 0} skipped` });
       } else {
@@ -322,7 +322,7 @@ export default function TransactionsScreen() {
             </View>
             {/* UNIFIED PASTE — one or multiple messages */}
             <Text style={styles.formLabel}>Paste SMS or bank notifications</Text>
-            <Text style={{ fontSize: 11, color: COLORS.text.muted, marginBottom: 8 }}>\ud83d\udca1 Paste multiple by separating with blank lines — AI detects and parses each</Text>
+            <Text style={{ fontSize: 11, color: COLORS.text.muted, marginBottom: 8 }}>💡 Paste multiple by separating with blank lines — AI detects and parses each</Text>
             <TextInput
               style={[styles.smsInput, { minHeight: 140 }]}
               placeholder={`HDFC Bank: Rs 500.00 debited from A/c XX1234...\n\nSBI: Rs 120 UPI paid to SWIGGY\n\nICICI: Credit card XX9876 charged Rs 2,499 at AMAZON`}
@@ -332,7 +332,34 @@ export default function TransactionsScreen() {
               multiline
               numberOfLines={8}
               textAlignVertical="top"
+              autoCorrect={false}
+              autoCapitalize="none"
+              blurOnSubmit={false}
+              editable={!smsLoading}
+              returnKeyType="default"
             />
+            {/* Paste-from-clipboard helper — works on web + mobile */}
+            <TouchableOpacity
+              style={styles.pasteBtn}
+              activeOpacity={0.8}
+              onPress={async () => {
+                try {
+                  const Clipboard = await import('expo-clipboard');
+                  const text = await Clipboard.getStringAsync();
+                  if (text) {
+                    setSmsText(prev => prev ? prev + '\n\n' + text : text);
+                    Toast.show({ type: 'success', text1: 'Pasted from clipboard', position: 'bottom' });
+                  } else {
+                    Toast.show({ type: 'info', text1: 'Clipboard is empty', position: 'bottom' });
+                  }
+                } catch {
+                  Toast.show({ type: 'info', text1: 'Paste manually using ⌘V / Ctrl+V', position: 'bottom' });
+                }
+              }}
+            >
+              <Ionicons name="clipboard-outline" size={15} color={COLORS.accent.primary} />
+              <Text style={styles.pasteBtnText}>Paste from clipboard</Text>
+            </TouchableOpacity>
             <TouchableOpacity testID="parse-sms-btn" style={[styles.submitBtn, smsLoading && { opacity: 0.6 }]} onPress={handleParseSMS} disabled={smsLoading || !smsText.trim()}>
               {smsLoading ? <ActivityIndicator color={COLORS.bg.primary} /> : (
                 <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
@@ -400,7 +427,9 @@ const styles = StyleSheet.create({
   submitText: { fontSize: 16, fontWeight: '700', color: COLORS.bg.primary },
   smsBanner: { flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: COLORS.accent.warning + '12', borderRadius: RADIUS.lg, padding: SPACING.md, marginBottom: SPACING.lg },
   smsBannerText: { fontSize: 13, color: COLORS.accent.warning, fontWeight: '500' },
-  smsInput: { backgroundColor: COLORS.bg.primary, borderRadius: RADIUS.xl, padding: SPACING.lg, fontSize: 15, color: COLORS.text.primary, borderWidth: 1, borderColor: COLORS.border.subtle, minHeight: 120, marginBottom: SPACING.xxl },
+  smsInput: { backgroundColor: COLORS.bg.primary, borderRadius: RADIUS.xl, padding: SPACING.lg, fontSize: 15, color: COLORS.text.primary, borderWidth: 1, borderColor: COLORS.border.subtle, minHeight: 120, marginBottom: SPACING.sm },
+  pasteBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, paddingVertical: 10, paddingHorizontal: 14, backgroundColor: COLORS.accent.primary + '12', borderRadius: RADIUS.full, borderWidth: 1, borderColor: COLORS.accent.primary + '30', alignSelf: 'flex-start', marginBottom: SPACING.lg },
+  pasteBtnText: { fontSize: 12, fontWeight: '700', color: COLORS.accent.primary },
   // Notification paste card
   // Waste Detector & Pie Chart
   sectionLabel: { fontSize: 14, fontWeight: '700', color: COLORS.text.muted, marginBottom: 8, marginTop: 4 },

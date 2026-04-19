@@ -99,6 +99,16 @@ async def india_finance_news(
     """
     today = date.today().isoformat()
     cached = await db.news_cache.find_one({"date": today})
+
+    # If cache is empty (first request of day, or test pollution cleared it),
+    # kick off a background regen so subsequent calls get real data within ~30s.
+    # This is fire-and-forget and never blocks the response.
+    if not (cached and cached.get("articles")):
+        try:
+            asyncio.create_task(_refresh_news_in_background(today))
+        except RuntimeError:
+            pass  # no event loop yet
+
     articles = (cached or {}).get("articles") or _FALLBACK
     return {
         "date": today,
