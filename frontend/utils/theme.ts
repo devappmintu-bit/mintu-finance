@@ -145,3 +145,14 @@ export const shadowStyle = (color: string, offsetY: number, blur: number, opacit
   const rgba = color.startsWith('#') ? hexToRgba(color, opacity) : color;
   return { boxShadow: `0px ${offsetY}px ${blur}px ${rgba}`, elevation: elev };
 };
+
+
+// ══════════════════════════════════════════════════════════════════════
+//  SHARED CONSTANTS — single source of truth for constants used across screens
+// ══════════════════════════════════════════════════════════════════════
+export const UPI_APPS = [
+  { id: 'gpay',    name: 'Google Pay', color: '#4285F4', icon: 'logo-google' },
+  { id: 'phonepe', name: 'PhonePe',    color: '#5F259F', icon: 'phone-portrait' },
+  { id: 'paytm',   name: 'Paytm',      color: '#00BAF2', icon: 'wallet' },
+  { id: 'bhim',    name: 'BHIM UPI',   color: '#00695C', icon: 'shield-checkmark' },
+] as const;

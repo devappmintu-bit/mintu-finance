@@ -50,12 +50,8 @@ export const getGA = (n: string) => {
   return GROUP_ICONS.default;
 };
 
-export const UPI_APPS = [
-  { id: 'gpay', name: 'Google Pay', color: '#4285F4', icon: 'logo-google' },
-  { id: 'phonepe', name: 'PhonePe', color: '#5F259F', icon: 'phone-portrait' },
-  { id: 'paytm', name: 'Paytm', color: '#00BAF2', icon: 'wallet' },
-  { id: 'bhim', name: 'BHIM', color: '#00695C', icon: 'shield-checkmark' },
-];
+// UPI_APPS is now the single source of truth in /utils/theme.ts — re-export for back-compat
+export { UPI_APPS } from '../../utils/theme';
 
 export const SPLIT_TYPES = [
   { id: 'equal', icon: 'git-compare', label: 'Equal' },

@@ -12,7 +12,7 @@ import { useAuthStore } from '../../store/authStore';
 import { useLangStore } from '../../store/langStore';
 import { t, LANGUAGES } from '../../utils/i18n';
 import api from '../../utils/api';
-import { COLORS, RADIUS, SPACING, shadowStyle } from '../../utils/theme';
+import { COLORS, RADIUS, SPACING, shadowStyle, UPI_APPS } from '../../utils/theme';
 import Toast from 'react-native-toast-message';
 import { useFocusEffect } from 'expo-router';
 import { shareSmart, copyToClipboard, shareImageSmart } from '../../utils/share';
@@ -22,13 +22,6 @@ import ShareScoreCard from '../../components/profile/ShareScoreCard';
 import BadgesSection from '../../components/profile/BadgesSection';
 import WeeklyChallenge from '../../components/profile/WeeklyChallenge';
 import ViewShot, { captureRef } from 'react-native-view-shot';
-
-const UPI_APPS = [
-  { id: 'gpay', name: 'Google Pay', icon: 'logo-google', color: '#4285F4' },
-  { id: 'phonepe', name: 'PhonePe', icon: 'phone-portrait', color: '#5F259F' },
-  { id: 'paytm', name: 'Paytm', icon: 'wallet', color: '#00BAF2' },
-  { id: 'bhim', name: 'BHIM UPI', icon: 'shield-checkmark', color: '#00695C' },
-];
 
 export default function ProfileScreen() {
   const { user, logout, avatar, setAvatar } = useAuthStore();
