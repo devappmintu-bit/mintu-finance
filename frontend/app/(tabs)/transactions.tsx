@@ -15,6 +15,7 @@ import PressableGlass from '../../components/PressableGlass';
 import Toast from 'react-native-toast-message';
 import { TransactionsSkeleton } from '../../components/SkeletonLoader';
 import { PieChart } from 'react-native-gifted-charts';
+import SmartInsightsStrip from '../../components/transactions/SmartInsightsStrip';
 
 // Pure, memoized row — prevents re-renders on unrelated parent state changes (e.g. modals).
 const TxnRow = memo(function TxnRow({ item, lang, onLongPress }: { item: any; lang: string; onLongPress: (id: string) => void }) {
@@ -173,9 +174,6 @@ export default function TransactionsScreen() {
           <Text style={styles.pageSubtitle}>{transactions.length} {t('entries', lang)}</Text>
         </View>
         <View style={styles.headerActions}>
-          <TouchableOpacity testID="sms-parse-btn" style={styles.actionBtn} onPress={() => setSmsModalVisible(true)}>
-            <Ionicons name="scan-outline" size={20} color={COLORS.accent.primary} />
-          </TouchableOpacity>
           <TouchableOpacity testID="add-txn-btn" style={styles.addBtn} onPress={() => setModalVisible(true)}>
             <Ionicons name="add" size={22} color={COLORS.bg.primary} />
           </TouchableOpacity>
@@ -226,6 +224,9 @@ export default function TransactionsScreen() {
         initialNumToRender={10}
         ListHeaderComponent={
           <>
+            {/* Smart Insights — Data-driven spending summary */}
+            <SmartInsightsStrip transactions={transactions} />
+
             {/* AI Expense Report Card */}
             {waste && waste.ai_recommendation ? (
               <View style={styles.reportCard}>

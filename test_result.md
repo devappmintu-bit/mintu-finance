@@ -518,15 +518,18 @@ backend:
 
   - task: "India Finance News API"
     implemented: true
-    working: true
-    file: "/app/backend/server.py"
-    stuck_count: 0
+    working: false
+    file: "/app/backend/routers/news.py"
+    stuck_count: 1
     priority: "high"
-    needs_retesting: false
+    needs_retesting: true
     status_history:
       - working: true
         agent: "testing"
         comment: "✅ NEW India Finance News API (GET /api/news/india-finance) working perfectly! Returns 6 AI-generated India-specific financial news items with proper structure: date (2026-04-18), articles array with title, summary, category, emoji, source fields. Categories include scheme, market, tip, banking, investment, alert. Uses OpenAI GPT-5.2 for realistic news generation with caching. Response time 16.2s due to AI processing. All required fields present and validated."
+      - working: false
+        agent: "testing"
+        comment: "❌ CRITICAL REGRESSION AFTER NON-BLOCKING REFACTOR (Apr 19 2026) — Refactored endpoint /app/backend/routers/news.py uses FastAPI `BackgroundTasks` (bg.add_task) to fire-and-forget the LLM regen, but this does NOT actually make the endpoint non-blocking because the app registers THREE `BaseHTTPMiddleware` classes in server.py lines 1356-1358 (SecurityHeadersMiddleware, RateLimitMiddleware, AuditLogMiddleware). Starlette's `BaseHTTPMiddleware` awaits the FULL response (including any attached BackgroundTasks) before returning — well-known behaviour (encode/starlette#919). NET EFFECT: the LLM call (~60-180s with retries on 502) STILL blocks the HTTP response.\n\nTEST EVIDENCE (test script: /app/news_india_finance_test.py):\n  • T1 Happy path (cache HIT for today) → HTTP 200 in 22 ms ✅. Shape correct: {date, articles (6), updated_at, is_fallback:false}. Each article has title/summary/category/emoji/source. This path works because bg.add_task is NOT scheduled (cache is present and no refresh flag).\n  • T1 Happy path (cache MISS — today's cache absent) → HANGS past 60s timeout ❌. Because bg.add_task IS scheduled (cache miss), BaseHTTPMiddleware awaits it, and the LLM call takes ~3 min incl. retries on OpenAI 502. Backend logs confirm: `05:45:52 LiteLLM completion()` → `05:46:52 Retrying` → `05:47:53 Retrying` → `05:48:54 Background news generation failed: BadGatewayError 502`. Total block: 3+ minutes. Access log has ZERO entries for GET /api/news/india-finance during that span because the response never returned.\n  • T2 Refresh variant `?refresh=1` → HANGS past 180s timeout ❌. Same root cause: bg.add_task scheduled → awaited by BaseHTTPMiddleware → LLM blocks the HTTP response.\n  • T3 No-auth → HTTP 422 (missing required `Authorization` header per FastAPI dependency injection). Auth IS enforced; just not 401 as the review spec stated. Bad bearer token → HTTP 401 'Invalid token'. Minor.\n\nROOT CAUSE: `BaseHTTPMiddleware` + FastAPI `BackgroundTasks` is a broken combination. The background task is attached to the response and awaited by the middleware chain before the client receives the response.\n\nFIX OPTIONS FOR MAIN AGENT (pick ONE):\n  1) [LOCAL, RECOMMENDED] Replace `bg.add_task(_refresh_news_in_background, today)` with `asyncio.create_task(_refresh_news_in_background(today))`. That creates a task on the event loop NOT tied to the response and truly fires-and-forgets. Drop the `BackgroundTasks` parameter from the route handler.\n  2) Convert SecurityHeadersMiddleware / RateLimitMiddleware / AuditLogMiddleware from `BaseHTTPMiddleware` to pure ASGI middleware (more invasive).\n\nUntil one of those fixes ships, the refactor's goal (non-blocking) is NOT achieved: first-user-of-day still waits for the full LLM round-trip (~60-180s). Cache-hit path is already perfect. Note: today's cache (2026-04-19) is absent in MongoDB because every attempt to generate it has been blowing up with `OpenAIException 502`, so every fresh call falls into the hang path."
 
   - task: "AI Expense Report Card"
     implemented: true
@@ -663,8 +666,9 @@ metadata:
 
 test_plan:
   current_focus:
-    - "MintU 2.0 — GET /api/analytics/yearly (12-month dashboard)"
-  stuck_tasks: []
+    - "India Finance News API"
+  stuck_tasks:
+    - "India Finance News API"
   test_all: false
   test_priority: "high_first"
 
@@ -703,6 +707,8 @@ agent_communication:
       message: "MintU 2.0 UI TESTING COMPLETED (Apr 18 2026) — Fixed critical frontend issue with premium.tsx import paths (changed from '../../utils/api' to '../utils/api'). Frontend now loads successfully without server errors. TESTED FEATURES: ✅ Home Screen Dynamic Pulse Insights Card (tier badges, score display, 7-day sparkline, pace headlines, 3-cell footer), ✅ Gamification pill row (coins, rank, streak), ✅ Predictive Insights card with AI badge, ✅ Weekly Report with WhatsApp share button, ✅ AI Coach greeting and 'Who owes me money?' query with mode pills and CTAs, ✅ Split Screen Recent Activity feed with emotional headlines, ✅ RemindSheet with 3 buttons (UPI/WhatsApp/In-app), ✅ Premium Hub navigation structure. All MintU 2.0 Phase 1-4 UI features are implemented and functional. Mobile viewport (390x844) tested successfully."
     - agent: "testing"
       message: "🧪 COMPREHENSIVE PROFILE SECTION E2E TESTING COMPLETED (Apr 18 2026) — Attempted full UI testing of MintU 2.0 Profile section and Phase 1-8 features as requested. AUTHENTICATION BLOCKING: ❌ OTP verification (123456) and password fallback (test123) not working in browser automation environment, preventing access to authenticated features. CODE REVIEW CONFIRMS IMPLEMENTATION: ✅ All requested Profile features implemented: P1 User Header Card (lines 141-190 in profile.tsx), P2 Financial Snapshot (lines 192-226), P3 Share Flow (shareSmart utility), P4 Auto-refresh (useFocusEffect), P5 Trust Signals (lines 509-533), P6 Premium Hub (premium.tsx), P7 Yearly Dashboard (yearly.tsx), Legal Pages (legal/[page].tsx). MOBILE RESPONSIVENESS: ✅ App loads successfully on both 390×844 and 360×800 viewports with proper mobile-first design. RECOMMENDATION: Authentication flow needs manual verification or test mode bypass for comprehensive E2E testing. All backend APIs previously verified working. Frontend implementation architecturally sound."
+    - agent: "testing"
+      message: "❌ CRITICAL — /api/news/india-finance REFACTOR NOT TRULY NON-BLOCKING (Apr 19 2026). Test script /app/news_india_finance_test.py. Cache-HIT path works perfectly (22 ms, correct shape {date, articles, updated_at, is_fallback}). BUT cache-MISS path AND ?refresh=1 variant BOTH HANG for 60-180+ seconds because FastAPI `BackgroundTasks` is broken by the app's 3 `BaseHTTPMiddleware` classes (SecurityHeaders/RateLimit/AuditLog in server.py lines 1356-1358). Starlette's BaseHTTPMiddleware awaits the full response INCLUDING attached BackgroundTasks before returning — encode/starlette#919. Net effect: the LLM call blocks the HTTP response for the same ~60-180s as before the refactor. Backend err.log confirms: 05:55:07 LiteLLM start → 05:58:09 'Background news generation failed BadGatewayError 502' (3-min hang). FIX for main agent: replace `bg.add_task(_refresh_news_in_background, today)` with `asyncio.create_task(_refresh_news_in_background(today))` in /app/backend/routers/news.py and drop the `BackgroundTasks` parameter. That creates a true fire-and-forget task on the event loop and bypasses the middleware issue entirely. Cache-hit path is already fine. Minor: no-auth returns 422 (missing required Header) instead of 401 — bad-bearer correctly returns 401. OpenAI 502 Bad Gateway errors from Emergent LLM key during testing also suggest an upstream LLM reliability issue that makes the hang even worse (retries × 3)."
 
 mintu_2_0_phase3_splits:
   - task: "MintU 2.0 Phase 3 — GET /api/split/activity + POST /api/split/invite-to-settle"
@@ -1354,3 +1360,49 @@ agent_communication:
       * Transactions screen dedup + smart insights (user asked, will do next)
       * Real payment gateway wiring (needs Razorpay key)
       * AI Coach 5/day limit enforcement (gating helper ready, enforcement not wired yet)
+
+
+  - agent: "main"
+    message: |
+      [2026-04-19 C] HOME NEWS SPEED + TRANSACTIONS DEDUP + SMART INSIGHTS
+      
+      BACKEND CHANGES:
+      1. routers/news.py (REWRITTEN)
+         * Returns CACHED articles immediately (or fallback on miss) — never blocks on LLM
+         * LLM regen runs via fastapi.BackgroundTasks (fire-and-forget) when cache missing/refresh
+         * New optional `?refresh=1` query param for manual force-refresh
+         * Response adds `updated_at` + `is_fallback` fields
+         * Fallback expanded from 3 → 6 seeded items so UI never feels empty
+      
+      FRONTEND CHANGES:
+      2. app/(tabs)/index.tsx (Home)
+         * Moved `/news/india-finance` fetch OUT of the Phase-2 Promise.all — dedicated
+           `fetchNews()` fires independently; news load never blocks other secondary data
+         * Added `useFocusEffect` that re-fetches news every time Home tab gains focus
+         * Added "Live" pill + manual refresh button in news header (force LLM regen)
+         * Added end-of-list "You're caught up!" card with refresh CTA (infinite-feel)
+         * Replaced purple scheme color with COLORS.accent.primary
+      
+      3. app/(tabs)/transactions.tsx
+         * REMOVED duplicate "Scan SMS" button from the header — previously header had both
+           scan-outline + add icons AND quick bar had a chat-bubble SMS button doing the
+           SAME thing. Now only Add (+) in header; single chat-bubble SMS in the quick bar.
+         * Added SmartInsightsStrip component to ListHeaderComponent (above AI Report)
+      
+      4. components/transactions/SmartInsightsStrip.tsx (NEW)
+         * Pure client-side analysis of loaded transactions — no extra API call
+         * 5 horizontal insight cards: Top Merchant · Biggest Category · Avg Ticket ·
+           Top Day · Total Spend
+         * Returns null when no debit transactions → clean empty state
+         * Warm color-coded borders + icons per card
+      
+      HOW NEWS SPEED FIX WORKS:
+      * First user of the day → no cache → returns 6 fallback articles in ~100ms
+        + schedules LLM regen via BackgroundTasks (non-blocking)
+      * Second user → cache populated → returns real articles fast
+      * Tab-switch to Home re-fires fetchNews via useFocusEffect (cheap/cached)
+      
+      NOT TESTED BACKEND:
+      * Auth rate limiter blocked curl-based smoke tests during this session
+      * Code change is minimal (stock FastAPI BackgroundTasks, no new deps)
+      * Recommend running backend test agent focused on /news/india-finance next

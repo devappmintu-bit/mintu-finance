@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, memo } from 'react';
+import React, { useState, useEffect, useCallback, memo, useRef } from 'react';
 import {
   View, Text, StyleSheet, ScrollView, RefreshControl, TouchableOpacity, ActivityIndicator,
   Image, Share, Linking, Alert, InteractionManager,
@@ -13,7 +13,7 @@ import api from '../../utils/api';
 import { COLORS, RADIUS, SPACING, CATEGORIES, SHADOW, shadowStyle } from '../../utils/theme';
 import PressableGlass from '../../components/PressableGlass';
 import { BarChart } from 'react-native-gifted-charts';
-import { router } from 'expo-router';
+import { router, useFocusEffect } from 'expo-router';
 import Toast from 'react-native-toast-message';
 import { HomeSkeleton } from '../../components/SkeletonLoader';
 import InsightsCard from '../../components/home/InsightsCard';
@@ -37,6 +37,8 @@ export default function HomeScreen() {
   const [cardOfDay, setCardOfDay] = useState<any>(null);
   const [avatar, setAvatar] = useState<string>('');
   const [news, setNews] = useState<any[]>([]);
+  const [newsUpdatedAt, setNewsUpdatedAt] = useState<string | null>(null);
+  const [newsLoading, setNewsLoading] = useState(false);
   const [fomoItems, setFomoItems] = useState<any[]>([]);
   const [coinsStatus, setCoinsStatus] = useState<any>(null);
   const [showConfetti, setShowConfetti] = useState(false);
@@ -63,14 +65,13 @@ export default function HomeScreen() {
       // Phase 2: Secondary data (deferred until after critical-path paint)
       InteractionManager.runAfterInteractions(async () => {
         try {
-          const [lessonRes, alertsRes, reportRes, lbRes, gameRes, cotdRes, newsRes, fomoRes, predRes, coinsRes, _openCoinsAward] = await Promise.all([
+          const [lessonRes, alertsRes, reportRes, lbRes, gameRes, cotdRes, fomoRes, predRes, coinsRes, _openCoinsAward] = await Promise.all([
             api.get(`/money-school/dynamic?lang=${lang}`).catch(() => ({ data: null })),
             api.get('/alerts/smart').catch(() => ({ data: { alerts: [] } })),
             api.get('/reports/weekly').catch(() => ({ data: null })),
             api.get('/leaderboard/savings').catch(() => ({ data: null })),
             api.get('/gamification/status').catch(() => ({ data: null })),
             api.get('/card-of-the-day').catch(() => ({ data: null })),
-            api.get('/news/india-finance').catch(() => ({ data: { articles: [] } })),
             api.get('/referral/fomo-feed').catch(() => ({ data: { items: [] } })),
             api.get('/ai/predict').catch(() => ({ data: null })),
             api.get('/coins/status').catch(() => ({ data: null })),
@@ -82,7 +83,6 @@ export default function HomeScreen() {
           if (lbRes.data) setLeaderboard(lbRes.data);
           if (gameRes.data) setGamification(gameRes.data);
           if (cotdRes.data) setCardOfDay(cotdRes.data);
-          setNews(newsRes.data?.articles || []);
           setFomoItems(fomoRes.data?.items || []);
           if (predRes.data) setPredict(predRes.data);
           if (coinsRes.data) setCoinsStatus(coinsRes.data);
@@ -92,6 +92,10 @@ export default function HomeScreen() {
           }
         } catch (e) { console.error('Phase2 err', e); }
       });
+
+      // Phase 3 (fully independent): India Finance news — fire separately so
+      // it never blocks the rest of the secondary data and shows fallback fast.
+      fetchNews(/* refresh */ false);
     } catch (error) {
       console.error('Dashboard fetch error:', error);
     } finally {
@@ -102,6 +106,28 @@ export default function HomeScreen() {
 
   useEffect(() => { fetchData(); }, []);
   const onRefresh = () => { setRefreshing(true); fetchData(); };
+
+  // ─── India Finance news: dedicated fetcher so it never blocks the rest ───
+  const fetchNews = useCallback(async (refresh = false) => {
+    setNewsLoading(true);
+    try {
+      const res = await api.get(`/news/india-finance${refresh ? '?refresh=1' : ''}`);
+      setNews(res.data?.articles || []);
+      setNewsUpdatedAt(res.data?.updated_at || null);
+    } catch (e) {
+      // fallback already provided by backend; swallow silently
+    } finally {
+      setNewsLoading(false);
+    }
+  }, []);
+
+  // Re-fetch news every time Home gains focus (covers tab switches & deep re-entry).
+  // Cheap because backend cache returns in ~100ms; keeps "today's news" truly today's.
+  useFocusEffect(
+    useCallback(() => {
+      fetchNews(false);
+    }, [fetchNews])
+  );
 
   const refreshCardOfDay = async () => {
     try {
@@ -427,14 +453,31 @@ export default function HomeScreen() {
         {/* INDIA FINANCE NEWS — Horizontal snap carousel */}
         <View style={{ marginBottom: SPACING.lg, marginHorizontal: -SPACING.lg }}>
           <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: SPACING.lg, marginBottom: SPACING.sm }}>
-            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, flex: 1 }}>
               <Ionicons name="newspaper" size={16} color={COLORS.accent.primary} />
               <Text style={styles.sectionTitle}>India Finance Today</Text>
+              {newsUpdatedAt ? (
+                <View style={styles.freshPill}>
+                  <View style={styles.freshDot} />
+                  <Text style={styles.freshPillText}>Live</Text>
+                </View>
+              ) : null}
             </View>
-            {news.length > 0 && <Text style={{ fontSize: 11, color: COLORS.text.muted }}>Swipe →</Text>}
+            <TouchableOpacity
+              onPress={() => fetchNews(true)}
+              style={styles.newsRefreshBtn}
+              activeOpacity={0.7}
+              disabled={newsLoading}
+            >
+              {newsLoading ? (
+                <ActivityIndicator size="small" color={COLORS.accent.primary} />
+              ) : (
+                <Ionicons name="refresh" size={14} color={COLORS.accent.primary} />
+              )}
+            </TouchableOpacity>
           </View>
           {news.length === 0 ? (
-            <View style={[styles.emptyState, { marginHorizontal: SPACING.lg }]}><ActivityIndicator size="small" color={COLORS.accent.primary} /><Text style={[styles.emptyText, { marginTop: 8 }]}>Loading updates...</Text></View>
+            <View style={[styles.emptyState, { marginHorizontal: SPACING.lg }]}><ActivityIndicator size="small" color={COLORS.accent.primary} /><Text style={[styles.emptyText, { marginTop: 8 }]}>Loading today's news...</Text></View>
           ) : (
             <ScrollView
               horizontal
@@ -444,7 +487,7 @@ export default function HomeScreen() {
               contentContainerStyle={{ paddingHorizontal: SPACING.lg, gap: 12 }}
             >
               {news.map((article: any, i: number) => {
-                const catColor = article.category === 'alert' ? '#EF4444' : article.category === 'market' ? '#10B981' : article.category === 'scheme' ? '#6366F1' : article.category === 'tip' ? '#F59E0B' : COLORS.accent.primary;
+                const catColor = article.category === 'alert' ? '#EF4444' : article.category === 'market' ? '#10B981' : article.category === 'scheme' ? COLORS.accent.primary : article.category === 'tip' ? '#F59E0B' : COLORS.accent.primary;
                 return (
                   <View key={i} style={[styles.newsCard, { borderTopColor: catColor }]}>
                     <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
@@ -462,6 +505,16 @@ export default function HomeScreen() {
                   </View>
                 );
               })}
+              {/* Friendly end-of-list card so infinite-feel ends gracefully */}
+              <View style={[styles.newsCard, styles.newsEndCard]}>
+                <Ionicons name="checkmark-done-circle" size={28} color={COLORS.accent.primary} />
+                <Text style={styles.newsEndTitle}>You're caught up!</Text>
+                <Text style={styles.newsEndSub}>Pull down or tap refresh for updates</Text>
+                <TouchableOpacity style={styles.newsEndBtn} onPress={() => fetchNews(true)} activeOpacity={0.8}>
+                  <Ionicons name="refresh" size={12} color="#fff" />
+                  <Text style={styles.newsEndBtnText}>Refresh now</Text>
+                </TouchableOpacity>
+              </View>
             </ScrollView>
           )}
         </View>
@@ -606,6 +659,16 @@ const styles = StyleSheet.create({
   newsSummary: { fontSize: 12, color: COLORS.text.secondary, lineHeight: 18, marginBottom: 10 },
   newsFooter: { borderTopWidth: 1, borderTopColor: COLORS.border.subtle, paddingTop: 8, marginTop: 'auto' },
   newsSource: { fontSize: 11, fontWeight: '600', color: COLORS.text.muted },
+  // Live / refresh indicators
+  freshPill: { flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: '#10B98115', paddingHorizontal: 6, paddingVertical: 2, borderRadius: 999, marginLeft: 4 },
+  freshDot: { width: 6, height: 6, borderRadius: 3, backgroundColor: '#10B981' },
+  freshPillText: { fontSize: 9, fontWeight: '800', color: '#10B981', letterSpacing: 0.5 },
+  newsRefreshBtn: { width: 28, height: 28, borderRadius: 14, backgroundColor: COLORS.accent.primary + '12', justifyContent: 'center', alignItems: 'center' },
+  newsEndCard: { justifyContent: 'center', alignItems: 'center', gap: 6, borderTopColor: COLORS.accent.primary },
+  newsEndTitle: { fontSize: 15, fontWeight: '800', color: COLORS.text.primary, marginTop: 4 },
+  newsEndSub: { fontSize: 11, color: COLORS.text.muted, textAlign: 'center', marginBottom: 8 },
+  newsEndBtn: { flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: COLORS.accent.primary, paddingHorizontal: 12, paddingVertical: 6, borderRadius: 999 },
+  newsEndBtnText: { fontSize: 11, fontWeight: '700', color: '#fff' },
   // Leaderboard preview on Home
   lbCard: { backgroundColor: 'rgba(255,255,255,0.96)', borderRadius: RADIUS.card, padding: SPACING.lg, marginBottom: SPACING.lg, borderWidth: 1, borderColor: '#F59E0B20' },
   lbHeader: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 12 },
