@@ -2196,3 +2196,157 @@ agent_communication:
 # ✅ Bottom tab bar: Expenses / AI Coach / Budget / Split all present.
 #
 # Round 8 verification: PASS.
+
+# ============================================================================
+# ROUND 9 — Bespoke Tab Bar, Biometric/PIN Unlock, News Source URLs,
+# Premium Saffron Redesign with Mocked Payment
+# ============================================================================
+
+frontend:
+  - task: "Custom MintU bottom tab bar with floating MintU logo center button"
+    implemented: true
+    working: "NA"
+    file: "app/(tabs)/_layout.tsx, components/MintULogo.tsx"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: true
+    status_history:
+        - working: "NA"
+          agent: "main"
+          comment: |
+            Replaced default Expo Router tab bar with a custom notched
+            curve (SVG path) + 4 side tabs (Home / Transactions /
+            Budgets / Split) and a floating saffron MintU logo at the
+            center that opens the AI Coach modal. Created a bespoke
+            MintULogo SVG component — saffron coin with a stylised ₹
+            and a mint-green sprout (never-seen before icon).
+
+  - task: "Biometric / 4-digit PIN unlock + remove password login"
+    implemented: true
+    working: "NA"
+    file: "app/unlock.tsx, components/PinSetupModal.tsx, utils/lockManager.ts, app/auth.tsx, app/index.tsx"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: true
+    status_history:
+        - working: "NA"
+          agent: "main"
+          comment: |
+            New `utils/lockManager.ts` wraps expo-secure-store + expo-local-authentication
+            with a clean API (hasPin, setPin, verifyPin, clearPin, tryBiometric).
+            Stores a salted-hash of a 4-digit PIN on-device. Biometric uses
+            FaceID/Fingerprint when enrolled, falls back to PIN keypad, and
+            there's a "Forgot" escape hatch that clears the PIN and re-routes
+            to OTP login.
+            `app/unlock.tsx` — post-launch unlock screen (auto-triggers
+            biometric prompt, keypad below, branded with MintULogo).
+            `components/PinSetupModal.tsx` — two-step PIN creation
+            (Enter → Confirm) shown once after OTP verification.
+            `app/auth.tsx` — removed "Login with password" block entirely.
+            Password input and its handlers deleted. After successful OTP
+            verify, PinSetupModal is shown for new users or returning
+            users without a PIN yet.
+            `app/index.tsx` (splash) — on relaunch with existing token,
+            routes to `/unlock` if PIN or biometric is set, else `/(tabs)`.
+            `authStore.logout()` now clears the PIN so the next account
+            can set its own.
+
+  - task: "News story viewer — source link opens most-authentic article"
+    implemented: true
+    working: "NA"
+    file: "components/home/NewsStoryViewer.tsx"
+    stuck_count: 0
+    priority: "medium"
+    needs_retesting: true
+    status_history:
+        - working: "NA"
+          agent: "main"
+          comment: |
+            Added a "Read on {source}" CTA button at the bottom of each
+            story card + made the source pill tappable. Both open the
+            article URL via expo-web-browser (native in-app browser on
+            mobile, Linking.openURL on web).
+            Backend `_enrich_article()` computes `source_url` as:
+              • LLM-provided URL if present AND valid, else
+              • A Google News search scoped to a trusted Indian finance
+                outlet (rbi.org.in, nseindia.com, sebi.gov.in, livemint,
+                economictimes, moneycontrol, ...) derived from the
+                article's source field.
+            This way every story reliably opens the most authentic
+            article for its topic without hallucinated URLs.
+
+  - task: "Premium card redesigned — saffron theme, dynamic plan tiles, mocked payment"
+    implemented: true
+    working: "NA"
+    file: "components/profile/PremiumExpandable.tsx, components/MockPaymentSheet.tsx, backend/routers/premium.py"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: true
+    status_history:
+        - working: "NA"
+          agent: "main"
+          comment: |
+            - Rewrote PremiumExpandable with a saffron linear-gradient
+              card (MintU palette) replacing the old navy-purple.
+            - 3 plan tiles (Monthly / Yearly (best-seller badge) / Lifetime)
+              with live-highlight on selection; all values come from
+              `GET /api/premium/status` → `pricing` — NO hardcoded prices.
+            - Each tile shows price, period, savings, and a
+              "Money School" pill when that plan unlocks it (yearly +
+              lifetime only). Money School row in the features list
+              is greyed out until the user picks a plan that includes it.
+            - Upgrade CTA opens the new MockPaymentSheet which mimics
+              Razorpay's UX (amount card → payment-method picker → 2.6s
+              "processing" → success animation → POST /premium/mock-activate).
+            - Backend: `/api/premium/mock-activate` sets `premium_tier`,
+              `premium_plan`, `premium_until`, and `money_school_access`
+              per the selected plan. Status endpoint reflects changes
+              immediately. When real Razorpay keys land, swap the
+              `/mock-activate` callsite for the verified-signature
+              webhook with zero UI changes needed.
+            - Added `lifetime` plan (₹2999) to `core/constants.py` with
+              `includes_money_school:true` and 50-year duration.
+
+backend:
+  - task: "POST /api/premium/mock-activate — mocked payment confirmation"
+    implemented: true
+    working: true
+    file: "routers/premium.py, core/constants.py"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+        - working: true
+          agent: "testing"
+          comment: |
+            16/16 backend assertions passed (Round 9). Tested yearly,
+            monthly, lifetime, invalid plan + status reflection. Zero
+            500s / NameErrors. News source_url enrichment verified
+            across all 6 articles. Pricing payload shape correct with
+            all 4 plans + best_seller + includes_money_school flags.
+
+metadata:
+  version: "1.2"
+  last_round: 9
+  test_sequence: 9
+  run_ui: false
+
+agent_communication:
+    - agent: "main"
+      message: |
+        Round 9 complete — visual + security + commercial upgrade:
+        1. Unique MintU brand mark (saffron coin + stylised ₹ + mint
+           sprout), rendered purely in SVG so it scales as tab icon,
+           app icon, splash logo.
+        2. Custom notched tab bar with a floating center MintU logo
+           that opens AI Coach.
+        3. Password login removed. PIN (4-digit) + biometric unlock
+           flow via expo-secure-store + expo-local-authentication.
+           "Forgot PIN" routes back to OTP.
+        4. News stories now link to the most authentic article via
+           LLM-provided URL or a scoped Google News search on trusted
+           outlets (RBI, NSE, SEBI, Livemint, ET, Moneycontrol…).
+        5. Profile Premium card fully re-skinned in saffron with 3
+           dynamic plan tiles (Monthly/Yearly/Lifetime), mocked
+           Razorpay-style payment sheet, Money School gating, and
+           immediate perk unlock post-payment.
