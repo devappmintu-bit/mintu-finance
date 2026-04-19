@@ -149,7 +149,7 @@ export default function AICoachChat({ onClose }: { onClose: () => void }) {
     setMessages([{
       role: 'ai',
       text: `Hey ${user?.name || 'there'} 👋\n\nI'm your personal money coach — I see your spending and can help you save smarter.\n\nTap a quick prompt below, or ask me anything like **"where am I overspending?"**`,
-      agent: 'MintU AI', agentEmoji: '✨', ts: Date.now(),
+      agent: 'AI Money Coach', agentEmoji: '✨', ts: Date.now(),
     }]);
   }, [user?.name]);
 
@@ -196,7 +196,7 @@ export default function AICoachChat({ onClose }: { onClose: () => void }) {
         {
           role: 'ai',
           text: smartFallback(text, ctx),
-          agent: 'MintU AI',
+          agent: 'AI Money Coach',
           agentEmoji: '📡',
           ts: Date.now(),
           isFallback: true,

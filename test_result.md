@@ -1505,3 +1505,59 @@ agent_communication:
       * No backend changes in this pass — all frontend. Backend /ai/agent-chat
         untouched.
 
+
+
+  - agent: "main"
+    message: |
+      [2026-04-19 F] PRODUCTION POLISH — Avatar sync, AI Insight, Gating, Naming
+      
+      1. PROFILE PHOTO SYNC FIX (store/authStore.ts)
+         Problem: avatar uploaded in Profile was invisible on Home because each screen
+         kept a local useState + its own AsyncStorage calls. First-render on Home hit
+         the API before the AsyncStorage cache hydrated.
+         
+         Fix: extended authStore (Zustand) with a global `avatar` field + `setAvatar()`
+         that persists to AsyncStorage. Both Home and Profile now read `avatar` from
+         the store — upload in Profile → instant Home reflect. loadFromStorage() hydrates
+         avatar from AsyncStorage at app boot.
+         
+         Removed local `useState('')` + 4× AsyncStorage.setItem/getItem/removeItem calls
+         in profile.tsx and index.tsx.
+      
+      2. HOME: NEW AIInsightCard (components/home/AIInsightCard.tsx)
+         Smart, data-driven insight with CTA, inserted below the InsightsCard.
+         Priority routing:
+           • WEEKDAY SPIKE — "You spent 3x more on Friday" when one day ≥ 2× avg
+           • CATEGORY DOMINANT — "Food is 43% of your spend" when top ≥ 40%
+           • BEHIND PACE — "Save ₹2,000 more to hit 20%" when rate < 20%
+           • ON TRACK — "You're saving 64% — well done!" when rate ≥ 20%
+           • DEFAULT — "Log transactions to unlock insights"
+         Each with contextual CTA (Set budget / Ask AI / See investments / Add expense).
+         100% client-side — no extra API call.
+      
+      3. YEARLY DASHBOARD GATING (/app/yearly.tsx)
+         Free/Intro users now see a premium lock screen instead of raw data:
+         • Lock icon in warm orange circle
+         • "Yearly Dashboard is Premium" headline
+         • Description of what they'll unlock
+         • "Unlock with 📊 Monthly · ₹99/mo" pill
+         • "Upgrade to unlock" CTA → routes to /premium
+         Uses existing useActivePlan() + canAccess(FEATURES.YEARLY_DASHBOARD).
+      
+      4. RENAME "MintU AI" → "AI Money Coach"
+         Both chat screens (insights.tsx + AICoachChat.tsx) — sed replace 'MintU AI'
+         agent labels. Welcome message in insights.tsx also updated.
+         
+         Also stripped visible `**` markdown asterisks from insights.tsx welcome
+         (insights.tsx doesn't have the bold-rendering helper; plain text now).
+      
+      5. AICoachChat.tsx comment header still mentions "MintU AI Coach" but the
+         displayed agent label is now "AI Money Coach" — cosmetic only, not user-facing.
+      
+      VERIFIED via Playwright screenshots:
+      • /yearly shows premium lock screen when plan=free
+      • Home renders the new AI Insight card with "Food is 43% of your spend" + CTA
+      • Bottom nav shows "AI Coach" label (not "MintU AI")
+      • "Last updated just now" green pill is live
+      
+      NO backend changes in this pass.

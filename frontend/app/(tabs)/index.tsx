@@ -18,12 +18,13 @@ import Toast from 'react-native-toast-message';
 import { HomeSkeleton } from '../../components/SkeletonLoader';
 import InsightsCard from '../../components/home/InsightsCard';
 import DailyQuestCard from '../../components/DailyQuestCard';
+import AIInsightCard from '../../components/home/AIInsightCard';
 import Confetti from '../../components/Confetti';
 
 const APP_LINK = 'https://mintu.app/download';
 
 export default function HomeScreen() {
-  const { user, setUser } = useAuthStore();
+  const { user, setUser, avatar, setAvatar } = useAuthStore();
   const { lang } = useLangStore();
   const [stats, setStats] = useState<any>(null);
   const [snapshot, setSnapshot] = useState<any>(null);
@@ -35,7 +36,7 @@ export default function HomeScreen() {
   const [leaderboard, setLeaderboard] = useState<any>(null);
   const [gamification, setGamification] = useState<any>(null);
   const [cardOfDay, setCardOfDay] = useState<any>(null);
-  const [avatar, setAvatar] = useState<string>('');
+  // avatar lives in authStore — read via useAuthStore() above; no local state here.
   const [news, setNews] = useState<any[]>([]);
   const [newsUpdatedAt, setNewsUpdatedAt] = useState<string | null>(null);
   const [newsLoading, setNewsLoading] = useState(false);
@@ -270,7 +271,18 @@ export default function HomeScreen() {
 
         {/* FINANCIAL INSIGHTS — MintU 2.0 Dynamic Pulse Card */}
         {snapshot ? (
-          <InsightsCard snapshot={snapshot} onPressSparkline={() => router.push('/(tabs)/transactions')} />
+          <>
+            <InsightsCard snapshot={snapshot} onPressSparkline={() => router.push('/(tabs)/transactions')} />
+            {/* AI INSIGHT CARD — data-driven narrative + CTA (client-side, no extra API call) */}
+            <AIInsightCard
+              transactions={(snapshot as any)?.recent_transactions || []}
+              totalSpend={Number((snapshot as any)?.total_spend_month || stats?.total_expense || 0)}
+              savingsRate={Number((snapshot as any)?.savings_rate || 0)}
+              topCategory={(snapshot as any)?.top_category?.name}
+              topCategoryAmount={Number((snapshot as any)?.top_category?.amount || 0)}
+              monthlyIncome={Number((snapshot as any)?.monthly_income || stats?.total_income || 0)}
+            />
+          </>
         ) : (
           <View style={styles.statsRow}>
             <View style={[styles.statBox, { borderColor: '#10B98120' }]}>

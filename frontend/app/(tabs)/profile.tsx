@@ -31,7 +31,7 @@ const UPI_APPS = [
 ];
 
 export default function ProfileScreen() {
-  const { user, logout } = useAuthStore();
+  const { user, logout, avatar, setAvatar } = useAuthStore();
   const { lang, setLang } = useLangStore();
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -45,7 +45,7 @@ export default function ProfileScreen() {
   const [upiExpanded, setUpiExpanded] = useState(false);
   const [payExpanded, setPayExpanded] = useState(false);
   const [premiumExpanded, setPremiumExpanded] = useState(false);
-  const [avatar, setAvatar] = useState('');
+  // avatar lives in authStore — shared with Home + persists via AsyncStorage
   const [referral, setReferral] = useState<any>(null);
   const [refExpanded, setRefExpanded] = useState(false);
   const [stats, setStats] = useState<any>(null);
@@ -65,7 +65,7 @@ export default function ProfileScreen() {
         api.get('/analytics/summary').catch(() => ({ data: null })),
       ]);
       setUpiId(upiRes.data?.upi_id || '');
-      if (avatarRes.data?.avatar) { setAvatar(avatarRes.data.avatar); await AsyncStorage.setItem('user_avatar', avatarRes.data.avatar); }
+      if (avatarRes.data?.avatar) setAvatar(avatarRes.data.avatar);
       if (refRes.data) setReferral(refRes.data);
       if (statsRes.data) setStats(statsRes.data);
     } catch {} finally { setLoading(false); setRefreshing(false); }
@@ -88,7 +88,7 @@ export default function ProfileScreen() {
     };
   }, [stats]);
 
-  useEffect(() => { AsyncStorage.getItem('user_avatar').then(c => { if (c) setAvatar(c); }); loadData(); }, []);
+  useEffect(() => { loadData(); }, []);
 
   // Auto-refresh on tab focus (e.g., user returns from Premium / Yearly dashboard)
   useFocusEffect(
@@ -97,7 +97,7 @@ export default function ProfileScreen() {
 
   const handleLogout = () => Alert.alert(t('logout', lang), t('logout_confirm', lang), [
     { text: t('cancel', lang), style: 'cancel' },
-    { text: t('logout', lang), style: 'destructive', onPress: async () => { await AsyncStorage.removeItem('user_avatar'); await logout(); router.replace('/'); } },
+    { text: t('logout', lang), style: 'destructive', onPress: async () => { await logout(); router.replace('/'); } },
   ]);
 
   const updateName = async () => {
@@ -109,12 +109,12 @@ export default function ProfileScreen() {
     const result = await ImagePicker.launchImageLibraryAsync({ mediaTypes: ['images'], allowsEditing: true, aspect: [1, 1], quality: 0.5, base64: true });
     if (!result.canceled && result.assets[0].base64) {
       const b64 = `data:image/jpeg;base64,${result.assets[0].base64}`;
-      setAvatar(b64); await AsyncStorage.setItem('user_avatar', b64);
+      setAvatar(b64);
       try { await api.post('/user/avatar', { avatar: b64 }); Toast.show({ type: 'success', text1: 'Photo Updated!' }); } catch {}
     }
   };
 
-  const removeAvatar = () => Alert.alert('Remove Photo?', '', [{ text: 'Cancel', style: 'cancel' }, { text: 'Remove', style: 'destructive', onPress: async () => { setAvatar(''); await AsyncStorage.removeItem('user_avatar'); try { await api.post('/user/avatar', { avatar: '' }); } catch {} } }]);
+  const removeAvatar = () => Alert.alert('Remove Photo?', '', [{ text: 'Cancel', style: 'cancel' }, { text: 'Remove', style: 'destructive', onPress: async () => { await setAvatar(''); try { await api.post('/user/avatar', { avatar: '' }); } catch {} } }]);
 
   const copyCode = async () => {
     if (!referral?.referral_code) return;

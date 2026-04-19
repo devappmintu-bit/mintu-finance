@@ -105,8 +105,8 @@ export default function InsightsScreen() {
   useEffect(() => {
     setMessages([{
       role: 'ai',
-      text: `Hey ${user?.name || 'there'} 👋\n\nI'm your personal money coach — I can see your spending and help you save smarter.\n\nTap a quick prompt below or ask me anything like **"where am I overspending?"**`,
-      agent: 'MintU AI',
+      text: `Hey ${user?.name || 'there'} 👋\n\nI'm your AI Money Coach — I can see your spending and help you save smarter.\n\nTap a quick prompt below or ask me anything like "where am I overspending?"`,
+      agent: 'AI Money Coach',
       agentEmoji: '✨',
       ts: Date.now(),
     }]);
@@ -163,7 +163,7 @@ export default function InsightsScreen() {
       setMessages(prev => [...prev.slice(0, -1), {
         role: 'ai',
         text: smartFallback(text),
-        agent: 'MintU AI',
+        agent: 'AI Money Coach',
         agentEmoji: '📡',
         ts: Date.now(),
         mode: 'partial',

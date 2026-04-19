@@ -13,6 +13,7 @@ import Svg, { Rect, Line, Text as SvgText } from 'react-native-svg';
 import { router } from 'expo-router';
 import api from '../utils/api';
 import { COLORS, shadowStyle } from '../utils/theme';
+import { useActivePlan, FEATURES, canAccess } from '../utils/premium';
 
 const CHART_H = 180;
 const BAR_WIDTH = 22;
@@ -155,6 +156,8 @@ export default function YearlyDashboard() {
   const [data, setData] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [plan] = useActivePlan();
+  const locked = !canAccess(FEATURES.YEARLY_DASHBOARD, plan);
 
   const load = async () => {
     try {
@@ -163,7 +166,47 @@ export default function YearlyDashboard() {
     } catch {} finally { setLoading(false); setRefreshing(false); }
   };
 
-  useEffect(() => { load(); }, []);
+  useEffect(() => {
+    if (locked) { setLoading(false); return; }
+    load();
+  }, [locked]);
+
+  if (locked) {
+    return (
+      <SafeAreaView style={s.container} edges={['top']}>
+        <View style={s.header}>
+          <TouchableOpacity onPress={() => router.back()} style={s.backBtn}>
+            <Ionicons name="chevron-back" size={22} color={COLORS.text.primary} />
+          </TouchableOpacity>
+          <Text style={s.headerTitle}>Yearly Dashboard</Text>
+          <View style={{ width: 32 }} />
+        </View>
+        <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', padding: 32 }}>
+          <View style={{ width: 80, height: 80, borderRadius: 40, backgroundColor: COLORS.accent.primary + '15', justifyContent: 'center', alignItems: 'center', marginBottom: 16 }}>
+            <Ionicons name="lock-closed" size={32} color={COLORS.accent.primary} />
+          </View>
+          <Text style={{ fontSize: 20, fontWeight: '800', color: COLORS.text.primary, textAlign: 'center', marginBottom: 8 }}>Yearly Dashboard is Premium</Text>
+          <Text style={{ fontSize: 13, color: COLORS.text.secondary, textAlign: 'center', lineHeight: 19, maxWidth: 300, marginBottom: 20 }}>
+            See 12-month breakdown, momentum trends, category analysis, and year-end highlights.
+          </Text>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 18 }}>
+            <Text style={{ fontSize: 12, fontWeight: '700', color: COLORS.text.muted }}>Unlock with</Text>
+            <View style={{ backgroundColor: COLORS.accent.primary + '15', borderColor: COLORS.accent.primary, borderWidth: 1.5, paddingHorizontal: 12, paddingVertical: 6, borderRadius: 999 }}>
+              <Text style={{ fontSize: 12, fontWeight: '800', color: COLORS.accent.primary }}>📊 Monthly · ₹99/mo</Text>
+            </View>
+          </View>
+          <TouchableOpacity
+            onPress={() => router.push('/premium' as any)}
+            activeOpacity={0.85}
+            style={{ backgroundColor: COLORS.accent.primary, paddingHorizontal: 32, paddingVertical: 14, borderRadius: 999, flexDirection: 'row', alignItems: 'center', gap: 8 }}
+          >
+            <Ionicons name="sparkles" size={16} color="#fff" />
+            <Text style={{ color: '#fff', fontSize: 14, fontWeight: '800' }}>Upgrade to unlock</Text>
+          </TouchableOpacity>
+        </View>
+      </SafeAreaView>
+    );
+  }
 
   if (loading) {
     return (
