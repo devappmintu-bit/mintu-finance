@@ -136,7 +136,7 @@ async def transcribe_voice(file: UploadFile = File(...), user_id: str = Depends(
 @api_router.get("/money-school/lessons")
 async def get_money_school_lessons():
     """Get all financial literacy lessons"""
-    return {"lessons": _srv().MONEY_SCHOOL_LESSONS, "total": len(_srv().MONEY_SCHOOL_LESSONS)}
+    return {"lessons": MONEY_SCHOOL_LESSONS, "total": len(MONEY_SCHOOL_LESSONS)}
 
 
 @api_router.get("/money-school/daily")
@@ -561,8 +561,8 @@ async def agentic_ai_chat(data: dict, user_id: str = Depends(get_current_user)):
         raise HTTPException(status_code=400, detail="Message required")
     
     # Route to appropriate agent
-    agent_id = _srv().route_to_agent(message)
-    agent = _srv().AGENT_PROFILES[agent_id]
+    agent_id = route_to_agent(message)
+    agent = AGENT_PROFILES[agent_id]
     
     # Gather comprehensive financial context
     user = await db.users.find_one({"_id": ObjectId(user_id)})
@@ -1044,7 +1044,7 @@ async def list_agents(user_id: str = Depends(get_current_user)):
     """List all available AI agents"""
     return {"agents": [
         {"id": k, "name": v["name"], "emoji": v["emoji"], "description": v["description"]}
-        for k, v in _srv().AGENT_PROFILES.items()
+        for k, v in AGENT_PROFILES.items()
     ]}
 
 

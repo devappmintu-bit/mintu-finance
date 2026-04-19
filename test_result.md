@@ -675,7 +675,7 @@ test_plan:
   test_priority: "high_first"
 
 backend_refactor_apr2026:
-  - task: "Backend architecture refactor — server.py slimmed from 1339→~570 lines"
+  - task: "Backend architecture refactor — server.py slimmed from 1339→787 lines"
     implemented: true
     working: true
     file: "/app/backend/server.py"
