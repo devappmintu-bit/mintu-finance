@@ -8,10 +8,10 @@ import { Ionicons } from '@expo/vector-icons';
 import api from '../utils/api';
 import { useAuthStore } from '../store/authStore';
 import { COLORS, RADIUS, SPACING } from '../utils/theme';
+import { MEMBER_COLORS, STICKERS } from './split/theme';
+import ExpenseMessage from './split/ExpenseMessage';
+import ExpensesTab from './split/ExpensesTab';
 import Toast from 'react-native-toast-message';
-
-const STICKERS = ['😂', '🔥', '💰', '🎉', '👍', '❤️', '😭', '🤑', '💸', '🙏', '👏', '🍕', '🛒', '✈️', '🏠', '🎯', '💪', '🤝', '😎', '🥳', '☕', '🍺', '🎬', '⛽'];
-const MEMBER_COLORS = ['#E65100', '#FFB300', '#2E7D32', '#D32F2F', '#6A1B9A', '#C62828', '#1565C0', '#F57F17'];
 
 interface Props {
   group: any;
@@ -88,63 +88,9 @@ export default function GroupChat({ group, onClose, onAddExpense, onManage }: Pr
       );
     }
 
-    // Expense card (GPay-style: big amount, avatars, progress bar, X/N paid)
+    // Expense card (extracted to components/split/ExpenseMessage.tsx)
     if (item.type === 'expense' && item.expense_data) {
-      const ed = item.expense_data;
-      const totalSplits = ed.split_count || ed.splits_count || 0;
-      // Count paid: 1 (the payer) + anyone with a settlement toward this expense (approximated via group-level)
-      const paidCount = ed.paid_count != null ? ed.paid_count : 1;
-      const progressPct = totalSplits > 0 ? Math.min(100, (paidCount / totalSplits) * 100) : 100;
-      const isFullyPaid = paidCount >= totalSplits;
-      const memberNames: string[] = ed.member_names || [];
-      return (
-        <View style={[s.msgRow, isMe ? s.msgRowR : s.msgRowL]}>
-          {!isMe && <View style={[s.avatar, { backgroundColor: MEMBER_COLORS[0] + '20' }]}><Text style={[s.avatarT, { color: MEMBER_COLORS[0] }]}>{(item.sender_name || '?')[0]}</Text></View>}
-          <View style={{ maxWidth: '82%' }}>
-            {!isMe && <Text style={s.senderName}>{item.sender_name}</Text>}
-            <View style={s.expenseCard}>
-              <View style={s.expHead}>
-                <View style={[s.expEmojiWrap]}>
-                  <Ionicons name="receipt" size={16} color={COLORS.accent.primary} />
-                </View>
-                <View style={{ flex: 1 }}>
-                  <Text style={s.expTitle} numberOfLines={1}>{item.content}</Text>
-                  <Text style={s.expSub} numberOfLines={1}>Paid by {ed.paid_by} · {totalSplits} {totalSplits === 1 ? 'person' : 'people'}</Text>
-                </View>
-              </View>
-              <Text style={s.expenseAmount}>₹{Number(ed.amount || 0).toLocaleString('en-IN', { maximumFractionDigits: 0 })}</Text>
-              {/* Avatar stack */}
-              {memberNames.length > 0 && (
-                <View style={s.avatarStack}>
-                  {memberNames.slice(0, 5).map((nm, i) => (
-                    <View key={i} style={[s.stackAvatar, { backgroundColor: MEMBER_COLORS[i % MEMBER_COLORS.length] + '22', marginLeft: i === 0 ? 0 : -10, zIndex: 5 - i }]}>
-                      <Text style={[s.stackAvT, { color: MEMBER_COLORS[i % MEMBER_COLORS.length] }]}>{(nm || '?')[0].toUpperCase()}</Text>
-                    </View>
-                  ))}
-                  {memberNames.length > 5 && (
-                    <View style={[s.stackAvatar, { backgroundColor: COLORS.bg.secondary, marginLeft: -10 }]}>
-                      <Text style={[s.stackAvT, { color: COLORS.text.secondary }]}>+{memberNames.length - 5}</Text>
-                    </View>
-                  )}
-                </View>
-              )}
-              {/* Progress bar */}
-              <View style={s.progressTrack}>
-                <View style={[s.progressFill, { width: `${progressPct}%`, backgroundColor: isFullyPaid ? COLORS.accent.moneyIn : COLORS.accent.primary }]} />
-              </View>
-              <View style={s.expFooter}>
-                <Text style={[s.expStatus, isFullyPaid && { color: COLORS.accent.moneyIn }]}>
-                  {isFullyPaid ? '✅ All settled' : `${paidCount} of ${totalSplits} paid`}
-                </Text>
-                {!isFullyPaid && (
-                  <Text style={s.expPerPerson}>₹{Math.round((ed.amount || 0) / Math.max(totalSplits, 1)).toLocaleString('en-IN')} each</Text>
-                )}
-              </View>
-            </View>
-            <Text style={[s.time, isMe && { textAlign: 'right' }]}>{formatTime(item.created_at)}</Text>
-          </View>
-        </View>
-      );
+      return <ExpenseMessage item={item} isMe={isMe} formatTime={formatTime} />;
     }
 
     // Sticker
@@ -176,66 +122,7 @@ export default function GroupChat({ group, onClose, onAddExpense, onManage }: Pr
     );
   };
 
-  // === EXPENSES TAB ===
-  const renderExpensesTab = () => {
-    const owedByYou = summary?.simplified_debts?.filter((d: any) => d.from_id === user?.id).reduce((s: number, d: any) => s + d.amount, 0) || 0;
-    const owedToYou = summary?.simplified_debts?.filter((d: any) => d.to_id === user?.id).reduce((s: number, d: any) => s + d.amount, 0) || 0;
-
-    return (
-      <ScrollView contentContainerStyle={{ padding: 16 }}>
-        {/* Balance summary */}
-        <View style={s.balanceCard}>
-          <View style={s.balHalf}>
-            <Text style={s.balAmount}>₹{owedByYou.toFixed(0)}</Text>
-            <Text style={s.balLabel}>Owed by you</Text>
-          </View>
-          <View style={s.balDivider} />
-          <View style={s.balHalf}>
-            <Text style={[s.balAmount, { color: COLORS.accent.moneyIn }]}>₹{owedToYou.toFixed(0)}</Text>
-            <Text style={s.balLabel}>Owed to you</Text>
-          </View>
-        </View>
-
-        {/* Debts */}
-        {summary?.simplified_debts?.length > 0 && (
-          <>
-            <Text style={s.secTitle}>Settle Up</Text>
-            {summary.simplified_debts.map((d: any, i: number) => (
-              <View key={i} style={s.debtRow}>
-                <View style={[s.avatar, { backgroundColor: MEMBER_COLORS[i % 8] + '20' }]}>
-                  <Text style={[s.avatarT, { color: MEMBER_COLORS[i % 8] }]}>{(d.from_name || '?')[0]}</Text>
-                </View>
-                <View style={{ flex: 1 }}>
-                  <Text style={s.debtNames}>{d.from_name} → {d.to_name}</Text>
-                </View>
-                <Text style={s.debtAmt}>₹{d.amount.toFixed(0)}</Text>
-              </View>
-            ))}
-          </>
-        )}
-
-        {/* Recent expenses */}
-        {summary?.recent_expenses?.length > 0 && (
-          <>
-            <Text style={[s.secTitle, { marginTop: 16 }]}>Recent Expenses</Text>
-            {summary.recent_expenses.map((e: any, i: number) => (
-              <View key={i} style={s.expRow}>
-                <View style={{ flex: 1 }}>
-                  <Text style={s.expDesc}>{e.description}</Text>
-                  <Text style={s.expMeta}>Paid by {e.paid_by_name}</Text>
-                </View>
-                <Text style={s.expAmt}>₹{e.amount.toFixed(0)}</Text>
-              </View>
-            ))}
-          </>
-        )}
-
-        <TouchableOpacity style={s.addExpBtn} onPress={() => onAddExpense(group)}>
-          <Text style={s.addExpBtnT}>Split expense</Text>
-        </TouchableOpacity>
-      </ScrollView>
-    );
-  };
+  // Expenses tab content is now in components/split/ExpensesTab.tsx
 
   const memberCount = group.members?.length || summary?.member_count || 0;
   const groupInitials = (group.members || []).slice(0, 3);
@@ -273,7 +160,9 @@ export default function GroupChat({ group, onClose, onAddExpense, onManage }: Pr
         </TouchableOpacity>
       </View>
 
-      {tab === 'expenses' ? renderExpensesTab() : (
+      {tab === 'expenses' ? (
+        <ExpensesTab summary={summary} currentUserId={user?.id} onAddExpense={() => onAddExpense(group)} />
+      ) : (
         <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={{ flex: 1 }} keyboardVerticalOffset={10}>
           <FlatList
             ref={flatRef}
@@ -365,28 +254,6 @@ const s = StyleSheet.create({
   systemLine: { flex: 1, height: 1, backgroundColor: COLORS.border.subtle },
   systemText: { fontSize: 11, color: COLORS.text.muted, textAlign: 'center' },
   // Expense card
-  expenseCard: {
-    backgroundColor: COLORS.bg.card,
-    borderRadius: RADIUS.xl,
-    padding: 16,
-    borderWidth: 1,
-    borderColor: COLORS.border.card,
-    minWidth: 240,
-    gap: 10,
-  },
-  expHead: { flexDirection: 'row', alignItems: 'center', gap: 10 },
-  expEmojiWrap: { width: 32, height: 32, borderRadius: 10, backgroundColor: COLORS.accent.primary + '15', justifyContent: 'center', alignItems: 'center' },
-  expTitle: { fontSize: 14, fontWeight: '700', color: COLORS.text.primary },
-  expSub: { fontSize: 11, color: COLORS.text.muted, marginTop: 1 },
-  expenseAmount: { fontSize: 28, fontWeight: '800', color: COLORS.text.primary },
-  avatarStack: { flexDirection: 'row', alignItems: 'center', marginTop: 2 },
-  stackAvatar: { width: 28, height: 28, borderRadius: 14, justifyContent: 'center', alignItems: 'center', borderWidth: 2, borderColor: COLORS.bg.card },
-  stackAvT: { fontSize: 11, fontWeight: '700' },
-  progressTrack: { height: 4, backgroundColor: COLORS.bg.secondary, borderRadius: 2, overflow: 'hidden' },
-  progressFill: { height: '100%', borderRadius: 2 },
-  expFooter: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-  expStatus: { fontSize: 12, fontWeight: '700', color: COLORS.accent.primary },
-  expPerPerson: { fontSize: 11, color: COLORS.text.muted, fontWeight: '600' },
   // Sticker bar
   stickerBar: { paddingHorizontal: 12, paddingVertical: 8, borderTopWidth: 1, borderTopColor: COLORS.border.subtle, backgroundColor: COLORS.bg.card },
   stickerBtn: { width: 44, height: 44, borderRadius: 12, backgroundColor: COLORS.bg.primary, justifyContent: 'center', alignItems: 'center' },
@@ -398,19 +265,4 @@ const s = StyleSheet.create({
   msgInput: { flex: 1, backgroundColor: COLORS.bg.card, borderRadius: 20, paddingHorizontal: 14, paddingVertical: 9, fontSize: 14, color: COLORS.text.primary, borderWidth: 1, borderColor: COLORS.border.card },
   sendBtn: { width: 38, height: 38, borderRadius: 19, backgroundColor: COLORS.accent.primary, justifyContent: 'center', alignItems: 'center' },
   // Expenses tab
-  balanceCard: { flexDirection: 'row', backgroundColor: COLORS.bg.card, borderRadius: RADIUS.xl, padding: 20, marginBottom: 16, borderWidth: 1, borderColor: COLORS.border.card },
-  balHalf: { flex: 1, alignItems: 'center' },
-  balAmount: { fontSize: 24, fontWeight: '800', color: COLORS.text.primary },
-  balLabel: { fontSize: 12, color: COLORS.text.muted, marginTop: 4 },
-  balDivider: { width: 1, backgroundColor: COLORS.border.subtle },
-  secTitle: { fontSize: 14, fontWeight: '600', color: COLORS.text.muted, marginBottom: 10 },
-  debtRow: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: COLORS.border.subtle },
-  debtNames: { fontSize: 14, fontWeight: '600', color: COLORS.text.primary },
-  debtAmt: { fontSize: 16, fontWeight: '800', color: COLORS.accent.moneyOut },
-  expRow: { flexDirection: 'row', alignItems: 'center', paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: COLORS.border.subtle },
-  expDesc: { fontSize: 14, fontWeight: '600', color: COLORS.text.primary },
-  expMeta: { fontSize: 11, color: COLORS.text.muted, marginTop: 2 },
-  expAmt: { fontSize: 16, fontWeight: '700', color: COLORS.text.primary },
-  addExpBtn: { backgroundColor: COLORS.accent.primary + '12', borderRadius: RADIUS.full, paddingVertical: 16, alignItems: 'center', marginTop: 20, borderWidth: 1, borderColor: COLORS.accent.primary + '25' },
-  addExpBtnT: { fontSize: 15, fontWeight: '700', color: COLORS.accent.primary },
 });

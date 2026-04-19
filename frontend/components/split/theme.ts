@@ -28,6 +28,9 @@ export const C = {
 
 export const MEMBER_COLORS = ['#E65100', '#FFB300', '#2E7D32', '#D32F2F', '#6A1B9A', '#C62828', '#1565C0', '#F57F17'];
 
+// Chat stickers used in group chat messages. Single source of truth.
+export const STICKERS = ['😂', '🔥', '💰', '🎉', '👍', '❤️', '😭', '🤑', '💸', '🙏', '👏', '🍕', '🛒', '✈️', '🏠', '🎯', '💪', '🤝', '😎', '🥳', '☕', '🍺', '🎬', '⛽'];
+
 export const GROUP_ICONS: Record<string, { emoji: string; colors: string[] }> = {
   trip: { emoji: '\u2708\uFE0F', colors: ['#0EA5E9', '#6366F1'] },
   goa: { emoji: '\uD83C\uDFD6\uFE0F', colors: ['#F59E0B', '#EF4444'] },

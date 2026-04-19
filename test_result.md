@@ -692,6 +692,18 @@ agent_communication:
       message: "✅ ROUND 2 ROUTER REFACTOR REGRESSION TEST COMPLETE (Apr 19 2026) — All 29 effective assertions passed in /app/backend_refactor_round2_test.py. All 11 refactored routers (ab, cash, alerts, privacy, budgets_ext, insights_ext, share, sms, upi, premium, notifications) return 200 with correct shape. All 5 bugs fixed during refactor are verified: (1) notifications send_expo_push lazy-wired ✅, (2) privacy timezone import ✅, (3) ab.py hashlib fix ✅, (4) privacy DATA_RETENTION_DAYS plain constant ✅, (5) premium duplicate shims cleaned ✅. Zero 500s, zero NameError, zero ImportError in backend logs during the entire run. Regression on auth/analytics/home/ai/news/gamification/coins/splits all 200 OK. News endpoint still under 500ms (213ms). The only 403 observed (POST /premium/ai-coach) is expected premium-tier gating at premium.py:174 — test user is free tier so 403 fires before the LlmChat call. Backend is stable and production-ready."
 
 backend_refactor_apr2026:
+  - task: "GroupChat.tsx split — 416→268 lines + ExpenseMessage + ExpensesTab components"
+    implemented: true
+    working: true
+    file: "/app/frontend/components/GroupChat.tsx, /app/frontend/components/split/ExpenseMessage.tsx, /app/frontend/components/split/ExpensesTab.tsx"
+    stuck_count: 0
+    priority: "medium"
+    needs_retesting: false
+    status_history:
+      - working: true
+        agent: "main"
+        comment: "Round 7 refactor — split GroupChat.tsx (416 → 268 lines, 36% reduction). Extracted components/split/ExpenseMessage.tsx (113L) — the expense card bubble with avatar stack, progress bar, X/N paid indicator. Extracted components/split/ExpensesTab.tsx (90L) — the expenses tab inside the chat with balance summary, simplified-debts list, recent expenses. Deduplicated STICKERS constant (was inline in GroupChat, now single source in split/theme.ts). Also auto-pruned 29 orphan styles left over from the extraction using the standard Python orphan-style detector. Parent GroupChat.tsx still handles chat message list, input bar, sticker picker, and WebSocket/polling logic. Bundle compiles cleanly, HTTP 200 in 2.4s."
+
   - task: "Dead component purge — removed unused InsightsSkeleton + ProfileSkeleton from SkeletonLoader.tsx"
     implemented: true
     working: true
