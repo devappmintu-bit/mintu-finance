@@ -692,6 +692,18 @@ agent_communication:
       message: "✅ ROUND 2 ROUTER REFACTOR REGRESSION TEST COMPLETE (Apr 19 2026) — All 29 effective assertions passed in /app/backend_refactor_round2_test.py. All 11 refactored routers (ab, cash, alerts, privacy, budgets_ext, insights_ext, share, sms, upi, premium, notifications) return 200 with correct shape. All 5 bugs fixed during refactor are verified: (1) notifications send_expo_push lazy-wired ✅, (2) privacy timezone import ✅, (3) ab.py hashlib fix ✅, (4) privacy DATA_RETENTION_DAYS plain constant ✅, (5) premium duplicate shims cleaned ✅. Zero 500s, zero NameError, zero ImportError in backend logs during the entire run. Regression on auth/analytics/home/ai/news/gamification/coins/splits all 200 OK. News endpoint still under 500ms (213ms). The only 403 observed (POST /premium/ai-coach) is expected premium-tier gating at premium.py:174 — test user is free tier so 403 fires before the LlmChat call. Backend is stable and production-ready."
 
 backend_refactor_apr2026:
+  - task: "Frontend file splits — profile.tsx & index.tsx (home) broken into 8 components"
+    implemented: true
+    working: true
+    file: "/app/frontend/components/profile/*.tsx, /app/frontend/components/home/*.tsx"
+    stuck_count: 0
+    priority: "medium"
+    needs_retesting: false
+    status_history:
+      - working: true
+        agent: "main"
+        comment: "Round 3 refactor — split the two biggest frontend screens into section components. profile.tsx: 920→486 lines (47% reduction), extracted 5 components: ProfileHero (115L), FinancialSnapshot (77L), PaymentMethods (126L), PremiumExpandable (70L), ReferralDashboard (193L). index.tsx (home): 754→596 lines (21% reduction), extracted 3 components: LeaderboardPreview (77L), NewsCarousel (120L), WeeklyReport (98L). Each component owns its styles for encapsulation. Parent screens keep business logic + data fetching; components are presentational + local UI state. Bundle is clean (1780 modules), app loads in 1.2s on web, warm orange theme intact, all backend APIs return 200."
+
   - task: "Router shim cleanup — removed 11 boilerplate _lazy_attr blocks + fixed 5 latent bugs"
     implemented: true
     working: true

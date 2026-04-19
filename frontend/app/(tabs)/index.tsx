@@ -19,6 +19,9 @@ import { HomeSkeleton } from '../../components/SkeletonLoader';
 import InsightsCard from '../../components/home/InsightsCard';
 import DailyQuestCard from '../../components/DailyQuestCard';
 import AIInsightCard from '../../components/home/AIInsightCard';
+import LeaderboardPreview from '../../components/home/LeaderboardPreview';
+import NewsCarousel from '../../components/home/NewsCarousel';
+import WeeklyReport from '../../components/home/WeeklyReport';
 import Confetti from '../../components/Confetti';
 
 const APP_LINK = 'https://mintu.app/download';
@@ -380,179 +383,18 @@ export default function HomeScreen() {
         {/* GO PREMIUM and REWARDS HIGHLIGHT moved to Profile tab (Phase 10 redesign) */}
 
         {/* WEEKLY REPORT */}
-        {weeklyReport && weeklyReport.total_spent > 0 && (
-          <View style={styles.weeklyCard}>
-            <View style={styles.weeklyHeader}>
-              <Ionicons name="calendar" size={16} color={COLORS.accent.secondary} />
-              <Text style={styles.weeklyLabel}>WEEKLY REPORT</Text>
-              <Text style={styles.weeklyPeriod}>{weeklyReport.period}</Text>
-            </View>
-            <Text style={styles.weeklyHeadline}>{weeklyReport.headline}</Text>
-            <View style={styles.weeklyStatsRow}>
-              <View style={styles.weeklyStat}>
-                <Text style={[styles.weeklyStatVal, { color: '#EF4444' }]}>₹{weeklyReport.total_spent?.toFixed(0)}</Text>
-                <Text style={styles.weeklyStatLbl}>This Week</Text>
-              </View>
-              {weeklyReport.last_week_spent > 0 && (
-                <View style={styles.weeklyStat}>
-                  <Text style={[styles.weeklyStatVal, { color: COLORS.text.muted }]}>₹{weeklyReport.last_week_spent?.toFixed(0)}</Text>
-                  <Text style={styles.weeklyStatLbl}>Last Week</Text>
-                </View>
-              )}
-              {weeklyReport.change_pct !== 0 && (
-                <View style={[styles.changePill, { backgroundColor: weeklyReport.change_pct > 0 ? '#FEF2F2' : '#F0FDF4' }]}>
-                  <Ionicons name={weeklyReport.change_pct > 0 ? 'arrow-up' : 'arrow-down'} size={12} color={weeklyReport.change_pct > 0 ? '#EF4444' : '#10B981'} />
-                  <Text style={{ fontSize: 12, fontWeight: '700', color: weeklyReport.change_pct > 0 ? '#EF4444' : '#10B981' }}>{Math.abs(weeklyReport.change_pct).toFixed(0)}%</Text>
-                </View>
-              )}
-            </View>
-            <Text style={styles.weeklySuggestion}>{weeklyReport.savings_suggestion}</Text>
-            <TouchableOpacity
-              style={styles.shareBtn}
-              activeOpacity={0.85}
-              onPress={async () => {
-                const snap = snapshot || {};
-                const tierEmoji = snap.tier?.current?.emoji || '💰';
-                const tierName = snap.tier?.current?.name || 'MintU';
-                const txt = (
-                  `${weeklyReport.mood} My MintU Weekly Report\n\n` +
-                  `${weeklyReport.headline}\n\n` +
-                  `${tierEmoji} Tier: ${tierName}\n` +
-                  `🔥 Streak: ${snap.tier?.streak_days || user?.streak_days || 0} days\n` +
-                  `📊 Score: ${snap.tier?.score || user?.money_score || 50}/100\n\n` +
-                  (weeklyReport.top_category?.amount ? `Top: ${weeklyReport.top_category.name} — ₹${Math.round(weeklyReport.top_category.amount).toLocaleString('en-IN')}\n` : '') +
-                  `\nTrack your money with MintU 👉 ${APP_LINK}`
-                );
-                try {
-                  const wa = `whatsapp://send?text=${encodeURIComponent(txt)}`;
-                  const canWA = await Linking.canOpenURL(wa);
-                  if (canWA) { Linking.openURL(wa); return; }
-                  await Share.share({ message: txt });
-                } catch { Toast.show({ type: 'error', text1: 'Could not share' }); }
-              }}
-            >
-              <Ionicons name="logo-whatsapp" size={16} color="#fff" />
-              <Text style={styles.shareBtnText}>Share Weekly Report</Text>
-            </TouchableOpacity>
-          </View>
-        )}
+        <WeeklyReport weeklyReport={weeklyReport} snapshot={snapshot} user={user} />
 
-        {/* LEADERBOARD PREVIEW — Top 3 podium + your rank */}
-        {leaderboard?.top_10 && leaderboard.top_10.length > 0 && (
-          <TouchableOpacity style={styles.lbCard} activeOpacity={0.9} onPress={() => router.push('/(tabs)/rewards')}>
-            <View style={styles.lbHeader}>
-              <Ionicons name="trophy" size={18} color="#F59E0B" />
-              <Text style={styles.lbTitle}>Savings Leaderboard</Text>
-              <Ionicons name="chevron-forward" size={16} color={COLORS.text.muted} />
-            </View>
-            <View style={styles.lbMetaRow}>
-              <View style={styles.lbMetaBox}>
-                <Text style={styles.lbMetaNum}>#{leaderboard.user_rank || '-'}</Text>
-                <Text style={styles.lbMetaLbl}>Your Rank</Text>
-              </View>
-              <View style={[styles.lbMetaBox, { borderLeftWidth: 1, borderRightWidth: 1, borderColor: '#FDE68A' }]}>
-                <Text style={[styles.lbMetaNum, { color: '#10B981' }]}>{leaderboard.percentile || 0}%</Text>
-                <Text style={styles.lbMetaLbl}>Percentile</Text>
-              </View>
-              <View style={styles.lbMetaBox}>
-                <Text style={[styles.lbMetaNum, { color: '#E65100' }]}>{leaderboard.user_score || 0}</Text>
-                <Text style={styles.lbMetaLbl}>Score</Text>
-              </View>
-            </View>
-            <View style={styles.lbTop3Row}>
-              {[1, 0, 2].map((idx) => {
-                const p = leaderboard.top_10[idx];
-                if (!p) return <View key={idx} style={{ flex: 1 }} />;
-                const medals = ['\ud83e\udd47', '\ud83e\udd48', '\ud83e\udd49'];
-                const heights = [80, 60, 50];
-                const colors = ['#F59E0B', '#94A3B8', '#C77632'];
-                const rank = p.rank;
-                return (
-                  <View key={idx} style={styles.lbPodium}>
-                    <Text style={{ fontSize: 22, marginBottom: 4 }}>{medals[rank - 1]}</Text>
-                    <View style={[styles.lbPodiumBar, { height: heights[rank - 1], backgroundColor: colors[rank - 1] }]}>
-                      <Text style={styles.lbPodiumRank}>{rank}</Text>
-                    </View>
-                    <Text style={styles.lbPodiumName} numberOfLines={1}>{p.is_me ? 'You' : p.name.split(' ')[0]}</Text>
-                    <Text style={styles.lbPodiumScore}>{p.score}/100</Text>
-                  </View>
-                );
-              })}
-            </View>
-            <Text style={{ fontSize: 12, color: COLORS.text.secondary, marginTop: 12, textAlign: 'center', fontStyle: 'italic' }}>
-              {leaderboard.comparison_text || `You're in the top ${100 - (leaderboard.percentile || 50)}% of savers!`}
-            </Text>
-          </TouchableOpacity>
-        )}
+        {/* LEADERBOARD PREVIEW */}
+        <LeaderboardPreview leaderboard={leaderboard} />
 
-        {/* INDIA FINANCE NEWS — Horizontal snap carousel */}
-        <View style={{ marginBottom: SPACING.lg, marginHorizontal: -SPACING.lg }}>
-          <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: SPACING.lg, marginBottom: SPACING.sm }}>
-            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, flex: 1 }}>
-              <Ionicons name="newspaper" size={16} color={COLORS.accent.primary} />
-              <Text style={styles.sectionTitle}>India Finance Today</Text>
-              {newsUpdatedAt ? (
-                <View style={styles.freshPill}>
-                  <View style={styles.freshDot} />
-                  <Text style={styles.freshPillText}>Live</Text>
-                </View>
-              ) : null}
-            </View>
-            <TouchableOpacity
-              onPress={() => fetchNews(true)}
-              style={styles.newsRefreshBtn}
-              activeOpacity={0.7}
-              disabled={newsLoading}
-            >
-              {newsLoading ? (
-                <ActivityIndicator size="small" color={COLORS.accent.primary} />
-              ) : (
-                <Ionicons name="refresh" size={14} color={COLORS.accent.primary} />
-              )}
-            </TouchableOpacity>
-          </View>
-          {news.length === 0 ? (
-            <View style={[styles.emptyState, { marginHorizontal: SPACING.lg }]}><ActivityIndicator size="small" color={COLORS.accent.primary} /><Text style={[styles.emptyText, { marginTop: 8 }]}>Loading today's news...</Text></View>
-          ) : (
-            <ScrollView
-              horizontal
-              showsHorizontalScrollIndicator={false}
-              snapToInterval={278}
-              decelerationRate="fast"
-              contentContainerStyle={{ paddingHorizontal: SPACING.lg, gap: 12 }}
-            >
-              {news.map((article: any, i: number) => {
-                const catColor = article.category === 'alert' ? '#EF4444' : article.category === 'market' ? '#10B981' : article.category === 'scheme' ? COLORS.accent.primary : article.category === 'tip' ? '#F59E0B' : COLORS.accent.primary;
-                return (
-                  <View key={i} style={[styles.newsCard, { borderTopColor: catColor }]}>
-                    <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
-                      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, flex: 1 }}>
-                        <View style={[styles.newsCatDot, { backgroundColor: catColor }]} />
-                        <Text style={[styles.newsCat, { color: catColor }]} numberOfLines={1}>{article.category}</Text>
-                      </View>
-                      <Text style={{ fontSize: 22 }}>{article.emoji}</Text>
-                    </View>
-                    <Text style={styles.newsTitle} numberOfLines={3}>{article.title}</Text>
-                    <Text style={styles.newsSummary} numberOfLines={4}>{article.summary}</Text>
-                    <View style={styles.newsFooter}>
-                      <Text style={styles.newsSource} numberOfLines={1}>{article.source}</Text>
-                    </View>
-                  </View>
-                );
-              })}
-              {/* Friendly end-of-list card so infinite-feel ends gracefully */}
-              <View style={[styles.newsCard, styles.newsEndCard]}>
-                <Ionicons name="checkmark-done-circle" size={28} color={COLORS.accent.primary} />
-                <Text style={styles.newsEndTitle}>You're caught up!</Text>
-                <Text style={styles.newsEndSub}>Pull down or tap refresh for updates</Text>
-                <TouchableOpacity style={styles.newsEndBtn} onPress={() => fetchNews(true)} activeOpacity={0.8}>
-                  <Ionicons name="refresh" size={12} color="#fff" />
-                  <Text style={styles.newsEndBtnText}>Refresh now</Text>
-                </TouchableOpacity>
-              </View>
-            </ScrollView>
-          )}
-        </View>
+        {/* INDIA FINANCE NEWS */}
+        <NewsCarousel
+          news={news}
+          newsUpdatedAt={newsUpdatedAt}
+          newsLoading={newsLoading}
+          onRefresh={() => fetchNews(true)}
+        />
         <View style={{ height: 24 }} />
       </ScrollView>
     </SafeAreaView>
