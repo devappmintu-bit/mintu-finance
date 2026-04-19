@@ -9,6 +9,8 @@ import { LinearGradient } from 'expo-linear-gradient';
 import Toast from 'react-native-toast-message';
 import api from '../../utils/api';
 import { useAuthStore } from '../../store/authStore';
+import { useLangStore } from '../../store/langStore';
+import { t } from '../../utils/i18n';
 import { SplitSkeleton } from '../../components/SkeletonLoader';
 import GroupChat from '../../components/GroupChat';
 import PressableGlass from '../../components/PressableGlass';
@@ -17,7 +19,7 @@ import { shareSmart, copyToClipboard } from '../../utils/share';
 import { C, getGA, DebtRow } from '../../components/split/theme';
 import SettleUpCard from '../../components/split/SettleUpCard';
 import RemindersBanner from '../../components/split/RemindersBanner';
-import LeaderboardCard from '../../components/split/LeaderboardCard';
+import UnifiedLeaderboard from '../../components/leaderboard/UnifiedLeaderboard';
 import CreateGroupSheet from '../../components/split/CreateGroupSheet';
 import ContactPickerSheet from '../../components/split/ContactPickerSheet';
 import ExpenseSheet from '../../components/split/ExpenseSheet';
@@ -30,6 +32,7 @@ import SplitActivityFeed from '../../components/split/SplitActivityFeed';
 
 export default function SplitScreen() {
   const { user } = useAuthStore();
+  const { lang } = useLangStore();
   const [groups, setGroups] = useState<any[]>([]);
   const [inviteGroup, setInviteGroup] = useState<{ id: string; name: string; memberCount: number } | null>(null);
   const [balances, setBalances] = useState<any>(null);
@@ -383,7 +386,7 @@ export default function SplitScreen() {
       <ScrollView contentContainerStyle={s.scroll} refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); fetchData(); }} tintColor={C.accent} />}>
         {/* HEADER */}
         <View style={s.header}>
-          <Text style={s.title}>Split</Text>
+          <Text style={s.title}>{t('split', lang)}</Text>
           <View style={s.headerR}>
             <View style={s.coinPill}><Text style={s.coinText}>🪙 {coins}</Text></View>
             <PressableGlass onPress={() => setModal('create')} feedback="medium">
@@ -399,12 +402,12 @@ export default function SplitScreen() {
           <View style={s.balRow}>
             <View style={s.balH}>
               <Text style={[s.balV, { color: C.green }]}>{`₹${(balances?.total_owed_to_you || 0).toFixed(0)}`}</Text>
-              <Text style={s.balL}>You're owed</Text>
+              <Text style={s.balL}>{t('youre_owed', lang)}</Text>
             </View>
             <View style={s.balD} />
             <View style={s.balH}>
               <Text style={[s.balV, { color: C.red }]}>{`₹${(balances?.total_you_owe || 0).toFixed(0)}`}</Text>
-              <Text style={s.balL}>You owe</Text>
+              <Text style={s.balL}>{t('you_owe', lang)}</Text>
             </View>
           </View>
         </View>
@@ -418,18 +421,16 @@ export default function SplitScreen() {
           onMarkPaid={markPaidOffline}
         />
 
-        <LeaderboardCard settleLB={settleLB} />
-
-        {/* MintU 2.0 — Emotional Activity Feed */}
-        <SplitActivityFeed data={activity} />
+        {/* UNIFIED LEADERBOARD — same across Home / Rewards / Split */}
+        <UnifiedLeaderboard title={t('leaderboard', lang).toUpperCase()} compact />
 
         {/* GROUPS */}
-        <Text style={s.section}>Groups</Text>
+        <Text style={s.section}>{t('groups', lang)}</Text>
         {groups.length === 0 ? (
           <View style={s.emptyCard}>
             <Ionicons name="people-outline" size={48} color={C.text4} />
-            <Text style={s.emptyTitle}>No groups yet</Text>
-            <Text style={s.emptyText}>Tap + to create your first split group</Text>
+            <Text style={s.emptyTitle}>{t('no_groups', lang)}</Text>
+            <Text style={s.emptyText}>{t('create_first_group', lang)}</Text>
           </View>
         ) : groups.map((gr: any) => {
           const av = getGA(gr.name);
@@ -446,7 +447,7 @@ export default function SplitScreen() {
               </LinearGradient>
               <View style={s.groupInfo}>
                 <Text style={s.groupName} numberOfLines={1}>{gr.name}</Text>
-                <Text style={s.groupMeta} numberOfLines={1}>{`${gr.members?.length || 0} members`}</Text>
+                <Text style={s.groupMeta} numberOfLines={1}>{`${gr.members?.length || 0} ${t('members', lang)}`}</Text>
               </View>
               <PressableGlass onPress={() => openAddExpense(gr)} feedback="light" hitSlop={12}>
                 <Ionicons name="add-circle" size={30} color={C.accent} />
@@ -457,6 +458,10 @@ export default function SplitScreen() {
             </PressableGlass>
           );
         })}
+
+        {/* MintU 2.0 — Emotional Activity Feed (pushed to end per request) */}
+        <SplitActivityFeed data={activity} />
+
         <View style={{ height: 30 }} />
       </ScrollView>
 
@@ -567,6 +572,7 @@ export default function SplitScreen() {
             onClose={() => { setChatGroup(null); fetchData(); }}
             onAddExpense={(gr) => { setChatGroup(null); openAddExpense(gr); }}
             onManage={(gr) => { setChatGroup(null); openManage(gr); }}
+            onEditExpense={(exp, gr) => { setChatGroup(null); setSelectedGroup(gr); setTimeout(() => openEditExpense(exp), 150); }}
           />
         )}
       </Modal>

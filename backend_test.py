@@ -1,129 +1,290 @@
-"""MintU backend test — validate 3 fixes + regression endpoints (Apr 2026)."""
-import json
+"""
+Round 8 Backend Regression Test — MintU
+Covers:
+  1. GET /api/leaderboard/unified?scope=contacts
+  2. GET /api/leaderboard/unified?scope=global
+  3. PUT /api/transactions/{id}
+  4. DELETE /api/transactions/{id}
+  5. POST /api/budgets + PUT + DELETE lifecycle
+  6. POST /api/split/groups + POST /api/split/expenses + PUT + DELETE lifecycle
+  7. POST /api/sms/parse-bulk AND /api/sms/bulk-parse (both paths)
+"""
+import os
+import sys
 import time
+import json
 import requests
+from typing import Dict, Any
 
 BASE = "https://mintu-finance.preview.emergentagent.com/api"
+
 PHONE = "9876543210"
 OTP = "123456"
-PASSWORD = "test123"
 
-results = []
-def log(name, ok, detail=""):
-    tag = "✅" if ok else "❌"
-    results.append((ok, name, detail))
-    print(f"{tag} {name} — {detail}")
 
-# ── AUTH ──────────────────────────────────────────────────────────────
-def login():
-    r = requests.post(f"{BASE}/auth/send-otp", json={"phone": PHONE}, timeout=15)
-    log("POST /auth/send-otp", r.status_code == 200, f"{r.status_code} {r.text[:100]}")
-    r = requests.post(f"{BASE}/auth/verify-otp", json={"phone": PHONE, "otp": OTP}, timeout=15)
-    ok = r.status_code == 200 and "token" in r.json()
-    log("POST /auth/verify-otp", ok, f"{r.status_code} token_len={len(r.json().get('token','')) if ok else 0}")
-    return r.json()["token"] if ok else None
+class R8:
+    def __init__(self) -> None:
+        self.token: str = ""
+        self.user_id: str = ""
+        self.phone: str = PHONE
+        self.results: list[tuple[str, bool, str]] = []
 
-token = login()
-assert token, "Auth failed — cannot continue"
-HEAD = {"Authorization": f"Bearer {token}"}
+    def h(self) -> Dict[str, str]:
+        return {"Authorization": f"Bearer {self.token}", "Content-Type": "application/json"}
 
-# ── FIX 1: SMS Bulk Parse ─────────────────────────────────────────────
-print("\n════ FIX 1: SMS /bulk-parse ════")
-payload = {"messages": [
-    "HDFC Bank: Rs 500.00 debited from A/c XX1234 at SWIGGY on 20-APR-26. Avl Bal: Rs 45,320.00",
-    "SBI: Rs 120 UPI paid to Amazon via UPI Ref 123456. Avl Bal Rs 12,000",
-]}
-r = requests.post(f"{BASE}/sms/bulk-parse", json=payload, headers=HEAD, timeout=90)
-ok = r.status_code == 200
-detail = f"{r.status_code}"
-if ok:
-    body = r.json()
-    detail += f" parsed={body.get('parsed')} failed={body.get('failed')} total={body.get('total')}"
-    ok = ("parsed" in body and "failed" in body and "total" in body)
-else:
-    detail += f" body={r.text[:200]}"
-log("POST /sms/bulk-parse (2 valid SMS)", ok, detail)
+    def log(self, name: str, ok: bool, detail: str = "") -> None:
+        marker = "✅" if ok else "❌"
+        print(f"{marker} {name}: {detail}")
+        self.results.append((name, ok, detail))
 
-r2 = requests.post(f"{BASE}/sms/parse-bulk", json=payload, headers=HEAD, timeout=15)
-log("POST /sms/parse-bulk (old wrong path)", r2.status_code == 404, f"{r2.status_code} (expected 404)")
+    def must(self, cond: bool, name: str, detail: str = "") -> bool:
+        self.log(name, cond, detail)
+        return cond
 
-r3 = requests.post(f"{BASE}/sms/bulk-parse", json={"messages": []}, headers=HEAD, timeout=15)
-log("POST /sms/bulk-parse (empty)", r3.status_code == 400, f"{r3.status_code} {r3.text[:100]}")
+    def auth(self) -> bool:
+        try:
+            r = requests.post(f"{BASE}/auth/send-otp", json={"phone": self.phone}, timeout=20)
+            if r.status_code != 200:
+                self.log("AUTH send-otp", False, f"HTTP {r.status_code}: {r.text[:120]}")
+            r = requests.post(
+                f"{BASE}/auth/verify-otp",
+                json={"phone": self.phone, "otp": OTP},
+                timeout=20,
+            )
+            if r.status_code != 200:
+                r = requests.post(
+                    f"{BASE}/auth/login",
+                    json={"phone": self.phone, "password": "test123"},
+                    timeout=20,
+                )
+            if r.status_code != 200:
+                self.log("AUTH verify-otp/login", False, f"HTTP {r.status_code}: {r.text[:120]}")
+                return False
+            data = r.json()
+            self.token = data.get("access_token") or data.get("token") or ""
+            self.user_id = (data.get("user") or {}).get("id") or data.get("user_id") or ""
+            if not self.user_id and self.token:
+                me = requests.get(f"{BASE}/user/me", headers=self.h(), timeout=20)
+                if me.status_code == 200:
+                    self.user_id = me.json().get("id") or me.json().get("user_id") or ""
+            ok = bool(self.token and self.user_id)
+            self.log("AUTH", ok, f"token_len={len(self.token)} user_id={self.user_id}")
+            return ok
+        except Exception as e:
+            self.log("AUTH", False, str(e))
+            return False
 
-r4 = requests.post(f"{BASE}/sms/bulk-parse", json=payload, timeout=15)
-log("POST /sms/bulk-parse (no auth)", r4.status_code in (401, 422, 403), f"{r4.status_code}")
+    def test_unified_contacts(self) -> None:
+        r = requests.get(f"{BASE}/leaderboard/unified?scope=contacts", headers=self.h(), timeout=30)
+        if not self.must(r.status_code == 200, "GET /leaderboard/unified?scope=contacts 200",
+                          f"HTTP {r.status_code}: {r.text[:200]}"):
+            return
+        d = r.json()
+        for k in ("scope", "total", "you", "leader", "headline", "contenders"):
+            self.must(k in d, f"contacts.has_key[{k}]", f"keys={list(d.keys())}")
+        self.must(d.get("scope") == "contacts", "contacts.scope==contacts", f"got={d.get('scope')}")
+        self.must(isinstance(d.get("contenders"), list), "contacts.contenders is list",
+                  f"type={type(d.get('contenders')).__name__}")
+        cs = d.get("contenders") or []
+        if cs:
+            first = cs[0]
+            required = {"rank", "id", "name", "score", "streak", "coins", "settlements", "is_me", "phone_masked"}
+            self.must(required.issubset(first.keys()),
+                      "contacts.contender_shape",
+                      f"missing={required - first.keys()}")
+        you = d.get("you")
+        if you:
+            self.must("percentile" in you, "contacts.you.percentile",
+                      f"you_keys={list(you.keys())}")
+        self.log("contacts.total", True,
+                 f"total={d.get('total')} contenders_len={len(cs)} headline={d.get('headline')!r}")
 
-# ── FIX 2: India Finance News ─────────────────────────────────────────
-print("\n════ FIX 2: News /india-finance ════")
-r = requests.get(f"{BASE}/news/india-finance", headers=HEAD, timeout=30)
-ok = r.status_code == 200
-detail = f"{r.status_code}"
-body = {}
-if ok:
-    body = r.json()
-    articles = body.get("articles", [])
-    detail += f" articles={len(articles)} is_fallback={body.get('is_fallback')} updated_at={body.get('updated_at')}"
-    ok = len(articles) == 6
-log("GET /news/india-finance (1st call)", ok, detail)
+    def test_unified_global(self) -> None:
+        r = requests.get(f"{BASE}/leaderboard/unified?scope=global", headers=self.h(), timeout=30)
+        if not self.must(r.status_code == 200, "GET /leaderboard/unified?scope=global 200",
+                          f"HTTP {r.status_code}: {r.text[:200]}"):
+            return
+        d = r.json()
+        for k in ("scope", "total", "you", "leader", "headline", "contenders"):
+            self.must(k in d, f"global.has_key[{k}]", f"keys={list(d.keys())}")
+        self.must(d.get("scope") == "global", "global.scope==global", f"got={d.get('scope')}")
+        cs = d.get("contenders") or []
+        self.must(len(cs) <= 50, "global.contenders<=50", f"len={len(cs)}")
+        if cs:
+            first = cs[0]
+            required = {"rank", "id", "name", "score", "streak", "coins", "settlements", "is_me", "phone_masked"}
+            self.must(required.issubset(first.keys()),
+                      "global.contender_shape",
+                      f"missing={required - first.keys()}")
+        you = d.get("you")
+        if you:
+            self.must("percentile" in you, "global.you.percentile",
+                      f"you_keys={list(you.keys())}")
+        self.log("global.total", True,
+                 f"total={d.get('total')} contenders_len={len(cs)} headline={d.get('headline')!r}")
 
-if body.get("articles"):
-    a = body["articles"][0]
-    fields_ok = all(k in a for k in ("title", "summary", "category", "emoji", "source"))
-    log("  article fields (title/summary/category/emoji/source)", fields_ok, f"keys={list(a.keys())}")
-    not_polluted = all("Seeded test news" not in art.get("title", "") for art in body["articles"])
-    log("  not polluted with 'Seeded test news'", not_polluted, "clean" if not_polluted else "STILL POLLUTED")
+    def test_transaction_crud(self) -> None:
+        payload = {
+            "amount": 450.0,
+            "category": "Food",
+            "description": "Swiggy dinner",
+            "type": "debit",
+        }
+        r = requests.post(f"{BASE}/transactions", json=payload, headers=self.h(), timeout=20)
+        if not self.must(r.status_code == 200, "POST /transactions 200",
+                          f"HTTP {r.status_code}: {r.text[:200]}"):
+            return
+        txn_id = r.json().get("id")
+        self.must(bool(txn_id), "txn.id present", f"id={txn_id}")
 
-print("  … waiting 40s for background LLM regen …")
-time.sleep(40)
-r2 = requests.get(f"{BASE}/news/india-finance", headers=HEAD, timeout=30)
-if r2.status_code == 200:
-    b2 = r2.json()
-    fresh_ok = (b2.get("is_fallback") is False) and bool(b2.get("updated_at"))
-    log("GET /news/india-finance (post-regen)", fresh_ok,
-        f"is_fallback={b2.get('is_fallback')} updated_at={b2.get('updated_at')} articles={len(b2.get('articles',[]))}")
-    if b2.get("articles"):
-        first_title = b2["articles"][0].get("title", "")
-        log("  fresh LLM article title (sample)", True, first_title[:80])
-else:
-    log("GET /news/india-finance (post-regen)", False, f"{r2.status_code}")
+        r = requests.put(
+            f"{BASE}/transactions/{txn_id}",
+            json={"amount": 500.0, "description": "Swiggy dinner (edited)", "category": "Food & Dining"},
+            headers=self.h(),
+            timeout=20,
+        )
+        if self.must(r.status_code == 200, "PUT /transactions/{id} 200",
+                     f"HTTP {r.status_code}: {r.text[:200]}"):
+            row = r.json()
+            self.must(row.get("amount") == 500.0, "txn.amount updated",
+                      f"got={row.get('amount')}")
+            self.must(row.get("category") == "Food & Dining", "txn.category updated",
+                      f"got={row.get('category')}")
 
-# ── FIX 3: Money School lessons ─────
-print("\n════ FIX 3: Money School /lessons (backend still open) ════")
-r = requests.get(f"{BASE}/money-school/lessons", headers=HEAD, timeout=15)
-ok = r.status_code == 200
-if ok:
-    body = r.json()
-    lessons = body if isinstance(body, list) else body.get("lessons", [])
-    ok = isinstance(lessons, list) and len(lessons) > 0
-    log("GET /money-school/lessons", ok, f"{r.status_code} count={len(lessons)}")
-else:
-    log("GET /money-school/lessons", False, f"{r.status_code} {r.text[:200]}")
+        r = requests.delete(f"{BASE}/transactions/{txn_id}", headers=self.h(), timeout=20)
+        self.must(r.status_code == 200, "DELETE /transactions/{id} 200",
+                  f"HTTP {r.status_code}: {r.text[:200]}")
 
-# ── REGRESSION ────────────────────────────────────────────────────────
-print("\n════ REGRESSION ════")
+        r2 = requests.delete(f"{BASE}/transactions/{txn_id}", headers=self.h(), timeout=20)
+        self.must(r2.status_code == 404, "DELETE /transactions/{id} again -> 404",
+                  f"HTTP {r2.status_code}")
 
-def check(method, path, status_expected=200, **kw):
-    try:
-        r = requests.request(method, f"{BASE}{path}", headers=HEAD, timeout=30, **kw)
-        ok = r.status_code == status_expected
-        log(f"{method} {path}", ok, f"{r.status_code}")
-        return r
-    except Exception as e:
-        log(f"{method} {path}", False, f"EXCEPTION {e}")
-        return None
+    def test_budget_crud(self) -> None:
+        r = requests.post(
+            f"{BASE}/budgets",
+            json={"category": "Entertainment_R8", "amount": 2000.0, "period": "monthly"},
+            headers=self.h(),
+            timeout=20,
+        )
+        if not self.must(r.status_code == 200, "POST /budgets 200",
+                          f"HTTP {r.status_code}: {r.text[:200]}"):
+            return
+        bid = r.json().get("id")
+        self.must(bool(bid), "budget.id present", f"id={bid}")
 
-check("GET", "/transactions")
-check("GET", "/analytics/summary")
-check("GET", "/premium/status")
-check("POST", "/premium/tax-calculator", json={"annual_income": 1000000})
-check("POST", "/premium/investment-suggest", json={"monthly_income": 50000, "monthly_expenses": 30000})
-check("GET", "/money-school/daily")
-check("GET", "/money-school/dynamic")
-check("POST", "/notifications/register-token", json={"push_token": "ExponentPushToken[testtokenDoNotDeliver]"})
-check("POST", "/notifications/send-test")
+        r = requests.put(
+            f"{BASE}/budgets/{bid}",
+            json={"amount": 2500.0, "period": "weekly"},
+            headers=self.h(),
+            timeout=20,
+        )
+        if self.must(r.status_code == 200, "PUT /budgets/{id} 200",
+                     f"HTTP {r.status_code}: {r.text[:200]}"):
+            row = r.json()
+            self.must(row.get("amount") == 2500.0, "budget.amount updated",
+                      f"got={row.get('amount')}")
+            self.must(row.get("period") == "weekly", "budget.period updated",
+                      f"got={row.get('period')}")
 
-# ── SUMMARY ──────────────────────────────────────────────────────────
-fail = [(n, d) for ok, n, d in results if not ok]
-print(f"\n════ SUMMARY ════ {len(results)-len(fail)}/{len(results)} passed")
-for n, d in fail:
-    print(f"  FAIL: {n} — {d}")
+        r = requests.delete(f"{BASE}/budgets/{bid}", headers=self.h(), timeout=20)
+        self.must(r.status_code == 200, "DELETE /budgets/{id} 200",
+                  f"HTTP {r.status_code}: {r.text[:200]}")
+
+        r2 = requests.delete(f"{BASE}/budgets/{bid}", headers=self.h(), timeout=20)
+        self.must(r2.status_code == 404, "DELETE /budgets/{id} again -> 404",
+                  f"HTTP {r2.status_code}")
+
+    def test_split_expense_crud(self) -> None:
+        payload = {
+            "name": "R8 Test Dinner",
+            "members": ["9998887776"],
+        }
+        r = requests.post(f"{BASE}/split/groups", json=payload, headers=self.h(), timeout=20)
+        if r.status_code != 200:
+            self.log("POST /split/groups 200", False, f"HTTP {r.status_code}: {r.text[:200]}")
+            return
+        gid = r.json().get("id")
+        self.must(bool(gid), "group.id present", f"id={gid}")
+
+        exp_payload = {
+            "group_id": gid,
+            "description": "Pizza night",
+            "amount": 800.0,
+            "paid_by": self.user_id,
+            "split_type": "equal",
+        }
+        r = requests.post(f"{BASE}/split/expenses", json=exp_payload, headers=self.h(), timeout=20)
+        if not self.must(r.status_code == 200, "POST /split/expenses 200",
+                          f"HTTP {r.status_code}: {r.text[:200]}"):
+            requests.delete(f"{BASE}/split/groups/{gid}", headers=self.h(), timeout=20)
+            return
+        eid = r.json().get("id")
+        self.must(bool(eid), "expense.id present", f"id={eid}")
+
+        r = requests.put(
+            f"{BASE}/split/expenses/{eid}",
+            json={"amount": 1000.0, "description": "Pizza night (edited)"},
+            headers=self.h(),
+            timeout=20,
+        )
+        if self.must(r.status_code == 200, "PUT /split/expenses/{id} 200",
+                     f"HTTP {r.status_code}: {r.text[:200]}"):
+            row = r.json()
+            self.log("split.expense PUT response", True, f"keys={list(row.keys()) if isinstance(row, dict) else type(row).__name__}")
+
+        r = requests.delete(f"{BASE}/split/expenses/{eid}", headers=self.h(), timeout=20)
+        self.must(r.status_code == 200, "DELETE /split/expenses/{id} 200 (no collision with leave)",
+                  f"HTTP {r.status_code}: {r.text[:200]}")
+
+        r = requests.delete(f"{BASE}/split/groups/{gid}", headers=self.h(), timeout=20)
+        self.must(r.status_code == 200, "DELETE /split/groups/{id} (cleanup) 200",
+                  f"HTTP {r.status_code}: {r.text[:200]}")
+
+    def test_sms_aliases(self) -> None:
+        sms = "HDFC: Rs 500 debited from A/c XX1234 at AMAZON on 19-04-26"
+        for path in ("/sms/bulk-parse", "/sms/parse-bulk"):
+            r = requests.post(
+                f"{BASE}{path}",
+                json={"messages": [sms]},
+                headers=self.h(),
+                timeout=90,
+            )
+            ok = r.status_code == 200
+            detail = f"HTTP {r.status_code}"
+            if ok:
+                d = r.json()
+                for k in ("parsed", "failed", "total"):
+                    if k not in d:
+                        ok = False
+                        detail += f" missing_key={k}"
+                detail += f" body={json.dumps(d)[:200]}"
+            else:
+                detail += f": {r.text[:200]}"
+            self.log(f"POST {path}", ok, detail)
+            time.sleep(0.3)
+
+    def run(self) -> int:
+        print(f"\n=== MintU Round 8 Backend Regression ===\nBASE={BASE}\n")
+        if not self.auth():
+            print("AUTH failed — aborting")
+            return 1
+        self.test_unified_contacts(); time.sleep(0.2)
+        self.test_unified_global(); time.sleep(0.2)
+        self.test_transaction_crud(); time.sleep(0.2)
+        self.test_budget_crud(); time.sleep(0.2)
+        self.test_split_expense_crud(); time.sleep(0.2)
+        self.test_sms_aliases()
+
+        total = len(self.results)
+        passed = sum(1 for _, ok, _ in self.results if ok)
+        print(f"\n=== RESULT: {passed}/{total} passed ===")
+        failed = [(n, d) for n, ok, d in self.results if not ok]
+        if failed:
+            print("\nFAILED:")
+            for n, d in failed:
+                print(f"  - {n}: {d}")
+        return 0 if not failed else 2
+
+
+if __name__ == "__main__":
+    sys.exit(R8().run())

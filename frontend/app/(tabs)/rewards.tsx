@@ -10,6 +10,8 @@ import { useLangStore } from '../../store/langStore';
 import { useAuthStore } from '../../store/authStore';
 import { COLORS, RADIUS, SPACING } from '../../utils/theme';
 import ScoreCard from '../../components/ScoreCard';
+import UnifiedLeaderboard from '../../components/leaderboard/UnifiedLeaderboard';
+import { t } from '../../utils/i18n';
 
 // Push notification handler + registration now live in /hooks/usePushNotifications.ts
 // (set up once globally in app/_layout.tsx).
@@ -90,27 +92,10 @@ export default function RewardsScreen() {
         contentContainerStyle={s.scroll}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); fetchData(); }} tintColor={COLORS.accent.primary} />}
       >
-        <Text style={s.pageTitle}>Rewards</Text>
+        <Text style={s.pageTitle}>{t('rewards', lang)}</Text>
 
-        {/* LEADERBOARD — TOP POSITION */}
-        {leaderboard && (
-          <View style={s.leaderboardCard}>
-            <View style={s.rankHero}>
-              <View style={s.rankCircle}><Text style={s.rankNum}>#{leaderboard.user_rank || '?'}</Text></View>
-              <View style={s.rankInfo}><Text style={s.rankTitle}>Your Rank</Text><Text style={s.rankPercentile}>Top {100 - (leaderboard.percentile || 50)}% of {leaderboard.total_users || 0} users</Text></View>
-              <View style={s.rankScore}><Text style={s.rankScoreNum}>{leaderboard.user_score || 0}</Text><Text style={s.rankScoreLabel}>Score</Text></View>
-            </View>
-            <Text style={s.comparisonText}>{leaderboard.comparison_text}</Text>
-            {(leaderboard.top_10 || []).slice(0, 5).map((entry: any, i: number) => (
-              <View key={i} style={[s.lbRow, entry.is_me && s.lbRowMe]}>
-                <Text style={[s.lbRank, i === 0 && { color: '#F59E0B' }, i === 1 && { color: '#94A3B8' }, i === 2 && { color: '#B45309' }]}>{i === 0 ? '🥇' : i === 1 ? '🥈' : i === 2 ? '🥉' : `#${entry.rank}`}</Text>
-                <Text style={[s.lbName, entry.is_me && { fontWeight: '800', color: COLORS.accent.primary }]}>{entry.is_me ? 'You' : entry.name}</Text>
-                <Text style={s.lbScore}>{entry.score}</Text>
-                {entry.streak > 0 && <Text style={s.lbStreak}>🔥{entry.streak}</Text>}
-              </View>
-            ))}
-          </View>
-        )}
+        {/* UNIFIED LEADERBOARD — same component on Home / Rewards / Split */}
+        <UnifiedLeaderboard title={t('leaderboard', lang).toUpperCase()} />
 
         {/* Streak */}
         <View style={s.streakCard}>
@@ -120,20 +105,20 @@ export default function RewardsScreen() {
               <Text style={s.streakNum}>{streak}</Text>
             </View>
             <View style={s.streakInfo}>
-              <Text style={s.streakTitle}>{streak} Day Streak</Text>
-              <Text style={s.streakSub}>Keep tracking to grow your streak!</Text>
+              <Text style={s.streakTitle}>{t('streak_days', lang, { n: streak })}</Text>
+              <Text style={s.streakSub}>{t('keep_tracking', lang)}</Text>
             </View>
           </View>
           <TouchableOpacity testID="share-score-btn" style={s.shareScoreBtn} onPress={() => shareWhatsApp(`My Money Score on MintU is ${user?.money_score || 50}/100! Track your finances: https://mintu.app`)}>
             <Ionicons name="share-social" size={16} color="#fff" />
-            <Text style={s.shareScoreTxt}>Share Score</Text>
+            <Text style={s.shareScoreTxt}>{t('share_score', lang)}</Text>
           </TouchableOpacity>
         </View>
 
         {/* Instagram Story Card */}
         {scoreCardData && (
           <View style={{ marginBottom: SPACING.lg }}>
-            <Text style={s.section}>Share Your Score</Text>
+            <Text style={s.section}>{t('share_your_score', lang)}</Text>
             <ScoreCard
               name={scoreCardData.name}
               score={scoreCardData.score}
@@ -149,7 +134,7 @@ export default function RewardsScreen() {
           <View style={s.challengeCard}>
             <View style={s.challengeHeader}>
               <Ionicons name="trophy" size={18} color="#F59E0B" />
-              <Text style={s.challengeOverline}>WEEKLY CHALLENGE</Text>
+              <Text style={s.challengeOverline}>{t('weekly_challenge', lang).toUpperCase()}</Text>
             </View>
             <Text style={s.challengeTitle}>{challenge.title}</Text>
             <Text style={s.challengeDesc}>{challenge.desc}</Text>
@@ -157,7 +142,7 @@ export default function RewardsScreen() {
         )}
 
         {/* Badges */}
-        <Text style={s.section}>Badges Earned ({badges.length})</Text>
+        <Text style={s.section}>{t('badges_earned', lang)} ({badges.length})</Text>
         <ScrollView horizontal showsHorizontalScrollIndicator={false} style={s.badgeScroll}>
           {badges.map((b: any) => (
             <View key={b.id} style={s.badge}>

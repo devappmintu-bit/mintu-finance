@@ -385,8 +385,8 @@ export default function HomeScreen() {
         {/* WEEKLY REPORT */}
         <WeeklyReport weeklyReport={weeklyReport} snapshot={snapshot} user={user} />
 
-        {/* LEADERBOARD PREVIEW */}
-        <LeaderboardPreview leaderboard={leaderboard} />
+        {/* UNIFIED LEADERBOARD (Friends / Global — same across Home/Rewards/Split) */}
+        <UnifiedLeaderboard compact title={t('leaderboard', lang).toUpperCase()} onPressMore={() => router.push('/(tabs)/rewards' as any)} />
 
         {/* INDIA FINANCE NEWS */}
         <NewsCarousel
@@ -485,4 +485,5 @@ const styles = StyleSheet.create({
   freshBtn: { marginLeft: 4, padding: 4, borderRadius: 999, backgroundColor: '#fff' },
   // Leaderboard preview on Home
   // Money School horizontal cards
-  // Transactions});
+  // Transactions
+});

@@ -12,31 +12,39 @@ import { useLangStore } from '../../store/langStore';
 import { t } from '../../utils/i18n';
 import { COLORS, RADIUS, SPACING, CATEGORIES, CATEGORY_LIST, SHADOW, shadowStyle } from '../../utils/theme';
 import PressableGlass from '../../components/PressableGlass';
+import SwipeableRow from '../../components/SwipeableRow';
 import Toast from 'react-native-toast-message';
 import { TransactionsSkeleton } from '../../components/SkeletonLoader';
 import { PieChart } from 'react-native-gifted-charts';
 import SmartInsightsStrip from '../../components/transactions/SmartInsightsStrip';
 
 // Pure, memoized row — prevents re-renders on unrelated parent state changes (e.g. modals).
-const TxnRow = memo(function TxnRow({ item, lang, onLongPress }: { item: any; lang: string; onLongPress: (id: string) => void }) {
+const TxnRow = memo(function TxnRow({ item, lang, onEdit, onDelete }: { item: any; lang: string; onEdit: (t: any) => void; onDelete: (id: string) => void }) {
   const cat = CATEGORIES[item.category] || CATEGORIES.Other;
   const isCash = item.source === 'cash' || item.source === 'cash_recurring';
   return (
-    <PressableGlass testID={`txn-${item.id}`} feedback="light" onLongPress={() => onLongPress(item.id)} style={styles.txnCard}>
-      <View style={[styles.txnIcon, { backgroundColor: cat.color + '18' }]}>
-        <Ionicons name={cat.icon as any} size={20} color={cat.color} />
-      </View>
-      <View style={styles.txnInfo}>
-        <Text style={styles.txnDesc} numberOfLines={1}>{item.description}</Text>
-        <View style={styles.txnMetaRow}>
-          <Text style={styles.txnMeta} numberOfLines={1}>{item.category} · {format(new Date(item.date), 'MMM dd')}</Text>
-          {isCash && <View style={styles.cashBadge}><Text style={styles.cashBadgeText}>{t('cash', lang)}</Text></View>}
+    <SwipeableRow
+      onEdit={() => onEdit(item)}
+      onDelete={() => onDelete(item.id)}
+      editLabel={t('edit', lang)}
+      deleteLabel={t('delete', lang)}
+    >
+      <PressableGlass testID={`txn-${item.id}`} feedback="light" onLongPress={() => onDelete(item.id)} onPress={() => onEdit(item)} style={styles.txnCard}>
+        <View style={[styles.txnIcon, { backgroundColor: cat.color + '18' }]}>
+          <Ionicons name={cat.icon as any} size={20} color={cat.color} />
         </View>
-      </View>
-      <Text style={[styles.txnAmount, { color: item.type === 'credit' ? COLORS.accent.moneyIn : COLORS.accent.moneyOut }]} numberOfLines={1}>
-        {item.type === 'credit' ? '+' : '-'}₹{item.amount.toFixed(0)}
-      </Text>
-    </PressableGlass>
+        <View style={styles.txnInfo}>
+          <Text style={styles.txnDesc} numberOfLines={1}>{item.description}</Text>
+          <View style={styles.txnMetaRow}>
+            <Text style={styles.txnMeta} numberOfLines={1}>{item.category} · {format(new Date(item.date), 'MMM dd')}</Text>
+            {isCash && <View style={styles.cashBadge}><Text style={styles.cashBadgeText}>{t('cash', lang)}</Text></View>}
+          </View>
+        </View>
+        <Text style={[styles.txnAmount, { color: item.type === 'credit' ? COLORS.accent.moneyIn : COLORS.accent.moneyOut }]} numberOfLines={1}>
+          {item.type === 'credit' ? '+' : '-'}₹{item.amount.toFixed(0)}
+        </Text>
+      </PressableGlass>
+    </SwipeableRow>
   );
 });
 
@@ -49,7 +57,8 @@ export default function TransactionsScreen() {
   const [smsModalVisible, setSmsModalVisible] = useState(false);
   const [smsText, setSmsText] = useState('');
   const [smsLoading, setSmsLoading] = useState(false);
-  const [formData, setFormData] = useState({ amount: '', category: 'Food', description: '', type: 'debit' });
+  const [formData, setFormData] = useState({ id: '', amount: '', category: 'Food', description: '', type: 'debit' });
+  const [editingTxn, setEditingTxn] = useState<any>(null);
   const [cashText, setCashText] = useState('');
   const [cashLoading, setCashLoading] = useState(false);
   const [notifText, setNotifText] = useState('');
@@ -96,13 +105,30 @@ export default function TransactionsScreen() {
   const fetchTransactions = fetchAll;
 
   const handleAdd = async () => {
-    if (!formData.amount || !formData.description) { Alert.alert(t('error', lang), 'Please fill all fields'); return; }
+    if (!formData.amount || !formData.description) { Alert.alert(t('error', lang), t('fill_all_fields', lang)); return; }
+    const isEdit = !!editingTxn;
     try {
-      await api.post('/transactions', { ...formData, amount: parseFloat(formData.amount) });
+      if (isEdit) {
+        // Optimistic update
+        const patched = { ...editingTxn, amount: parseFloat(formData.amount), category: formData.category, description: formData.description, type: formData.type };
+        setTransactions(prev => prev.map(tx => tx.id === editingTxn.id ? patched : tx));
+        await api.put(`/transactions/${editingTxn.id}`, { amount: parseFloat(formData.amount), category: formData.category, description: formData.description, type: formData.type });
+        Toast.show({ type: 'success', text1: t('txn_updated', lang) });
+      } else {
+        await api.post('/transactions', { ...formData, amount: parseFloat(formData.amount) });
+        Toast.show({ type: 'success', text1: t('txn_added', lang) });
+      }
       setModalVisible(false);
-      setFormData({ amount: '', category: 'Food', description: '', type: 'debit' });
+      setEditingTxn(null);
+      setFormData({ id: '', amount: '', category: 'Food', description: '', type: 'debit' });
       fetchTransactions();
-    } catch (e) { Alert.alert(t('error', lang), 'Failed to add'); }
+    } catch (e) { Alert.alert(t('error', lang), t('failed_save', lang)); fetchTransactions(); }
+  };
+
+  const openEdit = (tx: any) => {
+    setEditingTxn(tx);
+    setFormData({ id: tx.id, amount: String(tx.amount), category: tx.category, description: tx.description, type: tx.type });
+    setModalVisible(true);
   };
 
   // Unified SMS parser — handles both single bank notification AND multiple pasted SMS messages.
@@ -154,15 +180,28 @@ export default function TransactionsScreen() {
   // [Voice transcription removed — SMS paste is the primary input method.]
 
   const handleDelete = (id: string) => {
-    Alert.alert(t('delete', lang), 'Remove this transaction?', [
+    Alert.alert(t('delete', lang), t('remove_transaction', lang), [
       { text: t('cancel', lang), style: 'cancel' },
-      { text: t('delete', lang), style: 'destructive', onPress: async () => { await api.delete(`/transactions/${id}`); fetchTransactions(); } },
+      { text: t('delete', lang), style: 'destructive', onPress: async () => {
+        // Optimistic remove — instantly update UI
+        const prev = transactions;
+        setTransactions(curr => curr.filter(tx => tx.id !== id));
+        try {
+          await api.delete(`/transactions/${id}`);
+          Toast.show({ type: 'success', text1: t('txn_deleted', lang) });
+          fetchTransactions();
+        } catch {
+          // Rollback if the server rejects
+          setTransactions(prev);
+          Toast.show({ type: 'error', text1: t('error', lang) });
+        }
+      } },
     ]);
   };
 
   const renderTxn = useCallback(({ item }: { item: any }) => (
-    <TxnRow item={item} lang={lang} onLongPress={handleDelete} />
-  ), [lang]);
+    <TxnRow item={item} lang={lang} onEdit={openEdit} onDelete={handleDelete} />
+  ), [lang, transactions]);
 
   if (loading) return <SafeAreaView style={styles.container}><TransactionsSkeleton /></SafeAreaView>;
 
@@ -273,8 +312,8 @@ export default function TransactionsScreen() {
           <View style={styles.modalSheet}>
             <View style={styles.sheetHandle} />
             <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>{t('add_transaction', lang)}</Text>
-              <TouchableOpacity onPress={() => setModalVisible(false)}><Ionicons name="close" size={24} color={COLORS.text.primary} /></TouchableOpacity>
+              <Text style={styles.modalTitle}>{editingTxn ? t('edit_transaction', lang) : t('add_transaction', lang)}</Text>
+              <TouchableOpacity onPress={() => { setModalVisible(false); setEditingTxn(null); setFormData({ id: '', amount: '', category: 'Food', description: '', type: 'debit' }); }}><Ionicons name="close" size={24} color={COLORS.text.primary} /></TouchableOpacity>
             </View>
             <ScrollView keyboardShouldPersistTaps="handled">
               <View style={styles.typeRow}>
@@ -301,7 +340,7 @@ export default function TransactionsScreen() {
               </ScrollView>
               <Text style={styles.formLabel}>{t('description', lang)}</Text>
               <TextInput style={styles.textInput} placeholder="e.g. Lunch at restaurant" placeholderTextColor={COLORS.text.muted} value={formData.description} onChangeText={(v) => setFormData({ ...formData, description: v })} />
-              <TouchableOpacity testID="submit-txn-btn" style={styles.submitBtn} onPress={handleAdd}><Text style={styles.submitText}>{t('add_transaction', lang)}</Text></TouchableOpacity>
+              <TouchableOpacity testID="submit-txn-btn" style={styles.submitBtn} onPress={handleAdd}><Text style={styles.submitText}>{editingTxn ? t('update', lang) : t('add_transaction', lang)}</Text></TouchableOpacity>
             </ScrollView>
           </View>
         </KeyboardAvoidingView>

@@ -34,6 +34,7 @@ async def get_sample_sms_inbox():
 
 
 @api_router.post("/sms/bulk-parse")
+@api_router.post("/sms/parse-bulk")  # legacy alias (older cached clients)
 async def bulk_parse_sms(data: dict, user_id: str = Depends(get_current_user)):
     """Parse multiple SMS messages and create transactions"""
     messages = data.get("messages", [])

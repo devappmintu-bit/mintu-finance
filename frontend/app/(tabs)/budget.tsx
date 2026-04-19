@@ -9,6 +9,7 @@ import { Ionicons } from '@expo/vector-icons';
 import api from '../../utils/api';
 import { COLORS, RADIUS, SPACING, CATEGORIES, CATEGORY_LIST, SHADOW } from '../../utils/theme';
 import PressableGlass from '../../components/PressableGlass';
+import SwipeableRow from '../../components/SwipeableRow';
 import { useLangStore } from '../../store/langStore';
 import { t } from '../../utils/i18n';
 import Toast from 'react-native-toast-message';
@@ -60,19 +61,37 @@ export default function BudgetScreen() {
 
   const handleSave = async () => {
     if (!formData.amount || parseFloat(formData.amount) <= 0) {
-      Toast.show({ type: 'error', text1: 'Enter Amount', text2: 'Budget amount must be greater than 0' }); return;
+      Toast.show({ type: 'error', text1: t('enter_amount', lang), text2: t('amount_gt_zero', lang) }); return;
     }
     try {
-      if (editingBudget) await api.delete(`/budgets/${editingBudget.id}`).catch(() => {});
-      await api.post('/budgets', { ...formData, amount: parseFloat(formData.amount) });
+      if (editingBudget) {
+        // Optimistic patch + real PUT (not delete+create)
+        const patched = { ...editingBudget, amount: parseFloat(formData.amount), category: formData.category, period: formData.period };
+        setBudgets(prev => prev.map(b => b.id === editingBudget.id ? patched : b));
+        await api.put(`/budgets/${editingBudget.id}`, { amount: parseFloat(formData.amount), category: formData.category, period: formData.period });
+      } else {
+        await api.post('/budgets', { ...formData, amount: parseFloat(formData.amount) });
+      }
       setModalVisible(false); setEditingBudget(null); fetchAll();
-      Toast.show({ type: 'success', text1: editingBudget ? 'Updated!' : 'Created!', text2: `${formData.category} — ₹${formData.amount}` });
-    } catch { Toast.show({ type: 'error', text1: 'Error', text2: 'Failed to save' }); }
+      Toast.show({ type: 'success', text1: editingBudget ? t('budget_updated', lang) : t('budget_created', lang), text2: `${formData.category} — ₹${formData.amount}` });
+    } catch { Toast.show({ type: 'error', text1: t('error', lang), text2: t('failed_save', lang) }); fetchAll(); }
   };
 
-  const handleDelete = (id: string, cat: string) => Alert.alert('Delete?', `Remove ${cat} budget?`, [
-    { text: 'Cancel', style: 'cancel' },
-    { text: 'Delete', style: 'destructive', onPress: async () => { await api.delete(`/budgets/${id}`).catch(() => {}); fetchAll(); Toast.show({ type: 'info', text1: 'Removed' }); } },
+  const handleDelete = (id: string, cat: string) => Alert.alert(t('delete', lang) + '?', t('remove_budget', lang, { cat }), [
+    { text: t('cancel', lang), style: 'cancel' },
+    { text: t('delete', lang), style: 'destructive', onPress: async () => {
+      // Optimistic delete
+      const prev = budgets;
+      setBudgets(curr => curr.filter(b => b.id !== id));
+      try {
+        await api.delete(`/budgets/${id}`);
+        Toast.show({ type: 'info', text1: t('budget_removed', lang) });
+        fetchAll();
+      } catch {
+        setBudgets(prev);
+        Toast.show({ type: 'error', text1: t('error', lang) });
+      }
+    } },
   ]);
 
   const totalBudget = budgets.reduce((s, b) => s + (b.amount || 0), 0);
@@ -89,37 +108,44 @@ export default function BudgetScreen() {
     const statusColor = isOver ? COLORS.accent.moneyOut : isWarn ? '#F59E0B' : COLORS.accent.moneyIn;
 
     return (
-      <PressableGlass style={s.card} onPress={() => openEdit(item)} onLongPress={() => handleDelete(item.id, item.category)} feedback="light">
-        <View style={s.cardRow}>
-          <View style={[s.catDot, { backgroundColor: cat.color }]} />
-          <View style={{ flex: 1 }}>
-            <Text style={s.catName} numberOfLines={1}>{item.category}</Text>
-            <Text style={s.period}>{item.period}</Text>
+      <SwipeableRow
+        onEdit={() => openEdit(item)}
+        onDelete={() => handleDelete(item.id, item.category)}
+        editLabel={t('edit', lang)}
+        deleteLabel={t('delete', lang)}
+      >
+        <PressableGlass style={s.card} onPress={() => openEdit(item)} feedback="light">
+          <View style={s.cardRow}>
+            <View style={[s.catDot, { backgroundColor: cat.color }]} />
+            <View style={{ flex: 1 }}>
+              <Text style={s.catName} numberOfLines={1}>{item.category}</Text>
+              <Text style={s.period}>{t(item.period, lang)}</Text>
+            </View>
+            <View style={{ alignItems: 'flex-end' }}>
+              <Text style={[s.spentAmt, { color: statusColor }]} numberOfLines={1}>₹{spent.toFixed(0)}</Text>
+              <Text style={s.limitAmt} numberOfLines={1}>{t('total', lang).toLowerCase()} ₹{limit.toFixed(0)}</Text>
+            </View>
           </View>
-          <View style={{ alignItems: 'flex-end' }}>
-            <Text style={[s.spentAmt, { color: statusColor }]} numberOfLines={1}>₹{spent.toFixed(0)}</Text>
-            <Text style={s.limitAmt} numberOfLines={1}>of ₹{limit.toFixed(0)}</Text>
-          </View>
-        </View>
-        {isOver && (
-          <View style={s.overBanner}>
-            <Ionicons name="warning" size={13} color={COLORS.accent.moneyOut} />
-            <Text style={s.overText}>Over by ₹{(spent - limit).toFixed(0)}</Text>
-          </View>
-        )}
-        {isWarn && !isOver && (
-          <View style={[s.overBanner, { backgroundColor: '#FEF3C7' }]}>
-            <Ionicons name="alert-circle" size={13} color="#D97706" />
-            <Text style={[s.overText, { color: '#D97706' }]}>₹{remaining.toFixed(0)} left</Text>
-          </View>
-        )}
-        {!isOver && !isWarn && (
-          <View style={[s.overBanner, { backgroundColor: '#F0FDF4' }]}>
-            <Ionicons name="checkmark-circle" size={13} color={COLORS.accent.moneyIn} />
-            <Text style={[s.overText, { color: COLORS.accent.moneyIn }]}>₹{remaining.toFixed(0)} remaining</Text>
-          </View>
-        )}
-      </PressableGlass>
+          {isOver && (
+            <View style={s.overBanner}>
+              <Ionicons name="warning" size={13} color={COLORS.accent.moneyOut} />
+              <Text style={s.overText}>{t('over_by', lang)} ₹{(spent - limit).toFixed(0)}</Text>
+            </View>
+          )}
+          {isWarn && !isOver && (
+            <View style={[s.overBanner, { backgroundColor: '#FEF3C7' }]}>
+              <Ionicons name="alert-circle" size={13} color="#D97706" />
+              <Text style={[s.overText, { color: '#D97706' }]}>₹{remaining.toFixed(0)} {t('left', lang)}</Text>
+            </View>
+          )}
+          {!isOver && !isWarn && (
+            <View style={[s.overBanner, { backgroundColor: '#F0FDF4' }]}>
+              <Ionicons name="checkmark-circle" size={13} color={COLORS.accent.moneyIn} />
+              <Text style={[s.overText, { color: COLORS.accent.moneyIn }]}>₹{remaining.toFixed(0)} {t('remaining', lang)}</Text>
+            </View>
+          )}
+        </PressableGlass>
+      </SwipeableRow>
     );
   };
 
@@ -129,8 +155,8 @@ export default function BudgetScreen() {
     <SafeAreaView style={s.bg}>
       <View style={s.header}>
         <View>
-          <Text style={s.title}>Budgets</Text>
-          <Text style={s.sub}>{budgets.length} active</Text>
+          <Text style={s.title}>{t('budgets', lang)}</Text>
+          <Text style={s.sub}>{budgets.length} {t('active', lang)}</Text>
         </View>
         <PressableGlass style={s.addBtn} onPress={openAdd} feedback="medium">
           <Ionicons name="add" size={22} color="#fff" />
@@ -149,15 +175,15 @@ export default function BudgetScreen() {
             {budgets.length > 0 && (
               <View style={s.summaryRow}>
                 <View style={s.summaryBox}>
-                  <Text style={s.sumLabel}>Budget</Text>
+                  <Text style={s.sumLabel}>{t('budgets', lang)}</Text>
                   <Text style={s.sumVal}>₹{totalBudget.toFixed(0)}</Text>
                 </View>
                 <View style={s.summaryBox}>
-                  <Text style={s.sumLabel}>Spent</Text>
+                  <Text style={s.sumLabel}>{t('spent', lang)}</Text>
                   <Text style={[s.sumVal, { color: COLORS.accent.moneyOut }]}>₹{totalSpent.toFixed(0)}</Text>
                 </View>
                 <View style={s.summaryBox}>
-                  <Text style={s.sumLabel}>Left</Text>
+                  <Text style={s.sumLabel}>{t('left', lang)}</Text>
                   <Text style={[s.sumVal, { color: totalBudget - totalSpent >= 0 ? COLORS.accent.moneyIn : COLORS.accent.moneyOut }]}>₹{Math.abs(totalBudget - totalSpent).toFixed(0)}</Text>
                 </View>
               </View>
@@ -167,7 +193,7 @@ export default function BudgetScreen() {
               <View style={s.suggestCard}>
                 <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 6 }}>
                   <Ionicons name="bulb" size={16} color="#F59E0B" />
-                  <Text style={s.suggestTitle}>AI Suggestions</Text>
+                  <Text style={s.suggestTitle}>{t('ai_suggestions', lang)}</Text>
                 </View>
                 <Text style={s.suggestMsg}>{suggestions.message}</Text>
                 {suggestions.suggestions.slice(0, 3).map((sg: any, i: number) => (
@@ -178,7 +204,7 @@ export default function BudgetScreen() {
                 ))}
                 <TouchableOpacity style={s.applyBtn} onPress={applySmartBudgets}>
                   <Ionicons name="sparkles" size={14} color="#fff" />
-                  <Text style={s.applyText}>Auto-apply</Text>
+                  <Text style={s.applyText}>{t('auto_apply', lang)}</Text>
                 </TouchableOpacity>
               </View>
             )}
@@ -187,9 +213,9 @@ export default function BudgetScreen() {
         ListEmptyComponent={
           <View style={s.empty}>
             <Ionicons name="wallet-outline" size={48} color={COLORS.accent.primary} />
-            <Text style={s.emptyTitle}>No budgets yet</Text>
+            <Text style={s.emptyTitle}>{t('no_budgets', lang)}</Text>
             <TouchableOpacity style={s.emptyBtn} onPress={openAdd}>
-              <Text style={s.emptyBtnText}>Create Budget</Text>
+              <Text style={s.emptyBtnText}>{t('create_budget', lang)}</Text>
             </TouchableOpacity>
           </View>
         }
@@ -201,11 +227,11 @@ export default function BudgetScreen() {
           <View style={s.sheet}>
             <View style={s.handle} />
             <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
-              <Text style={s.sheetTitle}>{editingBudget ? 'Edit Budget' : 'New Budget'}</Text>
+              <Text style={s.sheetTitle}>{editingBudget ? t('edit_budget', lang) : t('new_budget', lang)}</Text>
               <TouchableOpacity onPress={() => { setModalVisible(false); setEditingBudget(null); }}><Ionicons name="close" size={24} color={COLORS.text.primary} /></TouchableOpacity>
             </View>
             <ScrollView keyboardShouldPersistTaps="handled">
-              <Text style={s.formLabel}>Category</Text>
+              <Text style={s.formLabel}>{t('category', lang)}</Text>
               <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 20 }}>
                 {CATEGORY_LIST.map((c) => {
                   const ct = CATEGORIES[c]; const on = formData.category === c;
@@ -217,21 +243,21 @@ export default function BudgetScreen() {
                   );
                 })}
               </ScrollView>
-              <Text style={s.formLabel}>Period</Text>
+              <Text style={s.formLabel}>{t('period', lang)}</Text>
               <View style={{ flexDirection: 'row', gap: 10, marginBottom: 20 }}>
                 {PERIODS.map(p => (
                   <TouchableOpacity key={p} style={[s.periodBtn, formData.period === p && s.periodOn]} onPress={() => setFormData({ ...formData, period: p })}>
-                    <Text style={[s.periodText, formData.period === p && { color: '#fff' }]}>{p.charAt(0).toUpperCase() + p.slice(1)}</Text>
+                    <Text style={[s.periodText, formData.period === p && { color: '#fff' }]}>{t(p, lang)}</Text>
                   </TouchableOpacity>
                 ))}
               </View>
-              <Text style={s.formLabel}>Amount</Text>
+              <Text style={s.formLabel}>{t('amount', lang)}</Text>
               <View style={s.amtRow}>
                 <Text style={s.rupee}>₹</Text>
                 <TextInput style={s.amtInput} placeholder="0" placeholderTextColor={COLORS.text.muted} value={formData.amount} onChangeText={v => setFormData({ ...formData, amount: v })} keyboardType="numeric" />
               </View>
               <TouchableOpacity style={s.saveBtn} onPress={handleSave}>
-                <Text style={s.saveBtnText}>{editingBudget ? 'Update' : 'Set Budget'}</Text>
+                <Text style={s.saveBtnText}>{editingBudget ? t('update', lang) : t('set_budget', lang)}</Text>
               </TouchableOpacity>
             </ScrollView>
           </View>

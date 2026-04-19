@@ -7,6 +7,8 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import api from '../utils/api';
 import { useAuthStore } from '../store/authStore';
+import { useLangStore } from '../store/langStore';
+import { t } from '../utils/i18n';
 import { COLORS, RADIUS, SPACING } from '../utils/theme';
 import { MEMBER_COLORS, STICKERS } from './split/theme';
 import ExpenseMessage from './split/ExpenseMessage';
@@ -18,10 +20,12 @@ interface Props {
   onClose: () => void;
   onAddExpense: (group: any) => void;
   onManage: (group: any) => void;
+  onEditExpense?: (expense: any, group: any) => void;
 }
 
-export default function GroupChat({ group, onClose, onAddExpense, onManage }: Props) {
+export default function GroupChat({ group, onClose, onAddExpense, onManage, onEditExpense }: Props) {
   const { user } = useAuthStore();
+  const { lang } = useLangStore();
   const [tab, setTab] = useState<'chat' | 'expenses'>('chat');
   const [messages, setMessages] = useState<any[]>([]);
   const [input, setInput] = useState('');
@@ -153,15 +157,32 @@ export default function GroupChat({ group, onClose, onAddExpense, onManage }: Pr
       {/* Tabs */}
       <View style={s.tabs}>
         <TouchableOpacity style={[s.tab, tab === 'chat' && s.tabOn]} onPress={() => setTab('chat')}>
-          <Text style={[s.tabText, tab === 'chat' && s.tabTextOn]}>Chat</Text>
+          <Text style={[s.tabText, tab === 'chat' && s.tabTextOn]}>{t('chat', lang) !== 'chat' ? t('chat', lang) : 'Chat'}</Text>
         </TouchableOpacity>
         <TouchableOpacity style={[s.tab, tab === 'expenses' && s.tabOn]} onPress={() => { setTab('expenses'); loadSummary(); }}>
-          <Text style={[s.tabText, tab === 'expenses' && s.tabTextOn]}>Expenses</Text>
+          <Text style={[s.tabText, tab === 'expenses' && s.tabTextOn]}>{t('expenses', lang)}</Text>
         </TouchableOpacity>
       </View>
 
       {tab === 'expenses' ? (
-        <ExpensesTab summary={summary} currentUserId={user?.id} onAddExpense={() => onAddExpense(group)} />
+        <ExpensesTab
+          summary={summary}
+          currentUserId={user?.id}
+          onAddExpense={() => onAddExpense(group)}
+          onEditExpense={onEditExpense ? (exp: any) => onEditExpense(exp, group) : undefined}
+          onDeleteExpense={async (exp: any) => {
+            // Optimistic remove from summary
+            setSummary((prev: any) => prev ? { ...prev, recent_expenses: (prev.recent_expenses || []).filter((e: any) => (e.id || e._id) !== (exp.id || exp._id)) } : prev);
+            try {
+              await api.delete(`/split/expenses/${exp.id || exp._id}`);
+              Toast.show({ type: 'success', text1: t('expense_removed', lang) });
+              loadSummary();
+            } catch {
+              Toast.show({ type: 'error', text1: t('error', lang) });
+              loadSummary();
+            }
+          }}
+        />
       ) : (
         <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={{ flex: 1 }} keyboardVerticalOffset={10}>
           <FlatList

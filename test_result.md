@@ -1788,3 +1788,258 @@ agent_communication:
       caused by this change. Does not affect functionality.
 
       NO backend changes in this pass.
+
+# ============================================================================
+# ROUND 8 — Swipe CRUD, Unified Leaderboard Everywhere, Multi-Language Expansion
+# ============================================================================
+
+frontend:
+  - task: "Unified Leaderboard injected on Home/Rewards/Split"
+    implemented: true
+    working: "NA"
+    file: "app/(tabs)/index.tsx, rewards.tsx, split.tsx; components/leaderboard/UnifiedLeaderboard.tsx"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: true
+    status_history:
+        - working: "NA"
+          agent: "main"
+          comment: |
+            Home now renders <UnifiedLeaderboard compact /> in place of the
+            legacy LeaderboardPreview. Rewards tab shows the same component
+            replacing the old leaderboardCard block. Split tab replaces the
+            legacy LeaderboardCard import and usage with UnifiedLeaderboard.
+            All three screens share a single component, auto-refreshes on
+            focus, supports Friends/Global scope toggle.
+  - task: "Swipe-to-Edit/Delete across Transactions, Budgets, Split Expenses"
+    implemented: true
+    working: "NA"
+    file: "components/SwipeableRow.tsx, app/(tabs)/transactions.tsx, budget.tsx, components/split/ExpensesTab.tsx, components/GroupChat.tsx"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: true
+    status_history:
+        - working: "NA"
+          agent: "main"
+          comment: |
+            Created reusable SwipeableRow.tsx (uses RNGH Swipeable).
+            Left swipe reveals Edit (blue), right swipe reveals Delete (red).
+            On web, falls back to small inline Edit/Delete buttons.
+            Transactions: now supports tap-to-edit + swipe, optimistic delete
+            with rollback, proper PUT instead of delete+create, edit modal
+            title and submit button update based on editingTxn.
+            Budgets: same swipe pattern, uses actual PUT endpoint, optimistic
+            delete+rollback, i18n on all labels/periods.
+            Split ExpensesTab: recent expenses now reversed (newest at end),
+            SwipeableRow wraps each expense row, hooked to GroupChat
+            onEditExpense/onDeleteExpense handlers with optimistic removal.
+  - task: "Split screen: push Activity Feed to end + translate labels"
+    implemented: true
+    working: "NA"
+    file: "app/(tabs)/split.tsx, components/split/ExpensesTab.tsx"
+    stuck_count: 0
+    priority: "medium"
+    needs_retesting: true
+    status_history:
+        - working: "NA"
+          agent: "main"
+          comment: |
+            SplitActivityFeed rendered after Groups section (was middle).
+            Balance labels, section titles, group metadata now use t().
+            ExpensesTab reverses recent_expenses array so newest shows last.
+  - task: "Multi-language — expanded i18n keys + t() helper with interpolation"
+    implemented: true
+    working: "NA"
+    file: "utils/i18n.ts"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: true
+    status_history:
+        - working: "NA"
+          agent: "main"
+          comment: |
+            Expanded translations to ~200 keys across 10 Indian languages.
+            Hindi fully translated; other 8 languages have 40+ core keys and
+            fall back to English via spread. t() now supports {placeholder}
+            interpolation (e.g. "{n} Day Streak" -> "{n}" replaced).
+            Screens migrated: transactions, budget, split, rewards, GroupChat,
+            ExpensesTab, UnifiedLeaderboard consumers.
+  - task: "Fix index.tsx syntax breakage (stray comment closing StyleSheet)"
+    implemented: true
+    working: true
+    file: "app/(tabs)/index.tsx"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+        - working: true
+          agent: "main"
+          comment: |
+            Comment had swallowed `});` ending the StyleSheet.create block.
+            Split the comment onto its own line and restored the closing `});`.
+            App bundles and loads successfully.
+
+backend:
+  - task: "SMS bulk-parse legacy alias"
+    implemented: true
+    working: true
+    file: "routers/sms.py"
+    stuck_count: 0
+    priority: "low"
+    needs_retesting: false
+    status_history:
+        - working: true
+          agent: "main"
+          comment: |
+            Added POST /api/sms/parse-bulk alias to the existing
+            /api/sms/bulk-parse endpoint so stale cached clients don't 404.
+            Confirmed backend logs now show 200 OK on both paths.
+        - working: true
+          agent: "testing"
+          comment: |
+            ✅ VERIFIED (Apr 19 2026). Both POST /api/sms/bulk-parse AND
+            POST /api/sms/parse-bulk return 200 with {parsed:1, failed:0, total:1}
+            for the review's sample SMS "HDFC: Rs 500 debited from A/c XX1234 at AMAZON".
+            LLM parsed the merchant/amount/category correctly and inserted a
+            transaction for each call.
+  - task: "Unified Leaderboard endpoint (/api/leaderboard/unified)"
+    implemented: true
+    working: true
+    file: "routers/analytics.py"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+        - working: true
+          agent: "testing"
+          comment: |
+            ✅ ROUND 8 UNIFIED LEADERBOARD VERIFIED (Apr 19 2026).
+            Test script: /app/backend_test.py. BASE=https://mintu-finance.preview.emergentagent.com/api.
+            Auth via OTP 9876543210/123456 → JWT(155) + user_id.
+
+            TEST 1 — GET /api/leaderboard/unified?scope=contacts → 200 with
+            {scope:'contacts', total:16, you, leader, headline, contenders:[16]}.
+            Shape: each contender has all 9 required fields
+            {rank, id, name, score, streak, coins, settlements, is_me, phone_masked}
+            + bonus has_avatar. `you` contains percentile (expected field).
+            Headline: "🏆 You're leading among your 15 contacts!".
+            Test user Test Smoke (phone 9876543210, score 55, streak 0, coins 121,
+            settlements 15) correctly identified as is_me + rank 1.
+
+            TEST 2 — GET /api/leaderboard/unified?scope=global → 200 with
+            {scope:'global', total:53, you:rank 4, leader:'Shivam', headline:'👑 Shivam leads with 80/100', contenders:[50]}.
+            contenders capped at 50 ✅. Shape identical to contacts.
+            you.percentile present (Test user at global rank 4 of 53).
+            Zero 500s or auth failures.
+  - task: "Transactions PUT/DELETE"
+    implemented: true
+    working: true
+    file: "routers/transactions.py"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+        - working: true
+          agent: "testing"
+          comment: |
+            ✅ Transaction CRUD verified end-to-end (Apr 19 2026):
+            POST /api/transactions {amount:450, category:Food, type:debit} → 200 id=69e53b06...;
+            PUT /api/transactions/{id} {amount:500, category:'Food & Dining'} → 200 with
+            amount and category updated on the returned row;
+            DELETE /api/transactions/{id} → 200 {message:'Transaction deleted'};
+            Double-delete correctly returns 404.
+  - task: "Budgets PUT/DELETE"
+    implemented: true
+    working: true
+    file: "routers/budgets.py"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+        - working: true
+          agent: "testing"
+          comment: |
+            ✅ Budget full CRUD lifecycle verified (Apr 19 2026):
+            POST /api/budgets {category:'Entertainment_R8', amount:2000, period:'monthly'} → 200 id=69e53b07...;
+            PUT /api/budgets/{id} {amount:2500, period:'weekly'} → 200 with both
+            fields reflected in response; DELETE /api/budgets/{id} → 200;
+            Double-delete returns 404. Upsert semantics preserved.
+  - task: "Split expense PUT/DELETE (no collision with leave-group)"
+    implemented: true
+    working: true
+    file: "routers/splits.py"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+        - working: true
+          agent: "testing"
+          comment: |
+            ✅ Split expense CRUD verified (Apr 19 2026):
+            POST /api/split/groups {name:'R8 Test Dinner', members:['9998887776']} → 200 id=69e53b08...
+            (creator + 1 pending invite satisfies the ≥2 participants rule);
+            POST /api/split/expenses {group_id, amount:800, paid_by:me, split_type:'equal'} → 200 id=69e53b08...;
+            PUT /api/split/expenses/{id} {amount:1000, description:'Pizza night (edited)'} → 200
+            with splits recomputed to {user_id:1000.0};
+            DELETE /api/split/expenses/{id} → 200 {message:'Expense deleted'} —
+            NO COLLISION with /api/split/groups/{id}/leave (that path uses DELETE
+            /split/groups/{group_id}/leave, distinct from /split/expenses/{expense_id});
+            Group cleanup DELETE /api/split/groups/{id} → 200.
+
+metadata:
+  version: "1.1"
+  last_round: 8
+  test_sequence: 8
+  run_ui: false
+
+test_plan:
+  current_focus:
+    - "Unified Leaderboard endpoint (/api/leaderboard/unified)"
+    - "Transactions PUT/DELETE optimistic flow"
+    - "Budgets PUT/DELETE endpoints"
+    - "Split expense DELETE/PUT endpoints"
+    - "SMS bulk-parse legacy alias"
+  test_all: false
+  test_priority: "high_first"
+
+agent_communication:
+    - agent: "testing"
+      message: |
+        ✅ ROUND 8 BACKEND REGRESSION — 48/48 ASSERTIONS PASSED (Apr 19 2026).
+        Test script: /app/backend_test.py.
+        Covered all 7 review items for Round 8:
+         1. GET /api/leaderboard/unified?scope=contacts → 200 with full shape
+            {scope, total:16, you (with percentile), leader, headline, contenders[16]}.
+            Each contender has all 9 required fields (rank/id/name/score/streak/coins/settlements/is_me/phone_masked).
+         2. GET /api/leaderboard/unified?scope=global → 200 with identical shape,
+            contenders capped at 50 (total=53 users in DB).
+         3. PUT /api/transactions/{id} — updates amount + category correctly.
+         4. DELETE /api/transactions/{id} — 200 then 404 on second delete.
+         5. Budgets full CRUD (POST/PUT/DELETE) — all 200, upsert preserved,
+            period and amount update cleanly, double-delete 404.
+         6. Split expense full CRUD — POST group (with ≥2 participants via pending
+            invite), POST expense, PUT expense (recomputes splits), DELETE expense —
+            confirmed no path collision with DELETE /split/groups/{id}/leave.
+         7. Both /api/sms/bulk-parse AND /api/sms/parse-bulk aliases work —
+            sample HDFC SMS "Rs 500 ... AMAZON" parsed successfully (parsed:1, failed:0).
+        ZERO 500s, ZERO regressions. Backend logs show clean 200s throughout.
+        Round 8 backend is PRODUCTION-READY.
+    - agent: "main"
+      message: |
+        Round 8 complete — major UX upgrade:
+        1. Unified Leaderboard now shared across Home, Rewards, Split (one
+           component, one endpoint, auto-refresh on focus).
+        2. Swipe-to-Edit/Delete added everywhere (Transactions, Budgets,
+           Split Expenses) via a new reusable SwipeableRow component.
+           Optimistic UI updates with rollback on error.
+        3. Split screen: recent activities feed pushed to end of scroll,
+           recent_expenses list now shows newest last (reversed).
+        4. Multi-language coverage dramatically expanded — 200+ keys,
+           Hindi fully translated, 8 other Indian languages with core
+           vocabulary, English fallback elsewhere.
+        5. Fixed stray syntax issue in index.tsx (StyleSheet end comment).
+        6. Backend: added /api/sms/parse-bulk legacy alias so older cached
+           clients don't see 404s on SMS paste.
+        Please retest unified leaderboard, transactions/budget PUT+DELETE
+        endpoints (optimistic flow relies on them being idempotent), and
+        split expense PUT/DELETE on the backend.
