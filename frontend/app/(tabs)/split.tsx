@@ -19,7 +19,6 @@ import { shareSmart, copyToClipboard } from '../../utils/share';
 import { C, getGA, DebtRow } from '../../components/split/theme';
 import SettleUpCard from '../../components/split/SettleUpCard';
 import RemindersBanner from '../../components/split/RemindersBanner';
-import UnifiedLeaderboard from '../../components/leaderboard/UnifiedLeaderboard';
 import CreateGroupSheet from '../../components/split/CreateGroupSheet';
 import ContactPickerSheet from '../../components/split/ContactPickerSheet';
 import ExpenseSheet from '../../components/split/ExpenseSheet';
@@ -420,9 +419,6 @@ export default function SplitScreen() {
           onRemind={openRemind}
           onMarkPaid={markPaidOffline}
         />
-
-        {/* UNIFIED LEADERBOARD — same across Home / Rewards / Split */}
-        <UnifiedLeaderboard title={t('leaderboard', lang).toUpperCase()} compact />
 
         {/* GROUPS */}
         <Text style={s.section}>{t('groups', lang)}</Text>

@@ -10,7 +10,6 @@ import { useLangStore } from '../../store/langStore';
 import { useAuthStore } from '../../store/authStore';
 import { COLORS, RADIUS, SPACING } from '../../utils/theme';
 import ScoreCard from '../../components/ScoreCard';
-import UnifiedLeaderboard from '../../components/leaderboard/UnifiedLeaderboard';
 import { t } from '../../utils/i18n';
 
 // Push notification handler + registration now live in /hooks/usePushNotifications.ts
@@ -93,9 +92,6 @@ export default function RewardsScreen() {
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); fetchData(); }} tintColor={COLORS.accent.primary} />}
       >
         <Text style={s.pageTitle}>{t('rewards', lang)}</Text>
-
-        {/* UNIFIED LEADERBOARD — same component on Home / Rewards / Split */}
-        <UnifiedLeaderboard title={t('leaderboard', lang).toUpperCase()} />
 
         {/* Streak */}
         <View style={s.streakCard}>
