@@ -259,6 +259,8 @@ const en: Translations = {
   streak_zero_days: '0-day streak',
   badges_short: 'badges earned',
   premium_fallback_sub: 'Unlock AI, reports, Money School & more',
+  deep_reports: 'Deep Reports',
+  premium_perks: 'All Perks',
 
   // ---- Budget ----
   budgets: 'Budgets',

@@ -6,6 +6,7 @@ import React, { useEffect, useState } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
+import { router } from 'expo-router';
 import api from '../../utils/api';
 import { COLORS } from '../../utils/theme';
 import MockPaymentSheet from '../MockPaymentSheet';
@@ -85,7 +86,7 @@ export default function PremiumExpandable({ onExplore }: Props) {
     }
   };
 
-  // Already premium? Show a success card.
+  // Already premium? Show a post-payment card with reports entry.
   if (status?.is_premium) {
     return (
       <LinearGradient colors={['#F56E1E', '#C14A06']} style={[s.card, { padding: 16 }]}>
@@ -99,6 +100,18 @@ export default function PremiumExpandable({ onExplore }: Props) {
             </Text>
           </View>
           <Ionicons name="checkmark-circle" size={26} color="#fff" />
+        </View>
+
+        {/* Premium perks quick-access row (post-payment) */}
+        <View style={s.perksRow}>
+          <TouchableOpacity style={s.perkBtn} onPress={() => router.push('/premium-reports' as any)} activeOpacity={0.85}>
+            <Ionicons name="analytics" size={18} color="#fff" />
+            <Text style={s.perkTxt}>{t('deep_reports', lang)}</Text>
+          </TouchableOpacity>
+          <TouchableOpacity style={s.perkBtn} onPress={onExplore} activeOpacity={0.85}>
+            <Ionicons name="trophy" size={18} color="#fff" />
+            <Text style={s.perkTxt}>{t('premium_perks', lang)}</Text>
+          </TouchableOpacity>
         </View>
       </LinearGradient>
     );
@@ -253,4 +266,13 @@ const s = StyleSheet.create({
   ctaText: { color: '#fff', fontSize: 15, fontWeight: '800' },
   seeAll: { alignItems: 'center', marginTop: 10 },
   seeAllTxt: { fontSize: 12, color: '#C14A06', fontWeight: '700' },
+
+  perksRow: { flexDirection: 'row', gap: 10, marginTop: 14 },
+  perkBtn: {
+    flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
+    gap: 6, paddingVertical: 11, borderRadius: 12,
+    backgroundColor: 'rgba(255,255,255,0.18)',
+    borderWidth: 1, borderColor: 'rgba(255,255,255,0.3)',
+  },
+  perkTxt: { color: '#fff', fontWeight: '800', fontSize: 12.5 },
 });

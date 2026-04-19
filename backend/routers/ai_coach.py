@@ -3,6 +3,7 @@
 Auto-extracted from backend/routers/ai.py (Round 14 refactor).
 Decorators register on the shared APIRouter from routers.ai_common.
 """
+import os
 import logging
 from datetime import datetime, timedelta, date
 from typing import List, Dict, Optional
@@ -10,7 +11,10 @@ from bson import ObjectId
 from fastapi import Depends, HTTPException, UploadFile, File
 from routers.ai_common import (
     router, api_router, ChatMessage, db, get_current_user,
-    _lazy_server_attr,
+    _lazy_server_attr, LlmChat, UserMessage, OpenAISpeechToText,
+)
+from core.constants import (
+    AGENT_PROFILES, route_to_agent, get_lang_instruction,
 )
 
 

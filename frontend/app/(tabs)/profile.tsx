@@ -237,7 +237,8 @@ export default function ProfileScreen() {
 
         <PaymentMethods upiId={upiId} />
 
-        {/* Premium card moved to Home screen (see tabs/index.tsx) — removed here to avoid duplication */}
+        {/* PREMIUM — back on profile with expandable plans + personalized reports */}
+        <PremiumExpandable onExplore={() => router.push('/premium' as any)} />
 
         <ReferralDashboard
           referral={referral}

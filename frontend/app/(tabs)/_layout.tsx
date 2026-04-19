@@ -220,13 +220,14 @@ const st = StyleSheet.create({
     borderRadius: 22,
     alignItems: 'center',
     justifyContent: 'center',
-    borderWidth: 3,
+    borderWidth: 2,
     borderColor: '#FFFFFF',
-    backgroundColor: '#FFF4E8', // soft ivory-saffron so the green icon stays visible
+    backgroundColor: '#FFFFFF', // clean white — lets the green icon breathe without any tinted halo
+    // Neutral depth shadow only — no saffron glow per design ask
     ...Platform.select({
-      ios: { shadowColor: '#F56E1E', shadowOpacity: 0.4, shadowRadius: 14, shadowOffset: { width: 0, height: 8 } },
-      android: { elevation: 14 },
-      web: { boxShadow: '0 10px 24px rgba(245,110,30,0.35)' as any },
+      ios: { shadowColor: '#0F172A', shadowOpacity: 0.12, shadowRadius: 10, shadowOffset: { width: 0, height: 4 } },
+      android: { elevation: 8 },
+      web: { boxShadow: '0 6px 16px rgba(15,23,42,0.1)' as any },
     }),
   },
   raisedLabel: {

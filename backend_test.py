@@ -1,214 +1,247 @@
-"""Round-13 post-refactor smoke regression (Apr 20 2026).
+"""Round 14 regression test — premium router refactor + deep-report validation.
 
-Covers 10 items from the review request:
-  1. GET /api/stats/overview
-  2. GET /api/analytics/summary
-  3. GET /api/analytics/monthly
-  4. GET /api/leaderboard/unified?scope=contacts
-  5. GET /api/news/india-finance  (6 articles with source_url pointing to Google News topic search)
-  6. POST /api/premium/mock-activate {plan:"yearly"}
-  7. Transactions full lifecycle (POST → PUT → DELETE)
-  8. Budgets full lifecycle (POST → PUT → DELETE)
-  9. Split lifecycle (POST /split/groups → POST /split/expenses → DELETE /split/expenses/{id})
-      — and verify DELETE does NOT collide with /split/groups/{id}/leave
- 10. Rate-limit sanity — 10 rapid GETs /api/user/me, none 429
+Tests:
+A) Core premium endpoints after the refactor (status, mock-activate, paywall, tax, invest, catalog)
+B) NEW GET /api/premium/deep-report — 403 before premium, 200 after
+C) Previously crashing AI endpoints (insights/daily, waste-detector, money-school/dynamic, ai/agents, ai/chat)
+D) Sanity on other routers (splits, transactions, analytics)
 """
-import json
-import os
-import time
-from pathlib import Path
-from typing import Tuple
+import sys
+import requests
 
-import httpx
-
-# ── Resolve public backend URL from frontend/.env ──
-ROOT = Path(__file__).parent
-env_path = ROOT / "frontend" / ".env"
-BASE = None
-for line in env_path.read_text().splitlines():
-    if line.startswith("EXPO_PUBLIC_BACKEND_URL=") or line.startswith("REACT_APP_BACKEND_URL="):
-        BASE = line.split("=", 1)[1].strip()
-        break
-assert BASE, "Could not resolve backend URL from frontend/.env"
-BASE = BASE.rstrip("/") + "/api"
-
+BASE = "https://mintu-finance.preview.emergentagent.com/api"
 PHONE = "9876543210"
 OTP = "123456"
 
-results: list[Tuple[str, bool, str]] = []
+results = []
 
 
-def _log(label: str, ok: bool, msg: str = "") -> None:
-    status = "PASS" if ok else "FAIL"
-    print(f"[{status}] {label} — {msg}")
-    results.append((label, ok, msg))
+def check(name, cond, info=""):
+    status = "PASS" if cond else "FAIL"
+    print(f"[{status}] {name}{' — ' + info if info else ''}")
+    results.append((name, cond, info))
+    return cond
 
 
-def auth_token(cli: httpx.Client) -> str:
-    r1 = cli.post(f"{BASE}/auth/send-otp", json={"phone": PHONE})
-    assert r1.status_code == 200, f"send-otp failed: {r1.status_code} {r1.text[:200]}"
-    r2 = cli.post(f"{BASE}/auth/verify-otp", json={"phone": PHONE, "otp": OTP, "name": "Test User"})
-    assert r2.status_code == 200, f"verify-otp failed: {r2.status_code} {r2.text[:200]}"
-    tok = r2.json()["token"]
-    return tok
+def post(path, token=None, **kwargs):
+    h = kwargs.pop("headers", {})
+    if token:
+        h["Authorization"] = f"Bearer {token}"
+    return requests.post(BASE + path, headers=h, timeout=60, **kwargs)
 
 
-def main():
-    with httpx.Client(timeout=60.0) as cli:
-        token = auth_token(cli)
-        H = {"Authorization": f"Bearer {token}"}
-
-        # ── 1. stats/overview ──
-        r = cli.get(f"{BASE}/stats/overview", headers=H)
-        ok = r.status_code == 200 and all(k in r.json() for k in ("total_income", "total_expense", "balance", "category_breakdown"))
-        _log("1. GET /api/stats/overview", ok, f"{r.status_code} keys={list(r.json().keys()) if r.status_code==200 else 'n/a'}")
-
-        # ── 2. analytics/summary (same payload) ──
-        r = cli.get(f"{BASE}/analytics/summary", headers=H)
-        ok = r.status_code == 200 and "total_income" in r.json() and "total_expense" in r.json()
-        _log("2. GET /api/analytics/summary", ok, f"{r.status_code}")
-
-        # ── 3. analytics/monthly (same payload) ──
-        r = cli.get(f"{BASE}/analytics/monthly", headers=H)
-        ok = r.status_code == 200 and "total_income" in r.json() and "category_breakdown" in r.json()
-        _log("3. GET /api/analytics/monthly", ok, f"{r.status_code}")
-
-        # ── 4. leaderboard/unified ──
-        r = cli.get(f"{BASE}/leaderboard/unified?scope=contacts", headers=H)
-        body = r.json() if r.status_code == 200 else {}
-        ok = r.status_code == 200 and "contenders" in body and "scope" in body and body.get("scope") == "contacts"
-        _log("4. GET /api/leaderboard/unified?scope=contacts", ok,
-             f"{r.status_code} total={body.get('total')} contenders={len(body.get('contenders', []))}")
-
-        # ── 5. news/india-finance ──
-        r = cli.get(f"{BASE}/news/india-finance", headers=H, timeout=30.0)
-        body = r.json() if r.status_code == 200 else {}
-        articles = body.get("articles", [])
-        has_6 = len(articles) == 6
-        all_have_source_url = all(isinstance(a.get("source_url"), str) and a["source_url"].startswith("http") for a in articles)
-        all_google_news = all("news.google.com/search" in (a.get("source_url") or "") for a in articles)
-        ok = r.status_code == 200 and has_6 and all_have_source_url and all_google_news
-        sample = articles[0].get("source_url", "")[:90] if articles else ""
-        _log("5. GET /api/news/india-finance", ok,
-             f"{r.status_code} n={len(articles)} all_google_news={all_google_news} sample={sample!r}")
-
-        # ── 6. premium/mock-activate yearly ──
-        r = cli.post(f"{BASE}/premium/mock-activate", headers=H, json={"plan": "yearly"})
-        body = r.json() if r.status_code == 200 else {}
-        ok = r.status_code == 200 and body.get("is_premium") is True and body.get("plan") == "yearly" and body.get("tier") == "premium"
-        _log("6. POST /api/premium/mock-activate {yearly}", ok,
-             f"{r.status_code} tier={body.get('tier')} plan={body.get('plan')} until={body.get('premium_until')}")
-
-        # ── 7. Transactions lifecycle ──
-        create = cli.post(f"{BASE}/transactions", headers=H, json={
-            "amount": 425.50, "category": "Food", "description": "Zomato biryani", "type": "debit"
-        })
-        ok_c = create.status_code == 200 and "id" in create.json()
-        txn_id = create.json().get("id") if ok_c else None
-        _log("7a. POST /api/transactions", ok_c, f"{create.status_code} id={txn_id}")
-
-        if txn_id:
-            upd = cli.put(f"{BASE}/transactions/{txn_id}", headers=H, json={
-                "amount": 500.0, "description": "Zomato biryani (updated)"
-            })
-            ok_u = upd.status_code == 200 and float(upd.json().get("amount", 0)) == 500.0
-            _log("7b. PUT /api/transactions/{id}", ok_u, f"{upd.status_code} amount={upd.json().get('amount')}")
-
-            dele = cli.delete(f"{BASE}/transactions/{txn_id}", headers=H)
-            ok_d = dele.status_code == 200
-            _log("7c. DELETE /api/transactions/{id}", ok_d, f"{dele.status_code}")
-        else:
-            _log("7b. PUT /api/transactions/{id}", False, "skipped (create failed)")
-            _log("7c. DELETE /api/transactions/{id}", False, "skipped (create failed)")
-
-        # ── 8. Budgets lifecycle ──
-        # Use a unique category to avoid upsert collision with pre-existing budget
-        unique_cat = f"SmokeCat_{int(time.time())}"
-        bcreate = cli.post(f"{BASE}/budgets", headers=H, json={
-            "category": unique_cat, "amount": 4000, "period": "monthly"
-        })
-        ok_bc = bcreate.status_code == 200 and "id" in bcreate.json()
-        b_id = bcreate.json().get("id") if ok_bc else None
-        _log("8a. POST /api/budgets", ok_bc, f"{bcreate.status_code} id={b_id}")
-
-        if b_id:
-            bupd = cli.put(f"{BASE}/budgets/{b_id}", headers=H, json={"amount": 5500})
-            ok_bu = bupd.status_code == 200 and float(bupd.json().get("amount", 0)) == 5500.0
-            _log("8b. PUT /api/budgets/{id}", ok_bu, f"{bupd.status_code} amount={bupd.json().get('amount')}")
-
-            bdel = cli.delete(f"{BASE}/budgets/{b_id}", headers=H)
-            ok_bd = bdel.status_code == 200
-            _log("8c. DELETE /api/budgets/{id}", ok_bd, f"{bdel.status_code}")
-        else:
-            _log("8b. PUT /api/budgets/{id}", False, "skipped (create failed)")
-            _log("8c. DELETE /api/budgets/{id}", False, "skipped (create failed)")
-
-        # ── 9. Split lifecycle ──
-        # Create a split group with 2 members (creator + a second registered phone)
-        gc = cli.post(f"{BASE}/split/groups", headers=H, json={
-            "name": f"Smoke Group {int(time.time())}",
-            "members": ["9999888877"],  # Rahul Sharma test user
-        })
-        ok_gc = gc.status_code == 200 and "id" in gc.json()
-        gid = gc.json().get("id") if ok_gc else None
-        member_ids = [m["user_id"] for m in gc.json().get("members", [])] if ok_gc else []
-        _log("9a. POST /api/split/groups", ok_gc,
-             f"{gc.status_code} id={gid} members={len(member_ids)}")
-
-        exp_id = None
-        if gid and len(member_ids) >= 2:
-            # Build equal splits between creator and second member
-            splits = {uid: 250.0 for uid in member_ids}
-            ec = cli.post(f"{BASE}/split/expenses", headers=H, json={
-                "group_id": gid,
-                "description": "Smoke dinner",
-                "amount": 500.0,
-                "paid_by": member_ids[0],
-                "split_type": "equal",
-                "splits": splits,
-            })
-            ok_ec = ec.status_code == 200 and "id" in ec.json()
-            exp_id = ec.json().get("id") if ok_ec else None
-            _log("9b. POST /api/split/expenses", ok_ec, f"{ec.status_code} id={exp_id}")
-        else:
-            _log("9b. POST /api/split/expenses", False, "skipped (group create failed or <2 members)")
-
-        if exp_id:
-            # DELETE the expense — verify it routes to delete_expense (not leave_group)
-            ed = cli.delete(f"{BASE}/split/expenses/{exp_id}", headers=H)
-            body = ed.json() if ed.status_code == 200 else {}
-            msg = body.get("message", "")
-            ok_ed = ed.status_code == 200 and msg == "Expense deleted"
-            _log("9c. DELETE /api/split/expenses/{id} (no collision w/ /leave)", ok_ed,
-                 f"{ed.status_code} message={msg!r}")
-        else:
-            _log("9c. DELETE /api/split/expenses/{id} (no collision w/ /leave)", False,
-                 "skipped (expense create failed)")
-
-        # Cleanup: delete the test group
-        if gid:
-            cli.delete(f"{BASE}/split/groups/{gid}", headers=H)
-
-        # ── 10. Rate-limit sanity — 10 rapid GETs /api/user/me, none 429 ──
-        codes = []
-        for _ in range(10):
-            r = cli.get(f"{BASE}/user/me", headers=H)
-            codes.append(r.status_code)
-        no_429 = all(c != 429 for c in codes)
-        all_200 = all(c == 200 for c in codes)
-        _log("10. 10x GET /api/user/me — no 429", no_429, f"codes={codes} all_200={all_200}")
-
-    # ── Summary ──
-    total = len(results)
-    passed = sum(1 for _, ok, _ in results if ok)
-    print("\n" + "=" * 70)
-    print(f"RESULT: {passed}/{total} assertions passed")
-    print("=" * 70)
-    for label, ok, msg in results:
-        marker = "✅" if ok else "❌"
-        print(f"{marker} {label}")
-    return 0 if passed == total else 1
+def get(path, token=None, **kwargs):
+    h = kwargs.pop("headers", {})
+    if token:
+        h["Authorization"] = f"Bearer {token}"
+    return requests.get(BASE + path, headers=h, timeout=60, **kwargs)
 
 
-if __name__ == "__main__":
-    raise SystemExit(main())
+# ---------- AUTH ----------
+print("\n===== AUTH =====")
+r = post("/auth/send-otp", json={"phone": PHONE})
+check("send-otp", r.status_code == 200, f"status={r.status_code}")
+r = post("/auth/verify-otp", json={"phone": PHONE, "otp": OTP})
+check("verify-otp", r.status_code == 200, f"status={r.status_code}")
+token = r.json().get("access_token") or r.json().get("token")
+check("token present", bool(token))
+
+
+# ---------- A) PREMIUM CORE ----------
+print("\n===== A) PREMIUM CORE =====")
+r = get("/premium/status", token)
+check("GET /premium/status (200)", r.status_code == 200, f"status={r.status_code}")
+status_body = r.json() if r.status_code == 200 else {}
+was_premium_before = status_body.get("is_premium", False)
+check("/premium/status has expected keys",
+      all(k in status_body for k in ["is_premium", "tier", "features", "pricing"]),
+      f"keys={list(status_body.keys())}")
+print(f"   (was_premium_before={was_premium_before})")
+
+# If user was already premium from a previous test run, reset tier for 403 check
+if was_premium_before:
+    print("   -> downgrading user to free tier (direct DB) so we can test 403 path")
+    try:
+        import pymongo
+        mongo_url = "mongodb://localhost:27017"
+        db_name = "test_database"
+        with open("/app/backend/.env") as f:
+            for line in f:
+                line = line.strip()
+                if line.startswith("MONGO_URL"):
+                    mongo_url = line.split("=", 1)[1].strip().strip('"').strip("'")
+                elif line.startswith("DB_NAME"):
+                    db_name = line.split("=", 1)[1].strip().strip('"').strip("'")
+        cli = pymongo.MongoClient(mongo_url)
+        dbh = cli[db_name]
+        res = dbh.users.update_one(
+            {"phone": PHONE},
+            {"$set": {"premium_tier": "free", "premium_until": None, "premium_plan": None}}
+        )
+        print(f"      downgrade result: matched={res.matched_count} modified={res.modified_count}")
+    except Exception as e:
+        print(f"   downgrade failed: {e}")
+
+# B) Deep-report 403 BEFORE premium
+print("\n===== B) DEEP-REPORT 403 BEFORE PREMIUM =====")
+r = get("/premium/deep-report?months=6", token)
+check("GET /premium/deep-report?months=6 BEFORE activation -> 403",
+      r.status_code == 403, f"status={r.status_code} body={r.text[:200]}")
+
+# Now mock-activate monthly
+print("\n===== A) MOCK-ACTIVATE monthly =====")
+r = post("/premium/mock-activate", token, json={"plan": "monthly"})
+check("POST /premium/mock-activate monthly", r.status_code == 200,
+      f"status={r.status_code} body={r.text[:200]}")
+if r.status_code == 200:
+    body = r.json()
+    check("mock-activate -> is_premium true", body.get("is_premium") is True)
+    check("mock-activate -> tier=premium", body.get("tier") == "premium")
+    check("mock-activate -> plan=monthly", body.get("plan") == "monthly")
+    check("mock-activate -> premium_until set", bool(body.get("premium_until")))
+
+# Confirm /premium/status reflects premium
+r = get("/premium/status", token)
+check("/premium/status after activation -> is_premium true",
+      r.status_code == 200 and r.json().get("is_premium") is True,
+      f"body={r.text[:200]}")
+
+# Paywall trigger
+r = get("/premium/paywall-trigger", token)
+check("GET /premium/paywall-trigger", r.status_code == 200, f"status={r.status_code}")
+if r.status_code == 200:
+    body = r.json()
+    check("paywall has total_spent / hook_text / pricing",
+          all(k in body for k in ["total_spent", "hook_text", "pricing", "features"]),
+          f"keys={list(body.keys())}")
+
+# Tax calculator
+r = post("/premium/tax-calculator", token,
+         json={"annual_income": 1200000, "section_80c": 50000})
+check("POST /premium/tax-calculator", r.status_code == 200,
+      f"status={r.status_code} body={r.text[:300]}")
+if r.status_code == 200:
+    body = r.json()
+    has_fields = any(k in body for k in ["new_regime", "old_regime", "recommended"])
+    check("tax-calc shape", has_fields, f"keys={list(body.keys())}")
+
+# Investment suggest
+r = post("/premium/investment-suggest", token,
+         json={"monthly_income": 80000, "age": 28, "risk": "medium"})
+check("POST /premium/investment-suggest", r.status_code == 200,
+      f"status={r.status_code} body={r.text[:300]}")
+if r.status_code == 200:
+    body = r.json()
+    check("investment-suggest returns data", bool(body),
+          f"keys={list(body.keys())}")
+
+# Features catalog
+r = get("/premium/features-catalog", token)
+check("GET /premium/features-catalog", r.status_code == 200, f"status={r.status_code}")
+if r.status_code == 200:
+    body = r.json()
+    check("features-catalog sections >=4", len(body.get("sections", [])) >= 4,
+          f"sections={len(body.get('sections', []))}")
+
+# B) Deep-report AFTER premium
+print("\n===== B) DEEP-REPORT AFTER PREMIUM =====")
+r = get("/premium/deep-report?months=6", token)
+check("GET /premium/deep-report?months=6 AFTER activation -> 200",
+      r.status_code == 200, f"status={r.status_code} body={r.text[:300]}")
+if r.status_code == 200:
+    body = r.json()
+    required = ["totals", "averages", "predicted", "monthly_series",
+                "top_categories", "top_merchants", "exec_summary", "generated_at"]
+    missing = [k for k in required if k not in body]
+    check("deep-report top-level keys", not missing, f"missing={missing}")
+
+    totals = body.get("totals", {})
+    check("totals has income/expense/savings/savings_rate/transaction_count",
+          all(k in totals for k in ["income", "expense", "savings",
+                                     "savings_rate", "transaction_count"]),
+          f"totals keys={list(totals.keys())}")
+
+    averages = body.get("averages", {})
+    check("averages has monthly_income/expense/mom_expense_growth_pct",
+          all(k in averages for k in ["monthly_income", "monthly_expense",
+                                       "mom_expense_growth_pct"]),
+          f"averages keys={list(averages.keys())}")
+
+    predicted = body.get("predicted", {})
+    check("predicted has year_expense/year_savings",
+          all(k in predicted for k in ["year_expense", "year_savings"]),
+          f"predicted keys={list(predicted.keys())}")
+
+    ms = body.get("monthly_series", [])
+    if ms:
+        check("monthly_series items have month/income/expense/net",
+              all(k in ms[0] for k in ["month", "income", "expense", "net"]),
+              f"first item keys={list(ms[0].keys())}")
+
+    tc = body.get("top_categories", [])
+    if tc:
+        check("top_categories items have name/amount/pct",
+              all(k in tc[0] for k in ["name", "amount", "pct"]),
+              f"first item keys={list(tc[0].keys())}")
+
+    tm = body.get("top_merchants", [])
+    if tm:
+        check("top_merchants items have name/amount/pct",
+              all(k in tm[0] for k in ["name", "amount", "pct"]),
+              f"first item keys={list(tm[0].keys())}")
+
+    check("exec_summary is string", isinstance(body.get("exec_summary"), str))
+    check("generated_at is iso", bool(body.get("generated_at")))
+    print(f"   deep-report sample: txn_count={totals.get('transaction_count')}, "
+          f"income={totals.get('income')}, expense={totals.get('expense')}, "
+          f"months_in_series={len(body.get('monthly_series', []))}, "
+          f"top_cats={len(body.get('top_categories', []))}, "
+          f"exec_summary_len={len(body.get('exec_summary', ''))}")
+
+# Also test months=12 and months=3
+r = get("/premium/deep-report?months=12", token)
+check("GET /premium/deep-report?months=12 -> 200", r.status_code == 200, f"status={r.status_code}")
+r = get("/premium/deep-report?months=3", token)
+check("GET /premium/deep-report?months=3 -> 200", r.status_code == 200, f"status={r.status_code}")
+
+# ---------- C) Previously crashing AI endpoints ----------
+print("\n===== C) AI ENDPOINTS (verify no NameError) =====")
+r = get("/insights/daily", token)
+check("GET /api/insights/daily", r.status_code == 200,
+      f"status={r.status_code} body={r.text[:200]}")
+
+r = get("/waste-detector", token)
+check("GET /api/waste-detector", r.status_code == 200,
+      f"status={r.status_code} body={r.text[:200]}")
+
+r = get("/money-school/dynamic?lang=en", token)
+check("GET /api/money-school/dynamic?lang=en", r.status_code == 200,
+      f"status={r.status_code} body={r.text[:200]}")
+
+r = get("/ai/agents", token)
+check("GET /api/ai/agents", r.status_code == 200, f"status={r.status_code}")
+
+r = post("/ai/chat", token, json={"message": "Hi", "lang": "en"})
+check("POST /api/ai/chat", r.status_code == 200,
+      f"status={r.status_code} body={r.text[:200]}")
+
+# ---------- D) SANITY OTHER ROUTERS ----------
+print("\n===== D) OTHER ROUTER SANITY =====")
+r = get("/split/groups", token)
+check("GET /api/split/groups", r.status_code == 200, f"status={r.status_code}")
+
+r = get("/transactions", token)
+check("GET /api/transactions", r.status_code == 200, f"status={r.status_code}")
+
+r = get("/analytics/summary", token)
+check("GET /api/analytics/summary", r.status_code == 200, f"status={r.status_code}")
+
+# ---------- SUMMARY ----------
+print("\n" + "=" * 60)
+passed = sum(1 for _, c, _ in results if c)
+total = len(results)
+print(f"RESULT: {passed}/{total} passed")
+for n, c, info in results:
+    if not c:
+        print(f"  FAIL: {n} — {info}")
+sys.exit(0 if passed == total else 1)

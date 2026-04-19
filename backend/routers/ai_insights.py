@@ -3,6 +3,7 @@
 Auto-extracted from backend/routers/ai.py (Round 14 refactor).
 Decorators register on the shared APIRouter from routers.ai_common.
 """
+import os
 import logging
 from datetime import datetime, timedelta, date
 from typing import List, Dict, Optional
@@ -10,7 +11,12 @@ from bson import ObjectId
 from fastapi import Depends, HTTPException, UploadFile, File
 from routers.ai_common import (
     router, api_router, ChatMessage, db, get_current_user,
-    _lazy_server_attr,
+    _lazy_server_attr, cache_get, cache_set, calculate_money_score,
+    LlmChat, UserMessage,
+)
+from core.constants import (
+    MONEY_SCHOOL_LESSONS, MONEY_SCHOOL_CARDS, XP_LEVELS,
+    INDIA_POPULATION_2025, get_lang_instruction, build_equivalences,
 )
 
 # `generate_insights_with_ai` lives in server.py (it wires the LLM client). We

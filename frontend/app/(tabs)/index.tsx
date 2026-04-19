@@ -16,7 +16,6 @@ import { router, useFocusEffect } from 'expo-router';
 import { HomeSkeleton } from '../../components/SkeletonLoader';
 import InsightsCard from '../../components/home/InsightsCard';
 import DailyQuestCard from '../../components/DailyQuestCard';
-import PremiumExpandable from '../../components/profile/PremiumExpandable';
 import AIInsightCard from '../../components/home/AIInsightCard';
 import UnifiedLeaderboard from '../../components/leaderboard/UnifiedLeaderboard';
 import NewsCarousel from '../../components/home/NewsCarousel';
@@ -218,8 +217,7 @@ export default function HomeScreen() {
           </TouchableOpacity>
         </View>
 
-        {/* PREMIUM — prominent card directly under the profile/header */}
-        <PremiumExpandable onExplore={() => router.push('/premium' as any)} />
+        {/* Premium card moved back to Profile tab (per design ask) */}
 
         {/* MintU 2.0 — Daily Quest Card (habit loop) */}
         <DailyQuestCard coinsStatus={coinsStatus} />

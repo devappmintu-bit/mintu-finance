@@ -27,7 +27,6 @@ import GroupManageSheet from '../../components/split/GroupManageSheet';
 import PaySheet from '../../components/split/PaySheet';
 import RemindSheet from '../../components/split/RemindSheet';
 import RewardModal from '../../components/split/RewardModal';
-import CreateGroupSheet from '../../components/split/CreateGroupSheet';
 
 export default function SplitScreen() {
   const { user } = useAuthStore();
