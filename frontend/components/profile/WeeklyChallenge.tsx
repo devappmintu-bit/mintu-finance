@@ -76,7 +76,7 @@ export default function WeeklyChallenge({
 
   return (
     <LinearGradient
-      colors={done ? ['#10B981', '#059669'] : ['#6366F1', '#4F46E5']}
+      colors={done ? [COLORS.accent.moneyIn, '#1B5E20'] : [COLORS.accent.primaryLight, COLORS.accent.primary]}
       start={{ x: 0, y: 0 }}
       end={{ x: 1, y: 1 }}
       style={s.card}
@@ -178,5 +178,5 @@ const s = StyleSheet.create({
     marginTop: 4,
   },
   ctaJoined: { backgroundColor: 'rgba(255,255,255,0.95)' },
-  ctaText: { fontSize: 14, fontWeight: '800', color: '#6366F1', letterSpacing: 0.3 },
+  ctaText: { fontSize: 14, fontWeight: '800', color: COLORS.accent.primary, letterSpacing: 0.3 },
 });

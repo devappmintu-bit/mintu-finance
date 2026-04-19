@@ -47,9 +47,11 @@ export default function ProfileScreen() {
   const [premiumExpanded, setPremiumExpanded] = useState(false);
   const [avatar, setAvatar] = useState('');
   const [referral, setReferral] = useState<any>(null);
-  const [refExpanded, setRefExpanded] = useState(true);
+  const [refExpanded, setRefExpanded] = useState(false);
   const [stats, setStats] = useState<any>(null);
   const [gamiStatus, setGamiStatus] = useState<any>(null);
+  const [gamiExpanded, setGamiExpanded] = useState(false);
+  const [challengeExpanded, setChallengeExpanded] = useState(true); // actionable — keep visible
   const [shareCardVisible, setShareCardVisible] = useState(false);
   const [sharing, setSharing] = useState(false);
   const scoreCardRef = useRef<View>(null);
@@ -227,7 +229,7 @@ export default function ProfileScreen() {
               <Text style={s.heroPillText}>{referral?.referral_count || 0} Referrals</Text>
             </TouchableOpacity>
             <TouchableOpacity style={s.heroPill} onPress={() => router.push('/yearly' as any)}>
-              <Ionicons name="bar-chart" size={16} color="#10B981" />
+              <Ionicons name="bar-chart" size={16} color={COLORS.accent.moneyIn} />
               <Text style={s.heroPillText}>Year View</Text>
             </TouchableOpacity>
           </View>
@@ -243,11 +245,31 @@ export default function ProfileScreen() {
           </TouchableOpacity>
         </View>
 
-        {/* ═══ WEEKLY CHALLENGE ═══ */}
-        <WeeklyChallenge challenge={gamiStatus?.weekly_challenge} streak={gamiStatus?.streak || 0} />
-
-        {/* ═══ ACHIEVEMENTS / BADGES ═══ */}
-        <BadgesSection onStatusLoaded={setGamiStatus} />
+        {/* ═══ WEEKLY CHALLENGE + BADGES — Combined Expandable Card ═══ */}
+        <View style={s.gamiCard}>
+          <TouchableOpacity style={s.gamiHeader} onPress={() => setGamiExpanded(!gamiExpanded)} activeOpacity={0.7}>
+            <View style={s.gamiIconBox}><Ionicons name="trophy" size={20} color={COLORS.accent.primary} /></View>
+            <View style={{ flex: 1 }}>
+              <Text style={s.gamiTitle}>Challenges & Achievements</Text>
+              <Text style={s.gamiSub}>
+                {gamiStatus?.streak || 0}-day streak · {gamiStatus?.badges_earned?.length || 0} badges earned
+              </Text>
+            </View>
+            <Ionicons name={gamiExpanded ? 'chevron-up' : 'chevron-down'} size={18} color={COLORS.text.muted} />
+          </TouchableOpacity>
+          {gamiExpanded && (
+            <View style={s.gamiBody}>
+              <WeeklyChallenge challenge={gamiStatus?.weekly_challenge} streak={gamiStatus?.streak || 0} />
+              <BadgesSection onStatusLoaded={setGamiStatus} />
+            </View>
+          )}
+          {/* keep a hidden loader so header count populates even when collapsed */}
+          {!gamiExpanded && (
+            <View style={{ height: 0, overflow: 'hidden', opacity: 0 }} pointerEvents="none">
+              <BadgesSection onStatusLoaded={setGamiStatus} />
+            </View>
+          )}
+        </View>
 
         {/* ═══ FINANCIAL SNAPSHOT — Real Stats (last 30 days) ═══ */}
         {realStats && (realStats.monthlySpend > 0 || realStats.transactionCount > 0) ? (
@@ -558,12 +580,8 @@ export default function ProfileScreen() {
           <Ionicons name="chevron-forward" size={16} color={COLORS.text.muted} />
         </TouchableOpacity>
         <TouchableOpacity style={s.menuItem}><Ionicons name="notifications-outline" size={20} color={COLORS.accent.primary} /><Text style={[s.menuText, { marginLeft: 12 }]}>{t('notifications', lang)}</Text><Ionicons name="chevron-forward" size={16} color={COLORS.text.muted} /></TouchableOpacity>
-        <TouchableOpacity style={s.menuItem} onPress={() => setPrivacyVisible(true)}><Ionicons name="shield-checkmark-outline" size={20} color={COLORS.accent.secondary} /><Text style={[s.menuText, { marginLeft: 12 }]}>Privacy & Security</Text><Ionicons name="chevron-forward" size={16} color={COLORS.text.muted} /></TouchableOpacity>
-        <TouchableOpacity style={s.menuItem} onPress={() => router.push('/legal/privacy' as any)}><Ionicons name="document-text-outline" size={20} color="#6366F1" /><Text style={[s.menuText, { marginLeft: 12 }]}>Privacy Policy</Text><Ionicons name="chevron-forward" size={16} color={COLORS.text.muted} /></TouchableOpacity>
-        <TouchableOpacity style={s.menuItem} onPress={() => router.push('/legal/terms' as any)}><Ionicons name="reader-outline" size={20} color="#6366F1" /><Text style={[s.menuText, { marginLeft: 12 }]}>Terms of Service</Text><Ionicons name="chevron-forward" size={16} color={COLORS.text.muted} /></TouchableOpacity>
-        <TouchableOpacity style={s.menuItem} onPress={() => router.push('/legal/data-protection' as any)}><Ionicons name="lock-closed-outline" size={20} color="#10B981" /><Text style={[s.menuText, { marginLeft: 12 }]}>Data Protection</Text><Ionicons name="chevron-forward" size={16} color={COLORS.text.muted} /></TouchableOpacity>
         <TouchableOpacity style={s.menuItem} onPress={() => setHelpVisible(true)}><Ionicons name="help-circle-outline" size={20} color={COLORS.accent.warning} /><Text style={[s.menuText, { marginLeft: 12 }]}>{t('help_support', lang)}</Text><Ionicons name="chevron-forward" size={16} color={COLORS.text.muted} /></TouchableOpacity>
-        <TouchableOpacity style={s.menuItem} onPress={() => setAboutVisible(true)}><Ionicons name="information-circle-outline" size={20} color="#6366F1" /><Text style={[s.menuText, { marginLeft: 12 }]}>About MintU</Text><Ionicons name="chevron-forward" size={16} color={COLORS.text.muted} /></TouchableOpacity>
+        <TouchableOpacity style={s.menuItem} onPress={() => setAboutVisible(true)}><Ionicons name="information-circle-outline" size={20} color={COLORS.accent.primary} /><Text style={[s.menuText, { marginLeft: 12 }]}>About MintU</Text><Text style={s.menuHint}>Privacy · Terms · Data</Text><Ionicons name="chevron-forward" size={16} color={COLORS.text.muted} /></TouchableOpacity>
         <TouchableOpacity style={s.logoutBtn} onPress={handleLogout}><Ionicons name="log-out-outline" size={20} color={COLORS.accent.moneyOut} /><Text style={s.logoutText}>{t('logout', lang)}</Text></TouchableOpacity>
 
         {/* Trust Signals — 3-badge strip */}
@@ -763,6 +781,7 @@ const s = StyleSheet.create({
   secTitle: { fontSize: 14, fontWeight: '700', color: COLORS.text.muted, marginTop: 8, marginBottom: 8 },
   menuItem: { flexDirection: 'row', alignItems: 'center', backgroundColor: 'rgba(255,255,255,0.92)', borderRadius: 14, padding: 14, marginBottom: 6, borderWidth: 1, borderColor: 'rgba(238,221,204,0.5)' },
   menuText: { flex: 1, fontSize: 15, fontWeight: '500', color: COLORS.text.primary },
+  menuHint: { fontSize: 10, color: COLORS.text.muted, marginRight: 6, fontWeight: '600' },
   logoutBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, backgroundColor: COLORS.accent.moneyOut + '10', borderRadius: 999, paddingVertical: 16, marginTop: 16 },
   logoutText: { fontSize: 16, fontWeight: '600', color: COLORS.accent.moneyOut },
   version: { textAlign: 'center', fontSize: 11, color: COLORS.text.muted, marginTop: 12 },
@@ -841,10 +860,17 @@ const s = StyleSheet.create({
   heroPillRow: { flexDirection: 'row', gap: 10, marginTop: 18, width: '100%' },
   heroPill: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, paddingVertical: 12, backgroundColor: COLORS.bg.primary, borderRadius: 999, borderWidth: 1, borderColor: COLORS.border.card },
   heroPillText: { fontSize: 13, fontWeight: '700', color: COLORS.text.primary },
-  shareScoreCTA: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, width: '100%', marginTop: 12, paddingVertical: 14, paddingHorizontal: 16, backgroundColor: '#6366F1', borderRadius: 999 },
+  shareScoreCTA: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, width: '100%', marginTop: 12, paddingVertical: 14, paddingHorizontal: 16, backgroundColor: COLORS.accent.primary, borderRadius: 999 },
   shareScoreCTAText: { fontSize: 15, fontWeight: '800', color: '#fff', letterSpacing: 0.3 },
   shareScoreBadge: { flexDirection: 'row', alignItems: 'center', gap: 3, paddingHorizontal: 8, paddingVertical: 3, backgroundColor: 'rgba(255,255,255,0.2)', borderRadius: 999 },
   shareScoreBadgeText: { fontSize: 9, fontWeight: '900', color: '#fff', letterSpacing: 0.8 },
+  // Gamification combined card
+  gamiCard: { backgroundColor: 'rgba(255,255,255,0.96)', borderRadius: 20, padding: 14, marginBottom: 14, borderWidth: 1, borderColor: COLORS.border.card },
+  gamiHeader: { flexDirection: 'row', alignItems: 'center', gap: 12 },
+  gamiIconBox: { width: 44, height: 44, borderRadius: 14, backgroundColor: COLORS.accent.primary + '15', justifyContent: 'center', alignItems: 'center' },
+  gamiTitle: { fontSize: 16, fontWeight: '800', color: COLORS.text.primary },
+  gamiSub: { fontSize: 12, color: COLORS.text.muted, marginTop: 2 },
+  gamiBody: { marginTop: 12 },
   // Payment expandable header
   payHeaderRow: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 4 },
   payIconBox: { width: 40, height: 40, borderRadius: 12, backgroundColor: '#6366F115', justifyContent: 'center', alignItems: 'center' },

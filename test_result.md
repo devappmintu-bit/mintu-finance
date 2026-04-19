@@ -1296,3 +1296,61 @@ agent_communication:
       - WhatsApp/Instagram share-sheet UX on iOS/Android
       
       NO BACKEND CHANGES in this task — only consumes existing /api/gamification/status endpoint.
+
+
+  - agent: "main"
+    message: |
+      [2026-04-19 B] PROFILE + PREMIUM OVERHAUL — per user's detailed spec
+      
+      FILES CHANGED (frontend only — no backend changes):
+      1. utils/premium.ts (NEW) — Plan storage + gating
+         * getActivePlan / setActivePlan / canAccess / useActivePlan hook
+         * PLAN_META: free | intro(₹29) | monthly(₹99) | yearly(₹499)
+         * FEATURES map: UNLIMITED_AI, TAX_CALCULATOR, INVESTMENT_SUGGESTER, YEARLY_DASHBOARD, EXCLUSIVE_BADGES, etc.
+         * Persists to AsyncStorage; subscribable so UI auto-updates on plan change
+      
+      2. app/premium.tsx (FULLY REWRITTEN)
+         * New 3-tier pricing row matching user's mock: Intro ₹29 | YEARLY ₹499 (BEST VALUE highlighted) | Monthly ₹99
+         * Hook: "You could have saved ₹X this month" (computed from analytics/summary)
+         * Tabs: Plans · Tax 🔒 · Invest 🔒 — lock icons shown when user's plan can't access
+         * Plans tab: active-plan indicator, "Most users choose Yearly" social proof, Free banner, per-tier feature lists, trust strip (cancel anytime / India servers / UPI·Card·NetB)
+         * Tax + Invest tabs show LOCKED STATE with upgrade prompt when user is Free/Intro
+         * WARM color scheme throughout (no purple/indigo) — matches app theme
+         * Tap any plan → confirm alert → activates instantly (demo mode, no real payment)
+      
+      3. utils/share.ts (PATCHED)
+         * shareImageSmart() now tries navigator.share({ files:[pngBlob] }) FIRST on web
+           so WhatsApp Web / Twitter receive a real PNG image, not just text
+         * Falls back to PNG download, then text share (previous behavior)
+         * Fixes user's bug: "Share my score is not sharing the image card instead text"
+      
+      4. components/profile/ShareScoreCard.tsx (COLORS)
+         * Gradient changed from navy/indigo → warm brown→maroon→burnt-orange to match app
+      
+      5. components/profile/WeeklyChallenge.tsx (COLORS)
+         * Gradient changed from indigo → COLORS.accent.primaryLight → COLORS.accent.primary (orange)
+      
+      6. app/(tabs)/profile.tsx
+         * WeeklyChallenge + BadgesSection merged into a single EXPANDABLE "Challenges & Achievements" card (collapsed by default, shows streak+badge counts in header)
+         * Removed Privacy & Security, Privacy Policy, Terms, Data Protection rows from Settings — consolidated into About MintU modal (with "Privacy · Terms · Data" hint)
+         * Hero CTA "Share My Score" — purple → COLORS.accent.primary
+         * Removed My Code pill (reduced clutter)
+         * Hidden-mount BadgesSection when collapsed so header badge count still populates
+      
+      7. components/AboutMintU.tsx (FULLY REWRITTEN)
+         * Fixed broken Unicode (\ud83d\udcb0 etc) → clean emojis
+         * New sections: Mission · Trust & Security · Legal · Get in touch · Footer
+         * Legal section now has 3 navigable rows: Privacy Policy / Terms / Data Protection
+           (tapping dismisses modal then pushes /legal/<page>)
+      
+      VERIFIED VIA PLAYWRIGHT:
+      * Premium page renders identical to user's mock (3 plans with Yearly highlighted in warm orange BEST VALUE)
+      * Profile page clean — only 3 collapsed cards + settings; big Share My Score CTA prominent
+      * Expanding "Challenges & Achievements" reveals Weekly Challenge (orange gradient) + Achievements grid
+      * Share My Score modal renders warm brown→orange gradient image card with "Share as Image" / "Share as Text" buttons
+      
+      NOT DONE IN THIS PASS (carried forward):
+      * India Finance Today speed + infinite scroll on Home (user asked, will do next)
+      * Transactions screen dedup + smart insights (user asked, will do next)
+      * Real payment gateway wiring (needs Razorpay key)
+      * AI Coach 5/day limit enforcement (gating helper ready, enforcement not wired yet)

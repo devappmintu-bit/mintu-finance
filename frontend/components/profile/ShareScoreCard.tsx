@@ -30,7 +30,7 @@ const ShareScoreCard = React.forwardRef<View, { data: ShareScoreCardData }>(
     return (
       <View ref={ref} collapsable={false} style={s.wrap}>
         <LinearGradient
-          colors={['#0F172A', '#1E293B', '#312E81']}
+          colors={['#3E2723', '#6D2F1A', '#E65100']}
           start={{ x: 0, y: 0 }}
           end={{ x: 1, y: 1 }}
           style={s.card}

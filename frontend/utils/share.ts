@@ -143,7 +143,8 @@ export async function copyToClipboard(text: string, successMsg = 'Copied!'): Pro
 /**
  * Share an image captured via react-native-view-shot.
  * - Native: uses expo-sharing which opens the OS share sheet (WhatsApp/Instagram/Photos).
- * - Web: triggers a download of the PNG, then falls back to a clipboard text share.
+ * - Web: tries navigator.share({ files:[pngBlob] }) so WhatsApp Web / Twitter get a
+ *   real image; falls back to triggering a PNG download, then last-resort text share.
  * Accepts either a file URI (native) or data URL (web).
  */
 export async function shareImageSmart(opts: {
@@ -154,8 +155,35 @@ export async function shareImageSmart(opts: {
   const filename = opts.filename || 'mintu-score.png';
 
   if (Platform.OS === 'web') {
+    // 1) Prefer navigator.share({ files }) — lets WhatsApp Web / Twitter receive
+    //    a real PNG instead of just text.
     try {
-      // dataURL → blob download
+      const nav: any = typeof navigator !== 'undefined' ? navigator : null;
+      if (nav?.canShare && nav?.share && opts.uri.startsWith('data:')) {
+        // Convert data URL → Blob → File
+        const res = await fetch(opts.uri);
+        const blob = await res.blob();
+        const file = new File([blob], filename, { type: 'image/png' });
+        if (nav.canShare({ files: [file] })) {
+          try {
+            await nav.share({
+              files: [file],
+              title: 'My MintU Money Score',
+              text: opts.fallbackText || 'Check out my MintU score!',
+            });
+            return { success: true, method: 'web_share_file' };
+          } catch (e: any) {
+            if (e?.name === 'AbortError') return { success: false, method: 'cancelled' };
+            // fall through to download
+          }
+        }
+      }
+    } catch {
+      // fall through
+    }
+
+    // 2) Trigger a PNG download (user can then upload to WhatsApp/IG).
+    try {
       if (opts.uri.startsWith('data:')) {
         const a = document.createElement('a');
         a.href = opts.uri;
@@ -165,13 +193,12 @@ export async function shareImageSmart(opts: {
         document.body.removeChild(a);
         Toast.show({
           type: 'success',
-          text1: 'Image saved!',
+          text1: '✅ Image saved!',
           text2: 'Share it on WhatsApp, Instagram or anywhere',
           position: 'bottom',
         });
         return { success: true, method: 'web_download' };
       }
-      // Remote URL → open in new tab
       if (typeof window !== 'undefined') {
         window.open(opts.uri, '_blank');
         return { success: true, method: 'web_open' };
@@ -179,7 +206,8 @@ export async function shareImageSmart(opts: {
     } catch {
       // fall through
     }
-    // Fallback to text
+
+    // 3) Last-resort text share
     if (opts.fallbackText) {
       return await shareSmart({ message: opts.fallbackText, title: 'MintU' });
     }
