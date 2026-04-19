@@ -19,17 +19,17 @@ import { PieChart } from 'react-native-gifted-charts';
 import SmartInsightsStrip from '../../components/transactions/SmartInsightsStrip';
 
 // Pure, memoized row — prevents re-renders on unrelated parent state changes (e.g. modals).
+// Per UX spec: Transactions get DELETE-only swipe (no edit gesture).
+// Users can still open the edit modal by tapping the row itself.
 const TxnRow = memo(function TxnRow({ item, lang, onEdit, onDelete }: { item: any; lang: string; onEdit: (t: any) => void; onDelete: (id: string) => void }) {
   const cat = CATEGORIES[item.category] || CATEGORIES.Other;
   const isCash = item.source === 'cash' || item.source === 'cash_recurring';
   return (
     <SwipeableRow
-      onEdit={() => onEdit(item)}
       onDelete={() => onDelete(item.id)}
-      editLabel={t('edit', lang)}
       deleteLabel={t('delete', lang)}
     >
-      <PressableGlass testID={`txn-${item.id}`} feedback="light" onLongPress={() => onDelete(item.id)} onPress={() => onEdit(item)} style={styles.txnCard}>
+      <PressableGlass testID={`txn-${item.id}`} feedback="light" onPress={() => onEdit(item)} style={styles.txnCard}>
         <View style={[styles.txnIcon, { backgroundColor: cat.color + '18' }]}>
           <Ionicons name={cat.icon as any} size={20} color={cat.color} />
         </View>

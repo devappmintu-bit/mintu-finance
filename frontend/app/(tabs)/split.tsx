@@ -455,9 +455,6 @@ export default function SplitScreen() {
           );
         })}
 
-        {/* MintU 2.0 — Emotional Activity Feed (pushed to end per request) */}
-        <SplitActivityFeed data={activity} />
-
         <View style={{ height: 30 }} />
       </ScrollView>
 

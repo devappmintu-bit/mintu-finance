@@ -1,282 +1,271 @@
-"""Round 9 backend validation — in-app mocked payment activation + news source_url + pricing shape + regression."""
+"""Round 12 smoke regression — verifies 6 items per the review request.
+
+1. GET /api/news/india-finance — source_url should be Google News search URL
+   (https://news.google.com/search?q=...) OR a direct https article URL.
+   NO outlet-native search URLs (rbi.org.in/Scripts/SearchResults, nseindia.com/search, ...)
+2. POST /api/premium/mock-activate {plan:"yearly"} → 200 with is_premium:true,
+   tier:"premium", money_school_access:true.
+3. GET /api/leaderboard/unified?scope=contacts → 200 standard shape.
+4. Split CRUD — create group, add expense, update expense, delete expense (and
+   make sure it doesn't collide with leave-group).
+5. Transactions CRUD — POST, PUT, DELETE still green.
+6. Budgets CRUD — POST, PUT, DELETE still green.
+
+Auth: phone 9876543210 / OTP 123456.
+"""
 import os
 import sys
-import re
 import json
 import time
-import uuid
 import requests
-from datetime import datetime, timezone, timedelta
+from urllib.parse import urlparse
 
-BASE_URL = "https://mintu-finance.preview.emergentagent.com/api"
+BACKEND = os.environ.get("BACKEND_URL", "https://mintu-finance.preview.emergentagent.com") + "/api"
 PHONE = "9876543210"
 OTP = "123456"
 
-PASS = []
-FAIL = []
+results: list = []
 
 
-def log_pass(label, extra=""):
-    PASS.append(label)
-    print(f"✅ {label}  {extra}")
-
-
-def log_fail(label, reason):
-    FAIL.append((label, reason))
-    print(f"❌ {label}  — {reason}")
+def record(name: str, ok: bool, detail: str = "") -> None:
+    mark = "✅" if ok else "❌"
+    print(f"{mark} {name}: {detail}")
+    results.append((name, ok, detail))
 
 
 def auth_token() -> str:
-    r = requests.post(f"{BASE_URL}/auth/send-otp", json={"phone": PHONE}, timeout=20)
+    r = requests.post(f"{BACKEND}/auth/send-otp", json={"phone": PHONE}, timeout=20)
     assert r.status_code == 200, f"send-otp failed: {r.status_code} {r.text}"
-    r = requests.post(f"{BASE_URL}/auth/verify-otp", json={"phone": PHONE, "otp": OTP}, timeout=20)
+    r = requests.post(f"{BACKEND}/auth/verify-otp", json={"phone": PHONE, "otp": OTP, "name": "Test User"}, timeout=20)
     assert r.status_code == 200, f"verify-otp failed: {r.status_code} {r.text}"
     return r.json()["token"]
 
 
-def assert_status(endpoint_label, headers, expected_tier):
-    r = requests.get(f"{BASE_URL}/premium/status", headers=headers, timeout=15)
+def test_news(h: dict) -> None:
+    print("\n=== 1) GET /api/news/india-finance ===")
+    t0 = time.time()
+    r = requests.get(f"{BACKEND}/news/india-finance", headers=h, timeout=30)
+    latency = int((time.time() - t0) * 1000)
     if r.status_code != 200:
-        log_fail(f"premium/status after {endpoint_label}", f"{r.status_code} {r.text[:200]}")
+        record("news/india-finance status 200", False, f"got {r.status_code}")
         return
-    body = r.json()
-    if body.get("is_premium") is True and body.get("tier") == expected_tier:
-        log_pass(f"premium/status reflects {endpoint_label}", f"tier={body.get('tier')} is_premium={body.get('is_premium')}")
-    else:
-        log_fail(f"premium/status after {endpoint_label}", f"got is_premium={body.get('is_premium')}, tier={body.get('tier')} (expected tier={expected_tier})")
+    data = r.json()
+    articles = data.get("articles", [])
+    record("news/india-finance status 200", True, f"{latency}ms, {len(articles)} articles, is_fallback={data.get('is_fallback')}")
 
-
-def test_mock_activate(headers):
-    print("\n════════════════════ [1] POST /premium/mock-activate ════════════════════")
-
-    # a) yearly
-    r = requests.post(f"{BASE_URL}/premium/mock-activate", json={"plan": "yearly"}, headers=headers, timeout=15)
-    if r.status_code == 200:
-        body = r.json()
-        now = datetime.utcnow()
-        try:
-            pu = datetime.fromisoformat(body["premium_until"].replace("Z", ""))
-        except Exception:
-            pu = None
-        ok = (
-            body.get("success") is True
-            and body.get("is_premium") is True
-            and body.get("tier") == "premium"
-            and body.get("plan") == "yearly"
-            and body.get("money_school_access") is True
-            and pu is not None
-            and 360 <= (pu - now).days <= 370
+    all_ok = True
+    outlet_native_hosts = {
+        "www.rbi.org.in", "rbi.org.in",
+        "www.nseindia.com", "nseindia.com",
+        "www.sebi.gov.in", "sebi.gov.in",
+        "www.npci.org.in", "npci.org.in",
+        "www.amfiindia.com", "amfiindia.com",
+        "incometaxindia.gov.in", "www.incometaxindia.gov.in",
+        "www.livemint.com", "livemint.com",
+        "economictimes.indiatimes.com", "www.economictimes.indiatimes.com",
+        "www.moneycontrol.com", "moneycontrol.com",
+        "pib.gov.in", "www.pib.gov.in",
+    }
+    for i, a in enumerate(articles, 1):
+        src_url = (a.get("source_url") or "").strip()
+        host = urlparse(src_url).netloc.lower()
+        path = urlparse(src_url).path.lower()
+        is_google_news_search = src_url.startswith("https://news.google.com/search?q=")
+        # Per review: direct https article URL (not an outlet-native search path)
+        # Outlet-native search URLs to reject: /search, /SearchResults, /?s=, /search.html etc.
+        looks_like_outlet_native_search = (
+            host in outlet_native_hosts
+            and (
+                "search" in path
+                or path == "/"
+                and "?s=" in src_url
+            )
+        ) or (
+            # generic: any outlet host + explicit /search endpoints
+            "/search" in src_url.lower() and not is_google_news_search
         )
-        if ok:
-            log_pass("1a yearly plan activation", f"tier=premium, plan=yearly, ms_access=true, premium_until={body['premium_until']}")
-        else:
-            log_fail("1a yearly plan activation", f"body={json.dumps(body)[:400]} days_delta={(pu - now).days if pu else 'N/A'}")
-        assert_status("yearly", headers, "premium")
-    else:
-        log_fail("1a yearly plan activation", f"{r.status_code} {r.text[:300]}")
+        is_direct_https_article = src_url.startswith("https://") and not looks_like_outlet_native_search and not is_google_news_search
 
-    # b) monthly
-    r = requests.post(f"{BASE_URL}/premium/mock-activate", json={"plan": "monthly"}, headers=headers, timeout=15)
-    if r.status_code == 200:
-        body = r.json()
-        if body.get("success") and body.get("is_premium") and body.get("tier") == "premium" and body.get("plan") == "monthly" and body.get("money_school_access") is False:
-            log_pass("1b monthly plan activation", f"money_school_access=false (correct — monthly excludes it)")
-        else:
-            log_fail("1b monthly plan activation", f"body={json.dumps(body)[:400]}")
-        assert_status("monthly", headers, "premium")
-    else:
-        log_fail("1b monthly plan activation", f"{r.status_code} {r.text[:300]}")
-
-    # c) lifetime
-    r = requests.post(f"{BASE_URL}/premium/mock-activate", json={"plan": "lifetime"}, headers=headers, timeout=15)
-    if r.status_code == 200:
-        body = r.json()
-        now = datetime.utcnow()
-        try:
-            pu = datetime.fromisoformat(body["premium_until"].replace("Z", ""))
-        except Exception:
-            pu = None
-        ok = (
-            body.get("success") is True
-            and body.get("tier") == "legend"
-            and body.get("plan") == "lifetime"
-            and body.get("money_school_access") is True
-            and pu is not None
-            and (pu - now).days > 365 * 10  # far future
-        )
-        if ok:
-            log_pass("1c lifetime plan activation", f"tier=legend, ms_access=true, premium_until~{(pu - now).days} days out")
-        else:
-            log_fail("1c lifetime plan activation", f"body={json.dumps(body)[:400]}")
-        assert_status("lifetime", headers, "legend")
-    else:
-        log_fail("1c lifetime plan activation", f"{r.status_code} {r.text[:300]}")
-
-    # d) invalid plan
-    r = requests.post(f"{BASE_URL}/premium/mock-activate", json={"plan": "nonsense"}, headers=headers, timeout=15)
-    if r.status_code == 400:
-        log_pass("1d invalid plan rejected with 400", f"detail={r.json().get('detail')}")
-    else:
-        log_fail("1d invalid plan rejected with 400", f"got {r.status_code} {r.text[:300]}")
+        ok = src_url.startswith("https://") and (is_google_news_search or is_direct_https_article) and not looks_like_outlet_native_search
+        if not ok:
+            all_ok = False
+        print(f"  A{i} source='{a.get('source','?')}' → host={host} ok={ok} url={src_url[:120]}")
+    record("news/india-finance: all source_url are google-news-search OR direct article (no outlet-native search)", all_ok, "")
 
 
-def test_news(headers):
-    print("\n════════════════════ [2] GET /news/india-finance ════════════════════")
-    r = requests.get(f"{BASE_URL}/news/india-finance", headers=headers, timeout=30)
+def test_premium(h: dict) -> None:
+    print("\n=== 2) POST /api/premium/mock-activate {plan:yearly} ===")
+    r = requests.post(f"{BACKEND}/premium/mock-activate", headers=h, json={"plan": "yearly"}, timeout=20)
     if r.status_code != 200:
-        log_fail("2 news endpoint 200", f"{r.status_code} {r.text[:300]}")
+        record("premium/mock-activate status 200", False, f"got {r.status_code} body={r.text[:200]}")
         return
-    body = r.json()
-    articles = body.get("articles", [])
-    if not articles:
-        log_fail("2 news returns articles", "empty articles array")
-        return
-    log_pass("2 news endpoint 200", f"articles={len(articles)} is_fallback={body.get('is_fallback')}")
-
-    missing_url = 0
-    invalid_url = 0
-    missing_existing = 0
-    for a in articles:
-        if not a.get("source_url"):
-            missing_url += 1
-        elif not isinstance(a["source_url"], str) or not a["source_url"].startswith("https://"):
-            invalid_url += 1
-        for f in ("title", "summary", "category", "emoji", "source"):
-            if f not in a or not a.get(f):
-                missing_existing += 1
-                break
-
-    if missing_url == 0 and invalid_url == 0:
-        sample = articles[0]
-        log_pass(
-            "2 each article has valid source_url (https://)",
-            f"e.g. title='{sample.get('title','')[:45]}...' source_url='{sample.get('source_url','')[:80]}...'"
-        )
-    else:
-        log_fail("2 source_url on every article", f"missing={missing_url} invalid_https={invalid_url}")
-
-    if missing_existing == 0:
-        log_pass("2 existing fields preserved", "title/summary/category/emoji/source all present")
-    else:
-        log_fail("2 existing fields preserved", f"{missing_existing} article(s) missing required fields")
-
-
-def test_pricing_shape(headers):
-    print("\n════════════════════ [3] GET /premium/status pricing shape ════════════════════")
-    r = requests.get(f"{BASE_URL}/premium/status", headers=headers, timeout=15)
-    if r.status_code != 200:
-        log_fail("3 premium/status 200", f"{r.status_code} {r.text[:300]}")
-        return
-    body = r.json()
-    pricing = body.get("pricing")
-    if not isinstance(pricing, dict):
-        log_fail("3 pricing dict present", f"got {type(pricing).__name__}")
-        return
-
-    errs = []
-    for plan in ("monthly", "yearly", "lifetime", "intro"):
-        p = pricing.get(plan)
-        if not p:
-            errs.append(f"missing plan={plan}")
-            continue
-        for k in ("price", "label", "period"):
-            if k not in p:
-                errs.append(f"{plan} missing '{k}'")
-
-    if "includes_money_school" not in (pricing.get("yearly") or {}) or pricing["yearly"].get("includes_money_school") is not True:
-        errs.append("yearly missing includes_money_school:true")
-    if not pricing.get("yearly", {}).get("best_seller"):
-        errs.append("yearly missing best_seller:true")
-    if not pricing.get("lifetime", {}).get("includes_money_school"):
-        errs.append("lifetime missing includes_money_school:true")
-
-    if not errs:
-        log_pass(
-            "3 pricing shape valid",
-            f"monthly=₹{pricing['monthly']['price']}, yearly=₹{pricing['yearly']['price']} (best_seller+MS), "
-            f"lifetime=₹{pricing['lifetime']['price']} (MS), intro=₹{pricing['intro']['price']}"
-        )
-    else:
-        log_fail("3 pricing shape valid", "; ".join(errs))
-
-
-def test_regressions(headers):
-    print("\n════════════════════ [4] Regression checks ════════════════════")
-
-    # GET /leaderboard/unified?scope=contacts
-    r = requests.get(f"{BASE_URL}/leaderboard/unified", params={"scope": "contacts"}, headers=headers, timeout=20)
-    if r.status_code == 200:
-        log_pass("4a leaderboard/unified?scope=contacts 200", f"keys={list(r.json().keys())[:6]}")
-    else:
-        log_fail("4a leaderboard/unified?scope=contacts 200", f"{r.status_code} {r.text[:300]}")
-
-    # POST /sms/bulk-parse
-    r = requests.post(
-        f"{BASE_URL}/sms/bulk-parse",
-        headers=headers,
-        json={"messages": [
-            "HDFC Bank: Rs 500 debited from A/c xxxx1234 at SWIGGY on 20-Apr-26",
-            "SBI: Your A/c credited Rs 25000 as SALARY from ACME CORP",
-        ]},
-        timeout=60,
+    data = r.json()
+    ok = (
+        data.get("is_premium") is True
+        and data.get("tier") == "premium"
+        and data.get("money_school_access") is True
     )
-    if r.status_code == 200:
-        b = r.json()
-        if "parsed" in b and "total" in b:
-            log_pass("4b sms/bulk-parse 200", f"parsed={b.get('parsed')}/{b.get('total')} failed={b.get('failed')}")
-        else:
-            log_fail("4b sms/bulk-parse shape", json.dumps(b)[:300])
+    record("premium/mock-activate yearly → is_premium+tier=premium+money_school_access", ok,
+           f"got is_premium={data.get('is_premium')} tier={data.get('tier')} msa={data.get('money_school_access')}")
+
+
+def test_leaderboard(h: dict) -> None:
+    print("\n=== 3) GET /api/leaderboard/unified?scope=contacts ===")
+    r = requests.get(f"{BACKEND}/leaderboard/unified?scope=contacts", headers=h, timeout=20)
+    if r.status_code != 200:
+        record("leaderboard/unified status 200", False, f"got {r.status_code} body={r.text[:200]}")
+        return
+    data = r.json()
+    ok = isinstance(data.get("contenders"), list) and "scope" in data and "total" in data
+    record("leaderboard/unified standard shape", ok,
+           f"contenders={len(data.get('contenders', []))} scope={data.get('scope')} total={data.get('total')}")
+
+
+def test_split_crud(h: dict) -> None:
+    print("\n=== 4) Split CRUD ===")
+    # Create group (2 members required: include a second registered phone)
+    r = requests.post(f"{BACKEND}/split/groups", headers=h, json={
+        "name": "Round 12 Regression Group",
+        "members": ["9999888877"],  # Rahul Sharma from test_credentials.md
+    }, timeout=20)
+    if r.status_code != 200:
+        record("split: POST /split/groups", False, f"got {r.status_code} body={r.text[:200]}")
+        return
+    group = r.json()
+    group_id = group["id"]
+    member_ids = [m["user_id"] for m in group["members"]]
+    record("split: POST /split/groups", True, f"group_id={group_id} members={len(member_ids)}")
+
+    # Add expense
+    splits_map = {uid: 250.0 for uid in member_ids}  # equal split of ₹500 across members
+    r = requests.post(f"{BACKEND}/split/expenses", headers=h, json={
+        "group_id": group_id,
+        "description": "Regression test dinner",
+        "amount": 500.0,
+        "paid_by": member_ids[0],
+        "split_type": "equal",
+        "splits": splits_map,
+    }, timeout=20)
+    if r.status_code != 200:
+        record("split: POST /split/expenses", False, f"got {r.status_code} body={r.text[:200]}")
+        _cleanup_group(h, group_id)
+        return
+    exp = r.json()
+    exp_id = exp["id"]
+    record("split: POST /split/expenses equal", True, f"expense_id={exp_id}")
+
+    # Update expense (change amount + description)
+    r = requests.put(f"{BACKEND}/split/expenses/{exp_id}", headers=h, json={
+        "description": "Regression test dinner (updated)",
+        "amount": 600.0,
+    }, timeout=20)
+    if r.status_code != 200:
+        record("split: PUT /split/expenses/{id}", False, f"got {r.status_code} body={r.text[:200]}")
     else:
-        log_fail("4b sms/bulk-parse 200", f"{r.status_code} {r.text[:300]}")
+        record("split: PUT /split/expenses/{id}", True, "amount updated to 600")
 
-    # PUT /budgets/{id} + DELETE /transactions/{id}
-    bud = requests.post(f"{BASE_URL}/budgets", headers=headers, json={"category": "Food", "amount": 5000, "period": "monthly"}, timeout=15)
-    if bud.status_code == 200 and bud.json().get("id"):
-        bid = bud.json()["id"]
-        upd = requests.put(f"{BASE_URL}/budgets/{bid}", headers=headers, json={"category": "Food", "amount": 6500, "period": "monthly"}, timeout=15)
-        if upd.status_code == 200:
-            log_pass("4c PUT /budgets/{id} 200", f"updated amount 5000→6500 for id={bid[:10]}...")
-        else:
-            log_fail("4c PUT /budgets/{id} 200", f"{upd.status_code} {upd.text[:200]}")
+    # Delete expense — THIS IS THE CRITICAL ONE (must not collide with leave-group)
+    r = requests.delete(f"{BACKEND}/split/expenses/{exp_id}", headers=h, timeout=20)
+    if r.status_code != 200:
+        record("split: DELETE /split/expenses/{id} (no collision with leave-group)", False,
+               f"got {r.status_code} body={r.text[:200]}")
     else:
-        log_fail("4c PUT /budgets/{id} — precursor POST failed", f"{bud.status_code} {bud.text[:200]}")
+        record("split: DELETE /split/expenses/{id} (no collision with leave-group)", True, r.json().get("message", ""))
 
-    tx = requests.post(
-        f"{BASE_URL}/transactions",
-        headers=headers,
-        json={"amount": 99.0, "category": "Food", "description": "regression test", "type": "debit"},
-        timeout=15,
-    )
-    if tx.status_code == 200 and tx.json().get("id"):
-        tid = tx.json()["id"]
-        dele = requests.delete(f"{BASE_URL}/transactions/{tid}", headers=headers, timeout=15)
-        if dele.status_code == 200:
-            log_pass("4d DELETE /transactions/{id} 200", f"removed id={tid[:10]}...")
-        else:
-            log_fail("4d DELETE /transactions/{id} 200", f"{dele.status_code} {dele.text[:200]}")
+    # Sanity — make sure leave-group endpoint is still a separate path that works
+    # (we won't actually leave — just verify the delete above didn't swallow it)
+    # Delete group cleanup instead:
+    _cleanup_group(h, group_id)
+
+
+def _cleanup_group(h: dict, group_id: str) -> None:
+    try:
+        requests.delete(f"{BACKEND}/split/groups/{group_id}", headers=h, timeout=10)
+    except Exception:
+        pass
+
+
+def test_transactions_crud(h: dict) -> None:
+    print("\n=== 5) Transactions CRUD ===")
+    r = requests.post(f"{BACKEND}/transactions", headers=h, json={
+        "amount": 350.0,
+        "category": "Food",
+        "description": "Swiggy regression test",
+        "type": "debit",
+    }, timeout=20)
+    if r.status_code != 200:
+        record("transactions: POST", False, f"got {r.status_code} body={r.text[:200]}")
+        return
+    txn = r.json()
+    txn_id = txn["id"]
+    record("transactions: POST", True, f"id={txn_id}")
+
+    r = requests.put(f"{BACKEND}/transactions/{txn_id}", headers=h, json={
+        "description": "Swiggy regression test (updated)",
+        "amount": 400.0,
+    }, timeout=20)
+    if r.status_code != 200:
+        record("transactions: PUT", False, f"got {r.status_code} body={r.text[:200]}")
     else:
-        log_fail("4d DELETE /transactions — precursor POST failed", f"{tx.status_code} {tx.text[:200]}")
+        record("transactions: PUT", True, "amount updated")
+
+    r = requests.delete(f"{BACKEND}/transactions/{txn_id}", headers=h, timeout=20)
+    if r.status_code != 200:
+        record("transactions: DELETE", False, f"got {r.status_code} body={r.text[:200]}")
+    else:
+        record("transactions: DELETE", True, r.json().get("message", ""))
 
 
-def main():
-    print(f"\nMintU Round 9 Backend Tests → {BASE_URL}")
-    print(f"Auth: phone={PHONE}, otp={OTP}\n")
-    tok = auth_token()
-    headers = {"Authorization": f"Bearer {tok}"}
-    log_pass("auth bootstrap", f"token length={len(tok)}")
+def test_budgets_crud(h: dict) -> None:
+    print("\n=== 6) Budgets CRUD ===")
+    r = requests.post(f"{BACKEND}/budgets", headers=h, json={
+        "category": "Entertainment",
+        "amount": 3000.0,
+        "period": "monthly",
+    }, timeout=20)
+    if r.status_code != 200:
+        record("budgets: POST", False, f"got {r.status_code} body={r.text[:200]}")
+        return
+    bud = r.json()
+    bud_id = bud["id"]
+    record("budgets: POST", True, f"id={bud_id}")
 
-    test_mock_activate(headers)
-    test_news(headers)
-    test_pricing_shape(headers)
-    test_regressions(headers)
+    r = requests.put(f"{BACKEND}/budgets/{bud_id}", headers=h, json={
+        "amount": 3500.0,
+    }, timeout=20)
+    if r.status_code != 200:
+        record("budgets: PUT", False, f"got {r.status_code} body={r.text[:200]}")
+    else:
+        record("budgets: PUT", True, "amount updated to 3500")
 
-    print("\n════════════════════ SUMMARY ════════════════════")
-    print(f"PASS: {len(PASS)}")
-    print(f"FAIL: {len(FAIL)}")
-    for label, reason in FAIL:
-        print(f"  ❌ {label}  — {reason}")
-    sys.exit(0 if not FAIL else 1)
+    r = requests.delete(f"{BACKEND}/budgets/{bud_id}", headers=h, timeout=20)
+    if r.status_code != 200:
+        record("budgets: DELETE", False, f"got {r.status_code} body={r.text[:200]}")
+    else:
+        record("budgets: DELETE", True, r.json().get("message", ""))
+
+
+def main() -> int:
+    print(f"Backend: {BACKEND}")
+    token = auth_token()
+    h = {"Authorization": f"Bearer {token}"}
+    print(f"Auth OK — JWT({len(token)} chars)")
+
+    test_news(h)
+    test_premium(h)
+    test_leaderboard(h)
+    test_split_crud(h)
+    test_transactions_crud(h)
+    test_budgets_crud(h)
+
+    print("\n=== SUMMARY ===")
+    passed = sum(1 for _, ok, _ in results if ok)
+    total = len(results)
+    print(f"{passed}/{total} assertions passed")
+    for name, ok, detail in results:
+        print(f"  {'✅' if ok else '❌'} {name}")
+    return 0 if passed == total else 1
 
 
 if __name__ == "__main__":
-    main()
+    sys.exit(main())

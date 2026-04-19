@@ -36,91 +36,34 @@ _FALLBACK = [
 ]
 
 
-# Known Indian financial outlets — each entry is a pair (domain, search_url_template).
-# The `{q}` placeholder is filled with the URL-encoded article title so we land
-# directly on the outlet's own search results instead of a generic Google page.
-_TRUSTED_OUTLETS: dict[str, tuple[str, str]] = {
-    "rbi": ("rbi.org.in", "https://www.rbi.org.in/Scripts/SearchResults.aspx?search={q}"),
-    "nse": ("nseindia.com", "https://www.nseindia.com/search?q={q}"),
-    "bse": ("bseindia.com", "https://www.bseindia.com/search.html?q={q}"),
-    "sebi": ("sebi.gov.in", "https://www.sebi.gov.in/search.html?search={q}"),
-    "npci": ("npci.org.in", "https://www.npci.org.in/?s={q}"),
-    "amfi": ("amfiindia.com", "https://www.amfiindia.com/?s={q}"),
-    "pib": ("pib.gov.in", "https://pib.gov.in/allRel.aspx?search={q}"),
-    "cyber cell": ("cybercrime.gov.in", "https://cybercrime.gov.in/Webform/CrimeCatDes.aspx"),
-    "mint": ("livemint.com", "https://www.livemint.com/Search/Link/Keyword/{q}"),
-    "livemint": ("livemint.com", "https://www.livemint.com/Search/Link/Keyword/{q}"),
-    "economic times": ("economictimes.indiatimes.com", "https://economictimes.indiatimes.com/topic/{q}"),
-    "et": ("economictimes.indiatimes.com", "https://economictimes.indiatimes.com/topic/{q}"),
-    "business standard": ("business-standard.com", "https://www.business-standard.com/search?q={q}"),
-    "moneycontrol": ("moneycontrol.com", "https://www.moneycontrol.com/news/tags/{q}.html"),
-    "bloomberg": ("bloombergquint.com", "https://www.bqprime.com/search?q={q}"),
-    "hindu business line": ("thehindubusinessline.com", "https://www.thehindubusinessline.com/topic/{q}/"),
-    "financial express": ("financialexpress.com", "https://www.financialexpress.com/?s={q}"),
-}
-# Backward-compat alias
-_TRUSTED_DOMAINS = {k: v[0] for k, v in _TRUSTED_OUTLETS.items()}
+# Legacy: `_TRUSTED_OUTLETS` / `_TRUSTED_DOMAINS` were used to build outlet-native
+# search URLs. We've rolled back to the simpler, more reliable Google News
+# topic-search approach (see `_enrich_article` below) — it always lands users on
+# real, timely articles about the exact topic rather than gambling on outlet
+# slug formats that change frequently.
 
 
 def _enrich_article(a: dict) -> dict:
-    """Attach a `source_url` pointing to the most authentic article we can
-    infer for the given topic. Priority:
-      1. LLM-provided valid https URL (kept as-is).
-      2. Outlet-native search URL when we know the outlet's search endpoint.
-      3. Google News fallback scoped to the outlet's domain.
+    """Attach a `source_url` pointing to authentic articles about the topic.
+
+    Strategy (rolled back to simpler, more reliable approach):
+      1. Keep LLM-provided https URL if plausibly valid.
+      2. Otherwise, search Google News for the article's exact TITLE — this
+         gives the user real, topically-matching articles from the outlet
+         (or the next most authoritative source) without us guessing at
+         fragile deep-link URLs that break whenever outlets re-slug.
     """
     if not isinstance(a, dict):
         return a
     lm_url = (a.get("source_url") or "").strip()
-    # Trust only well-formed https URLs; ignore empty/invalid/LLM hallucinations.
-    if lm_url.startswith("https://") and len(lm_url) < 400:
+    if lm_url.startswith("https://") and len(lm_url) < 400 and "example.com" not in lm_url:
         return a
     import urllib.parse as up
-    src = (a.get("source") or "").strip()
     title = (a.get("title") or "").strip()
-    q_plain = up.quote_plus(title) if title else up.quote_plus(src)
-    q_dash = up.quote(title.lower().replace(" ", "-")) if title else up.quote(src)
-
-    # Substring match — LLM emits long-form names like "Reserve Bank of India (RBI)"
-    # so a strict `.get()` misses them. We scan every known outlet key and take
-    # the FIRST substring hit. Keys are ordered most-specific-first below.
-    src_low = (src or "").lower()
-    outlet = None
-    for key, val in _TRUSTED_OUTLETS.items():
-        if key and key in src_low:
-            outlet = val
-            break
-    # Extra aliases for the long-form names the LLM tends to use.
-    if not outlet:
-        aliases: dict[str, tuple[str, str]] = {
-            "reserve bank":                 _TRUSTED_OUTLETS["rbi"],
-            "national stock exchange":      _TRUSTED_OUTLETS["nse"],
-            "bombay stock exchange":        _TRUSTED_OUTLETS["bse"],
-            "securities and exchange":      _TRUSTED_OUTLETS["sebi"],
-            "national payments corporation":_TRUSTED_OUTLETS["npci"],
-            "mutual funds in india":        _TRUSTED_OUTLETS["amfi"],
-            "press information bureau":     _TRUSTED_OUTLETS["pib"],
-            "income tax":                   ("incometaxindia.gov.in", "https://www.incometaxindia.gov.in/Pages/search.aspx?k={q}"),
-        }
-        for key, val in aliases.items():
-            if key in src_low:
-                outlet = val
-                break
-
-    if outlet and title:
-        domain, tmpl = outlet
-        # Moneycontrol uses slug-style URLs; others use ?q=
-        q = q_dash if domain == "moneycontrol.com" else q_plain
-        try:
-            url = tmpl.format(q=q)
-        except Exception:
-            url = f"https://www.google.com/search?q={q_plain}+site:{domain}&tbm=nws"
-    elif outlet:
-        url = f"https://{outlet[0]}/"
-    else:
-        # Generic Google News fallback — still scoped to the source name.
-        scope = f"+{up.quote_plus(src)}" if src else ""
-        url = f"https://www.google.com/search?q={q_plain}{scope}&tbm=nws"
+    src = (a.get("source") or "").strip()
+    q = up.quote_plus(f"{title} {src}".strip() or src)
+    # Google News search — lands on a curated list of REAL articles on this exact topic.
+    url = f"https://news.google.com/search?q={q}&hl=en-IN&gl=IN&ceid=IN:en"
     return {**a, "source_url": url}
 
 

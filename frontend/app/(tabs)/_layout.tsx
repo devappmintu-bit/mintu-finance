@@ -22,7 +22,6 @@ import { Ionicons } from '@expo/vector-icons';
 import { View, StyleSheet, Platform, Modal, TouchableOpacity, Text } from 'react-native';
 import { useState } from 'react';
 import { BottomTabBarProps } from '@react-navigation/bottom-tabs';
-import { LinearGradient } from 'expo-linear-gradient';
 import { COLORS } from '../../utils/theme';
 import { useLangStore } from '../../store/langStore';
 import { t } from '../../utils/i18n';
@@ -74,22 +73,16 @@ function MintUTabBar({ state, navigation, onPressCenter }: BottomTabBarProps & {
 
   return (
     <View style={st.wrap} pointerEvents="box-none">
-      {/* Raised center card — MintU app icon (phone+bars) on a dark tile */}
+      {/* Raised center card — MintU app icon on an ivory tile so the green-bars icon stays clearly visible */}
       <TouchableOpacity
         testID="tab-ai-coach"
         onPress={onPressCenter}
         activeOpacity={0.88}
         style={st.raisedWrap}
       >
-        <LinearGradient
-          colors={['#1A2A08', '#0F1A05']}
-          style={st.raisedCard}
-          start={{ x: 0, y: 0 }}
-          end={{ x: 1, y: 1 }}
-        >
-          <MintULogo size={48} />
-        </LinearGradient>
-        <Text style={st.raisedLabel}>AI Coach</Text>
+        <View style={st.raisedCard}>
+          <MintULogo size={58} />
+        </View>
       </TouchableOpacity>
 
       {/* Pill container */}
@@ -111,8 +104,11 @@ function MintUTabBar({ state, navigation, onPressCenter }: BottomTabBarProps & {
             );
           })}
         </View>
-        {/* Spacer under the raised card */}
-        <View style={st.pillCenterSpace} />
+        {/* Spacer under the raised card — houses the AI Coach label aligned to row */}
+        <TouchableOpacity style={st.pillCenterSpace} onPress={onPressCenter} activeOpacity={0.7}>
+          <View style={{ height: 38 }} />
+          <Text style={st.centerLabel} numberOfLines={1}>AI Coach</Text>
+        </TouchableOpacity>
         <View style={st.pillSide}>
           {right.map((route) => {
             const focused = state.index === state.routes.findIndex(r => r.key === route.key);
@@ -194,7 +190,8 @@ const st = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-around',
   },
-  pillCenterSpace: { width: RAISED_SIZE + 8 },
+  pillCenterSpace: { width: RAISED_SIZE + 8, alignItems: 'center', justifyContent: 'flex-end' },
+  centerLabel: { fontSize: 11, color: COLORS.accent.primary, fontWeight: '800', marginTop: 4, textAlign: 'center' },
   sideTab: { alignItems: 'center', flex: 1, paddingVertical: 2 },
   sideIconCircle: {
     width: 38, height: 38, borderRadius: 19,
@@ -207,10 +204,10 @@ const st = StyleSheet.create({
   sideLabel: { fontSize: 11, color: '#6B7280', marginTop: 4, fontWeight: '600' },
   sideLabelOn: { color: COLORS.accent.primary, fontWeight: '800' },
 
-  // Raised card — floats above the pill, taller, rounded-square "app icon" look.
+  // Raised card — floats above the pill; ivory background lets the green icon POP.
   raisedWrap: {
     position: 'absolute',
-    top: 6,
+    top: 0,
     left: '50%',
     marginLeft: -(RAISED_SIZE / 2),
     width: RAISED_SIZE,
@@ -220,15 +217,16 @@ const st = StyleSheet.create({
   raisedCard: {
     width: RAISED_SIZE,
     height: RAISED_SIZE,
-    borderRadius: 20,
+    borderRadius: 22,
     alignItems: 'center',
     justifyContent: 'center',
-    borderWidth: 4,
+    borderWidth: 3,
     borderColor: '#FFFFFF',
+    backgroundColor: '#FFF4E8', // soft ivory-saffron so the green icon stays visible
     ...Platform.select({
-      ios: { shadowColor: '#1A2A08', shadowOpacity: 0.45, shadowRadius: 14, shadowOffset: { width: 0, height: 8 } },
+      ios: { shadowColor: '#F56E1E', shadowOpacity: 0.4, shadowRadius: 14, shadowOffset: { width: 0, height: 8 } },
       android: { elevation: 14 },
-      web: { boxShadow: '0 10px 24px rgba(26,42,8,0.35)' as any },
+      web: { boxShadow: '0 10px 24px rgba(245,110,30,0.35)' as any },
     }),
   },
   raisedLabel: {

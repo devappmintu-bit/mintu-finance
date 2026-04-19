@@ -669,10 +669,23 @@ metadata:
 
 test_plan:
   current_focus:
-    - "News source_url outlet routing regression — Apr 19 2026"
+    - "Round 12 smoke regression — Apr 19 2026"
   stuck_tasks: []
   test_all: false
   test_priority: "high_first"
+
+round12_smoke_regression_apr19_2026:
+  - task: "Round 12 smoke — news (google-news URLs), premium/mock-activate yearly, leaderboard/unified, split+transactions+budgets CRUD"
+    implemented: true
+    working: true
+    file: "/app/backend/routers/news.py, /app/backend/routers/premium.py, /app/backend/routers/analytics.py, /app/backend/routers/splits.py, /app/backend/routers/transactions.py, /app/backend/routers/budgets.py"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+      - working: true
+        agent: "testing"
+        comment: "✅ ALL 14/14 ASSERTIONS PASSED (Apr 19 2026, /app/backend_test.py). (1) GET /api/news/india-finance → 200 in 175ms, 6 articles, is_fallback=false. Every article's source_url starts with https://news.google.com/search?q=... (confirmed rollback to Google News topic-search URLs). No outlet-native search URLs (no rbi.org.in/SearchResults, nseindia.com/search, sebi.gov.in/search.html, npci.org.in/?s=, amfiindia.com/?s=, or incometaxindia.gov.in). Sources observed: RBI, NSE, SEBI, NPCI, AMFI, Income Tax Dept — all route to news.google.com. (2) POST /api/premium/mock-activate {plan:'yearly'} → 200 with is_premium:true, tier:'premium', money_school_access:true, plan:'yearly', premium_until=2027-04-20. (3) GET /api/leaderboard/unified?scope=contacts → 200 with standard shape {contenders(16), scope:'contacts', total:16, you:{...}}. (4) Split CRUD lifecycle: POST /split/groups → group with 2 members ✅; POST /split/expenses {split_type:'equal', splits:{uid:250,uid:250}} → 200 ✅; PUT /split/expenses/{id} → amount updated to 600 ✅; DELETE /split/expenses/{id} → 'Expense deleted' ✅ (no collision with leave-group — separate path /split/groups/{id}/leave still distinct). (5) Transactions CRUD: POST ✅, PUT ✅, DELETE ✅. (6) Budgets CRUD: POST ✅, PUT ✅, DELETE ✅. Zero 500s or NameErrors in backend logs during the run. All endpoints production-ready."
 
 news_source_url_routing:
   - task: "GET /api/news/india-finance — source_url points to outlet's own domain for known outlets"
@@ -2655,3 +2668,105 @@ metadata:
 # Round 3 (not retested, expected all-green by inspection):
 # ✅ Every known outlet routes to its own domain.
 # ✅ /premium/mock-activate unchanged, still green.
+
+# ============================================================================
+# ROUND 12 — Swipe fix + Splitwise math + AI insights + UX rebalance
+# ============================================================================
+
+frontend:
+  - task: "SwipeableRow — no-overlap web fallback + per-screen action rules"
+    implemented: true
+    file: "components/SwipeableRow.tsx, app/(tabs)/transactions.tsx"
+    status_history:
+        - agent: "main"
+          comment: |
+            Rebuilt the web fallback: a small ⋯ handle at row-right that
+            toggles an action bar DROPPING BELOW the row (never overlaps
+            amount/price). Transactions now has DELETE-only (no edit
+            swipe — tap the row to edit). Budgets and Split expenses
+            retain both Edit & Delete.
+
+  - task: "AI Coach tab icon visibility + label alignment"
+    implemented: true
+    file: "app/(tabs)/_layout.tsx"
+    status_history:
+        - agent: "main"
+          comment: |
+            Replaced dark charcoal raised card with ivory #FFF4E8
+            background so the mint-green phone+bars MintULogo is clearly
+            visible. Sized the icon to 58px to fit the 72px placeholder
+            with proper breathing room. The "AI Coach" label now lives
+            inside the pill's center cell — perfectly aligned with the
+            other tab labels (same y-axis as Home/Transactions/Budgets/
+            Split).
+
+  - task: "Premium card moved from Profile → Home (next to profile icon)"
+    implemented: true
+    file: "app/(tabs)/index.tsx, app/(tabs)/profile.tsx"
+    status_history:
+        - agent: "main"
+          comment: |
+            PremiumExpandable is now rendered at the top of the Home
+            screen (directly under the header, above DailyQuestCard) so
+            it stands out as the first prominent card. Removed the
+            duplicate card from the Profile screen.
+
+  - task: "Graphical AI Insights for Budget screen"
+    implemented: true
+    file: "components/budget/BudgetAIInsights.tsx, app/(tabs)/budget.tsx"
+    status_history:
+        - agent: "main"
+          comment: |
+            New horizontally-scrolling card strip (4 cards):
+            1. Budget Health ring % on ivory gradient
+            2. Category at Risk mini-progress bar
+            3. Safe-to-Spend headroom on green gradient
+            4. AI Tip on charcoal tile with mint-green icon
+            Every number is derived from the user's budgets[] — zero
+            hardcoded values. Empty state prompts user to set a budget.
+
+  - task: "Splitwise-accurate math + Percentage removed + cleaner split types"
+    implemented: true
+    file: "components/split/theme.ts, components/split/ExpenseSheet.tsx"
+    status_history:
+        - agent: "main"
+          comment: |
+            Split types are now: Equally / Exact ₹ / By Shares (dropped
+            Percentage per spec). Equal split hands the last member the
+            rounding remainder so Σ splits ALWAYS equals bill amount
+            (no ₹0.50 loss). Shares similarly use remainder on the last
+            member. Custom (Exact ₹) now validates that member inputs
+            sum to the total — emits a friendly toast if they don't.
+
+  - task: "Recent Activity removed from Split main screen"
+    implemented: true
+    file: "app/(tabs)/split.tsx"
+    status_history:
+        - agent: "main"
+          comment: |
+            Removed SplitActivityFeed from the Split tab — each group's
+            recent expenses already live in the GroupChat > Expenses
+            sub-tab (via ExpensesTab component). This follows the
+            Splitwise pattern: group-level activity, not app-level feed.
+
+backend:
+  - task: "Rollback news source URLs — authentic topic-search only"
+    implemented: true
+    file: "routers/news.py"
+    status_history:
+        - agent: "main"
+          comment: |
+            Removed the outlet-native search URL templates (they were
+            brittle — Livemint/ET/Moneycontrol slugs change frequently).
+            Reverted to a single reliable strategy: Google News search
+            for the article's exact title ("https://news.google.com/
+            search?q=<title>&hl=en-IN&gl=IN&ceid=IN:en"). This always
+            lands users on real, recent articles about the topic from
+            the most authoritative sources. LLM-provided https URLs
+            are still honoured first when they look sane.
+
+metadata:
+  version: "1.4"
+  last_round: 12
+  test_sequence: 12
+  run_ui: false

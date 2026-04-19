@@ -10,6 +10,7 @@ import api from '../../utils/api';
 import { COLORS, RADIUS, SPACING, CATEGORIES, CATEGORY_LIST, SHADOW } from '../../utils/theme';
 import PressableGlass from '../../components/PressableGlass';
 import SwipeableRow from '../../components/SwipeableRow';
+import BudgetAIInsights from '../../components/budget/BudgetAIInsights';
 import { useLangStore } from '../../store/langStore';
 import { t } from '../../utils/i18n';
 import Toast from 'react-native-toast-message';
@@ -171,6 +172,8 @@ export default function BudgetScreen() {
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={COLORS.accent.primary} />}
         ListHeaderComponent={
           <>
+            {/* Graphical, personalised AI insights strip */}
+            <BudgetAIInsights budgets={budgets} />
             {/* Summary */}
             {budgets.length > 0 && (
               <View style={s.summaryRow}>

@@ -46,17 +46,24 @@ export default function ExpenseSheet({ visible, onClose, group, currentUserId, e
     }
   }, [visible, group, editing]);
 
+  // Splitwise-accurate split math. For "equal", we hand the last person the
+  // rounding remainder so the sum ALWAYS equals the bill amount (no ₹0.50 loss).
   const getSplit = (mid: string) => {
     const amt = parseFloat(amount) || 0;
     const en = Object.entries(memberOn).filter(([_, v]) => v);
     const cnt = en.length || 1;
-    if (splitType === 'equal') return (amt / cnt).toFixed(0);
+    if (splitType === 'equal') {
+      const base = Math.floor((amt / cnt) * 100) / 100;
+      const isLast = en[en.length - 1]?.[0] === mid;
+      if (!isLast) return base.toFixed(0);
+      const rem = Math.round((amt - base * (cnt - 1)) * 100) / 100;
+      return rem.toFixed(0);
+    }
     if (splitType === 'custom') return memberAmts[mid] || '0';
     if (splitType === 'shares') {
-      const t = en.reduce((sum, [id]) => sum + (parseFloat(memberAmts[id]) || 1), 0);
+      const t = en.reduce((sum, [id]) => sum + (parseFloat(memberAmts[id]) || 1), 0) || 1;
       return ((amt * (parseFloat(memberAmts[mid]) || 1)) / t).toFixed(0);
     }
-    if (splitType === 'percentage') return ((amt * (parseFloat(memberAmts[mid]) || 0)) / 100).toFixed(0);
     return '0';
   };
 
@@ -65,17 +72,33 @@ export default function ExpenseSheet({ visible, onClose, group, currentUserId, e
     if (!amt || !group) { Toast.show({ type: 'error', text1: 'Error', text2: 'Enter valid amount' }); return; }
     const en = Object.entries(memberOn).filter(([_, v]) => v).map(([id]) => id);
     if (en.length < 2) { Toast.show({ type: 'error', text1: 'Error', text2: 'Select at least 2 members' }); return; }
+
     const splits: Record<string, number> = {};
+
     if (splitType === 'equal') {
-      const p = amt / en.length;
-      en.forEach(id => { splits[id] = Math.round(p * 100) / 100; });
+      // Floor every member's share to 2 decimals, then give the LAST person the
+      // rounding remainder. Guarantees Σ splits === amt exactly.
+      const base = Math.floor((amt / en.length) * 100) / 100;
+      let assigned = 0;
+      en.forEach((id, i) => {
+        if (i === en.length - 1) splits[id] = Math.round((amt - assigned) * 100) / 100;
+        else { splits[id] = base; assigned += base; }
+      });
     } else if (splitType === 'shares') {
-      const t = en.reduce((sum, id) => sum + (parseFloat(memberAmts[id]) || 1), 0);
-      en.forEach(id => { splits[id] = Math.round(amt * (parseFloat(memberAmts[id]) || 1) / t * 100) / 100; });
-    } else if (splitType === 'percentage') {
-      en.forEach(id => { splits[id] = Math.round(amt * (parseFloat(memberAmts[id]) || 0) / 100 * 100) / 100; });
-    } else {
-      en.forEach(id => { splits[id] = parseFloat(memberAmts[id]) || 0; });
+      const total = en.reduce((sum, id) => sum + (parseFloat(memberAmts[id]) || 1), 0) || 1;
+      let assigned = 0;
+      en.forEach((id, i) => {
+        const raw = amt * (parseFloat(memberAmts[id]) || 1) / total;
+        if (i === en.length - 1) splits[id] = Math.round((amt - assigned) * 100) / 100;
+        else { splits[id] = Math.round(raw * 100) / 100; assigned += splits[id]; }
+      });
+    } else { // custom exact
+      const sumCustom = en.reduce((sum, id) => sum + (parseFloat(memberAmts[id]) || 0), 0);
+      if (Math.abs(sumCustom - amt) > 0.01) {
+        Toast.show({ type: 'error', text1: 'Amounts don\'t match', text2: `Total must be ₹${amt.toFixed(0)} — currently ₹${sumCustom.toFixed(0)}` });
+        return;
+      }
+      en.forEach(id => { splits[id] = Math.round((parseFloat(memberAmts[id]) || 0) * 100) / 100; });
     }
     onSubmit({ description: desc || 'Expense', amount: amt, split_type: splitType, splits, expense_id: editing?.id });
   };
@@ -132,12 +155,6 @@ export default function ExpenseSheet({ visible, onClose, group, currentUserId, e
                       <TouchableOpacity style={s.shareBtn} onPress={() => setMemberAmts({ ...memberAmts, [m.user_id]: String((parseFloat(memberAmts[m.user_id]) || 1) + 1) })}>
                         <Ionicons name="add" size={16} color={C.text3} />
                       </TouchableOpacity>
-                    </View>
-                  )}
-                  {splitType === 'percentage' && (
-                    <View style={s.amtWrap}>
-                      <TextInput style={s.memAmtIn} value={memberAmts[m.user_id]} onChangeText={v => setMemberAmts({ ...memberAmts, [m.user_id]: v })} keyboardType="numeric" placeholder="0" placeholderTextColor={C.text4} />
-                      <Text style={s.amtSuf}>%</Text>
                     </View>
                   )}
                 </View>

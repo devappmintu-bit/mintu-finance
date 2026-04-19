@@ -56,11 +56,12 @@ export const getGA = (n: string) => {
 // UPI_APPS is now the single source of truth in /utils/theme.ts — re-export for back-compat
 export { UPI_APPS } from '../../utils/theme';
 
+// Splitwise-style split types. Percentage removed per product spec;
+// the three remaining modes cover 99% of real-world group bills.
 export const SPLIT_TYPES = [
-  { id: 'equal', icon: 'git-compare', label: 'Equal' },
-  { id: 'custom', icon: 'calculator', label: '\u20B9 Amt' },
-  { id: 'shares', icon: 'add-circle-outline', label: 'Shares' },
-  { id: 'percentage', icon: 'pie-chart', label: '%' },
+  { id: 'equal', icon: 'people', label: 'Equally' },
+  { id: 'custom', icon: 'calculator', label: 'Exact ₹' },
+  { id: 'shares', icon: 'stats-chart', label: 'By Shares' },
 ];
 
 export type DebtRow = {
