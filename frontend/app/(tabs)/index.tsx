@@ -39,6 +39,25 @@ export default function HomeScreen() {
   const [news, setNews] = useState<any[]>([]);
   const [newsUpdatedAt, setNewsUpdatedAt] = useState<string | null>(null);
   const [newsLoading, setNewsLoading] = useState(false);
+  const [lastSyncAt, setLastSyncAt] = useState<number>(Date.now());
+  const [, setTick] = useState(0); // 1-min ticker to keep "X min ago" fresh
+
+  // Keep the "X min ago" label fresh by re-rendering once a minute.
+  useEffect(() => {
+    const id = setInterval(() => setTick((t) => t + 1), 60000);
+    return () => clearInterval(id);
+  }, []);
+
+  const lastSyncLabel = (() => {
+    const ms = Date.now() - lastSyncAt;
+    if (ms < 30_000) return 'Last updated just now';
+    const mins = Math.floor(ms / 60_000);
+    if (mins < 1) return 'Last updated just now';
+    if (mins === 1) return 'Last updated 1 min ago';
+    if (mins < 60) return `Last updated ${mins} min ago`;
+    const hrs = Math.floor(mins / 60);
+    return `Last updated ${hrs}h ago`;
+  })();
   const [fomoItems, setFomoItems] = useState<any[]>([]);
   const [coinsStatus, setCoinsStatus] = useState<any>(null);
   const [showConfetti, setShowConfetti] = useState(false);
@@ -101,6 +120,7 @@ export default function HomeScreen() {
     } finally {
       setLoading(false);
       setRefreshing(false);
+      setLastSyncAt(Date.now());
     }
   }, [lang]);
 
@@ -198,10 +218,13 @@ export default function HomeScreen() {
         {/* MintU 2.0 — Daily Quest Card (habit loop) */}
         <DailyQuestCard coinsStatus={coinsStatus} />
 
-        {/* Transparency Notice — RBI-friendly data freshness disclosure */}
-        <View style={styles.transparencyStrip}>
-          <Ionicons name="information-circle-outline" size={14} color="#475569" />
-          <Text style={styles.transparencyText}>Data updates when you refresh or add transactions · Pull down to sync</Text>
+        {/* Freshness Signal — auto-updating "Last updated just now / X min ago" */}
+        <View style={styles.freshStrip}>
+          <View style={styles.freshLiveDot} />
+          <Text style={styles.freshText}>{lastSyncLabel}</Text>
+          <TouchableOpacity onPress={onRefresh} style={styles.freshBtn} activeOpacity={0.7}>
+            <Ionicons name="refresh" size={12} color={COLORS.accent.primary} />
+          </TouchableOpacity>
         </View>
 
         {/* MintU 2.0 — Top-of-home Pill Row (Coins + Percentile + Streak) */}
@@ -669,6 +692,11 @@ const styles = StyleSheet.create({
   newsEndSub: { fontSize: 11, color: COLORS.text.muted, textAlign: 'center', marginBottom: 8 },
   newsEndBtn: { flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: COLORS.accent.primary, paddingHorizontal: 12, paddingVertical: 6, borderRadius: 999 },
   newsEndBtnText: { fontSize: 11, fontWeight: '700', color: '#fff' },
+  // Fresh / last-updated strip replacing the old "data updates on refresh" trust signal
+  freshStrip: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingVertical: 8, paddingHorizontal: 12, backgroundColor: '#DCFCE7', borderRadius: 999, alignSelf: 'flex-start', marginHorizontal: SPACING.lg, marginBottom: SPACING.sm, borderWidth: 1, borderColor: '#86EFAC' },
+  freshLiveDot: { width: 7, height: 7, borderRadius: 3.5, backgroundColor: '#10B981' },
+  freshText: { fontSize: 11, fontWeight: '700', color: '#065F46', letterSpacing: 0.2 },
+  freshBtn: { marginLeft: 4, padding: 4, borderRadius: 999, backgroundColor: '#fff' },
   // Leaderboard preview on Home
   lbCard: { backgroundColor: 'rgba(255,255,255,0.96)', borderRadius: RADIUS.card, padding: SPACING.lg, marginBottom: SPACING.lg, borderWidth: 1, borderColor: '#F59E0B20' },
   lbHeader: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 12 },

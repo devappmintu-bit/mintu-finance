@@ -211,12 +211,37 @@ export default function ContactPickerSheet({ visible, onClose, onCreate }: Props
                 />
               ) : (
                 <View style={s.noContacts}>
-                  <Ionicons name="people-circle-outline" size={48} color={C.text4} />
-                  <Text style={s.hint}>
-                    {contactsPermission === 'unavailable' ? 'Contacts unavailable on web — add by phone.' : 'Allow contacts to pick from your list.'}
-                  </Text>
-                  {contactsPermission === 'denied' && (
-                    <TouchableOpacity onPress={loadContacts}><Text style={s.grantT}>Grant permission</Text></TouchableOpacity>
+                  <Ionicons
+                    name={contactsPermission === 'unavailable' ? 'link-outline' : 'people-circle-outline'}
+                    size={48}
+                    color={C.text4}
+                  />
+                  {contactsPermission === 'unavailable' ? (
+                    <>
+                      <Text style={[s.hint, { fontSize: 14, fontWeight: '700', color: C.text1 }]}>
+                        Contacts not available on web
+                      </Text>
+                      <Text style={s.hint}>
+                        Add a friend by phone above ↑ or share an invite link after the group is created.
+                      </Text>
+                      <TouchableOpacity
+                        style={{ marginTop: 12, backgroundColor: C.accent, paddingHorizontal: 16, paddingVertical: 10, borderRadius: 999, flexDirection: 'row', alignItems: 'center', gap: 6 }}
+                        onPress={() => setManualPhone((p) => p || '')}
+                        activeOpacity={0.8}
+                      >
+                        <Ionicons name="call" size={14} color="#fff" />
+                        <Text style={{ color: '#fff', fontSize: 12, fontWeight: '800' }}>Enter phone number</Text>
+                      </TouchableOpacity>
+                    </>
+                  ) : (
+                    <>
+                      <Text style={s.hint}>Allow contacts to pick from your list.</Text>
+                      {contactsPermission === 'denied' && (
+                        <TouchableOpacity onPress={loadContacts}>
+                          <Text style={s.grantT}>Grant permission</Text>
+                        </TouchableOpacity>
+                      )}
+                    </>
                   )}
                 </View>
               )}

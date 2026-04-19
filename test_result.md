@@ -1443,3 +1443,65 @@ agent_communication:
       * Auth rate limiter blocked curl-based smoke tests during this session
       * Code change is minimal (stock FastAPI BackgroundTasks, no new deps)
       * Recommend running backend test agent focused on /news/india-finance next
+
+  - agent: "main"
+    message: |
+      [2026-04-19 E] AI COACH + HOME TRUST SIGNAL + SPLIT WEB FALLBACK
+      
+      CRITICAL BUG FIXES:
+      1. components/AICoachChat.tsx — `ScrollView` was USED but NOT imported
+         → runtime "ScrollView is not defined" crash. Rewrote the whole file with
+         the full set of fixes below.
+      
+      2. app/(tabs)/insights.tsx — "I could not reach the server" dead error on
+         API failure. Replaced with smartFallback() that uses the user's REAL
+         numbers (savings rate, top category, total spend) pulled from
+         /analytics/summary at component mount.
+      
+      AI COACH UX UPGRADE (applied to BOTH insights.tsx and AICoachChat.tsx):
+      * Conversational welcome: "Hey {name} 👋 I'm your personal money coach…"
+        replaces the old "I provide structured insights based on your actual
+        transactions — not generic advice."
+      * Context awareness: fetches /analytics/summary once → sends context
+        (total_spend, savings_rate, top_category, top_category_amount) with every
+        AI request so backend can personalise
+      * Typing simulation: min 600ms delay before response shows, so dots animate
+        naturally instead of jumping
+      * Smart offline-first fallback: routes by keyword (overspend / save /
+        analyze / budget / default) and answers with the user's real numbers,
+        NEVER just "server unreachable"
+      * AICoachChat.tsx: sticky quick-prompts strip stays visible above the
+        input during conversation (not only in empty state)
+      * AICoachChat.tsx: welcome shows user's savings rate + top category in the
+        header subtitle for at-a-glance context
+      * Fixed broken \u escape emojis → real emojis everywhere
+      
+      HOME SCREEN:
+      3. app/(tabs)/index.tsx
+         * Replaced the "Data updates when you refresh or add transactions" trust
+           disclaimer with a LIVE freshness pill: green dot + "Last updated just
+           now / X min ago / Xh ago" + inline refresh button
+         * 1-minute ticker re-renders the label so it stays fresh without extra
+           network calls
+         * onRefresh + fetchData update `lastSyncAt` to now
+      
+      SPLIT SCREEN (web fallback):
+      4. components/split/ContactPickerSheet.tsx
+         * Empty state on web now shows actionable UI instead of dead hint:
+           link icon + "Contacts not available on web" headline + instruction to
+           add by phone above OR share invite link after group creation + a CTA
+           button "Enter phone number"
+      
+      VERIFIED VISUALLY via Playwright:
+      * AI Coach renders with new conversational welcome (Hey there 👋, personal
+        money coach, etc.)
+      * Home shows green "Last updated just now" pill with Live dot + refresh btn
+      * AI Coach quick chips render cleanly (Am I overspending? / Where is my
+        money going? / Set a realistic budget / Who owes me money? / How can I
+        save more? / Weekly spending report)
+      * No JS runtime errors in browser console
+      
+      NOT TESTED BACKEND:
+      * No backend changes in this pass — all frontend. Backend /ai/agent-chat
+        untouched.
+

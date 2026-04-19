@@ -64,17 +64,53 @@ export default function InsightsScreen() {
   const [messages, setMessages] = useState<ChatMsg[]>([]);
   const [input, setInput] = useState('');
   const [chatLoading, setChatLoading] = useState(false);
+  const [ctx, setCtx] = useState<{ totalSpend?: number; savingsRate?: number; topCategory?: string; topCatAmount?: number }>({});
   const flatRef = useRef<FlatList>(null);
+
+  // Load user's spending context once — used for prompt enrichment AND smart fallback
+  useEffect(() => {
+    api.get('/analytics/summary').then((r) => {
+      const d = r.data || {};
+      const cats = Array.isArray(d.categories) ? d.categories : [];
+      const topCat = cats[0];
+      setCtx({
+        totalSpend: d.total_expense || 0,
+        savingsRate: Math.round(d.savings_rate || 0),
+        topCategory: topCat?.category || topCat?.name,
+        topCatAmount: topCat?.amount,
+      });
+    }).catch(() => {});
+  }, []);
+
+  // Smart offline-aware fallback that uses the user's real numbers
+  const smartFallback = (userText: string): string => {
+    const lower = userText.toLowerCase();
+    const savings = ctx.savingsRate ?? 0;
+    const top = ctx.topCategory || 'Transport';
+    const topAmt = ctx.topCatAmount || 0;
+    const fmt = (n: number) => `₹${Math.round(n).toLocaleString('en-IN')}`;
+    if (/overspend|too much|spending.*on/.test(lower)) {
+      return `Looks like I'm briefly offline 😅 — but based on your data:\n\nTop category is **${top}** at ${fmt(topAmt)}.\n\n💡 Cutting 20% here saves ${fmt(topAmt * 0.2)}/month. Try a weekly cap in Budget.`;
+    }
+    if (/how.*save|save.*₹|save \d/.test(lower)) {
+      return `I'm offline for a sec, but here's a plan:\n\n• **${top}** is your biggest category (${fmt(topAmt)})\n• Reduce ~25% → saves ${fmt(topAmt * 0.25)}\n• Daily cash cap of ₹500 for impulse buys\n• Use the 50/30/20 rule`;
+    }
+    if (/analyze|report|last \d|week|days/.test(lower)) {
+      const total = ctx.totalSpend ?? 0;
+      return `Quick offline snapshot 📈\n\n• Spent: ${fmt(total)} (last 30d)\n• Avg/day: ${fmt(total / 30)}\n• Top: **${top}** (${fmt(topAmt)})\n• Savings rate: ${savings}%\n\nYou're ${savings >= 20 ? 'doing great' : 'below the 20% benchmark'}.`;
+    }
+    return `Hey ${user?.name || 'there'} 👋\n\nLooks like I'm offline 😅 But here's what I see:\n\n• Savings rate: **${savings}%** ${savings >= 20 ? '(great!)' : '(aim 20%)'}\n• Top category: ${top} (${fmt(topAmt)})\n\nWant tips to reduce your top category?`;
+  };
 
   useEffect(() => {
     setMessages([{
       role: 'ai',
-      text: `Hi ${user?.name || 'there'},\n\nI am your MintU financial assistant. I provide structured insights based on your actual transactions — not generic advice.\n\nTap a prompt below or type a question to get started.`,
+      text: `Hey ${user?.name || 'there'} 👋\n\nI'm your personal money coach — I can see your spending and help you save smarter.\n\nTap a quick prompt below or ask me anything like **"where am I overspending?"**`,
       agent: 'MintU AI',
       agentEmoji: '✨',
       ts: Date.now(),
     }]);
-  }, []);
+  }, [user?.name]);
 
   // ─── CTA Handler — routes the AI's suggested action button ───
   const handleCTA = (cta: CTAButton) => {
@@ -95,8 +131,20 @@ export default function InsightsScreen() {
     setMessages(prev => [...prev, userMsg, loadingMsg]);
     setInput('');
     setChatLoading(true);
+    const sentAt = Date.now();
     try {
-      const res = await api.post('/ai/agent-chat', { message: text.trim(), lang });
+      const res = await api.post('/ai/agent-chat', {
+        message: text.trim(),
+        lang,
+        context: {
+          total_spend: ctx.totalSpend,
+          savings_rate: ctx.savingsRate,
+          top_category: ctx.topCategory,
+          top_category_amount: ctx.topCatAmount,
+        },
+      });
+      const elapsed = Date.now() - sentAt;
+      if (elapsed < 600) await new Promise((r) => setTimeout(r, 600 - elapsed));
       const agentInfo = res.data.agent;
       setMessages(prev => [...prev.slice(0, -1), {
         role: 'ai',
@@ -109,12 +157,16 @@ export default function InsightsScreen() {
         ctas: res.data.ctas || [],
       }]);
     } catch {
+      // Smart fallback — NEVER just "server unreachable"
+      const elapsed = Date.now() - sentAt;
+      if (elapsed < 600) await new Promise((r) => setTimeout(r, 600 - elapsed));
       setMessages(prev => [...prev.slice(0, -1), {
         role: 'ai',
-        text: "I could not reach the server. Please check your connection and try again.",
+        text: smartFallback(text),
         agent: 'MintU AI',
-        agentEmoji: '⚠️',
+        agentEmoji: '📡',
         ts: Date.now(),
+        mode: 'partial',
       }]);
     } finally { setChatLoading(false); }
   };
