@@ -1,14 +1,12 @@
-"""privacy router — extracted from server.py.
-
-Lazy-imports any helpers still living in server.py via _srv() shim.
-"""
+"""privacy router — GDPR/DPDP compliance endpoints (export, delete, policy, cleanup)."""
 import os
 import json
 import logging
 import hashlib
 import hmac
 import random
-from datetime import datetime, timedelta, date
+import time
+from datetime import datetime, timedelta, timezone, date
 from typing import List, Optional, Dict
 from bson import ObjectId
 from fastapi import APIRouter, Depends, HTTPException, Request
@@ -16,42 +14,12 @@ from pydantic import BaseModel
 
 from core import db, get_current_user, cache_get, cache_set, cache_clear_prefix
 
-
-def _srv():
-    import server  # noqa: PLC0415
-    return server
-
-
-def _lazy_attr(name):
-    class _Proxy:
-        def __call__(self, *a, **kw): return getattr(_srv(), name)(*a, **kw)
-        def __getitem__(self, k): return getattr(_srv(), name)[k]
-        def __iter__(self): return iter(getattr(_srv(), name))
-        def __len__(self): return len(getattr(_srv(), name))
-        def items(self): return getattr(_srv(), name).items()
-        def keys(self): return getattr(_srv(), name).keys()
-        def __contains__(self, k): return k in getattr(_srv(), name)
-
-        def get(self, k, default=None): return getattr(_srv(), name).get(k, default)
-        def values(self): return getattr(_srv(), name).values()
-    return _Proxy()
-
-
-# Commonly needed helper proxies (harmless if unused)
-calculate_money_score = _lazy_attr("calculate_money_score")
-generate_insights_with_ai = _lazy_attr("generate_insights_with_ai")
-get_lang_instruction = _lazy_attr("get_lang_instruction")
-AGENT_PROFILES = _lazy_attr("AGENT_PROFILES")
-XP_LEVELS = _lazy_attr("XP_LEVELS")
-CATEGORIES = _lazy_attr("CATEGORIES")
+# DATA_RETENTION_DAYS lives in server.py (security config) — keep a module-level
+# constant mirror for use in the privacy policy JSON.
+DATA_RETENTION_DAYS = 365
 
 router = APIRouter(tags=["privacy"])
 api_router = router  # extracted code uses @api_router.*
-
-def _srv():
-    import server  # noqa: PLC0415
-    return server
-DATA_RETENTION_DAYS = type("_LazyInt", (), {"__int__": lambda s: getattr(_srv(), "DATA_RETENTION_DAYS"), "__index__": lambda s: getattr(_srv(), "DATA_RETENTION_DAYS"), "__repr__": lambda s: str(getattr(_srv(), "DATA_RETENTION_DAYS"))})()
 
 
 

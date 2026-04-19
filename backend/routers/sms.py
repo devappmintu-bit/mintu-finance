@@ -1,7 +1,4 @@
-"""sms router — extracted from server.py.
-
-Lazy-imports any helpers still living in server.py via _srv() shim.
-"""
+"""sms router — sample SMS inbox + bulk SMS parsing to create transactions."""
 import os
 import json
 import logging
@@ -15,52 +12,18 @@ from fastapi import APIRouter, Depends, HTTPException, Request
 from pydantic import BaseModel
 
 from core import db, get_current_user, cache_get, cache_set, cache_clear_prefix
+from core.scoring import calculate_money_score
+from core.constants import SAMPLE_INDIAN_SMS
 
 
-def _srv():
+def parse_sms_with_ai(sms_text):
+    """Lazy proxy to server.parse_sms_with_ai — avoids circular import."""
     import server  # noqa: PLC0415
-    return server
+    return server.parse_sms_with_ai(sms_text)
 
-
-def _lazy_attr(name):
-    class _Proxy:
-        def __call__(self, *a, **kw): return getattr(_srv(), name)(*a, **kw)
-        def __getitem__(self, k): return getattr(_srv(), name)[k]
-        def __iter__(self): return iter(getattr(_srv(), name))
-        def __len__(self): return len(getattr(_srv(), name))
-        def items(self): return getattr(_srv(), name).items()
-        def keys(self): return getattr(_srv(), name).keys()
-        def __contains__(self, k): return k in getattr(_srv(), name)
-
-        def get(self, k, default=None): return getattr(_srv(), name).get(k, default)
-        def values(self): return getattr(_srv(), name).values()
-    return _Proxy()
-
-
-# Commonly needed helper proxies (harmless if unused)
-calculate_money_score = _lazy_attr("calculate_money_score")
-generate_insights_with_ai = _lazy_attr("generate_insights_with_ai")
-get_lang_instruction = _lazy_attr("get_lang_instruction")
-AGENT_PROFILES = _lazy_attr("AGENT_PROFILES")
-XP_LEVELS = _lazy_attr("XP_LEVELS")
-CATEGORIES = _lazy_attr("CATEGORIES")
 
 router = APIRouter(tags=["sms"])
 api_router = router  # extracted code uses @api_router.*
-
-def _srv():
-    import server  # noqa: PLC0415
-    return server
-def _lazy(name):
-    class _P:
-        def __call__(self, *a, **kw): return getattr(_srv(), name)(*a, **kw)
-        def __getitem__(self, k): return getattr(_srv(), name)[k]
-        def __iter__(self): return iter(getattr(_srv(), name))
-        def __len__(self): return len(getattr(_srv(), name))
-    return _P()
-parse_sms_with_ai = _lazy_attr("parse_sms_with_ai")
-calculate_money_score = _lazy_attr("calculate_money_score")
-SAMPLE_INDIAN_SMS = _lazy("SAMPLE_INDIAN_SMS")
 
 
 

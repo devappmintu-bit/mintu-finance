@@ -1,7 +1,4 @@
-"""notifications router — extracted from server.py.
-
-Lazy-imports any helpers still living in server.py via _srv() shim.
-"""
+"""notifications router — push-token registration, budget alerts, cron-based smart nudges."""
 import os
 import json
 import logging
@@ -17,30 +14,14 @@ from pydantic import BaseModel
 from core import db, get_current_user, cache_get, cache_set, cache_clear_prefix
 
 
-def _srv():
+def _send_expo_push(token, title, body, data=None):
+    """Lazy proxy to server.send_expo_push — avoids circular import."""
     import server  # noqa: PLC0415
-    return server
+    return server.send_expo_push(token, title, body, data)
 
 
-def _lazy_attr(name):
-    class _Proxy:
-        def __call__(self, *a, **kw): return getattr(_srv(), name)(*a, **kw)
-        def __getitem__(self, k): return getattr(_srv(), name)[k]
-        def __iter__(self): return iter(getattr(_srv(), name))
-        def __len__(self): return len(getattr(_srv(), name))
-        def items(self): return getattr(_srv(), name).items()
-        def keys(self): return getattr(_srv(), name).keys()
-        def values(self): return getattr(_srv(), name).values()
-    return _Proxy()
-
-
-# Commonly needed helper proxies (harmless if unused)
-calculate_money_score = _lazy_attr("calculate_money_score")
-generate_insights_with_ai = _lazy_attr("generate_insights_with_ai")
-get_lang_instruction = _lazy_attr("get_lang_instruction")
-AGENT_PROFILES = _lazy_attr("AGENT_PROFILES")
-XP_LEVELS = _lazy_attr("XP_LEVELS")
-CATEGORIES = _lazy_attr("CATEGORIES")
+# Back-compat name referenced inline in the cron-check endpoint below.
+send_expo_push = _send_expo_push
 
 router = APIRouter(tags=["notifications"])
 api_router = router  # extracted code uses @api_router.*
