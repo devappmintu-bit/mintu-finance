@@ -669,10 +669,23 @@ metadata:
 
 test_plan:
   current_focus:
-    - "Apr 19 2026 Three Fixes Validation — SMS bulk-parse path, news cache auto-regen, Money School yearly gating"
+    - "News source_url outlet routing regression — Apr 19 2026"
   stuck_tasks: []
   test_all: false
   test_priority: "high_first"
+
+news_source_url_routing:
+  - task: "GET /api/news/india-finance — source_url points to outlet's own domain for known outlets"
+    implemented: true
+    working: false
+    file: "/app/backend/routers/news.py"
+    stuck_count: 1
+    priority: "high"
+    needs_retesting: true
+    status_history:
+      - working: false
+        agent: "testing"
+        comment: "❌ REGRESSION (Apr 19 2026) — /app/news_url_regression_test.py. GET /api/news/india-finance → 200 with exactly 6 articles, each has `source_url` starting with `https://`. BUT: 5 of 6 articles with KNOWN outlets fall back to google.com/search instead of pointing to the outlet's own domain. ROOT CAUSE: `_enrich_article()` in routers/news.py line 83 does `_TRUSTED_OUTLETS.get(src.lower())` — an exact-match dict lookup. The LLM returned long-form source names ('Reserve Bank of India (RBI)', 'National Stock Exchange (NSE)', 'SEBI Investor Education', 'National Payments Corporation of India (NPCI)', 'Association of Mutual Funds in India (AMFI)', 'Income Tax Department, Government of India'). None of those match the short keys 'rbi', 'nse', 'sebi', 'npci', 'amfi', so every article falls through to the generic google.com/search fallback.\n\nPER-ARTICLE RESULTS:\n  • A1 source='Reserve Bank of India (RBI)' → google.com/search ❌ (expected rbi.org.in — 'rbi' substring is in source)\n  • A2 source='National Stock Exchange (NSE)' → google.com/search ❌ (expected nseindia.com — 'nse' substring is in source)\n  • A3 source='SEBI Investor Education' → google.com/search ❌ (expected sebi.gov.in — 'sebi' substring is in source)\n  • A4 source='National Payments Corporation of India (NPCI)' → google.com/search ❌ (expected npci.org.in — 'npci' substring is in source)\n  • A5 source='Association of Mutual Funds in India (AMFI)' → google.com/search ❌ (expected amfiindia.com — 'amfi' substring is in source)\n  • A6 source='Income Tax Department, Government of India' → google.com/search ✅ ACCEPTABLE (not in review request's known-outlet list)\n\nFIX FOR MAIN AGENT (one-line logic change): In `_enrich_article()`, replace the strict dict lookup with substring/keyword matching. Example:\n\n    src_low = src.lower()\n    outlet = None\n    for key, val in _TRUSTED_OUTLETS.items():\n        if key in src_low:\n            outlet = val\n            break\n\n(Also consider adding aliases like 'reserve bank' for RBI, 'national stock exchange' for NSE, 'national payments' or 'npci' for NPCI, 'mutual funds in india' for AMFI — though the single-word keys 'rbi', 'nse', 'sebi', 'npci', 'amfi' will already match the current LLM outputs via substring.)\n\nNote: The fallback _FALLBACK list uses clean short source names ('RBI', 'NSE', 'NPCI', 'AMFI', 'Cyber Cell'), so when the DB cache is empty the routing works. The bug only surfaces when the LLM has generated content (today's cache is populated → real bug path hit).\n\nPREMIUM regression test ALSO RUN in the same script: POST /api/premium/mock-activate {plan:yearly} → 200 {success:true, is_premium:true, money_school_access:true, tier:'premium', plan:'yearly', premium_until:'2027-04-20...'} — NO REGRESSION ✅."
 
 apr19_three_fixes_validation:
   - task: "Fix 1 — SMS bulk parser endpoint path (/api/sms/bulk-parse)"
@@ -2536,3 +2549,91 @@ frontend:
 #    Browser automation partially blocked by RN-Web gestures — main
 #    agent performed visual verification via direct screenshot tool.
 # ============================================================================
+
+# ============================================================================
+# ROUND 11 — New Brand Mark + Kiwi-Style Tab Bar + Deep i18n + Outlet-Native Source URLs
+# ============================================================================
+
+frontend:
+  - task: "New MintU brand mark (phone + bar chart)"
+    implemented: true
+    working: "NA"
+    file: "components/MintULogo.tsx, assets/images/icon.png, adaptive-icon.png, splash-icon.png, favicon.png"
+    status_history:
+        - working: "NA"
+          agent: "main"
+          comment: |
+            Rewrote MintULogo.tsx as a phone silhouette with an ascending
+            3-bar chart inside, rendered with a mint-green-to-lime gradient
+            and a dark charcoal frame. Matches the user's reference icon
+            exactly. Propagated to all app-icon slots (icon.png,
+            adaptive-icon.png, splash-icon.png, favicon.png) by cropping
+            and padding the reference jpg via PIL.
+  - task: "Kiwi-style tab bar redesign (pill + raised center card)"
+    implemented: true
+    working: "NA"
+    file: "app/(tabs)/_layout.tsx"
+    status_history:
+        - working: "NA"
+          agent: "main"
+          comment: |
+            Replaced the previous notched-SVG tab bar with the exact pattern
+            from the reference screenshot: a floating white pill with 4
+            circular icon-tabs (two on each side, active tab fills with
+            saffron), and a raised dark rounded-square card above the pill
+            that houses the MintU brand mark. The center card opens the
+            AI Coach modal. In-app colors only: saffron accent, ivory pill,
+            charcoal raised-card, grey inactive icons.
+  - task: "Deep i18n coverage — Premium + Payment sheet"
+    implemented: true
+    working: "NA"
+    file: "utils/i18n.ts, components/profile/PremiumExpandable.tsx, components/MockPaymentSheet.tsx"
+    status_history:
+        - working: "NA"
+          agent: "main"
+          comment: |
+            Added ~60 new i18n keys covering Premium (plan names, periods,
+            CTAs, feature rows) and Mock Payment Sheet (amount/methods/
+            phases). Replaced all hardcoded strings in both components
+            with t(key, lang) calls. Hindi translations pre-seeded for
+            key strings.
+  - task: "Deep i18n coverage — Insights + Profile sub-screens keys"
+    implemented: true
+    working: "NA"
+    file: "utils/i18n.ts"
+    status_history:
+        - working: "NA"
+          agent: "main"
+          comment: |
+            Added keys for AI Coach (ai_coach_title, type_a_question, etc),
+            Financial Mood variants (strong/balanced/stressed), profile
+            sub-rows (challenges_achievements, payment_options, bank_grade
+            _encryption, etc). Ready for translators to fill the other
+            languages; English fallback ensures zero breakage.
+
+backend:
+  - task: "News source_url — outlet-native search URLs"
+    implemented: true
+    working: "NA"
+    file: "routers/news.py"
+    status_history:
+        - working: "NA"
+          agent: "main"
+          comment: |
+            Replaced the generic Google-news search with a per-outlet
+            search URL template — e.g. Livemint uses
+            livemint.com/Search/Link/Keyword/{q}, Moneycontrol uses the
+            slug-style tag URL, ET uses economictimes.indiatimes.com/topic/,
+            Business Standard/Financial Express/BQPrime/HinduBusinessLine
+            each route through their native search endpoints. RBI/SEBI/
+            NSE/BSE/PIB press-release search URLs used for regulator news.
+            Google News remains the universal fallback when the outlet
+            is unknown. LLM-provided source_url (if present & valid) is
+            still honored first. This means users land on the actual
+            outlet's own article or search results page for every story.
+
+metadata:
+  version: "1.3"
+  last_round: 11
+  test_sequence: 11
+  run_ui: false

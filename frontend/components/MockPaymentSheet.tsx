@@ -7,6 +7,8 @@ import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import * as Haptics from 'expo-haptics';
 import MintULogo from './MintULogo';
+import { useLangStore } from '../store/langStore';
+import { t } from '../utils/i18n';
 
 interface Props {
   visible: boolean;
@@ -21,6 +23,7 @@ type Phase = 'confirm' | 'processing' | 'success';
 
 export default function MockPaymentSheet({ visible, planId, planLabel, amount, onClose, onSuccess }: Props) {
   const [phase, setPhase] = useState<Phase>('confirm');
+  const { lang } = useLangStore();
 
   useEffect(() => { if (visible) setPhase('confirm'); }, [visible]);
 
@@ -41,7 +44,7 @@ export default function MockPaymentSheet({ visible, planId, planLabel, amount, o
           <View style={s.handle} />
           <View style={s.logoRow}>
             <MintULogo size={36} />
-            <Text style={s.brand}>MintU Pay</Text>
+            <Text style={s.brand}>{t('mintu_pay', lang)}</Text>
             <View style={{ flex: 1 }} />
             {phase === 'confirm' && (
               <TouchableOpacity onPress={onClose} hitSlop={16}>
@@ -53,26 +56,26 @@ export default function MockPaymentSheet({ visible, planId, planLabel, amount, o
           {phase === 'confirm' && (
             <>
               <View style={s.amountCard}>
-                <Text style={s.amountLbl}>Amount to pay</Text>
+                <Text style={s.amountLbl}>{t('amount_to_pay', lang)}</Text>
                 <Text style={s.amount}>₹{amount.toLocaleString('en-IN')}</Text>
                 <Text style={s.planRow}>{planLabel || planId.toUpperCase()}</Text>
               </View>
 
               <View style={s.methodsWrap}>
-                <Text style={s.methodsTitle}>Payment Method</Text>
+                <Text style={s.methodsTitle}>{t('payment_method', lang)}</Text>
                 <View style={s.methodRow}>
                   <View style={s.methodIcon}><Ionicons name="phone-portrait" size={18} color="#5F259F" /></View>
-                  <Text style={s.methodLbl}>UPI (PhonePe · GPay · Paytm)</Text>
+                  <Text style={s.methodLbl}>{t('method_upi', lang)}</Text>
                   <Ionicons name="radio-button-on" size={20} color="#F56E1E" />
                 </View>
                 <View style={s.methodRow}>
                   <View style={s.methodIcon}><Ionicons name="card" size={18} color="#1E293B" /></View>
-                  <Text style={s.methodLbl}>Credit / Debit Card</Text>
+                  <Text style={s.methodLbl}>{t('method_card', lang)}</Text>
                   <Ionicons name="radio-button-off" size={20} color="#CBD5E1" />
                 </View>
                 <View style={s.methodRow}>
                   <View style={s.methodIcon}><Ionicons name="business" size={18} color="#0F766E" /></View>
-                  <Text style={s.methodLbl}>Net Banking</Text>
+                  <Text style={s.methodLbl}>{t('method_netbanking', lang)}</Text>
                   <Ionicons name="radio-button-off" size={20} color="#CBD5E1" />
                 </View>
               </View>
@@ -80,21 +83,18 @@ export default function MockPaymentSheet({ visible, planId, planLabel, amount, o
               <TouchableOpacity style={s.cta} onPress={startPayment} activeOpacity={0.9}>
                 <LinearGradient colors={['#F56E1E', '#C14A06']} style={s.ctaGrad}>
                   <Ionicons name="lock-closed" size={16} color="#fff" />
-                  <Text style={s.ctaTxt}>Pay ₹{amount.toLocaleString('en-IN')}</Text>
+                  <Text style={s.ctaTxt}>{t('pay_amount', lang)} ₹{amount.toLocaleString('en-IN')}</Text>
                 </LinearGradient>
               </TouchableOpacity>
-              <Text style={s.footNote}>
-                This is a MOCK payment sheet. No real charge is made.{"\n"}
-                Razorpay will be wired in when live keys are added.
-              </Text>
+              <Text style={s.footNote}>{t('mock_payment_note', lang)}</Text>
             </>
           )}
 
           {phase === 'processing' && (
             <View style={s.stateWrap}>
               <ActivityIndicator size="large" color="#F56E1E" />
-              <Text style={s.stateTitle}>Processing payment…</Text>
-              <Text style={s.stateSub}>Do not close this screen</Text>
+              <Text style={s.stateTitle}>{t('processing_payment', lang)}</Text>
+              <Text style={s.stateSub}>{t('do_not_close', lang)}</Text>
             </View>
           )}
 
@@ -103,8 +103,8 @@ export default function MockPaymentSheet({ visible, planId, planLabel, amount, o
               <LinearGradient colors={['#10B981', '#047857']} style={s.checkCircle}>
                 <Ionicons name="checkmark" size={42} color="#fff" />
               </LinearGradient>
-              <Text style={s.stateTitle}>Payment Successful</Text>
-              <Text style={s.stateSub}>Unlocking your premium perks…</Text>
+              <Text style={s.stateTitle}>{t('payment_success', lang)}</Text>
+              <Text style={s.stateSub}>{t('unlocking_perks', lang)}</Text>
             </View>
           )}
         </View>

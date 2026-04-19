@@ -36,42 +36,65 @@ _FALLBACK = [
 ]
 
 
-# Known Indian financial outlets — used to build a source-scoped Google search
-# when the LLM-generated article doesn't already include a direct URL.
-_TRUSTED_DOMAINS: dict[str, str] = {
-    "rbi": "rbi.org.in",
-    "nse": "nseindia.com",
-    "bse": "bseindia.com",
-    "sebi": "sebi.gov.in",
-    "npci": "npci.org.in",
-    "amfi": "amfiindia.com",
-    "pib": "pib.gov.in",
-    "cyber cell": "cybercrime.gov.in",
-    "mint": "livemint.com",
-    "livemint": "livemint.com",
-    "economic times": "economictimes.indiatimes.com",
-    "et": "economictimes.indiatimes.com",
-    "business standard": "business-standard.com",
-    "moneycontrol": "moneycontrol.com",
-    "bloomberg": "bloombergquint.com",
-    "hindu business line": "thehindubusinessline.com",
-    "financial express": "financialexpress.com",
+# Known Indian financial outlets — each entry is a pair (domain, search_url_template).
+# The `{q}` placeholder is filled with the URL-encoded article title so we land
+# directly on the outlet's own search results instead of a generic Google page.
+_TRUSTED_OUTLETS: dict[str, tuple[str, str]] = {
+    "rbi": ("rbi.org.in", "https://www.rbi.org.in/Scripts/SearchResults.aspx?search={q}"),
+    "nse": ("nseindia.com", "https://www.nseindia.com/search?q={q}"),
+    "bse": ("bseindia.com", "https://www.bseindia.com/search.html?q={q}"),
+    "sebi": ("sebi.gov.in", "https://www.sebi.gov.in/search.html?search={q}"),
+    "npci": ("npci.org.in", "https://www.npci.org.in/?s={q}"),
+    "amfi": ("amfiindia.com", "https://www.amfiindia.com/?s={q}"),
+    "pib": ("pib.gov.in", "https://pib.gov.in/allRel.aspx?search={q}"),
+    "cyber cell": ("cybercrime.gov.in", "https://cybercrime.gov.in/Webform/CrimeCatDes.aspx"),
+    "mint": ("livemint.com", "https://www.livemint.com/Search/Link/Keyword/{q}"),
+    "livemint": ("livemint.com", "https://www.livemint.com/Search/Link/Keyword/{q}"),
+    "economic times": ("economictimes.indiatimes.com", "https://economictimes.indiatimes.com/topic/{q}"),
+    "et": ("economictimes.indiatimes.com", "https://economictimes.indiatimes.com/topic/{q}"),
+    "business standard": ("business-standard.com", "https://www.business-standard.com/search?q={q}"),
+    "moneycontrol": ("moneycontrol.com", "https://www.moneycontrol.com/news/tags/{q}.html"),
+    "bloomberg": ("bloombergquint.com", "https://www.bqprime.com/search?q={q}"),
+    "hindu business line": ("thehindubusinessline.com", "https://www.thehindubusinessline.com/topic/{q}/"),
+    "financial express": ("financialexpress.com", "https://www.financialexpress.com/?s={q}"),
 }
+# Backward-compat alias
+_TRUSTED_DOMAINS = {k: v[0] for k, v in _TRUSTED_OUTLETS.items()}
 
 
 def _enrich_article(a: dict) -> dict:
-    """Add a `source_url` if missing — points to the most authentic article
-    we can infer from the title + source via a scoped Google news search."""
+    """Attach a `source_url` pointing to the most authentic article we can
+    infer for the given topic. Priority:
+      1. LLM-provided valid https URL (kept as-is).
+      2. Outlet-native search URL when we know the outlet's search endpoint.
+      3. Google News fallback scoped to the outlet's domain.
+    """
     if not isinstance(a, dict):
         return a
-    if a.get("source_url"):
+    lm_url = (a.get("source_url") or "").strip()
+    # Trust only well-formed https URLs; ignore empty/invalid/LLM hallucinations.
+    if lm_url.startswith("https://") and len(lm_url) < 400:
         return a
     import urllib.parse as up
     src = (a.get("source") or "").strip()
     title = (a.get("title") or "").strip()
-    domain = _TRUSTED_DOMAINS.get(src.lower())
-    q = title + (f" site:{domain}" if domain else f" {src}") if title else src
-    url = f"https://www.google.com/search?q={up.quote_plus(q)}&tbm=nws"
+    q_plain = up.quote_plus(title) if title else up.quote_plus(src)
+    q_dash = up.quote(title.lower().replace(" ", "-")) if title else up.quote(src)
+    outlet = _TRUSTED_OUTLETS.get(src.lower())
+    if outlet and title:
+        domain, tmpl = outlet
+        # Moneycontrol uses slug-style URLs; others use ?q=
+        q = q_dash if domain == "moneycontrol.com" else q_plain
+        try:
+            url = tmpl.format(q=q)
+        except Exception:
+            url = f"https://www.google.com/search?q={q_plain}+site:{domain}&tbm=nws"
+    elif outlet:
+        url = f"https://{outlet[0]}/"
+    else:
+        # Generic Google News fallback — still scoped to the source name.
+        scope = f"+{up.quote_plus(src)}" if src else ""
+        url = f"https://www.google.com/search?q={q_plain}{scope}&tbm=nws"
     return {**a, "source_url": url}
 
 

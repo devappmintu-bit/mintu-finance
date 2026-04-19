@@ -1,137 +1,135 @@
-// Custom bottom tab bar — notched curve under a floating MintU logo.
-// 4 side tabs with labels · 1 elevated center tab (AI Coach).
-// Inspired by the reference hero image but rendered entirely in MintU saffron.
+// Bottom tab bar — MintU 2.1, inspired by the Kiwi-style "pill container +
+// raised center card" pattern. Uses only in-app saffron / ivory / charcoal.
+//
+// Layout:
+//   ┌──────────────────────────────────────────────┐
+//   │                    ┌──────┐                  │
+//   │                    │  ▣   │  ← raised card   │
+//   │                    │      │    (AI Coach)    │
+//   │   ╔════════════════│      │═══════════════╗  │
+//   │   ║ [icon] [icon]  └──────┘ [icon] [icon] ║  │
+//   │   ║ label  label            label  label  ║  │
+//   │   ╚════════════════════════════════════════╝ │
+//   └──────────────────────────────────────────────┘
+//
+// The raised card floats higher than the pill, has rounded corners like a
+// mini app-icon, and shows our MintU brand mark (the phone-with-bars icon).
+// Side tabs get circular icon backgrounds; the active tab's circle fills
+// with saffron.
+
 import { Tabs } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
-import { View, StyleSheet, Platform, Modal, TouchableOpacity, Text, Dimensions } from 'react-native';
+import { View, StyleSheet, Platform, Modal, TouchableOpacity, Text } from 'react-native';
 import { useState } from 'react';
-import Svg, { Path, Defs, LinearGradient as SvgLinearGradient, Stop } from 'react-native-svg';
 import { BottomTabBarProps } from '@react-navigation/bottom-tabs';
+import { LinearGradient } from 'expo-linear-gradient';
 import { COLORS } from '../../utils/theme';
 import { useLangStore } from '../../store/langStore';
 import { t } from '../../utils/i18n';
 import MintULogo from '../../components/MintULogo';
 import AICoachChat from '../../components/AICoachChat';
 
-const TAB_HEIGHT = 72;
-const FAB_SIZE = 62;
-const NOTCH_WIDTH = 84;
+// Tab metadata — iconsets are native to @expo/vector-icons so they stay crisp.
+const TAB_META: Record<string, { out: string; fill: string; key: string }> = {
+  index: { out: 'home-outline', fill: 'home', key: 'home' },
+  transactions: { out: 'receipt-outline', fill: 'receipt', key: 'transactions' },
+  budget: { out: 'pie-chart-outline', fill: 'pie-chart', key: 'budgets' },
+  split: { out: 'people-outline', fill: 'people', key: 'split' },
+};
 
-function NotchedBackground({ width }: { width: number }) {
-  // Build a path with a semi-circular cutout centered on the tab bar.
-  const notchStart = (width - NOTCH_WIDTH) / 2;
-  const notchEnd = notchStart + NOTCH_WIDTH;
-  const notchDepth = 30;
-
-  const d = `
-    M 0 0
-    H ${notchStart}
-    C ${notchStart + 12} 0, ${notchStart + 14} ${notchDepth}, ${width / 2} ${notchDepth}
-    C ${notchEnd - 14} ${notchDepth}, ${notchEnd - 12} 0, ${notchEnd} 0
-    H ${width}
-    V ${TAB_HEIGHT + 30}
-    H 0
-    Z
-  `;
-
-  return (
-    <Svg width={width} height={TAB_HEIGHT + 30} style={{ position: 'absolute', bottom: 0, left: 0 }}>
-      <Defs>
-        <SvgLinearGradient id="tab_bg" x1="0%" y1="0%" x2="0%" y2="100%">
-          <Stop offset="0%" stopColor="#FFFFFF" />
-          <Stop offset="100%" stopColor="#FFF8F2" />
-        </SvgLinearGradient>
-      </Defs>
-      <Path d={d} fill="url(#tab_bg)" stroke="#F4E3D0" strokeWidth={1} />
-    </Svg>
-  );
+function labelOf(name: string, lang: any): string {
+  const k = TAB_META[name]?.key || name;
+  const raw = t(k, lang);
+  const fallback: Record<string, string> = { home: 'Home', transactions: 'Transactions', budgets: 'Budgets', split: 'Split' };
+  if (raw === k || !raw) return fallback[k] || name;
+  return raw.charAt(0).toUpperCase() + raw.slice(1);
 }
 
-function TabItem({
-  icon, iconFilled, label, focused, onPress,
-}: { icon: string; iconFilled: string; label: string; focused: boolean; onPress: () => void }) {
+function SideTab({ icon, iconFilled, label, focused, onPress, testID }:
+  { icon: string; iconFilled: string; label: string; focused: boolean; onPress: () => void; testID?: string }) {
   return (
-    <TouchableOpacity style={st.tabItem} onPress={onPress} activeOpacity={0.7}>
-      <Ionicons
-        name={(focused ? iconFilled : icon) as any}
-        size={22}
-        color={focused ? COLORS.accent.primary : '#9AA3AE'}
-      />
-      <Text style={[st.tabLabel, focused && st.tabLabelActive]} numberOfLines={1}>{label}</Text>
+    <TouchableOpacity testID={testID} style={st.sideTab} onPress={onPress} activeOpacity={0.7}>
+      <View style={[st.sideIconCircle, focused && st.sideIconCircleOn]}>
+        <Ionicons
+          name={(focused ? iconFilled : icon) as any}
+          size={20}
+          color={focused ? '#FFFFFF' : '#1F2937'}
+        />
+      </View>
+      <Text style={[st.sideLabel, focused && st.sideLabelOn]} numberOfLines={1}>{label}</Text>
     </TouchableOpacity>
   );
 }
 
-function MintUTabBar({ state, descriptors, navigation, onPressCenter }: BottomTabBarProps & { onPressCenter: () => void }) {
+function MintUTabBar({ state, navigation, onPressCenter }: BottomTabBarProps & { onPressCenter: () => void }) {
   const { lang } = useLangStore();
-  const width = Dimensions.get('window').width;
+  const visible = state.routes.filter(r => TAB_META[r.name]);
+  const left = visible.slice(0, 2);
+  const right = visible.slice(2, 4);
 
-  // Only the 4 visible side routes — center is custom.
-  const routes = state.routes.filter(r => ['index', 'transactions', 'budget', 'split'].includes(r.name));
-
-  const iconMap: Record<string, { o: string; f: string; key: string }> = {
-    index: { o: 'home-outline', f: 'home', key: 'home' as any },
-    transactions: { o: 'receipt-outline', f: 'receipt', key: 'transactions' },
-    budget: { o: 'pie-chart-outline', f: 'pie-chart', key: 'budgets' },
-    split: { o: 'people-outline', f: 'people', key: 'split' },
-  };
-  const labelFor = (name: string) => {
-    const k = iconMap[name]?.key || name;
-    // "home" → "Home" fallback when translation unavailable
-    const trans = t(k, lang);
-    if (k === 'home' && (trans === 'home' || !trans)) return 'Home';
-    return trans.charAt(0).toUpperCase() + trans.slice(1);
+  const fire = (route: any, focused: boolean) => {
+    const event = navigation.emit({ type: 'tabPress', target: route.key, canPreventDefault: true });
+    if (!focused && !event.defaultPrevented) navigation.navigate(route.name as never);
   };
 
   return (
-    <View style={st.wrap}>
-      <NotchedBackground width={width} />
-
-      {/* Floating center FAB */}
-      <TouchableOpacity onPress={onPressCenter} activeOpacity={0.85} style={st.fab} accessibilityLabel="AI Coach">
-        <View style={st.fabRing}>
-          <MintULogo size={FAB_SIZE - 8} glow />
-        </View>
-        <Text style={st.fabLabel}>{t('ai_insight', lang).includes('AI') ? 'AI Coach' : 'AI'}</Text>
+    <View style={st.wrap} pointerEvents="box-none">
+      {/* Raised center card — MintU app icon (phone+bars) on a dark tile */}
+      <TouchableOpacity
+        testID="tab-ai-coach"
+        onPress={onPressCenter}
+        activeOpacity={0.88}
+        style={st.raisedWrap}
+      >
+        <LinearGradient
+          colors={['#1A2A08', '#0F1A05']}
+          style={st.raisedCard}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 1 }}
+        >
+          <MintULogo size={48} />
+        </LinearGradient>
+        <Text style={st.raisedLabel}>AI Coach</Text>
       </TouchableOpacity>
 
-      {/* 4 side tabs — 2 left, spacer for center, 2 right */}
-      <View style={st.row}>
-        {routes.slice(0, 2).map((route) => {
-          const focused = state.index === state.routes.findIndex(r => r.key === route.key);
-          const { o, f } = iconMap[route.name];
-          return (
-            <TabItem
-              key={route.key}
-              icon={o}
-              iconFilled={f}
-              label={labelFor(route.name)}
-              focused={focused}
-              onPress={() => {
-                const event = navigation.emit({ type: 'tabPress', target: route.key, canPreventDefault: true });
-                if (!focused && !event.defaultPrevented) navigation.navigate(route.name as never);
-              }}
-            />
-          );
-        })}
-        <View style={st.spacer} />
-        {routes.slice(2).map((route) => {
-          const focused = state.index === state.routes.findIndex(r => r.key === route.key);
-          const { o, f } = iconMap[route.name];
-          return (
-            <TabItem
-              key={route.key}
-              icon={o}
-              iconFilled={f}
-              label={labelFor(route.name)}
-              focused={focused}
-              onPress={() => {
-                const event = navigation.emit({ type: 'tabPress', target: route.key, canPreventDefault: true });
-                if (!focused && !event.defaultPrevented) navigation.navigate(route.name as never);
-              }}
-            />
-          );
-        })}
+      {/* Pill container */}
+      <View style={st.pill}>
+        <View style={st.pillSide}>
+          {left.map((route) => {
+            const focused = state.index === state.routes.findIndex(r => r.key === route.key);
+            const meta = TAB_META[route.name];
+            return (
+              <SideTab
+                key={route.key}
+                icon={meta.out}
+                iconFilled={meta.fill}
+                label={labelOf(route.name, lang)}
+                focused={focused}
+                onPress={() => fire(route, focused)}
+                testID={`tab-${route.name}`}
+              />
+            );
+          })}
+        </View>
+        {/* Spacer under the raised card */}
+        <View style={st.pillCenterSpace} />
+        <View style={st.pillSide}>
+          {right.map((route) => {
+            const focused = state.index === state.routes.findIndex(r => r.key === route.key);
+            const meta = TAB_META[route.name];
+            return (
+              <SideTab
+                key={route.key}
+                icon={meta.out}
+                iconFilled={meta.fill}
+                label={labelOf(route.name, lang)}
+                focused={focused}
+                onPress={() => fire(route, focused)}
+                testID={`tab-${route.name}`}
+              />
+            );
+          })}
+        </View>
       </View>
     </View>
   );
@@ -139,7 +137,6 @@ function MintUTabBar({ state, descriptors, navigation, onPressCenter }: BottomTa
 
 export default function TabLayout() {
   const [aiVisible, setAiVisible] = useState(false);
-
   return (
     <View style={{ flex: 1 }}>
       <Tabs
@@ -155,75 +152,89 @@ export default function TabLayout() {
         <Tabs.Screen name="rewards" options={{ href: null }} />
       </Tabs>
 
-      <Modal visible={aiVisible} animationType="slide" presentationStyle={Platform.OS === 'ios' ? 'pageSheet' : 'fullScreen'}>
+      <Modal
+        visible={aiVisible}
+        animationType="slide"
+        presentationStyle={Platform.OS === 'ios' ? 'pageSheet' : 'fullScreen'}
+      >
         <AICoachChat onClose={() => setAiVisible(false)} />
       </Modal>
     </View>
   );
 }
 
+const RAISED_SIZE = 72;
+
 const st = StyleSheet.create({
   wrap: {
-    position: 'absolute',
-    left: 0, right: 0, bottom: 0,
-    height: TAB_HEIGHT + 30,
+    position: 'absolute', left: 0, right: 0, bottom: 0,
+    height: 120,
+    alignItems: 'center',
+    justifyContent: 'flex-end',
+    paddingBottom: Platform.OS === 'ios' ? 18 : 10,
+    paddingHorizontal: 12,
     backgroundColor: 'transparent',
   },
-  row: {
-    flex: 1,
+  pill: {
     flexDirection: 'row',
-    alignItems: 'flex-end',
-    paddingBottom: Platform.OS === 'ios' ? 20 : 10,
-    paddingHorizontal: 14,
-    height: TAB_HEIGHT,
-    marginTop: 30,
-  },
-  tabItem: {
-    flex: 1,
     alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: 6,
-  },
-  spacer: { width: NOTCH_WIDTH - 14 },
-  tabLabel: {
-    fontSize: 11,
-    color: '#9AA3AE',
-    marginTop: 4,
-    fontWeight: '500',
-  },
-  tabLabelActive: {
-    color: COLORS.accent.primary,
-    fontWeight: '700',
-  },
-  fab: {
-    position: 'absolute',
-    top: 0,
-    alignSelf: 'center',
-    left: '50%',
-    marginLeft: -(FAB_SIZE / 2) - 2,
-    width: FAB_SIZE + 4,
-    alignItems: 'center',
-    zIndex: 10,
+    backgroundColor: '#FFFFFF',
+    borderRadius: 32,
+    paddingHorizontal: 8,
+    paddingVertical: 10,
+    width: '100%',
     ...Platform.select({
-      ios: { shadowColor: '#F56E1E', shadowOpacity: 0.35, shadowRadius: 12, shadowOffset: { width: 0, height: 6 } },
+      ios: { shadowColor: '#0F172A', shadowOpacity: 0.12, shadowRadius: 18, shadowOffset: { width: 0, height: 6 } },
       android: { elevation: 10 },
-      web: { boxShadow: '0 6px 18px rgba(245,110,30,0.35)' as any },
+      web: { boxShadow: '0 6px 20px rgba(15,23,42,0.1)' as any },
     }),
   },
-  fabRing: {
-    width: FAB_SIZE,
-    height: FAB_SIZE,
-    borderRadius: FAB_SIZE / 2,
-    backgroundColor: '#FFF',
-    borderWidth: 3,
-    borderColor: '#FFF8F2',
+  pillSide: {
+    flex: 1,
+    flexDirection: 'row',
+    justifyContent: 'space-around',
+  },
+  pillCenterSpace: { width: RAISED_SIZE + 8 },
+  sideTab: { alignItems: 'center', flex: 1, paddingVertical: 2 },
+  sideIconCircle: {
+    width: 38, height: 38, borderRadius: 19,
+    backgroundColor: '#F5F6F8',
+    alignItems: 'center', justifyContent: 'center',
+  },
+  sideIconCircleOn: {
+    backgroundColor: COLORS.accent.primary,
+  },
+  sideLabel: { fontSize: 11, color: '#6B7280', marginTop: 4, fontWeight: '600' },
+  sideLabelOn: { color: COLORS.accent.primary, fontWeight: '800' },
+
+  // Raised card — floats above the pill, taller, rounded-square "app icon" look.
+  raisedWrap: {
+    position: 'absolute',
+    top: 6,
+    left: '50%',
+    marginLeft: -(RAISED_SIZE / 2),
+    width: RAISED_SIZE,
+    alignItems: 'center',
+    zIndex: 10,
+  },
+  raisedCard: {
+    width: RAISED_SIZE,
+    height: RAISED_SIZE,
+    borderRadius: 20,
     alignItems: 'center',
     justifyContent: 'center',
+    borderWidth: 4,
+    borderColor: '#FFFFFF',
+    ...Platform.select({
+      ios: { shadowColor: '#1A2A08', shadowOpacity: 0.45, shadowRadius: 14, shadowOffset: { width: 0, height: 8 } },
+      android: { elevation: 14 },
+      web: { boxShadow: '0 10px 24px rgba(26,42,8,0.35)' as any },
+    }),
   },
-  fabLabel: {
+  raisedLabel: {
     fontSize: 10,
-    color: COLORS.accent.primary,
     fontWeight: '800',
+    color: COLORS.accent.primary,
     marginTop: 4,
     letterSpacing: 0.3,
   },

@@ -10,6 +10,8 @@ import api from '../../utils/api';
 import { COLORS } from '../../utils/theme';
 import MockPaymentSheet from '../MockPaymentSheet';
 import Toast from 'react-native-toast-message';
+import { useLangStore } from '../../store/langStore';
+import { t } from '../../utils/i18n';
 
 interface Plan {
   id: string;
@@ -22,14 +24,14 @@ interface Plan {
   order?: number;
 }
 
-const FEATURES = [
-  { icon: 'infinite', text: 'Unlimited AI Coach conversations' },
-  { icon: 'flash', text: 'Priority GPT-5.2 responses (no queue)' },
-  { icon: 'bar-chart', text: 'Advanced analytics & custom reports' },
-  { icon: 'trophy', text: 'Exclusive badges & leaderboard perks' },
-  { icon: 'close-circle', text: 'Zero ads, ever' },
+// Feature-row i18n keys — a localised string is resolved at render time.
+const FEATURE_KEYS = [
+  { icon: 'infinite', key: 'feature_unlimited_ai' },
+  { icon: 'flash', key: 'feature_priority_ai' },
+  { icon: 'bar-chart', key: 'feature_advanced_analytics' },
+  { icon: 'trophy', key: 'feature_exclusive_badges' },
+  { icon: 'close-circle', key: 'feature_zero_ads' },
 ];
-const MONEY_SCHOOL_FEATURE = { icon: 'school', text: 'Money School (Yearly & Lifetime only)' };
 
 interface Props {
   onExplore: () => void;
@@ -41,6 +43,7 @@ export default function PremiumExpandable({ onExplore }: Props) {
   const [selected, setSelected] = useState<string>('yearly');
   const [status, setStatus] = useState<{ is_premium: boolean; plan?: string; tier?: string; premium_until?: string } | null>(null);
   const [showPay, setShowPay] = useState(false);
+  const { lang } = useLangStore();
 
   const fetchStatus = async () => {
     try {
@@ -73,12 +76,12 @@ export default function PremiumExpandable({ onExplore }: Props) {
       setShowPay(false);
       Toast.show({
         type: 'success',
-        text1: 'Premium unlocked!',
-        text2: res.data.money_school_access ? 'Money School is now open for you.' : 'Enjoy every premium perk.',
+        text1: t('premium_unlocked', lang),
+        text2: res.data.money_school_access ? t('money_school_open', lang) : t('enjoy_perks', lang),
       });
       fetchStatus();
     } catch (e: any) {
-      Toast.show({ type: 'error', text1: 'Activation failed', text2: e?.response?.data?.detail || 'Try again' });
+      Toast.show({ type: 'error', text1: t('activation_failed', lang), text2: e?.response?.data?.detail || t('try_again', lang) });
     }
   };
 
@@ -89,10 +92,10 @@ export default function PremiumExpandable({ onExplore }: Props) {
         <View style={s.headerRow}>
           <View style={s.iconBoxActive}><Ionicons name="diamond" size={22} color="#F56E1E" /></View>
           <View style={{ flex: 1 }}>
-            <Text style={s.titleActive}>Premium Active</Text>
+            <Text style={s.titleActive}>{t('premium_active', lang)}</Text>
             <Text style={s.subActive} numberOfLines={1}>
-              {status.plan ? `${String(status.plan).toUpperCase()} plan` : ''}
-              {status.premium_until ? ` · until ${new Date(status.premium_until).toLocaleDateString()}` : ''}
+              {status.plan ? `${String(status.plan).toUpperCase()} ${t('plan', lang)}` : ''}
+              {status.premium_until ? ` · ${t('until', lang)} ${new Date(status.premium_until).toLocaleDateString()}` : ''}
             </Text>
           </View>
           <Ionicons name="checkmark-circle" size={26} color="#fff" />
@@ -109,8 +112,8 @@ export default function PremiumExpandable({ onExplore }: Props) {
             <Ionicons name="diamond" size={22} color="#fff" />
           </LinearGradient>
           <View style={{ flex: 1 }}>
-            <Text style={s.title}>MintU Premium</Text>
-            <Text style={s.sub}>Unlock AI, reports, Money School & more</Text>
+            <Text style={s.title}>MintU {t('premium', lang)}</Text>
+            <Text style={s.sub}>{t('premium_fallback_sub', lang)}</Text>
           </View>
           <Ionicons name={expanded ? 'chevron-up' : 'chevron-down'} size={18} color={COLORS.accent.primary} />
         </TouchableOpacity>
@@ -121,6 +124,11 @@ export default function PremiumExpandable({ onExplore }: Props) {
             <View style={s.plansRow}>
               {plans.map(p => {
                 const isOn = selected === p.id;
+                const planLbl = t(`plan_${p.id}`, lang) !== `plan_${p.id}` ? t(`plan_${p.id}`, lang) : p.id.charAt(0).toUpperCase() + p.id.slice(1);
+                const periodLbl = p.period === 'per month' ? t('per_month', lang)
+                                : p.period === 'per year' ? t('per_year', lang)
+                                : p.period === 'one-time' ? t('one_time', lang)
+                                : p.period;
                 return (
                   <TouchableOpacity
                     key={p.id}
@@ -129,20 +137,20 @@ export default function PremiumExpandable({ onExplore }: Props) {
                     activeOpacity={0.85}
                   >
                     {p.best_seller && (
-                      <View style={s.badge}><Text style={s.badgeTxt}>BEST</Text></View>
+                      <View style={s.badge}><Text style={s.badgeTxt}>{t('best_seller_badge', lang)}</Text></View>
                     )}
                     <Text style={[s.planId, isOn && s.planIdOn]} numberOfLines={1}>
-                      {p.id.charAt(0).toUpperCase() + p.id.slice(1)}
+                      {planLbl}
                     </Text>
                     <Text style={[s.planPrice, isOn && s.planPriceOn]}>₹{p.price.toLocaleString('en-IN')}</Text>
                     <Text style={[s.planPeriod, isOn && s.planPeriodOn]} numberOfLines={1}>
-                      {p.period}
+                      {periodLbl}
                     </Text>
                     {!!p.savings && <Text style={[s.planSave, isOn && s.planSaveOn]} numberOfLines={1}>{p.savings}</Text>}
                     {!!p.includes_money_school && (
                       <View style={[s.schoolPill, isOn && s.schoolPillOn]}>
                         <Ionicons name="school" size={9} color={isOn ? '#fff' : '#F56E1E'} />
-                        <Text style={[s.schoolTxt, isOn && { color: '#fff' }]}>Money School</Text>
+                        <Text style={[s.schoolTxt, isOn && { color: '#fff' }]}>{t('money_school_pill', lang)}</Text>
                       </View>
                     )}
                   </TouchableOpacity>
@@ -151,11 +159,11 @@ export default function PremiumExpandable({ onExplore }: Props) {
             </View>
 
             {/* FEATURES */}
-            {FEATURES.map((f, i) => (
+            {FEATURE_KEYS.map((f, i) => (
               <View key={i} style={s.featureRow}>
                 <View style={s.check}><Ionicons name="checkmark" size={12} color="#fff" /></View>
                 <Ionicons name={f.icon as any} size={15} color="#C14A06" />
-                <Text style={s.featureText}>{f.text}</Text>
+                <Text style={s.featureText}>{t(f.key, lang)}</Text>
               </View>
             ))}
             <View style={[s.featureRow, !chosen?.includes_money_school && { opacity: 0.55 }]}>
@@ -163,25 +171,25 @@ export default function PremiumExpandable({ onExplore }: Props) {
                 <Ionicons name={chosen?.includes_money_school ? 'checkmark' : 'close'} size={12} color="#fff" />
               </View>
               <Ionicons name="school" size={15} color="#C14A06" />
-              <Text style={s.featureText}>{MONEY_SCHOOL_FEATURE.text}</Text>
+              <Text style={s.featureText}>{t('feature_money_school', lang)}</Text>
             </View>
 
             {/* CTA row */}
             <View style={s.ctaRow}>
               <View>
-                <Text style={s.ctaTotalLbl}>Total today</Text>
+                <Text style={s.ctaTotalLbl}>{t('total_today', lang)}</Text>
                 <Text style={s.ctaTotal}>₹{(chosen?.price || 0).toLocaleString('en-IN')}</Text>
               </View>
               <TouchableOpacity style={s.cta} onPress={() => setShowPay(true)} disabled={!chosen}>
                 <LinearGradient colors={['#F56E1E', '#C14A06']} style={s.ctaGrad}>
-                  <Text style={s.ctaText}>Upgrade</Text>
+                  <Text style={s.ctaText}>{t('upgrade', lang)}</Text>
                   <Ionicons name="arrow-forward" size={16} color="#fff" />
                 </LinearGradient>
               </TouchableOpacity>
             </View>
 
             <TouchableOpacity style={s.seeAll} onPress={onExplore}>
-              <Text style={s.seeAllTxt}>See all benefits →</Text>
+              <Text style={s.seeAllTxt}>{t('see_all_benefits', lang)} →</Text>
             </TouchableOpacity>
           </View>
         )}
