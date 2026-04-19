@@ -12,7 +12,8 @@ import { useAuthStore } from '../../store/authStore';
 import { SplitSkeleton } from '../../components/SkeletonLoader';
 import GroupChat from '../../components/GroupChat';
 import PressableGlass from '../../components/PressableGlass';
-import { SHADOW } from '../../utils/theme';
+import { SHADOW, COLORS } from '../../utils/theme';
+import { shareSmart, copyToClipboard } from '../../utils/share';
 import { C, getGA, DebtRow } from '../../components/split/theme';
 import SettleUpCard from '../../components/split/SettleUpCard';
 import RemindersBanner from '../../components/split/RemindersBanner';
@@ -30,6 +31,7 @@ import SplitActivityFeed from '../../components/split/SplitActivityFeed';
 export default function SplitScreen() {
   const { user } = useAuthStore();
   const [groups, setGroups] = useState<any[]>([]);
+  const [inviteGroup, setInviteGroup] = useState<{ id: string; name: string; memberCount: number } | null>(null);
   const [balances, setBalances] = useState<any>(null);
   const [settleLB, setSettleLB] = useState<any>(null);
   const [settleRows, setSettleRows] = useState<DebtRow[]>([]);
@@ -114,11 +116,46 @@ export default function SplitScreen() {
 
   // GROUP CRUD
   const createGroup = async (name: string, phones: string[], emoji?: string) => {
+    const trimmed = (name || '').trim();
+    // Validation
+    if (trimmed.length < 2) {
+      Toast.show({ type: 'error', text1: 'Name too short', text2: 'Group names need at least 2 characters' });
+      return;
+    }
+    if (trimmed.length > 50) {
+      Toast.show({ type: 'error', text1: 'Name too long', text2: 'Keep it under 50 characters' });
+      return;
+    }
+    // Optimistic UI — insert a placeholder group instantly so the list updates before the API resolves.
+    const tempId = `temp_${Date.now()}`;
+    const optimistic = {
+      id: tempId,
+      name: trimmed,
+      members: [user?.phone || 'you', ...phones],
+      custom_emoji: emoji || '👥',
+      _optimistic: true,
+    };
+    setGroups((prev) => [optimistic, ...prev]);
+    close();
     try {
-      await api.post('/split/groups', { name, members: phones, ...(emoji ? { custom_emoji: emoji } : {}) });
-      close(); fetchData();
-      Toast.show({ type: 'success', text1: 'Group Created!', text2: `${name} is ready` });
-    } catch (e: any) { Toast.show({ type: 'error', text1: 'Error', text2: e.response?.data?.detail || 'Failed' }); }
+      const res = await api.post('/split/groups', { name: trimmed, members: phones, ...(emoji ? { custom_emoji: emoji } : {}) });
+      const created = res.data || optimistic;
+      // Reconcile: replace the optimistic entry with the server-blessed one.
+      setGroups((prev) => prev.map((g) => (g.id === tempId ? { ...created, _optimistic: false } : g)));
+      Toast.show({ type: 'success', text1: 'Group created! 🎉', text2: `${trimmed} is ready` });
+      // Surface the invite sheet right after creation for quick WhatsApp / copy-link sharing.
+      setInviteGroup({ id: created.id || tempId, name: trimmed, memberCount: 1 + phones.length });
+      // Sync to get authoritative data
+      fetchData();
+    } catch (e: any) {
+      // Roll back optimistic on failure
+      setGroups((prev) => prev.filter((g) => g.id !== tempId));
+      const raw = e?.response?.data?.detail;
+      const msg = Array.isArray(raw)
+        ? (raw[0]?.msg || 'Invalid input')
+        : (typeof raw === 'string' ? raw : 'Try again');
+      Toast.show({ type: 'error', text1: 'Could not create', text2: msg });
+    }
   };
 
   const deleteGroup = () => {
@@ -425,6 +462,64 @@ export default function SplitScreen() {
 
       {/* === SHEETS — lazy-mounted (only the active one renders) === */}
       {modal === 'create' && <ContactPickerSheet visible={true} onClose={close} onCreate={createGroup} />}
+
+      {/* Post-creation invite sheet — WhatsApp / Copy link CTAs */}
+      {inviteGroup && (
+        <Modal visible={!!inviteGroup} animationType="slide" transparent onRequestClose={() => setInviteGroup(null)}>
+          <View style={{ flex: 1, justifyContent: 'flex-end', backgroundColor: 'rgba(0,0,0,0.5)' }}>
+            <View style={{ backgroundColor: '#fff', borderTopLeftRadius: 28, borderTopRightRadius: 28, padding: 24, paddingBottom: 36, gap: 14 }}>
+              <View style={{ width: 40, height: 4, borderRadius: 2, backgroundColor: '#E5E7EB', alignSelf: 'center', marginBottom: 8 }} />
+
+              <View style={{ alignItems: 'center', marginBottom: 4 }}>
+                <View style={{ width: 64, height: 64, borderRadius: 32, backgroundColor: COLORS.accent.moneyIn + '15', justifyContent: 'center', alignItems: 'center', marginBottom: 10 }}>
+                  <Ionicons name="checkmark-circle" size={38} color={COLORS.accent.moneyIn} />
+                </View>
+                <Text style={{ fontSize: 19, fontWeight: '800', color: COLORS.text.primary }}>Group Created! 🎉</Text>
+                <Text style={{ fontSize: 13, color: COLORS.text.secondary, marginTop: 3, textAlign: 'center' }}>
+                  {inviteGroup.name} · {inviteGroup.memberCount} member{inviteGroup.memberCount === 1 ? '' : 's'}
+                </Text>
+              </View>
+
+              <Text style={{ fontSize: 13, color: COLORS.text.muted, textAlign: 'center', marginTop: 4, marginBottom: 4 }}>
+                Invite friends so they can log expenses with you
+              </Text>
+
+              <TouchableOpacity
+                style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 10, backgroundColor: '#25D366', paddingVertical: 14, borderRadius: 999 }}
+                onPress={async () => {
+                  const url = `https://mintu.app/split/invite/${inviteGroup.id}`;
+                  const msg = `Hey! I made a "${inviteGroup.name}" group on MintU to track our shared expenses 💸\n\nJoin here → ${url}`;
+                  await shareSmart({ message: msg, title: 'Join my MintU group' });
+                }}
+                activeOpacity={0.85}
+              >
+                <Ionicons name="logo-whatsapp" size={20} color="#fff" />
+                <Text style={{ fontSize: 15, fontWeight: '800', color: '#fff' }}>Invite via WhatsApp</Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 10, backgroundColor: COLORS.bg.card, paddingVertical: 14, borderRadius: 999, borderWidth: 1, borderColor: COLORS.border.card }}
+                onPress={async () => {
+                  const url = `https://mintu.app/split/invite/${inviteGroup.id}`;
+                  await copyToClipboard(url, '🔗 Invite link copied');
+                }}
+                activeOpacity={0.85}
+              >
+                <Ionicons name="copy-outline" size={18} color={COLORS.text.primary} />
+                <Text style={{ fontSize: 14, fontWeight: '700', color: COLORS.text.primary }}>Copy invite link</Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                onPress={() => setInviteGroup(null)}
+                style={{ paddingVertical: 10, alignItems: 'center', marginTop: 2 }}
+                activeOpacity={0.7}
+              >
+                <Text style={{ fontSize: 13, fontWeight: '700', color: COLORS.text.muted }}>Do it later</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </Modal>
+      )}
       {modal === 'expense' && <ExpenseSheet visible={true} onClose={close} group={selectedGroup} currentUserId={user?.id} editing={editingExpense} onSubmit={submitExpense} />}
       {modal === 'summary' && (
         <GroupSummarySheet

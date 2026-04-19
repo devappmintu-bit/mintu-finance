@@ -1560,4 +1560,47 @@ agent_communication:
       • Bottom nav shows "AI Coach" label (not "MintU AI")
       • "Last updated just now" green pill is live
       
+
+  - agent: "main"
+    message: |
+      [2026-04-19 G] SPLIT GROUP CREATION UX — Optimistic + Validation + Invite Sheet
+      
+      app/(tabs)/split.tsx — createGroup() rewritten:
+      * VALIDATION — rejects group names < 2 chars or > 50 chars, surfaces clear
+        Toast messages ("Name too short" / "Name too long")
+      * OPTIMISTIC UI — inserts a temp-ID placeholder group at the top of the
+        groups array BEFORE the API resolves (members pre-populated with current
+        user.phone + selected phones). User sees their group appear instantly.
+        On API success, the temp entry is replaced with the server-returned group.
+        On failure, temp is rolled back so the list stays consistent.
+      * SAFE ERROR EXTRACTION — API 422 responses return `detail` as an ARRAY of
+        validation objects, not a string. Previously this caused a React crash:
+        "Objects are not valid as a React child (found: object with keys
+        {type, loc, msg, input, url})". Now we extract raw[0]?.msg if array.
+      
+      NEW: Post-creation InviteSheet modal (inline in split.tsx)
+      Fires right after successful createGroup():
+      * Success checkmark header + group name + member count
+      * Primary green "Invite via WhatsApp" CTA — opens system share sheet with a
+        pre-filled message linking to /split/invite/<groupId>
+      * Secondary "Copy invite link" CTA — uses shareSmart/copyToClipboard helpers
+      * Subtle "Do it later" dismiss
+      
+      IMPORTS ADDED:
+      * COLORS from theme
+      * shareSmart + copyToClipboard from utils/share
+      * Modal from react-native
+      
+      VERIFIED via Playwright:
+      * Split page renders with AI Coach label (not MintU AI)
+      * Contact picker sheet on web shows the improved empty state with
+        "Contacts not available on web" + orange CTA
+      * Full 2-step flow (add contacts → name → create) works end-to-end
+      * Transaction activity visible in Recent Activity — optimistic entry
+        reconciled with API response
+      * React crash on 422 response FIXED — error now renders as readable Toast
+      
+      NOTE ON IndexOptionsConflict in backend logs: pre-existing warning, NOT
+      caused by this change. Does not affect functionality.
+
       NO backend changes in this pass.
