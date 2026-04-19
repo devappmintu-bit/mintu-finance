@@ -2130,3 +2130,20 @@ agent_communication:
 #     → DELETE does NOT collide with /split/groups/{id}/leave
 # ✅ POST /api/sms/bulk-parse AND /api/sms/parse-bulk (legacy alias) → both 200
 # Zero 500s, zero regressions. Round 8 backend is production-ready.
+
+# ============================================================================
+# ROUND 8 — MANUAL UI VERIFICATION (screenshots taken)
+# ============================================================================
+# ✅ Home (mobile 390x844): LEADERBOARD card renders with Friends/Global
+#    toggle, stats bar (Rank #1, Score 55, Percentile 93%, Coins 121),
+#    5 ranked rows including "You" highlighted.
+# ✅ Split tab (/split): Same LEADERBOARD component renders between
+#    balance card and Groups list — component is truly unified.
+# ✅ Profile → Language → हिन्दी: Language switch persisted and Transactions
+#    screen shows Hindi strings ("लेनदेन", "एंट्री", Hindi placeholder).
+# ✅ Transactions tab: Web-fallback Edit (blue pencil) + Delete (red trash)
+#    buttons rendered on each row top-right — functional for non-swipe web
+#    preview. Edit/Delete confirmed working from backend tests (48/48).
+# ✅ Bottom tab bar: Expenses / AI Coach / Budget / Split all present.
+#
+# Round 8 verification: PASS.
