@@ -1403,6 +1403,41 @@ agent_communication:
         + schedules LLM regen via BackgroundTasks (non-blocking)
       * Second user → cache populated → returns real articles fast
       * Tab-switch to Home re-fires fetchNews via useFocusEffect (cheap/cached)
+
+  - agent: "main"
+    message: |
+      [2026-04-19 D] NEWS API NON-BLOCKING — FINAL FIX
+      
+      After the backend test agent's first round flagged that BaseHTTPMiddleware
+      blocks `bg.add_task(...)` AND even interferes with `asyncio.create_task`
+      inside request handlers, I switched to a startup-time worker pattern:
+      
+      /app/backend/routers/news.py
+        * Removed all LLM triggers from the GET handler — it now ONLY reads
+          db.news_cache and returns fallback on miss
+        * `refresh=1` kept as a NO-OP query param (forward-compat)
+        * New `_news_refresher_loop()` — infinite while-loop that regenerates
+          today's news if missing, then `await asyncio.sleep(3600)` for 1 hour
+        * `start_news_worker()` helper that spawns the loop via asyncio.create_task
+          ONCE at app startup (guarded by _worker_started bool; safe to call twice)
+      
+      /app/backend/server.py (startup event)
+        * Added `from routers.news import start_news_worker; start_news_worker()`
+          after MongoDB index creation — guarantees the worker starts inside an
+          already-running event loop and runs completely independently of any HTTP request
+      
+      VERIFIED BY TEST AGENT (round 2): 16/17 assertions passed
+        * GET /api/news/india-finance (auth) → 200 in 10ms
+        * GET /api/news/india-finance?refresh=1 (auth) → 200 in 9ms (true no-op now)
+        * 3 consecutive calls all return 10-12ms — endpoint NEVER hangs
+        * Backend log confirms "News refresher worker started" at boot
+        * The only non-ideal result: no-auth returns 422 instead of 401 (acceptable — both
+          are documented as OK; pre-existing behavior of get_current_user dependency)
+      
+      NET RESULT for /news/india-finance:
+        Before fix: 60-180 seconds first call (LLM retries + BadGateway)
+        After fix:  10 milliseconds first call (cache/fallback), regen happens offline
+
       
       NOT TESTED BACKEND:
       * Auth rate limiter blocked curl-based smoke tests during this session
