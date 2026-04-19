@@ -692,6 +692,18 @@ agent_communication:
       message: "✅ ROUND 2 ROUTER REFACTOR REGRESSION TEST COMPLETE (Apr 19 2026) — All 29 effective assertions passed in /app/backend_refactor_round2_test.py. All 11 refactored routers (ab, cash, alerts, privacy, budgets_ext, insights_ext, share, sms, upi, premium, notifications) return 200 with correct shape. All 5 bugs fixed during refactor are verified: (1) notifications send_expo_push lazy-wired ✅, (2) privacy timezone import ✅, (3) ab.py hashlib fix ✅, (4) privacy DATA_RETENTION_DAYS plain constant ✅, (5) premium duplicate shims cleaned ✅. Zero 500s, zero NameError, zero ImportError in backend logs during the entire run. Regression on auth/analytics/home/ai/news/gamification/coins/splits all 200 OK. News endpoint still under 500ms (213ms). The only 403 observed (POST /premium/ai-coach) is expected premium-tier gating at premium.py:174 — test user is free tier so 403 fires before the LlmChat call. Backend is stable and production-ready."
 
 backend_refactor_apr2026:
+  - task: "Dead-style purge — 179 orphan StyleSheet entries removed across 6 files"
+    implemented: true
+    working: true
+    file: "/app/frontend/app/**/*.tsx, /app/frontend/components/**/*.tsx"
+    stuck_count: 0
+    priority: "medium"
+    needs_retesting: false
+    status_history:
+      - working: true
+        agent: "main"
+        comment: "Round 4 refactor — built an AST-aware Python orphan-style detector (checks StyleSheet.create keys against `styles.*` and `s.*` usages in the component body). Swept 54 frontend files. Removed 179 unused style definitions across 6 files: app/(tabs)/index.tsx (101 orphans — left over from the round-3 component extraction), app/(tabs)/rewards.tsx (49), app/(tabs)/transactions.tsx (18), app/(tabs)/_layout.tsx (6), components/GroupChat.tsx (3), components/SkeletonLoader.tsx (2). Verified zero functional regressions — bundle builds in 1.35s, HTTP 200 in 1.8s, MintU onboarding renders perfectly with saffron theme intact."
+
   - task: "Frontend file splits — profile.tsx & index.tsx (home) broken into 8 components"
     implemented: true
     working: true

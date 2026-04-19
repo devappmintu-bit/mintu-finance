@@ -70,35 +70,4 @@ export default function TabLayout() {
 }
 
 const st = StyleSheet.create({
-  tabBar: {
-    backgroundColor: '#FFFFFF',
-    borderTopWidth: 1,
-    borderTopColor: '#F0F0F0',
-    height: Platform.OS === 'ios' ? 88 : 68,
-    paddingBottom: Platform.OS === 'ios' ? 24 : 8,
-    paddingTop: 8,
-    elevation: 0,
-  },
-  tabLabel: { fontSize: 11, fontWeight: '600', marginTop: 2 },
-  centerBtn: {
-    width: 60,
-    height: 60,
-    borderRadius: 30,
-    backgroundColor: COLORS.accent.primary,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginTop: -24,
-    borderWidth: 4,
-    borderColor: '#FFFFFF',
-    ...shadowStyle(COLORS.accent.primary, 6, 12, 0.35, 10),
-  },
-  centerInner: {
-    width: 52, height: 52, borderRadius: 26, justifyContent: 'center', alignItems: 'center',
-    backgroundColor: COLORS.accent.primary,
-  },
-  pulse: {
-    position: 'absolute', top: -2, right: -2, width: 12, height: 12, borderRadius: 6,
-    backgroundColor: '#10B981', borderWidth: 2, borderColor: COLORS.accent.primary,
-  },
-  centerLabel: { fontSize: 10, fontWeight: '700', color: COLORS.accent.primary, marginTop: 0 },
 });

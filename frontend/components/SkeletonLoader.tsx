@@ -147,6 +147,4 @@ export const ProfileSkeleton = () => (
 );
 
 const sk = StyleSheet.create({
-  container: { padding: SPACING.lg },
-  row: { flexDirection: 'row', alignItems: 'center' },
 });

@@ -354,7 +354,6 @@ const styles = StyleSheet.create({
   pageTitle: { fontSize: 28, fontWeight: '800', color: COLORS.text.primary, letterSpacing: -0.5 },
   pageSubtitle: { fontSize: 13, color: COLORS.text.muted },
   headerActions: { flexDirection: 'row', gap: 10 },
-  actionBtn: { width: 44, height: 44, borderRadius: 22, backgroundColor: 'rgba(255,255,255,0.9)', borderWidth: 1, borderColor: COLORS.border.subtle, justifyContent: 'center', alignItems: 'center', ...SHADOW.sm },
   addBtn: { width: 44, height: 44, borderRadius: 22, backgroundColor: COLORS.accent.primary, justifyContent: 'center', alignItems: 'center', ...SHADOW.md },
   // Quick bar
   quickBar: { flexDirection: 'row', paddingHorizontal: SPACING.lg, marginBottom: SPACING.md, gap: 10 },
@@ -362,7 +361,6 @@ const styles = StyleSheet.create({
   quickRupee: { fontSize: 18, fontWeight: '700', color: COLORS.accent.primary, marginRight: 6 },
   quickInput: { flex: 1, paddingVertical: 14, fontSize: 15, color: COLORS.text.primary },
   voiceBtn: { width: 48, height: 48, borderRadius: 24, backgroundColor: COLORS.accent.primary, justifyContent: 'center', alignItems: 'center' },
-  voiceBtnActive: { backgroundColor: COLORS.accent.moneyOut },
   // List
   listContent: { padding: SPACING.lg, paddingTop: 0 },
   txnCard: { flexDirection: 'row', alignItems: 'center', backgroundColor: 'rgba(255,255,255,0.9)', borderRadius: 20, padding: SPACING.lg, marginBottom: 10, borderWidth: 1, borderColor: 'rgba(255,255,255,0.6)', ...SHADOW.sm },
@@ -404,23 +402,7 @@ const styles = StyleSheet.create({
   smsBannerText: { fontSize: 13, color: COLORS.accent.warning, fontWeight: '500' },
   smsInput: { backgroundColor: COLORS.bg.primary, borderRadius: RADIUS.xl, padding: SPACING.lg, fontSize: 15, color: COLORS.text.primary, borderWidth: 1, borderColor: COLORS.border.subtle, minHeight: 120, marginBottom: SPACING.xxl },
   // Notification paste card
-  notifCard: { backgroundColor: '#EEF2FF', borderRadius: RADIUS.card, padding: SPACING.lg, marginBottom: SPACING.lg, borderWidth: 1, borderColor: '#C7D2FE' },
-  notifHeader: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 4 },
-  notifTitle: { fontSize: 15, fontWeight: '700', color: '#4338CA', flex: 1 },
-  notifHint: { fontSize: 12, color: '#6B7280', lineHeight: 18 },
-  notifBody: { marginTop: SPACING.md },
-  notifInput: { backgroundColor: '#fff', borderRadius: RADIUS.lg, padding: SPACING.md, fontSize: 14, color: COLORS.text.primary, borderWidth: 1, borderColor: '#C7D2FE', minHeight: 70, textAlignVertical: 'top', marginBottom: SPACING.sm },
-  notifParseBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, backgroundColor: '#E65100', borderRadius: RADIUS.full, paddingVertical: 12 },
-  notifParseTxt: { fontSize: 14, fontWeight: '600', color: '#fff' },
   // Waste Detector & Pie Chart
-  wasteCard: { backgroundColor: '#FEF2F2', borderRadius: RADIUS.xl, padding: 14, marginBottom: 12, borderWidth: 1, borderColor: '#FECACA' },
-  wasteTitle: { fontSize: 13, fontWeight: '700', color: '#991B1B' },
-  wasteShock: { fontSize: 13, fontWeight: '600', color: COLORS.text.primary },
-  wastePeer: { fontSize: 11, color: '#9CA3AF', marginTop: 2 },
-  aiRecCard: { flexDirection: 'row', gap: 6, backgroundColor: COLORS.accent.primary + '08', padding: 10, borderRadius: RADIUS.lg, marginTop: 6 },
-  aiRecText: { flex: 1, fontSize: 12, color: COLORS.text.secondary, lineHeight: 17 },
-  pieCard: { backgroundColor: 'rgba(255,255,255,0.92)', borderRadius: RADIUS.xl, padding: 14, marginBottom: 12, borderWidth: 1, borderColor: 'rgba(238,221,204,0.6)' },
-  pieTitleText: { fontSize: 14, fontWeight: '700', color: COLORS.text.primary },
   sectionLabel: { fontSize: 14, fontWeight: '700', color: COLORS.text.muted, marginBottom: 8, marginTop: 4 },
   // AI Report Card
   reportCard: { backgroundColor: 'rgba(255,255,255,0.92)', borderRadius: RADIUS.xl, padding: 16, marginBottom: 14, borderWidth: 1, borderColor: 'rgba(238,221,204,0.6)', ...shadowStyle('#2E1F1A', 2, 10, 0.04, 2) },
