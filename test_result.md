@@ -2043,3 +2043,18 @@ agent_communication:
         Please retest unified leaderboard, transactions/budget PUT+DELETE
         endpoints (optimistic flow relies on them being idempotent), and
         split expense PUT/DELETE on the backend.
+
+# ============================================================================
+# ROUND 8 — BACKEND TEST RESULTS (48/48 PASSED)
+# ============================================================================
+
+# Testing Summary — all 7 review items verified working:
+# ✅ GET /api/leaderboard/unified?scope=contacts → 200, full shape + percentile
+# ✅ GET /api/leaderboard/unified?scope=global → 200, contenders capped at 50
+# ✅ PUT /api/transactions/{id} → updates amount/category correctly
+# ✅ DELETE /api/transactions/{id} → 200 then 404 on second delete
+# ✅ POST/PUT/DELETE /api/budgets — full lifecycle clean
+# ✅ POST /api/split/groups + POST/PUT/DELETE /api/split/expenses/{id}
+#     → DELETE does NOT collide with /split/groups/{id}/leave
+# ✅ POST /api/sms/bulk-parse AND /api/sms/parse-bulk (legacy alias) → both 200
+# Zero 500s, zero regressions. Round 8 backend is production-ready.
