@@ -1,26 +1,29 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import {
   View, Text, StyleSheet, ScrollView, TouchableOpacity, Alert, ActivityIndicator,
-  Modal, FlatList, TextInput, Image, RefreshControl, Linking, Share, Platform,
+  Modal, FlatList, TextInput, Image, RefreshControl, Platform,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
-import { router } from 'expo-router';
+import { router, useFocusEffect } from 'expo-router';
 import * as ImagePicker from 'expo-image-picker';
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useAuthStore } from '../../store/authStore';
 import { useLangStore } from '../../store/langStore';
 import { t, LANGUAGES } from '../../utils/i18n';
 import api from '../../utils/api';
-import { COLORS, RADIUS, SPACING, shadowStyle, UPI_APPS } from '../../utils/theme';
+import { COLORS, shadowStyle } from '../../utils/theme';
 import Toast from 'react-native-toast-message';
-import { useFocusEffect } from 'expo-router';
 import { shareSmart, copyToClipboard, shareImageSmart } from '../../utils/share';
 import HelpSupport from '../../components/HelpSupport';
 import AboutMintU from '../../components/AboutMintU';
 import ShareScoreCard from '../../components/profile/ShareScoreCard';
 import BadgesSection from '../../components/profile/BadgesSection';
 import WeeklyChallenge from '../../components/profile/WeeklyChallenge';
+import ProfileHero from '../../components/profile/ProfileHero';
+import FinancialSnapshot from '../../components/profile/FinancialSnapshot';
+import PaymentMethods from '../../components/profile/PaymentMethods';
+import PremiumExpandable from '../../components/profile/PremiumExpandable';
+import ReferralDashboard from '../../components/profile/ReferralDashboard';
 import ViewShot, { captureRef } from 'react-native-view-shot';
 
 export default function ProfileScreen() {
@@ -31,20 +34,14 @@ export default function ProfileScreen() {
   const [langModalVisible, setLangModalVisible] = useState(false);
   const [aboutVisible, setAboutVisible] = useState(false);
   const [helpVisible, setHelpVisible] = useState(false);
-  const [privacyVisible, setPrivacyVisible] = useState(false);
   const [editNameVisible, setEditNameVisible] = useState(false);
   const [editName, setEditName] = useState('');
   const [upiId, setUpiId] = useState('');
-  const [upiExpanded, setUpiExpanded] = useState(false);
-  const [payExpanded, setPayExpanded] = useState(false);
-  const [premiumExpanded, setPremiumExpanded] = useState(false);
-  // avatar lives in authStore — shared with Home + persists via AsyncStorage
   const [referral, setReferral] = useState<any>(null);
   const [refExpanded, setRefExpanded] = useState(false);
   const [stats, setStats] = useState<any>(null);
   const [gamiStatus, setGamiStatus] = useState<any>(null);
   const [gamiExpanded, setGamiExpanded] = useState(false);
-  const [challengeExpanded, setChallengeExpanded] = useState(true); // actionable — keep visible
   const [shareCardVisible, setShareCardVisible] = useState(false);
   const [sharing, setSharing] = useState(false);
   const scoreCardRef = useRef<View>(null);
@@ -61,10 +58,9 @@ export default function ProfileScreen() {
       if (avatarRes.data?.avatar) setAvatar(avatarRes.data.avatar);
       if (refRes.data) setReferral(refRes.data);
       if (statsRes.data) setStats(statsRes.data);
-    } catch {} finally { setLoading(false); setRefreshing(false); }
-  }, []);
+    } catch { /* noop */ } finally { setLoading(false); setRefreshing(false); }
+  }, [setAvatar]);
 
-  // Derive real stats
   const realStats = React.useMemo(() => {
     if (!stats) return null;
     const income = Number(stats.total_income || 0);
@@ -81,13 +77,14 @@ export default function ProfileScreen() {
     };
   }, [stats]);
 
-  useEffect(() => { loadData(); }, []);
+  useEffect(() => { loadData(); }, [loadData]);
 
   // Auto-refresh on tab focus (e.g., user returns from Premium / Yearly dashboard)
   useFocusEffect(
     React.useCallback(() => { loadData(); }, [loadData])
   );
 
+  // ── Handlers ─────────────────────────────────────────────────────────
   const handleLogout = () => Alert.alert(t('logout', lang), t('logout_confirm', lang), [
     { text: t('cancel', lang), style: 'cancel' },
     { text: t('logout', lang), style: 'destructive', onPress: async () => { await logout(); router.replace('/'); } },
@@ -95,19 +92,31 @@ export default function ProfileScreen() {
 
   const updateName = async () => {
     if (!editName.trim()) return;
-    try { await api.put('/user/profile', { name: editName.trim() }); Toast.show({ type: 'success', text1: 'Name Updated!' }); setEditNameVisible(false); } catch { Toast.show({ type: 'error', text1: 'Error' }); }
+    try {
+      await api.put('/user/profile', { name: editName.trim() });
+      Toast.show({ type: 'success', text1: 'Name Updated!' });
+      setEditNameVisible(false);
+    } catch { Toast.show({ type: 'error', text1: 'Error' }); }
   };
 
   const pickAvatar = async () => {
-    const result = await ImagePicker.launchImageLibraryAsync({ mediaTypes: ['images'], allowsEditing: true, aspect: [1, 1], quality: 0.5, base64: true });
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ['images'], allowsEditing: true, aspect: [1, 1], quality: 0.5, base64: true,
+    });
     if (!result.canceled && result.assets[0].base64) {
       const b64 = `data:image/jpeg;base64,${result.assets[0].base64}`;
       setAvatar(b64);
-      try { await api.post('/user/avatar', { avatar: b64 }); Toast.show({ type: 'success', text1: 'Photo Updated!' }); } catch {}
+      try { await api.post('/user/avatar', { avatar: b64 }); Toast.show({ type: 'success', text1: 'Photo Updated!' }); } catch { /* noop */ }
     }
   };
 
-  const removeAvatar = () => Alert.alert('Remove Photo?', '', [{ text: 'Cancel', style: 'cancel' }, { text: 'Remove', style: 'destructive', onPress: async () => { await setAvatar(''); try { await api.post('/user/avatar', { avatar: '' }); } catch {} } }]);
+  const removeAvatar = () => Alert.alert('Remove Photo?', '', [
+    { text: 'Cancel', style: 'cancel' },
+    { text: 'Remove', style: 'destructive', onPress: async () => {
+      await setAvatar('');
+      try { await api.post('/user/avatar', { avatar: '' }); } catch { /* noop */ }
+    } },
+  ]);
 
   const copyCode = async () => {
     if (!referral?.referral_code) return;
@@ -124,9 +133,7 @@ export default function ProfileScreen() {
     await shareSmart({ message: text, title: 'MintU' });
   };
 
-  const shareScoreCard = () => {
-    setShareCardVisible(true);
-  };
+  const openShareScoreCard = () => setShareCardVisible(true);
 
   const handleShareAsImage = async () => {
     if (sharing) return;
@@ -139,17 +146,9 @@ export default function ProfileScreen() {
       });
       const score = user?.money_score || 0;
       const fallback = `🚀 My MintU Money Score is ${score}/100!\n\nTrack your expenses, split bills, and earn rewards.\nDownload: https://mintu.app ${referral?.referral_code ? `\nUse code: ${referral.referral_code}` : ''}`;
-      await shareImageSmart({
-        uri,
-        fallbackText: fallback,
-        filename: `mintu-score-${score}.png`,
-      });
-    } catch (e) {
-      Toast.show({
-        type: 'error',
-        text1: 'Could not create image',
-        text2: 'Sharing text instead…',
-      });
+      await shareImageSmart({ uri, fallbackText: fallback, filename: `mintu-score-${score}.png` });
+    } catch {
+      Toast.show({ type: 'error', text1: 'Could not create image', text2: 'Sharing text instead…' });
       const score = user?.money_score || 0;
       await shareSmart({
         message: `🚀 My MintU Money Score is ${score}/100! Try it: https://mintu.app`,
@@ -177,68 +176,38 @@ export default function ProfileScreen() {
   };
 
   const currentLang = LANGUAGES.find(l => l.code === lang);
+  const score = user?.money_score || 0;
+  const tier =
+    score >= 80 ? 'Elite Saver' :
+    score >= 60 ? 'Smart Spender' :
+    score >= 40 ? 'Growing Saver' : 'Just Starting';
+  const tierEmoji = score >= 80 ? '🏆' : score >= 60 ? '💪' : score >= 40 ? '⚡' : '🌱';
 
   return (
     <SafeAreaView style={s.bg}>
-      <ScrollView contentContainerStyle={s.scroll} refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); loadData(); }} tintColor={COLORS.accent.primary} />}>
-        {/* ═══ PROFILE HERO CARD — Samsung Health Style ═══ */}
-        <View style={s.heroCard}>
-          {/* Edit button top-right */}
-          <TouchableOpacity style={s.editBtn} onPress={() => { setEditName(user?.name || ''); setEditNameVisible(true); }}>
-            <Ionicons name="create-outline" size={16} color={COLORS.text.muted} />
-          </TouchableOpacity>
+      <ScrollView
+        contentContainerStyle={s.scroll}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={() => { setRefreshing(true); loadData(); }}
+            tintColor={COLORS.accent.primary}
+          />
+        }
+      >
+        <ProfileHero
+          user={user}
+          avatar={avatar}
+          referralCount={referral?.referral_count || 0}
+          onEditName={() => { setEditName(user?.name || ''); setEditNameVisible(true); }}
+          onPickAvatar={pickAvatar}
+          onRemoveAvatar={removeAvatar}
+          onOpenReferrals={() => setRefExpanded(true)}
+          onOpenYearly={() => router.push('/yearly' as any)}
+          onShareScore={openShareScoreCard}
+        />
 
-          {/* Avatar */}
-          <TouchableOpacity onPress={pickAvatar} onLongPress={avatar ? removeAvatar : undefined} style={s.heroAvatarWrap}>
-            {avatar ? <Image source={{ uri: avatar }} style={s.heroAvatar} /> : (
-              <View style={s.heroAvatarPlace}>
-                <Text style={s.heroAvatarInitial}>{(user?.name || 'U').charAt(0).toUpperCase()}</Text>
-              </View>
-            )}
-            <View style={s.heroCamBadge}><Ionicons name="camera" size={11} color="#fff" /></View>
-          </TouchableOpacity>
-
-          <Text style={s.heroName}>{user?.name || 'User'}</Text>
-          <Text style={s.heroPhone}>{user?.phone}</Text>
-
-          {/* Money Score progress */}
-          <View style={s.heroProgWrap}>
-            <View style={s.heroProgHeader}>
-              <Text style={s.heroProgLabel}>Money Score</Text>
-              <Text style={s.heroProgValue}>{user?.money_score || 0}/100</Text>
-            </View>
-            <View style={s.heroProgBar}>
-              <View style={[s.heroProgFill, { width: `${Math.min(100, user?.money_score || 0)}%` }]} />
-            </View>
-            <Text style={s.heroProgTier}>
-              {(user?.money_score || 0) >= 80 ? '🏆 Elite Saver' : (user?.money_score || 0) >= 60 ? '💪 Smart Spender' : (user?.money_score || 0) >= 40 ? '⚡ Growing Saver' : '🌱 Just Starting'}
-            </Text>
-          </View>
-
-          {/* Pills row: Referrals + My Code + Yearly Stats */}
-          <View style={s.heroPillRow}>
-            <TouchableOpacity style={s.heroPill} onPress={() => setRefExpanded(true)}>
-              <Ionicons name="people" size={16} color="#F59E0B" />
-              <Text style={s.heroPillText}>{referral?.referral_count || 0} Referrals</Text>
-            </TouchableOpacity>
-            <TouchableOpacity style={s.heroPill} onPress={() => router.push('/yearly' as any)}>
-              <Ionicons name="bar-chart" size={16} color={COLORS.accent.moneyIn} />
-              <Text style={s.heroPillText}>Year View</Text>
-            </TouchableOpacity>
-          </View>
-
-          {/* Big Share Score CTA — viral entry point */}
-          <TouchableOpacity style={s.shareScoreCTA} onPress={shareScoreCard} activeOpacity={0.85}>
-            <Ionicons name="share-social" size={18} color="#fff" />
-            <Text style={s.shareScoreCTAText}>Share My Score</Text>
-            <View style={s.shareScoreBadge}>
-              <Ionicons name="image" size={10} color="#fff" />
-              <Text style={s.shareScoreBadgeText}>IMAGE</Text>
-            </View>
-          </TouchableOpacity>
-        </View>
-
-        {/* ═══ WEEKLY CHALLENGE + BADGES — Combined Expandable Card ═══ */}
+        {/* Weekly Challenge + Badges */}
         <View style={s.gamiCard}>
           <TouchableOpacity style={s.gamiHeader} onPress={() => setGamiExpanded(!gamiExpanded)} activeOpacity={0.7}>
             <View style={s.gamiIconBox}><Ionicons name="trophy" size={20} color={COLORS.accent.primary} /></View>
@@ -256,7 +225,6 @@ export default function ProfileScreen() {
               <BadgesSection onStatusLoaded={setGamiStatus} />
             </View>
           )}
-          {/* keep a hidden loader so header count populates even when collapsed */}
           {!gamiExpanded && (
             <View style={{ height: 0, overflow: 'hidden', opacity: 0 }} pointerEvents="none">
               <BadgesSection onStatusLoaded={setGamiStatus} />
@@ -264,320 +232,54 @@ export default function ProfileScreen() {
           )}
         </View>
 
-        {/* ═══ FINANCIAL SNAPSHOT — Real Stats (last 30 days) ═══ */}
-        {realStats && (realStats.monthlySpend > 0 || realStats.transactionCount > 0) ? (
-          <View style={s.snapCard}>
-            <View style={s.snapHeader}>
-              <Text style={s.snapTitle}>Your Financial Snapshot</Text>
-              <View style={s.snapBadge}><Text style={s.snapBadgeText}>Last 30 days</Text></View>
-            </View>
-            <View style={s.snapGrid}>
-              <View style={s.snapItem}>
-                <Ionicons name="trending-down" size={18} color="#E65100" />
-                <Text style={s.snapItemValue}>₹{realStats.monthlySpend.toLocaleString('en-IN', { maximumFractionDigits: 0 })}</Text>
-                <Text style={s.snapItemLabel}>Monthly Spend</Text>
-              </View>
-              <View style={s.snapDivider} />
-              <View style={s.snapItem}>
-                <Ionicons name="trending-up" size={18} color="#10B981" />
-                <Text style={[s.snapItemValue, { color: realStats.savingsRate >= 20 ? '#10B981' : realStats.savingsRate >= 10 ? '#F59E0B' : '#E65100' }]}>{realStats.savingsRate}%</Text>
-                <Text style={s.snapItemLabel}>Savings Rate</Text>
-              </View>
-            </View>
-            <View style={s.snapGrid}>
-              <View style={s.snapItem}>
-                <Ionicons name="pie-chart" size={18} color="#E65100" />
-                <Text style={s.snapItemValue} numberOfLines={1}>{realStats.topCategory ? realStats.topCategory.name : '—'}</Text>
-                <Text style={s.snapItemLabel}>{realStats.topCategory ? `Top: ₹${realStats.topCategory.amount.toLocaleString('en-IN', { maximumFractionDigits: 0 })}` : 'Top Category'}</Text>
-              </View>
-              <View style={s.snapDivider} />
-              <View style={s.snapItem}>
-                <Ionicons name="receipt" size={18} color="#E65100" />
-                <Text style={s.snapItemValue}>{realStats.transactionCount}</Text>
-                <Text style={s.snapItemLabel}>Transactions</Text>
-              </View>
-            </View>
-          </View>
-        ) : null}
+        <FinancialSnapshot stats={realStats} />
 
-        {/* ═══ PAYMENT METHODS (Emergent-style, expandable) ═══ */}
-        <View style={s.payCard}>
-          <TouchableOpacity style={s.payHeaderRow} onPress={() => setPayExpanded(!payExpanded)} activeOpacity={0.7}>
-            <View style={s.payIconBox}><Ionicons name="card" size={20} color="#E65100" /></View>
-            <View style={{ flex: 1 }}>
-              <Text style={s.payTitle}>Payment Options</Text>
-              <Text style={s.paySub}>{upiId ? 'UPI linked \u2022 Cards, Wallets ready' : 'Tap to set up UPI & cards'}</Text>
-            </View>
-            <Ionicons name={payExpanded ? 'chevron-up' : 'chevron-down'} size={18} color={COLORS.text.muted} />
-          </TouchableOpacity>
-          {payExpanded && (
-          <>
+        <PaymentMethods upiId={upiId} />
 
-          {/* Recommended */}
-          {upiId ? (
-            <View style={s.recSection}>
-              <Text style={s.recLabel}>Recommended</Text>
-              {UPI_APPS.slice(0, 3).map((app, i) => (
-                <TouchableOpacity key={i} style={s.recRow}>
-                  <View style={[s.recIcon, { backgroundColor: app.color + '15' }]}><Ionicons name={app.icon as any} size={18} color={app.color} /></View>
-                  <Text style={s.recName}>UPI - {app.name}</Text>
-                  <Ionicons name="chevron-forward" size={16} color={COLORS.text.muted} />
-                </TouchableOpacity>
-              ))}
-            </View>
-          ) : null}
+        <PremiumExpandable onExplore={() => router.push('/premium' as any)} />
 
-          {/* All Payment Options */}
-          <Text style={s.allLabel}>All Payment Options</Text>
+        <ReferralDashboard
+          referral={referral}
+          expanded={refExpanded}
+          onToggle={() => setRefExpanded(!refExpanded)}
+          onCopyCode={copyCode}
+          onShareWhatsApp={shareWhatsApp}
+          onShareGeneric={shareGeneric}
+          onShareScoreCard={openShareScoreCard}
+        />
 
-          {/* UPI Section */}
-          <TouchableOpacity style={s.optRow} onPress={() => setUpiExpanded(!upiExpanded)}>
-            <Ionicons name="flash" size={18} color="#E65100" />
-            <View style={{ flex: 1, marginLeft: 12 }}>
-              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-                <Text style={s.optName}>UPI</Text>
-                {UPI_APPS.map((a, i) => <View key={i} style={[s.miniIcon, { backgroundColor: a.color + '15' }]}><Ionicons name={a.icon as any} size={10} color={a.color} /></View>)}
-              </View>
-              <Text style={s.optOffer}>4 Options</Text>
-            </View>
-            <Ionicons name={upiExpanded ? 'chevron-up' : 'chevron-down'} size={18} color={COLORS.text.muted} />
-          </TouchableOpacity>
-          {upiExpanded && (
-            <View style={s.subGrid}>
-              {UPI_APPS.map((app, i) => (
-                <TouchableOpacity key={i} style={s.subCard}>
-                  <Ionicons name={app.icon as any} size={20} color={app.color} />
-                  <Text style={s.subName}>{app.name}</Text>
-                </TouchableOpacity>
-              ))}
-            </View>
-          )}
-
-          {/* Cards */}
-          <TouchableOpacity style={s.optRow}>
-            <Ionicons name="card" size={18} color="#E65100" />
-            <View style={{ flex: 1, marginLeft: 12 }}>
-              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
-                <Text style={s.optName}>Cards</Text>
-                <Text style={{ fontSize: 9, color: COLORS.text.muted }}>VISA  MC  RuPay</Text>
-              </View>
-              <Text style={s.optOffer}>Tokenized · Secure</Text>
-            </View>
-            <Ionicons name="chevron-down" size={18} color={COLORS.text.muted} />
-          </TouchableOpacity>
-
-          {/* Netbanking */}
-          <TouchableOpacity style={s.optRow}>
-            <Ionicons name="business" size={18} color="#059669" />
-            <View style={{ flex: 1, marginLeft: 12 }}>
-              <Text style={s.optName}>Netbanking</Text>
-              <Text style={s.optOffer}>All major banks supported</Text>
-            </View>
-            <Ionicons name="chevron-down" size={18} color={COLORS.text.muted} />
-          </TouchableOpacity>
-
-          {/* Wallet */}
-          <TouchableOpacity style={[s.optRow, { borderBottomWidth: 0 }]}>
-            <Ionicons name="wallet" size={18} color="#E65100" />
-            <View style={{ flex: 1, marginLeft: 12 }}>
-              <Text style={s.optName}>Wallet</Text>
-              <Text style={s.optOffer}>Paytm · Mobikwik · Amazon Pay</Text>
-            </View>
-            <Ionicons name="chevron-down" size={18} color={COLORS.text.muted} />
-          </TouchableOpacity>
-          </>
-          )}
-        </View>
-
-        {/* ═══ MINTU PREMIUM — Expandable ═══ */}
-        <View style={s.premiumCard}>
-          <TouchableOpacity style={s.premiumHeader} onPress={() => setPremiumExpanded(!premiumExpanded)} activeOpacity={0.8}>
-            <View style={s.premiumIconBox}><Ionicons name="diamond" size={22} color="#fff" /></View>
-            <View style={{ flex: 1 }}>
-              <Text style={s.premiumTitle}>MintU Premium</Text>
-              <Text style={s.premiumSub}>Unlock unlimited AI, reports & ad-free</Text>
-            </View>
-            <Ionicons name={premiumExpanded ? 'chevron-up' : 'chevron-down'} size={18} color="rgba(255,255,255,0.9)" />
-          </TouchableOpacity>
-          {premiumExpanded && (
-            <View style={s.premiumBody}>
-              {[
-                { icon: 'infinite', text: 'Unlimited AI Coach conversations' },
-                { icon: 'flash', text: 'Priority GPT-5.2 responses (no queue)' },
-                { icon: 'bar-chart', text: 'Advanced analytics & custom reports' },
-                { icon: 'trophy', text: 'Exclusive badges & leaderboard perks' },
-                { icon: 'close-circle', text: 'Zero ads, ever' },
-              ].map((f, i) => (
-                <View key={i} style={s.premiumFeatureRow}>
-                  <View style={s.premiumCheck}><Ionicons name="checkmark" size={12} color="#fff" /></View>
-                  <Ionicons name={f.icon as any} size={16} color="#F59E0B" />
-                  <Text style={s.premiumFeatureText}>{f.text}</Text>
-                </View>
-              ))}
-              <View style={s.premiumPriceRow}>
-                <View>
-                  <Text style={s.premiumPriceStrike}>₹999/yr</Text>
-                  <Text style={s.premiumPrice}>₹499/yr</Text>
-                </View>
-                <TouchableOpacity style={s.premiumCTA} onPress={() => router.push('/premium' as any)}>
-                  <Text style={s.premiumCTAText}>Explore →</Text>
-                </TouchableOpacity>
-              </View>
-            </View>
-          )}
-        </View>
-
-        {/* ═══ INVITE & EARN — Full Referral Dashboard ═══ */}
-        {referral && (
-          <View style={s.refCard}>
-            {/* Header */}
-            <TouchableOpacity onPress={() => setRefExpanded(!refExpanded)} activeOpacity={0.7} style={s.refHeader}>
-              <View style={s.refIconBox}>
-                <Ionicons name="gift" size={22} color="#F59E0B" />
-              </View>
-              <View style={{ flex: 1 }}>
-                <Text style={s.refTitle}>Invite & Earn Pro</Text>
-                <Text style={s.refSub}>Share MintU, get free Pro days</Text>
-              </View>
-              <View style={s.refCountPill}>
-                <Text style={s.refCountNum}>{referral.referral_count || 0}</Text>
-                <Text style={s.refCountLabel}>Invited</Text>
-              </View>
-              <Ionicons name={refExpanded ? 'chevron-up' : 'chevron-down'} size={18} color={COLORS.text.muted} style={{ marginLeft: 6 }} />
-            </TouchableOpacity>
-
-            {refExpanded && (
-              <>
-                {/* Stats Strip */}
-                <View style={s.refStats}>
-                  <View style={s.refStatBox}>
-                    <Text style={s.refStatNum}>{referral.referral_count || 0}</Text>
-                    <Text style={s.refStatLbl}>Friends</Text>
-                  </View>
-                  <View style={s.refStatDivider} />
-                  <View style={s.refStatBox}>
-                    <Text style={[s.refStatNum, { color: '#10B981' }]}>{referral.total_pro_days_earned || 0}</Text>
-                    <Text style={s.refStatLbl}>Pro Days Earned</Text>
-                  </View>
-                  <View style={s.refStatDivider} />
-                  <View style={s.refStatBox}>
-                    <Text style={[s.refStatNum, { color: '#E65100' }]}>
-                      {(referral.reward_tiers || []).filter((t: any) => t.unlocked).length}/{(referral.reward_tiers || []).length}
-                    </Text>
-                    <Text style={s.refStatLbl}>Tiers</Text>
-                  </View>
-                </View>
-
-                {/* Next Milestone with progress bar */}
-                {referral.next_milestone?.friends_needed > 0 && (() => {
-                  const current = referral.referral_count || 0;
-                  const target = (referral.next_milestone?.target ?? (current + referral.next_milestone.friends_needed)) || 1;
-                  const prevTarget = (referral.reward_tiers || []).filter((t: any) => t.unlocked).slice(-1)[0]?.target || 0;
-                  const pct = Math.min(100, Math.round(((current - prevTarget) / Math.max(target - prevTarget, 1)) * 100));
-                  return (
-                    <View style={s.refMilestoneWrap}>
-                      <View style={s.refMilestone}>
-                        <Ionicons name="flag" size={14} color="#F59E0B" />
-                        <Text style={s.refMilestoneText}>
-                          Invite <Text style={{ fontWeight: '800', color: COLORS.accent.primary }}>{referral.next_milestone.friends_needed}</Text> more to unlock <Text style={{ fontWeight: '800' }}>{referral.next_milestone.reward}</Text>
-                        </Text>
-                      </View>
-                      <View style={s.refProgressTrack}>
-                        <View style={[s.refProgressFill, { width: `${pct}%` }]} />
-                      </View>
-                      <View style={s.refProgressLabels}>
-                        <Text style={s.refProgressLbl}>{current}</Text>
-                        <Text style={s.refProgressLbl}>{target}</Text>
-                      </View>
-                    </View>
-                  );
-                })()}
-
-                {/* Referral Code */}
-                <View style={s.refCodeBox}>
-                  <View style={{ flex: 1 }}>
-                    <Text style={s.refCodeLbl}>YOUR REFERRAL CODE</Text>
-                    <Text style={s.refCode}>{referral.referral_code}</Text>
-                  </View>
-                  <TouchableOpacity style={s.refCopyBtn} onPress={copyCode}>
-                    <Ionicons name="copy-outline" size={16} color={COLORS.accent.primary} />
-                    <Text style={s.refCopyText}>Copy</Text>
-                  </TouchableOpacity>
-                </View>
-
-                {/* Share Buttons */}
-                <View style={s.refShareRow}>
-                  <TouchableOpacity style={[s.refShareBtn, { backgroundColor: '#25D366' }]} onPress={shareWhatsApp}>
-                    <Ionicons name="logo-whatsapp" size={18} color="#fff" />
-                    <Text style={s.refShareText}>WhatsApp</Text>
-                  </TouchableOpacity>
-                  <TouchableOpacity style={[s.refShareBtn, { backgroundColor: COLORS.accent.primary }]} onPress={shareGeneric}>
-                    <Ionicons name="share-social" size={18} color="#fff" />
-                    <Text style={s.refShareText}>Share</Text>
-                  </TouchableOpacity>
-                  <TouchableOpacity style={[s.refShareBtn, { backgroundColor: '#6A1B9A' }]} onPress={shareScoreCard}>
-                    <Ionicons name="ribbon" size={18} color="#fff" />
-                    <Text style={s.refShareText}>Score Card</Text>
-                  </TouchableOpacity>
-                </View>
-
-                {/* Reward Tiers */}
-                <Text style={s.refTiersTitle}>REWARD MILESTONES</Text>
-                {(referral.reward_tiers || []).map((tier: any, i: number) => {
-                  const iconName = tier.icon === 'crown' ? 'ribbon' : tier.icon;
-                  return (
-                    <View key={i} style={[s.tierRow, tier.unlocked && s.tierRowUnlocked]}>
-                      <View style={[s.tierIcon, { backgroundColor: tier.unlocked ? '#10B98115' : COLORS.bg.secondary }]}>
-                        <Ionicons name={iconName as any} size={16} color={tier.unlocked ? '#10B981' : COLORS.text.muted} />
-                      </View>
-                      <View style={{ flex: 1 }}>
-                        <Text style={[s.tierFriends, tier.unlocked && { color: '#10B981' }]}>{tier.friends} friend{tier.friends > 1 ? 's' : ''}</Text>
-                        <Text style={s.tierReward}>{tier.reward}</Text>
-                      </View>
-                      {tier.unlocked ? (
-                        <View style={s.tierBadge}>
-                          <Ionicons name="checkmark-circle" size={18} color="#10B981" />
-                        </View>
-                      ) : (
-                        <Ionicons name="lock-closed" size={14} color={COLORS.text.muted} />
-                      )}
-                    </View>
-                  );
-                })}
-
-                {/* Recent Referrals */}
-                {(referral.recent_referrals || []).length > 0 && (
-                  <>
-                    <Text style={s.refTiersTitle}>RECENT REFERRALS</Text>
-                    {referral.recent_referrals.map((r: any, i: number) => (
-                      <View key={i} style={s.refRecentRow}>
-                        <View style={s.refRecentAvatar}>
-                          <Text style={s.refRecentInitial}>{(r.name || 'F').charAt(0).toUpperCase()}</Text>
-                        </View>
-                        <Text style={s.refRecentName}>{r.name}</Text>
-                        <Ionicons name="checkmark-circle" size={16} color="#10B981" />
-                      </View>
-                    ))}
-                  </>
-                )}
-              </>
-            )}
-          </View>
-        )}
-
-        {/* ═══ SETTINGS ═══ */}
+        {/* Settings */}
         <Text style={s.secTitle}>Settings</Text>
         <TouchableOpacity style={s.menuItem} onPress={() => setLangModalVisible(true)}>
           <Ionicons name="language" size={20} color="#E65100" />
-          <View style={{ flex: 1, marginLeft: 12 }}><Text style={s.menuText}>{t('language', lang)}</Text><Text style={{ fontSize: 11, color: '#E65100' }}>{currentLang?.nativeName}</Text></View>
+          <View style={{ flex: 1, marginLeft: 12 }}>
+            <Text style={s.menuText}>{t('language', lang)}</Text>
+            <Text style={{ fontSize: 11, color: '#E65100' }}>{currentLang?.nativeName}</Text>
+          </View>
           <Ionicons name="chevron-forward" size={16} color={COLORS.text.muted} />
         </TouchableOpacity>
-        <TouchableOpacity style={s.menuItem}><Ionicons name="notifications-outline" size={20} color={COLORS.accent.primary} /><Text style={[s.menuText, { marginLeft: 12 }]}>{t('notifications', lang)}</Text><Ionicons name="chevron-forward" size={16} color={COLORS.text.muted} /></TouchableOpacity>
-        <TouchableOpacity style={s.menuItem} onPress={() => setHelpVisible(true)}><Ionicons name="help-circle-outline" size={20} color={COLORS.accent.warning} /><Text style={[s.menuText, { marginLeft: 12 }]}>{t('help_support', lang)}</Text><Ionicons name="chevron-forward" size={16} color={COLORS.text.muted} /></TouchableOpacity>
-        <TouchableOpacity style={s.menuItem} onPress={() => setAboutVisible(true)}><Ionicons name="information-circle-outline" size={20} color={COLORS.accent.primary} /><Text style={[s.menuText, { marginLeft: 12 }]}>About MintU</Text><Text style={s.menuHint}>Privacy · Terms · Data</Text><Ionicons name="chevron-forward" size={16} color={COLORS.text.muted} /></TouchableOpacity>
-        <TouchableOpacity style={s.logoutBtn} onPress={handleLogout}><Ionicons name="log-out-outline" size={20} color={COLORS.accent.moneyOut} /><Text style={s.logoutText}>{t('logout', lang)}</Text></TouchableOpacity>
+        <TouchableOpacity style={s.menuItem}>
+          <Ionicons name="notifications-outline" size={20} color={COLORS.accent.primary} />
+          <Text style={[s.menuText, { marginLeft: 12 }]}>{t('notifications', lang)}</Text>
+          <Ionicons name="chevron-forward" size={16} color={COLORS.text.muted} />
+        </TouchableOpacity>
+        <TouchableOpacity style={s.menuItem} onPress={() => setHelpVisible(true)}>
+          <Ionicons name="help-circle-outline" size={20} color={COLORS.accent.warning} />
+          <Text style={[s.menuText, { marginLeft: 12 }]}>{t('help_support', lang)}</Text>
+          <Ionicons name="chevron-forward" size={16} color={COLORS.text.muted} />
+        </TouchableOpacity>
+        <TouchableOpacity style={s.menuItem} onPress={() => setAboutVisible(true)}>
+          <Ionicons name="information-circle-outline" size={20} color={COLORS.accent.primary} />
+          <Text style={[s.menuText, { marginLeft: 12 }]}>About MintU</Text>
+          <Text style={s.menuHint}>Privacy · Terms · Data</Text>
+          <Ionicons name="chevron-forward" size={16} color={COLORS.text.muted} />
+        </TouchableOpacity>
+        <TouchableOpacity style={s.logoutBtn} onPress={handleLogout}>
+          <Ionicons name="log-out-outline" size={20} color={COLORS.accent.moneyOut} />
+          <Text style={s.logoutText}>{t('logout', lang)}</Text>
+        </TouchableOpacity>
 
-        {/* Trust Signals — 3-badge strip */}
+        {/* Trust Signals */}
         <View style={s.trustSignalsRow}>
           <View style={s.trustSig}>
             <Text style={s.trustSigEmoji}>🔒</Text>
@@ -592,7 +294,6 @@ export default function ProfileScreen() {
             <Text style={s.trustSigText}>RBI-aligned{'\n'}practices</Text>
           </View>
         </View>
-
         <View style={s.trustBox}>
           <Ionicons name="shield-checkmark" size={14} color="#10B981" />
           <Text style={s.trustText}>Aligned with RBI data localization guidelines · India servers</Text>
@@ -605,53 +306,57 @@ export default function ProfileScreen() {
         <View style={{ height: 30 }} />
       </ScrollView>
 
-      {/* Language Modal */}
+      {/* ── Modals ──────────────────────────────────────────────────── */}
       <Modal visible={langModalVisible} animationType="slide" transparent>
-        <View style={s.mBg}><View style={s.sheet}><View style={s.handle} />
-          <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}><Text style={s.sheetTitle}>{t('language', lang)}</Text><TouchableOpacity onPress={() => setLangModalVisible(false)}><Ionicons name="close" size={24} color={COLORS.text.primary} /></TouchableOpacity></View>
-          <FlatList data={LANGUAGES} keyExtractor={i => i.code} renderItem={({ item }) => (
-            <TouchableOpacity style={[s.langOpt, lang === item.code && s.langOn]} onPress={() => { setLang(item.code); setLangModalVisible(false); }}>
-              <View><Text style={s.langNative}>{item.nativeName}</Text><Text style={s.langEn}>{item.name}</Text></View>
-              {lang === item.code && <Ionicons name="checkmark-circle" size={22} color={COLORS.accent.primary} />}
-            </TouchableOpacity>
-          )} />
-        </View></View>
+        <View style={s.mBg}>
+          <View style={s.sheet}>
+            <View style={s.handle} />
+            <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
+              <Text style={s.sheetTitle}>{t('language', lang)}</Text>
+              <TouchableOpacity onPress={() => setLangModalVisible(false)}>
+                <Ionicons name="close" size={24} color={COLORS.text.primary} />
+              </TouchableOpacity>
+            </View>
+            <FlatList data={LANGUAGES} keyExtractor={i => i.code} renderItem={({ item }) => (
+              <TouchableOpacity style={[s.langOpt, lang === item.code && s.langOn]} onPress={() => { setLang(item.code); setLangModalVisible(false); }}>
+                <View>
+                  <Text style={s.langNative}>{item.nativeName}</Text>
+                  <Text style={s.langEn}>{item.name}</Text>
+                </View>
+                {lang === item.code && <Ionicons name="checkmark-circle" size={22} color={COLORS.accent.primary} />}
+              </TouchableOpacity>
+            )} />
+          </View>
+        </View>
       </Modal>
 
-      {/* Edit Name */}
       <Modal visible={editNameVisible} animationType="fade" transparent>
-        <View style={s.mBg}><View style={[s.sheet, { maxHeight: 260 }]}><View style={s.handle} />
-          <Text style={s.sheetTitle}>Edit Name</Text>
-          <TextInput style={s.editInput} value={editName} onChangeText={setEditName} placeholder="Your name" placeholderTextColor={COLORS.text.muted} autoFocus />
-          <TouchableOpacity style={s.saveBtn} onPress={updateName}><Text style={s.saveBtnT}>Save</Text></TouchableOpacity>
-          <TouchableOpacity onPress={() => setEditNameVisible(false)} style={{ paddingVertical: 10, alignItems: 'center' }}><Text style={{ color: COLORS.text.muted }}>Cancel</Text></TouchableOpacity>
-        </View></View>
+        <View style={s.mBg}>
+          <View style={[s.sheet, { maxHeight: 260 }]}>
+            <View style={s.handle} />
+            <Text style={s.sheetTitle}>Edit Name</Text>
+            <TextInput
+              style={s.editInput}
+              value={editName}
+              onChangeText={setEditName}
+              placeholder="Your name"
+              placeholderTextColor={COLORS.text.muted}
+              autoFocus
+            />
+            <TouchableOpacity style={s.saveBtn} onPress={updateName}>
+              <Text style={s.saveBtnT}>Save</Text>
+            </TouchableOpacity>
+            <TouchableOpacity onPress={() => setEditNameVisible(false)} style={{ paddingVertical: 10, alignItems: 'center' }}>
+              <Text style={{ color: COLORS.text.muted }}>Cancel</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
       </Modal>
 
       <Modal visible={helpVisible} animationType="slide"><HelpSupport onClose={() => setHelpVisible(false)} /></Modal>
       <Modal visible={aboutVisible} animationType="slide"><AboutMintU onClose={() => setAboutVisible(false)} /></Modal>
 
-      {/* Privacy */}
-      <Modal visible={privacyVisible} animationType="slide">
-        <SafeAreaView style={s.bg}>
-          <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 20, paddingVertical: 14, borderBottomWidth: 1, borderBottomColor: COLORS.border.subtle }}><Text style={s.sheetTitle}>Privacy & Security</Text><TouchableOpacity onPress={() => setPrivacyVisible(false)}><Ionicons name="close" size={24} color={COLORS.text.primary} /></TouchableOpacity></View>
-          <ScrollView contentContainerStyle={{ padding: 20 }}>
-            {[
-              { icon: 'shield-checkmark', color: '#10B981', title: 'Data Encryption', desc: 'AES-256 encryption at rest, TLS 1.3 in transit. Passwords hashed with bcrypt.' },
-              { icon: 'lock-closed', color: '#E65100', title: 'Authentication', desc: 'Phone OTP verification, JWT tokens with 30-day expiry, session management.' },
-              { icon: 'eye-off', color: '#E65100', title: 'Data Privacy', desc: 'We do NOT sell or share your data. RBI & IT Act 2000 compliant. India-only servers.' },
-              { icon: 'server', color: '#059669', title: 'Data Storage', desc: 'Encrypted servers in India per RBI data localization. Regular backups. Request deletion anytime.' },
-              { icon: 'finger-print', color: '#D32F2F', title: 'Access Control', desc: 'RBAC for employees. Rate limiting (1000 req/min). All access logged and audited.' },
-              { icon: 'document-text', color: COLORS.accent.secondary, title: 'Your Rights', desc: 'Export all data, request deletion, opt out of analytics. DPO: dpo@mintu.app (48hr response).' },
-            ].map((c, i) => (
-              <View key={i} style={s.privCard}><Ionicons name={c.icon as any} size={20} color={c.color} /><Text style={s.privTitle}>{c.title}</Text><Text style={s.privDesc}>{c.desc}</Text></View>
-            ))}
-            <View style={{ height: 40 }} />
-          </ScrollView>
-        </SafeAreaView>
-      </Modal>
-
-      {/* ═══ SHARE SCORE CARD — Image Preview Modal ═══ */}
+      {/* Share Score Card Image Preview */}
       <Modal
         visible={shareCardVisible}
         animationType="fade"
@@ -671,7 +376,6 @@ export default function ProfileScreen() {
             <Text style={s.shareTitle}>Flex your score! 🔥</Text>
             <Text style={s.shareSub}>Share as image on WhatsApp, Instagram Story, or anywhere</Text>
 
-            {/* The captured view */}
             <ViewShot
               ref={scoreCardRef as any}
               options={{ format: 'png', quality: 1, result: Platform.OS === 'web' ? 'data-uri' : 'tmpfile' }}
@@ -681,23 +385,9 @@ export default function ProfileScreen() {
                 data={{
                   name: user?.name || 'User',
                   avatar: avatar || undefined,
-                  score: user?.money_score || 0,
-                  tier:
-                    (user?.money_score || 0) >= 80
-                      ? 'Elite Saver'
-                      : (user?.money_score || 0) >= 60
-                        ? 'Smart Spender'
-                        : (user?.money_score || 0) >= 40
-                          ? 'Growing Saver'
-                          : 'Just Starting',
-                  tierEmoji:
-                    (user?.money_score || 0) >= 80
-                      ? '🏆'
-                      : (user?.money_score || 0) >= 60
-                        ? '💪'
-                        : (user?.money_score || 0) >= 40
-                          ? '⚡'
-                          : '🌱',
+                  score,
+                  tier,
+                  tierEmoji,
                   streak: gamiStatus?.streak || 0,
                   savingsRate: realStats?.savingsRate || 0,
                   coins: (user as any)?.coins_balance || (gamiStatus?.total_badges || 0) * 10,
@@ -706,7 +396,6 @@ export default function ProfileScreen() {
               />
             </ViewShot>
 
-            {/* Action buttons */}
             <TouchableOpacity
               style={[s.shareActionPrimary, sharing && { opacity: 0.7 }]}
               onPress={handleShareAsImage}
@@ -747,29 +436,13 @@ export default function ProfileScreen() {
 const s = StyleSheet.create({
   bg: { flex: 1, backgroundColor: COLORS.bg.primary },
   scroll: { padding: 16 },
-  // Profile Card
-  profileCard: { flexDirection: 'row', alignItems: 'center', backgroundColor: 'rgba(255,255,255,0.92)', borderRadius: 20, padding: 18, marginBottom: 14, borderWidth: 1, borderColor: 'rgba(238,221,204,0.6)', ...shadowStyle('#2E1F1A', 2, 10, 0.05, 3) },
-  avatar: { width: 64, height: 64, borderRadius: 32, borderWidth: 2, borderColor: COLORS.accent.primary + '25' },
-  avatarPlace: { width: 64, height: 64, borderRadius: 32, backgroundColor: COLORS.accent.primary + '10', justifyContent: 'center', alignItems: 'center', borderWidth: 2, borderColor: COLORS.accent.primary + '25' },
-  camBadge: { position: 'absolute', bottom: 0, right: 0, width: 22, height: 22, borderRadius: 11, backgroundColor: COLORS.accent.primary, justifyContent: 'center', alignItems: 'center', borderWidth: 2, borderColor: COLORS.bg.primary },
-  name: { fontSize: 18, fontWeight: '800', color: COLORS.text.primary },
-  phone: { fontSize: 13, color: COLORS.text.muted, marginTop: 2 },
-  // Payment Card
-  payCard: { backgroundColor: 'rgba(255,255,255,0.92)', borderRadius: 20, padding: 18, marginBottom: 14, borderWidth: 1, borderColor: 'rgba(238,221,204,0.6)', ...shadowStyle('#2E1F1A', 2, 10, 0.04, 2) },
-  payTitle: { fontSize: 17, fontWeight: '700', color: COLORS.text.primary, marginBottom: 14 },
-  recSection: { marginBottom: 14 },
-  recLabel: { fontSize: 12, fontWeight: '600', color: COLORS.text.muted, marginBottom: 8 },
-  recRow: { flexDirection: 'row', alignItems: 'center', paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: COLORS.border.subtle },
-  recIcon: { width: 34, height: 34, borderRadius: 10, justifyContent: 'center', alignItems: 'center', marginRight: 12 },
-  recName: { flex: 1, fontSize: 14, fontWeight: '500', color: COLORS.text.primary },
-  allLabel: { fontSize: 12, fontWeight: '600', color: COLORS.text.muted, marginBottom: 8, marginTop: 4 },
-  optRow: { flexDirection: 'row', alignItems: 'center', paddingVertical: 14, borderBottomWidth: 1, borderBottomColor: COLORS.border.subtle },
-  optName: { fontSize: 14, fontWeight: '600', color: COLORS.text.primary },
-  optOffer: { fontSize: 11, fontWeight: '600', color: COLORS.accent.moneyIn, marginTop: 2 },
-  miniIcon: { width: 18, height: 18, borderRadius: 9, justifyContent: 'center', alignItems: 'center' },
-  subGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, paddingVertical: 10 },
-  subCard: { width: '47%', flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: COLORS.bg.primary, borderRadius: 12, padding: 12, borderWidth: 1, borderColor: COLORS.border.subtle, flexGrow: 1 },
-  subName: { fontSize: 13, fontWeight: '500', color: COLORS.text.primary },
+  // Gamification combined card (kept inline — small and tightly coupled)
+  gamiCard: { backgroundColor: 'rgba(255,255,255,0.96)', borderRadius: 20, padding: 14, marginBottom: 14, borderWidth: 1, borderColor: COLORS.border.card },
+  gamiHeader: { flexDirection: 'row', alignItems: 'center', gap: 12 },
+  gamiIconBox: { width: 44, height: 44, borderRadius: 14, backgroundColor: COLORS.accent.primary + '15', justifyContent: 'center', alignItems: 'center' },
+  gamiTitle: { fontSize: 16, fontWeight: '800', color: COLORS.text.primary },
+  gamiSub: { fontSize: 12, color: COLORS.text.muted, marginTop: 2 },
+  gamiBody: { marginTop: 12 },
   // Settings
   secTitle: { fontSize: 14, fontWeight: '700', color: COLORS.text.muted, marginTop: 8, marginBottom: 8 },
   menuItem: { flexDirection: 'row', alignItems: 'center', backgroundColor: 'rgba(255,255,255,0.92)', borderRadius: 14, padding: 14, marginBottom: 6, borderWidth: 1, borderColor: 'rgba(238,221,204,0.5)' },
@@ -778,6 +451,15 @@ const s = StyleSheet.create({
   logoutBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, backgroundColor: COLORS.accent.moneyOut + '10', borderRadius: 999, paddingVertical: 16, marginTop: 16 },
   logoutText: { fontSize: 16, fontWeight: '600', color: COLORS.accent.moneyOut },
   version: { textAlign: 'center', fontSize: 11, color: COLORS.text.muted, marginTop: 12 },
+  // Trust
+  trustBox: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, marginTop: 14, paddingVertical: 10, paddingHorizontal: 12, backgroundColor: '#10B98110', borderRadius: 12, borderWidth: 1, borderColor: '#10B98125' },
+  trustText: { fontSize: 11, fontWeight: '600', color: '#059669', flex: 0, textAlign: 'center' },
+  trustSignalsRow: { flexDirection: 'row', gap: 8, marginTop: 16 },
+  trustSig: { flex: 1, alignItems: 'center', gap: 6, paddingVertical: 14, paddingHorizontal: 6, backgroundColor: '#FFFFFF', borderRadius: 14, borderWidth: 1, borderColor: COLORS.border.card },
+  trustSigEmoji: { fontSize: 22 },
+  trustSigText: { fontSize: 10.5, fontWeight: '700', color: COLORS.text.secondary, textAlign: 'center', lineHeight: 13 },
+  transparencyBox: { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 10, paddingVertical: 8, paddingHorizontal: 12, backgroundColor: '#F1F5F9', borderRadius: 10 },
+  transparencyText: { flex: 1, fontSize: 10.5, color: '#475569', fontWeight: '600', lineHeight: 14 },
   // Modals
   mBg: { flex: 1, justifyContent: 'flex-end', backgroundColor: 'rgba(0,0,0,0.5)' },
   sheet: { backgroundColor: '#fff', borderTopLeftRadius: 28, borderTopRightRadius: 28, padding: 24, maxHeight: '85%' },
@@ -790,121 +472,6 @@ const s = StyleSheet.create({
   langOn: { backgroundColor: COLORS.accent.primary + '10' },
   langNative: { fontSize: 16, fontWeight: '600', color: COLORS.text.primary },
   langEn: { fontSize: 11, color: COLORS.text.muted, marginTop: 1 },
-  privCard: { backgroundColor: COLORS.bg.card, borderRadius: 16, padding: 16, marginBottom: 10, borderWidth: 1, borderColor: COLORS.border.card },
-  privTitle: { fontSize: 14, fontWeight: '700', color: COLORS.text.primary, marginTop: 8 },
-  privDesc: { fontSize: 13, color: COLORS.text.secondary, lineHeight: 20, marginTop: 4 },
-  // Invite / Referral
-  refCard: { backgroundColor: 'rgba(255,255,255,0.96)', borderRadius: 20, padding: 16, marginBottom: 14, borderWidth: 1, borderColor: 'rgba(245,158,11,0.25)', ...shadowStyle('#F59E0B', 2, 10, 0.06, 3) },
-  refHeader: { flexDirection: 'row', alignItems: 'center', gap: 12 },
-  refIconBox: { width: 44, height: 44, borderRadius: 14, backgroundColor: '#FEF3C7', justifyContent: 'center', alignItems: 'center' },
-  refTitle: { fontSize: 16, fontWeight: '800', color: COLORS.text.primary },
-  refSub: { fontSize: 12, color: COLORS.text.muted, marginTop: 2 },
-  refCountPill: { alignItems: 'center', backgroundColor: '#FEF3C7', paddingHorizontal: 10, paddingVertical: 6, borderRadius: 10, minWidth: 56 },
-  refCountNum: { fontSize: 18, fontWeight: '800', color: '#92400E' },
-  refCountLabel: { fontSize: 9, fontWeight: '700', color: '#92400E', letterSpacing: 0.5 },
-  refStats: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#FFFBEB', borderRadius: 14, paddingVertical: 12, marginTop: 14 },
-  refStatBox: { flex: 1, alignItems: 'center' },
-  refStatNum: { fontSize: 20, fontWeight: '800', color: '#F59E0B' },
-  refStatLbl: { fontSize: 10, fontWeight: '600', color: COLORS.text.muted, marginTop: 2 },
-  refStatDivider: { width: 1, height: 28, backgroundColor: '#FDE68A' },
-  refMilestone: { flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: '#FEF3C7', borderRadius: 10, padding: 10, marginTop: 10 },
-  refMilestoneWrap: { marginTop: 10 },
-  refProgressTrack: { height: 6, backgroundColor: '#F59E0B20', borderRadius: 999, overflow: 'hidden', marginTop: 8 },
-  refProgressFill: { height: '100%', backgroundColor: '#F59E0B', borderRadius: 999 },
-  refProgressLabels: { flexDirection: 'row', justifyContent: 'space-between', marginTop: 4 },
-  refProgressLbl: { fontSize: 10, fontWeight: '700', color: COLORS.text.muted },
-  refMilestoneText: { flex: 1, fontSize: 12, color: '#92400E', lineHeight: 17 },
-  refCodeBox: { flexDirection: 'row', alignItems: 'center', backgroundColor: COLORS.bg.primary, borderWidth: 1, borderColor: COLORS.accent.primary + '30', borderStyle: 'dashed', borderRadius: 14, padding: 14, marginTop: 12 },
-  refCodeLbl: { fontSize: 9, fontWeight: '800', letterSpacing: 1, color: COLORS.text.muted },
-  refCode: { fontSize: 20, fontWeight: '800', color: COLORS.accent.primary, letterSpacing: 1.5, marginTop: 2 },
-  refCopyBtn: { flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: COLORS.accent.primary + '12', paddingHorizontal: 14, paddingVertical: 10, borderRadius: 999 },
-  refCopyText: { fontSize: 13, fontWeight: '700', color: COLORS.accent.primary },
-  refShareRow: { flexDirection: 'row', gap: 10, marginTop: 12 },
-  refShareBtn: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, paddingVertical: 13, borderRadius: 999 },
-  refShareText: { fontSize: 14, fontWeight: '700', color: '#fff' },
-  refTiersTitle: { fontSize: 10, fontWeight: '800', letterSpacing: 1, color: COLORS.text.muted, marginTop: 18, marginBottom: 8 },
-  tierRow: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 10, paddingHorizontal: 4, borderTopWidth: 1, borderTopColor: COLORS.border.subtle },
-  tierRowUnlocked: { backgroundColor: '#F0FDF4', borderRadius: 10, paddingHorizontal: 10, borderTopColor: 'transparent' },
-  tierIcon: { width: 32, height: 32, borderRadius: 10, justifyContent: 'center', alignItems: 'center' },
-  tierFriends: { fontSize: 13, fontWeight: '700', color: COLORS.text.primary },
-  tierReward: { fontSize: 11, color: COLORS.text.muted, marginTop: 1 },
-  tierBadge: {},
-  refRecentRow: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 8 },
-  refRecentAvatar: { width: 30, height: 30, borderRadius: 15, backgroundColor: COLORS.accent.primary + '15', justifyContent: 'center', alignItems: 'center' },
-  refRecentInitial: { fontSize: 13, fontWeight: '800', color: COLORS.accent.primary },
-  refRecentName: { flex: 1, fontSize: 13, fontWeight: '600', color: COLORS.text.primary },
-  // Hero Profile Card (Samsung-Health style)
-  heroCard: { backgroundColor: '#FFFFFF', borderRadius: 24, padding: 24, marginBottom: 14, alignItems: 'center', borderWidth: 1, borderColor: COLORS.border.card, position: 'relative' },
-  editBtn: { position: 'absolute', top: 14, right: 14, width: 36, height: 36, borderRadius: 18, backgroundColor: COLORS.bg.primary, justifyContent: 'center', alignItems: 'center', zIndex: 2 },
-  heroAvatarWrap: { position: 'relative', marginTop: 4 },
-  heroAvatar: { width: 96, height: 96, borderRadius: 48, borderWidth: 3, borderColor: COLORS.accent.primary + '30' },
-  heroAvatarPlace: { width: 96, height: 96, borderRadius: 48, backgroundColor: COLORS.accent.primary + '18', justifyContent: 'center', alignItems: 'center', borderWidth: 3, borderColor: COLORS.accent.primary + '40' },
-  heroAvatarInitial: { fontSize: 40, fontWeight: '800', color: COLORS.accent.primary },
-  heroCamBadge: { position: 'absolute', bottom: 2, right: 2, width: 28, height: 28, borderRadius: 14, backgroundColor: COLORS.accent.primary, justifyContent: 'center', alignItems: 'center', borderWidth: 3, borderColor: '#fff' },
-  heroName: { fontSize: 22, fontWeight: '800', color: COLORS.text.primary, marginTop: 12 },
-  heroPhone: { fontSize: 13, color: COLORS.text.muted, marginTop: 2 },
-  heroProgWrap: { width: '100%', marginTop: 18, backgroundColor: '#F8F9FB', borderRadius: 14, padding: 14 },
-  heroProgHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 },
-  heroProgLabel: { fontSize: 12, fontWeight: '600', color: COLORS.text.muted, letterSpacing: 0.3 },
-  heroProgValue: { fontSize: 14, fontWeight: '800', color: COLORS.accent.primary },
-  heroProgBar: { height: 8, backgroundColor: COLORS.border.subtle, borderRadius: 4, overflow: 'hidden' },
-  heroProgFill: { height: '100%', backgroundColor: COLORS.accent.primary, borderRadius: 4 },
-  heroProgTier: { fontSize: 11, color: COLORS.text.secondary, marginTop: 8, textAlign: 'center', fontWeight: '600' },
-  heroPillRow: { flexDirection: 'row', gap: 10, marginTop: 18, width: '100%' },
-  heroPill: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, paddingVertical: 12, backgroundColor: COLORS.bg.primary, borderRadius: 999, borderWidth: 1, borderColor: COLORS.border.card },
-  heroPillText: { fontSize: 13, fontWeight: '700', color: COLORS.text.primary },
-  shareScoreCTA: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, width: '100%', marginTop: 12, paddingVertical: 14, paddingHorizontal: 16, backgroundColor: COLORS.accent.primary, borderRadius: 999 },
-  shareScoreCTAText: { fontSize: 15, fontWeight: '800', color: '#fff', letterSpacing: 0.3 },
-  shareScoreBadge: { flexDirection: 'row', alignItems: 'center', gap: 3, paddingHorizontal: 8, paddingVertical: 3, backgroundColor: 'rgba(255,255,255,0.2)', borderRadius: 999 },
-  shareScoreBadgeText: { fontSize: 9, fontWeight: '900', color: '#fff', letterSpacing: 0.8 },
-  // Gamification combined card
-  gamiCard: { backgroundColor: 'rgba(255,255,255,0.96)', borderRadius: 20, padding: 14, marginBottom: 14, borderWidth: 1, borderColor: COLORS.border.card },
-  gamiHeader: { flexDirection: 'row', alignItems: 'center', gap: 12 },
-  gamiIconBox: { width: 44, height: 44, borderRadius: 14, backgroundColor: COLORS.accent.primary + '15', justifyContent: 'center', alignItems: 'center' },
-  gamiTitle: { fontSize: 16, fontWeight: '800', color: COLORS.text.primary },
-  gamiSub: { fontSize: 12, color: COLORS.text.muted, marginTop: 2 },
-  gamiBody: { marginTop: 12 },
-  // Payment expandable header
-  payHeaderRow: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 4 },
-  payIconBox: { width: 40, height: 40, borderRadius: 12, backgroundColor: '#E6510015', justifyContent: 'center', alignItems: 'center' },
-  paySub: { fontSize: 12, color: COLORS.text.muted, marginTop: 2 },
-  // Premium card
-  premiumCard: { backgroundColor: '#0F172A', borderRadius: 20, marginBottom: 14, borderWidth: 1, borderColor: '#F59E0B40', overflow: 'hidden' },
-  premiumHeader: { flexDirection: 'row', alignItems: 'center', gap: 12, padding: 16 },
-  premiumIconBox: { width: 42, height: 42, borderRadius: 14, backgroundColor: '#F59E0B', justifyContent: 'center', alignItems: 'center' },
-  premiumTitle: { fontSize: 16, fontWeight: '800', color: '#fff' },
-  premiumSub: { fontSize: 12, color: 'rgba(255,255,255,0.7)', marginTop: 2 },
-  premiumBody: { padding: 16, paddingTop: 0, borderTopWidth: 1, borderTopColor: 'rgba(255,255,255,0.1)' },
-  premiumFeatureRow: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 8 },
-  premiumCheck: { width: 20, height: 20, borderRadius: 10, backgroundColor: '#10B981', justifyContent: 'center', alignItems: 'center' },
-  premiumFeatureText: { flex: 1, fontSize: 13, color: 'rgba(255,255,255,0.9)' },
-  premiumPriceRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 14, paddingTop: 14, borderTopWidth: 1, borderTopColor: 'rgba(255,255,255,0.1)' },
-  premiumPriceStrike: { fontSize: 14, color: 'rgba(255,255,255,0.5)', textDecorationLine: 'line-through' },
-  premiumPrice: { fontSize: 22, fontWeight: '800', color: '#fff' },
-  premiumCTA: { backgroundColor: '#F59E0B', paddingHorizontal: 20, paddingVertical: 12, borderRadius: 999 },
-  premiumCTAText: { color: '#0F172A', fontSize: 14, fontWeight: '800' },
-  // Financial Snapshot (real stats from /analytics/summary)
-  snapCard: { backgroundColor: '#FFFFFF', borderRadius: 20, padding: 16, marginBottom: 14, borderWidth: 1, borderColor: COLORS.border.card },
-  snapHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 },
-  snapTitle: { fontSize: 15, fontWeight: '800', color: COLORS.text.primary },
-  snapBadge: { backgroundColor: COLORS.accent.primary + '15', paddingHorizontal: 10, paddingVertical: 4, borderRadius: 999 },
-  snapBadgeText: { fontSize: 10, fontWeight: '700', color: COLORS.accent.primary, letterSpacing: 0.3 },
-  snapGrid: { flexDirection: 'row', alignItems: 'center', paddingVertical: 8 },
-  snapItem: { flex: 1, alignItems: 'center', gap: 4 },
-  snapItemValue: { fontSize: 18, fontWeight: '800', color: COLORS.text.primary, marginTop: 2 },
-  snapItemLabel: { fontSize: 10, fontWeight: '600', color: COLORS.text.muted, letterSpacing: 0.3 },
-  snapDivider: { width: 1, height: 40, backgroundColor: COLORS.border.subtle },
-  // Trust / legal strip
-  trustBox: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, marginTop: 14, paddingVertical: 10, paddingHorizontal: 12, backgroundColor: '#10B98110', borderRadius: 12, borderWidth: 1, borderColor: '#10B98125' },
-  trustText: { fontSize: 11, fontWeight: '600', color: '#059669', flex: 0, textAlign: 'center' },
-  // Trust Signals — 3-badge premium strip
-  trustSignalsRow: { flexDirection: 'row', gap: 8, marginTop: 16 },
-  trustSig: { flex: 1, alignItems: 'center', gap: 6, paddingVertical: 14, paddingHorizontal: 6, backgroundColor: '#FFFFFF', borderRadius: 14, borderWidth: 1, borderColor: COLORS.border.card },
-  trustSigEmoji: { fontSize: 22 },
-  trustSigText: { fontSize: 10.5, fontWeight: '700', color: COLORS.text.secondary, textAlign: 'center', lineHeight: 13 },
-  // Transparency notice
-  transparencyBox: { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 10, paddingVertical: 8, paddingHorizontal: 12, backgroundColor: '#F1F5F9', borderRadius: 10 },
-  transparencyText: { flex: 1, fontSize: 10.5, color: '#475569', fontWeight: '600', lineHeight: 14 },
   // Share score card modal
   shareBg: { flex: 1, backgroundColor: 'rgba(0,0,0,0.85)' },
   shareScroll: { flexGrow: 1, justifyContent: 'center', alignItems: 'center', paddingVertical: 40, paddingHorizontal: 20 },
