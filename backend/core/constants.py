@@ -178,9 +178,10 @@ PREMIUM_FEATURES = {
 }
 
 PRICING = {
-    "monthly": {"price": 99, "label": "₹99/month"},
-    "yearly": {"price": 499, "label": "₹499/year", "savings": "58% off", "best_seller": True},
-    "intro": {"price": 29, "label": "₹29 first month", "trial": True},
+    "monthly": {"price": 99, "label": "₹99/month", "period": "per month", "order": 1},
+    "yearly": {"price": 499, "label": "₹499/year", "savings": "58% off", "best_seller": True, "period": "per year", "order": 2, "includes_money_school": True},
+    "lifetime": {"price": 2999, "label": "₹2,999 lifetime", "savings": "One payment, forever", "period": "one-time", "order": 3, "includes_money_school": True},
+    "intro": {"price": 29, "label": "₹29 first month", "trial": True, "period": "trial", "order": 0},
 }
 
 

@@ -4,6 +4,8 @@ import { router } from 'expo-router';
 import { useAuthStore } from '../store/authStore';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { COLORS, ONBOARDING_IMAGES, shadowStyle } from '../utils/theme';
+import { hasPin, biometricAvailable } from '../utils/lockManager';
+import MintULogo from '../components/MintULogo';
 
 export default function SplashIndex() {
   const { token, isLoading } = useAuthStore();
@@ -22,8 +24,11 @@ export default function SplashIndex() {
 
     const timer = setTimeout(async () => {
       if (isLoading) return;
-      if (token) { router.replace('/(tabs)'); }
-      else {
+      if (token) {
+        // Route through the unlock screen if PIN or biometric is enabled.
+        const needsUnlock = (await hasPin()) || (await biometricAvailable());
+        router.replace(needsUnlock ? '/unlock' : '/(tabs)');
+      } else {
         const seen = await AsyncStorage.getItem('onboarding_seen');
         router.replace(seen ? '/auth' : '/onboarding');
       }
@@ -35,9 +40,7 @@ export default function SplashIndex() {
     <View testID="splash-screen" style={styles.container}>
       <View style={styles.glowCircle} />
       <Animated.View style={[styles.logoContainer, { opacity: fadeAnim, transform: [{ scale: scaleAnim }] }]}>
-        <View style={styles.logoIcon}>
-          <Text style={styles.logoEmoji}>{'\u20B9'}</Text>
-        </View>
+        <MintULogo size={120} glow />
         <Text style={styles.logoText}>MintU</Text>
       </Animated.View>
       <Animated.Text style={[styles.tagline, { opacity: subtitleFade }]}>

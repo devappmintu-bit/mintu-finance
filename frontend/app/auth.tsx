@@ -12,6 +12,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { COLORS, RADIUS, SPACING, ONBOARDING_IMAGES } from '../utils/theme';
 import { LANGUAGES, LangCode } from '../utils/i18n';
+import PinSetupModal from '../components/PinSetupModal';
 
 type AuthStep = 'phone' | 'otp' | 'name';
 
@@ -24,9 +25,8 @@ export default function AuthScreen() {
   const [loading, setLoading] = useState(false);
   const [isNewUser, setIsNewUser] = useState(false);
   const [resendTimer, setResendTimer] = useState(0);
-  const [showPasswordLogin, setShowPasswordLogin] = useState(false);
-  const [password, setPassword] = useState('');
   const [showLangPicker, setShowLangPicker] = useState(false);
+  const [pinSetupVisible, setPinSetupVisible] = useState(false);
   const { setUser, setToken } = useAuthStore();
   const otpRefs = useRef<(TextInput | null)[]>([]);
 
@@ -65,7 +65,11 @@ export default function AuthScreen() {
     setLoading(true);
     try {
       const res = await api.post('/auth/verify-otp', { phone: phone.replace(/\D/g, ''), otp: code });
-      await setToken(res.data.token); setUser(res.data.user); router.replace('/(tabs)');
+      await setToken(res.data.token); setUser(res.data.user);
+      // Returning user — offer PIN setup if they've never set one.
+      const { hasPin } = await import('../utils/lockManager');
+      if (!(await hasPin())) { setPinSetupVisible(true); return; }
+      router.replace('/(tabs)');
     } catch (err: any) { Alert.alert(t('error', lang), err.response?.data?.detail || 'Invalid OTP'); setOtp(['','','','','','']); otpRefs.current[0]?.focus(); }
     finally { setLoading(false); }
   };
@@ -75,18 +79,9 @@ export default function AuthScreen() {
     setLoading(true);
     try {
       const res = await api.post('/auth/verify-otp', { phone: phone.replace(/\D/g, ''), otp: otp.join(''), name: name.trim() });
-      await setToken(res.data.token); setUser(res.data.user); router.replace('/(tabs)');
+      await setToken(res.data.token); setUser(res.data.user);
+      setPinSetupVisible(true); // fresh user → always prompt for PIN setup
     } catch (err: any) { Alert.alert(t('error', lang), err.response?.data?.detail || 'Something went wrong'); }
-    finally { setLoading(false); }
-  };
-
-  const handlePasswordLogin = async () => {
-    if (!phone || !password) { Alert.alert(t('error', lang), 'Fill all fields'); return; }
-    setLoading(true);
-    try {
-      const res = await api.post('/auth/login', { phone: phone.replace(/\D/g, ''), password });
-      await setToken(res.data.token); setUser(res.data.user); router.replace('/(tabs)');
-    } catch (err: any) { Alert.alert(t('error', lang), err.response?.data?.detail || 'Invalid credentials'); }
     finally { setLoading(false); }
   };
 
@@ -121,17 +116,6 @@ export default function AuthScreen() {
         {loading ? <ActivityIndicator color={COLORS.text.inverse} /> : <><Text style={s.primaryBtnText}>{t('send_otp', lang)}</Text><Ionicons name="arrow-forward" size={18} color={COLORS.text.inverse} /></>}
       </TouchableOpacity>
       <View style={s.mockBanner}><Ionicons name="information-circle" size={16} color={COLORS.accent.primary} /><Text style={s.mockBannerText}>{t('demo_mode', lang)}</Text></View>
-      <TouchableOpacity style={s.switchLink} onPress={() => setShowPasswordLogin(!showPasswordLogin)}>
-        <Text style={s.switchText}>{showPasswordLogin ? t('login_otp', lang) : t('login_password', lang)}</Text>
-      </TouchableOpacity>
-      {showPasswordLogin && (
-        <View style={s.passwordSection}>
-          <TextInput testID="auth-password-input" style={s.textInput} placeholder={t('password', lang)} placeholderTextColor={COLORS.text.muted} value={password} onChangeText={setPassword} secureTextEntry />
-          <TouchableOpacity testID="password-login-btn" style={s.secondaryBtn} onPress={handlePasswordLogin} disabled={loading}>
-            {loading ? <ActivityIndicator color={COLORS.text.primary} /> : <Text style={s.secondaryBtnText}>{t('login_password', lang)}</Text>}
-          </TouchableOpacity>
-        </View>
-      )}
     </>
   );
 
@@ -188,6 +172,13 @@ export default function AuthScreen() {
           {step === 'name' && renderNameStep()}
         </ScrollView>
       </KeyboardAvoidingView>
+      {/* PIN Setup Modal — shown after fresh signup or first returning OTP login */}
+      <PinSetupModal
+        visible={pinSetupVisible}
+        onDone={() => { setPinSetupVisible(false); router.replace('/(tabs)'); }}
+        onSkip={() => { setPinSetupVisible(false); router.replace('/(tabs)'); }}
+      />
+
       {/* Language Picker Modal */}
       <Modal visible={showLangPicker} animationType="slide" transparent>
         <View style={s.langModalBg}>

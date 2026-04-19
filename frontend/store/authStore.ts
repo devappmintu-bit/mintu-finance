@@ -43,6 +43,8 @@ export const useAuthStore = create<AuthState>((set) => ({
   logout: async () => {
     await AsyncStorage.removeItem('token');
     await AsyncStorage.removeItem(AVATAR_KEY);
+    // Forget the device-local PIN so the next user can set their own.
+    try { const { clearPin } = await import('../utils/lockManager'); await clearPin(); } catch {}
     set({ user: null, token: null, avatar: '' });
   },
   loadFromStorage: async () => {

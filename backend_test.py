@@ -1,290 +1,282 @@
-"""
-Round 8 Backend Regression Test — MintU
-Covers:
-  1. GET /api/leaderboard/unified?scope=contacts
-  2. GET /api/leaderboard/unified?scope=global
-  3. PUT /api/transactions/{id}
-  4. DELETE /api/transactions/{id}
-  5. POST /api/budgets + PUT + DELETE lifecycle
-  6. POST /api/split/groups + POST /api/split/expenses + PUT + DELETE lifecycle
-  7. POST /api/sms/parse-bulk AND /api/sms/bulk-parse (both paths)
-"""
+"""Round 9 backend validation — in-app mocked payment activation + news source_url + pricing shape + regression."""
 import os
 import sys
-import time
+import re
 import json
+import time
+import uuid
 import requests
-from typing import Dict, Any
+from datetime import datetime, timezone, timedelta
 
-BASE = "https://mintu-finance.preview.emergentagent.com/api"
-
+BASE_URL = "https://mintu-finance.preview.emergentagent.com/api"
 PHONE = "9876543210"
 OTP = "123456"
 
+PASS = []
+FAIL = []
 
-class R8:
-    def __init__(self) -> None:
-        self.token: str = ""
-        self.user_id: str = ""
-        self.phone: str = PHONE
-        self.results: list[tuple[str, bool, str]] = []
 
-    def h(self) -> Dict[str, str]:
-        return {"Authorization": f"Bearer {self.token}", "Content-Type": "application/json"}
+def log_pass(label, extra=""):
+    PASS.append(label)
+    print(f"✅ {label}  {extra}")
 
-    def log(self, name: str, ok: bool, detail: str = "") -> None:
-        marker = "✅" if ok else "❌"
-        print(f"{marker} {name}: {detail}")
-        self.results.append((name, ok, detail))
 
-    def must(self, cond: bool, name: str, detail: str = "") -> bool:
-        self.log(name, cond, detail)
-        return cond
+def log_fail(label, reason):
+    FAIL.append((label, reason))
+    print(f"❌ {label}  — {reason}")
 
-    def auth(self) -> bool:
+
+def auth_token() -> str:
+    r = requests.post(f"{BASE_URL}/auth/send-otp", json={"phone": PHONE}, timeout=20)
+    assert r.status_code == 200, f"send-otp failed: {r.status_code} {r.text}"
+    r = requests.post(f"{BASE_URL}/auth/verify-otp", json={"phone": PHONE, "otp": OTP}, timeout=20)
+    assert r.status_code == 200, f"verify-otp failed: {r.status_code} {r.text}"
+    return r.json()["token"]
+
+
+def assert_status(endpoint_label, headers, expected_tier):
+    r = requests.get(f"{BASE_URL}/premium/status", headers=headers, timeout=15)
+    if r.status_code != 200:
+        log_fail(f"premium/status after {endpoint_label}", f"{r.status_code} {r.text[:200]}")
+        return
+    body = r.json()
+    if body.get("is_premium") is True and body.get("tier") == expected_tier:
+        log_pass(f"premium/status reflects {endpoint_label}", f"tier={body.get('tier')} is_premium={body.get('is_premium')}")
+    else:
+        log_fail(f"premium/status after {endpoint_label}", f"got is_premium={body.get('is_premium')}, tier={body.get('tier')} (expected tier={expected_tier})")
+
+
+def test_mock_activate(headers):
+    print("\n════════════════════ [1] POST /premium/mock-activate ════════════════════")
+
+    # a) yearly
+    r = requests.post(f"{BASE_URL}/premium/mock-activate", json={"plan": "yearly"}, headers=headers, timeout=15)
+    if r.status_code == 200:
+        body = r.json()
+        now = datetime.utcnow()
         try:
-            r = requests.post(f"{BASE}/auth/send-otp", json={"phone": self.phone}, timeout=20)
-            if r.status_code != 200:
-                self.log("AUTH send-otp", False, f"HTTP {r.status_code}: {r.text[:120]}")
-            r = requests.post(
-                f"{BASE}/auth/verify-otp",
-                json={"phone": self.phone, "otp": OTP},
-                timeout=20,
-            )
-            if r.status_code != 200:
-                r = requests.post(
-                    f"{BASE}/auth/login",
-                    json={"phone": self.phone, "password": "test123"},
-                    timeout=20,
-                )
-            if r.status_code != 200:
-                self.log("AUTH verify-otp/login", False, f"HTTP {r.status_code}: {r.text[:120]}")
-                return False
-            data = r.json()
-            self.token = data.get("access_token") or data.get("token") or ""
-            self.user_id = (data.get("user") or {}).get("id") or data.get("user_id") or ""
-            if not self.user_id and self.token:
-                me = requests.get(f"{BASE}/user/me", headers=self.h(), timeout=20)
-                if me.status_code == 200:
-                    self.user_id = me.json().get("id") or me.json().get("user_id") or ""
-            ok = bool(self.token and self.user_id)
-            self.log("AUTH", ok, f"token_len={len(self.token)} user_id={self.user_id}")
-            return ok
-        except Exception as e:
-            self.log("AUTH", False, str(e))
-            return False
-
-    def test_unified_contacts(self) -> None:
-        r = requests.get(f"{BASE}/leaderboard/unified?scope=contacts", headers=self.h(), timeout=30)
-        if not self.must(r.status_code == 200, "GET /leaderboard/unified?scope=contacts 200",
-                          f"HTTP {r.status_code}: {r.text[:200]}"):
-            return
-        d = r.json()
-        for k in ("scope", "total", "you", "leader", "headline", "contenders"):
-            self.must(k in d, f"contacts.has_key[{k}]", f"keys={list(d.keys())}")
-        self.must(d.get("scope") == "contacts", "contacts.scope==contacts", f"got={d.get('scope')}")
-        self.must(isinstance(d.get("contenders"), list), "contacts.contenders is list",
-                  f"type={type(d.get('contenders')).__name__}")
-        cs = d.get("contenders") or []
-        if cs:
-            first = cs[0]
-            required = {"rank", "id", "name", "score", "streak", "coins", "settlements", "is_me", "phone_masked"}
-            self.must(required.issubset(first.keys()),
-                      "contacts.contender_shape",
-                      f"missing={required - first.keys()}")
-        you = d.get("you")
-        if you:
-            self.must("percentile" in you, "contacts.you.percentile",
-                      f"you_keys={list(you.keys())}")
-        self.log("contacts.total", True,
-                 f"total={d.get('total')} contenders_len={len(cs)} headline={d.get('headline')!r}")
-
-    def test_unified_global(self) -> None:
-        r = requests.get(f"{BASE}/leaderboard/unified?scope=global", headers=self.h(), timeout=30)
-        if not self.must(r.status_code == 200, "GET /leaderboard/unified?scope=global 200",
-                          f"HTTP {r.status_code}: {r.text[:200]}"):
-            return
-        d = r.json()
-        for k in ("scope", "total", "you", "leader", "headline", "contenders"):
-            self.must(k in d, f"global.has_key[{k}]", f"keys={list(d.keys())}")
-        self.must(d.get("scope") == "global", "global.scope==global", f"got={d.get('scope')}")
-        cs = d.get("contenders") or []
-        self.must(len(cs) <= 50, "global.contenders<=50", f"len={len(cs)}")
-        if cs:
-            first = cs[0]
-            required = {"rank", "id", "name", "score", "streak", "coins", "settlements", "is_me", "phone_masked"}
-            self.must(required.issubset(first.keys()),
-                      "global.contender_shape",
-                      f"missing={required - first.keys()}")
-        you = d.get("you")
-        if you:
-            self.must("percentile" in you, "global.you.percentile",
-                      f"you_keys={list(you.keys())}")
-        self.log("global.total", True,
-                 f"total={d.get('total')} contenders_len={len(cs)} headline={d.get('headline')!r}")
-
-    def test_transaction_crud(self) -> None:
-        payload = {
-            "amount": 450.0,
-            "category": "Food",
-            "description": "Swiggy dinner",
-            "type": "debit",
-        }
-        r = requests.post(f"{BASE}/transactions", json=payload, headers=self.h(), timeout=20)
-        if not self.must(r.status_code == 200, "POST /transactions 200",
-                          f"HTTP {r.status_code}: {r.text[:200]}"):
-            return
-        txn_id = r.json().get("id")
-        self.must(bool(txn_id), "txn.id present", f"id={txn_id}")
-
-        r = requests.put(
-            f"{BASE}/transactions/{txn_id}",
-            json={"amount": 500.0, "description": "Swiggy dinner (edited)", "category": "Food & Dining"},
-            headers=self.h(),
-            timeout=20,
+            pu = datetime.fromisoformat(body["premium_until"].replace("Z", ""))
+        except Exception:
+            pu = None
+        ok = (
+            body.get("success") is True
+            and body.get("is_premium") is True
+            and body.get("tier") == "premium"
+            and body.get("plan") == "yearly"
+            and body.get("money_school_access") is True
+            and pu is not None
+            and 360 <= (pu - now).days <= 370
         )
-        if self.must(r.status_code == 200, "PUT /transactions/{id} 200",
-                     f"HTTP {r.status_code}: {r.text[:200]}"):
-            row = r.json()
-            self.must(row.get("amount") == 500.0, "txn.amount updated",
-                      f"got={row.get('amount')}")
-            self.must(row.get("category") == "Food & Dining", "txn.category updated",
-                      f"got={row.get('category')}")
+        if ok:
+            log_pass("1a yearly plan activation", f"tier=premium, plan=yearly, ms_access=true, premium_until={body['premium_until']}")
+        else:
+            log_fail("1a yearly plan activation", f"body={json.dumps(body)[:400]} days_delta={(pu - now).days if pu else 'N/A'}")
+        assert_status("yearly", headers, "premium")
+    else:
+        log_fail("1a yearly plan activation", f"{r.status_code} {r.text[:300]}")
 
-        r = requests.delete(f"{BASE}/transactions/{txn_id}", headers=self.h(), timeout=20)
-        self.must(r.status_code == 200, "DELETE /transactions/{id} 200",
-                  f"HTTP {r.status_code}: {r.text[:200]}")
+    # b) monthly
+    r = requests.post(f"{BASE_URL}/premium/mock-activate", json={"plan": "monthly"}, headers=headers, timeout=15)
+    if r.status_code == 200:
+        body = r.json()
+        if body.get("success") and body.get("is_premium") and body.get("tier") == "premium" and body.get("plan") == "monthly" and body.get("money_school_access") is False:
+            log_pass("1b monthly plan activation", f"money_school_access=false (correct — monthly excludes it)")
+        else:
+            log_fail("1b monthly plan activation", f"body={json.dumps(body)[:400]}")
+        assert_status("monthly", headers, "premium")
+    else:
+        log_fail("1b monthly plan activation", f"{r.status_code} {r.text[:300]}")
 
-        r2 = requests.delete(f"{BASE}/transactions/{txn_id}", headers=self.h(), timeout=20)
-        self.must(r2.status_code == 404, "DELETE /transactions/{id} again -> 404",
-                  f"HTTP {r2.status_code}")
-
-    def test_budget_crud(self) -> None:
-        r = requests.post(
-            f"{BASE}/budgets",
-            json={"category": "Entertainment_R8", "amount": 2000.0, "period": "monthly"},
-            headers=self.h(),
-            timeout=20,
+    # c) lifetime
+    r = requests.post(f"{BASE_URL}/premium/mock-activate", json={"plan": "lifetime"}, headers=headers, timeout=15)
+    if r.status_code == 200:
+        body = r.json()
+        now = datetime.utcnow()
+        try:
+            pu = datetime.fromisoformat(body["premium_until"].replace("Z", ""))
+        except Exception:
+            pu = None
+        ok = (
+            body.get("success") is True
+            and body.get("tier") == "legend"
+            and body.get("plan") == "lifetime"
+            and body.get("money_school_access") is True
+            and pu is not None
+            and (pu - now).days > 365 * 10  # far future
         )
-        if not self.must(r.status_code == 200, "POST /budgets 200",
-                          f"HTTP {r.status_code}: {r.text[:200]}"):
-            return
-        bid = r.json().get("id")
-        self.must(bool(bid), "budget.id present", f"id={bid}")
+        if ok:
+            log_pass("1c lifetime plan activation", f"tier=legend, ms_access=true, premium_until~{(pu - now).days} days out")
+        else:
+            log_fail("1c lifetime plan activation", f"body={json.dumps(body)[:400]}")
+        assert_status("lifetime", headers, "legend")
+    else:
+        log_fail("1c lifetime plan activation", f"{r.status_code} {r.text[:300]}")
 
-        r = requests.put(
-            f"{BASE}/budgets/{bid}",
-            json={"amount": 2500.0, "period": "weekly"},
-            headers=self.h(),
-            timeout=20,
+    # d) invalid plan
+    r = requests.post(f"{BASE_URL}/premium/mock-activate", json={"plan": "nonsense"}, headers=headers, timeout=15)
+    if r.status_code == 400:
+        log_pass("1d invalid plan rejected with 400", f"detail={r.json().get('detail')}")
+    else:
+        log_fail("1d invalid plan rejected with 400", f"got {r.status_code} {r.text[:300]}")
+
+
+def test_news(headers):
+    print("\n════════════════════ [2] GET /news/india-finance ════════════════════")
+    r = requests.get(f"{BASE_URL}/news/india-finance", headers=headers, timeout=30)
+    if r.status_code != 200:
+        log_fail("2 news endpoint 200", f"{r.status_code} {r.text[:300]}")
+        return
+    body = r.json()
+    articles = body.get("articles", [])
+    if not articles:
+        log_fail("2 news returns articles", "empty articles array")
+        return
+    log_pass("2 news endpoint 200", f"articles={len(articles)} is_fallback={body.get('is_fallback')}")
+
+    missing_url = 0
+    invalid_url = 0
+    missing_existing = 0
+    for a in articles:
+        if not a.get("source_url"):
+            missing_url += 1
+        elif not isinstance(a["source_url"], str) or not a["source_url"].startswith("https://"):
+            invalid_url += 1
+        for f in ("title", "summary", "category", "emoji", "source"):
+            if f not in a or not a.get(f):
+                missing_existing += 1
+                break
+
+    if missing_url == 0 and invalid_url == 0:
+        sample = articles[0]
+        log_pass(
+            "2 each article has valid source_url (https://)",
+            f"e.g. title='{sample.get('title','')[:45]}...' source_url='{sample.get('source_url','')[:80]}...'"
         )
-        if self.must(r.status_code == 200, "PUT /budgets/{id} 200",
-                     f"HTTP {r.status_code}: {r.text[:200]}"):
-            row = r.json()
-            self.must(row.get("amount") == 2500.0, "budget.amount updated",
-                      f"got={row.get('amount')}")
-            self.must(row.get("period") == "weekly", "budget.period updated",
-                      f"got={row.get('period')}")
+    else:
+        log_fail("2 source_url on every article", f"missing={missing_url} invalid_https={invalid_url}")
 
-        r = requests.delete(f"{BASE}/budgets/{bid}", headers=self.h(), timeout=20)
-        self.must(r.status_code == 200, "DELETE /budgets/{id} 200",
-                  f"HTTP {r.status_code}: {r.text[:200]}")
+    if missing_existing == 0:
+        log_pass("2 existing fields preserved", "title/summary/category/emoji/source all present")
+    else:
+        log_fail("2 existing fields preserved", f"{missing_existing} article(s) missing required fields")
 
-        r2 = requests.delete(f"{BASE}/budgets/{bid}", headers=self.h(), timeout=20)
-        self.must(r2.status_code == 404, "DELETE /budgets/{id} again -> 404",
-                  f"HTTP {r2.status_code}")
 
-    def test_split_expense_crud(self) -> None:
-        payload = {
-            "name": "R8 Test Dinner",
-            "members": ["9998887776"],
-        }
-        r = requests.post(f"{BASE}/split/groups", json=payload, headers=self.h(), timeout=20)
-        if r.status_code != 200:
-            self.log("POST /split/groups 200", False, f"HTTP {r.status_code}: {r.text[:200]}")
-            return
-        gid = r.json().get("id")
-        self.must(bool(gid), "group.id present", f"id={gid}")
+def test_pricing_shape(headers):
+    print("\n════════════════════ [3] GET /premium/status pricing shape ════════════════════")
+    r = requests.get(f"{BASE_URL}/premium/status", headers=headers, timeout=15)
+    if r.status_code != 200:
+        log_fail("3 premium/status 200", f"{r.status_code} {r.text[:300]}")
+        return
+    body = r.json()
+    pricing = body.get("pricing")
+    if not isinstance(pricing, dict):
+        log_fail("3 pricing dict present", f"got {type(pricing).__name__}")
+        return
 
-        exp_payload = {
-            "group_id": gid,
-            "description": "Pizza night",
-            "amount": 800.0,
-            "paid_by": self.user_id,
-            "split_type": "equal",
-        }
-        r = requests.post(f"{BASE}/split/expenses", json=exp_payload, headers=self.h(), timeout=20)
-        if not self.must(r.status_code == 200, "POST /split/expenses 200",
-                          f"HTTP {r.status_code}: {r.text[:200]}"):
-            requests.delete(f"{BASE}/split/groups/{gid}", headers=self.h(), timeout=20)
-            return
-        eid = r.json().get("id")
-        self.must(bool(eid), "expense.id present", f"id={eid}")
+    errs = []
+    for plan in ("monthly", "yearly", "lifetime", "intro"):
+        p = pricing.get(plan)
+        if not p:
+            errs.append(f"missing plan={plan}")
+            continue
+        for k in ("price", "label", "period"):
+            if k not in p:
+                errs.append(f"{plan} missing '{k}'")
 
-        r = requests.put(
-            f"{BASE}/split/expenses/{eid}",
-            json={"amount": 1000.0, "description": "Pizza night (edited)"},
-            headers=self.h(),
-            timeout=20,
+    if "includes_money_school" not in (pricing.get("yearly") or {}) or pricing["yearly"].get("includes_money_school") is not True:
+        errs.append("yearly missing includes_money_school:true")
+    if not pricing.get("yearly", {}).get("best_seller"):
+        errs.append("yearly missing best_seller:true")
+    if not pricing.get("lifetime", {}).get("includes_money_school"):
+        errs.append("lifetime missing includes_money_school:true")
+
+    if not errs:
+        log_pass(
+            "3 pricing shape valid",
+            f"monthly=₹{pricing['monthly']['price']}, yearly=₹{pricing['yearly']['price']} (best_seller+MS), "
+            f"lifetime=₹{pricing['lifetime']['price']} (MS), intro=₹{pricing['intro']['price']}"
         )
-        if self.must(r.status_code == 200, "PUT /split/expenses/{id} 200",
-                     f"HTTP {r.status_code}: {r.text[:200]}"):
-            row = r.json()
-            self.log("split.expense PUT response", True, f"keys={list(row.keys()) if isinstance(row, dict) else type(row).__name__}")
+    else:
+        log_fail("3 pricing shape valid", "; ".join(errs))
 
-        r = requests.delete(f"{BASE}/split/expenses/{eid}", headers=self.h(), timeout=20)
-        self.must(r.status_code == 200, "DELETE /split/expenses/{id} 200 (no collision with leave)",
-                  f"HTTP {r.status_code}: {r.text[:200]}")
 
-        r = requests.delete(f"{BASE}/split/groups/{gid}", headers=self.h(), timeout=20)
-        self.must(r.status_code == 200, "DELETE /split/groups/{id} (cleanup) 200",
-                  f"HTTP {r.status_code}: {r.text[:200]}")
+def test_regressions(headers):
+    print("\n════════════════════ [4] Regression checks ════════════════════")
 
-    def test_sms_aliases(self) -> None:
-        sms = "HDFC: Rs 500 debited from A/c XX1234 at AMAZON on 19-04-26"
-        for path in ("/sms/bulk-parse", "/sms/parse-bulk"):
-            r = requests.post(
-                f"{BASE}{path}",
-                json={"messages": [sms]},
-                headers=self.h(),
-                timeout=90,
-            )
-            ok = r.status_code == 200
-            detail = f"HTTP {r.status_code}"
-            if ok:
-                d = r.json()
-                for k in ("parsed", "failed", "total"):
-                    if k not in d:
-                        ok = False
-                        detail += f" missing_key={k}"
-                detail += f" body={json.dumps(d)[:200]}"
-            else:
-                detail += f": {r.text[:200]}"
-            self.log(f"POST {path}", ok, detail)
-            time.sleep(0.3)
+    # GET /leaderboard/unified?scope=contacts
+    r = requests.get(f"{BASE_URL}/leaderboard/unified", params={"scope": "contacts"}, headers=headers, timeout=20)
+    if r.status_code == 200:
+        log_pass("4a leaderboard/unified?scope=contacts 200", f"keys={list(r.json().keys())[:6]}")
+    else:
+        log_fail("4a leaderboard/unified?scope=contacts 200", f"{r.status_code} {r.text[:300]}")
 
-    def run(self) -> int:
-        print(f"\n=== MintU Round 8 Backend Regression ===\nBASE={BASE}\n")
-        if not self.auth():
-            print("AUTH failed — aborting")
-            return 1
-        self.test_unified_contacts(); time.sleep(0.2)
-        self.test_unified_global(); time.sleep(0.2)
-        self.test_transaction_crud(); time.sleep(0.2)
-        self.test_budget_crud(); time.sleep(0.2)
-        self.test_split_expense_crud(); time.sleep(0.2)
-        self.test_sms_aliases()
+    # POST /sms/bulk-parse
+    r = requests.post(
+        f"{BASE_URL}/sms/bulk-parse",
+        headers=headers,
+        json={"messages": [
+            "HDFC Bank: Rs 500 debited from A/c xxxx1234 at SWIGGY on 20-Apr-26",
+            "SBI: Your A/c credited Rs 25000 as SALARY from ACME CORP",
+        ]},
+        timeout=60,
+    )
+    if r.status_code == 200:
+        b = r.json()
+        if "parsed" in b and "total" in b:
+            log_pass("4b sms/bulk-parse 200", f"parsed={b.get('parsed')}/{b.get('total')} failed={b.get('failed')}")
+        else:
+            log_fail("4b sms/bulk-parse shape", json.dumps(b)[:300])
+    else:
+        log_fail("4b sms/bulk-parse 200", f"{r.status_code} {r.text[:300]}")
 
-        total = len(self.results)
-        passed = sum(1 for _, ok, _ in self.results if ok)
-        print(f"\n=== RESULT: {passed}/{total} passed ===")
-        failed = [(n, d) for n, ok, d in self.results if not ok]
-        if failed:
-            print("\nFAILED:")
-            for n, d in failed:
-                print(f"  - {n}: {d}")
-        return 0 if not failed else 2
+    # PUT /budgets/{id} + DELETE /transactions/{id}
+    bud = requests.post(f"{BASE_URL}/budgets", headers=headers, json={"category": "Food", "amount": 5000, "period": "monthly"}, timeout=15)
+    if bud.status_code == 200 and bud.json().get("id"):
+        bid = bud.json()["id"]
+        upd = requests.put(f"{BASE_URL}/budgets/{bid}", headers=headers, json={"category": "Food", "amount": 6500, "period": "monthly"}, timeout=15)
+        if upd.status_code == 200:
+            log_pass("4c PUT /budgets/{id} 200", f"updated amount 5000→6500 for id={bid[:10]}...")
+        else:
+            log_fail("4c PUT /budgets/{id} 200", f"{upd.status_code} {upd.text[:200]}")
+    else:
+        log_fail("4c PUT /budgets/{id} — precursor POST failed", f"{bud.status_code} {bud.text[:200]}")
+
+    tx = requests.post(
+        f"{BASE_URL}/transactions",
+        headers=headers,
+        json={"amount": 99.0, "category": "Food", "description": "regression test", "type": "debit"},
+        timeout=15,
+    )
+    if tx.status_code == 200 and tx.json().get("id"):
+        tid = tx.json()["id"]
+        dele = requests.delete(f"{BASE_URL}/transactions/{tid}", headers=headers, timeout=15)
+        if dele.status_code == 200:
+            log_pass("4d DELETE /transactions/{id} 200", f"removed id={tid[:10]}...")
+        else:
+            log_fail("4d DELETE /transactions/{id} 200", f"{dele.status_code} {dele.text[:200]}")
+    else:
+        log_fail("4d DELETE /transactions — precursor POST failed", f"{tx.status_code} {tx.text[:200]}")
+
+
+def main():
+    print(f"\nMintU Round 9 Backend Tests → {BASE_URL}")
+    print(f"Auth: phone={PHONE}, otp={OTP}\n")
+    tok = auth_token()
+    headers = {"Authorization": f"Bearer {tok}"}
+    log_pass("auth bootstrap", f"token length={len(tok)}")
+
+    test_mock_activate(headers)
+    test_news(headers)
+    test_pricing_shape(headers)
+    test_regressions(headers)
+
+    print("\n════════════════════ SUMMARY ════════════════════")
+    print(f"PASS: {len(PASS)}")
+    print(f"FAIL: {len(FAIL)}")
+    for label, reason in FAIL:
+        print(f"  ❌ {label}  — {reason}")
+    sys.exit(0 if not FAIL else 1)
 
 
 if __name__ == "__main__":
-    sys.exit(R8().run())
+    main()

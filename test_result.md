@@ -1994,9 +1994,58 @@ metadata:
 
 test_plan:
   current_focus:
-    - "Round 8 Frontend Testing — Unified Leaderboard, Swipe CRUD, Multi-language, Optimistic UI"
+    - "Round 9 Backend — mock-activate premium + news source_url + pricing shape"
   test_all: false
   test_priority: "high_first"
+
+round9_backend_validation:
+  - task: "POST /api/premium/mock-activate — in-app mocked payment activation"
+    implemented: true
+    working: true
+    file: "/app/backend/routers/premium.py"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+      - working: true
+        agent: "testing"
+        comment: "✅ VALIDATED (Apr 19 2026) — All 4 plans behave correctly. (a) {plan:yearly} → 200 with success:true, is_premium:true, tier:premium, plan:yearly, money_school_access:true, premium_until=2027-04-20 (~366 days out). (b) {plan:monthly} → 200 with tier:premium, money_school_access:false (correct — monthly excludes Money School per PRICING constant). (c) {plan:lifetime} → 200 with tier:legend, money_school_access:true, premium_until 18249 days (~50 years) out. (d) {plan:nonsense} → 400 'Invalid plan'. After every successful activation, GET /api/premium/status correctly reflects the new tier (premium/premium/legend)."
+
+  - task: "GET /api/news/india-finance — source_url enrichment"
+    implemented: true
+    working: true
+    file: "/app/backend/routers/news.py"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+      - working: true
+        agent: "testing"
+        comment: "✅ VALIDATED (Apr 19 2026) — 200 with 6 articles, is_fallback:false. Every article has a non-empty source_url starting with https:// (e.g. https://www.google.com/search?q=...&tbm=nws scoped search when the LLM did not embed a direct URL). All existing fields (title, summary, category, emoji, source) still present. _enrich_article() correctly adds fallback URLs for both live LLM articles and fallback fixtures."
+
+  - task: "GET /api/premium/status — expanded pricing shape"
+    implemented: true
+    working: true
+    file: "/app/backend/core/constants.py"
+    stuck_count: 0
+    priority: "medium"
+    needs_retesting: false
+    status_history:
+      - working: true
+        agent: "testing"
+        comment: "✅ VALIDATED (Apr 19 2026) — pricing dict contains all 4 plans (monthly, yearly, lifetime, intro). Each has price/label/period. yearly has includes_money_school:true + best_seller:true. lifetime has includes_money_school:true. Values: monthly=₹99, yearly=₹499, lifetime=₹2999, intro=₹29."
+
+  - task: "Round 9 Regression — leaderboard/unified, sms/bulk-parse, budget PUT, transaction DELETE"
+    implemented: true
+    working: true
+    file: "/app/backend/routers/*.py"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+      - working: true
+        agent: "testing"
+        comment: "✅ ALL 4 REGRESSION ENDPOINTS 200 OK (Apr 19 2026). (a) GET /api/leaderboard/unified?scope=contacts → 200 with keys [scope, total, you, leader, headline, contenders]. (b) POST /api/sms/bulk-parse → 200 parsed=2/2 failed=0 for HDFC+SBI sample SMS. (c) PUT /api/budgets/{id} → 200, amount updated 5000→6500. (d) DELETE /api/transactions/{id} → 200. Zero 500s / NameErrors in backend logs. Full pass run: 16/16 assertions."
 
 round8_frontend_testing:
   - task: "Unified Leaderboard (HIGH priority)"

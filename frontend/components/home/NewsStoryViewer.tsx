@@ -3,8 +3,9 @@
 import React, { useEffect, useRef, useState } from 'react';
 import {
   View, Text, StyleSheet, Modal, TouchableOpacity, TouchableWithoutFeedback,
-  Animated, Dimensions, ScrollView, Platform,
+  Animated, Dimensions, ScrollView, Platform, Linking,
 } from 'react-native';
+import * as WebBrowser from 'expo-web-browser';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { COLORS } from '../../utils/theme';
@@ -112,11 +113,41 @@ export default function NewsStoryViewer({ visible, articles, startIndex, onClose
                 showsVerticalScrollIndicator={false}
               >
                 <Text style={s.summary}>{cur.summary || ''}</Text>
+
+                {/* Read full article CTA — opens the source URL in in-app browser */}
+                {!!cur.source_url && (
+                  <TouchableOpacity
+                    style={s.readMoreBtn}
+                    activeOpacity={0.8}
+                    onPress={async () => {
+                      try {
+                        if (Platform.OS === 'web') await Linking.openURL(cur.source_url);
+                        else await WebBrowser.openBrowserAsync(cur.source_url, { dismissButtonStyle: 'close' });
+                      } catch { try { await Linking.openURL(cur.source_url); } catch {} }
+                    }}
+                  >
+                    <Ionicons name="open-outline" size={14} color="#fff" />
+                    <Text style={s.readMoreTxt}>Read on {cur.source || 'source'}</Text>
+                    <Ionicons name="arrow-forward" size={14} color="#fff" />
+                  </TouchableOpacity>
+                )}
               </ScrollView>
 
               <View style={s.footer}>
                 <Ionicons name="newspaper" size={12} color="rgba(255,255,255,0.75)" />
-                <Text style={s.source}>{cur.source || 'MintU'}</Text>
+                <TouchableOpacity
+                  onPress={async () => {
+                    if (!cur.source_url) return;
+                    try {
+                      if (Platform.OS === 'web') await Linking.openURL(cur.source_url);
+                      else await WebBrowser.openBrowserAsync(cur.source_url);
+                    } catch {}
+                  }}
+                  style={{ flex: 1 }}
+                  activeOpacity={cur.source_url ? 0.6 : 1}
+                >
+                  <Text style={s.source}>{cur.source || 'MintU'}{cur.source_url ? ' · tap to open' : ''}</Text>
+                </TouchableOpacity>
                 <Text style={s.pagination}>{idx + 1} / {articles.length}</Text>
               </View>
             </LinearGradient>
@@ -157,6 +188,16 @@ const s = StyleSheet.create({
   summary: { fontSize: 17, color: 'rgba(255,255,255,0.92)', lineHeight: 26 },
   footer: { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 20, paddingTop: 14, borderTopWidth: 1, borderTopColor: 'rgba(255,255,255,0.15)' },
   source: { fontSize: 11, fontWeight: '800', color: 'rgba(255,255,255,0.75)', letterSpacing: 1, flex: 1 },
+  readMoreBtn: {
+    flexDirection: 'row', alignItems: 'center', gap: 8,
+    backgroundColor: 'rgba(255,255,255,0.18)',
+    borderWidth: 1, borderColor: 'rgba(255,255,255,0.3)',
+    paddingHorizontal: 16, paddingVertical: 10,
+    borderRadius: 24,
+    alignSelf: 'flex-start',
+    marginTop: 20,
+  },
+  readMoreTxt: { color: '#fff', fontSize: 13, fontWeight: '700', flex: 1 },
   pagination: { fontSize: 11, fontWeight: '700', color: 'rgba(255,255,255,0.55)' },
   tapZone: { position: 'absolute', top: 100, bottom: 60 },
   hint: { position: 'absolute', bottom: 24, alignSelf: 'center', color: 'rgba(255,255,255,0.45)', fontSize: 11, fontWeight: '600' },

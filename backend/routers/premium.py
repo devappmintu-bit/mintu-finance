@@ -39,7 +39,54 @@ api_router = router  # extracted code uses @api_router.*
 
 
 class CreateOrderRequest(BaseModel):
-    plan: str  # "monthly", "yearly", "intro"
+    plan: str  # "monthly", "yearly", "lifetime", "intro"
+
+
+class MockActivateRequest(BaseModel):
+    """Used by the in-app mocked payment flow (no real Razorpay call)."""
+    plan: str
+
+
+@api_router.post("/premium/mock-activate")
+async def mock_activate_premium(req: MockActivateRequest, user_id: str = Depends(get_current_user)):
+    """Activates premium for the user based on the selected plan. Used by
+    the in-app MockPaymentSheet — replace with a Razorpay signature-verified
+    callback once live keys are provided."""
+    from bson import ObjectId
+    if req.plan not in PRICING:
+        raise HTTPException(status_code=400, detail="Invalid plan")
+    now = datetime.utcnow()
+    meta = PRICING[req.plan]
+    if req.plan == "monthly":
+        until = now + timedelta(days=31)
+    elif req.plan == "yearly":
+        until = now + timedelta(days=366)
+    elif req.plan == "lifetime":
+        until = now + timedelta(days=365 * 50)  # effectively forever
+    elif req.plan == "intro":
+        until = now + timedelta(days=31)
+    else:
+        until = now + timedelta(days=31)
+    tier = "legend" if req.plan == "lifetime" else "premium"
+    await db.users.update_one(
+        {"_id": ObjectId(user_id)},
+        {"$set": {
+            "premium_tier": tier,
+            "premium_plan": req.plan,
+            "premium_until": until,
+            "premium_activated_at": now,
+            "money_school_access": bool(meta.get("includes_money_school", False)),
+        }},
+    )
+    return {
+        "success": True,
+        "is_premium": True,
+        "tier": tier,
+        "plan": req.plan,
+        "premium_until": until.isoformat(),
+        "features": PREMIUM_FEATURES,
+        "money_school_access": bool(meta.get("includes_money_school", False)),
+    }
 
 
 

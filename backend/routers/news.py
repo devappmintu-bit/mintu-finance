@@ -36,6 +36,45 @@ _FALLBACK = [
 ]
 
 
+# Known Indian financial outlets — used to build a source-scoped Google search
+# when the LLM-generated article doesn't already include a direct URL.
+_TRUSTED_DOMAINS: dict[str, str] = {
+    "rbi": "rbi.org.in",
+    "nse": "nseindia.com",
+    "bse": "bseindia.com",
+    "sebi": "sebi.gov.in",
+    "npci": "npci.org.in",
+    "amfi": "amfiindia.com",
+    "pib": "pib.gov.in",
+    "cyber cell": "cybercrime.gov.in",
+    "mint": "livemint.com",
+    "livemint": "livemint.com",
+    "economic times": "economictimes.indiatimes.com",
+    "et": "economictimes.indiatimes.com",
+    "business standard": "business-standard.com",
+    "moneycontrol": "moneycontrol.com",
+    "bloomberg": "bloombergquint.com",
+    "hindu business line": "thehindubusinessline.com",
+    "financial express": "financialexpress.com",
+}
+
+
+def _enrich_article(a: dict) -> dict:
+    """Add a `source_url` if missing — points to the most authentic article
+    we can infer from the title + source via a scoped Google news search."""
+    if not isinstance(a, dict):
+        return a
+    if a.get("source_url"):
+        return a
+    import urllib.parse as up
+    src = (a.get("source") or "").strip()
+    title = (a.get("title") or "").strip()
+    domain = _TRUSTED_DOMAINS.get(src.lower())
+    q = title + (f" site:{domain}" if domain else f" {src}") if title else src
+    url = f"https://www.google.com/search?q={up.quote_plus(q)}&tbm=nws"
+    return {**a, "source_url": url}
+
+
 async def _refresh_news_in_background(today: str) -> None:
     """Generate fresh news via LLM and cache it. Safe to fire-and-forget.
 
@@ -54,7 +93,8 @@ async def _refresh_news_in_background(today: str) -> None:
             "5. Investment opportunity (SIP, mutual funds, FD rates)\n"
             "6. Consumer alert (scam warning, price change, deadline reminder)\n\n"
             "For EACH item return JSON: "
-            '{"title": "...", "summary": "2 sentences max", "category": "scheme|market|tip|banking|investment|alert", "emoji": "relevant emoji", "source": "credible source name"}\n'
+            '{"title": "...", "summary": "2 sentences max", "category": "scheme|market|tip|banking|investment|alert", "emoji": "relevant emoji", "source": "credible source name", "source_url": "https://real-published-article-url-on-the-source-domain-or-empty-string"}\n'
+            "If you are not sure about the exact article URL, return \"source_url\": \"\" and we will build a scoped search URL. Never invent fake URLs.\n"
             "Return ONLY a JSON array of 6 items. No markdown."
         )
         chat = LlmChat(
@@ -109,7 +149,8 @@ async def india_finance_news(
         except RuntimeError:
             pass  # no event loop yet
 
-    articles = (cached or {}).get("articles") or _FALLBACK
+    raw_articles = (cached or {}).get("articles") or _FALLBACK
+    articles = [_enrich_article(a) for a in raw_articles]
     return {
         "date": today,
         "articles": articles,
