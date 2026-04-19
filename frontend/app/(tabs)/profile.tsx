@@ -25,6 +25,7 @@ import PaymentMethods from '../../components/profile/PaymentMethods';
 import PremiumExpandable from '../../components/profile/PremiumExpandable';
 import ReferralDashboard from '../../components/profile/ReferralDashboard';
 import ViewShot, { captureRef } from 'react-native-view-shot';
+import { sendTestPush } from '../../hooks/usePushNotifications';
 
 export default function ProfileScreen() {
   const { user, logout, avatar, setAvatar } = useAuthStore();
@@ -258,9 +259,18 @@ export default function ProfileScreen() {
           </View>
           <Ionicons name="chevron-forward" size={16} color={COLORS.text.muted} />
         </TouchableOpacity>
-        <TouchableOpacity style={s.menuItem}>
+        <TouchableOpacity
+          style={s.menuItem}
+          onPress={async () => {
+            const { sent, message } = await sendTestPush();
+            Toast.show({ type: sent ? 'success' : 'info', text1: sent ? 'Test push sent!' : 'Push test', text2: message });
+          }}
+        >
           <Ionicons name="notifications-outline" size={20} color={COLORS.accent.primary} />
-          <Text style={[s.menuText, { marginLeft: 12 }]}>{t('notifications', lang)}</Text>
+          <View style={{ flex: 1, marginLeft: 12 }}>
+            <Text style={s.menuText}>{t('notifications', lang)}</Text>
+            <Text style={{ fontSize: 11, color: COLORS.text.muted }}>Tap to send a test notification</Text>
+          </View>
           <Ionicons name="chevron-forward" size={16} color={COLORS.text.muted} />
         </TouchableOpacity>
         <TouchableOpacity style={s.menuItem} onPress={() => setHelpVisible(true)}>

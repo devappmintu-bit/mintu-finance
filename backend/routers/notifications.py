@@ -43,6 +43,38 @@ async def register_push_token(data: PushTokenRegister, user_id: str = Depends(ge
     return {"message": "Push token registered"}
 
 
+@api_router.post("/notifications/send-test")
+async def send_test_push(user_id: str = Depends(get_current_user)):
+    """Send a test push notification to the authenticated user's device.
+
+    Useful for verifying push setup end-to-end from the Settings screen.
+    Returns {sent, message} so the UI can show a success/error toast.
+    """
+    from bson import ObjectId
+    user = await db.users.find_one({"_id": ObjectId(user_id)})
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+
+    token = user.get("push_token")
+    if not token:
+        return {
+            "sent": False,
+            "message": "No push token registered. Open the app on a physical device to register.",
+        }
+
+    sent = await send_expo_push(
+        token,
+        "👋 Hey from MintU!",
+        "Your push notifications are working. Expect nudges when you're close to budget limits.",
+        {"type": "test", "deeplink": "/(tabs)/profile"},
+    )
+    return {
+        "sent": bool(sent),
+        "message": "Test push sent — check your notification tray." if sent
+        else "Could not deliver to Expo. Token may be stale — try reopening the app.",
+    }
+
+
 @api_router.get("/notifications/check-budget-alerts")
 async def check_budget_alerts(user_id: str = Depends(get_current_user)):
     """Check budgets and return any that need alerts"""

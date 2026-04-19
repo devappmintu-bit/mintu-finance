@@ -5,17 +5,14 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
-import * as Notifications from 'expo-notifications';
-import * as Device from 'expo-device';
 import api from '../../utils/api';
 import { useLangStore } from '../../store/langStore';
 import { useAuthStore } from '../../store/authStore';
 import { COLORS, RADIUS, SPACING } from '../../utils/theme';
 import ScoreCard from '../../components/ScoreCard';
 
-Notifications.setNotificationHandler({
-  handleNotification: async () => ({ shouldShowAlert: true, shouldPlaySound: true, shouldSetBadge: true }),
-});
+// Push notification handler + registration now live in /hooks/usePushNotifications.ts
+// (set up once globally in app/_layout.tsx).
 
 export default function RewardsScreen() {
   const { lang } = useLangStore();
@@ -60,25 +57,10 @@ export default function RewardsScreen() {
 
   useEffect(() => {
     fetchData();
-    registerForPush();
   }, []);
 
-  // Push notification registration
-  const registerForPush = async () => {
-    try {
-      if (!Device.isDevice) return;
-      const { status: existingStatus } = await Notifications.getPermissionsAsync();
-      let finalStatus = existingStatus;
-      if (existingStatus !== 'granted') {
-        const { status } = await Notifications.requestPermissionsAsync();
-        finalStatus = status;
-      }
-      if (finalStatus !== 'granted') return;
-      const tokenData = await Notifications.getExpoPushTokenAsync();
-      const token = tokenData.data;
-      await api.post('/notifications/register-token', { push_token: token });
-    } catch (e) { console.log('Push reg skip:', e); }
-  };
+  // Push notification registration moved to global hook in app/_layout.tsx
+  // See hooks/usePushNotifications.ts — registers once globally with idempotency.
 
   const shareWhatsApp = (text: string) => {
     const url = `whatsapp://send?text=${encodeURIComponent(text)}`;

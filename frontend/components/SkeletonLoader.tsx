@@ -53,18 +53,6 @@ export const HomeSkeleton = () => (
   </View>
 );
 
-export const InsightsSkeleton = () => (
-  <View style={sk.container}>
-    <View style={[sk.row, { gap: 8, marginBottom: 16 }]}>
-      <Skeleton width={'48%' as any} height={48} borderRadius={999} />
-      <Skeleton width={'48%' as any} height={48} borderRadius={999} />
-    </View>
-    <Skeleton height={100} borderRadius={RADIUS.card} />
-    <Skeleton height={180} borderRadius={RADIUS.card} style={{ marginTop: 16 }} />
-    <Skeleton height={120} borderRadius={RADIUS.card} style={{ marginTop: 16 }} />
-  </View>
-);
-
 export const TransactionsSkeleton = () => (
   <View style={sk.container}>
     <View style={sk.row}>
@@ -129,22 +117,7 @@ export const SplitSkeleton = () => (
   </View>
 );
 
-export const ProfileSkeleton = () => (
-  <View style={[sk.container, { alignItems: 'center' }]}>
-    <Skeleton width={80} height={80} borderRadius={40} />
-    <Skeleton width={140} height={24} style={{ marginTop: 16 }} />
-    <Skeleton width={100} height={14} style={{ marginTop: 8 }} />
-    <Skeleton width={160} height={36} borderRadius={999} style={{ marginTop: 12 }} />
-    <View style={[sk.row, { marginTop: 24, gap: 10 }]}>
-      <Skeleton width={'48%' as any} height={90} borderRadius={RADIUS.xl} />
-      <Skeleton width={'48%' as any} height={90} borderRadius={RADIUS.xl} />
-    </View>
-    <View style={[sk.row, { marginTop: 10, gap: 10 }]}>
-      <Skeleton width={'48%' as any} height={90} borderRadius={RADIUS.xl} />
-      <Skeleton width={'48%' as any} height={90} borderRadius={RADIUS.xl} />
-    </View>
-  </View>
-);
-
 const sk = StyleSheet.create({
+  container: {},
+  row: { flexDirection: 'row', alignItems: 'center' },
 });

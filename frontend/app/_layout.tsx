@@ -6,6 +6,7 @@ import Toast from 'react-native-toast-message';
 import { toastConfig } from '../components/ToastConfig';
 import { useAuthStore } from '../store/authStore';
 import { useLangStore } from '../store/langStore';
+import { usePushNotifications } from '../hooks/usePushNotifications';
 
 // Silence noisy, non-actionable deprecation warnings from RN core + libs.
 // These warnings are informational for future RN versions and don't affect runtime.
@@ -36,6 +37,10 @@ if (Platform.OS === 'web' && typeof console !== 'undefined' && !(console as any)
 export default function RootLayout() {
   const loadFromStorage = useAuthStore((state) => state.loadFromStorage);
   const loadLang = useLangStore((state) => state.loadLang);
+
+  // Registers device push token with backend once auth is ready.
+  // Silent on web/simulators, idempotent across remounts.
+  usePushNotifications();
 
   useEffect(() => {
     loadFromStorage();

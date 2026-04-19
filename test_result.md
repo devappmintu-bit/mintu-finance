@@ -692,6 +692,42 @@ agent_communication:
       message: "✅ ROUND 2 ROUTER REFACTOR REGRESSION TEST COMPLETE (Apr 19 2026) — All 29 effective assertions passed in /app/backend_refactor_round2_test.py. All 11 refactored routers (ab, cash, alerts, privacy, budgets_ext, insights_ext, share, sms, upi, premium, notifications) return 200 with correct shape. All 5 bugs fixed during refactor are verified: (1) notifications send_expo_push lazy-wired ✅, (2) privacy timezone import ✅, (3) ab.py hashlib fix ✅, (4) privacy DATA_RETENTION_DAYS plain constant ✅, (5) premium duplicate shims cleaned ✅. Zero 500s, zero NameError, zero ImportError in backend logs during the entire run. Regression on auth/analytics/home/ai/news/gamification/coins/splits all 200 OK. News endpoint still under 500ms (213ms). The only 403 observed (POST /premium/ai-coach) is expected premium-tier gating at premium.py:174 — test user is free tier so 403 fires before the LlmChat call. Backend is stable and production-ready."
 
 backend_refactor_apr2026:
+  - task: "Dead component purge — removed unused InsightsSkeleton + ProfileSkeleton from SkeletonLoader.tsx"
+    implemented: true
+    working: true
+    file: "/app/frontend/components/SkeletonLoader.tsx"
+    stuck_count: 0
+    priority: "low"
+    needs_retesting: false
+    status_history:
+      - working: true
+        agent: "main"
+        comment: "Round 6 cleanup — built an AST-aware Python export-usage detector. Found 17 potentially-unused exports; triaged to confirm 2 were truly dead (InsightsSkeleton, ProfileSkeleton — both only defined, never imported across 54 files). Removed them along with the empty `sk` StyleSheet placeholder. SkeletonLoader.tsx: 151 → 123 lines. Rest of flagged exports (getActivePlanSync, requiredPlanFor, clearPlan, FONT, etc.) were either public-API by design or internal implementation details — preserved. Bundle still compiles cleanly, HTTP 200 in 1.8s."
+
+  - task: "Push notifications (Expo Push) — globally wired + test-push button"
+    implemented: true
+    working: true
+    file: "/app/frontend/hooks/usePushNotifications.ts, /app/backend/routers/notifications.py"
+    stuck_count: 0
+    priority: "medium"
+    needs_retesting: true
+    status_history:
+      - working: true
+        agent: "main"
+        comment: "Round 5 — proper push notification setup. Created /app/frontend/hooks/usePushNotifications.ts: centralized, idempotent hook that (1) handles permission request, (2) sets Android channel, (3) gets Expo push token, (4) caches token in AsyncStorage to only POST to /register-token when it changes, (5) skips on web/simulator, (6) installs foreground notification handler with heads-up banner. Wired into /app/frontend/app/_layout.tsx so it runs ONCE globally for every authenticated user (previously only ran if user visited Rewards tab). Removed duplicated registerForPush code from rewards.tsx. Added backend POST /api/notifications/send-test endpoint that sends a test push to the auth user's registered device. Added 'Send Test Push' button in Profile → Notifications menu item that calls the endpoint and shows a Toast with the result."
+
+  - task: "Premium screen split — 604-line app/premium.tsx broken into 5 files"
+    implemented: true
+    working: true
+    file: "/app/frontend/app/premium.tsx, /app/frontend/components/premium/*.tsx"
+    stuck_count: 0
+    priority: "medium"
+    needs_retesting: false
+    status_history:
+      - working: true
+        agent: "main"
+        comment: "Round 5 refactor — split app/premium.tsx from 604 → 63 lines (90% reduction). Extracted 4 component files + 1 shared stylesheet: components/premium/PlansView.tsx (129L, 3-tier pricing + feature comparison), components/premium/TaxCalculator.tsx (111L, Old vs New regime), components/premium/InvestmentSuggester.tsx (111L, AI portfolio allocation), components/premium/Shared.tsx (37L, Chip + LockedState helpers), components/premium/styles.ts (130L, shared stylesheet). Parent premium.tsx now a tiny 63-line shell with chips + tab switching only. Bundle compiles cleanly, HTTP 200."
+
   - task: "Dead-style purge — 179 orphan StyleSheet entries removed across 6 files"
     implemented: true
     working: true
