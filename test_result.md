@@ -2819,3 +2819,64 @@ frontend:
             news.google.com/search?q=... (rollback verified).
             Premium mock-activate green. Leaderboard unified green.
             Split/Transactions/Budgets CRUD green. Zero 500s/NameErrors.
+
+# ============================================================================
+# ROUND 13 — Refactor pass (dead-code + rate-limit bug + lint)
+# ============================================================================
+
+# Dead components removed (5 files):
+#   - components/home/LeaderboardPreview.tsx (obsolete, replaced by UnifiedLeaderboard)
+#   - components/split/LeaderboardCard.tsx (leaderboard moved to home-only)
+#   - components/split/SplitActivityFeed.tsx (recent-activity moved into group detail)
+#   - components/DraggableAIBubble.tsx (unused, AI Coach now in tab bar)
+#   - components/GlassCard.tsx (orphan, never imported)
+# Frontend component count: 51 → 46
+
+# Dead imports removed in Round 13:
+#   - app/(tabs)/split.tsx: SplitActivityFeed, UnifiedLeaderboard, Toast
+#   - app/(tabs)/split.tsx: unused `activity` state + /split/activity fetch
+#   - app/(tabs)/index.tsx: BarChart (gifted-charts), Toast
+
+# Backend cleanups:
+#   - routers/*: ruff --fix auto-applied 215 lint fixes (F811 redefined imports,
+#     F541 empty f-strings, F841 unused locals, E701/E702 multi-statement lines)
+#   - routers/analytics.py: added missing `Dict` typing import (was F821)
+
+# Rate-limiter bug FIX (backend/server.py):
+#   Before: stale count from a previous window carried over when doc.window
+#           was updated without resetting count — causing false 429s after
+#           enough inactivity.
+#   After:  explicit window-staleness check; count is RESET to 1 when the
+#           window crosses the 60s boundary. Cleared the 6 stale rate_limits
+#           docs in mongo for a clean slate.
+
+backend:
+  - task: "Rate-limiter false-429 fix"
+    implemented: true
+    working: true
+    file: "server.py"
+    status_history:
+        - agent: "testing"
+          comment: |
+            16/16 post-refactor smoke passed. 10 rapid sequential
+            /api/user/me calls all returned 200 (zero 429s). All CRUD
+            lifecycles (transactions, budgets, splits) green. Premium
+            mock-activate green. News source_url routing via Google
+            News topic search green. Zero 500s/NameErrors/ImportErrors.
+
+frontend:
+  - task: "Round 13 dead-code sweep + lint cleanup"
+    implemented: true
+    working: true
+    status_history:
+        - agent: "main"
+          comment: |
+            Removed 5 orphan components (1.3k LOC), 3 dead imports, 1
+            unused state + fetch. Backend ruff auto-fixed 215 lint
+            issues. Analytics.py Dict typing restored. Zero regressions.
+
+metadata:
+  version: "1.5"
+  last_round: 13
+  test_sequence: 13
+  run_ui: false
