@@ -2,19 +2,16 @@
 
 Extracted from server.py using Python's AST parser (guaranteed boundary accuracy).
 """
-import os
-import json
 import logging
-import hashlib
 import uuid as uuid_lib
 from datetime import datetime, timedelta
 from urllib.parse import quote, quote_plus
 from typing import List, Optional, Dict
 from bson import ObjectId
-from fastapi import APIRouter, Depends, HTTPException, Request
+from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 
-from core import db, get_current_user, cache_clear_prefix
+from core import db, get_current_user
 from core.upi import mask_upi_id
 
 router = APIRouter(tags=["splits"])
@@ -393,7 +390,7 @@ async def generate_upi_pay_intent(target_user_id: str, amount: float, user_id: s
     txn_ref = f"MINTU{uuid_lib.uuid4().hex[:8].upper()}"
     
     # UPI intent deep link (works with GPay, PhonePe, Paytm, BHIM)
-    upi_link = f"upi://pay?pa={quote(upi_id)}&pn={quote(payee_name)}&am={amount:.2f}&cu=INR&tn={quote(f'MintU Split Settlement')}&tr={txn_ref}"
+    upi_link = f"upi://pay?pa={quote(upi_id)}&pn={quote(payee_name)}&am={amount:.2f}&cu=INR&tn={quote('MintU Split Settlement')}&tr={txn_ref}"
     
     return {
         "upi_link": upi_link,
@@ -1085,7 +1082,7 @@ async def dismiss_reminder(reminder_id: str, user_id: str = Depends(get_current_
             {"_id": ObjectId(reminder_id), "recipient_id": user_id},
             {"$set": {"status": "dismissed", "dismissed_at": datetime.utcnow()}}
         )
-    except Exception as e:
+    except Exception:
         raise HTTPException(status_code=404, detail="Reminder not found")
     return {"message": "Dismissed"}
 

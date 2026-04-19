@@ -1,17 +1,9 @@
 """sms router — sample SMS inbox + bulk SMS parsing to create transactions."""
-import os
-import json
-import logging
-import hashlib
-import hmac
-import random
-from datetime import datetime, timedelta, date
-from typing import List, Optional, Dict
+from datetime import datetime
 from bson import ObjectId
-from fastapi import APIRouter, Depends, HTTPException, Request
-from pydantic import BaseModel
+from fastapi import APIRouter, Depends, HTTPException
 
-from core import db, get_current_user, cache_get, cache_set, cache_clear_prefix
+from core import db, get_current_user
 from core.scoring import calculate_money_score
 from core.constants import SAMPLE_INDIAN_SMS
 
@@ -66,7 +58,6 @@ async def bulk_parse_sms(data: dict, user_id: str = Depends(get_current_user)):
     
     # Recalculate money score
     new_score = await calculate_money_score(user_id)
-    from bson import ObjectId
     await db.users.update_one({"_id": ObjectId(user_id)}, {"$set": {"money_score": new_score}})
     
     return {"parsed": parsed_count, "failed": failed_count, "total": len(messages)}

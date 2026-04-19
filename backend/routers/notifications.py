@@ -1,17 +1,10 @@
 """notifications router — push-token registration, budget alerts, cron-based smart nudges."""
-import os
-import json
-import logging
-import hashlib
-import hmac
-import random
-from datetime import datetime, timedelta, date
-from typing import List, Optional, Dict
+from datetime import datetime, timedelta
 from bson import ObjectId
-from fastapi import APIRouter, Depends, HTTPException, Request
+from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 
-from core import db, get_current_user, cache_get, cache_set, cache_clear_prefix
+from core import db, get_current_user
 
 
 def _send_expo_push(token, title, body, data=None):
@@ -35,7 +28,6 @@ class PushTokenRegister(BaseModel):
 @api_router.post("/notifications/register-token")
 async def register_push_token(data: PushTokenRegister, user_id: str = Depends(get_current_user)):
     """Register Expo push token for a user"""
-    from bson import ObjectId
     await db.users.update_one(
         {"_id": ObjectId(user_id)},
         {"$set": {"push_token": data.push_token}}
@@ -50,7 +42,6 @@ async def send_test_push(user_id: str = Depends(get_current_user)):
     Useful for verifying push setup end-to-end from the Settings screen.
     Returns {sent, message} so the UI can show a success/error toast.
     """
-    from bson import ObjectId
     user = await db.users.find_one({"_id": ObjectId(user_id)})
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
@@ -108,7 +99,6 @@ async def check_budget_alerts(user_id: str = Depends(get_current_user)):
 @api_router.get("/notifications/smart-triggers")
 async def get_smart_notification_triggers(user_id: str = Depends(get_current_user)):
     """Generate all pending smart notifications for user"""
-    from bson import ObjectId
     now = datetime.utcnow()
     today_start = now.replace(hour=0, minute=0, second=0, microsecond=0)
     

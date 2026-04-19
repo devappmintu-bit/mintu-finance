@@ -1,17 +1,9 @@
 """share router — shareable score cards and stats cards for WhatsApp/Instagram."""
-import os
-import json
-import logging
-import hashlib
-import hmac
-import random
-from datetime import datetime, timedelta, date
-from typing import List, Optional, Dict
+from datetime import datetime, timedelta
 from bson import ObjectId
-from fastapi import APIRouter, Depends, HTTPException, Request
-from pydantic import BaseModel
+from fastapi import APIRouter, Depends
 
-from core import db, get_current_user, cache_get, cache_set, cache_clear_prefix
+from core import db, get_current_user
 from core.content import APP_DOWNLOAD_LINK
 
 router = APIRouter(tags=["share"])
@@ -22,7 +14,6 @@ api_router = router  # extracted code uses @api_router.*
 @api_router.get("/share/score-card")
 async def get_score_card_data(user_id: str = Depends(get_current_user)):
     """Get data for generating shareable score card"""
-    from bson import ObjectId
     user = await db.users.find_one({"_id": ObjectId(user_id)})
     thirty_days_ago = datetime.utcnow() - timedelta(days=30)
     txns = await db.transactions.find({"user_id": user_id, "date": {"$gte": thirty_days_ago}}).to_list(1000)
@@ -53,7 +44,6 @@ async def get_score_card_data(user_id: str = Depends(get_current_user)):
 @api_router.get("/share/stats-card")
 async def shareable_stats_card(user_id: str = Depends(get_current_user)):
     """Generate shareable stats for WhatsApp/Instagram"""
-    from bson import ObjectId
     user = await db.users.find_one({"_id": ObjectId(user_id)})
     now = datetime.utcnow()
     month_start = now.replace(day=1, hour=0, minute=0, second=0, microsecond=0)

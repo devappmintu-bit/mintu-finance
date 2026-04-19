@@ -1,17 +1,9 @@
 """alerts router — intelligent financial alerts/nudges based on user activity."""
-import os
-import json
-import logging
-import hashlib
-import hmac
-import random
-from datetime import datetime, timedelta, date
-from typing import List, Optional, Dict
+from datetime import datetime, timedelta
 from bson import ObjectId
-from fastapi import APIRouter, Depends, HTTPException, Request
-from pydantic import BaseModel
+from fastapi import APIRouter, Depends
 
-from core import db, get_current_user, cache_get, cache_set, cache_clear_prefix
+from core import db, get_current_user
 
 router = APIRouter(tags=["alerts"])
 api_router = router  # extracted code uses @api_router.*
@@ -21,7 +13,6 @@ api_router = router  # extracted code uses @api_router.*
 @api_router.get("/alerts/smart")
 async def smart_alerts(user_id: str = Depends(get_current_user)):
     """AI Smart Alerts — intelligent, non-annoying nudges"""
-    from bson import ObjectId
     now = datetime.utcnow()
     today_start = now.replace(hour=0, minute=0, second=0, microsecond=0)
     week_start = now - timedelta(days=now.weekday())
@@ -84,7 +75,7 @@ async def smart_alerts(user_id: str = Depends(get_current_user)):
             "severity": "success",
             "emoji": "🔥",
             "title": f"{streak}-day streak! Keep going!",
-            "message": f"You're in the top 10% of consistent trackers. Don't break it!",
+            "message": "You're in the top 10% of consistent trackers. Don't break it!",
             "action": "log_expense"
         })
     elif streak >= 2:

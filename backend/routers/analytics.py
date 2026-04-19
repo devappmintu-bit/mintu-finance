@@ -1,5 +1,6 @@
 """Analytics router — stats, weekly reports, savings leaderboard, friend comparison."""
 from datetime import datetime, timedelta
+from typing import Dict
 from bson import ObjectId
 from fastapi import APIRouter, Depends
 

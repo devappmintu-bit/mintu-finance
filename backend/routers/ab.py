@@ -1,17 +1,10 @@
 """ab router — A/B testing groups and event tracking."""
-import os
-import json
-import logging
 import hashlib
-import hmac
-import random
-from datetime import datetime, timedelta, date
-from typing import List, Optional, Dict
+from datetime import datetime
 from bson import ObjectId
-from fastapi import APIRouter, Depends, HTTPException, Request
-from pydantic import BaseModel
+from fastapi import APIRouter, Depends
 
-from core import db, get_current_user, cache_get, cache_set, cache_clear_prefix
+from core import db, get_current_user
 
 router = APIRouter(tags=["ab"])
 api_router = router  # extracted code uses @api_router.*
@@ -21,7 +14,6 @@ api_router = router  # extracted code uses @api_router.*
 @api_router.get("/ab/paywall-group")
 async def get_ab_group(user_id: str = Depends(get_current_user)):
     """Assign user to A/B test group for paywall placement"""
-    from bson import ObjectId
     user = await db.users.find_one({"_id": ObjectId(user_id)})
     
     group = user.get("ab_paywall_group")

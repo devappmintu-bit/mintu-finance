@@ -1,17 +1,8 @@
 """insights_ext router — weekly AI-analyzed spending report with category trends."""
-import os
-import json
-import logging
-import hashlib
-import hmac
-import random
-from datetime import datetime, timedelta, date
-from typing import List, Optional, Dict
-from bson import ObjectId
-from fastapi import APIRouter, Depends, HTTPException, Request
-from pydantic import BaseModel
+from datetime import datetime, timedelta
+from fastapi import APIRouter, Depends
 
-from core import db, get_current_user, cache_get, cache_set, cache_clear_prefix
+from core import db, get_current_user
 from core.scoring import calculate_money_score
 
 router = APIRouter(tags=["insights_ext"])

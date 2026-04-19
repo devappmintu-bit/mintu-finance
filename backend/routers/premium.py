@@ -1,17 +1,12 @@
 """premium router — premium status, tax calculator, investment suggestions, Razorpay checkout."""
 import os
-import json
 import logging
-import hashlib
-import hmac
-import random
-from datetime import datetime, timedelta, date
-from typing import List, Optional, Dict
+from datetime import datetime, timedelta
 from bson import ObjectId
-from fastapi import APIRouter, Depends, HTTPException, Request
+from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 
-from core import db, get_current_user, cache_get, cache_set, cache_clear_prefix
+from core import db, get_current_user
 from core.constants import PREMIUM_FEATURES, PRICING
 
 try:
@@ -489,7 +484,7 @@ async def investment_suggest(data: dict, user_id: str = Depends(get_current_user
             "title": "Equity SIP (Long-term wealth)",
             "amount": round(investible * risk_profile["equity"], 0),
             "pct": round(risk_profile["equity"] * 100, 0),
-            "why": f"Equity builds wealth via compounding. Expected 12-14% CAGR over 10+ yrs.",
+            "why": "Equity builds wealth via compounding. Expected 12-14% CAGR over 10+ yrs.",
             "products": (
                 ["Nippon India Large Cap", "Parag Parikh Flexi Cap", "Mirae Asset Large Cap"] if risk == "low"
                 else ["Parag Parikh Flexi Cap", "Quant Active Fund", "ICICI Pru Nifty 50 Index"]

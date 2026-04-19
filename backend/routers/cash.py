@@ -1,18 +1,11 @@
 """cash router — quick natural-language cash entry + recurring expenses."""
-import os
 import re
-import json
-import logging
-import hashlib
-import hmac
-import random
-from datetime import datetime, timedelta, date
-from typing import List, Optional, Dict
+from datetime import datetime
 from bson import ObjectId
-from fastapi import APIRouter, Depends, HTTPException, Request
+from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 
-from core import db, get_current_user, cache_get, cache_set, cache_clear_prefix
+from core import db, get_current_user
 
 
 class RecurringExpenseCreate(BaseModel):
@@ -130,7 +123,6 @@ async def get_recurring_expenses(user_id: str = Depends(get_current_user)):
 
 @api_router.delete("/cash/recurring/{expense_id}")
 async def delete_recurring_expense(expense_id: str, user_id: str = Depends(get_current_user)):
-    from bson import ObjectId
     result = await db.recurring_expenses.delete_one({"_id": ObjectId(expense_id), "user_id": user_id})
     if result.deleted_count == 0:
         raise HTTPException(status_code=404, detail="Recurring expense not found")

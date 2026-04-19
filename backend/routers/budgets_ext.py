@@ -1,17 +1,8 @@
 """budgets_ext router — AI-powered budget suggestions + live budget status."""
-import os
-import json
-import logging
-import hashlib
-import hmac
-import random
-from datetime import datetime, timedelta, date
-from typing import List, Optional, Dict
-from bson import ObjectId
-from fastapi import APIRouter, Depends, HTTPException, Request
-from pydantic import BaseModel
+from datetime import datetime, timedelta
+from fastapi import APIRouter, Depends
 
-from core import db, get_current_user, cache_get, cache_set, cache_clear_prefix
+from core import db, get_current_user
 
 router = APIRouter(tags=["budgets_ext"])
 api_router = router  # extracted code uses @api_router.*
@@ -21,7 +12,6 @@ api_router = router  # extracted code uses @api_router.*
 @api_router.get("/budgets/smart-suggest")
 async def smart_budget_suggestions(user_id: str = Depends(get_current_user)):
     """AI-powered budget suggestions based on spending habits"""
-    from bson import ObjectId
     now = datetime.utcnow()
     
     # Analyze last 60 days of spending
@@ -105,7 +95,6 @@ async def auto_apply_budgets(user_id: str = Depends(get_current_user)):
 @api_router.get("/budgets/live")
 async def live_budget_status(user_id: str = Depends(get_current_user)):
     """Get real-time budget status with actual spending from ALL sources (transactions + splits)"""
-    from bson import ObjectId
     now = datetime.utcnow()
     month_start = now.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
     

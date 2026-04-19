@@ -4,18 +4,15 @@ Lazy-imports legacy helpers from server.py (AGENT_PROFILES, route_to_agent, gene
 get_lang_instruction, MONEY_SCHOOL_LESSONS, etc.) to avoid circular imports while keeping routes modular.
 """
 import os
-import json
 import logging
-import hashlib
 import random
 from datetime import datetime, timedelta, date
-from typing import List, Optional, Dict
+from typing import Optional
 from bson import ObjectId
 from fastapi import APIRouter, Depends, HTTPException, UploadFile, File
 from pydantic import BaseModel
 
-from core import db, get_current_user, cache_get, cache_set, cache_clear_prefix
-from core.content import APP_DOWNLOAD_LINK
+from core import db, get_current_user, cache_get, cache_set
 from core.scoring import calculate_money_score
 from core.constants import (
     INDIA_POPULATION_2025,
@@ -94,7 +91,6 @@ async def get_daily_insights(user_id: str = Depends(get_current_user), lang: str
 async def transcribe_voice(file: UploadFile = File(...), user_id: str = Depends(get_current_user)):
     """Transcribe voice audio to text using OpenAI Whisper, then parse as cash entry"""
     import tempfile
-    import io
 
     # Read audio data
     audio_data = await file.read()
@@ -142,7 +138,6 @@ async def get_money_school_lessons():
 @api_router.get("/money-school/daily")
 async def get_daily_lesson(user_id: str = Depends(get_current_user), lang: str = "en"):
     """Get today's lesson + AI-personalized tip based on user's spending"""
-    from datetime import date
     # Rotate daily lesson based on date
     day_index = date.today().toordinal() % len(MONEY_SCHOOL_LESSONS)
     lesson = MONEY_SCHOOL_LESSONS[day_index]
@@ -182,7 +177,6 @@ async def get_daily_lesson(user_id: str = Depends(get_current_user), lang: str =
 @api_router.post("/ai/chat")
 async def ai_financial_coach(msg: ChatMessage, user_id: str = Depends(get_current_user)):
     """AI Financial Coach — structured, data-aware, actionable (mirrors /ai/agent-chat format)."""
-    from bson import ObjectId
     
     # Gather user's financial context
     user = await db.users.find_one({"_id": ObjectId(user_id)})
@@ -553,7 +547,6 @@ Return ONLY valid JSON."""
 @api_router.post("/ai/agent-chat")
 async def agentic_ai_chat(data: dict, user_id: str = Depends(get_current_user)):
     """Product-native AI Financial Assistant — structured, data-aware, actionable."""
-    from bson import ObjectId
     
     message = data.get("message", "")
     lang = data.get("lang", "en")
@@ -876,7 +869,6 @@ CONTENT RULES:
 @api_router.get("/ai/proactive-nudges")
 async def get_proactive_nudges(user_id: str = Depends(get_current_user)):
     """Generate proactive AI nudges based on user's financial behavior"""
-    from bson import ObjectId
     
     user = await db.users.find_one({"_id": ObjectId(user_id)})
     now = datetime.utcnow()
@@ -1006,7 +998,7 @@ async def get_proactive_nudges(user_id: str = Depends(get_current_user)):
                 "agent": "market_intel",
                 "emoji": "💡",
                 "title": f"Savings rate: {savings_rate:.0f}%",
-                "message": f"Indian financial advisors recommend 30%+. Want tips to boost savings?",
+                "message": "Indian financial advisors recommend 30%+. Want tips to boost savings?",
                 "action": "get_savings_tips",
                 "priority": "medium"
             })
@@ -1051,8 +1043,6 @@ async def list_agents(user_id: str = Depends(get_current_user)):
 @api_router.get("/money-school/dynamic")
 async def dynamic_money_school(user_id: str = Depends(get_current_user), lang: str = "en"):
     """AI-generated daily finance school — trends, news, personalized teachings"""
-    from bson import ObjectId
-    import random
     
     user = await db.users.find_one({"_id": ObjectId(user_id)})
     now = datetime.utcnow()
@@ -1155,8 +1145,6 @@ RULES:
 @api_router.get("/money-school/cards")
 async def get_money_school_cards(user_id: str = Depends(get_current_user)):
     """Get personalized money school cards with gamification"""
-    from bson import ObjectId
-    import random
     
     user = await db.users.find_one({"_id": ObjectId(user_id)})
     progress = await db.school_progress.find_one({"user_id": user_id}) or {"xp": 0, "completed": [], "streak": 0}
@@ -1234,8 +1222,6 @@ async def complete_card(data: dict, user_id: str = Depends(get_current_user)):
 @api_router.get("/money-school/personalized")
 async def personalized_money_school(user_id: str = Depends(get_current_user), lang: str = "en"):
     """AI-personalized money school cards based on user's actual spending"""
-    from bson import ObjectId
-    import random
 
     user = await db.users.find_one({"_id": ObjectId(user_id)})
     now = datetime.utcnow()

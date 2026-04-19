@@ -1,18 +1,10 @@
 """privacy router — GDPR/DPDP compliance endpoints (export, delete, policy, cleanup)."""
-import os
-import json
-import logging
-import hashlib
-import hmac
-import random
 import time
-from datetime import datetime, timedelta, timezone, date
-from typing import List, Optional, Dict
+from datetime import datetime, timedelta, timezone
 from bson import ObjectId
-from fastapi import APIRouter, Depends, HTTPException, Request
-from pydantic import BaseModel
+from fastapi import APIRouter, Depends, HTTPException
 
-from core import db, get_current_user, cache_get, cache_set, cache_clear_prefix
+from core import db, get_current_user
 
 # DATA_RETENTION_DAYS lives in server.py (security config) — keep a module-level
 # constant mirror for use in the privacy policy JSON.
@@ -26,7 +18,6 @@ api_router = router  # extracted code uses @api_router.*
 @api_router.get("/privacy/data-export")
 async def export_user_data(user_id: str = Depends(get_current_user)):
     """Export all user data in portable JSON format (GDPR Art. 20 / DPDP Sec. 11)"""
-    from bson import ObjectId
     user = await db.users.find_one({"_id": ObjectId(user_id)}, {"password": 0, "_id": 0})
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
@@ -71,7 +62,6 @@ async def export_user_data(user_id: str = Depends(get_current_user)):
 @api_router.delete("/privacy/delete-account")
 async def delete_user_account(user_id: str = Depends(get_current_user)):
     """Permanently delete all user data (GDPR Art. 17 / DPDP Sec. 12)"""
-    from bson import ObjectId
 
     # Audit BEFORE deletion
     await db.audit_logs.insert_one({

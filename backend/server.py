@@ -114,19 +114,30 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
         window_start = now - RATE_LIMIT_WINDOW
         key = f"rate:{client_ip}:{1 if is_auth else 0}"
 
-        count_doc = await db.rate_limits.find_one({"key": key, "window": {"$gte": window_start}})
-        if count_doc and count_doc.get("count", 0) >= max_req:
-            return Response(
-                content=json_module.dumps({"detail": "Rate limit exceeded. Please slow down."}),
-                status_code=429,
-                media_type="application/json",
+        # Read current counter for this key.
+        doc = await db.rate_limits.find_one({"key": key})
+        if doc and doc.get("window", 0) >= window_start:
+            # Inside the current window — increment & check.
+            new_count = (doc.get("count", 0) or 0) + 1
+            if new_count > max_req:
+                return Response(
+                    content=json_module.dumps({"detail": "Rate limit exceeded. Please slow down."}),
+                    status_code=429,
+                    media_type="application/json",
+                )
+            await db.rate_limits.update_one(
+                {"key": key},
+                {"$set": {"window": doc.get("window", now)}, "$inc": {"count": 1}},
+                upsert=True,
             )
-
-        await db.rate_limits.update_one(
-            {"key": key},
-            {"$set": {"window": now}, "$inc": {"count": 1}},
-            upsert=True,
-        )
+        else:
+            # Stale window — RESET count to 1 so we don't carry leftover counts
+            # from the previous minute (this was the root cause of false 429s).
+            await db.rate_limits.update_one(
+                {"key": key},
+                {"$set": {"window": now, "count": 1}},
+                upsert=True,
+            )
 
         return await call_next(request)
 

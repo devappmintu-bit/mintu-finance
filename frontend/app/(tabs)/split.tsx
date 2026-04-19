@@ -27,7 +27,7 @@ import GroupManageSheet from '../../components/split/GroupManageSheet';
 import PaySheet from '../../components/split/PaySheet';
 import RemindSheet from '../../components/split/RemindSheet';
 import RewardModal from '../../components/split/RewardModal';
-import SplitActivityFeed from '../../components/split/SplitActivityFeed';
+import CreateGroupSheet from '../../components/split/CreateGroupSheet';
 
 export default function SplitScreen() {
   const { user } = useAuthStore();
@@ -49,7 +49,6 @@ export default function SplitScreen() {
   const [chatGroup, setChatGroup] = useState<any>(null);
   const [remindTarget, setRemindTarget] = useState<DebtRow | null>(null);
   const [editingExpense, setEditingExpense] = useState<any>(null);
-  const [activity, setActivity] = useState<any>(null);
   const settleRowsCacheKey = React.useRef<string>('');
 
   // Flatten simplified_debts across all groups for main-screen Settle Up list.
@@ -98,14 +97,12 @@ export default function SplitScreen() {
       // Phase 2 — deferred: leaderboard + reminders + heavy settleRows recompute
       InteractionManager.runAfterInteractions(async () => {
         try {
-          const [lR, rR, aR] = await Promise.all([
+          const [lR, rR] = await Promise.all([
             api.get('/split/settlement-leaderboard').catch(() => ({ data: null })),
             api.get('/split/reminders').catch(() => ({ data: { received: [], sent: [] } })),
-            api.get('/split/activity').catch(() => ({ data: null })),
           ]);
           if (lR.data) setSettleLB(lR.data);
           if (rR.data) setReminders({ received: rR.data.received || [], sent: rR.data.sent || [] });
-          if (aR.data) setActivity(aR.data);
           fetchSettleRows(gR.data);
         } catch (e) { console.error('split phase2', e); }
         finally { setRefreshing(false); }
