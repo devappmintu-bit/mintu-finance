@@ -100,7 +100,7 @@ def _enrich_article(a: dict) -> dict:
             "national payments corporation":_TRUSTED_OUTLETS["npci"],
             "mutual funds in india":        _TRUSTED_OUTLETS["amfi"],
             "press information bureau":     _TRUSTED_OUTLETS["pib"],
-            "income tax":                   ("incometaxindia.gov.in", "https://www.google.com/search?q={q}+site:incometaxindia.gov.in&tbm=nws"),
+            "income tax":                   ("incometaxindia.gov.in", "https://www.incometaxindia.gov.in/Pages/search.aspx?k={q}"),
         }
         for key, val in aliases.items():
             if key in src_low:
