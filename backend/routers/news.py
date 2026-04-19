@@ -1,18 +1,28 @@
 """News router — India-specific financial news (AI-generated, DB-cached daily).
 
 Performance: always returns fast (cache or fallback). LLM regen happens in a
-background task so first-user-of-day never waits.
+true fire-and-forget asyncio task so first-user-of-day never waits.
+
+IMPORTANT: Using `asyncio.create_task(...)` instead of FastAPI `BackgroundTasks`
+because the app registers BaseHTTPMiddleware-based middleware (Security/RateLimit/
+AuditLog) which awaits the response AND its attached BackgroundTasks — a well-
+known Starlette limitation (encode/starlette#919). asyncio.create_task is NOT
+tied to the response, so the event loop truly runs it in the background.
 """
 import os
+import asyncio
 import json
 import logging
 from datetime import date, datetime
-from fastapi import APIRouter, BackgroundTasks, Depends
+from fastapi import APIRouter, Depends
 from emergentintegrations.llm.chat import LlmChat, UserMessage
 
 from core import db, get_current_user
 
 router = APIRouter(prefix="/news", tags=["news"])
+
+# In-flight tracker: avoid firing multiple concurrent regens for the same day.
+_regen_in_flight: set = set()
 
 # Hardcoded fallback — seeded immediately if cache is missing so UI never
 # shows an empty state while LLM regen runs in the background.
@@ -27,7 +37,13 @@ _FALLBACK = [
 
 
 async def _refresh_news_in_background(today: str) -> None:
-    """Generate fresh news via LLM and cache it. Safe to fire-and-forget."""
+    """Generate fresh news via LLM and cache it. Safe to fire-and-forget.
+
+    Uses _regen_in_flight to dedupe concurrent regens for the same day.
+    """
+    if today in _regen_in_flight:
+        return
+    _regen_in_flight.add(today)
     try:
         prompt = (
             f"Generate 6 India-specific financial news items for {today}. Mix these types:\n"
@@ -62,29 +78,27 @@ async def _refresh_news_in_background(today: str) -> None:
             logging.info(f"News cache refreshed for {today} with {len(articles)} items")
     except Exception as e:
         logging.warning(f"Background news generation failed: {e}")
+    finally:
+        _regen_in_flight.discard(today)
 
 
 @router.get("/india-finance")
 async def india_finance_news(
-    bg: BackgroundTasks,
     refresh: bool = False,
     user_id: str = Depends(get_current_user),
 ):
     """India-specific daily financial news.
 
-    Always returns fast:
-      * serves today's cache if available (miss → returns fallback)
-      * if cache is empty/stale OR refresh=true, triggers a background regen
+    Always returns fast (cache or fallback). Regen is handled by a dedicated
+    periodic background worker (see _news_refresher_loop below), NOT triggered
+    per-request — this avoids the BaseHTTPMiddleware + response drain interaction
+    that was causing multi-second blocking even with asyncio.create_task.
+
+    `refresh=1` is kept as a no-op hint for forward compatibility; the worker
+    runs often enough that an explicit request-time regen isn't needed.
     """
     today = date.today().isoformat()
     cached = await db.news_cache.find_one({"date": today})
-
-    # Schedule a background refresh when we either:
-    #   - have no cache for today, OR
-    #   - caller explicitly asked for a refresh
-    if refresh or not cached or not cached.get("articles"):
-        bg.add_task(_refresh_news_in_background, today)
-
     articles = (cached or {}).get("articles") or _FALLBACK
     return {
         "date": today,
@@ -92,3 +106,40 @@ async def india_finance_news(
         "updated_at": (cached or {}).get("updated_at"),
         "is_fallback": not (cached and cached.get("articles")),
     }
+
+
+# ─── Periodic worker (started once at app boot) ───
+_worker_started = False
+
+
+async def _news_refresher_loop() -> None:
+    """Refresh today's news at boot and every hour, all on its own task loop.
+
+    Runs completely independently from any HTTP request. Safe to start multiple
+    times (guarded by _worker_started).
+    """
+    while True:
+        try:
+            today = date.today().isoformat()
+            cached = await db.news_cache.find_one({"date": today})
+            if not (cached and cached.get("articles")):
+                await _refresh_news_in_background(today)
+        except Exception as e:
+            logging.warning(f"News refresher loop iteration failed: {e}")
+        # sleep 1 hour; short enough that users see fresh news quickly, cheap enough
+        # that we don't spam the LLM (one call per day max since cache key = date)
+        await asyncio.sleep(3600)
+
+
+def start_news_worker() -> None:
+    """Call once from the FastAPI startup event."""
+    global _worker_started
+    if _worker_started:
+        return
+    _worker_started = True
+    try:
+        asyncio.create_task(_news_refresher_loop())
+        logging.info("News refresher worker started")
+    except RuntimeError:
+        # No event loop yet — caller should try again once one is running
+        _worker_started = False

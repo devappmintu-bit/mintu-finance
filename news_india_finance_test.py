@@ -14,7 +14,7 @@ import time
 import sys
 import requests
 
-BASE_URL = "https://mintu-finance.preview.emergentagent.com/api"
+BASE_URL = "http://localhost:8001/api"
 PHONE = "9876543210"
 OTP = "123456"
 PASSWORD = "test123"

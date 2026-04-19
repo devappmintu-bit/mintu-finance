@@ -1069,6 +1069,13 @@ async def create_indexes():
     except Exception as e:
         logging.error(f"Index creation error: {e}")
 
+    # Start background news refresher (fire-and-forget — no blocking of any request)
+    try:
+        from routers.news import start_news_worker
+        start_news_worker()
+    except Exception as e:
+        logging.warning(f"Could not start news worker: {e}")
+
 # ============== PHASE 2: LEADERBOARD & ENHANCED REFERRAL ==============
 
 # App download link for shareable content
