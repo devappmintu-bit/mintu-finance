@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import {
   View, Text, StyleSheet, ScrollView, TouchableOpacity, Alert, ActivityIndicator,
   Modal, FlatList, TextInput, Image, RefreshControl, Linking, Share, Platform,
@@ -15,9 +15,13 @@ import api from '../../utils/api';
 import { COLORS, RADIUS, SPACING, shadowStyle } from '../../utils/theme';
 import Toast from 'react-native-toast-message';
 import { useFocusEffect } from 'expo-router';
-import { shareSmart, copyToClipboard } from '../../utils/share';
+import { shareSmart, copyToClipboard, shareImageSmart } from '../../utils/share';
 import HelpSupport from '../../components/HelpSupport';
 import AboutMintU from '../../components/AboutMintU';
+import ShareScoreCard from '../../components/profile/ShareScoreCard';
+import BadgesSection from '../../components/profile/BadgesSection';
+import WeeklyChallenge from '../../components/profile/WeeklyChallenge';
+import ViewShot, { captureRef } from 'react-native-view-shot';
 
 const UPI_APPS = [
   { id: 'gpay', name: 'Google Pay', icon: 'logo-google', color: '#4285F4' },
@@ -45,6 +49,10 @@ export default function ProfileScreen() {
   const [referral, setReferral] = useState<any>(null);
   const [refExpanded, setRefExpanded] = useState(true);
   const [stats, setStats] = useState<any>(null);
+  const [gamiStatus, setGamiStatus] = useState<any>(null);
+  const [shareCardVisible, setShareCardVisible] = useState(false);
+  const [sharing, setSharing] = useState(false);
+  const scoreCardRef = useRef<View>(null);
 
   const loadData = useCallback(async () => {
     try {
@@ -121,15 +129,55 @@ export default function ProfileScreen() {
     await shareSmart({ message: text, title: 'MintU' });
   };
 
-  const shareScoreCard = async () => {
+  const shareScoreCard = () => {
+    setShareCardVisible(true);
+  };
+
+  const handleShareAsImage = async () => {
+    if (sharing) return;
+    setSharing(true);
+    try {
+      const uri = await captureRef(scoreCardRef, {
+        format: 'png',
+        quality: 1,
+        result: Platform.OS === 'web' ? 'data-uri' : 'tmpfile',
+      });
+      const score = user?.money_score || 0;
+      const fallback = `🚀 My MintU Money Score is ${score}/100!\n\nTrack your expenses, split bills, and earn rewards.\nDownload: https://mintu.app ${referral?.referral_code ? `\nUse code: ${referral.referral_code}` : ''}`;
+      await shareImageSmart({
+        uri,
+        fallbackText: fallback,
+        filename: `mintu-score-${score}.png`,
+      });
+    } catch (e) {
+      Toast.show({
+        type: 'error',
+        text1: 'Could not create image',
+        text2: 'Sharing text instead…',
+      });
+      const score = user?.money_score || 0;
+      await shareSmart({
+        message: `🚀 My MintU Money Score is ${score}/100! Try it: https://mintu.app`,
+        title: 'My MintU Score',
+      });
+    } finally {
+      setSharing(false);
+    }
+  };
+
+  const handleShareAsText = async () => {
     try {
       const r = await api.get('/referral/money-score-card');
       await shareSmart({
-        message: r.data?.share_text || r.data?.whatsapp_text || 'My MintU Money Score!',
+        message: r.data?.share_text || r.data?.whatsapp_text || `My MintU Money Score: ${user?.money_score || 0}/100`,
         title: 'My MintU Score',
       });
     } catch {
-      Toast.show({ type: 'error', text1: 'Error', text2: 'Could not generate score card' });
+      const score = user?.money_score || 0;
+      await shareSmart({
+        message: `🚀 My MintU Money Score is ${score}/100! Try it: https://mintu.app`,
+        title: 'My MintU Score',
+      });
     }
   };
 
@@ -178,16 +226,28 @@ export default function ProfileScreen() {
               <Ionicons name="people" size={16} color="#F59E0B" />
               <Text style={s.heroPillText}>{referral?.referral_count || 0} Referrals</Text>
             </TouchableOpacity>
-            <TouchableOpacity style={s.heroPill} onPress={shareGeneric}>
-              <Ionicons name="qr-code" size={16} color="#8B5CF6" />
-              <Text style={s.heroPillText}>My Code</Text>
-            </TouchableOpacity>
             <TouchableOpacity style={s.heroPill} onPress={() => router.push('/yearly' as any)}>
               <Ionicons name="bar-chart" size={16} color="#10B981" />
               <Text style={s.heroPillText}>Year View</Text>
             </TouchableOpacity>
           </View>
+
+          {/* Big Share Score CTA — viral entry point */}
+          <TouchableOpacity style={s.shareScoreCTA} onPress={shareScoreCard} activeOpacity={0.85}>
+            <Ionicons name="share-social" size={18} color="#fff" />
+            <Text style={s.shareScoreCTAText}>Share My Score</Text>
+            <View style={s.shareScoreBadge}>
+              <Ionicons name="image" size={10} color="#fff" />
+              <Text style={s.shareScoreBadgeText}>IMAGE</Text>
+            </View>
+          </TouchableOpacity>
         </View>
+
+        {/* ═══ WEEKLY CHALLENGE ═══ */}
+        <WeeklyChallenge challenge={gamiStatus?.weekly_challenge} streak={gamiStatus?.streak || 0} />
+
+        {/* ═══ ACHIEVEMENTS / BADGES ═══ */}
+        <BadgesSection onStatusLoaded={setGamiStatus} />
 
         {/* ═══ FINANCIAL SNAPSHOT — Real Stats (last 30 days) ═══ */}
         {realStats && (realStats.monthlySpend > 0 || realStats.transactionCount > 0) ? (
@@ -579,6 +639,96 @@ export default function ProfileScreen() {
           </ScrollView>
         </SafeAreaView>
       </Modal>
+
+      {/* ═══ SHARE SCORE CARD — Image Preview Modal ═══ */}
+      <Modal
+        visible={shareCardVisible}
+        animationType="fade"
+        transparent
+        onRequestClose={() => setShareCardVisible(false)}
+      >
+        <View style={s.shareBg}>
+          <ScrollView contentContainerStyle={s.shareScroll} showsVerticalScrollIndicator={false}>
+            <TouchableOpacity
+              style={s.shareClose}
+              onPress={() => setShareCardVisible(false)}
+              activeOpacity={0.7}
+            >
+              <Ionicons name="close" size={22} color="#fff" />
+            </TouchableOpacity>
+
+            <Text style={s.shareTitle}>Flex your score! 🔥</Text>
+            <Text style={s.shareSub}>Share as image on WhatsApp, Instagram Story, or anywhere</Text>
+
+            {/* The captured view */}
+            <ViewShot
+              ref={scoreCardRef as any}
+              options={{ format: 'png', quality: 1, result: Platform.OS === 'web' ? 'data-uri' : 'tmpfile' }}
+              style={{ marginTop: 16, marginBottom: 20 }}
+            >
+              <ShareScoreCard
+                data={{
+                  name: user?.name || 'User',
+                  avatar: avatar || undefined,
+                  score: user?.money_score || 0,
+                  tier:
+                    (user?.money_score || 0) >= 80
+                      ? 'Elite Saver'
+                      : (user?.money_score || 0) >= 60
+                        ? 'Smart Spender'
+                        : (user?.money_score || 0) >= 40
+                          ? 'Growing Saver'
+                          : 'Just Starting',
+                  tierEmoji:
+                    (user?.money_score || 0) >= 80
+                      ? '🏆'
+                      : (user?.money_score || 0) >= 60
+                        ? '💪'
+                        : (user?.money_score || 0) >= 40
+                          ? '⚡'
+                          : '🌱',
+                  streak: gamiStatus?.streak || 0,
+                  savingsRate: realStats?.savingsRate || 0,
+                  coins: (user as any)?.coins_balance || (gamiStatus?.total_badges || 0) * 10,
+                  referralCode: referral?.referral_code,
+                }}
+              />
+            </ViewShot>
+
+            {/* Action buttons */}
+            <TouchableOpacity
+              style={[s.shareActionPrimary, sharing && { opacity: 0.7 }]}
+              onPress={handleShareAsImage}
+              disabled={sharing}
+              activeOpacity={0.8}
+            >
+              {sharing ? (
+                <ActivityIndicator color="#fff" />
+              ) : (
+                <>
+                  <Ionicons name="image" size={20} color="#fff" />
+                  <Text style={s.shareActionPrimaryText}>Share as Image</Text>
+                </>
+              )}
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={s.shareActionSecondary}
+              onPress={handleShareAsText}
+              activeOpacity={0.8}
+            >
+              <Ionicons name="text" size={18} color="#fff" />
+              <Text style={s.shareActionSecondaryText}>Share as Text instead</Text>
+            </TouchableOpacity>
+
+            <Text style={s.shareHint}>
+              {Platform.OS === 'web'
+                ? '💡 On web: image downloads to your device, then upload to WhatsApp/Instagram'
+                : '💡 Opens your device share sheet — pick WhatsApp, Instagram, Photos, etc.'}
+            </Text>
+          </ScrollView>
+        </View>
+      </Modal>
     </SafeAreaView>
   );
 }
@@ -691,6 +841,10 @@ const s = StyleSheet.create({
   heroPillRow: { flexDirection: 'row', gap: 10, marginTop: 18, width: '100%' },
   heroPill: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, paddingVertical: 12, backgroundColor: COLORS.bg.primary, borderRadius: 999, borderWidth: 1, borderColor: COLORS.border.card },
   heroPillText: { fontSize: 13, fontWeight: '700', color: COLORS.text.primary },
+  shareScoreCTA: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, width: '100%', marginTop: 12, paddingVertical: 14, paddingHorizontal: 16, backgroundColor: '#6366F1', borderRadius: 999 },
+  shareScoreCTAText: { fontSize: 15, fontWeight: '800', color: '#fff', letterSpacing: 0.3 },
+  shareScoreBadge: { flexDirection: 'row', alignItems: 'center', gap: 3, paddingHorizontal: 8, paddingVertical: 3, backgroundColor: 'rgba(255,255,255,0.2)', borderRadius: 999 },
+  shareScoreBadgeText: { fontSize: 9, fontWeight: '900', color: '#fff', letterSpacing: 0.8 },
   // Payment expandable header
   payHeaderRow: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 4 },
   payIconBox: { width: 40, height: 40, borderRadius: 12, backgroundColor: '#6366F115', justifyContent: 'center', alignItems: 'center' },
@@ -732,4 +886,15 @@ const s = StyleSheet.create({
   // Transparency notice
   transparencyBox: { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 10, paddingVertical: 8, paddingHorizontal: 12, backgroundColor: '#F1F5F9', borderRadius: 10 },
   transparencyText: { flex: 1, fontSize: 10.5, color: '#475569', fontWeight: '600', lineHeight: 14 },
+  // Share score card modal
+  shareBg: { flex: 1, backgroundColor: 'rgba(0,0,0,0.85)' },
+  shareScroll: { flexGrow: 1, justifyContent: 'center', alignItems: 'center', paddingVertical: 40, paddingHorizontal: 20 },
+  shareClose: { position: 'absolute', top: 20, right: 20, width: 40, height: 40, borderRadius: 20, backgroundColor: 'rgba(255,255,255,0.15)', justifyContent: 'center', alignItems: 'center', zIndex: 10 },
+  shareTitle: { fontSize: 22, fontWeight: '900', color: '#fff', textAlign: 'center' },
+  shareSub: { fontSize: 13, color: 'rgba(255,255,255,0.7)', textAlign: 'center', marginTop: 4 },
+  shareActionPrimary: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 10, backgroundColor: '#10B981', paddingVertical: 16, paddingHorizontal: 32, borderRadius: 999, width: 280, marginBottom: 10 },
+  shareActionPrimaryText: { fontSize: 15, fontWeight: '800', color: '#fff', letterSpacing: 0.3 },
+  shareActionSecondary: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, backgroundColor: 'rgba(255,255,255,0.1)', paddingVertical: 12, paddingHorizontal: 24, borderRadius: 999, borderWidth: 1, borderColor: 'rgba(255,255,255,0.2)' },
+  shareActionSecondaryText: { fontSize: 13, fontWeight: '700', color: '#fff' },
+  shareHint: { fontSize: 11, color: 'rgba(255,255,255,0.55)', textAlign: 'center', marginTop: 14, maxWidth: 280 },
 });

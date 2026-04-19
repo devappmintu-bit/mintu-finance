@@ -1245,3 +1245,54 @@ agent_communication:
       MODULE 5 (SMOKE): 13/13 pass — SAFE TO PROCEED (zero 500s)
       
       Positive findings: Split engine math is flawless (largest-remainder correct). Budget tracking sum is correct. SMS parser categorizes correctly. Summary totals are exact. No 500 errors anywhere. Core CRUD for each module's primary object (create/read/delete) works; only UPDATE semantics are missing for transactions/budgets/user, and /split/balances has a settlement-sync bug.
+
+
+  - agent: "main"
+    message: |
+      [2026-04-19] PROFILE REDESIGN — Image Share + Badges + Weekly Challenge SHIPPED
+      
+      Delivered explicit user ask from Message 553 that was skipped in prior session:
+      
+      1. SHARE SCORE AS IMAGE (real image card, not just text)
+         - New component: /app/frontend/components/profile/ShareScoreCard.tsx
+         - Instagram-story-ready dark gradient (9:16 aspect, 340x604px natural)
+         - Shows: brand, avatar, huge Money Score, tier pill, streak/savings/coins, referral code, CTA
+         - Captured via react-native-view-shot (already installed) at 2x resolution
+         - New share helper: shareImageSmart() in /app/frontend/utils/share.ts
+           * Native → expo-sharing (opens WhatsApp/Instagram/Photos via share sheet)
+           * Web → triggers PNG download + graceful fallback to text-share
+         - Big "Share My Score" CTA added prominently to profile hero card
+         - Preview modal shows the card before sharing + "Share as Text" fallback
+      
+      2. BADGES SYSTEM
+         - New component: /app/frontend/components/profile/BadgesSection.tsx
+         - Fetches from GET /api/gamification/status (existing endpoint)
+         - Horizontal scroll, Earned (gold) vs Locked (greyed w/ lock overlay)
+         - Tap any badge → modal with description + earned/locked status
+         - Fallback catalog of 6 badges when API fails so new users see the concept
+      
+      3. WEEKLY CHALLENGE
+         - New component: /app/frontend/components/profile/WeeklyChallenge.tsx
+         - Displays challenge.title/desc from backend /gamification/status.weekly_challenge
+         - Progress bar using streak as proxy, +50 coins reward pill, Join Challenge CTA
+         - Fallback challenge ("Save ₹500 this week") so card always renders
+      
+      4. PROFILE UI INTEGRATIONS
+         - /app/frontend/app/(tabs)/profile.tsx now includes:
+           * Hero card with Share My Score CTA (viral entry point)
+           * WeeklyChallenge card (purple gradient)
+           * BadgesSection card (Achievements)
+           * Existing Payment Options (expandable)
+           * Existing Premium + Referral + Settings
+         - Share flow: tap "Share My Score" → preview modal → share as image OR text
+      
+      VERIFICATION
+      - Web bundle: compiles clean, no new TS errors
+      - Playwright screenshots confirm all 3 new cards render + share modal opens with score card
+      - Components return graceful fallback when auth-protected APIs fail
+      
+      NOT TESTED VIA AGENTS (to respect the no-frontend-testing-without-permission rule):
+      - Actual image capture on native device (expo-sharing)
+      - WhatsApp/Instagram share-sheet UX on iOS/Android
+      
+      NO BACKEND CHANGES in this task — only consumes existing /api/gamification/status endpoint.

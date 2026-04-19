@@ -139,3 +139,72 @@ export async function copyToClipboard(text: string, successMsg = 'Copied!'): Pro
   Toast.show({ type: ok ? 'success' : 'error', text1: ok ? successMsg : 'Could not copy', position: 'bottom' });
   return ok;
 }
+
+/**
+ * Share an image captured via react-native-view-shot.
+ * - Native: uses expo-sharing which opens the OS share sheet (WhatsApp/Instagram/Photos).
+ * - Web: triggers a download of the PNG, then falls back to a clipboard text share.
+ * Accepts either a file URI (native) or data URL (web).
+ */
+export async function shareImageSmart(opts: {
+  uri: string;
+  fallbackText?: string;
+  filename?: string;
+}): Promise<{ success: boolean; method: string }> {
+  const filename = opts.filename || 'mintu-score.png';
+
+  if (Platform.OS === 'web') {
+    try {
+      // dataURL → blob download
+      if (opts.uri.startsWith('data:')) {
+        const a = document.createElement('a');
+        a.href = opts.uri;
+        a.download = filename;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        Toast.show({
+          type: 'success',
+          text1: 'Image saved!',
+          text2: 'Share it on WhatsApp, Instagram or anywhere',
+          position: 'bottom',
+        });
+        return { success: true, method: 'web_download' };
+      }
+      // Remote URL → open in new tab
+      if (typeof window !== 'undefined') {
+        window.open(opts.uri, '_blank');
+        return { success: true, method: 'web_open' };
+      }
+    } catch {
+      // fall through
+    }
+    // Fallback to text
+    if (opts.fallbackText) {
+      return await shareSmart({ message: opts.fallbackText, title: 'MintU' });
+    }
+    return { success: false, method: 'none' };
+  }
+
+  // Native: use expo-sharing for image files
+  try {
+    const Sharing = await import('expo-sharing');
+    const available = await Sharing.isAvailableAsync();
+    if (available) {
+      await Sharing.shareAsync(opts.uri, {
+        dialogTitle: 'Share your MintU score',
+        mimeType: 'image/png',
+        UTI: 'public.png',
+      });
+      return { success: true, method: 'expo_sharing' };
+    }
+  } catch {
+    // fall through
+  }
+
+  // Fallback: native text share
+  if (opts.fallbackText) {
+    return await shareSmart({ message: opts.fallbackText, title: 'MintU' });
+  }
+  return { success: false, method: 'none' };
+}
