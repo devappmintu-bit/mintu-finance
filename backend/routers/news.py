@@ -80,7 +80,33 @@ def _enrich_article(a: dict) -> dict:
     title = (a.get("title") or "").strip()
     q_plain = up.quote_plus(title) if title else up.quote_plus(src)
     q_dash = up.quote(title.lower().replace(" ", "-")) if title else up.quote(src)
-    outlet = _TRUSTED_OUTLETS.get(src.lower())
+
+    # Substring match — LLM emits long-form names like "Reserve Bank of India (RBI)"
+    # so a strict `.get()` misses them. We scan every known outlet key and take
+    # the FIRST substring hit. Keys are ordered most-specific-first below.
+    src_low = (src or "").lower()
+    outlet = None
+    for key, val in _TRUSTED_OUTLETS.items():
+        if key and key in src_low:
+            outlet = val
+            break
+    # Extra aliases for the long-form names the LLM tends to use.
+    if not outlet:
+        aliases: dict[str, tuple[str, str]] = {
+            "reserve bank":                 _TRUSTED_OUTLETS["rbi"],
+            "national stock exchange":      _TRUSTED_OUTLETS["nse"],
+            "bombay stock exchange":        _TRUSTED_OUTLETS["bse"],
+            "securities and exchange":      _TRUSTED_OUTLETS["sebi"],
+            "national payments corporation":_TRUSTED_OUTLETS["npci"],
+            "mutual funds in india":        _TRUSTED_OUTLETS["amfi"],
+            "press information bureau":     _TRUSTED_OUTLETS["pib"],
+            "income tax":                   ("incometaxindia.gov.in", "https://www.google.com/search?q={q}+site:incometaxindia.gov.in&tbm=nws"),
+        }
+        for key, val in aliases.items():
+            if key in src_low:
+                outlet = val
+                break
+
     if outlet and title:
         domain, tmpl = outlet
         # Moneycontrol uses slug-style URLs; others use ?q=
