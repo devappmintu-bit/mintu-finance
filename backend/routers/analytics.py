@@ -178,6 +178,105 @@ async def savings_leaderboard(user_id: str = Depends(get_current_user)):
     }
 
 
+# ============== UNIFIED LEADERBOARD (global + your contacts) ==============
+@router.get("/leaderboard/unified")
+async def unified_leaderboard(
+    scope: str = "contacts",
+    user_id: str = Depends(get_current_user),
+):
+    """Unified leaderboard used by Home, Rewards and Split screens.
+
+    scope: "contacts" (split-group co-members + referred users + self) or "global" (top 50)
+
+    Returns: {you: {...}, contenders: [...ranked], scope, total}
+    Contenders are sorted by money_score desc. Each includes:
+      rank, id, name, score, streak, coins, is_me, phone_masked, settlements_count.
+    """
+    from bson import ObjectId
+
+    # Build the set of user_ids we want to rank:
+    if scope == "global":
+        ids_query: Dict = {}  # every user
+    else:
+        # Contact network: people in any of my split groups, people who referred me or I referred, plus me.
+        network_ids = {user_id}
+        # Split group co-members
+        my_groups = await db.split_groups.find(
+            {"members.user_id": user_id},
+            {"members.user_id": 1},
+        ).to_list(100)
+        for g in my_groups:
+            for m in g.get("members", []):
+                if m.get("user_id"):
+                    network_ids.add(m["user_id"])
+        # Users I referred
+        referred = await db.users.find(
+            {"referred_by": user_id},
+            {"_id": 1},
+        ).to_list(500)
+        for r in referred:
+            network_ids.add(str(r["_id"]))
+        # User who referred me
+        try:
+            me = await db.users.find_one({"_id": ObjectId(user_id)}, {"referred_by": 1})
+            if me and me.get("referred_by"):
+                network_ids.add(me["referred_by"])
+        except Exception:
+            pass
+        ids_query = {"_id": {"$in": [ObjectId(uid) for uid in network_ids if ObjectId.is_valid(uid)]}}
+
+    projection = {"name": 1, "money_score": 1, "phone": 1, "streak_days": 1, "reward_coins": 1, "settlement_count": 1, "avatar": 1}
+    candidates = await db.users.find(ids_query, projection).to_list(500)
+    # Sort by money_score desc (secondary: coins)
+    candidates.sort(key=lambda u: (-u.get("money_score", 0), -u.get("reward_coins", 0)))
+
+    contenders = []
+    you = None
+    for i, u in enumerate(candidates):
+        uid = str(u["_id"])
+        is_me = uid == user_id
+        phone = u.get("phone", "")
+        masked = f"***{phone[-4:]}" if len(phone) >= 4 else "****"
+        entry = {
+            "rank": i + 1,
+            "id": uid,
+            "name": u.get("name", "MintU User"),
+            "score": u.get("money_score", 0),
+            "streak": u.get("streak_days", 0),
+            "coins": u.get("reward_coins", 0),
+            "settlements": u.get("settlement_count", 0),
+            "is_me": is_me,
+            "phone_masked": masked,
+            "has_avatar": bool(u.get("avatar")),
+        }
+        contenders.append(entry)
+        if is_me:
+            you = entry
+
+    total = len(contenders)
+    if you:
+        you_rank = you["rank"]
+        you["percentile"] = max(1, min(99, int(((total - you_rank) / max(total, 1)) * 100))) if total > 1 else 100
+
+    # Leader headline
+    leader = contenders[0] if contenders else None
+    if leader and not leader["is_me"]:
+        headline = f"👑 {leader['name']} leads with {leader['score']}/100"
+    elif leader and leader["is_me"]:
+        headline = f"🏆 You're leading among your {total - 1} contacts!"
+    else:
+        headline = "Invite friends to start competing"
+
+    return {
+        "scope": scope,
+        "total": total,
+        "you": you,
+        "leader": leader,
+        "headline": headline,
+        "contenders": contenders[:50],  # cap at 50
+    }
+
+
 # ============== MINTU 2.0 — COINS & REWARDS (habit loop) ==============
 # Award rules: simple, non-cumulative within a window to prevent farming.
 COIN_RULES = {

@@ -19,7 +19,7 @@ import { HomeSkeleton } from '../../components/SkeletonLoader';
 import InsightsCard from '../../components/home/InsightsCard';
 import DailyQuestCard from '../../components/DailyQuestCard';
 import AIInsightCard from '../../components/home/AIInsightCard';
-import LeaderboardPreview from '../../components/home/LeaderboardPreview';
+import UnifiedLeaderboard from '../../components/leaderboard/UnifiedLeaderboard';
 import NewsCarousel from '../../components/home/NewsCarousel';
 import WeeklyReport from '../../components/home/WeeklyReport';
 import Confetti from '../../components/Confetti';

@@ -764,9 +764,6 @@ async def partial_settle(data: dict, user_id: str = Depends(get_current_user)):
     }
 
 
-@api_router.delete("/split/expenses/{expense_id}")
-
-
 @api_router.delete("/split/groups/{group_id}/leave")
 async def leave_group(group_id: str, user_id: str = Depends(get_current_user)):
     """Leave a split group"""
