@@ -293,13 +293,13 @@ export default function ProfileScreen() {
             </View>
             <View style={s.snapGrid}>
               <View style={s.snapItem}>
-                <Ionicons name="pie-chart" size={18} color="#8B5CF6" />
+                <Ionicons name="pie-chart" size={18} color="#E65100" />
                 <Text style={s.snapItemValue} numberOfLines={1}>{realStats.topCategory ? realStats.topCategory.name : '—'}</Text>
                 <Text style={s.snapItemLabel}>{realStats.topCategory ? `Top: ₹${realStats.topCategory.amount.toLocaleString('en-IN', { maximumFractionDigits: 0 })}` : 'Top Category'}</Text>
               </View>
               <View style={s.snapDivider} />
               <View style={s.snapItem}>
-                <Ionicons name="receipt" size={18} color="#6366F1" />
+                <Ionicons name="receipt" size={18} color="#E65100" />
                 <Text style={s.snapItemValue}>{realStats.transactionCount}</Text>
                 <Text style={s.snapItemLabel}>Transactions</Text>
               </View>
@@ -310,7 +310,7 @@ export default function ProfileScreen() {
         {/* ═══ PAYMENT METHODS (Emergent-style, expandable) ═══ */}
         <View style={s.payCard}>
           <TouchableOpacity style={s.payHeaderRow} onPress={() => setPayExpanded(!payExpanded)} activeOpacity={0.7}>
-            <View style={s.payIconBox}><Ionicons name="card" size={20} color="#6366F1" /></View>
+            <View style={s.payIconBox}><Ionicons name="card" size={20} color="#E65100" /></View>
             <View style={{ flex: 1 }}>
               <Text style={s.payTitle}>Payment Options</Text>
               <Text style={s.paySub}>{upiId ? 'UPI linked \u2022 Cards, Wallets ready' : 'Tap to set up UPI & cards'}</Text>
@@ -339,7 +339,7 @@ export default function ProfileScreen() {
 
           {/* UPI Section */}
           <TouchableOpacity style={s.optRow} onPress={() => setUpiExpanded(!upiExpanded)}>
-            <Ionicons name="flash" size={18} color="#6366F1" />
+            <Ionicons name="flash" size={18} color="#E65100" />
             <View style={{ flex: 1, marginLeft: 12 }}>
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
                 <Text style={s.optName}>UPI</Text>
@@ -385,7 +385,7 @@ export default function ProfileScreen() {
 
           {/* Wallet */}
           <TouchableOpacity style={[s.optRow, { borderBottomWidth: 0 }]}>
-            <Ionicons name="wallet" size={18} color="#8B5CF6" />
+            <Ionicons name="wallet" size={18} color="#E65100" />
             <View style={{ flex: 1, marginLeft: 12 }}>
               <Text style={s.optName}>Wallet</Text>
               <Text style={s.optOffer}>Paytm · Mobikwik · Amazon Pay</Text>
@@ -468,7 +468,7 @@ export default function ProfileScreen() {
                   </View>
                   <View style={s.refStatDivider} />
                   <View style={s.refStatBox}>
-                    <Text style={[s.refStatNum, { color: '#8B5CF6' }]}>
+                    <Text style={[s.refStatNum, { color: '#E65100' }]}>
                       {(referral.reward_tiers || []).filter((t: any) => t.unlocked).length}/{(referral.reward_tiers || []).length}
                     </Text>
                     <Text style={s.refStatLbl}>Tiers</Text>
@@ -575,8 +575,8 @@ export default function ProfileScreen() {
         {/* ═══ SETTINGS ═══ */}
         <Text style={s.secTitle}>Settings</Text>
         <TouchableOpacity style={s.menuItem} onPress={() => setLangModalVisible(true)}>
-          <Ionicons name="language" size={20} color="#8B5CF6" />
-          <View style={{ flex: 1, marginLeft: 12 }}><Text style={s.menuText}>{t('language', lang)}</Text><Text style={{ fontSize: 11, color: '#8B5CF6' }}>{currentLang?.nativeName}</Text></View>
+          <Ionicons name="language" size={20} color="#E65100" />
+          <View style={{ flex: 1, marginLeft: 12 }}><Text style={s.menuText}>{t('language', lang)}</Text><Text style={{ fontSize: 11, color: '#E65100' }}>{currentLang?.nativeName}</Text></View>
           <Ionicons name="chevron-forward" size={16} color={COLORS.text.muted} />
         </TouchableOpacity>
         <TouchableOpacity style={s.menuItem}><Ionicons name="notifications-outline" size={20} color={COLORS.accent.primary} /><Text style={[s.menuText, { marginLeft: 12 }]}>{t('notifications', lang)}</Text><Ionicons name="chevron-forward" size={16} color={COLORS.text.muted} /></TouchableOpacity>
@@ -645,7 +645,7 @@ export default function ProfileScreen() {
           <ScrollView contentContainerStyle={{ padding: 20 }}>
             {[
               { icon: 'shield-checkmark', color: '#10B981', title: 'Data Encryption', desc: 'AES-256 encryption at rest, TLS 1.3 in transit. Passwords hashed with bcrypt.' },
-              { icon: 'lock-closed', color: '#6366F1', title: 'Authentication', desc: 'Phone OTP verification, JWT tokens with 30-day expiry, session management.' },
+              { icon: 'lock-closed', color: '#E65100', title: 'Authentication', desc: 'Phone OTP verification, JWT tokens with 30-day expiry, session management.' },
               { icon: 'eye-off', color: '#E65100', title: 'Data Privacy', desc: 'We do NOT sell or share your data. RBI & IT Act 2000 compliant. India-only servers.' },
               { icon: 'server', color: '#059669', title: 'Data Storage', desc: 'Encrypted servers in India per RBI data localization. Regular backups. Request deletion anytime.' },
               { icon: 'finger-print', color: '#D32F2F', title: 'Access Control', desc: 'RBAC for employees. Rate limiting (1000 req/min). All access logged and audited.' },
@@ -873,7 +873,7 @@ const s = StyleSheet.create({
   gamiBody: { marginTop: 12 },
   // Payment expandable header
   payHeaderRow: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 4 },
-  payIconBox: { width: 40, height: 40, borderRadius: 12, backgroundColor: '#6366F115', justifyContent: 'center', alignItems: 'center' },
+  payIconBox: { width: 40, height: 40, borderRadius: 12, backgroundColor: '#E6510015', justifyContent: 'center', alignItems: 'center' },
   paySub: { fontSize: 12, color: COLORS.text.muted, marginTop: 2 },
   // Premium card
   premiumCard: { backgroundColor: '#0F172A', borderRadius: 20, marginBottom: 14, borderWidth: 1, borderColor: '#F59E0B40', overflow: 'hidden' },

@@ -58,7 +58,7 @@ export default function AboutMintU({ visible, onClose }: Props) {
           </View>
           <Row icon="shield-checkmark" color="#10B981" title="Bank-grade encryption" sub="AES-256 at rest · TLS 1.3 in transit" />
           <Row icon="server" color="#059669" title="India servers" sub="Data stored in India per RBI localization" />
-          <Row icon="lock-closed" color="#6366F1" title="No data selling" sub="Your money data never leaves MintU" />
+          <Row icon="lock-closed" color="#E65100" title="No data selling" sub="Your money data never leaves MintU" />
           <Row icon="eye-off" color={COLORS.accent.primary} title="Minimal data collection" sub="We only ask for what we actually use" />
 
           {/* Legal section */}

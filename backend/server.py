@@ -204,79 +204,10 @@ def get_lang_instruction(lang: str) -> str:
     return f"\n\nIMPORTANT: Respond ENTIRELY in {LANG_NAMES[lang]}. Use the native script. Keep ₹ amounts in digits. Do NOT respond in English."
 
 # ============== Models ==============
-class UserCreate(BaseModel):
-    phone: str
-    name: str
-    password: str
-
-class UserLogin(BaseModel):
-    phone: str
-    password: str
-
-class UserResponse(BaseModel):
-    id: str
-    phone: str
-    name: str
-    money_score: int = 50
-    created_at: datetime
-
-class TransactionCreate(BaseModel):
-    amount: float
-    category: str
-    description: str
-    type: str  # "debit" or "credit"
-    date: Optional[datetime] = None
-
-class TransactionResponse(BaseModel):
-    id: str
-    user_id: str
-    amount: float
-    category: str
-    description: str
-    type: str
-    date: datetime
-    created_at: datetime
-
-class SMSParseRequest(BaseModel):
-    sms_text: str
-
-# BudgetCreate moved to routers/budgets.py — re-exported for back-compat.
-from routers.budgets import BudgetCreate  # noqa: F401, E402
-
-class BudgetResponse(BaseModel):
-    id: str
-    user_id: str
-    category: str
-    amount: float
-    spent: float = 0
-    period: str
-    created_at: datetime
-
-class DailyInsightResponse(BaseModel):
-    money_score: int
-    insight_text: str
-    spending_summary: Dict[str, float]
-    recommendations: List[str]
-    generated_at: datetime
-
-# OTP Models
-class OTPSendRequest(BaseModel):
-    phone: str
-
-class OTPVerifyRequest(BaseModel):
-    phone: str
-    otp: str
-    name: Optional[str] = None  # Required for new users
-
-# Cash Tracking Models
-class RecurringExpenseCreate(BaseModel):
-    description: str
-    amount: float
-    category: str
-    frequency: str  # "daily", "weekly", "monthly"
-
-class QuickCashEntry(BaseModel):
-    text: str  # e.g. "₹50 auto", "200 sabzi", "milk 50"
+# ── Pydantic schemas now live in /app/backend/schemas.py ──
+# Re-export everything for back-compat with existing routers that imported
+# models from server.py. See schemas.py for the centralized definitions.
+from schemas import *  # noqa: F401,F403,E402
 
 # ============== Helper Functions ==============
 def hash_password(password: str) -> str:
@@ -828,16 +759,14 @@ MONEY_SCHOOL_LESSONS = [
 # [extracted to routers/ai.py - server.py:1107..1144]
 
 # ============== PUSH NOTIFICATIONS ==============
-class PushTokenRegister(BaseModel):
-    push_token: str
+# PushTokenRegister → schemas.py (re-exported via `from schemas import *` above)
 
 # [extracted to routers/ - was /notifications/register-token at lines 1038..1046]
 
 # [extracted to routers/ - was /notifications/check-budget-alerts at lines 1048..1075]
 
 # ============== BIOMETRIC AUTH ==============
-class BiometricToggle(BaseModel):
-    enabled: bool
+# BiometricToggle → schemas.py
 
 # /user/biometric (PUT+GET) moved to routers/user.py
 
@@ -911,8 +840,7 @@ PRICING = {
 import razorpay
 razorpay_client = razorpay.Client(auth=(os.environ.get('RAZORPAY_KEY_ID', ''), os.environ.get('RAZORPAY_KEY_SECRET', '')))
 
-class CreateOrderRequest(BaseModel):
-    plan: str  # "monthly", "yearly", "intro"
+# CreateOrderRequest → schemas.py
 
 # [extracted to routers/ - was /premium/status at lines 1194..1210]
 
@@ -1008,10 +936,7 @@ def build_equivalences(monthly_amount: float) -> list:
     return results[:4]  # Top 4 most impactful
 
 # 1. AI FINANCIAL COACH (CHAT)
-class ChatMessage(BaseModel):
-    message: str
-    context: Optional[str] = None
-    lang: Optional[str] = "en"
+# ChatMessage → schemas.py
 
 # [extracted to routers/ai.py - server.py:1910..2000]
 

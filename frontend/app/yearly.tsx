@@ -139,7 +139,7 @@ function BarChart({ data }: { data: Monthly[] }) {
               <Text style={s.selectedSub}>Expense</Text>
             </View>
             <View style={s.selectedCell}>
-              <Text style={[s.selectedVal, { color: '#8B5CF6' }]}>{data[selected].savings_rate}%</Text>
+              <Text style={[s.selectedVal, { color: '#E65100' }]}>{data[selected].savings_rate}%</Text>
               <Text style={s.selectedSub}>Saved</Text>
             </View>
           </View>
@@ -211,7 +211,7 @@ export default function YearlyDashboard() {
   if (loading) {
     return (
       <SafeAreaView style={s.container}>
-        <ActivityIndicator size="large" color="#8B5CF6" style={{ marginTop: 80 }} />
+        <ActivityIndicator size="large" color="#E65100" style={{ marginTop: 80 }} />
       </SafeAreaView>
     );
   }
@@ -227,10 +227,10 @@ export default function YearlyDashboard() {
       </View>
 
       <ScrollView
-        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); load(); }} tintColor="#8B5CF6" />}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); load(); }} tintColor="#E65100" />}
       >
         {/* Hero headline */}
-        <LinearGradient colors={['#8B5CF6', '#6366F1']} style={s.hero}>
+        <LinearGradient colors={['#E65100', '#E65100']} style={s.hero}>
           <Text style={s.heroLabel}>{data?.label || 'Last 12 months'}</Text>
           <Text style={s.heroHeadline}>{data?.headline}</Text>
           <View style={s.heroStats}>
@@ -287,7 +287,7 @@ export default function YearlyDashboard() {
                 <View style={{ flex: 1 }}>
                   <Text style={s.catName}>{c.name}</Text>
                   <View style={s.catBar}>
-                    <View style={[s.catBarFill, { width: `${c.pct}%`, backgroundColor: ['#8B5CF6', '#EC4899', '#F59E0B', '#10B981', '#3B82F6'][i] }]} />
+                    <View style={[s.catBarFill, { width: `${c.pct}%`, backgroundColor: ['#E65100', '#EC4899', '#F59E0B', '#10B981', '#3B82F6'][i] }]} />
                   </View>
                 </View>
                 <View style={{ alignItems: 'flex-end' }}>
@@ -348,7 +348,7 @@ export default function YearlyDashboard() {
             </View>
             <View style={s.avgDiv} />
             <View style={s.avgCell}>
-              <Text style={[s.avgVal, { color: '#8B5CF6' }]}>{data?.yearly?.txn_count || 0}</Text>
+              <Text style={[s.avgVal, { color: '#E65100' }]}>{data?.yearly?.txn_count || 0}</Text>
               <Text style={s.avgLbl}>Transactions</Text>
             </View>
           </View>
@@ -365,7 +365,7 @@ const s = StyleSheet.create({
   header: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 12, paddingVertical: 12, backgroundColor: '#FFFFFF', borderBottomWidth: 1, borderBottomColor: COLORS.border.subtle },
   backBtn: { padding: 6 },
   headerTitle: { flex: 1, fontSize: 17, fontWeight: '800', color: COLORS.text.primary, textAlign: 'center' },
-  hero: { margin: 12, padding: 18, borderRadius: 18, ...shadowStyle('#8B5CF6', 6, 16, 0.25, 6) },
+  hero: { margin: 12, padding: 18, borderRadius: 18, ...shadowStyle('#E65100', 6, 16, 0.25, 6) },
   heroLabel: { color: 'rgba(255,255,255,0.8)', fontSize: 11, fontWeight: '800', letterSpacing: 1 },
   heroHeadline: { color: '#fff', fontSize: 16, fontWeight: '800', marginTop: 4, lineHeight: 22 },
   heroStats: { flexDirection: 'row', marginTop: 16, paddingTop: 14, borderTopWidth: 1, borderTopColor: 'rgba(255,255,255,0.25)' },
@@ -380,8 +380,8 @@ const s = StyleSheet.create({
   legendItem: { flexDirection: 'row', alignItems: 'center', gap: 5 },
   legendDot: { width: 10, height: 10, borderRadius: 2 },
   legendText: { fontSize: 11, color: COLORS.text.muted, fontWeight: '600' },
-  selectedCard: { marginTop: 10, padding: 12, backgroundColor: COLORS.bg.subtle, borderRadius: 10, borderWidth: 1, borderColor: '#8B5CF640' },
-  selectedLabel: { fontSize: 13, fontWeight: '800', color: '#8B5CF6', marginBottom: 8 },
+  selectedCard: { marginTop: 10, padding: 12, backgroundColor: COLORS.bg.subtle, borderRadius: 10, borderWidth: 1, borderColor: '#E6510040' },
+  selectedLabel: { fontSize: 13, fontWeight: '800', color: '#E65100', marginBottom: 8 },
   selectedGrid: { flexDirection: 'row' },
   selectedCell: { flex: 1, alignItems: 'center' },
   selectedVal: { fontSize: 14, fontWeight: '800' },
@@ -391,8 +391,8 @@ const s = StyleSheet.create({
   momentumTitle: { fontSize: 13, fontWeight: '800', color: COLORS.text.primary, letterSpacing: 0.3 },
   momentumDetail: { fontSize: 12, color: COLORS.text.secondary, marginTop: 2 },
   catRow: { flexDirection: 'row', alignItems: 'center', gap: 10, marginTop: 10 },
-  catRank: { width: 24, height: 24, borderRadius: 12, backgroundColor: '#8B5CF615', justifyContent: 'center', alignItems: 'center' },
-  catRankNum: { fontSize: 11, fontWeight: '800', color: '#8B5CF6' },
+  catRank: { width: 24, height: 24, borderRadius: 12, backgroundColor: '#E6510015', justifyContent: 'center', alignItems: 'center' },
+  catRankNum: { fontSize: 11, fontWeight: '800', color: '#E65100' },
   catName: { fontSize: 13, fontWeight: '700', color: COLORS.text.primary },
   catBar: { height: 5, backgroundColor: COLORS.bg.subtle, borderRadius: 999, overflow: 'hidden', marginTop: 4 },
   catBarFill: { height: '100%', borderRadius: 999 },

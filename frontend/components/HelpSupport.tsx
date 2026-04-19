@@ -27,7 +27,7 @@ export default function HelpSupport({ onClose }: { onClose: () => void }) {
         <Text style={s.section}>Quick Actions</Text>
         <View style={s.actionsGrid}>
           {[
-            { icon: 'mail', color: '#6366F1', label: 'Email Us', action: () => Linking.openURL('mailto:support@mintu.app?subject=MintU%20Support%20Request') },
+            { icon: 'mail', color: '#E65100', label: 'Email Us', action: () => Linking.openURL('mailto:support@mintu.app?subject=MintU%20Support%20Request') },
             { icon: 'chatbubbles', color: '#10B981', label: 'Live Chat', action: () => Linking.openURL('https://wa.me/919876543210?text=Hi%20MintU%20Support') },
             { icon: 'bug', color: '#EF4444', label: 'Report Bug', action: () => Linking.openURL('mailto:bugs@mintu.app?subject=Bug%20Report%20-%20MintU') },
             { icon: 'star', color: '#F59E0B', label: 'Rate App', action: () => {} },

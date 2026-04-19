@@ -81,9 +81,9 @@ export default function SplitActivityFeed({ data, onPressItem }: Props) {
             </View>
           )}
           {top_friend && top_friend.count >= 2 && (
-            <View style={[s.statChip, { backgroundColor: '#8B5CF618' }]}>
+            <View style={[s.statChip, { backgroundColor: '#E6510018' }]}>
               <Text style={s.heartEmoji}>💙</Text>
-              <Text style={[s.statChipText, { color: '#7C3AED' }]}>Top: {top_friend.name}</Text>
+              <Text style={[s.statChipText, { color: '#E65100' }]}>Top: {top_friend.name}</Text>
             </View>
           )}
         </View>
@@ -98,7 +98,7 @@ export default function SplitActivityFeed({ data, onPressItem }: Props) {
             activeOpacity={onPressItem ? 0.7 : 1}
             onPress={() => onPressItem?.(item)}
           >
-            <View style={[s.feedEmojiCircle, { backgroundColor: item.direction === 'in' ? '#10B98115' : item.direction === 'out' ? '#8B5CF615' : '#F3F4F6' }]}>
+            <View style={[s.feedEmojiCircle, { backgroundColor: item.direction === 'in' ? '#10B98115' : item.direction === 'out' ? '#E6510015' : '#F3F4F6' }]}>
               <Text style={s.feedEmoji}>{item.emoji}</Text>
             </View>
             <View style={{ flex: 1 }}>
@@ -124,7 +124,7 @@ const s = StyleSheet.create({
     ...shadowStyle('#2E1F1A', 2, 10, 0.05, 3),
   },
   headerRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 8 },
-  headerLabel: { fontSize: 10, fontWeight: '800', color: '#8B5CF6', letterSpacing: 1, marginBottom: 3 },
+  headerLabel: { fontSize: 10, fontWeight: '800', color: '#E65100', letterSpacing: 1, marginBottom: 3 },
   headline: { fontSize: 14, fontWeight: '700', color: COLORS.text.primary, lineHeight: 19 },
   statChipRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginTop: 8, marginBottom: 4 },
   statChip: { flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: 10, paddingVertical: 5, borderRadius: 999 },

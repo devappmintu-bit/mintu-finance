@@ -128,7 +128,7 @@ const s = StyleSheet.create({
   heroDate: { fontSize: 11, fontWeight: '600', color: COLORS.text.muted, marginTop: 4, letterSpacing: 0.3 },
   intro: { fontSize: 14, color: COLORS.text.secondary, lineHeight: 22, marginBottom: 16, fontWeight: '500' },
   section: { backgroundColor: '#FFFFFF', borderRadius: 12, padding: 14, marginBottom: 10, borderWidth: 1, borderColor: COLORS.border.card },
-  sectionTitle: { fontSize: 14, fontWeight: '800', color: '#8B5CF6', marginBottom: 6 },
+  sectionTitle: { fontSize: 14, fontWeight: '800', color: '#E65100', marginBottom: 6 },
   sectionBody: { fontSize: 13, color: COLORS.text.primary, lineHeight: 20, fontWeight: '500' },
   footer: { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 18, padding: 12, backgroundColor: '#10B98110', borderRadius: 10, borderWidth: 1, borderColor: '#10B98125' },
   footerText: { flex: 1, fontSize: 11, color: '#059669', fontWeight: '700', lineHeight: 15 },

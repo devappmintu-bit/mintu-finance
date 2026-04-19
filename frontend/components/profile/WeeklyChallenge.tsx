@@ -115,7 +115,7 @@ export default function WeeklyChallenge({
         <Ionicons
           name={done ? 'trophy' : joined ? 'checkmark-circle' : 'rocket'}
           size={16}
-          color={done || joined ? '#10B981' : '#6366F1'}
+          color={done || joined ? '#10B981' : '#E65100'}
         />
         <Text style={[s.ctaText, (done || joined) && { color: '#10B981' }]}>
           {done ? 'Completed!' : joined ? 'In Progress…' : 'Join Challenge'}

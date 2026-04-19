@@ -92,7 +92,7 @@ export default function RemindSheet({ visible, onClose, target, onSend }: Props)
                 {`Will post a reminder in the group chat${Platform.OS !== 'web' ? ' + open WhatsApp' : ''}. 1 reminder/hour limit.`}
               </Text>
               <TouchableOpacity onPress={inviteToSettle} activeOpacity={0.85}>
-                <LinearGradient colors={['#8B5CF6', '#6366F1']} style={s.primaryBtn}>
+                <LinearGradient colors={['#E65100', '#E65100']} style={s.primaryBtn}>
                   <Ionicons name="card" size={18} color={C.inv} />
                   <Text style={s.primaryBtnText}> Invite to Settle (UPI)</Text>
                 </LinearGradient>

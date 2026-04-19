@@ -307,7 +307,7 @@ export default function HomeScreen() {
         {predict && (predict.overspend_alerts?.length > 0 || predict.waste_comparisons?.length > 0) && (
           <View style={styles.predictCard}>
             <View style={styles.predictHeader}>
-              <Ionicons name="analytics" size={16} color="#8B5CF6" />
+              <Ionicons name="analytics" size={16} color="#E65100" />
               <Text style={styles.predictTitle}>PREDICTIVE INSIGHTS</Text>
               <View style={styles.aiBadge}><Text style={styles.aiBadgeText}>AI</Text></View>
             </View>
@@ -455,7 +455,7 @@ export default function HomeScreen() {
                 <Text style={styles.lbMetaLbl}>Percentile</Text>
               </View>
               <View style={styles.lbMetaBox}>
-                <Text style={[styles.lbMetaNum, { color: '#8B5CF6' }]}>{leaderboard.user_score || 0}</Text>
+                <Text style={[styles.lbMetaNum, { color: '#E65100' }]}>{leaderboard.user_score || 0}</Text>
                 <Text style={styles.lbMetaLbl}>Score</Text>
               </View>
             </View>
@@ -630,7 +630,7 @@ const styles = StyleSheet.create({
   alertMsg: { fontSize: 13, color: COLORS.text.secondary, lineHeight: 19 },
   // Premium banner
   premiumBanner: { backgroundColor: 'rgba(139,92,246,0.06)', borderRadius: RADIUS.card, padding: 16, marginBottom: SPACING.lg, borderWidth: 1, borderColor: 'rgba(139,92,246,0.15)' },
-  premiumBtn: { backgroundColor: '#8B5CF6', paddingHorizontal: 16, paddingVertical: 8, borderRadius: RADIUS.full },
+  premiumBtn: { backgroundColor: '#E65100', paddingHorizontal: 16, paddingVertical: 8, borderRadius: RADIUS.full },
   premiumBtnText: { fontSize: 13, fontWeight: '700', color: '#fff' },
   // Rewards
   rewardsCard: { backgroundColor: 'rgba(255,255,255,0.92)', borderRadius: RADIUS.card, padding: SPACING.xl, marginBottom: SPACING.lg, borderWidth: 1, borderColor: '#F59E0B25', ...shadowStyle('#2E1F1A', 2, 10, 0.04, 3) },
@@ -646,7 +646,7 @@ const styles = StyleSheet.create({
   // Weekly
   weeklyCard: { backgroundColor: 'rgba(255,255,255,0.92)', borderRadius: RADIUS.card, padding: SPACING.xl, marginBottom: SPACING.lg, borderWidth: 1, borderColor: COLORS.accent.secondary + '25', ...shadowStyle('#2E1F1A', 2, 10, 0.04, 3) },
   // MintU 2.0 — Predictive insights card (Waste detector + overspending)
-  predictCard: { backgroundColor: '#FFFFFF', borderRadius: RADIUS.card, padding: 14, marginBottom: SPACING.lg, borderWidth: 1, borderColor: '#8B5CF630', ...shadowStyle('#8B5CF6', 2, 10, 0.08, 3) },
+  predictCard: { backgroundColor: '#FFFFFF', borderRadius: RADIUS.card, padding: 14, marginBottom: SPACING.lg, borderWidth: 1, borderColor: '#E6510030', ...shadowStyle('#E65100', 2, 10, 0.08, 3) },
   // MintU 2.0 — Top-of-home pill row (gamification)
   pillRow: { flexDirection: 'row', gap: 8, marginBottom: 14, flexWrap: 'wrap' },
   // Transparency notice strip — RBI-friendly data freshness disclosure
@@ -662,8 +662,8 @@ const styles = StyleSheet.create({
   pillGlow: { position: 'absolute', top: -6, right: -4, backgroundColor: '#10B981', paddingHorizontal: 6, paddingVertical: 1, borderRadius: 999, borderWidth: 2, borderColor: '#FFFFFF' },
   pillGlowT: { fontSize: 9, fontWeight: '800', color: '#FFFFFF', letterSpacing: 0.3 },
   predictHeader: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 10 },
-  predictTitle: { flex: 1, fontSize: 11, fontWeight: '800', color: '#8B5CF6', letterSpacing: 0.8 },
-  aiBadge: { backgroundColor: '#8B5CF6', paddingHorizontal: 8, paddingVertical: 2, borderRadius: 4 },
+  predictTitle: { flex: 1, fontSize: 11, fontWeight: '800', color: '#E65100', letterSpacing: 0.8 },
+  aiBadge: { backgroundColor: '#E65100', paddingHorizontal: 8, paddingVertical: 2, borderRadius: 4 },
   aiBadgeText: { color: '#fff', fontSize: 9, fontWeight: '800', letterSpacing: 0.5 },
   predictRow: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingVertical: 10, paddingHorizontal: 10, backgroundColor: '#FEF3C7', borderRadius: 10, marginBottom: 6 },
   predictRowCrit: { backgroundColor: '#FEE2E2' },
@@ -685,7 +685,7 @@ const styles = StyleSheet.create({
   changePill: { flexDirection: 'row', alignItems: 'center', gap: 3, paddingHorizontal: 10, paddingVertical: 4, borderRadius: RADIUS.full },
   weeklySuggestion: { fontSize: 13, color: COLORS.text.secondary, lineHeight: 19, fontStyle: 'italic' },
   // School
-  schoolCard: { backgroundColor: COLORS.bg.card, borderRadius: RADIUS.card, padding: SPACING.xl, marginBottom: SPACING.lg, borderWidth: 1, borderColor: '#8B5CF625' },
+  schoolCard: { backgroundColor: COLORS.bg.card, borderRadius: RADIUS.card, padding: SPACING.xl, marginBottom: SPACING.lg, borderWidth: 1, borderColor: '#E6510025' },
   // Horizontal news cards
   newsCard: { width: 266, backgroundColor: 'rgba(255,255,255,0.96)', borderRadius: RADIUS.lg, padding: 14, borderWidth: 1, borderColor: COLORS.border.card, borderTopWidth: 3 },
   newsCatDot: { width: 6, height: 6, borderRadius: 3 },
@@ -725,14 +725,14 @@ const styles = StyleSheet.create({
   lbPodiumScore: { fontSize: 10, color: COLORS.text.muted, marginTop: 1 },
   schoolHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: SPACING.md },
   schoolBadge: { flexDirection: 'row', alignItems: 'center', gap: 6 },
-  schoolBadgeText: { fontSize: 11, fontWeight: '700', letterSpacing: 0.8, color: '#8B5CF6' },
+  schoolBadgeText: { fontSize: 11, fontWeight: '700', letterSpacing: 0.8, color: '#E65100' },
   schoolTitle: { fontSize: 16, fontWeight: '700', color: COLORS.text.primary, marginBottom: 8 },
   schoolTip: { fontSize: 14, color: COLORS.text.secondary, lineHeight: 21, marginBottom: SPACING.md },
-  schoolCatPill: { backgroundColor: '#8B5CF615', paddingHorizontal: 12, paddingVertical: 4, borderRadius: RADIUS.full, alignSelf: 'flex-start' },
-  schoolCatText: { fontSize: 11, fontWeight: '600', color: '#8B5CF6' },
+  schoolCatPill: { backgroundColor: '#E6510015', paddingHorizontal: 12, paddingVertical: 4, borderRadius: RADIUS.full, alignSelf: 'flex-start' },
+  schoolCatText: { fontSize: 11, fontWeight: '600', color: '#E65100' },
   // Money School horizontal cards
   xpRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 },
-  xpText: { fontSize: 13, fontWeight: '600', color: '#8B5CF6' },
+  xpText: { fontSize: 13, fontWeight: '600', color: '#E65100' },
   xpVal: { fontSize: 13, fontWeight: '700', color: '#F59E0B' },
   schoolCardH: { width: 280, backgroundColor: 'rgba(255,255,255,0.92)', borderRadius: RADIUS.card, padding: SPACING.lg, borderWidth: 1, borderColor: 'rgba(238,221,204,0.6)', borderLeftWidth: 4, ...shadowStyle('#2E1F1A', 2, 10, 0.04, 3) },
   schoolCardType: { fontSize: 10, fontWeight: '700', letterSpacing: 0.8 },

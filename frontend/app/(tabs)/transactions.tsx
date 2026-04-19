@@ -410,7 +410,7 @@ const styles = StyleSheet.create({
   notifHint: { fontSize: 12, color: '#6B7280', lineHeight: 18 },
   notifBody: { marginTop: SPACING.md },
   notifInput: { backgroundColor: '#fff', borderRadius: RADIUS.lg, padding: SPACING.md, fontSize: 14, color: COLORS.text.primary, borderWidth: 1, borderColor: '#C7D2FE', minHeight: 70, textAlignVertical: 'top', marginBottom: SPACING.sm },
-  notifParseBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, backgroundColor: '#6366F1', borderRadius: RADIUS.full, paddingVertical: 12 },
+  notifParseBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, backgroundColor: '#E65100', borderRadius: RADIUS.full, paddingVertical: 12 },
   notifParseTxt: { fontSize: 14, fontWeight: '600', color: '#fff' },
   // Waste Detector & Pie Chart
   wasteCard: { backgroundColor: '#FEF2F2', borderRadius: RADIUS.xl, padding: 14, marginBottom: 12, borderWidth: 1, borderColor: '#FECACA' },

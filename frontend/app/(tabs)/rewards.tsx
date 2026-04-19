@@ -251,7 +251,7 @@ const s = StyleSheet.create({
   copyBtn: { width: 48, height: 48, borderRadius: 24, backgroundColor: COLORS.bg.secondary, borderWidth: 1, borderColor: COLORS.border.subtle, justifyContent: 'center', alignItems: 'center' },
   referralCount: { fontSize: 13, color: COLORS.text.muted, textAlign: 'center' },
   // Premium
-  premiumCard: { backgroundColor: COLORS.bg.card, borderRadius: RADIUS.card, padding: SPACING.xl, borderWidth: 1, borderColor: '#8B5CF625' },
+  premiumCard: { backgroundColor: COLORS.bg.card, borderRadius: RADIUS.card, padding: SPACING.xl, borderWidth: 1, borderColor: '#E6510025' },
   premiumHeader: { flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: SPACING.lg },
   premiumTitle: { fontSize: 22, fontWeight: '800', color: COLORS.text.primary },
   abBadge: { backgroundColor: COLORS.accent.secondary + '15', paddingHorizontal: 10, paddingVertical: 4, borderRadius: RADIUS.full, alignSelf: 'flex-start', marginBottom: SPACING.md },
@@ -261,7 +261,7 @@ const s = StyleSheet.create({
   wasteSub: { fontSize: 13, color: COLORS.text.secondary },
   pricingRow: { flexDirection: 'row', gap: 8, marginBottom: SPACING.lg },
   pricingCard: { flex: 1, backgroundColor: COLORS.bg.primary, borderRadius: RADIUS.lg, padding: SPACING.md, alignItems: 'center', borderWidth: 1, borderColor: COLORS.border.subtle },
-  pricingBest: { backgroundColor: '#8B5CF6', borderColor: '#8B5CF6' },
+  pricingBest: { backgroundColor: '#E65100', borderColor: '#E65100' },
   bestBadge: { backgroundColor: '#FFD700', paddingHorizontal: 8, paddingVertical: 2, borderRadius: 6, marginBottom: 6 },
   bestBadgeText: { fontSize: 9, fontWeight: '800', color: '#000' },
   pricingLabel: { fontSize: 12, color: COLORS.text.muted, marginBottom: 4 },

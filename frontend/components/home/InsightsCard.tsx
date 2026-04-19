@@ -177,7 +177,7 @@ export default function InsightsCard({ snapshot, onPressSparkline }: Props) {
         <View style={s.statDiv} />
         <View style={s.statCell}>
           <Text style={s.statLabel}>{top_category ? 'Top' : 'Streak'}</Text>
-          <Text style={[s.statVal, { color: '#8B5CF6' }]} numberOfLines={1}>
+          <Text style={[s.statVal, { color: '#E65100' }]} numberOfLines={1}>
             {top_category ? top_category.name : `${tier.streak_days}d 🔥`}
           </Text>
         </View>

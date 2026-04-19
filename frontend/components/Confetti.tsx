@@ -15,7 +15,7 @@ import Animated, {
   runOnJS,
 } from 'react-native-reanimated';
 
-const COLORS = ['#10B981', '#F59E0B', '#8B5CF6', '#EF4444', '#3B82F6', '#EC4899', '#06B6D4', '#FBBF24'];
+const COLORS = ['#10B981', '#F59E0B', '#E65100', '#EF4444', '#3B82F6', '#EC4899', '#06B6D4', '#FBBF24'];
 const PARTICLE_COUNT = 28;
 const { width: W, height: H } = Dimensions.get('window');
 
