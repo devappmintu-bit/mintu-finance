@@ -1,9 +1,15 @@
-// Expenses tab content inside a group chat — balance, debts, and recent expenses.
-// Recent activities sorted oldest→newest (pushed to the end per UX requirement).
-// Supports swipe-to-edit and swipe-to-delete per expense (via SwipeableRow).
+// Expenses tab content inside a group — redesigned to feel less gpay-like.
+// Structure:
+//  1. Hero balance card (saffron gradient) — net you owe / are owed + quick stats
+//  2. Quick-action strip (Add expense · Remind all · Direct pay)
+//  3. Settle Up — coloured avatar tiles, each with its own saffron Pay button
+//  4. Recent expenses — timeline cards with category chip, paid-by avatar,
+//     "your share" badge, date, and swipe-to-delete / tap-to-edit
 import React from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity } from 'react-native';
-import { COLORS, RADIUS } from '../../utils/theme';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Platform, Linking } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
+import { LinearGradient } from 'expo-linear-gradient';
+import { COLORS } from '../../utils/theme';
 import { MEMBER_COLORS } from './theme';
 import SwipeableRow from '../SwipeableRow';
 import { useLangStore } from '../../store/langStore';
@@ -15,61 +21,193 @@ interface Props {
   onAddExpense: () => void;
   onEditExpense?: (exp: any) => void;
   onDeleteExpense?: (exp: any) => void;
+  onDirectPay?: (debt: any) => void;
+  onRemind?: (debt: any) => void;
 }
 
-export default function ExpensesTab({ summary, currentUserId, onAddExpense, onEditExpense, onDeleteExpense }: Props) {
+const catIcon = (desc: string): { emoji: string; color: string } => {
+  const d = (desc || '').toLowerCase();
+  if (/(food|restaurant|dinner|lunch|breakfast|swiggy|zomato|coffee)/.test(d)) return { emoji: '🍽', color: '#F59E0B' };
+  if (/(uber|ola|taxi|cab|fuel|petrol|transport)/.test(d))                   return { emoji: '🚕', color: '#3B82F6' };
+  if (/(movie|netflix|entertainment|concert|party)/.test(d))                 return { emoji: '🎬', color: '#8B5CF6' };
+  if (/(grocery|vegetable|bigbasket|blinkit|fruit)/.test(d))                 return { emoji: '🛒', color: '#10B981' };
+  if (/(rent|flat|hostel|bnb|hotel|room)/.test(d))                           return { emoji: '🏠', color: '#F56E1E' };
+  if (/(medic|doctor|pharmacy|hospital|health)/.test(d))                     return { emoji: '💊', color: '#EF4444' };
+  if (/(shopping|amazon|flipkart|myntra|mall)/.test(d))                      return { emoji: '🛍', color: '#EC4899' };
+  return { emoji: '💰', color: '#6B7280' };
+};
+
+const fmtDate = (s: string): string => {
+  if (!s) return '';
+  try {
+    const d = new Date(s);
+    const now = new Date();
+    const diffH = (now.getTime() - d.getTime()) / 36e5;
+    if (diffH < 24 && d.getDate() === now.getDate()) return 'Today';
+    if (diffH < 48) return 'Yesterday';
+    return d.toLocaleDateString('en-IN', { day: 'numeric', month: 'short' });
+  } catch { return ''; }
+};
+
+export default function ExpensesTab({ summary, currentUserId, onAddExpense, onEditExpense, onDeleteExpense, onDirectPay, onRemind }: Props) {
   const { lang } = useLangStore();
 
   const owedByYou =
     summary?.simplified_debts?.filter((d: any) => d.from_id === currentUserId).reduce((acc: number, d: any) => acc + d.amount, 0) || 0;
   const owedToYou =
     summary?.simplified_debts?.filter((d: any) => d.to_id === currentUserId).reduce((acc: number, d: any) => acc + d.amount, 0) || 0;
+  const net = owedToYou - owedByYou;
 
-  // Reverse the recent expenses so newest appears at the BOTTOM (per user request)
   const orderedExpenses: any[] = summary?.recent_expenses ? [...summary.recent_expenses].reverse() : [];
 
   return (
-    <ScrollView contentContainerStyle={{ padding: 16 }}>
-      <View style={s.balanceCard}>
-        <View style={s.balHalf}>
-          <Text style={s.balAmount}>₹{owedByYou.toFixed(0)}</Text>
-          <Text style={s.balLabel}>{t('owed_by_you', lang)}</Text>
+    <ScrollView contentContainerStyle={{ padding: 16, paddingBottom: 40 }}>
+      {/* 1. Hero balance card ----------------------------------------- */}
+      <LinearGradient
+        colors={net >= 0 ? ['#047857', '#10B981'] : ['#C14A06', '#F56E1E']}
+        start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}
+        style={s.hero}
+      >
+        <View style={s.heroHead}>
+          <Text style={s.heroLbl}>{net >= 0 ? "You're net owed" : "You owe net"}</Text>
+          <Ionicons name={net >= 0 ? 'trending-up' : 'trending-down'} size={16} color="#fff" />
         </View>
-        <View style={s.balDivider} />
-        <View style={s.balHalf}>
-          <Text style={[s.balAmount, { color: COLORS.accent.moneyIn }]}>₹{owedToYou.toFixed(0)}</Text>
-          <Text style={s.balLabel}>{t('owed_to_you', lang)}</Text>
+        <Text style={s.heroAmt}>₹{Math.abs(net).toLocaleString('en-IN')}</Text>
+
+        <View style={s.heroSplits}>
+          <View style={s.heroSplit}>
+            <View style={[s.heroDot, { backgroundColor: 'rgba(255,255,255,0.85)' }]} />
+            <Text style={s.heroSplitLbl}>{t('owed_to_you', lang)}</Text>
+            <Text style={s.heroSplitVal}>₹{owedToYou.toFixed(0)}</Text>
+          </View>
+          <View style={s.heroSplitDiv} />
+          <View style={s.heroSplit}>
+            <View style={[s.heroDot, { backgroundColor: 'rgba(255,255,255,0.55)' }]} />
+            <Text style={s.heroSplitLbl}>{t('owed_by_you', lang)}</Text>
+            <Text style={s.heroSplitVal}>₹{owedByYou.toFixed(0)}</Text>
+          </View>
         </View>
+      </LinearGradient>
+
+      {/* 2. Quick-action strip --------------------------------------- */}
+      <View style={s.quickRow}>
+        <TouchableOpacity style={s.quickBtn} onPress={onAddExpense} activeOpacity={0.85} testID="quick-add-expense">
+          <LinearGradient colors={['#F56E1E', '#C14A06']} style={s.quickIconSaff}>
+            <Ionicons name="add" size={18} color="#fff" />
+          </LinearGradient>
+          <Text style={s.quickTxt}>{t('split_expense', lang)}</Text>
+        </TouchableOpacity>
+
+        {summary?.simplified_debts?.length > 0 && (
+          <TouchableOpacity
+            style={s.quickBtn}
+            onPress={() => onRemind?.(summary.simplified_debts[0])}
+            activeOpacity={0.85}
+          >
+            <View style={[s.quickIcon, { backgroundColor: '#FEF3C7' }]}>
+              <Ionicons name="notifications" size={18} color="#F59E0B" />
+            </View>
+            <Text style={s.quickTxt}>Remind</Text>
+          </TouchableOpacity>
+        )}
+
+        {owedByYou > 0 && (
+          <TouchableOpacity
+            style={s.quickBtn}
+            onPress={() => onDirectPay?.(summary.simplified_debts.find((d: any) => d.from_id === currentUserId))}
+            activeOpacity={0.85}
+          >
+            <View style={[s.quickIcon, { backgroundColor: '#DCFCE7' }]}>
+              <Ionicons name="flash" size={18} color="#10B981" />
+            </View>
+            <Text style={s.quickTxt}>Direct Pay</Text>
+          </TouchableOpacity>
+        )}
       </View>
 
+      {/* 3. Settle Up tiles ------------------------------------------- */}
       {summary?.simplified_debts?.length > 0 && (
-        <>
-          <Text style={s.secTitle}>{t('settle_up', lang)}</Text>
-          {summary.simplified_debts.map((d: any, i: number) => (
-            <View key={i} style={s.debtRow}>
-              <View style={[s.avatar, { backgroundColor: MEMBER_COLORS[i % 8] + '20' }]}>
-                <Text style={[s.avatarT, { color: MEMBER_COLORS[i % 8] }]}>{(d.from_name || '?')[0]}</Text>
+        <View style={{ marginTop: 18 }}>
+          <Text style={s.sectHead}>{t('settle_up', lang)}</Text>
+          {summary.simplified_debts.map((d: any, i: number) => {
+            const iAmPayer = d.from_id === currentUserId;
+            const colour = MEMBER_COLORS[i % 8];
+            const other = iAmPayer ? d.to_name : d.from_name;
+            const otherInitial = (other || '?')[0].toUpperCase();
+            return (
+              <View key={i} style={s.debtCard}>
+                <View style={[s.avatarLarge, { backgroundColor: colour + '1A', borderColor: colour + '40' }]}>
+                  <Text style={[s.avatarTxt, { color: colour }]}>{otherInitial}</Text>
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text style={s.debtTitle} numberOfLines={1}>
+                    {iAmPayer ? `Pay ${other}` : `${other} owes you`}
+                  </Text>
+                  <Text style={s.debtSub}>₹{d.amount.toFixed(0)}</Text>
+                </View>
+                {iAmPayer ? (
+                  <TouchableOpacity
+                    activeOpacity={0.85}
+                    onPress={() => onDirectPay?.(d)}
+                    style={s.payBtn}
+                    testID={`direct-pay-${i}`}
+                  >
+                    <LinearGradient colors={['#F56E1E', '#C14A06']} style={s.payBtnGrad}>
+                      <Ionicons name="flash" size={14} color="#fff" />
+                      <Text style={s.payBtnTxt}>Pay</Text>
+                    </LinearGradient>
+                  </TouchableOpacity>
+                ) : (
+                  <TouchableOpacity
+                    activeOpacity={0.85}
+                    onPress={() => onRemind?.(d)}
+                    style={s.bellOnly}
+                    testID={`remind-${i}`}
+                  >
+                    <Ionicons name="notifications" size={18} color="#fff" />
+                  </TouchableOpacity>
+                )}
               </View>
-              <View style={{ flex: 1 }}>
-                <Text style={s.debtNames}>{d.from_name} → {d.to_name}</Text>
-              </View>
-              <Text style={s.debtAmt}>₹{d.amount.toFixed(0)}</Text>
-            </View>
-          ))}
-        </>
+            );
+          })}
+        </View>
       )}
 
+      {/* 4. Recent expenses — timeline cards ------------------------- */}
       {orderedExpenses.length > 0 && (
-        <>
-          <Text style={[s.secTitle, { marginTop: 16 }]}>{t('recent_expenses', lang)}</Text>
+        <View style={{ marginTop: 18 }}>
+          <Text style={s.sectHead}>{t('recent_expenses', lang)}</Text>
           {orderedExpenses.map((e: any, i: number) => {
+            const ic = catIcon(e.description || e.category);
+            const yourShare = Number(e.your_share ?? e.split_amount ?? 0);
+            const iPaid = e.paid_by_id === currentUserId;
             const row = (
-              <View style={s.expRow}>
-                <View style={{ flex: 1 }}>
-                  <Text style={s.expDesc}>{e.description}</Text>
-                  <Text style={s.expMeta}>{t('paid_by', lang)} {e.paid_by_name}</Text>
+              <View style={s.expCard}>
+                <View style={[s.expIcon, { backgroundColor: ic.color + '1A' }]}>
+                  <Text style={{ fontSize: 18 }}>{ic.emoji}</Text>
                 </View>
-                <Text style={s.expAmt}>₹{e.amount.toFixed(0)}</Text>
+                <View style={{ flex: 1 }}>
+                  <Text style={s.expDesc} numberOfLines={1}>{e.description}</Text>
+                  <View style={s.expMetaRow}>
+                    <View style={[s.paidByChip, { backgroundColor: iPaid ? '#DCFCE7' : '#F3F4F6' }]}>
+                      <Text style={[s.paidByTxt, { color: iPaid ? '#065F46' : '#374151' }]}>
+                        {iPaid ? 'You paid' : e.paid_by_name}
+                      </Text>
+                    </View>
+                    <Text style={s.expDate}>{fmtDate(e.created_at || e.date)}</Text>
+                  </View>
+                </View>
+                <View style={{ alignItems: 'flex-end' }}>
+                  <Text style={s.expAmt}>₹{Number(e.amount).toFixed(0)}</Text>
+                  {yourShare > 0 && (
+                    <Text style={s.expShare}>
+                      {iPaid ? 'Your share ' : 'You owe '}
+                      <Text style={{ color: iPaid ? '#065F46' : '#C14A06', fontWeight: '800' }}>
+                        ₹{yourShare.toFixed(0)}
+                      </Text>
+                    </Text>
+                  )}
+                </View>
               </View>
             );
             if (!onEditExpense && !onDeleteExpense) return <View key={e.id || i}>{row}</View>;
@@ -85,32 +223,67 @@ export default function ExpensesTab({ summary, currentUserId, onAddExpense, onEd
               </SwipeableRow>
             );
           })}
-        </>
+        </View>
       )}
 
-      <TouchableOpacity style={s.addExpBtn} onPress={onAddExpense}>
-        <Text style={s.addExpBtnT}>{t('split_expense', lang)}</Text>
-      </TouchableOpacity>
+      {/* Empty state */}
+      {!summary?.simplified_debts?.length && !orderedExpenses.length && (
+        <View style={s.empty}>
+          <Text style={{ fontSize: 34 }}>🧾</Text>
+          <Text style={s.emptyTitle}>No expenses yet</Text>
+          <Text style={s.emptySub}>Add your first shared expense and MintU will split it evenly.</Text>
+        </View>
+      )}
     </ScrollView>
   );
 }
 
 const s = StyleSheet.create({
-  balanceCard: { flexDirection: 'row', backgroundColor: COLORS.bg.card, borderRadius: RADIUS.xl, padding: 20, marginBottom: 16, borderWidth: 1, borderColor: COLORS.border.card },
-  balHalf: { flex: 1, alignItems: 'center' },
-  balAmount: { fontSize: 24, fontWeight: '800', color: COLORS.text.primary },
-  balLabel: { fontSize: 12, color: COLORS.text.muted, marginTop: 4 },
-  balDivider: { width: 1, backgroundColor: COLORS.border.subtle },
-  secTitle: { fontSize: 14, fontWeight: '600', color: COLORS.text.muted, marginBottom: 10 },
-  avatar: { width: 30, height: 30, borderRadius: 15, justifyContent: 'center', alignItems: 'center' },
-  avatarT: { fontSize: 12, fontWeight: '700' },
-  debtRow: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: COLORS.border.subtle },
-  debtNames: { fontSize: 14, fontWeight: '600', color: COLORS.text.primary },
-  debtAmt: { fontSize: 16, fontWeight: '800', color: COLORS.accent.moneyOut },
-  expRow: { flexDirection: 'row', alignItems: 'center', paddingVertical: 10, paddingHorizontal: 4, borderBottomWidth: 1, borderBottomColor: COLORS.border.subtle, backgroundColor: 'transparent' },
-  expDesc: { fontSize: 14, fontWeight: '600', color: COLORS.text.primary },
-  expMeta: { fontSize: 11, color: COLORS.text.muted, marginTop: 2 },
-  expAmt: { fontSize: 16, fontWeight: '700', color: COLORS.text.primary },
-  addExpBtn: { backgroundColor: COLORS.accent.primary + '12', borderRadius: RADIUS.full, paddingVertical: 16, alignItems: 'center', marginTop: 20, borderWidth: 1, borderColor: COLORS.accent.primary + '25' },
-  addExpBtnT: { fontSize: 15, fontWeight: '700', color: COLORS.accent.primary },
+  // Hero
+  hero: { borderRadius: 22, padding: 18, overflow: 'hidden' },
+  heroHead: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  heroLbl: { color: 'rgba(255,255,255,0.9)', fontSize: 11, fontWeight: '800', textTransform: 'uppercase', letterSpacing: 0.7 },
+  heroAmt: { color: '#fff', fontSize: 34, fontWeight: '800', marginTop: 4, letterSpacing: -0.5 },
+  heroSplits: { flexDirection: 'row', alignItems: 'center', marginTop: 12, paddingTop: 12, borderTopWidth: 1, borderTopColor: 'rgba(255,255,255,0.25)' },
+  heroSplit: { flex: 1, alignItems: 'flex-start' },
+  heroDot: { width: 8, height: 8, borderRadius: 4, marginBottom: 4 },
+  heroSplitLbl: { color: 'rgba(255,255,255,0.85)', fontSize: 10, fontWeight: '700', textTransform: 'uppercase', letterSpacing: 0.5 },
+  heroSplitVal: { color: '#fff', fontSize: 18, fontWeight: '800', marginTop: 2 },
+  heroSplitDiv: { width: 1, height: 38, backgroundColor: 'rgba(255,255,255,0.25)' },
+
+  // Quick actions
+  quickRow: { flexDirection: 'row', gap: 10, marginTop: 14 },
+  quickBtn: { flex: 1, alignItems: 'center', gap: 6, backgroundColor: '#fff', padding: 12, borderRadius: 14, borderWidth: 1, borderColor: '#F3F4F6' },
+  quickIcon: { width: 38, height: 38, borderRadius: 19, alignItems: 'center', justifyContent: 'center' },
+  quickIconSaff: { width: 38, height: 38, borderRadius: 19, alignItems: 'center', justifyContent: 'center' },
+  quickTxt: { fontSize: 11, fontWeight: '700', color: '#111' },
+
+  // Section
+  sectHead: { fontSize: 11, fontWeight: '800', color: '#9CA3AF', textTransform: 'uppercase', letterSpacing: 0.6, marginBottom: 10, marginLeft: 4 },
+
+  // Debt tile
+  debtCard: { flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: '#fff', borderRadius: 14, padding: 12, marginBottom: 8, borderWidth: 1, borderColor: '#F3F4F6' },
+  avatarLarge: { width: 42, height: 42, borderRadius: 21, alignItems: 'center', justifyContent: 'center', borderWidth: 1.5 },
+  avatarTxt: { fontSize: 16, fontWeight: '800' },
+  debtTitle: { fontSize: 14, fontWeight: '700', color: '#111' },
+  debtSub: { fontSize: 18, fontWeight: '800', color: '#C14A06', marginTop: 2 },
+  payBtn: { borderRadius: 999, overflow: 'hidden' },
+  payBtnGrad: { flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: 14, paddingVertical: 8 },
+  payBtnTxt: { color: '#fff', fontSize: 13, fontWeight: '800' },
+  bellOnly: { width: 38, height: 38, borderRadius: 19, backgroundColor: '#F59E0B', alignItems: 'center', justifyContent: 'center' },
+
+  // Expense card
+  expCard: { flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: '#fff', borderRadius: 14, padding: 12, marginBottom: 8, borderWidth: 1, borderColor: '#F3F4F6' },
+  expIcon: { width: 40, height: 40, borderRadius: 12, alignItems: 'center', justifyContent: 'center' },
+  expDesc: { fontSize: 14, fontWeight: '700', color: '#111' },
+  expMetaRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 4 },
+  paidByChip: { paddingHorizontal: 8, paddingVertical: 2, borderRadius: 999 },
+  paidByTxt: { fontSize: 10.5, fontWeight: '700' },
+  expDate: { fontSize: 10.5, color: '#9CA3AF', fontWeight: '600' },
+  expAmt: { fontSize: 15, fontWeight: '800', color: '#111' },
+  expShare: { fontSize: 10.5, color: '#6B7280', marginTop: 2, fontWeight: '600' },
+
+  empty: { alignItems: 'center', paddingVertical: 36 },
+  emptyTitle: { fontSize: 15, fontWeight: '800', color: '#111', marginTop: 10 },
+  emptySub: { fontSize: 12, color: '#6B7280', marginTop: 4, textAlign: 'center', maxWidth: 260 },
 });
