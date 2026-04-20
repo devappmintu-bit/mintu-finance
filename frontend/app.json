@@ -21,7 +21,10 @@
         "backgroundColor": "#000"
       },
       "edgeToEdgeEnabled": true,
-      "permissions": ["RECORD_AUDIO", "READ_CONTACTS"]
+      "permissions": [
+        "RECORD_AUDIO",
+        "READ_CONTACTS"
+      ]
     },
     "web": {
       "bundler": "metro",
@@ -38,7 +41,8 @@
           "resizeMode": "contain",
           "backgroundColor": "#000"
         }
-      ]
+      ],
+      "expo-secure-store"
     ],
     "experiments": {
       "typedRoutes": true

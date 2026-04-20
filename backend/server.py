@@ -705,6 +705,7 @@ from routers import (  # noqa: E402
     alerts as alerts_router,
     upi as upi_router,
     insights_ext as insights_ext_router,
+    gmail_oauth as gmail_oauth_router,
 )
 
 for r in (
@@ -712,7 +713,7 @@ for r in (
     transactions_router, budgets_router, family_router, analytics_router,
     user_router, splits_router, ai_router, cash_router, notifications_router,
     sms_router, premium_router, premium_reports_router, ab_router, share_router, privacy_router,
-    budgets_ext_router, alerts_router, upi_router, insights_ext_router,
+    budgets_ext_router, alerts_router, upi_router, insights_ext_router, gmail_oauth_router,
 ):
     api_router.include_router(r.router)
 
@@ -782,6 +783,11 @@ async def on_startup():
         # Cash entries
         await db.cash_entries.create_index([("user_id", 1), ("date", -1)])
 
+        # Gmail OAuth / sync (TTL auto-cleanup of pending state tokens)
+        await db.oauth_states.create_index("expires_at", expireAfterSeconds=0)
+        await db.gmail_tokens.create_index("user_id", unique=True)
+        await db.transactions.create_index([("user_id", 1), ("source_msg_id", 1)], sparse=True)
+
         logger.info("✅ MongoDB indexes created for 1.46B-scale performance")
     except Exception as e:
         logger.warning(f"Index creation warning: {e}")
@@ -792,6 +798,13 @@ async def on_startup():
         start_news_worker()
     except Exception as e:
         logger.warning(f"Could not start news worker: {e}")
+
+    # Start Gmail sync worker (15-min interval)
+    try:
+        from routers.gmail_oauth import start_gmail_worker
+        start_gmail_worker()
+    except Exception as e:
+        logger.warning(f"Could not start Gmail worker: {e}")
 
 
 @app.on_event("shutdown")

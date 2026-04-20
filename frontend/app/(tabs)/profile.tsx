@@ -276,6 +276,14 @@ export default function ProfileScreen() {
 
         {/* Settings */}
         <Text style={s.secTitle}>Settings</Text>
+        <TouchableOpacity style={s.menuItem} onPress={() => router.push('/gmail' as any)}>
+          <Ionicons name="mail-outline" size={20} color="#EA4335" />
+          <View style={{ flex: 1, marginLeft: 12 }}>
+            <Text style={s.menuText}>Gmail Auto-Import</Text>
+            <Text style={{ fontSize: 11, color: COLORS.text.muted }}>Auto-track bank transactions from your inbox</Text>
+          </View>
+          <Ionicons name="chevron-forward" size={16} color={COLORS.text.muted} />
+        </TouchableOpacity>
         <TouchableOpacity style={s.menuItem} onPress={() => setLangModalVisible(true)}>
           <Ionicons name="language" size={20} color="#E65100" />
           <View style={{ flex: 1, marginLeft: 12 }}>
