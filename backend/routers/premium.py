@@ -31,6 +31,7 @@ from routers.premium_common import (
 # Importing these sibling modules registers their routes on the shared router.
 from routers import premium_tax as _premium_tax  # noqa: F401
 from routers import premium_invest as _premium_invest  # noqa: F401
+from routers import premium_coins as _premium_coins  # noqa: F401
 
 
 # ═══════════════════════════════ CORE ENDPOINTS ═════════════════════════════════
@@ -38,9 +39,23 @@ from routers import premium_invest as _premium_invest  # noqa: F401
 @api_router.post("/premium/mock-activate")
 async def mock_activate_premium(req: MockActivateRequest, user_id: str = Depends(get_current_user)):
     """Activates premium for the user based on the selected plan — used by the
-    in-app MockPaymentSheet until real Razorpay keys are wired up."""
+    in-app MockPaymentSheet until real Razorpay keys are wired up.
+
+    If `coins_to_use` > 0, the coin-redeem endpoint is called server-side to
+    deduct balance and record the effective (discounted) price on the user.
+    """
     if req.plan not in PRICING:
         raise HTTPException(status_code=400, detail="Invalid plan")
+
+    # ── Optional coin redemption ──
+    effective_price = PRICING[req.plan]["price"]
+    coins_applied = 0
+    if req.coins_to_use and req.coins_to_use > 0:
+        from routers.premium_coins import coin_redeem_apply, RedeemPreviewBody
+        redeem = await coin_redeem_apply(RedeemPreviewBody(plan=req.plan, coins_to_use=req.coins_to_use), user_id=user_id)
+        effective_price = redeem["effective_price"]
+        coins_applied = redeem["coins_applied"]
+
     now = datetime.utcnow()
     meta = PRICING[req.plan]
     if req.plan == "monthly":

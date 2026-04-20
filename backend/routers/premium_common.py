@@ -30,6 +30,7 @@ class CreateOrderRequest(BaseModel):
 class MockActivateRequest(BaseModel):
     """Used by the in-app mocked payment flow (no real Razorpay call)."""
     plan: str
+    coins_to_use: int = 0
 
 
 __all__ = [

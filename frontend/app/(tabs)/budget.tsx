@@ -124,49 +124,48 @@ export default function BudgetScreen() {
     const spent = item.spent || 0;
     const limit = item.amount || 0;
     const remaining = Math.max(limit - spent, 0);
-    const pct = limit > 0 ? (spent / limit) * 100 : 0;
+    const pct = limit > 0 ? Math.min(100, (spent / limit) * 100) : 0;
     const cat = CATEGORIES[item.category] || CATEGORIES.Other;
-    const isOver = pct >= 100;
+    const isOver = spent > limit && limit > 0;
     const isWarn = pct >= 80 && !isOver;
-    const statusColor = isOver ? COLORS.accent.moneyOut : isWarn ? '#F59E0B' : COLORS.accent.moneyIn;
+    const statusColor = isOver ? '#EF4444' : isWarn ? '#F59E0B' : '#10B981';
+    const emoji = cat.emoji || '💰';
 
     return (
       <SwipeableRow
-        onEdit={() => openEdit(item)}
         onDelete={() => handleDelete(item.id, item.category)}
-        editLabel={t('edit', lang)}
         deleteLabel={t('delete', lang)}
       >
-        <PressableGlass style={s.card} onPress={() => openEdit(item)} feedback="light">
-          <View style={s.cardRow}>
-            <View style={[s.catDot, { backgroundColor: cat.color }]} />
-            <View style={{ flex: 1 }}>
-              <Text style={s.catName} numberOfLines={1}>{item.category}</Text>
-              <Text style={s.period}>{t(item.period, lang)}</Text>
+        <PressableGlass style={s.barRow} onPress={() => openEdit(item)} feedback="light">
+          <View style={[s.barIcon, { backgroundColor: cat.color + '22' }]}>
+            <Text style={{ fontSize: 18 }}>{emoji}</Text>
+          </View>
+
+          <View style={{ flex: 1, marginLeft: 12 }}>
+            <View style={s.barTop}>
+              <Text style={s.barName} numberOfLines={1}>{item.category}</Text>
+              <Text style={[s.barAmt, { color: statusColor }]}>
+                ₹{spent.toFixed(0)}
+                <Text style={s.barOf}> / ₹{limit.toFixed(0)}</Text>
+              </Text>
             </View>
-            <View style={{ alignItems: 'flex-end' }}>
-              <Text style={[s.spentAmt, { color: statusColor }]} numberOfLines={1}>₹{spent.toFixed(0)}</Text>
-              <Text style={s.limitAmt} numberOfLines={1}>{t('total', lang).toLowerCase()} ₹{limit.toFixed(0)}</Text>
+
+            {/* Horizontal progress bar — the Kiwi-style categorization row */}
+            <View style={s.barTrack}>
+              <View style={[s.barFill, { width: `${pct}%`, backgroundColor: statusColor }]} />
+            </View>
+
+            <View style={s.barFootRow}>
+              <Text style={s.barPct}>
+                {Math.round(pct)}% used · {t(item.period, lang)}
+              </Text>
+              {isOver ? (
+                <Text style={[s.barTail, { color: '#EF4444' }]}>{t('over_by', lang)} ₹{(spent - limit).toFixed(0)}</Text>
+              ) : (
+                <Text style={[s.barTail, { color: '#6B7280' }]}>₹{remaining.toFixed(0)} {t('left', lang)}</Text>
+              )}
             </View>
           </View>
-          {isOver && (
-            <View style={s.overBanner}>
-              <Ionicons name="warning" size={13} color={COLORS.accent.moneyOut} />
-              <Text style={s.overText}>{t('over_by', lang)} ₹{(spent - limit).toFixed(0)}</Text>
-            </View>
-          )}
-          {isWarn && !isOver && (
-            <View style={[s.overBanner, { backgroundColor: '#FEF3C7' }]}>
-              <Ionicons name="alert-circle" size={13} color="#D97706" />
-              <Text style={[s.overText, { color: '#D97706' }]}>₹{remaining.toFixed(0)} {t('left', lang)}</Text>
-            </View>
-          )}
-          {!isOver && !isWarn && (
-            <View style={[s.overBanner, { backgroundColor: '#F0FDF4' }]}>
-              <Ionicons name="checkmark-circle" size={13} color={COLORS.accent.moneyIn} />
-              <Text style={[s.overText, { color: COLORS.accent.moneyIn }]}>₹{remaining.toFixed(0)} {t('remaining', lang)}</Text>
-            </View>
-          )}
         </PressableGlass>
       </SwipeableRow>
     );
@@ -386,6 +385,21 @@ const s = StyleSheet.create({
   amtInput: { flex: 1, fontSize: 28, fontWeight: '700', color: COLORS.text.primary, paddingVertical: 16 },
   saveBtn: { backgroundColor: COLORS.accent.primary, borderRadius: RADIUS.full, paddingVertical: 18, alignItems: 'center' },
   saveBtnText: { fontSize: 16, fontWeight: '700', color: '#fff' },
+  // Bar-style category rows (Kiwi design language)
+  barRow: {
+    flexDirection: 'row', alignItems: 'center', padding: 14, borderRadius: 16,
+    backgroundColor: '#fff', borderWidth: 1, borderColor: '#F3F4F6', marginBottom: 10,
+  },
+  barIcon: { width: 40, height: 40, borderRadius: 12, alignItems: 'center', justifyContent: 'center' },
+  barTop: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 },
+  barName: { fontSize: 14.5, fontWeight: '700', color: '#111', flex: 1, marginRight: 8 },
+  barAmt: { fontSize: 13.5, fontWeight: '800' },
+  barOf: { fontSize: 11, fontWeight: '600', color: '#9CA3AF' },
+  barTrack: { height: 6, borderRadius: 3, backgroundColor: '#F3F4F6', overflow: 'hidden' },
+  barFill: { height: '100%', borderRadius: 3 },
+  barFootRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 6 },
+  barPct: { fontSize: 10.5, color: '#6B7280', fontWeight: '700', textTransform: 'uppercase', letterSpacing: 0.3 },
+  barTail: { fontSize: 11, fontWeight: '700' },
   // Recurring toggle
   recurringRow: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 12, paddingHorizontal: 14, borderRadius: 14, backgroundColor: '#F9FAFB', borderWidth: 1, borderColor: '#E5E7EB', marginBottom: 16 },
   recurringRowOn: { backgroundColor: '#FFF7ED', borderColor: '#F56E1E40' },

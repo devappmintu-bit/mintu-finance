@@ -3061,6 +3061,35 @@ frontend:
               Times, Mint, Business Standard, Businessline, NDTV Profit,
               Zee Business, CNBC TV18, RBI, PIB, NPCI, AMFI, SEBI, etc.,
               and routes to each outlet's native search. Generic fallback
+  - task: "Round 15f — Budget bar-style rows + Coin redemption endpoints"
+    implemented: true
+    working: true
+    status_history:
+        - agent: "main"
+          comment: |
+            Budget UI overhaul:
+            - renderBudget() rewritten to the Kiwi bar-style row:
+              • 40x40 category-tinted icon badge (emoji)
+              • category name + "₹spent / ₹limit" on top line
+              • horizontal progress bar (6px track, coloured fill that flips
+                green→amber→red at 80%+/100%+ thresholds)
+              • bottom line: "N% used · period" and either "₹left remaining"
+                or "over by ₹x"
+            - Swipe gesture now delete-only on budget rows; tap-to-edit
+              (per design ask — was edit+delete swipe).
+
+            Coin redemption (backend):
+            - NEW routers/premium_coins.py with:
+              • POST /api/premium/coin-redeem-preview — read-only preview of
+                effective price given coins_to_use (tamper-proof rate).
+              • POST /api/premium/coin-redeem — deducts coins atomically.
+              Rate: 10 coins = ₹1, capped at 50% of plan price.
+            - MockActivateRequest now accepts `coins_to_use` and mock-activate
+              invokes coin_redeem_apply() server-side so the discount flow
+              works end-to-end in the mock flow too.
+            - Registered in routers/premium.py sibling imports.
+
+
               remains Google News India.
 
 
