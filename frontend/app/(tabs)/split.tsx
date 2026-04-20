@@ -8,6 +8,15 @@ import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import Toast from 'react-native-toast-message';
 import api from '../../utils/api';
+import {
+  fetchSplitGroups, createSplitGroup, fetchGroupSummary, fetchGroupManage,
+  fetchSplitBalances, fetchSplitActivity, fetchReminders, dismissReminder,
+  updateGroupName, addGroupMember, removeGroupMember, leaveGroup, deleteGroup,
+  createExpense, updateExpense, deleteExpense,
+  fetchSettlementLeaderboard, fetchPayIntent, settleWithRewards,
+  partialSettle as partialSettleSrv, markPaidOffline,
+  createSplitRazorpayOrder, sendPaymentReminder,
+} from '../../services/split';
 import { useAuthStore } from '../../store/authStore';
 import { useLangStore } from '../../store/langStore';
 import { t } from '../../utils/i18n';
@@ -59,7 +68,7 @@ export default function SplitScreen() {
     if (key === settleRowsCacheKey.current) return; // Same groups → skip heavy recompute
     try {
       const summaries = await Promise.all(
-        grps.map((g: any) => api.get(`/split/groups/${g.id}/summary`).then(r => ({ g, d: r.data })).catch(() => null))
+        grps.map((g: any) => fetchGroupSummary(g.id).then(d => ({ g, d })).catch(() => null))
       );
       const rows: DebtRow[] = [];
       summaries.forEach((s: any) => {
@@ -88,8 +97,8 @@ export default function SplitScreen() {
     try {
       // Phase 1 — critical: groups + balances (block render)
       const [gR, bR] = await Promise.all([
-        api.get('/split/groups'),
-        api.get('/split/balances'),
+        fetchSplitGroups().then(data => ({ data })),
+        fetchSplitBalances().then(data => ({ data })),
       ]);
       setGroups(gR.data); setBalances(bR.data);
       setLoading(false);
@@ -98,8 +107,8 @@ export default function SplitScreen() {
       InteractionManager.runAfterInteractions(async () => {
         try {
           const [lR, rR] = await Promise.all([
-            api.get('/split/settlement-leaderboard').catch(() => ({ data: null })),
-            api.get('/split/reminders').catch(() => ({ data: { received: [], sent: [] } })),
+            fetchSettlementLeaderboard().then(data => ({ data })).catch(() => ({ data: null })),
+            fetchReminders().then(data => ({ data })).catch(() => ({ data: { received: [], sent: [] } })),
           ]);
           if (lR.data) setSettleLB(lR.data);
           if (rR.data) setReminders({ received: rR.data.received || [], sent: rR.data.sent || [] });
@@ -137,7 +146,7 @@ export default function SplitScreen() {
     setGroups((prev) => [optimistic, ...prev]);
     close();
     try {
-      const res = await api.post('/split/groups', { name: trimmed, members: phones, ...(emoji ? { custom_emoji: emoji } : {}) });
+      const res = { data: await createSplitGroup({ name: trimmed, members: phones, ...(emoji ? { custom_emoji: emoji } : {}) } as any) };
       const created = res.data || optimistic;
       // Reconcile: replace the optimistic entry with the server-blessed one.
       setGroups((prev) => prev.map((g) => (g.id === tempId ? { ...created, _optimistic: false } : g)));
@@ -164,7 +173,7 @@ export default function SplitScreen() {
       { text: 'Cancel', style: 'cancel' },
       { text: 'Delete', style: 'destructive', onPress: async () => {
         try {
-          await api.delete(`/split/groups/${gid}`);
+          await deleteGroup(gid);
           Toast.show({ type: 'success', text1: 'Deleted!', text2: `${gname} removed` });
         } catch (e: any) {
           Toast.show({ type: 'error', text1: 'Error', text2: e?.response?.data?.detail || 'Could not delete' });
@@ -177,7 +186,7 @@ export default function SplitScreen() {
   const renameGroup = async (newName: string) => {
     if (!newName.trim() || !selectedGroup?.id) return;
     try {
-      await api.put(`/split/groups/${selectedGroup.id}/name`, { name: newName });
+      await updateGroupName(selectedGroup.id, newName);
       openManage(selectedGroup); fetchData();
       Toast.show({ type: 'success', text1: 'Renamed!' });
     } catch {}
@@ -186,7 +195,7 @@ export default function SplitScreen() {
   const addMember = async (phone: string) => {
     if (!selectedGroup?.id) return;
     try {
-      const r = await api.post(`/split/groups/${selectedGroup.id}/members`, { phones: [phone] });
+      const r = { data: await addGroupMember(selectedGroup.id, phone) };
       Toast.show({ type: 'success', text1: 'Done!', text2: r.data.message });
       openManage(selectedGroup); fetchData();
     } catch (e: any) { Toast.show({ type: 'error', text1: 'Error', text2: e.response?.data?.detail || 'Failed' }); }
@@ -195,7 +204,7 @@ export default function SplitScreen() {
   const removeMember = async (mid: string) => {
     if (!selectedGroup?.id) return;
     try {
-      await api.delete(`/split/groups/${selectedGroup.id}/members/${mid}`);
+      await removeGroupMember(selectedGroup.id, mid);
       Toast.show({ type: 'success', text1: 'Member Removed' });
     } catch {}
     openManage(selectedGroup); setTimeout(() => fetchData(), 300);
@@ -207,7 +216,7 @@ export default function SplitScreen() {
     Alert.alert('Leave?', 'Are you sure you want to leave?', [
       { text: 'Cancel', style: 'cancel' },
       { text: 'Leave', style: 'destructive', onPress: async () => {
-        try { await api.delete(`/split/groups/${gid}/leave`); Toast.show({ type: 'success', text1: 'Left Group' }); } catch (e: any) { Toast.show({ type: 'error', text1: 'Error', text2: e?.response?.data?.detail || 'Could not leave' }); }
+        try { await leaveGroup(gid); Toast.show({ type: 'success', text1: 'Left Group' }); } catch (e: any) { Toast.show({ type: 'error', text1: 'Error', text2: e?.response?.data?.detail || 'Could not leave' }); }
         close(); setTimeout(() => fetchData(), 300);
       }},
     ]);
@@ -220,7 +229,7 @@ export default function SplitScreen() {
     if (!selectedGroup) return;
     try {
       if (payload.expense_id) {
-        await api.put(`/split/expenses/${payload.expense_id}`, {
+        await updateExpense(payload.expense_id, {
           description: payload.description, amount: payload.amount,
           split_type: payload.split_type, splits: payload.splits,
         });
@@ -230,7 +239,7 @@ export default function SplitScreen() {
         fetchData();
         Toast.show({ type: 'success', text1: 'Updated!', text2: `₹${payload.amount.toFixed(0)} re-split` });
       } else {
-        await api.post('/split/expenses', { group_id: selectedGroup.id, paid_by: user?.id, ...payload });
+        await createExpense({ group_id: selectedGroup.id, paid_by: user?.id, ...payload });
         close(); fetchData();
         Toast.show({ type: 'success', text1: 'Added!', text2: `₹${payload.amount} split among ${Object.keys(payload.splits).length} people` });
       }
@@ -241,7 +250,7 @@ export default function SplitScreen() {
       { text: 'Cancel', style: 'cancel' },
       { text: 'Delete', style: 'destructive', onPress: async () => {
         try {
-          await api.delete(`/split/expenses/${exp.id}`);
+          await deleteExpense(exp.id);
           Toast.show({ type: 'success', text1: 'Deleted ✅' });
           if (selectedGroup) openSummary(selectedGroup);
           fetchData();
@@ -252,11 +261,11 @@ export default function SplitScreen() {
 
   // SUMMARY & MANAGE
   const openSummary = async (gr: any) => {
-    try { const r = await api.get(`/split/groups/${gr.id}/summary`); setGroupSummary(r.data); setSelectedGroup(gr); setModal('summary'); }
+    try { const d = await fetchGroupSummary(gr.id); setGroupSummary(d); setSelectedGroup(gr); setModal('summary'); }
     catch { Toast.show({ type: 'error', text1: 'Error', text2: 'Could not load' }); }
   };
   const openManage = async (gr: any) => {
-    try { const r = await api.get(`/split/groups/${gr.id}/manage`); setGroupManage(r.data); setSelectedGroup(gr); setModal('manage'); }
+    try { const d = await fetchGroupManage(gr.id); setGroupManage(d); setSelectedGroup(gr); setModal('manage'); }
     catch { Toast.show({ type: 'error', text1: 'Error', text2: 'Could not load' }); }
   };
 
@@ -271,7 +280,7 @@ export default function SplitScreen() {
     if (!payTarget) return;
     const { to_id, to_name, amount, group_id } = payTarget;
     try {
-      const r = await api.get(`/split/pay-intent/${to_id}?amount=${amount}`);
+      const r = { data: await fetchPayIntent(to_id, amount) };
       setModal('');
       if (Platform.OS === 'web') {
         setTimeout(() => Alert.alert('Simulated Payment',
@@ -302,13 +311,13 @@ export default function SplitScreen() {
 
   const settleReward = async (t: any) => {
     try {
-      const r = await api.post('/split/settle-with-rewards', {
+      const r = { data: await settleWithRewards({
         target_user_id: t.to_id,
         amount: t.amount,
         method: t.method || 'upi',
         group_id: t.group_id,
         coins_to_use: Number(t.coins_to_use || 0),
-      });
+      }) };
       setLastReward(r.data.reward); setModal('reward'); fetchData();
     } catch { Toast.show({ type: 'error', text1: 'Error', text2: 'Could not settle' }); }
   };
@@ -317,13 +326,13 @@ export default function SplitScreen() {
     if (!payTarget) return;
     const { to_id, to_name, group_id } = payTarget;
     try {
-      const r = await api.post('/split/partial-settle', {
+      const r = { data: await partialSettleSrv({
         target_user_id: to_id,
         amount: partialAmt,
         method: 'upi',
         group_id,
         coins_to_use: Number(coinsToUse || 0),
-      });
+      }) };
       close();
       const coinSuffix = r.data.coins_applied > 0 ? ` · 🪙${r.data.coins_applied}` : '';
       Toast.show({ type: 'success', text1: `Partial ₹${partialAmt.toFixed(0)} paid to ${to_name}${coinSuffix}`, text2: `+${r.data.coins_earned} 🪙 earned` });
@@ -340,12 +349,12 @@ export default function SplitScreen() {
     if (!payTarget) return;
     const { to_id, to_name, group_id } = payTarget;
     try {
-      const orderRes = await api.post('/split/razorpay-order', {
+      const orderRes = { data: await createSplitRazorpayOrder({
         target_user_id: to_id,
         amount,
         group_id,
         coins_to_use: Number(coinsToUse || 0),
-      });
+      }) };
       const checkoutUrl: string = orderRes.data?.checkout_url;
       if (!checkoutUrl) {
         Toast.show({ type: 'error', text1: 'Payment unavailable', text2: 'Checkout URL not configured' });
@@ -374,7 +383,7 @@ export default function SplitScreen() {
         { text: 'Cancel', style: 'cancel' },
         { text: 'Yes', onPress: async () => {
           try {
-            const r = await api.post('/split/mark-paid-offline', { target_user_id: row.to_id, amount: row.amount, group_id: row.group_id, method });
+            const r = { data: await markPaidOffline({ target_user_id: row.to_id, amount: row.amount, group_id: row.group_id, method }) };
             Toast.show({ type: 'success', text1: 'Marked as paid ✅', text2: r.data.message });
             fetchData();
           } catch (e: any) {
@@ -390,7 +399,7 @@ export default function SplitScreen() {
     const targetUserId = remindTarget.direction === 'owed_to_me' ? remindTarget.from_id : remindTarget.to_id;
     const targetName = remindTarget.direction === 'owed_to_me' ? remindTarget.from_name : remindTarget.to_name;
     try {
-      const r = await api.post('/split/remind', { target_user_id: targetUserId, amount: remindTarget.amount, group_id: remindTarget.group_id, note });
+      const r = { data: await sendPaymentReminder({ target_user_id: targetUserId, amount: remindTarget.amount, group_id: remindTarget.group_id, note } as any) };
       close();
       Toast.show({ type: 'success', text1: `Reminded ${targetName} 🔔`, text2: 'Opening WhatsApp...' });
       if (Platform.OS !== 'web' && r.data.whatsapp_link) {
@@ -408,7 +417,7 @@ export default function SplitScreen() {
   };
 
   const dismissReminder = async (rid: string) => {
-    try { await api.post(`/split/reminders/${rid}/dismiss`); fetchData(); } catch {}
+    try { await dismissReminder(rid); fetchData(); } catch {}
   };
 
   // Legacy WhatsApp-only remind kept for Summary modal row buttons

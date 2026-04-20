@@ -80,3 +80,65 @@ export async function coinRedeemPreview(amount: number, coinsToUse: number): Pro
   const r = await api.post('/split/coin-redeem-preview', { amount, coins_to_use: coinsToUse });
   return r.data;
 }
+
+
+// ── Group management ─────────────────────────────────────────────────────
+export async function updateGroupName(groupId: string, name: string): Promise<any> {
+  const r = await api.put(`/split/groups/${groupId}/name`, { name });
+  return r.data;
+}
+
+export async function addGroupMember(groupId: string, phone: string): Promise<any> {
+  const r = await api.post(`/split/groups/${groupId}/members`, { phones: [phone] });
+  return r.data;
+}
+
+export async function removeGroupMember(groupId: string, memberId: string): Promise<void> {
+  await api.delete(`/split/groups/${groupId}/members/${memberId}`);
+}
+
+export async function leaveGroup(groupId: string): Promise<void> {
+  await api.delete(`/split/groups/${groupId}/leave`);
+}
+
+export async function deleteGroup(groupId: string): Promise<void> {
+  await api.delete(`/split/groups/${groupId}`);
+}
+
+// ── Expenses ─────────────────────────────────────────────────────────────
+export async function createExpense(payload: any): Promise<any> {
+  const r = await api.post('/split/expenses', payload);
+  return r.data;
+}
+
+export async function updateExpense(expenseId: string, payload: any): Promise<any> {
+  const r = await api.put(`/split/expenses/${expenseId}`, payload);
+  return r.data;
+}
+
+export async function deleteExpense(expenseId: string): Promise<void> {
+  await api.delete(`/split/expenses/${expenseId}`);
+}
+
+// ── Rewards, UPI intents, offline payments ──────────────────────────────
+export async function fetchSettlementLeaderboard(): Promise<any> {
+  const r = await api.get('/split/settlement-leaderboard');
+  return r.data;
+}
+
+export async function fetchPayIntent(targetUserId: string, amount: number): Promise<any> {
+  const r = await api.get(`/split/pay-intent/${targetUserId}`, { params: { amount } });
+  return r.data;
+}
+
+export async function settleWithRewards(payload: any): Promise<any> {
+  const r = await api.post('/split/settle-with-rewards', payload);
+  return r.data;
+}
+
+export async function markPaidOffline(payload: {
+  target_user_id: string; amount: number; group_id?: string; method: string;
+}): Promise<any> {
+  const r = await api.post('/split/mark-paid-offline', payload);
+  return r.data;
+}
