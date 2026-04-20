@@ -1,0 +1,82 @@
+/**
+ * services/split.ts — Split/group/settlement domain API wrappers.
+ */
+import api from '../utils/api';
+import type { SplitGroup, SplitBalance, RazorpayOrder } from './types';
+
+// ── Groups ─────────────────────────────────────────────────────────────
+export async function fetchSplitGroups(): Promise<SplitGroup[]> {
+  const r = await api.get('/split/groups');
+  return (r.data || []) as SplitGroup[];
+}
+
+export async function createSplitGroup(payload: { name: string; members: any[] }): Promise<SplitGroup> {
+  const r = await api.post('/split/groups', payload);
+  return r.data as SplitGroup;
+}
+
+export async function fetchGroupSummary(groupId: string): Promise<any> {
+  const r = await api.get(`/split/groups/${groupId}/summary`);
+  return r.data;
+}
+
+export async function fetchGroupManage(groupId: string): Promise<any> {
+  const r = await api.get(`/split/groups/${groupId}/manage`);
+  return r.data;
+}
+
+// ── Balances & activity ────────────────────────────────────────────────
+export async function fetchSplitBalances(): Promise<SplitBalance[]> {
+  const r = await api.get('/split/balances');
+  return (r.data || []) as SplitBalance[];
+}
+
+export async function fetchSplitActivity(limit = 15): Promise<any[]> {
+  const r = await api.get('/split/activity', { params: { limit } });
+  return r.data || [];
+}
+
+// ── Settlements ─────────────────────────────────────────────────────────
+export async function settlePayment(payload: {
+  target_user_id: string; amount: number; method: 'cash' | 'upi' | 'razorpay';
+  group_id?: string; coins_to_use?: number; txn_ref?: string;
+}): Promise<any> {
+  const r = await api.post('/split/settle', payload);
+  return r.data;
+}
+
+export async function partialSettle(payload: {
+  target_user_id: string; amount: number; method: 'cash' | 'upi';
+  group_id?: string; coins_to_use?: number;
+}): Promise<any> {
+  const r = await api.post('/split/partial-settle', payload);
+  return r.data;
+}
+
+// ── Razorpay settlement ────────────────────────────────────────────────
+export async function createSplitRazorpayOrder(payload: {
+  target_user_id: string; amount: number; group_id?: string; coins_to_use?: number;
+}): Promise<RazorpayOrder> {
+  const r = await api.post('/split/razorpay-order', payload);
+  return r.data as RazorpayOrder;
+}
+
+// ── Reminders ─────────────────────────────────────────────────────────
+export async function sendPaymentReminder(payload: { target_user_id: string; amount: number; group_id?: string }): Promise<any> {
+  const r = await api.post('/split/remind', payload);
+  return r.data;
+}
+
+export async function fetchReminders(): Promise<any[]> {
+  const r = await api.get('/split/reminders');
+  return r.data || [];
+}
+
+export async function dismissReminder(reminderId: string): Promise<void> {
+  await api.post(`/split/reminders/${reminderId}/dismiss`);
+}
+
+export async function coinRedeemPreview(amount: number, coinsToUse: number): Promise<any> {
+  const r = await api.post('/split/coin-redeem-preview', { amount, coins_to_use: coinsToUse });
+  return r.data;
+}

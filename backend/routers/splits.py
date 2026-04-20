@@ -15,3 +15,4 @@ from routers.split_common import router, api_router  # noqa: F401
 from routers import split_groups   # noqa: F401
 from routers import split_expenses # noqa: F401
 from routers import split_settle   # noqa: F401
+from routers import split_razorpay # noqa: F401 — Razorpay split settlement flow

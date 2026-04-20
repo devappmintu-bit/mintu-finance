@@ -19,6 +19,9 @@ import { TransactionsSkeleton } from '../../components/SkeletonLoader';
 import EmptyState from '../../components/ui/EmptyState';
 import SheetHeader from '../../components/ui/SheetHeader';
 import PrimaryButton from '../../components/ui/PrimaryButton';
+import {
+  fetchTransactions as fetchTxnsSrv, addTransaction, updateTransaction, deleteTransaction,
+} from '../../services/transactions';
 import { PieChart } from 'react-native-gifted-charts';
 import SmartInsightsStrip from '../../components/transactions/SmartInsightsStrip';
 import TransactionFilterSheet, { DEFAULT_FILTER, TxnFilter, applyFilterToList, filterActiveCount } from '../../components/transactions/TransactionFilterSheet';
@@ -129,10 +132,10 @@ export default function TransactionsScreen() {
         // Optimistic update
         const patched = { ...editingTxn, amount: parseFloat(formData.amount), category: formData.category, description: formData.description, type: formData.type };
         setTransactions(prev => prev.map(tx => tx.id === editingTxn.id ? patched : tx));
-        await api.put(`/transactions/${editingTxn.id}`, { amount: parseFloat(formData.amount), category: formData.category, description: formData.description, type: formData.type });
+        await updateTransaction(editingTxn.id, { amount: parseFloat(formData.amount), category: formData.category, description: formData.description, type: formData.type as any });
         Toast.show({ type: 'success', text1: t('txn_updated', lang) });
       } else {
-        await api.post('/transactions', { ...formData, amount: parseFloat(formData.amount) });
+        await addTransaction({ ...formData, amount: parseFloat(formData.amount) } as any);
         Toast.show({ type: 'success', text1: t('txn_added', lang) });
       }
       setModalVisible(false);
@@ -204,7 +207,7 @@ export default function TransactionsScreen() {
         const prev = transactions;
         setTransactions(curr => curr.filter(tx => tx.id !== id));
         try {
-          await api.delete(`/transactions/${id}`);
+          await deleteTransaction(id);
           Toast.show({ type: 'success', text1: t('txn_deleted', lang) });
           fetchTransactions();
         } catch {

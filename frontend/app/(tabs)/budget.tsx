@@ -9,6 +9,10 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import api from '../../utils/api';
+import {
+  fetchBudgets as fetchBudgetsSrv, fetchLiveBudgets, fetchBudgetSuggestions,
+  createBudget, updateBudget, deleteBudget,
+} from '../../services/budgets';
 import { COLORS, RADIUS, SPACING, CATEGORIES, CATEGORY_LIST, SHADOW } from '../../utils/theme';
 import PressableGlass from '../../components/PressableGlass';
 import BudgetCard from '../../components/budget/BudgetCard';
@@ -48,18 +52,19 @@ export default function BudgetScreen() {
 
   const fetchAll = useCallback(async () => {
     try {
-      const [budgetRes, suggestRes] = await Promise.all([
-        api.get('/budgets/live').catch(() => api.get('/budgets')),
-        api.get('/budgets/smart-suggest').catch(() => ({ data: null })),
+      // Prefer /budgets/live (includes spent/status); fall back gracefully.
+      const [budgets, sugg] = await Promise.all([
+        fetchLiveBudgets().catch(() => fetchBudgetsSrv()),
+        fetchBudgetSuggestions().catch(() => null),
       ]);
-      const raw = budgetRes.data?.budgets || budgetRes.data || [];
-      const normalized = raw.map((b: any) => ({
+      const raw = (budgets as any).budgets || budgets || [];
+      const normalized = (raw as any[]).map((b: any) => ({
         ...b,
         amount: b.amount ?? b.budget ?? 0,
         spent: b.spent ?? 0,
       }));
       setBudgets(normalized);
-      if (suggestRes.data) setSuggestions(suggestRes.data);
+      if (sugg) setSuggestions(sugg);
     } catch (e) { console.error(e); }
     finally { setLoading(false); setRefreshing(false); }
   }, []);
@@ -100,9 +105,9 @@ export default function BudgetScreen() {
       if (editingBudget) {
         const patched = { ...editingBudget, amount: parseFloat(formData.amount), category, period: formData.period, recurring: formData.recurring, description: formData.description };
         setBudgets(prev => prev.map(b => b.id === editingBudget.id ? patched : b));
-        await api.put(`/budgets/${editingBudget.id}`, { amount: parseFloat(formData.amount), category, period: formData.period, recurring: formData.recurring, description: formData.description });
+        await updateBudget(editingBudget.id, { amount: parseFloat(formData.amount), category, period: formData.period, recurring: formData.recurring, description: formData.description });
       } else {
-        await api.post('/budgets', { category, amount: parseFloat(formData.amount), period: formData.period, recurring: formData.recurring, description: formData.description });
+        await createBudget({ category, amount: parseFloat(formData.amount), period: formData.period, recurring: formData.recurring, description: formData.description });
       }
       setModalVisible(false); setEditingBudget(null); fetchAll();
       Toast.show({ type: 'success', text1: editingBudget ? t('budget_updated', lang) : t('budget_created', lang), text2: `${category} — ₹${formData.amount}` });
@@ -120,7 +125,7 @@ export default function BudgetScreen() {
     setBudgets(curr => curr.filter(b => b.id !== target.id));
     setDeleteTarget(null);
     try {
-      await api.delete(`/budgets/${target.id}`);
+      await deleteBudget(target.id);
       Toast.show({
         type: 'info',
         text1: `${target.category} budget deleted`,
@@ -130,14 +135,14 @@ export default function BudgetScreen() {
           const restore = lastDeletedRef.current;
           if (!restore) return;
           try {
-            const created = await api.post('/budgets', {
+            const created = await createBudget({
               category: restore.category,
               amount: Number(restore.amount || restore.budget || 0),
               period: restore.period || 'monthly',
               recurring: restore.recurring !== false,
               description: restore.description || '',
             });
-            setBudgets(curr => [{ ...restore, id: created.data.id }, ...curr]);
+            setBudgets(curr => [{ ...restore, id: (created as any).id }, ...curr]);
             Toast.show({ type: 'success', text1: 'Budget restored' });
             lastDeletedRef.current = null;
             fetchAll();

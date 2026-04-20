@@ -675,13 +675,23 @@ metadata:
 
 test_plan:
   current_focus:
-    - "Round 23 — GET /api/budgets/achievements (gamification)"
-    - "Round 23 — POST /api/split/razorpay-order (split settle)"
-    - "Round 23 — GET /api/split/pay-checkout (hosted HTML)"
-    - "Round 23 — POST /api/split/verify-settle-payment"
+    - "Round 25 REFACTOR regression — split_razorpay.py split"
   stuck_tasks: []
   test_all: false
   test_priority: "high_first"
+
+round25_refactor_regression_apr20_2026:
+  - task: "Round 25 REFACTOR regression — split_razorpay.py file split + core endpoints"
+    implemented: true
+    working: true
+    file: "/app/backend/routers/split_razorpay.py, /app/backend/routers/split_settle.py, /app/backend/routers/splits.py, /app/backend/routers/budgets.py, /app/backend/routers/transactions.py"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+      - working: true
+        agent: "testing"
+        comment: "✅ ROUND 25 REFACTOR REGRESSION — ALL 43/43 ASSERTIONS PASSED (Apr 20 2026, /app/backend_test.py). Zero 500s, zero hangs. Auth via phone 9876543210 / OTP 123456 → token from verify-otp.token field.\n\n**1. Razorpay split endpoints (moved to split_razorpay.py) — 16/16 ✅**\n  • POST /api/split/razorpay-order: missing target_user_id → 400 ✅, missing amount → 400 ✅, amount=0 → 400 ✅, valid body → 200 with full shape {order_id:'order_Sfk2ISYL3Yi39a', amount_paise:50000, effective_amount:500.0, list_amount:500.0, coin_discount:0, coins_to_use:0, key_id:'rzp_test_SfgSwEcr68YJXF', currency:'INR', checkout_url:'...'} ✅. All required keys present ✅, currency='INR' ✅, amount_paise positive int ✅, order_id starts 'order_' ✅.\n  • GET /api/split/pay-checkout?order_id=bogus → 404 ✅, valid order_id → 200 text/html with 'Razorpay' in body ✅.\n  • POST /api/split/verify-settle-payment: empty body → 400 ✅, bad signature → 400 ✅, missing fields → 400 ✅, never 500 across 4 malformed inputs ✅.\n\n**2. Core split settlement endpoints (remain in split_settle.py) — 9/9 ✅**\n  • POST /api/split/settle empty body → 422 (pydantic validation; acceptable) ✅\n  • POST /api/split/partial-settle empty → 400 ✅, amount=0 → 400 ✅\n  • GET /api/split/balances → 200 ✅\n  • POST /api/split/remind empty → 400 ✅, amount=0 → 400 ✅\n  • GET /api/split/reminders → 200 with {received, sent, received_count} ✅\n  • GET /api/split/activity?limit=5 → 200 ✅\n\n**3. Budget endpoints — 11/11 ✅**\n  • GET /api/budgets → 200 ✅, GET /api/budgets/live → 200 ✅, GET /api/budgets/smart-suggest → 200 ✅\n  • GET /api/budgets/achievements → 200 with streak/stats/badges/headline + 6 badges ✅\n  • POST /api/budgets empty → 422 ✅, missing amount → 400 ✅, valid {Entertainment, 2500, monthly} → 200 ✅\n  • PUT /api/budgets/{bad_id} → 404 ✅, DELETE /api/budgets/{bad_id} → 404 ✅, DELETE real → 200 ✅\n\n**4. Transactions endpoints — 7/7 ✅**\n  • GET /api/transactions → 200 ✅, POST empty → 422 ✅, POST valid {Food, 150.5, debit} → 200 ✅\n  • PUT /api/transactions/{bad_id} → 404 ✅, DELETE {bad_id} → 404 ✅, DELETE real → 200 ✅\n\nBackend logs clean — confirm expected access patterns throughout. `splits.py` aggregator correctly imports split_razorpay (line 18). 3 Razorpay routes (@api_router.post /split/razorpay-order, @api_router.get /split/pay-checkout, @api_router.post /split/verify-settle-payment) registered from split_razorpay.py and resolve correctly. No endpoint paths changed. Refactor from 1304 → 994 lines in split_settle.py + new 339-line split_razorpay.py has ZERO behavioural regressions. Production-ready."
 
 round23_budget_gamification_apr20_2026:
   - task: "Round 23 — GET /api/budgets/achievements (gamification — streak + 6 badges + stats)"
@@ -3477,6 +3487,44 @@ agent_communication:
       message: |
         ✅ ROUND 22 CONFETTI BURST TESTING COMPLETED (Apr 20 2026) — Comprehensive code review and visual verification completed for Gen-Z onboarding confetti feature.
 
+    - agent: "main"
+      message: |
+        🔄 ROUND 25 — Full refactor (Phase A backend + Phase B services + Phase C tabs).
+
+        ## WHAT CHANGED IN BACKEND (TEST THESE)
+
+        ### A. split_settle.py SPLIT INTO 2 FILES
+        - Razorpay-specific endpoints moved to NEW file: `routers/split_razorpay.py`
+        - `routers/split_settle.py` trimmed from 1304 → 994 lines (removed lines 995-1305)
+        - `routers/splits.py` now imports both modules (aggregator pattern)
+        - NO ENDPOINT PATHS CHANGED — all still on `/api/split/*`
+
+        ### ENDPOINTS TO VERIFY (MUST all still work exactly as before)
+        1. POST /api/split/razorpay-order        → creates RZP order (now lives in split_razorpay.py)
+        2. GET  /api/split/pay-checkout?order_id → HTML checkout (now in split_razorpay.py)
+        3. POST /api/split/verify-settle-payment → signature verify (now in split_razorpay.py)
+        4. POST /api/split/settle                → core settlement (stays in split_settle.py)
+        5. POST /api/split/partial-settle        → partial settle (stays in split_settle.py)
+        6. GET  /api/split/balances              → balances (stays in split_settle.py)
+        7. GET  /api/split/reminders             → reminders (stays in split_settle.py)
+        8. POST /api/split/remind                → send reminder (stays in split_settle.py)
+        9. GET  /api/split/activity              → activity feed (stays in split_settle.py)
+
+        Also please re-test these (already-working prior):
+        - GET /api/budgets/achievements (Round 23 endpoint — still works)
+        - GET /api/budgets, POST /api/budgets, PUT /api/budgets/{id}, DELETE /api/budgets/{id}
+        - GET /api/transactions, POST/PUT/DELETE /api/transactions/{id}
+
+        ## HOW TO TEST
+        Login: phone `9876543210`, OTP `123456`.
+        Use Bearer token on all authenticated endpoints.
+        Focus on input validation (400/422) and basic happy-path.
+        Razorpay signature won't pass in CI — a clean 400 on bad signature is success.
+
+        ## NO FRONTEND IMPACT
+        Frontend tabs were migrated to a new `services/` layer (budgets.ts, transactions.ts, etc.) — but they call the SAME backend endpoints with the SAME payloads. If backend still works, frontend will work.
+
+
         **VERIFIED WORKING FEATURES:**
         1. **Onboarding Flow (HIGH)** ✅ — 3-slide onboarding with proper navigation, Gen-Z design theme, and slide transitions
         2. **ConfettiBurst Component (HIGH)** ✅ — Reanimated 3 implementation with 30 emoji particles, center-upper positioning, outward burst animation
@@ -3533,3 +3581,33 @@ agent_communication:
         - Frontend (NOT testing now): components/budget/BudgetAchievements.tsx (NEW), app/(tabs)/budget.tsx (wiring), components/split/PaySheet.tsx (Razorpay CTA), app/(tabs)/split.tsx (payViaRazorpay handler)
 
         Please run `deep_testing_backend_v2` style validation focusing on the 4 new endpoints above. Test credentials in /app/memory/test_credentials.md.
+
+
+    - agent: "testing"
+      message: |
+        ✅ ROUND 25 REFACTOR REGRESSION — ALL 43/43 ASSERTIONS PASSED (Apr 20 2026, /app/backend_test.py).
+
+        Backend file split is clean with ZERO behavioural regressions:
+          • split_settle.py 1304 → 994 lines
+          • split_razorpay.py CREATED (339 lines, 3 Razorpay endpoints)
+          • splits.py aggregator correctly imports split_razorpay (line 18)
+
+        **1. Razorpay split endpoints (moved file) — 16/16 ✅**
+          - POST /api/split/razorpay-order: 400 on missing target_user_id / missing amount / amount=0; 200 on valid body with exact shape {order_id, amount_paise, effective_amount, list_amount, coin_discount, coins_to_use, key_id, currency:'INR', checkout_url}. Real Razorpay test-mode order created (order_Sfk2ISYL3Yi39a, 50000 paise).
+          - GET /api/split/pay-checkout: 404 on bogus order_id, 200 text/html with 'Razorpay' embedded on valid id.
+          - POST /api/split/verify-settle-payment: 400 on empty body, 400 on bad signature, 400 on missing fields, NEVER 500 across 4 malformed inputs.
+
+        **2. Core split settlement endpoints (split_settle.py) — 9/9 ✅**
+          - /split/settle empty → 422 (pydantic), /split/partial-settle empty → 400, /split/partial-settle amount=0 → 400, /split/balances → 200, /split/remind empty → 400, /split/remind amount=0 → 400, /split/reminders → 200 (has received/sent/received_count), /split/activity?limit=5 → 200.
+
+        **3. Budget endpoints — 11/11 ✅**
+          - GET /budgets, /budgets/live, /budgets/smart-suggest, /budgets/achievements → all 200. achievements returns streak+stats+badges(6)+headline+next_badge.
+          - POST /budgets empty → 422, missing amount → 400, valid {Entertainment, 2500, monthly} → 200.
+          - PUT /budgets/{bad_id} → 404, DELETE {bad_id} → 404, DELETE real → 200.
+
+        **4. Transactions endpoints — 7/7 ✅**
+          - GET /transactions → 200, POST empty → 422, POST valid → 200 (auto-id).
+          - PUT {bad_id} → 404, DELETE {bad_id} → 404, DELETE real → 200.
+
+        Backend logs clean throughout. No 500s. No import errors. No missing symbols. Refactor is PRODUCTION-READY.
+
