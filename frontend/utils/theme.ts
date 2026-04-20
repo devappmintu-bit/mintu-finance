@@ -22,12 +22,41 @@ export const COLORS = {
     primary: '#2E1F1A',
     secondary: '#6D554B',
     muted: '#9E8E84',
+    tertiary: '#9E8E84',    // alias of muted — some components use this name
     inverse: '#FFFFFF',
   },
   border: {
     subtle: '#EEDDCC',
     focus: '#E65100',
     card: '#EEDDCC',
+  },
+  // ── Semantic state colors (Pass 2 — consistency) ─────────────
+  state: {
+    success: '#059669',
+    successBg: '#ECFDF5',
+    successBorder: '#A7F3D0',
+    warning: '#D97706',
+    warningBg: '#FEF3C7',
+    warningBorder: '#FCD34D',
+    danger:  '#DC2626',
+    dangerBg: '#FEE2E2',
+    dangerBorder: '#FCA5A5',
+    info:    '#2563EB',
+    infoBg:  '#EFF6FF',
+    infoBorder: '#BFDBFE',
+  },
+  // ── Neutral grays (Pass 2 — replace raw #6B7280/#9CA3AF drift) ─
+  gray: {
+    50: '#F9FAFB',
+    100: '#F3F4F6',
+    200: '#E5E7EB',
+    300: '#D1D5DB',
+    400: '#9CA3AF',
+    500: '#6B7280',
+    600: '#4B5563',
+    700: '#374151',
+    800: '#1F2937',
+    900: '#111827',
   },
 };
 

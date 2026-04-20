@@ -16,6 +16,9 @@ import PressableGlass from '../../components/PressableGlass';
 import SwipeableRow from '../../components/SwipeableRow';
 import Toast from 'react-native-toast-message';
 import { TransactionsSkeleton } from '../../components/SkeletonLoader';
+import EmptyState from '../../components/ui/EmptyState';
+import SheetHeader from '../../components/ui/SheetHeader';
+import PrimaryButton from '../../components/ui/PrimaryButton';
 import { PieChart } from 'react-native-gifted-charts';
 import SmartInsightsStrip from '../../components/transactions/SmartInsightsStrip';
 import TransactionFilterSheet, { DEFAULT_FILTER, TxnFilter, applyFilterToList, filterActiveCount } from '../../components/transactions/TransactionFilterSheet';
@@ -327,11 +330,13 @@ export default function TransactionsScreen() {
           </>
         }
         ListEmptyComponent={
-          <View style={styles.empty}>
-            <Ionicons name="receipt-outline" size={56} color={COLORS.text.muted} />
-            <Text style={styles.emptyTitle}>{t('no_transactions', lang)}</Text>
-            <Text style={styles.emptyText}>{t('add_first', lang)}</Text>
-          </View>
+          <EmptyState
+            emoji="🧾"
+            title={t('no_transactions', lang)}
+            subtitle={t('add_first', lang)}
+            ctaLabel="Add first transaction"
+            onCta={() => setModalVisible(true)}
+          />
         }
       />
 
@@ -339,11 +344,10 @@ export default function TransactionsScreen() {
       <Modal visible={modalVisible} animationType="slide" transparent>
         <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={styles.modalBg}>
           <View style={styles.modalSheet}>
-            <View style={styles.sheetHandle} />
-            <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>{editingTxn ? t('edit_transaction', lang) : t('add_transaction', lang)}</Text>
-              <TouchableOpacity onPress={() => { setModalVisible(false); setEditingTxn(null); setFormData({ id: '', amount: '', category: 'Food', description: '', type: 'debit' }); }}><Ionicons name="close" size={24} color={COLORS.text.primary} /></TouchableOpacity>
-            </View>
+            <SheetHeader
+              title={editingTxn ? t('edit_transaction', lang) : t('add_transaction', lang)}
+              onClose={() => { setModalVisible(false); setEditingTxn(null); setFormData({ id: '', amount: '', category: 'Food', description: '', type: 'debit' }); }}
+            />
             <ScrollView keyboardShouldPersistTaps="handled">
               <View style={styles.typeRow}>
                 {['debit', 'credit'].map((tp) => (

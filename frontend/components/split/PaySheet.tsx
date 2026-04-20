@@ -5,6 +5,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { COLORS } from '../../utils/theme';
 import { C, UPI_APPS } from './theme';
 import CoinRedeemPanel from '../premium/CoinRedeemPanel';
+import SheetHeader from '../ui/SheetHeader';
 
 type Props = {
   visible: boolean;
@@ -58,8 +59,11 @@ export default function PaySheet({ visible, onClose, target, onPayUPI, onPayCash
       <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={s.mBg}>
         <View style={s.sheet}>
           <ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={{ paddingBottom: 8 }} showsVerticalScrollIndicator={false}>
-            <View style={s.handle} />
-            <Text style={s.sheetT}>{`Pay ₹${(target?.amount || 0).toFixed(0)} to ${target?.to_name || ''}`}</Text>
+            <SheetHeader
+              title={`Pay ₹${(target?.amount || 0).toFixed(0)}`}
+              subtitle={target?.to_name ? `to ${target.to_name}` : undefined}
+              onClose={onClose}
+            />
 
             <View style={s.modeRow}>
               <TouchableOpacity style={[s.modeChip, !partialOn && s.modeOn]} onPress={() => setPartialOn(false)}>

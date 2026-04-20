@@ -17,6 +17,9 @@ import BudgetInsightsSheet from '../../components/budget/BudgetInsightsSheet';
 import BudgetShareCard from '../../components/budget/BudgetShareCard';
 import BudgetSummaryDonut from '../../components/budget/BudgetSummaryDonut';
 import BudgetAchievements from '../../components/budget/BudgetAchievements';
+import EmptyState from '../../components/ui/EmptyState';
+import SheetHeader from '../../components/ui/SheetHeader';
+import PrimaryButton from '../../components/ui/PrimaryButton';
 import { useLangStore } from '../../store/langStore';
 import { t } from '../../utils/i18n';
 import Toast from 'react-native-toast-message';
@@ -278,13 +281,13 @@ export default function BudgetScreen() {
           </>
         }
         ListEmptyComponent={
-          <View style={s.empty}>
-            <Ionicons name="wallet-outline" size={48} color={COLORS.accent.primary} />
-            <Text style={s.emptyTitle}>{t('no_budgets', lang)}</Text>
-            <TouchableOpacity style={s.emptyBtn} onPress={openAdd}>
-              <Text style={s.emptyBtnText}>{t('create_budget', lang)}</Text>
-            </TouchableOpacity>
-          </View>
+          <EmptyState
+            emoji="💰"
+            title={t('no_budgets', lang)}
+            subtitle="Set your first budget and start tracking spending by category."
+            ctaLabel={t('create_budget', lang)}
+            onCta={openAdd}
+          />
         }
       />
 
@@ -292,11 +295,10 @@ export default function BudgetScreen() {
       <Modal visible={modalVisible} animationType="slide" transparent>
         <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={s.mBg}>
           <View style={s.sheet}>
-            <View style={s.handle} />
-            <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
-              <Text style={s.sheetTitle}>{editingBudget ? t('edit_budget', lang) : t('new_budget', lang)}</Text>
-              <TouchableOpacity onPress={() => { setModalVisible(false); setEditingBudget(null); }}><Ionicons name="close" size={24} color={COLORS.text.primary} /></TouchableOpacity>
-            </View>
+            <SheetHeader
+              title={editingBudget ? t('edit_budget', lang) : t('new_budget', lang)}
+              onClose={() => { setModalVisible(false); setEditingBudget(null); }}
+            />
             <ScrollView keyboardShouldPersistTaps="handled">
               <Text style={s.formLabel}>{t('category', lang)}</Text>
               <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 20 }}>
@@ -360,13 +362,13 @@ export default function BudgetScreen() {
                 </View>
               )}
 
-              <TouchableOpacity style={s.saveBtn} onPress={handleSave} disabled={aiCategorizing}>
-                {aiCategorizing ? (
-                  <ActivityIndicator color="#fff" />
-                ) : (
-                  <Text style={s.saveBtnText}>{editingBudget ? t('update', lang) : t('set_budget', lang)}</Text>
-                )}
-              </TouchableOpacity>
+              <PrimaryButton
+                label={editingBudget ? t('update', lang) : t('set_budget', lang)}
+                onPress={handleSave}
+                loading={aiCategorizing}
+                icon={editingBudget ? 'checkmark' : 'add-circle'}
+                size="lg"
+              />
             </ScrollView>
           </View>
         </KeyboardAvoidingView>

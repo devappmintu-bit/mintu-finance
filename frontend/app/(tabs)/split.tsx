@@ -27,6 +27,7 @@ import GroupManageSheet from '../../components/split/GroupManageSheet';
 import PaySheet from '../../components/split/PaySheet';
 import RemindSheet from '../../components/split/RemindSheet';
 import RewardModal from '../../components/split/RewardModal';
+import EmptyState from '../../components/ui/EmptyState';
 
 export default function SplitScreen() {
   const { user } = useAuthStore();
@@ -466,11 +467,13 @@ export default function SplitScreen() {
         {/* GROUPS */}
         <Text style={s.section}>{t('groups', lang)}</Text>
         {groups.length === 0 ? (
-          <View style={s.emptyCard}>
-            <Ionicons name="people-outline" size={48} color={C.text4} />
-            <Text style={s.emptyTitle}>{t('no_groups', lang)}</Text>
-            <Text style={s.emptyText}>{t('create_first_group', lang)}</Text>
-          </View>
+          <EmptyState
+            emoji="👥"
+            title={t('no_groups', lang)}
+            subtitle={t('create_first_group', lang)}
+            ctaLabel="Create group"
+            onCta={() => setModal('create')}
+          />
         ) : groups.map((gr: any) => {
           const av = getGA(gr.name);
           const displayEmoji = gr.custom_emoji || av.emoji;
