@@ -670,6 +670,7 @@ metadata:
 test_plan:
   current_focus:
     - "Round 14 premium router refactor + deep-report — Apr 20 2026"
+    - "Profile → Premium flow verification"
   stuck_tasks: []
   test_all: false
   test_priority: "high_first"
@@ -2465,6 +2466,9 @@ frontend:
         - working: true
           agent: "testing"
           comment: "✅ CODE REVIEW VERIFIED (Apr 19 2026) — Custom MintU tab bar properly implemented in _layout.tsx with NotchedBackground SVG component creating curved design. MintULogo.tsx contains bespoke saffron coin with ₹ symbol and mint sprout (lines 52-73). Tab bar shows 4 side tabs (Home/Transactions/Budget/Split) with floating center AI Coach button. Component structure matches requirements: notched curve via SVG path, floating FAB with MintU logo, proper accessibility labels. Browser automation testing blocked by onboarding flow completion issues, but code implementation is correct."
+        - working: true
+          agent: "testing"
+          comment: "✅ COMPREHENSIVE CODE REVIEW VERIFIED (Apr 20 2026) — Tab bar implementation confirmed correct with NEW phone-with-bar-chart logo (MintULogo.tsx lines 34-97). Clean white background (#FFFFFF) with NO saffron halo as requested (line 225 backgroundColor: '#FFFFFF'). 4 side tabs + floating center AI Coach tile with proper data-testid attributes. MintULogo uses phone silhouette with ascending 3-bar chart inside, mint-green gradient. All requirements met per design specification."
 
   - task: "Biometric / 4-digit PIN unlock + remove password login"
     implemented: true
@@ -2561,7 +2565,53 @@ frontend:
           agent: "testing"
           comment: "✅ CODE REVIEW VERIFIED (Apr 19 2026) — PremiumExpandable.tsx properly redesigned with saffron theme (LinearGradient colors: #FFF4E8 to #FFE4CC). Three plan tiles with dynamic selection highlighting, Money School pills on yearly/lifetime plans (lines 142-148), and proper CTA integration. MockPaymentSheet component exists with Razorpay-style UX. Backend /api/premium/mock-activate endpoint already tested and working (Round 9 validation passed). Premium card shows correct saffron branding and plan structure."
 
-  - task: "Leaderboard scoped to Home only"
+  - task: "Home Screen - Premium card removed"
+    implemented: true
+    working: true
+    file: "app/(tabs)/index.tsx"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+        - working: true
+          agent: "testing"
+          comment: "✅ CODE REVIEW VERIFIED (Apr 20 2026) — Home screen correctly has NO Premium card/banner at top. Line 220 comment confirms 'Premium card moved back to Profile tab (per design ask)'. Daily Quest, Freshness Strip, Pills, Insights, UnifiedLeaderboard all present as expected. Premium content successfully moved from Home to Profile as requested."
+
+  - task: "Profile → Premium expandable card"
+    implemented: true
+    working: true
+    file: "components/profile/PremiumExpandable.tsx, app/(tabs)/profile.tsx"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+        - working: true
+          agent: "testing"
+          comment: "✅ CODE REVIEW VERIFIED (Apr 20 2026) — Premium expandable card properly implemented on Profile (profile.tsx line 241). Saffron theme with LinearGradient colors ['#FFF4E8', '#FFE4CC']. Three plan tiles (Monthly/Yearly/Lifetime) with dynamic selection, 'BEST SELLER' badge on yearly plan (line 152-154), Money School pills on yearly/lifetime plans. Features list with checkmarks for Unlimited AI, Priority AI, Advanced Analytics, Exclusive Badges, Zero Ads, Money School. Upgrade CTA opens MockPaymentSheet. All requirements met."
+
+  - task: "MockPaymentSheet integration and Premium activation"
+    implemented: true
+    working: true
+    file: "components/MockPaymentSheet.tsx, components/profile/PremiumExpandable.tsx"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+        - working: true
+          agent: "testing"
+          comment: "✅ CODE REVIEW VERIFIED (Apr 20 2026) — MockPaymentSheet properly integrated (PremiumExpandable.tsx lines 211-218). Payment success triggers POST /premium/mock-activate (line 76), shows success toast 'Premium unlocked!' (line 80-82), and flips card to Premium Active state with saffron gradient (lines 92-117). Post-payment card shows TWO perk buttons: 'Deep Reports' (line 107-110) and 'All Perks' (line 111-114). Complete payment flow implementation verified."
+
+  - task: "Deep Reports screen (/premium-reports)"
+    implemented: true
+    working: true
+    file: "app/premium-reports.tsx"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+        - working: true
+          agent: "testing"
+          comment: "✅ CODE REVIEW VERIFIED (Apr 20 2026) — Deep Reports screen fully implemented with all required elements: (1) Top bar with back button, 'Deep Reports · Premium · 6 months' title, share button, saffron download button (lines 185-199). (2) 3M/6M/12M chip row for range selection (lines 202-208). (3) Premium gating - returns 403 'Premium subscription required' if not premium (lines 218-228). (4) Full report content when authorized: AI executive summary, KPI grid (Income/Expense/Savings/Save rate), monthly bar chart, category donut + table, merchants table, year-end projection (lines 230-340). (5) PDF download via expo-print and share functionality (lines 158-181). All requirements implemented correctly."
     implemented: true
     working: true
     file: "app/(tabs)/rewards.tsx, app/(tabs)/split.tsx"
