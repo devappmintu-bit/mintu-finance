@@ -197,12 +197,23 @@ export default function HomeScreen() {
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scroll}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={COLORS.accent.primary} />}>
 
-        {/* HEADER — CRED-style with avatar */}
+        {/* HEADER — CRED-style with avatar + total-coins chip */}
         <View style={styles.header}>
           <View style={{ flex: 1 }}>
             <Text style={styles.greeting}>{t('welcome_back', lang).toUpperCase()}</Text>
             <Text style={styles.name}>{t('hi', lang)}, {user?.name || 'User'}!</Text>
           </View>
+          {coinsStatus && (
+            <TouchableOpacity
+              onPress={() => router.push('/(tabs)/profile')}
+              style={styles.coinsChip}
+              activeOpacity={0.8}
+              testID="header-coins-chip"
+            >
+              <Text style={{ fontSize: 14 }}>🪙</Text>
+              <Text style={styles.coinsChipVal}>{coinsStatus.balance}</Text>
+            </TouchableOpacity>
+          )}
           <TouchableOpacity onPress={() => router.push('/(tabs)/profile')} style={styles.avatarWrap}>
             <View style={styles.avatarRing}>
               {avatar ? (
@@ -222,28 +233,13 @@ export default function HomeScreen() {
         {/* MintU 2.0 — Daily Quest Card (habit loop) */}
         <DailyQuestCard coinsStatus={coinsStatus} />
 
-        {/* Freshness Signal — auto-updating "Last updated just now / X min ago" */}
-        <View style={styles.freshStrip}>
-          <View style={styles.freshLiveDot} />
-          <Text style={styles.freshText}>{lastSyncLabel}</Text>
-          <TouchableOpacity onPress={onRefresh} style={styles.freshBtn} activeOpacity={0.7}>
-            <Ionicons name="refresh" size={12} color={COLORS.accent.primary} />
-          </TouchableOpacity>
-        </View>
+        {/* Freshness strip removed per design ask — auto-refresh still triggers on focus */}
 
-        {/* MintU 2.0 — Top-of-home Pill Row (Coins + Percentile + Streak) */}
-        {(coinsStatus || leaderboard || snapshot) && (
+        {/* Coins moved to header chip next to avatar; rank + streak remain below */}
+        {(leaderboard || snapshot) && (
           <View style={styles.pillRow}>
-            {coinsStatus && (
-              <TouchableOpacity style={[styles.pill, styles.pillCoin]} onPress={() => router.push('/(tabs)/rewards')} activeOpacity={0.7}>
-                <Text style={styles.pillEmoji}>🪙</Text>
-                <Text style={styles.pillValue}>{coinsStatus.balance}</Text>
-                <Text style={styles.pillLabel}>coins</Text>
-                {coinsStatus.today_earned > 0 && <View style={styles.pillGlow}><Text style={styles.pillGlowT}>+{coinsStatus.today_earned}</Text></View>}
-              </TouchableOpacity>
-            )}
             {leaderboard?.percentile > 0 && (
-              <TouchableOpacity style={[styles.pill, styles.pillRank]} onPress={() => router.push('/(tabs)/rewards')} activeOpacity={0.7}>
+              <TouchableOpacity style={[styles.pill, styles.pillRank]} onPress={() => router.push('/(tabs)/profile')} activeOpacity={0.7}>
                 <Text style={styles.pillEmoji}>🏆</Text>
                 <Text style={styles.pillValue}>Top {Math.max(1, 100 - leaderboard.percentile)}%</Text>
               </TouchableOpacity>
@@ -403,7 +399,7 @@ export default function HomeScreen() {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: COLORS.bg.primary },
-  scroll: { paddingHorizontal: SPACING.lg, paddingTop: SPACING.md },
+  scroll: { paddingHorizontal: SPACING.lg, paddingTop: SPACING.md, paddingBottom: 140 },
   // Header
   header: { flexDirection: 'row', alignItems: 'center', marginBottom: SPACING.lg },
   greeting: { fontSize: 11, fontWeight: '700', letterSpacing: 1.2, color: COLORS.text.muted },
@@ -414,6 +410,9 @@ const styles = StyleSheet.create({
   avatarImg: { width: 44, height: 44, borderRadius: 22 },
   avatarPlaceholder: { width: 44, height: 44, borderRadius: 22, backgroundColor: COLORS.accent.primary + '12', justifyContent: 'center', alignItems: 'center' },
   avatarBadge: { position: 'absolute', bottom: 0, right: 0, width: 18, height: 18, borderRadius: 9, backgroundColor: COLORS.accent.primary, justifyContent: 'center', alignItems: 'center', borderWidth: 2, borderColor: COLORS.bg.primary },
+  // Coins chip — header pill next to avatar
+  coinsChip: { flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: 10, paddingVertical: 6, borderRadius: 16, backgroundColor: '#FFF7E6', borderWidth: 1, borderColor: '#FBBF24', marginRight: 8 },
+  coinsChipVal: { fontSize: 13, fontWeight: '800', color: '#78350F' },
   // Leaderboard  // Card of the Day
   cotdCard: { backgroundColor: 'rgba(255,255,255,0.92)', borderRadius: RADIUS.card, padding: SPACING.xl, marginBottom: SPACING.lg, borderLeftWidth: 4, borderWidth: 1, borderColor: 'rgba(238,221,204,0.6)', ...shadowStyle('#2E1F1A', 2, 12, 0.04, 3) },
   cotdHeader: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 8 },

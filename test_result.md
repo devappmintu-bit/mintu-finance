@@ -2959,6 +2959,35 @@ frontend:
             All routes respond 422 (auth required) — no runtime errors on boot.
             Also fixed split.tsx duplicate CreateGroupSheet import.
 
+  - task: "Round 15 — UX pass (logout fix, tab padding, filter sheet, inshorts news, coins-in-header)"
+    implemented: true
+    working: true
+    status_history:
+        - agent: "main"
+          comment: |
+            P0/P1 fixes:
+            - Logout: Alert.alert is unreliable on web → new cross-platform
+              confirmThen() uses window.confirm on web, Alert on native.
+            - Tab-bar overlap: added paddingBottom: 140 to all 5 tab
+              ScrollView/FlatList contentContainers (index, transactions, budget,
+              split, profile).
+            - Home: removed "last updated" freshness strip per design ask.
+            - Home header: new coins chip next to avatar (pulls from coinsStatus);
+              duplicate coins pill removed from the body pill row.
+            - Leaderboard: compact mode now shows top 3 only; "See full
+              leaderboard" toggles in-place expand/collapse (up to 20).
+            Features:
+            - Transactions filter bottom-sheet
+              (components/transactions/TransactionFilterSheet.tsx) with By period
+              / Source / Transaction type / Status chips + Clear all + Apply
+              filter. Integrates via applyFilterToList() + filterActiveCount().
+              Saffron filter button + badge in transactions header.
+            - News: /api/news/india-finance?refresh=1 now does a real-time
+              refresh (was a no-op hint before). NewsCarousel card adds
+              inshorts-style "read more at SOURCE" footer that opens the article
+              source_url via Linking.openURL.
+
+
 
 metadata:
   version: "1.5"

@@ -17,6 +17,7 @@ import Toast from 'react-native-toast-message';
 import { TransactionsSkeleton } from '../../components/SkeletonLoader';
 import { PieChart } from 'react-native-gifted-charts';
 import SmartInsightsStrip from '../../components/transactions/SmartInsightsStrip';
+import TransactionFilterSheet, { DEFAULT_FILTER, TxnFilter, applyFilterToList, filterActiveCount } from '../../components/transactions/TransactionFilterSheet';
 
 // Pure, memoized row — prevents re-renders on unrelated parent state changes (e.g. modals).
 // Per UX spec: Transactions get DELETE-only swipe (no edit gesture).
@@ -68,6 +69,9 @@ export default function TransactionsScreen() {
   const [waste, setWaste] = useState<any>(null);
   const [stats, setStats] = useState<any>(null);
   const [refreshing, setRefreshing] = useState(false);
+  // Filter state
+  const [filterVisible, setFilterVisible] = useState(false);
+  const [filter, setFilter] = useState<TxnFilter>(DEFAULT_FILTER);
 
   useEffect(() => { fetchAll(); }, []);
 
@@ -205,14 +209,32 @@ export default function TransactionsScreen() {
 
   if (loading) return <SafeAreaView style={styles.container}><TransactionsSkeleton /></SafeAreaView>;
 
+  const filteredTransactions = applyFilterToList(transactions, filter);
+  const activeFilterCount = filterActiveCount(filter);
+
   return (
     <SafeAreaView style={styles.container}>
       <View style={styles.header}>
         <View>
           <Text style={styles.pageTitle}>{t('transactions', lang)}</Text>
-          <Text style={styles.pageSubtitle}>{transactions.length} {t('entries', lang)}</Text>
+          <Text style={styles.pageSubtitle}>
+            {filteredTransactions.length}/{transactions.length} {t('entries', lang)}
+          </Text>
         </View>
         <View style={styles.headerActions}>
+          <TouchableOpacity
+            testID="filter-btn"
+            style={styles.filterBtn}
+            onPress={() => setFilterVisible(true)}
+            activeOpacity={0.8}
+          >
+            <Ionicons name="options-outline" size={20} color="#F56E1E" />
+            {activeFilterCount > 0 && (
+              <View style={styles.filterBadge}>
+                <Text style={styles.filterBadgeTxt}>{activeFilterCount}</Text>
+              </View>
+            )}
+          </TouchableOpacity>
           <TouchableOpacity testID="add-txn-btn" style={styles.addBtn} onPress={() => setModalVisible(true)}>
             <Ionicons name="add" size={22} color={COLORS.bg.primary} />
           </TouchableOpacity>
@@ -253,7 +275,7 @@ export default function TransactionsScreen() {
       </View>
 
       <FlatList
-        data={transactions}
+        data={filteredTransactions}
         renderItem={renderTxn}
         keyExtractor={(item) => item.id}
         contentContainerStyle={styles.listContent}
@@ -410,6 +432,14 @@ export default function TransactionsScreen() {
           </View>
         </KeyboardAvoidingView>
       </Modal>
+
+      {/* Modern filter bottom sheet */}
+      <TransactionFilterSheet
+        visible={filterVisible}
+        value={filter}
+        onClose={() => setFilterVisible(false)}
+        onApply={setFilter}
+      />
     </SafeAreaView>
   );
 }
@@ -421,6 +451,9 @@ const styles = StyleSheet.create({
   pageSubtitle: { fontSize: 13, color: COLORS.text.muted },
   headerActions: { flexDirection: 'row', gap: 10 },
   addBtn: { width: 44, height: 44, borderRadius: 22, backgroundColor: COLORS.accent.primary, justifyContent: 'center', alignItems: 'center', ...SHADOW.md },
+  filterBtn: { width: 44, height: 44, borderRadius: 22, backgroundColor: '#FFF0E0', justifyContent: 'center', alignItems: 'center', borderWidth: 1, borderColor: '#F56E1E40', position: 'relative' },
+  filterBadge: { position: 'absolute', top: -2, right: -2, minWidth: 18, height: 18, borderRadius: 9, backgroundColor: '#F56E1E', alignItems: 'center', justifyContent: 'center', paddingHorizontal: 4, borderWidth: 2, borderColor: '#FAFAF9' },
+  filterBadgeTxt: { fontSize: 10, fontWeight: '800', color: '#fff' },
   // Quick bar
   quickBar: { flexDirection: 'row', paddingHorizontal: SPACING.lg, marginBottom: SPACING.md, gap: 10 },
   quickInputWrap: { flex: 1, flexDirection: 'row', alignItems: 'center', backgroundColor: COLORS.bg.card, borderRadius: RADIUS.full, paddingHorizontal: SPACING.lg, borderWidth: 1, borderColor: COLORS.border.card },
@@ -428,7 +461,7 @@ const styles = StyleSheet.create({
   quickInput: { flex: 1, paddingVertical: 14, fontSize: 15, color: COLORS.text.primary },
   voiceBtn: { width: 48, height: 48, borderRadius: 24, backgroundColor: COLORS.accent.primary, justifyContent: 'center', alignItems: 'center' },
   // List
-  listContent: { padding: SPACING.lg, paddingTop: 0 },
+  listContent: { padding: SPACING.lg, paddingTop: 0, paddingBottom: 140 },
   txnCard: { flexDirection: 'row', alignItems: 'center', backgroundColor: 'rgba(255,255,255,0.9)', borderRadius: 20, padding: SPACING.lg, marginBottom: 10, borderWidth: 1, borderColor: 'rgba(255,255,255,0.6)', ...SHADOW.sm },
   txnIcon: { width: 44, height: 44, borderRadius: 16, justifyContent: 'center', alignItems: 'center', marginRight: SPACING.md },
   txnInfo: { flex: 1 },

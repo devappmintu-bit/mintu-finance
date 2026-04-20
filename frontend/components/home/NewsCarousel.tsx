@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, ActivityIndicator } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, ActivityIndicator, Linking } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { COLORS, SPACING } from '../../utils/theme';
 import NewsStoryViewer from './NewsStoryViewer';
@@ -66,6 +66,11 @@ export default function NewsCarousel({ news, newsUpdatedAt, newsLoading, onRefre
         >
           {news.map((article: any, i: number) => {
             const color = categoryColor(article.category);
+            const hasUrl = !!(article.source_url || article.url);
+            const openSource = () => {
+              const url = article.source_url || article.url;
+              if (url) Linking.openURL(url).catch(() => {});
+            };
             return (
               <TouchableOpacity
                 key={i}
@@ -81,14 +86,18 @@ export default function NewsCarousel({ news, newsUpdatedAt, newsLoading, onRefre
                   <Text style={{ fontSize: 22 }}>{article.emoji}</Text>
                 </View>
                 <Text style={s.title} numberOfLines={3}>{article.title}</Text>
-                <Text style={s.summary} numberOfLines={4}>{article.summary}</Text>
-                <View style={s.footer}>
-                  <Text style={s.source} numberOfLines={1}>{article.source}</Text>
-                  <View style={s.readMore}>
-                    <Text style={s.readMoreText}>Tap to read</Text>
-                    <Ionicons name="chevron-forward" size={11} color={color} />
-                  </View>
-                </View>
+                <Text style={s.summary} numberOfLines={5}>{article.summary}</Text>
+                {/* inshorts-style source link */}
+                <TouchableOpacity
+                  style={s.sourceBar}
+                  onPress={hasUrl ? openSource : () => { setStoryStart(i); setStoryOpen(true); }}
+                  activeOpacity={0.8}
+                >
+                  <Text style={s.sourceText} numberOfLines={1}>
+                    read more at <Text style={s.sourceName}>{article.source || 'source'}</Text>
+                  </Text>
+                  <Ionicons name={hasUrl ? 'open-outline' : 'chevron-forward'} size={12} color={color} />
+                </TouchableOpacity>
               </TouchableOpacity>
             );
           })}
@@ -133,6 +142,13 @@ const s = StyleSheet.create({
   source: { fontSize: 10, fontWeight: '700', color: COLORS.text.muted, textTransform: 'uppercase', letterSpacing: 0.5, flex: 1 },
   readMore: { flexDirection: 'row', alignItems: 'center', gap: 2 },
   readMoreText: { fontSize: 10, fontWeight: '800', color: COLORS.accent.primary, letterSpacing: 0.3 },
+  // Inshorts-style source bar at the bottom of the card
+  sourceBar: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
+    marginTop: 12, paddingTop: 10, borderTopWidth: 1, borderTopColor: '#F5F2EE',
+  },
+  sourceText: { fontSize: 11, color: '#6B7280', flex: 1 },
+  sourceName: { fontWeight: '800', color: '#111' },
   endCard: { justifyContent: 'center', alignItems: 'center', backgroundColor: COLORS.accent.primary + '08', borderColor: COLORS.accent.primary + '30' },
   endTitle: { fontSize: 14, fontWeight: '800', color: COLORS.text.primary, marginTop: 8 },
   endSub: { fontSize: 11, color: COLORS.text.muted, marginTop: 4, textAlign: 'center' },

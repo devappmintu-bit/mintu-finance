@@ -86,10 +86,24 @@ export default function ProfileScreen() {
   );
 
   // ── Handlers ─────────────────────────────────────────────────────────
-  const handleLogout = () => Alert.alert(t('logout', lang), t('logout_confirm', lang), [
-    { text: t('cancel', lang), style: 'cancel' },
-    { text: t('logout', lang), style: 'destructive', onPress: async () => { await logout(); router.replace('/'); } },
-  ]);
+  // Cross-platform confirm: Alert.alert works on native; use window.confirm on web.
+  const confirmThen = (title: string, msg: string, onYes: () => void) => {
+    if (Platform.OS === 'web') {
+      // eslint-disable-next-line no-alert
+      if (typeof window !== 'undefined' && window.confirm(`${title}\n\n${msg}`)) onYes();
+      return;
+    }
+    Alert.alert(title, msg, [
+      { text: t('cancel', lang), style: 'cancel' },
+      { text: t('logout', lang), style: 'destructive', onPress: onYes },
+    ]);
+  };
+
+  const handleLogout = () => confirmThen(
+    t('logout', lang),
+    t('logout_confirm', lang),
+    async () => { await logout(); router.replace('/'); },
+  );
 
   const updateName = async () => {
     if (!editName.trim()) return;
@@ -446,7 +460,7 @@ export default function ProfileScreen() {
 
 const s = StyleSheet.create({
   bg: { flex: 1, backgroundColor: COLORS.bg.primary },
-  scroll: { padding: 16 },
+  scroll: { padding: 16, paddingBottom: 140 },
   // Gamification combined card (kept inline — small and tightly coupled)
   gamiCard: { backgroundColor: 'rgba(255,255,255,0.96)', borderRadius: 20, padding: 14, marginBottom: 14, borderWidth: 1, borderColor: COLORS.border.card },
   gamiHeader: { flexDirection: 'row', alignItems: 'center', gap: 12 },

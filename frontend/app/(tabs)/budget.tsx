@@ -276,7 +276,7 @@ const s = StyleSheet.create({
   title: { fontSize: 28, fontWeight: '800', color: COLORS.text.primary },
   sub: { fontSize: 13, color: COLORS.text.muted },
   addBtn: { width: 44, height: 44, borderRadius: 22, backgroundColor: COLORS.accent.primary, justifyContent: 'center', alignItems: 'center', ...SHADOW.md },
-  list: { padding: SPACING.lg },
+  list: { padding: SPACING.lg, paddingBottom: 140 },
   // Summary
   summaryRow: { flexDirection: 'row', gap: 8, marginBottom: SPACING.lg },
   summaryBox: { flex: 1, backgroundColor: COLORS.bg.card, borderRadius: RADIUS.lg, padding: 14, alignItems: 'center', borderWidth: 1, borderColor: COLORS.border.card },

@@ -132,6 +132,15 @@ async def india_finance_news(
     today = date.today().isoformat()
     cached = await db.news_cache.find_one({"date": today})
 
+    # EXPLICIT refresh — force a fresh fetch now and wait briefly for it to land.
+    # Inshorts-style: user tapped "Refresh now" and expects *new* data.
+    if refresh:
+        try:
+            await _refresh_news_in_background(today)
+            cached = await db.news_cache.find_one({"date": today})
+        except Exception as e:
+            logging.warning("Explicit news refresh failed: %s", e)
+
     # If cache is empty (first request of day, or test pollution cleared it),
     # kick off a background regen so subsequent calls get real data within ~30s.
     # This is fire-and-forget and never blocks the response.

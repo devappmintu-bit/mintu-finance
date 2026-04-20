@@ -54,7 +54,9 @@ export default function UnifiedLeaderboard({ title = 'Leaderboard', compact = fa
 
   const contenders: Entry[] = data?.contenders || [];
   const you: Entry | null = data?.you || null;
-  const displayList = compact ? contenders.slice(0, 5) : contenders.slice(0, 20);
+  // Default compact: show only top 3 per design ask. Expanded shows up to 20.
+  const [expanded, setExpanded] = useState(false);
+  const displayList = (compact && !expanded) ? contenders.slice(0, 3) : contenders.slice(0, 20);
   const medals = ['🥇', '🥈', '🥉'];
 
   return (
@@ -141,10 +143,14 @@ export default function UnifiedLeaderboard({ title = 'Leaderboard', compact = fa
         ))
       )}
 
-      {onPressMore && displayList.length > 0 && (
-        <TouchableOpacity style={s.moreBtn} onPress={onPressMore} activeOpacity={0.8}>
-          <Text style={s.moreText}>See full leaderboard</Text>
-          <Ionicons name="chevron-forward" size={14} color={COLORS.accent.primary} />
+      {compact && contenders.length > 3 && (
+        <TouchableOpacity
+          style={s.moreBtn}
+          onPress={() => { if (expanded) setExpanded(false); else onPressMore ? onPressMore() : setExpanded(true); }}
+          activeOpacity={0.8}
+        >
+          <Text style={s.moreText}>{expanded ? 'Show top 3 only' : 'See full leaderboard'}</Text>
+          <Ionicons name={expanded ? 'chevron-up' : 'chevron-forward'} size={14} color={COLORS.accent.primary} />
         </TouchableOpacity>
       )}
     </View>

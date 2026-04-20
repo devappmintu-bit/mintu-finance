@@ -571,7 +571,7 @@ export default function SplitScreen() {
 
 const s = StyleSheet.create({
   bg: { flex: 1, backgroundColor: C.bg },
-  scroll: { padding: 16 },
+  scroll: { padding: 16, paddingBottom: 140 },
   header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 },
   title: { fontSize: 28, fontWeight: '800', color: C.text1, letterSpacing: -0.5 },
   headerR: { flexDirection: 'row', alignItems: 'center', gap: 10 },
