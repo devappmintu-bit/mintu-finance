@@ -11,6 +11,7 @@ import { COLORS, RADIUS, SPACING, CATEGORIES, CATEGORY_LIST, SHADOW } from '../.
 import PressableGlass from '../../components/PressableGlass';
 import SwipeableRow from '../../components/SwipeableRow';
 import BudgetAIInsights from '../../components/budget/BudgetAIInsights';
+import BudgetSummaryDonut from '../../components/budget/BudgetSummaryDonut';
 import { useLangStore } from '../../store/langStore';
 import { t } from '../../utils/i18n';
 import Toast from 'react-native-toast-message';
@@ -186,6 +187,8 @@ export default function BudgetScreen() {
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={COLORS.accent.primary} />}
         ListHeaderComponent={
           <>
+            {/* Donut chart + legend */}
+            <BudgetSummaryDonut budgets={budgets} />
             {/* Graphical, personalised AI insights strip */}
             <BudgetAIInsights budgets={budgets} />
             {/* Summary */}

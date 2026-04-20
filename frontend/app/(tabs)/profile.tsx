@@ -22,6 +22,7 @@ import WeeklyChallenge from '../../components/profile/WeeklyChallenge';
 import ProfileHero from '../../components/profile/ProfileHero';
 import FinancialSnapshot from '../../components/profile/FinancialSnapshot';
 import PaymentMethods from '../../components/profile/PaymentMethods';
+import RewardsHub from '../../components/profile/RewardsHub';
 import PremiumExpandable from '../../components/profile/PremiumExpandable';
 import ReferralDashboard from '../../components/profile/ReferralDashboard';
 import ViewShot, { captureRef } from 'react-native-view-shot';
@@ -248,6 +249,9 @@ export default function ProfileScreen() {
         </View>
 
         <FinancialSnapshot stats={realStats} />
+
+        {/* All rewards earned across the app — consolidated here per design ask */}
+        <RewardsHub />
 
         <PaymentMethods upiId={upiId} />
 

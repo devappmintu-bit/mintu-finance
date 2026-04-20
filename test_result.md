@@ -3006,6 +3006,32 @@ frontend:
               "Premium · 7 features locked/unlocked · tap to preview" with a
               LOCKED/ACTIVE badge. Expanded lists all 7 perks with individual
               lock/check icons. CTA row: "Open Premium Hub" (primary saffron
+  - task: "Round 15d — RewardsHub on Profile + Budget donut overhaul"
+    implemented: true
+    working: true
+    status_history:
+        - agent: "main"
+          comment: |
+            B) Rewards consolidated into Profile:
+            - NEW components/profile/RewardsHub.tsx — collapsed header:
+              "🏆 My Rewards · 🪙 coins · 🔥 streak · 🎖 badges". Expanded:
+              4 stat tiles (Coins/Streak/Level/Invited), horizontal badges
+              scroller (locked badges greyed with lock pin), "Share your
+              wins" row (Score card + Referral via shareSmart), and a
+              "View the leaderboard" shortcut.
+            - Plugged between FinancialSnapshot and PaymentMethods on Profile.
+            - Rewards tab was already hidden (href: null); its content now
+              lives natively on Profile per the design ask.
+
+            C) Budget visual overhaul:
+            - NEW components/budget/BudgetSummaryDonut.tsx — Kiwi-style donut
+              chart with category colours + legend of top 5 categories.
+              Center label shows "Spent ₹X of ₹Y". Top-right % pill flips
+              red/amber/green depending on usage.
+            - Wired as ListHeaderComponent on budgets FlatList (above
+              BudgetAIInsights).
+
+
               gradient) + "Unlock in Profile →" (secondary saffron ghost).
             - Profile still holds the full payment card (PremiumExpandable) per
               the latest design ask — the home card is view-only; payment
