@@ -1,9 +1,10 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import {
-  View, Text, StyleSheet, FlatList, TouchableOpacity, ActivityIndicator,
+  View, Text, StyleSheet, TouchableOpacity, ActivityIndicator,
   Modal, TextInput, KeyboardAvoidingView, Platform, ScrollView,
   RefreshControl,
 } from 'react-native';
+import { FlashList } from '@shopify/flash-list';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
@@ -221,11 +222,12 @@ export default function BudgetScreen() {
         </View>
       </View>
 
-      <FlatList
+      <FlashList
         data={budgets}
         renderItem={renderBudget}
         keyExtractor={(item) => item.id}
         contentContainerStyle={s.list}
+        estimatedItemSize={168}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={COLORS.accent.primary} />}
         ListHeaderComponent={
           <>

@@ -1,8 +1,9 @@
 import React, { useState, useEffect, useCallback, memo, useRef } from 'react';
 import {
   View, Text, StyleSheet, ScrollView, RefreshControl, TouchableOpacity, ActivityIndicator,
-  Image, Share, Linking, Alert, InteractionManager,
+  Share, Linking, Alert, InteractionManager,
 } from 'react-native';
+import { Image } from 'expo-image';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';

@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef, useCallback, memo } from 'react';
 import {
-  View, Text, StyleSheet, FlatList, TouchableOpacity, ActivityIndicator,
+  View, Text, StyleSheet, TouchableOpacity, ActivityIndicator,
   Modal, TextInput, KeyboardAvoidingView, Platform, Alert, ScrollView, Animated,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -11,6 +11,7 @@ import { format } from 'date-fns';
 import { useLangStore } from '../../store/langStore';
 import { t } from '../../utils/i18n';
 import { COLORS, RADIUS, SPACING, CATEGORIES, CATEGORY_LIST, SHADOW, shadowStyle } from '../../utils/theme';
+import { FlashList } from '@shopify/flash-list';
 import PressableGlass from '../../components/PressableGlass';
 import SwipeableRow from '../../components/SwipeableRow';
 import Toast from 'react-native-toast-message';
@@ -283,15 +284,12 @@ export default function TransactionsScreen() {
         </TouchableOpacity>
       </View>
 
-      <FlatList
+      <FlashList
         data={filteredTransactions}
         renderItem={renderTxn}
         keyExtractor={(item) => item.id}
         contentContainerStyle={styles.listContent}
-        removeClippedSubviews={true}
-        maxToRenderPerBatch={15}
-        windowSize={10}
-        initialNumToRender={10}
+        estimatedItemSize={74}
         ListHeaderComponent={
           <>
             {/* Smart Insights — Data-driven spending summary */}
