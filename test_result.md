@@ -2986,11 +2986,41 @@ frontend:
               refresh (was a no-op hint before). NewsCarousel card adds
               inshorts-style "read more at SOURCE" footer that opens the article
               source_url via Linking.openURL.
+  - task: "Round 15b — Budget recurring toggle + AI 'Other' auto-category + Premium comparison table"
+    implemented: true
+    working: true
+    status_history:
+        - agent: "main"
+          comment: |
+            Backend:
+            - NEW POST /api/budgets/categorize — takes a free-text description
+              and returns one of the 11 known categories using GPT-4o
+              (with a fast keyword-heuristic fast-path). 'Other' only when
+              nothing else fits.
+            - Budget model extended with `recurring: bool = True` and
+              `description: str` fields. Persisted in create + update.
+            Frontend:
+            - Budget modal gets a modern "Recurring budget" toggle row with
+              saffron switch + contextual subtitle ("Rolls over every monthly"
+              vs "One-time only — won't reset").
+            - When category == 'Other', a saffron-bordered description input
+              appears with a sparkles icon + "AI will categorise" helper. On
+              save, the description is POSTed to /budgets/categorize and the
+              returned category is used instead of Other (toast notifies).
+            - New components/premium/PremiumComparison.tsx — Kiwi-Neon-style
+              feature comparison table (MintU ✓ vs Others ✗) with a saffron
+              hero (Smart savers / Avg yearly saving / Rating) + 12 feature
+              rows + fine-print disclaimer.
+            - PremiumExpandable's "See all benefits →" now toggles this
+              comparison table inline (no route-change); tap again / tap X to
+              hide.
+
+
 
 
 
 metadata:
   version: "1.5"
-  last_round: 14
-  test_sequence: 14
+  last_round: 15
+  test_sequence: 15
   run_ui: false

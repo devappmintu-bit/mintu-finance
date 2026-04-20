@@ -1,13 +1,27 @@
 """Budgets router — CRUD for per-category spending limits."""
+import os
+import json as json_mod
+import logging
 from datetime import datetime, timedelta
-from typing import Optional
+from typing import Optional, List
 from bson import ObjectId
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 
 from core import db, get_current_user
 
+try:
+    from emergentintegrations.llm.chat import LlmChat, UserMessage
+except Exception:  # pragma: no cover
+    LlmChat = UserMessage = None  # type: ignore
+
 router = APIRouter(prefix="/budgets", tags=["budgets"])
+
+# Categories list shared with frontend theme.ts — keep in sync.
+KNOWN_CATEGORIES = [
+    "Food", "Transport", "Shopping", "Bills", "Entertainment", "Healthcare",
+    "Education", "Investment", "Groceries", "Rent", "Other",
+]
 
 
 class BudgetCreate(BaseModel):
@@ -15,12 +29,77 @@ class BudgetCreate(BaseModel):
     amount: Optional[float] = None  # accept either `amount` (native) OR `limit` (spec alias)
     limit: Optional[float] = None
     period: str = "monthly"  # "daily" | "weekly" | "monthly"
+    recurring: bool = True  # NEW — rolls over each period by default
+    description: Optional[str] = None  # NEW — free-text; used for AI categorisation when category=="Other"
 
     def resolved_amount(self) -> float:
         v = self.amount if self.amount is not None else self.limit
         if v is None or v < 0:
             raise ValueError("amount (or limit) must be a non-negative number")
         return float(v)
+
+
+class CategorizeRequest(BaseModel):
+    description: str
+
+
+async def _ai_map_to_category(description: str) -> str:
+    """Given a user's free-text description, pick the best-fit category from
+    KNOWN_CATEGORIES using GPT-4o. Falls back to 'Other' on any failure."""
+    desc = (description or "").strip()
+    if not desc:
+        return "Other"
+    # Quick heuristic fallback first — avoids LLM calls for obvious phrases
+    low = desc.lower()
+    for kw, cat in {
+        "rent": "Rent", "emi": "Bills", "electricity": "Bills", "wifi": "Bills",
+        "mobile": "Bills", "internet": "Bills", "grocery": "Groceries", "vegetable": "Groceries",
+        "swiggy": "Food", "zomato": "Food", "restaurant": "Food", "coffee": "Food",
+        "uber": "Transport", "ola": "Transport", "fuel": "Transport", "petrol": "Transport",
+        "movie": "Entertainment", "netflix": "Entertainment", "spotify": "Entertainment",
+        "amazon": "Shopping", "flipkart": "Shopping", "myntra": "Shopping",
+        "doctor": "Healthcare", "hospital": "Healthcare", "medicine": "Healthcare",
+        "course": "Education", "tuition": "Education", "school": "Education",
+        "sip": "Investment", "mutual fund": "Investment", "stock": "Investment",
+    }.items():
+        if kw in low:
+            return cat
+
+    if not (LlmChat and UserMessage and os.environ.get("EMERGENT_LLM_KEY")):
+        return "Other"
+
+    try:
+        chat = LlmChat(
+            api_key=os.environ["EMERGENT_LLM_KEY"],
+            session_id=f"budgetcat_{datetime.utcnow().timestamp()}",
+            system_message=(
+                "You classify a user's budget description into ONE category. "
+                f"Respond with ONLY a JSON object: {{\"category\":\"<one-of: {', '.join(KNOWN_CATEGORIES)}>\"}}. "
+                "Pick 'Other' only if NONE of the others fit. No prose, no markdown."
+            ),
+        ).with_model("openai", "gpt-4o")
+        resp = await chat.send_message(UserMessage(text=f"Description: {desc}"))
+        raw = (getattr(resp, "content", None) or str(resp) or "").strip()
+        if raw.startswith("```"):
+            raw = raw.split("```", 2)[1]
+            if raw.startswith("json"):
+                raw = raw[4:]
+        data = json_mod.loads(raw.strip().strip("`"))
+        cat = str(data.get("category", "Other")).strip()
+        return cat if cat in KNOWN_CATEGORIES else "Other"
+    except Exception as e:
+        logging.warning("AI categorise failed: %s", e)
+        return "Other"
+
+
+@router.post("/categorize")
+async def categorize_description(req: CategorizeRequest, user_id: str = Depends(get_current_user)):
+    """Map a free-text description → a known category (AI-assisted).
+
+    Used by the Budget form: when the user picks 'Other' and types a description,
+    we automatically propose a better-fitting category (or keep 'Other')."""
+    cat = await _ai_map_to_category(req.description)
+    return {"category": cat, "original_category": "Other", "description": req.description}
 
 
 @router.post("")
@@ -36,7 +115,7 @@ async def create_budget(budget: BudgetCreate, user_id: str = Depends(get_current
     if existing:
         await db.budgets.update_one(
             {"_id": existing["_id"]},
-            {"$set": {"amount": amount, "period": budget.period}},
+            {"$set": {"amount": amount, "period": budget.period, "recurring": budget.recurring, "description": budget.description}},
         )
         return {
             "id": str(existing["_id"]),
@@ -44,11 +123,13 @@ async def create_budget(budget: BudgetCreate, user_id: str = Depends(get_current
             "category": budget.category,
             "amount": amount,
             "period": budget.period,
+            "recurring": budget.recurring,
+            "description": budget.description,
             "spent": existing.get("spent", 0),
             "created_at": existing.get("created_at", now),
         }
 
-    doc = {"category": budget.category, "amount": amount, "period": budget.period, "user_id": user_id, "spent": 0, "created_at": now}
+    doc = {"category": budget.category, "amount": amount, "period": budget.period, "recurring": budget.recurring, "description": budget.description, "user_id": user_id, "spent": 0, "created_at": now}
     result = await db.budgets.insert_one(doc)
     return {
         "id": str(result.inserted_id),
@@ -56,6 +137,8 @@ async def create_budget(budget: BudgetCreate, user_id: str = Depends(get_current
         "category": doc["category"],
         "amount": doc["amount"],
         "period": doc["period"],
+        "recurring": doc["recurring"],
+        "description": doc["description"],
         "spent": 0,
         "created_at": doc["created_at"],
     }

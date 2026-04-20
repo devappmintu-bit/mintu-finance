@@ -26,7 +26,8 @@ export default function BudgetScreen() {
   const [refreshing, setRefreshing] = useState(false);
   const [modalVisible, setModalVisible] = useState(false);
   const [editingBudget, setEditingBudget] = useState<any>(null);
-  const [formData, setFormData] = useState({ category: 'Food', amount: '', period: 'monthly' });
+  const [formData, setFormData] = useState({ category: 'Food', amount: '', period: 'monthly', recurring: true, description: '' });
+  const [aiCategorizing, setAiCategorizing] = useState(false);
 
   const fetchAll = useCallback(async () => {
     try {
@@ -57,24 +58,37 @@ export default function BudgetScreen() {
     } catch { Toast.show({ type: 'error', text1: 'Error', text2: 'Could not apply budgets' }); }
   };
 
-  const openAdd = () => { setEditingBudget(null); setFormData({ category: 'Food', amount: '', period: 'monthly' }); setModalVisible(true); };
-  const openEdit = (item: any) => { setEditingBudget(item); setFormData({ category: item.category, amount: String(item.amount), period: item.period }); setModalVisible(true); };
+  const openAdd = () => { setEditingBudget(null); setFormData({ category: 'Food', amount: '', period: 'monthly', recurring: true, description: '' }); setModalVisible(true); };
+  const openEdit = (item: any) => { setEditingBudget(item); setFormData({ category: item.category, amount: String(item.amount), period: item.period, recurring: item.recurring !== false, description: item.description || '' }); setModalVisible(true); };
 
   const handleSave = async () => {
     if (!formData.amount || parseFloat(formData.amount) <= 0) {
       Toast.show({ type: 'error', text1: t('enter_amount', lang), text2: t('amount_gt_zero', lang) }); return;
     }
+    // Auto-categorise "Other" when a description is given — feels magical and matches the design ask.
+    let category = formData.category;
+    if (category === 'Other' && formData.description.trim().length > 2) {
+      try {
+        setAiCategorizing(true);
+        const res = await api.post('/budgets/categorize', { description: formData.description.trim() });
+        const suggested = res.data?.category;
+        if (suggested && suggested !== 'Other') {
+          category = suggested;
+          Toast.show({ type: 'info', text1: t('ai_categorized', lang) || 'AI suggested', text2: `${t('moved_to', lang) || 'Categorised as'} ${suggested}` });
+        }
+      } catch { /* keep Other */ }
+      finally { setAiCategorizing(false); }
+    }
     try {
       if (editingBudget) {
-        // Optimistic patch + real PUT (not delete+create)
-        const patched = { ...editingBudget, amount: parseFloat(formData.amount), category: formData.category, period: formData.period };
+        const patched = { ...editingBudget, amount: parseFloat(formData.amount), category, period: formData.period, recurring: formData.recurring, description: formData.description };
         setBudgets(prev => prev.map(b => b.id === editingBudget.id ? patched : b));
-        await api.put(`/budgets/${editingBudget.id}`, { amount: parseFloat(formData.amount), category: formData.category, period: formData.period });
+        await api.put(`/budgets/${editingBudget.id}`, { amount: parseFloat(formData.amount), category, period: formData.period, recurring: formData.recurring, description: formData.description });
       } else {
-        await api.post('/budgets', { ...formData, amount: parseFloat(formData.amount) });
+        await api.post('/budgets', { category, amount: parseFloat(formData.amount), period: formData.period, recurring: formData.recurring, description: formData.description });
       }
       setModalVisible(false); setEditingBudget(null); fetchAll();
-      Toast.show({ type: 'success', text1: editingBudget ? t('budget_updated', lang) : t('budget_created', lang), text2: `${formData.category} — ₹${formData.amount}` });
+      Toast.show({ type: 'success', text1: editingBudget ? t('budget_updated', lang) : t('budget_created', lang), text2: `${category} — ₹${formData.amount}` });
     } catch { Toast.show({ type: 'error', text1: t('error', lang), text2: t('failed_save', lang) }); fetchAll(); }
   };
 
@@ -259,8 +273,49 @@ export default function BudgetScreen() {
                 <Text style={s.rupee}>₹</Text>
                 <TextInput style={s.amtInput} placeholder="0" placeholderTextColor={COLORS.text.muted} value={formData.amount} onChangeText={v => setFormData({ ...formData, amount: v })} keyboardType="numeric" />
               </View>
-              <TouchableOpacity style={s.saveBtn} onPress={handleSave}>
-                <Text style={s.saveBtnText}>{editingBudget ? t('update', lang) : t('set_budget', lang)}</Text>
+
+              {/* Recurring toggle */}
+              <TouchableOpacity
+                style={[s.recurringRow, formData.recurring && s.recurringRowOn]}
+                onPress={() => setFormData({ ...formData, recurring: !formData.recurring })}
+                activeOpacity={0.85}
+              >
+                <View style={[s.recurringIcon, { backgroundColor: formData.recurring ? '#F56E1E' : '#E5E7EB' }]}>
+                  <Ionicons name="refresh" size={16} color={formData.recurring ? '#fff' : '#6B7280'} />
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text style={s.recurringTitle}>Recurring budget</Text>
+                  <Text style={s.recurringSub}>{formData.recurring ? `Rolls over every ${formData.period}` : "One-time only — won't reset"}</Text>
+                </View>
+                <View style={[s.toggle, formData.recurring && s.toggleOn]}>
+                  <View style={[s.toggleKnob, formData.recurring && s.toggleKnobOn]} />
+                </View>
+              </TouchableOpacity>
+
+              {/* Description (required for Other → AI categorise) */}
+              {formData.category === 'Other' && (
+                <View style={s.otherDescBox}>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 6 }}>
+                    <Ionicons name="sparkles" size={14} color="#F56E1E" />
+                    <Text style={s.formLabel}>Describe what this budget is for (AI will categorise)</Text>
+                  </View>
+                  <TextInput
+                    style={s.descInput}
+                    placeholder="e.g. Monthly Netflix & Spotify subscriptions"
+                    placeholderTextColor={COLORS.text.muted}
+                    value={formData.description}
+                    onChangeText={v => setFormData({ ...formData, description: v })}
+                    multiline
+                  />
+                </View>
+              )}
+
+              <TouchableOpacity style={s.saveBtn} onPress={handleSave} disabled={aiCategorizing}>
+                {aiCategorizing ? (
+                  <ActivityIndicator color="#fff" />
+                ) : (
+                  <Text style={s.saveBtnText}>{editingBudget ? t('update', lang) : t('set_budget', lang)}</Text>
+                )}
               </TouchableOpacity>
             </ScrollView>
           </View>
@@ -322,4 +377,17 @@ const s = StyleSheet.create({
   amtInput: { flex: 1, fontSize: 28, fontWeight: '700', color: COLORS.text.primary, paddingVertical: 16 },
   saveBtn: { backgroundColor: COLORS.accent.primary, borderRadius: RADIUS.full, paddingVertical: 18, alignItems: 'center' },
   saveBtnText: { fontSize: 16, fontWeight: '700', color: '#fff' },
+  // Recurring toggle
+  recurringRow: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 12, paddingHorizontal: 14, borderRadius: 14, backgroundColor: '#F9FAFB', borderWidth: 1, borderColor: '#E5E7EB', marginBottom: 16 },
+  recurringRowOn: { backgroundColor: '#FFF7ED', borderColor: '#F56E1E40' },
+  recurringIcon: { width: 36, height: 36, borderRadius: 18, alignItems: 'center', justifyContent: 'center' },
+  recurringTitle: { fontSize: 14, fontWeight: '700', color: COLORS.text.primary },
+  recurringSub: { fontSize: 11, color: COLORS.text.muted, marginTop: 2 },
+  toggle: { width: 42, height: 24, borderRadius: 12, backgroundColor: '#D1D5DB', padding: 2, justifyContent: 'center' },
+  toggleOn: { backgroundColor: '#F56E1E' },
+  toggleKnob: { width: 20, height: 20, borderRadius: 10, backgroundColor: '#fff' },
+  toggleKnobOn: { alignSelf: 'flex-end' },
+  // Other-category description box
+  otherDescBox: { backgroundColor: '#FFF7ED', borderRadius: 14, padding: 12, borderWidth: 1, borderColor: '#FED7AA', marginBottom: 16 },
+  descInput: { fontSize: 14, color: COLORS.text.primary, minHeight: 54, paddingVertical: 6, textAlignVertical: 'top' },
 });

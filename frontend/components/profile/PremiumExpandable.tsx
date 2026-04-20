@@ -8,6 +8,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { router } from 'expo-router';
 import api from '../../utils/api';
+import PremiumComparison from '../premium/PremiumComparison';
 import { COLORS } from '../../utils/theme';
 import MockPaymentSheet from '../MockPaymentSheet';
 import Toast from 'react-native-toast-message';
@@ -40,6 +41,7 @@ interface Props {
 
 export default function PremiumExpandable({ onExplore }: Props) {
   const [expanded, setExpanded] = useState(false);
+  const [showComparison, setShowComparison] = useState(false);
   const [plans, setPlans] = useState<Plan[]>([]);
   const [selected, setSelected] = useState<string>('yearly');
   const [status, setStatus] = useState<{ is_premium: boolean; plan?: string; tier?: string; premium_until?: string } | null>(null);
@@ -201,9 +203,17 @@ export default function PremiumExpandable({ onExplore }: Props) {
               </TouchableOpacity>
             </View>
 
-            <TouchableOpacity style={s.seeAll} onPress={onExplore}>
-              <Text style={s.seeAllTxt}>{t('see_all_benefits', lang)} →</Text>
+            <TouchableOpacity style={s.seeAll} onPress={() => setShowComparison(v => !v)}>
+              <Text style={s.seeAllTxt}>
+                {showComparison ? '▲ Hide comparison' : `${t('see_all_benefits', lang)} →`}
+              </Text>
             </TouchableOpacity>
+
+            {showComparison && (
+              <View style={{ marginTop: 12 }}>
+                <PremiumComparison onClose={() => setShowComparison(false)} />
+              </View>
+            )}
           </View>
         )}
       </LinearGradient>
