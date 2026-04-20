@@ -1,250 +1,232 @@
-"""Round 16 — Gmail OAuth + bank email auto-import — backend tests.
-
-Run: python /app/backend_test.py
-Auth: Phone 9876543210 / OTP 123456 (mock).
-"""
+"""Round 17 — Razorpay real-payment backend flow tests."""
 import os
 import sys
-import json
-import urllib.parse as up
 import requests
+from pymongo import MongoClient
+from bson import ObjectId
 
-BASE_URL = "https://mintu-finance.preview.emergentagent.com"
-API = f"{BASE_URL}/api"
+BASE = "https://mintu-finance.preview.emergentagent.com"
+API = f"{BASE}/api"
+PHONE = "9876543210"
+OTP = "123456"
+EXPECTED_KEY_ID = "rzp_test_SfgSwEcr68YJXF"
 
-PASS = 0
-FAIL = 0
-FAILS = []
+MONGO_URL = os.environ.get("MONGO_URL", "mongodb://localhost:27017")
+DB_NAME = os.environ.get("DB_NAME", "mintu_database")
+
+passed = 0
+failed = 0
+errors = []
 
 
-def check(name, cond, detail=""):
-    global PASS, FAIL
+def check(label, cond, detail=""):
+    global passed, failed
     if cond:
-        PASS += 1
-        print(f"  ✅ {name}")
+        passed += 1
+        print(f"  ✅ {label}")
     else:
-        FAIL += 1
-        FAILS.append(f"{name} :: {detail}")
-        print(f"  ❌ {name} :: {detail}")
+        failed += 1
+        errors.append(f"{label}: {detail}")
+        print(f"  ❌ {label} — {detail}")
 
 
-def auth_token():
-    r = requests.post(f"{API}/auth/send-otp", json={"phone": "9876543210"}, timeout=15)
-    assert r.status_code == 200, f"send-otp {r.status_code} {r.text}"
-    r = requests.post(f"{API}/auth/verify-otp", json={"phone": "9876543210", "otp": "123456"}, timeout=15)
-    assert r.status_code == 200, f"verify-otp {r.status_code} {r.text}"
-    data = r.json()
-    tok = data.get("access_token") or data.get("token")
-    assert tok, f"No token in verify-otp response: {data}"
-    return tok
+def section(title):
+    print(f"\n=== {title} ===")
 
 
-def main():
-    print("\n═══ AUTH ═══")
-    token = auth_token()
-    h = {"Authorization": f"Bearer {token}"}
-    check("Auth token obtained", bool(token))
+# ─── 1) Auth ──────────────────────────────────────────────────────────
+section("AUTH — phone 9876543210 / OTP 123456")
+r = requests.post(f"{API}/auth/send-otp", json={"phone": PHONE}, timeout=30)
+check("send-otp 200", r.status_code == 200, f"status={r.status_code} body={r.text[:200]}")
+r = requests.post(f"{API}/auth/verify-otp", json={"phone": PHONE, "otp": OTP, "name": "Test User"}, timeout=30)
+check("verify-otp 200", r.status_code == 200, f"status={r.status_code} body={r.text[:200]}")
+data = r.json()
+token = data.get("token")
+user_id = (data.get("user") or {}).get("id")
+check("token returned (field 'token')", bool(token), "missing token")
+check("user_id returned", bool(user_id), "missing user id")
+H = {"Authorization": f"Bearer {token}"}
 
-    # ────────────────────────────────────────────────────
-    # 1. GET /api/oauth/gmail/start (authed)
-    # ────────────────────────────────────────────────────
-    print("\n═══ 1. GET /api/oauth/gmail/start (authed) ═══")
-    r1 = requests.get(f"{API}/oauth/gmail/start", headers=h, timeout=15)
-    check("oauth/gmail/start status=200", r1.status_code == 200, f"got {r1.status_code} body={r1.text[:200]}")
-    auth_url_1 = None
-    state_1 = None
-    if r1.status_code == 200:
-        d1 = r1.json()
-        auth_url_1 = d1.get("auth_url", "")
-        check("auth_url starts with https://accounts.google.com/o/oauth2/auth",
-              auth_url_1.startswith("https://accounts.google.com/o/oauth2/auth"),
-              f"got {auth_url_1[:100]}")
-        check("auth_url contains client_id=820132719285-",
-              "client_id=820132719285-" in auth_url_1)
-        parsed = up.urlparse(auth_url_1)
-        qs = up.parse_qs(parsed.query)
-        check("auth_url has scope=", "scope" in qs)
-        check("scope contains gmail.readonly",
-              any("gmail.readonly" in s for s in qs.get("scope", [])),
-              f"scope={qs.get('scope')}")
-        check("auth_url has state=", "state" in qs and bool(qs["state"][0]))
-        state_1 = qs.get("state", [None])[0]
-        check("redirect_uri URL-encoded callback present",
-              "redirect_uri" in qs and qs["redirect_uri"][0].endswith("/api/oauth/gmail/callback"),
-              f"redirect_uri={qs.get('redirect_uri')}")
-        check("access_type=offline", qs.get("access_type", [None])[0] == "offline")
-        check("prompt=consent", qs.get("prompt", [None])[0] == "consent")
 
-    # Call twice → different state
-    r1b = requests.get(f"{API}/oauth/gmail/start", headers=h, timeout=15)
-    state_2 = None
-    if r1b.status_code == 200:
-        auth_url_2 = r1b.json().get("auth_url", "")
-        parsed2 = up.urlparse(auth_url_2)
-        state_2 = up.parse_qs(parsed2.query).get("state", [None])[0]
-    check("second call returns different state", bool(state_1) and bool(state_2) and state_1 != state_2,
-          f"s1={state_1} s2={state_2}")
+# ─── 2) create-order WITHOUT coins ────────────────────────────────────
+section("TEST 1 — POST /api/premium/create-order (no coins, monthly)")
+r = requests.post(f"{API}/premium/create-order", headers=H, json={"plan": "monthly", "coins_to_use": 0}, timeout=30)
+check("status 200", r.status_code == 200, f"status={r.status_code} body={r.text[:300]}")
+saved_order_id = None
+if r.status_code == 200:
+    j = r.json()
+    check("order_id starts with 'order_'", str(j.get("order_id", "")).startswith("order_"), f"got={j.get('order_id')}")
+    check("amount == 99*100 paise", j.get("amount") == 9900, f"got={j.get('amount')}")
+    check("currency == INR", j.get("currency") == "INR", f"got={j.get('currency')}")
+    check("key_id matches env", j.get("key_id") == EXPECTED_KEY_ID, f"got={j.get('key_id')}")
+    check("plan == monthly", j.get("plan") == "monthly", f"got={j.get('plan')}")
+    check("list_price == effective_price", j.get("list_price") == j.get("effective_price"), f"list={j.get('list_price')} eff={j.get('effective_price')}")
+    check("coins_to_use == 0", j.get("coins_to_use") == 0, f"got={j.get('coins_to_use')}")
+    check("coin_discount == 0", j.get("coin_discount") == 0, f"got={j.get('coin_discount')}")
+    check("checkout_url contains expected path", "/api/premium/checkout?order_id=" in str(j.get("checkout_url", "")), f"got={j.get('checkout_url')}")
+    saved_order_id = j.get("order_id")
 
-    # ────────────────────────────────────────────────────
-    # 2. GET /api/oauth/gmail/callback (no auth)
-    # ────────────────────────────────────────────────────
-    print("\n═══ 2. GET /api/oauth/gmail/callback ═══")
-    # 2a: no query
-    r2a = requests.get(f"{API}/oauth/gmail/callback", allow_redirects=False, timeout=15)
-    check("callback no query → 400", r2a.status_code == 400, f"got {r2a.status_code}")
+
+# ─── 3) Seed coins, then create-order WITH coins ──────────────────────
+section("SEED COINS")
+for action in ["open_app_daily", "add_transaction", "scan_sms", "settle_split", "complete_lesson",
+               "login", "add_transaction", "scan_sms"]:
     try:
-        detail = r2a.json().get("detail", "")
-    except Exception:
-        detail = r2a.text
-    check("callback no query detail contains 'Missing code or state'",
-          "Missing code or state" in detail, f"detail={detail}")
-
-    # 2b: bogus state
-    r2b = requests.get(f"{API}/oauth/gmail/callback",
-                       params={"code": "abc", "state": "bogus_state_123"},
-                       allow_redirects=False, timeout=15)
-    check("callback bogus state → 400", r2b.status_code == 400, f"got {r2b.status_code}")
-    try:
-        detail2 = r2b.json().get("detail", "")
-    except Exception:
-        detail2 = r2b.text
-    check("callback bogus state detail contains 'Invalid or expired state'",
-          "Invalid or expired state" in detail2, f"detail={detail2}")
-
-    # 2c: error=access_denied → 302/307 redirect
-    r2c = requests.get(f"{API}/oauth/gmail/callback",
-                       params={"error": "access_denied"},
-                       allow_redirects=False, timeout=15)
-    check("callback error=access_denied → 302/307", r2c.status_code in (302, 307),
-          f"got {r2c.status_code}")
-    loc = r2c.headers.get("location", "")
-    check("redirect location contains /gmail-connected?success=0&error=access_denied",
-          "/gmail-connected?success=0&error=access_denied" in loc,
-          f"location={loc}")
-
-    # ────────────────────────────────────────────────────
-    # 3. GET /api/gmail/status (authed, not connected)
-    # ────────────────────────────────────────────────────
-    print("\n═══ 3. GET /api/gmail/status (not connected) ═══")
-    # First ensure disconnected
-    requests.delete(f"{API}/gmail/disconnect", headers=h, timeout=15)
-    r3 = requests.get(f"{API}/gmail/status", headers=h, timeout=15)
-    check("gmail/status → 200", r3.status_code == 200, f"got {r3.status_code}")
-    if r3.status_code == 200:
-        d3 = r3.json()
-        check("status connected=false", d3.get("connected") is False, f"body={d3}")
-
-    # ────────────────────────────────────────────────────
-    # 4. POST /api/gmail/sync-now (authed, not connected)
-    # ────────────────────────────────────────────────────
-    print("\n═══ 4. POST /api/gmail/sync-now (not connected) ═══")
-    r4 = requests.post(f"{API}/gmail/sync-now", headers=h, timeout=30)
-    check("sync-now → 200", r4.status_code == 200, f"got {r4.status_code} body={r4.text[:200]}")
-    if r4.status_code == 200:
-        d4 = r4.json()
-        check("sync-now fetched=0", d4.get("fetched") == 0)
-        check("sync-now imported=0", d4.get("imported") == 0)
-        check("sync-now skipped=0", d4.get("skipped") == 0)
-        check("sync-now error='not_connected'", d4.get("error") == "not_connected", f"body={d4}")
-
-    # ────────────────────────────────────────────────────
-    # 5. DELETE /api/gmail/disconnect (not connected)
-    # ────────────────────────────────────────────────────
-    print("\n═══ 5. DELETE /api/gmail/disconnect (not connected) ═══")
-    r5 = requests.delete(f"{API}/gmail/disconnect", headers=h, timeout=15)
-    check("disconnect → 200", r5.status_code == 200, f"got {r5.status_code}")
-    if r5.status_code == 200:
-        d5 = r5.json()
-        check("disconnect disconnected=false", d5.get("disconnected") is False, f"body={d5}")
-        check("disconnect message='Gmail disconnected'",
-              d5.get("message") == "Gmail disconnected", f"body={d5}")
-
-    # ────────────────────────────────────────────────────
-    # 6. No-auth guard on /api/oauth/gmail/start
-    # ────────────────────────────────────────────────────
-    print("\n═══ 6. No-auth guard on /api/oauth/gmail/start ═══")
-    r6 = requests.get(f"{API}/oauth/gmail/start", timeout=15)
-    check("no-auth → 401 or 422", r6.status_code in (401, 422), f"got {r6.status_code}")
-
-    # ────────────────────────────────────────────────────
-    # 7. Parser unit sanity
-    # ────────────────────────────────────────────────────
-    print("\n═══ 7. Parser unit sanity (routers.gmail_parser.parse_bank_body) ═══")
-    sys.path.insert(0, "/app/backend")
-    try:
-        from routers.gmail_parser import parse_bank_body
-        check("parse_bank_body importable", True)
+        rr = requests.post(f"{API}/coins/award", headers=H, json={"action": action}, timeout=15)
+        print(f"   award {action} → {rr.status_code}")
     except Exception as e:
-        check("parse_bank_body importable", False, f"import error: {e}")
-        parse_bank_body = None
+        print(f"   award {action} err {e}")
 
-    if parse_bank_body:
-        # (a) HDFC debit
-        body_a = ("Dear Customer, Rs.450.00 has been debited from a/c XXXXXX1234 on "
-                  "18-Apr-2026 at SWIGGY BANGALORE. Avl Bal: Rs.25,000. Not you? Call 18002586161.")
-        pa = parse_bank_body(body_a)
-        check("(a) HDFC debit parsed non-None", pa is not None, f"parsed={pa}")
-        if pa:
-            check("(a) amount=450.0", pa.get("amount") == 450.0, f"amount={pa.get('amount')}")
-            check("(a) type=debit", pa.get("type") == "debit", f"type={pa.get('type')}")
-            merch_a = pa.get("merchant", "")
-            check("(a) merchant contains 'Swiggy' (title-cased)",
-                  "Swiggy" in merch_a, f"merchant={merch_a}")
-            check("(a) last4='1234'", pa.get("last4") == "1234", f"last4={pa.get('last4')}")
-            check("(a) category='Food'", pa.get("category") == "Food",
-                  f"category={pa.get('category')}")
+bal = 0
+try:
+    mc = MongoClient(MONGO_URL, serverSelectionTimeoutMS=5000)
+    udb = mc[DB_NAME]
+    u = udb.users.find_one({"_id": ObjectId(user_id)})
+    bal = int((u or {}).get("coins", 0))
+    print(f"   mongo coin balance: {bal}")
+    if bal < 100:
+        udb.users.update_one({"_id": ObjectId(user_id)}, {"$set": {"coins": 500}})
+        print("   topped up coins to 500 via direct mongo injection")
+        bal = 500
+    check("coin balance >= 100 after seeding", bal >= 100, f"bal={bal}")
+except Exception as e:
+    print(f"   mongo top-up skipped: {e}")
 
-        # (b) SBI credit
-        body_b = ("INR 50,000 credited to A/C XX4567 from NEFT on 17-04-2026. "
-                  "Avl Bal: INR 1,20,000. -SBI")
-        pb = parse_bank_body(body_b)
-        check("(b) SBI credit parsed non-None", pb is not None, f"parsed={pb}")
-        if pb:
-            check("(b) amount=50000.0", pb.get("amount") == 50000.0, f"amount={pb.get('amount')}")
-            check("(b) type=credit", pb.get("type") == "credit", f"type={pb.get('type')}")
-            check("(b) last4='4567'", pb.get("last4") == "4567", f"last4={pb.get('last4')}")
-            check("(b) category in (Transfer, Other)",
-                  pb.get("category") in ("Transfer", "Other"),
-                  f"category={pb.get('category')}")
+section("TEST 2 — POST /api/premium/create-order (yearly, coins_to_use=100)")
+r = requests.post(f"{API}/premium/create-order", headers=H, json={"plan": "yearly", "coins_to_use": 100}, timeout=30)
+check("status 200", r.status_code == 200, f"status={r.status_code} body={r.text[:300]}")
+yearly_order_id = None
+if r.status_code == 200:
+    j = r.json()
+    check("plan == yearly", j.get("plan") == "yearly", f"got={j.get('plan')}")
+    check("list_price == 499", j.get("list_price") == 499, f"got={j.get('list_price')}")
+    check("coin_discount == 10", j.get("coin_discount") == 10, f"got={j.get('coin_discount')}")
+    check("coins_to_use == 100", j.get("coins_to_use") == 100, f"got={j.get('coins_to_use')}")
+    check("effective_price == list_price - coin_discount",
+          j.get("effective_price") == j.get("list_price") - j.get("coin_discount"),
+          f"eff={j.get('effective_price')}")
+    check("amount (paise) == effective_price * 100",
+          j.get("amount") == j.get("effective_price") * 100,
+          f"amt={j.get('amount')} eff={j.get('effective_price')}")
+    check("order_id starts with 'order_'", str(j.get("order_id", "")).startswith("order_"), f"got={j.get('order_id')}")
+    yearly_order_id = j.get("order_id")
 
-        # (c) ICICI debit
-        body_c = ("ICICI Bank Acct XX7788 debited with Rs 1,299.00 on 19-04-26 at "
-                  "AMAZON PAY. Avl Bal Rs 5,432.10.")
-        pc = parse_bank_body(body_c)
-        check("(c) ICICI debit parsed non-None", pc is not None, f"parsed={pc}")
-        if pc:
-            check("(c) amount=1299.0", pc.get("amount") == 1299.0, f"amount={pc.get('amount')}")
-            check("(c) type=debit", pc.get("type") == "debit", f"type={pc.get('type')}")
-            merch_c = pc.get("merchant", "")
-            check("(c) merchant contains 'Amazon'",
-                  "Amazon" in merch_c, f"merchant={merch_c}")
-            check("(c) last4='7788'", pc.get("last4") == "7788", f"last4={pc.get('last4')}")
-            check("(c) category='Shopping'", pc.get("category") == "Shopping",
-                  f"category={pc.get('category')}")
-
-        # (d) Non-txn email
-        body_d = "Dear customer, your statement is ready. No action needed."
-        pd = parse_bank_body(body_d)
-        check("(d) non-txn returns None", pd is None, f"got {pd}")
-
-    # ────────────────────────────────────────────────────
-    # 8. Regression sanity
-    # ────────────────────────────────────────────────────
-    print("\n═══ 8. Regression sanity ═══")
-    for path in ["/transactions", "/split/groups", "/coins/status", "/news/india-finance"]:
-        rr = requests.get(f"{API}{path}", headers=h, timeout=30)
-        check(f"GET /api{path} → 200", rr.status_code == 200, f"got {rr.status_code}")
-
-    # ────────────────────────────────────────────────────
-    print("\n" + "=" * 60)
-    print(f"RESULT: {PASS} passed, {FAIL} failed")
-    if FAILS:
-        print("FAILURES:")
-        for f in FAILS:
-            print(f"  - {f}")
-    print("=" * 60)
-    return 0 if FAIL == 0 else 1
+    try:
+        mc = MongoClient(MONGO_URL, serverSelectionTimeoutMS=5000)
+        udb = mc[DB_NAME]
+        pdoc = udb.payment_orders.find_one({"order_id": yearly_order_id})
+        check("payment_orders doc exists", pdoc is not None, "no doc found")
+        if pdoc:
+            check("doc.list_price == 499", pdoc.get("list_price") == 499, f"got={pdoc.get('list_price')}")
+            check("doc.amount (effective) == 489", pdoc.get("amount") == 489, f"got={pdoc.get('amount')}")
+            check("doc.coins_to_use == 100", pdoc.get("coins_to_use") == 100, f"got={pdoc.get('coins_to_use')}")
+            check("doc.coin_discount == 10", pdoc.get("coin_discount") == 10, f"got={pdoc.get('coin_discount')}")
+            check("doc.plan == yearly", pdoc.get("plan") == "yearly", f"got={pdoc.get('plan')}")
+            check("doc.status == created", pdoc.get("status") == "created", f"got={pdoc.get('status')}")
+            check("doc.user_id == user_id", str(pdoc.get("user_id")) == str(user_id), f"got={pdoc.get('user_id')}")
+    except Exception as e:
+        check("mongo payment_orders lookup", False, str(e))
 
 
-if __name__ == "__main__":
-    sys.exit(main())
+# ─── 4) Invalid plan ──────────────────────────────────────────────────
+section("TEST 3 — create-order invalid plan zzz")
+r = requests.post(f"{API}/premium/create-order", headers=H, json={"plan": "zzz"}, timeout=15)
+check("status 400", r.status_code == 400, f"status={r.status_code} body={r.text[:200]}")
+if r.status_code == 400:
+    try:
+        check("detail contains 'Invalid plan'", "Invalid plan" in r.json().get("detail", ""), f"body={r.text}")
+    except Exception:
+        pass
+
+
+# ─── 5) GET /api/premium/checkout valid order ─────────────────────────
+section("TEST 4 — GET /api/premium/checkout (valid order_id)")
+if saved_order_id:
+    r = requests.get(f"{API}/premium/checkout", params={"order_id": saved_order_id}, allow_redirects=False, timeout=15)
+    check("status 200", r.status_code == 200, f"status={r.status_code}")
+    ct = r.headers.get("content-type", "")
+    check("content-type is text/html", "text/html" in ct.lower(), f"got={ct}")
+    body = r.text
+    check("body contains 'Razorpay'", "Razorpay" in body, "no 'Razorpay' in body")
+    check("body contains 'MintU Premium'", "MintU Premium" in body, "no 'MintU Premium'")
+    check("body contains expected key_id", EXPECTED_KEY_ID in body, "key_id not in body")
+    check("body contains the order_id", saved_order_id in body, "order_id not echoed")
+    check("body references Razorpay checkout.js script",
+          'src="https://checkout.razorpay.com/v1/checkout.js"' in body,
+          "script tag missing")
+else:
+    check("valid order checkout test skipped", False, "Test 1 didn't produce an order")
+
+
+# ─── 6) GET /api/premium/checkout bad order ──────────────────────────
+section("TEST 5 — GET /api/premium/checkout (nonexistent)")
+r = requests.get(f"{API}/premium/checkout", params={"order_id": "nonexistent_order_xyz"}, allow_redirects=False, timeout=15)
+check("status 404", r.status_code == 404, f"status={r.status_code} body={r.text[:200]}")
+if r.status_code == 404:
+    try:
+        check("detail 'Order not found'", "Order not found" in r.json().get("detail", ""), f"body={r.text}")
+    except Exception:
+        pass
+
+
+# ─── 7) verify-payment error paths (NO auth header) ───────────────────
+section("TEST 6 — POST /api/premium/verify-payment error paths (NO auth)")
+r = requests.post(f"{API}/premium/verify-payment", json={}, timeout=15)
+check("empty body → 400 (not 401)", r.status_code == 400, f"status={r.status_code} body={r.text[:200]}")
+if r.status_code == 400:
+    try:
+        check("detail 'Missing payment details'", "Missing payment details" in r.json().get("detail", ""), f"body={r.text}")
+    except Exception:
+        pass
+
+r = requests.post(f"{API}/premium/verify-payment",
+                  json={"order_id": "order_fake", "payment_id": "pay_fake", "signature": "badsig"},
+                  timeout=15)
+check("bad signature → 400", r.status_code == 400, f"status={r.status_code} body={r.text[:200]}")
+if r.status_code == 400:
+    try:
+        check("detail 'Payment verification failed'",
+              "Payment verification failed" in r.json().get("detail", ""),
+              f"body={r.text}")
+    except Exception:
+        pass
+
+check("verify-payment does NOT return 401 (no auth required)", r.status_code != 401, f"status={r.status_code}")
+
+
+# ─── 8) Regression sanity ─────────────────────────────────────────────
+section("TEST 7 — Regression sanity")
+r = requests.get(f"{API}/premium/status", headers=H, timeout=20)
+check("GET /premium/status 200", r.status_code == 200, f"status={r.status_code}")
+if r.status_code == 200:
+    j = r.json()
+    check("premium/status has pricing", "pricing" in j, f"keys={list(j.keys())}")
+    check("premium/status has is_premium", "is_premium" in j, f"keys={list(j.keys())}")
+    check("premium/status has features", "features" in j, f"keys={list(j.keys())}")
+
+r = requests.post(f"{API}/premium/mock-activate", headers=H,
+                  json={"plan": "monthly", "coins_to_use": 0}, timeout=30)
+check("POST /premium/mock-activate 200", r.status_code == 200, f"status={r.status_code} body={r.text[:200]}")
+
+r = requests.get(f"{API}/gmail/status", headers=H, timeout=15)
+check("GET /gmail/status 200", r.status_code == 200, f"status={r.status_code} body={r.text[:200]}")
+if r.status_code == 200:
+    check("gmail/status connected=false", r.json().get("connected") is False, f"body={r.text}")
+
+r = requests.get(f"{API}/split/groups", headers=H, timeout=15)
+check("GET /split/groups 200", r.status_code == 200, f"status={r.status_code}")
+
+r = requests.get(f"{API}/transactions", headers=H, timeout=15)
+check("GET /transactions 200", r.status_code == 200, f"status={r.status_code}")
+
+
+# ─── SUMMARY ──────────────────────────────────────────────────────────
+print(f"\n{'='*60}\nRESULT: {passed} passed, {failed} failed\n{'='*60}")
+if failed > 0:
+    print("\nFAILURES:")
+    for e in errors:
+        print(f"  - {e}")
+    sys.exit(1)
+else:
+    print("\n✅ ALL ROUND 17 RAZORPAY TESTS PASSED")
+    sys.exit(0)

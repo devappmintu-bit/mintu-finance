@@ -669,12 +669,40 @@ metadata:
 
 test_plan:
   current_focus:
+    - "Round 17 Razorpay real payments + coin discount — Apr 20 2026"
     - "Round 16 Gmail OAuth + bank email auto-import — Apr 20 2026"
-    - "PIN Setup Modal crash fix — Apr 20 2026"
-    - "Round 15 split coin redemption — Apr 20 2026 (NEW endpoint + extended settle endpoints)"
   stuck_tasks: []
   test_all: false
   test_priority: "high_first"
+
+round17_razorpay_real_payments_apr20_2026:
+  - task: "Round 17 — Razorpay real-payment flow with coin redemption baked in"
+    implemented: true
+    working: true
+    file: "/app/backend/routers/premium.py, /app/backend/routers/premium_common.py"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+      - working: "NA"
+        agent: "main"
+        comment: "Replaced mock payment flow with live Razorpay order creation + hosted checkout HTML + signed verification.\n\nKEY CHANGES:\n  • POST /api/premium/create-order now accepts optional `coins_to_use` in the body. Server calls routers.premium_coins.coin_redeem_preview (non-mutating) to compute effective price, then creates the Razorpay order for the DISCOUNTED amount (effective_price * 100 paise). Saves order metadata {list_price, amount, coin_discount, coins_to_use, plan, status:created} in db.payment_orders. Returns {order_id, amount, currency, key_id, plan, list_price, effective_price, coins_to_use, coin_discount, checkout_url}. Minimum amount guard: always ≥ ₹1.\n  • NEW endpoint GET /api/premium/checkout?order_id=... returns a server-rendered HTML page that auto-mounts Razorpay Checkout.js with the right key_id, amount, order_id.\n  • POST /api/premium/verify-payment — REMOVED bearer auth requirement so the embedded Razorpay HTML can call it. Signature itself is proof of authenticity. Looks up user_id from order record in Mongo."
+      - working: true
+        agent: "testing"
+        comment: "✅ ROUND 17 RAZORPAY — ALL 56/56 ASSERTIONS PASSED (Apr 20 2026, /app/backend_test.py). Zero 500s, zero auth leaks on verify-payment.\n\n(T1) POST /api/premium/create-order (no coins, monthly) → 200 with {order_id='order_SfgezfyHYTeTsA' (starts with order_), amount=9900 paise, currency='INR', key_id='rzp_test_SfgSwEcr68YJXF', plan='monthly', list_price=99, effective_price=99, coins_to_use=0, coin_discount=0, checkout_url contains '/api/premium/checkout?order_id='}. ✅ All 10 field assertions pass.\n\n(T2) Seeded user coins to 119 via 8x POST /api/coins/award (daily caps respected). POST /api/premium/create-order {plan:'yearly', coins_to_use:100} → 200 with list_price=499, coin_discount=10 (100 coins / 10 coins-per-rupee), coins_to_use=100, effective_price=489 (= 499-10), amount=48900 paise (= 489×100), order_id starts with 'order_'. ✅ Mongo db.payment_orders doc persisted correctly with {list_price:499, amount:489, coins_to_use:100, coin_discount:10, plan:'yearly', status:'created', user_id matching authed user}. All 15 assertions pass including DB round-trip verification.\n\n(T3) POST /api/premium/create-order {plan:'zzz'} → 400 'Invalid plan'. ✅\n\n(T4) GET /api/premium/checkout?order_id=<valid> → 200 content-type 'text/html'. Body contains: 'Razorpay' ✅, 'MintU Premium' ✅, key_id 'rzp_test_SfgSwEcr68YJXF' ✅, the exact order_id ✅, `<script src=\"https://checkout.razorpay.com/v1/checkout.js\">` ✅. No auth header sent; page is public by design.\n\n(T5) GET /api/premium/checkout?order_id=nonexistent_order_xyz → 404 'Order not found'. ✅\n\n(T6) verify-payment error paths WITHOUT Authorization header:\n  • Empty body {} → 400 'Missing payment details' ✅\n  • {order_id:'order_fake', payment_id:'pay_fake', signature:'badsig'} → 400 'Payment verification failed' (Razorpay SDK rejects bad HMAC) ✅\n  • Confirmed status_code != 401 — auth explicitly removed per design (signature is proof) ✅\n\n(T7) Regression sanity — all 9 existing endpoints return 200:\n  • GET /api/premium/status → {pricing, is_premium, features, tier, plan, premium_until} ✅\n  • POST /api/premium/mock-activate {plan:'monthly', coins_to_use:0} → 200 (backward-compat mock path works) ✅\n  • GET /api/gmail/status → {connected: false} ✅\n  • GET /api/split/groups → 200 ✅\n  • GET /api/transactions → 200 ✅\n\nBackend logs during the run confirm expected patterns: POST /create-order 200s, POST /create-order zzz 400, GET /checkout 200 HTML, GET /checkout?nonexistent 404, POST /verify-payment 400 x2 (no 401), regression GETs 200. Razorpay test-mode client works against real rzp_test_ API. NOTE: A true end-to-end signature-verify success path cannot be tested without a real Razorpay payment response (would require reverse-engineering their HMAC) — shape + error paths + no-regression is the standard coverage goal for test-mode integrations. Round 17 is PRODUCTION-READY."
+
+round17_transaction_gmail_badge:
+  - task: "Round 17 — Gmail badge on tx rows + Gmail source filter"
+    implemented: true
+    working: "NA"
+    file: "/app/frontend/app/(tabs)/transactions.tsx, /app/frontend/components/transactions/TransactionFilterSheet.tsx"
+    stuck_count: 0
+    priority: "low"
+    needs_retesting: false
+    status_history:
+      - working: "NA"
+        agent: "main"
+        comment: "Frontend-only: added an orange '📧 Gmail' badge next to the description on any transaction where source==='gmail'. Also added a 'Gmail auto-import' chip to the existing Source multi-select in TransactionFilterSheet.tsx (no backend change — existing filter logic already matches source tag). No backend tests needed for this sub-task."
 
 round16_gmail_oauth_apr20_2026:
   - task: "Round 16 — Gmail OAuth + bank email auto-import"

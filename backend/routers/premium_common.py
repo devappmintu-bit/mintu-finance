@@ -1,5 +1,6 @@
 """Shared primitives for premium-* routers (shared APIRouter + Razorpay proxy)."""
 import logging
+from typing import Optional
 from fastapi import APIRouter
 from pydantic import BaseModel
 
@@ -25,6 +26,7 @@ api_router = router
 # ── Shared Pydantic bodies ────────────────────────────────────────────
 class CreateOrderRequest(BaseModel):
     plan: str  # "monthly", "yearly", "lifetime", "intro"
+    coins_to_use: Optional[int] = 0
 
 
 class MockActivateRequest(BaseModel):

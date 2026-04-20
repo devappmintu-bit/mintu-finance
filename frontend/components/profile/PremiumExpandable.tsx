@@ -77,14 +77,33 @@ export default function PremiumExpandable({ onExplore }: Props) {
 
   const onPaymentSuccess = async () => {
     try {
-      const res = await api.post('/premium/mock-activate', { plan: selected, coins_to_use: coinRedeem.coinsToUse });
-      setShowPay(false);
-      Toast.show({
-        type: 'success',
-        text1: t('premium_unlocked', lang),
-        text2: res.data.money_school_access ? t('money_school_open', lang) : t('enjoy_perks', lang),
+      // Step 1 — create a real Razorpay order. Server honours coin redemption
+      // by computing effective_price server-side and baking the discount into
+      // the paise amount. Returns a hosted checkout URL we open in a browser.
+      const ord = await api.post('/premium/create-order', {
+        plan: selected,
+        coins_to_use: coinRedeem.coinsToUse,
       });
-      fetchStatus();
+      const checkoutUrl = ord.data?.checkout_url as string | undefined;
+      if (!checkoutUrl) throw new Error('No checkout URL');
+
+      setShowPay(false);
+      const returnUrl = (process.env.EXPO_PUBLIC_BACKEND_URL as string) + '/premium-activated';
+      let opened: any = null;
+      if (Platform.OS === 'web') {
+        window.open(checkoutUrl, '_blank');
+        opened = { type: 'dismiss' };
+      } else {
+        const WebBrowser = await import('expo-web-browser');
+        opened = await WebBrowser.openAuthSessionAsync(checkoutUrl, returnUrl, { showInRecents: true });
+      }
+      // On return, poll status (signature verification happened server-side already)
+      setTimeout(async () => {
+        await fetchStatus();
+        if (opened?.type !== 'dismiss' || (await api.get('/premium/status')).data.is_premium) {
+          Toast.show({ type: 'success', text1: t('premium_unlocked', lang), text2: t('enjoy_perks', lang) });
+        }
+      }, 1000);
     } catch (e: any) {
       Toast.show({ type: 'error', text1: t('activation_failed', lang), text2: e?.response?.data?.detail || t('try_again', lang) });
     }

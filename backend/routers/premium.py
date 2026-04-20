@@ -34,6 +34,73 @@ from routers import premium_invest as _premium_invest  # noqa: F401
 from routers import premium_coins as _premium_coins  # noqa: F401
 
 
+
+# Razorpay Checkout HTML template — served at /api/premium/checkout so the payment
+# UI loads cross-platform (web/Android/iOS) inside expo-web-browser. All values
+# are interpolated via str.format() to sidestep Python 3.11 f-string backslash
+# restrictions. `{{` / `}}` escape literal braces in CSS/JS blocks.
+RAZORPAY_CHECKOUT_TMPL = """<!doctype html>
+<html><head><meta charset="utf-8"/><meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>MintU Premium Checkout</title>
+<style>
+  body{{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;background:#FFF7ED;margin:0;min-height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:24px;}}
+  .card{{background:#fff;border-radius:20px;padding:28px;max-width:380px;width:100%;box-shadow:0 10px 30px rgba(124,45,18,.08);text-align:center;}}
+  h1{{margin:4px 0 6px;color:#7C2D12;font-size:22px;}}
+  p{{color:#78350F;margin:4px 0;}}
+  .amt{{font-size:28px;font-weight:800;color:#C14A06;margin:12px 0;}}
+  .strike{{text-decoration:line-through;color:#9CA3AF;margin-right:8px;font-weight:600;}}
+  button{{background:linear-gradient(90deg,#F56E1E,#C14A06);border:0;color:#fff;padding:14px 22px;font-size:16px;font-weight:800;border-radius:12px;cursor:pointer;width:100%;}}
+  .note{{font-size:12px;color:#92400E;margin-top:16px;}}
+</style>
+</head><body>
+<div class="card">
+  <div style="font-size:40px;">&#128274;</div>
+  <h1>MintU Premium &middot; {plan_label}</h1>
+  <div class="amt">{strike_html}&#8377;{amount}</div>
+  {coin_line_html}
+  <button id="pay">Pay Securely</button>
+  <p class="note">Powered by Razorpay &middot; Test mode</p>
+  <p id="status" style="margin-top:10px;color:#065F46;font-weight:700;"></p>
+</div>
+<script src="https://checkout.razorpay.com/v1/checkout.js"></script>
+<script>
+(function(){{
+  var opts = {{
+    key: "{key_id}",
+    amount: {amount_paise},
+    currency: "INR",
+    name: "MintU",
+    description: "Premium {plan_label}",
+    order_id: "{order_id}",
+    theme: {{ color: "#F56E1E" }},
+    handler: function(response){{
+      document.getElementById("status").innerText = "Verifying payment...";
+      fetch("{verify_url}", {{
+        method: "POST",
+        headers: {{"Content-Type":"application/json"}},
+        body: JSON.stringify({{
+          order_id: response.razorpay_order_id,
+          payment_id: response.razorpay_payment_id,
+          signature: response.razorpay_signature
+        }})
+      }}).then(function(r){{ return r.json(); }}).then(function(data){{
+        document.getElementById("status").innerText = data.message || "Premium activated";
+        setTimeout(function(){{ window.location.href = "{ok_url}"; }}, 900);
+      }}).catch(function(){{
+        document.getElementById("status").innerText = "Verification failed";
+      }});
+    }},
+    modal: {{ ondismiss: function(){{ window.location.href = "{cancel_url}"; }} }}
+  }};
+  document.getElementById("pay").onclick = function(){{ new Razorpay(opts).open(); }};
+  setTimeout(function(){{ document.getElementById("pay").click(); }}, 500);
+}})();
+</script>
+</body></html>
+"""
+
+
+
 # ═══════════════════════════════ CORE ENDPOINTS ═════════════════════════════════
 
 @api_router.post("/premium/mock-activate")
@@ -132,32 +199,108 @@ async def get_paywall_trigger(user_id: str = Depends(get_current_user)):
 
 @api_router.post("/premium/create-order")
 async def create_razorpay_order(req: CreateOrderRequest, user_id: str = Depends(get_current_user)):
-    """Create a Razorpay order for premium subscription."""
+    """Create a Razorpay order for premium subscription — optionally discounted by coins."""
     if req.plan not in PRICING:
         raise HTTPException(status_code=400, detail="Invalid plan")
-    amount_paise = PRICING[req.plan]["price"] * 100
+
+    list_price = int(PRICING[req.plan]["price"])
+    coins_to_use = int(req.coins_to_use or 0)
+
+    # Preview coin discount (non-mutating) so order is created for the effective amount.
+    effective_price = list_price
+    coin_discount = 0
+    applied_coins = 0
+    if coins_to_use > 0:
+        try:
+            from routers.premium_coins import coin_redeem_preview, RedeemPreviewBody
+            preview = await coin_redeem_preview(RedeemPreviewBody(plan=req.plan, coins_to_use=coins_to_use), user_id=user_id)
+            effective_price = int(preview["effective_price"])
+            coin_discount = int(preview["discount"])
+            applied_coins = int(preview["coins_applied"])
+        except Exception as e:
+            logging.warning(f"Coin preview failed, proceeding at list price: {e}")
+
+    # Razorpay minimum charge is ₹1 (100 paise). Guard against zero-rupee orders.
+    if effective_price < 1:
+        effective_price = 1
+    amount_paise = effective_price * 100
+
     try:
         order = razorpay_client.order.create({
             "amount": amount_paise, "currency": "INR", "payment_capture": 1,
-            "notes": {"user_id": user_id, "plan": req.plan},
+            "notes": {"user_id": user_id, "plan": req.plan, "coins_to_use": str(applied_coins)},
         })
         await db.payment_orders.insert_one({
             "user_id": user_id, "order_id": order["id"], "plan": req.plan,
-            "amount": PRICING[req.plan]["price"], "status": "created",
-            "created_at": datetime.utcnow(),
+            "list_price": list_price, "amount": effective_price,
+            "coins_to_use": applied_coins, "coin_discount": coin_discount,
+            "status": "created", "created_at": datetime.utcnow(),
         })
+        key_id = os.environ.get("RAZORPAY_KEY_ID", "")
+        backend_base = os.environ.get("APP_DEEPLINK_BASE", "").rstrip("/")
+        checkout_url = f"{backend_base}/api/premium/checkout?order_id={order['id']}" if backend_base else ""
         return {
             "order_id": order["id"], "amount": amount_paise, "currency": "INR",
-            "key_id": os.environ.get("RAZORPAY_KEY_ID", ""), "plan": req.plan,
+            "key_id": key_id, "plan": req.plan,
+            "list_price": list_price, "effective_price": effective_price,
+            "coins_to_use": applied_coins, "coin_discount": coin_discount,
+            "checkout_url": checkout_url,
         }
     except Exception as e:
         logging.error("Razorpay order error: %s", e)
         raise HTTPException(status_code=500, detail="Payment service unavailable. Please try later.")
 
 
+# ────────────────────────────── HOSTED CHECKOUT PAGE ─────────────────────────────
+@api_router.get("/premium/checkout")
+async def razorpay_checkout_page(order_id: str):
+    """Server-rendered HTML page that mounts Razorpay Checkout.js.
+
+    Works cross-platform (web/iOS/Android) when opened via expo-web-browser.
+    Razorpay JS handles the payment UI; on success we POST back to
+    /api/premium/verify-payment server-side and redirect the user to
+    `${APP_DEEPLINK_BASE}/premium-activated?ok=1`.
+    """
+    from fastapi.responses import HTMLResponse
+    order = await db.payment_orders.find_one({"order_id": order_id})
+    if not order:
+        raise HTTPException(status_code=404, detail="Order not found")
+    key_id = os.environ.get("RAZORPAY_KEY_ID", "")
+    base = os.environ.get("APP_DEEPLINK_BASE", "").rstrip("/")
+    amount_paise = int(order["amount"]) * 100
+    plan_label = str(order.get("plan", "")).title()
+    list_price = int(order.get("list_price", order["amount"]))
+    coin_discount = int(order.get("coin_discount", 0) or 0)
+    coins_used = int(order.get("coins_to_use", 0) or 0)
+    strike = f"<span class='strike'>&#8377;{list_price}</span>" if coin_discount > 0 else ""
+    coin_line = f"<p>&#129689; {coins_used} coins applied &mdash; &#8377;{coin_discount} off</p>" if coin_discount > 0 else ""
+    verify_url = f"{base}/api/premium/verify-payment"
+    ok_url = f"{base}/premium-activated?ok=1"
+    cancel_url = f"{base}/premium-activated?ok=0&reason=cancelled"
+
+    html = RAZORPAY_CHECKOUT_TMPL.format(
+        plan_label=plan_label,
+        amount=int(order["amount"]),
+        strike_html=strike,
+        coin_line_html=coin_line,
+        key_id=key_id,
+        amount_paise=amount_paise,
+        order_id=order_id,
+        verify_url=verify_url,
+        ok_url=ok_url,
+        cancel_url=cancel_url,
+    )
+    return HTMLResponse(content=html)
+
+
 @api_router.post("/premium/verify-payment")
-async def verify_razorpay_payment(payment_data: dict, user_id: str = Depends(get_current_user)):
-    """Verify Razorpay payment signature and activate premium on success."""
+async def verify_razorpay_payment(payment_data: dict):
+    """Verify Razorpay payment signature and activate premium on success.
+
+    No bearer token required — this endpoint is called server-to-server by the
+    Razorpay Checkout HTML page. The signature itself is proof of authenticity,
+    and the `user_id` is resolved from the original order record in Mongo.
+    """
     order_id = payment_data.get("order_id", "")
     payment_id = payment_data.get("payment_id", "")
     signature = payment_data.get("signature", "")
@@ -172,12 +315,27 @@ async def verify_razorpay_payment(payment_data: dict, user_id: str = Depends(get
     except Exception:
         raise HTTPException(status_code=400, detail="Payment verification failed")
 
-    order = await db.payment_orders.find_one({"order_id": order_id, "user_id": user_id})
+    order = await db.payment_orders.find_one({"order_id": order_id})
     if not order:
         raise HTTPException(status_code=404, detail="Order not found")
+    user_id = str(order.get("user_id", ""))
+    if not user_id:
+        raise HTTPException(status_code=400, detail="Order missing user linkage")
 
     plan = order["plan"]
     days = 30 if plan in ("monthly", "intro") else 365
+
+    # Apply coin redemption if the order requested any — this deducts coins from
+    # the user's balance. The discount was already baked into the Razorpay amount.
+    coins_to_use = int(order.get("coins_to_use", 0) or 0)
+    coin_discount = int(order.get("coin_discount", 0) or 0)
+    if coins_to_use > 0:
+        try:
+            from routers.premium_coins import coin_redeem_apply, RedeemPreviewBody
+            await coin_redeem_apply(RedeemPreviewBody(plan=plan, coins_to_use=coins_to_use), user_id=user_id)
+        except Exception as e:
+            logging.warning(f"Coin redemption apply failed post-payment: {e}")
+
     await db.users.update_one(
         {"_id": ObjectId(user_id)},
         {"$set": {
@@ -194,6 +352,8 @@ async def verify_razorpay_payment(payment_data: dict, user_id: str = Depends(get
         "message": "Premium activated!",
         "premium_until": (datetime.utcnow() + timedelta(days=days)).isoformat(),
         "plan": plan,
+        "coins_applied": coins_to_use,
+        "coin_discount": coin_discount,
     }
 
 

@@ -63,6 +63,7 @@ export default function RootLayout() {
         <Stack.Screen name="legal/[page]" options={{ animation: 'slide_from_right' }} />
         <Stack.Screen name="gmail" options={{ animation: 'slide_from_right' }} />
         <Stack.Screen name="gmail-connected" options={{ animation: 'fade' }} />
+        <Stack.Screen name="premium-activated" options={{ animation: 'fade' }} />
       </Stack>
       <Toast config={toastConfig} position="bottom" bottomOffset={100} />
     </>
