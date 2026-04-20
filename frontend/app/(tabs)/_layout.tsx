@@ -20,6 +20,7 @@
 import { Tabs } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { View, StyleSheet, Platform, Modal, TouchableOpacity, Text } from 'react-native';
+import { Image } from 'expo-image';
 import { useState } from 'react';
 import { BottomTabBarProps } from '@react-navigation/bottom-tabs';
 import { COLORS } from '../../utils/theme';
@@ -73,7 +74,8 @@ function MintUTabBar({ state, navigation, onPressCenter }: BottomTabBarProps & {
 
   return (
     <View style={st.wrap} pointerEvents="box-none">
-      {/* Raised center puck — outer saffron glow → white ring → dark card (Kiwi style) */}
+      {/* Raised center puck — Kiwi-style "white pedestal + filled saffron tile" (squircle).
+          Outer white frame + inner saffron tile; mascot fills the entire tile. */}
       <TouchableOpacity
         testID="tab-ai-coach"
         onPress={onPressCenter}
@@ -81,11 +83,14 @@ function MintUTabBar({ state, navigation, onPressCenter }: BottomTabBarProps & {
         style={st.raisedWrap}
         accessibilityLabel="Open AI Coach"
       >
-        <View style={st.raisedOuterRing}>
-          <View style={st.raisedMidRing}>
-            <View style={st.raisedCard}>
-              <MintULogo size={52} />
-            </View>
+        <View style={st.raisedPedestal}>
+          <View style={st.raisedTile}>
+            <Image
+              source={require('../../assets/images/mintu-logo.png')}
+              style={st.raisedMascot}
+              contentFit="cover"
+              cachePolicy="memory-disk"
+            />
           </View>
         </View>
       </TouchableOpacity>
@@ -208,49 +213,47 @@ const st = StyleSheet.create({
   sideLabelOn: { color: COLORS.accent.primary, fontWeight: '800' },
 
   // ── Raised center puck (Kiwi style) ─────────────────────────────────────
-  // Sits ABOVE the pill with clear gap. Has an outer saffron glow ring +
-  // white mid-ring + inner warm tile so the MintU mascot pops.
+  // White rounded-square pedestal holding a saffron-tinted squircle tile that
+  // the MintU mascot completely FILLS. No black, no circle — matches the
+  // reference screenshot's aesthetic while staying on-brand.
   raisedWrap: {
     position: 'absolute',
-    // Lift the puck so ~60% of it sits above the pill. Pill top edge ≈ 70px from bottom.
-    bottom: (Platform.OS === 'ios' ? 24 : 14) + 54,
+    // Lift the puck so ~55% sits above the pill top edge
+    bottom: (Platform.OS === 'ios' ? 24 : 14) + 48,
     left: '50%',
-    marginLeft: -(RAISED_SIZE / 2) - 6,   // -6 to offset the 6px outer ring
-    width: RAISED_SIZE + 12,
+    marginLeft: -38,                   // -(pedestal size)/2
+    width: 76,
     alignItems: 'center',
     zIndex: 20,
   },
-  // Outer neon-style ring — saffron gradient glow that makes the puck read at any distance
-  raisedOuterRing: {
-    width: RAISED_SIZE + 12,
-    height: RAISED_SIZE + 12,
-    borderRadius: (RAISED_SIZE + 12) / 2,
-    backgroundColor: COLORS.accent.primary,
-    alignItems: 'center',
-    justifyContent: 'center',
-    ...Platform.select({
-      ios:     { shadowColor: COLORS.accent.primary, shadowOpacity: 0.55, shadowRadius: 16, shadowOffset: { width: 0, height: 6 } },
-      android: { elevation: 18 },
-      web:     { boxShadow: '0 8px 22px rgba(230,81,0,0.45)' as any },
-    }),
-  },
-  // White mid-ring — creates the crisp "neon glow + punch-out" effect
-  raisedMidRing: {
-    width: RAISED_SIZE + 6,
-    height: RAISED_SIZE + 6,
-    borderRadius: (RAISED_SIZE + 6) / 2,
+  // White outer pedestal — crisp frame that pops off the pill
+  raisedPedestal: {
+    width: 76,
+    height: 76,
+    borderRadius: 24,                  // squircle (rounded square) — matches Kiwi reference
     backgroundColor: '#FFFFFF',
     alignItems: 'center',
     justifyContent: 'center',
+    ...Platform.select({
+      ios:     { shadowColor: COLORS.accent.primary, shadowOpacity: 0.38, shadowRadius: 16, shadowOffset: { width: 0, height: 8 } },
+      android: { elevation: 16 },
+      web:     { boxShadow: '0 8px 22px rgba(230,81,0,0.35)' as any },
+    }),
   },
-  // Inner card — dark charcoal tile (Kiwi pattern) so the saffron mascot glows against it
-  raisedCard: {
-    width: RAISED_SIZE,
-    height: RAISED_SIZE,
-    borderRadius: RAISED_SIZE / 2,
+  // Inner tile — warm cream in MintU theme (NOT black); mascot fills it.
+  raisedTile: {
+    width: 64,
+    height: 64,
+    borderRadius: 18,                  // slightly less rounded than pedestal for the "nested" look
+    backgroundColor: '#FFF0DE',        // soft cream — matches app bg family, NO black
+    overflow: 'hidden',
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#0F0A06',       // deep espresso — lets the orange mascot POP
+  },
+  // Mascot fills the tile edge-to-edge (cover, no letterboxing)
+  raisedMascot: {
+    width: '100%',
+    height: '100%',
   },
   raisedLabel: {
     fontSize: 10, fontWeight: '800', color: COLORS.accent.primary,
