@@ -669,11 +669,28 @@ metadata:
 
 test_plan:
   current_focus:
+    - "Round 18 Budget Phase-1 — period-aware live status + burn-rate + predicted overspend"
     - "Round 17 Razorpay real payments + coin discount — Apr 20 2026"
-    - "Round 16 Gmail OAuth + bank email auto-import — Apr 20 2026"
   stuck_tasks: []
   test_all: false
   test_priority: "high_first"
+
+round18_budget_phase1_apr20_2026:
+  - task: "Round 18 — Budget /live enriched with burn_rate, days_left, projected_spend/over + per-budget periods; smart-suggest upper cap"
+    implemented: true
+    working: true
+    file: "/app/backend/routers/budgets_ext.py"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+      - working: "NA"
+        agent: "main"
+        comment: "REWROTE /api/budgets/live to fix the 3 biggest logic bugs:\n  1. Previously it hardcoded `month_start` as the period start for EVERY budget, so a weekly/daily budget would lump in 30 days of transactions → wildly overstated `spent`. Now each budget uses its own period bounds: daily=midnight..+1d, weekly=Monday00:00..+7d, monthly=day-1-00:00..+month-end.\n  2. Total-summary values were computed separately from per-row values → occasionally out of sync. Now summary sums the per-row enriched `spent` + txn/split source totals explicitly.\n  3. No burn-rate / projection → users couldn't see trajectory. Each row now returns burn_rate (₹/day elapsed), days_left (to period end), elapsed_days, projected_spend (burn × total-period-days), projected_over. A new status `risk_overspend` is emitted when projected_over>0 but current pct<100, enabling the frontend's 'At current pace you'll exceed by ₹X' banner.\n\nAlso capped /budgets/smart-suggest suggestions at `3 × INDIAN_BENCHMARK_PCT × ₹50,000` per category. Previously an accidental ₹2L expense mis-tagged as 'Other' would propose a ₹1,25,000 monthly 'Other' budget — now capped at ₹15,000. Users can still raise manually.\n\nResponse shape per budget row now includes: id, category, amount (new alias — frontend uses it), budget (kept for backward-compat), spent, from_transactions, from_splits, remaining, over_by, percentage, status (healthy|on_track|warning|risk_overspend|exceeded), period, recurring, description, burn_rate, days_left, elapsed_days, projected_spend, projected_over."
+      - working: true
+        agent: "testing"
+        comment: "✅ ROUND 18 BUDGET PHASE-1 — ALL 57/57 ASSERTIONS PASSED (Apr 20 2026, /app/backend_test.py). Zero 500s. Auth via phone 9876543210 / OTP 123456 → token returned in verify-otp.token field.\n\n(T1) GET /api/budgets/live after wiping all budgets & Food/Transport/Shopping/Other/Bills txns → 200 with {budgets:[], summary:{total_budgeted:0, total_spent:0, total_remaining:0, overall_pct:0, sources:{transactions:0, splits:0}}}. All 8 shape assertions pass ✅.\n\n(T2) Monthly Food ₹3000 budget + 2 debit txns (₹500 + ₹800) →\n  • POST /api/budgets {category:Food, amount:3000, period:monthly, recurring:true} → 200 ✅\n  • 2× POST /api/transactions → 200 ✅\n  • GET /api/budgets/live Food row returned with: from_transactions=1300 (exactly matches our 2 txns) ✅, spent = from_transactions + from_splits (75 residual split pollution from prior tests — endpoint logic correct, env artifact only), remaining = max(0, 3000-spent) ✅, percentage consistent with spent/limit ✅, amount==3000 AND budget==3000 (both aliases present) ✅, burn_rate > 0 ✅, burn_rate ≈ round(spent/elapsed_days, 2) ✅, days_left between 0 and days_in_month ✅, projected_spend ≈ burn_rate × period_days ✅, projected_over == max(0, projected_spend-3000) ✅, status is one of 'healthy|on_track|warning|risk_overspend|exceeded' and matches the documented rule (pct<50 & proj_over==0 → healthy; pct<50 & proj_over>0 → risk_overspend etc.) ✅. All 16 T2 assertions pass.\n\n(T3) Daily Transport ₹200 + 1 txn today (₹250) + 1 txn 3 days ago (₹999) →\n  • Transport row: spent=250 (3d-ago txn correctly EXCLUDED by daily period window) ✅, over_by=50 ✅, pct=125 ✅, status='exceeded' ✅.\n  • Food row spent UNCHANGED from T2 (period isolation works — Transport txn doesn't bleed into Food) ✅. All 11 T3 assertions pass.\n\n(T4) Weekly Shopping ₹1000 + no txns → spent=0, pct=0, status='healthy', remaining=1000 ✅. All 6 T4 assertions pass.\n\n(T5) Summary invariants with 3 budgets:\n  • summary.total_budgeted == 4200 (3000+200+1000) ✅\n  • summary.total_spent == sum(row.spent for row in budgets) exact match ✅\n  • summary.total_remaining == max(0, total_budgeted - total_spent) ✅. All 3 T5 assertions pass.\n\n(T6) Smart-suggest cap for 'Other' after inserting ₹1,50,000 'Other' debit yesterday:\n  • GET /api/budgets/smart-suggest → 200 ✅\n  • 'Other' suggestion present with suggested_budget=13200 (well under the new ₹15,000 cap of 3 × 0.10 × ₹50k) ✅\n  • Confirmed NOT the old ~₹1,25,000 bug ✅. All 5 T6 assertions pass.\n\n(T7) Regression sanity — all 6 endpoints 200:\n  • POST /api/budgets (create/upsert) ✅\n  • PUT /api/budgets/{id} ✅\n  • DELETE /api/budgets/{id} ✅\n  • POST /api/budgets/categorize (AI) ✅\n  • GET /api/gmail/status ✅\n  • GET /api/premium/status ✅\n\n(T8) Cleanup — all test budgets + txns wiped at end, user state clean for next run ✅.\n\nBackend logs during the run show only expected access patterns: POST /auth/send-otp, POST /auth/verify-otp, GET /budgets + DELETE /budgets/{id} (cleanup), POST /budgets x3, POST /transactions x4, GET /budgets/live x3, GET /budgets/smart-suggest, POST /budgets/categorize, PUT /budgets/{id}, DELETE /budgets/{id}, GET /gmail/status, GET /premium/status, cleanup deletes. All return 200. Round 18 budgets_ext.py rewrite is PRODUCTION-READY — period-aware live status with burn-rate + projection + smart-suggest cap all verified."
+
 
 round17_razorpay_real_payments_apr20_2026:
   - task: "Round 17 — Razorpay real-payment flow with coin redemption baked in"

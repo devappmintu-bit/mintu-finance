@@ -1,15 +1,17 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import {
   View, Text, StyleSheet, FlatList, TouchableOpacity, ActivityIndicator,
-  Modal, TextInput, KeyboardAvoidingView, Platform, Alert, ScrollView,
+  Modal, TextInput, KeyboardAvoidingView, Platform, ScrollView,
   RefreshControl,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
+import { router } from 'expo-router';
 import api from '../../utils/api';
 import { COLORS, RADIUS, SPACING, CATEGORIES, CATEGORY_LIST, SHADOW } from '../../utils/theme';
 import PressableGlass from '../../components/PressableGlass';
-import SwipeableRow from '../../components/SwipeableRow';
+import BudgetCard from '../../components/budget/BudgetCard';
+import DeleteBudgetSheet from '../../components/budget/DeleteBudgetSheet';
 import BudgetSummaryDonut from '../../components/budget/BudgetSummaryDonut';
 import { useLangStore } from '../../store/langStore';
 import { t } from '../../utils/i18n';
@@ -28,6 +30,9 @@ export default function BudgetScreen() {
   const [editingBudget, setEditingBudget] = useState<any>(null);
   const [formData, setFormData] = useState({ category: 'Food', amount: '', period: 'monthly', recurring: true, description: '' });
   const [aiCategorizing, setAiCategorizing] = useState(false);
+  // Phase-1: delete confirmation + undo buffer
+  const [deleteTarget, setDeleteTarget] = useState<any>(null);
+  const lastDeletedRef = useRef<any>(null);
 
   const fetchAll = useCallback(async () => {
     try {
@@ -92,84 +97,66 @@ export default function BudgetScreen() {
     } catch { Toast.show({ type: 'error', text1: t('error', lang), text2: t('failed_save', lang) }); fetchAll(); }
   };
 
-  const handleDelete = (id: string, cat: string) => {
-    const doDelete = async () => {
-      // Optimistic delete
-      const prev = budgets;
-      setBudgets(curr => curr.filter(b => b.id !== id));
-      try {
-        await api.delete(`/budgets/${id}`);
-        Toast.show({ type: 'info', text1: t('budget_removed', lang) });
-        fetchAll();
-      } catch {
-        setBudgets(prev);
-        Toast.show({ type: 'error', text1: t('error', lang) });
-      }
-    };
-    if (Platform.OS === 'web') {
-      // eslint-disable-next-line no-alert
-      if (typeof window !== 'undefined' && window.confirm(`${t('delete', lang)}?\n\n${t('remove_budget', lang, { cat })}`)) doDelete();
-      return;
+  // Two-step delete: card emits request → parent opens confirmation sheet → confirm triggers optimistic delete with undo-snackbar
+  const requestDelete = (item: any) => setDeleteTarget(item);
+
+  const confirmDelete = async () => {
+    const target = deleteTarget;
+    if (!target) return;
+    const prev = budgets;
+    lastDeletedRef.current = target;
+    setBudgets(curr => curr.filter(b => b.id !== target.id));
+    setDeleteTarget(null);
+    try {
+      await api.delete(`/budgets/${target.id}`);
+      Toast.show({
+        type: 'info',
+        text1: `${target.category} budget deleted`,
+        text2: 'Tap to undo',
+        visibilityTime: 4000,
+        onPress: async () => {
+          const restore = lastDeletedRef.current;
+          if (!restore) return;
+          try {
+            const created = await api.post('/budgets', {
+              category: restore.category,
+              amount: Number(restore.amount || restore.budget || 0),
+              period: restore.period || 'monthly',
+              recurring: restore.recurring !== false,
+              description: restore.description || '',
+            });
+            setBudgets(curr => [{ ...restore, id: created.data.id }, ...curr]);
+            Toast.show({ type: 'success', text1: 'Budget restored' });
+            lastDeletedRef.current = null;
+            fetchAll();
+          } catch {
+            Toast.show({ type: 'error', text1: 'Could not restore' });
+          }
+        },
+      });
+      fetchAll();
+    } catch {
+      setBudgets(prev); // revert on failure
+      Toast.show({ type: 'error', text1: t('error', lang) });
     }
-    Alert.alert(t('delete', lang) + '?', t('remove_budget', lang, { cat }), [
-      { text: t('cancel', lang), style: 'cancel' },
-      { text: t('delete', lang), style: 'destructive', onPress: doDelete },
-    ]);
+  };
+
+  const addExpenseShortcut = (item: any) => {
+    // Route to Expenses tab with the category pre-filled — state sync (Item 15)
+    router.push({ pathname: '/(tabs)/expenses' as any, params: { prefill_category: item.category, prefill_type: 'expense' } });
   };
 
   const totalBudget = budgets.reduce((s, b) => s + (b.amount || 0), 0);
   const totalSpent = budgets.reduce((s, b) => s + (b.spent || 0), 0);
 
-  const renderBudget = ({ item }: { item: any }) => {
-    const spent = item.spent || 0;
-    const limit = item.amount || 0;
-    const remaining = Math.max(limit - spent, 0);
-    const pct = limit > 0 ? Math.min(100, (spent / limit) * 100) : 0;
-    const cat = CATEGORIES[item.category] || CATEGORIES.Other;
-    const isOver = spent > limit && limit > 0;
-    const isWarn = pct >= 80 && !isOver;
-    const statusColor = isOver ? '#EF4444' : isWarn ? '#F59E0B' : '#10B981';
-    const emoji = cat.emoji || '💰';
-
-    return (
-      <SwipeableRow
-        onDelete={() => handleDelete(item.id, item.category)}
-        deleteLabel={t('delete', lang)}
-      >
-        <PressableGlass style={s.barRow} onPress={() => openEdit(item)} feedback="light">
-          <View style={[s.barIcon, { backgroundColor: cat.color + '22' }]}>
-            <Text style={{ fontSize: 18 }}>{emoji}</Text>
-          </View>
-
-          <View style={{ flex: 1, marginLeft: 12 }}>
-            <View style={s.barTop}>
-              <Text style={s.barName} numberOfLines={1}>{item.category}</Text>
-              <Text style={[s.barAmt, { color: statusColor }]}>
-                ₹{spent.toFixed(0)}
-                <Text style={s.barOf}> / ₹{limit.toFixed(0)}</Text>
-              </Text>
-            </View>
-
-            {/* Horizontal progress bar — the Kiwi-style categorization row */}
-            <View style={s.barTrack}>
-              <View style={[s.barFill, { width: `${pct}%`, backgroundColor: statusColor }]} />
-            </View>
-
-            <View style={s.barFootRow}>
-              <Text style={s.barPct}>
-                {Math.round(pct)}% used · {t(item.period, lang)}
-              </Text>
-              {isOver ? (
-                <Text style={[s.barTail, { color: '#EF4444' }]}>{t('over_by', lang)} ₹{(spent - limit).toFixed(0)}</Text>
-              ) : (
-                <Text style={[s.barTail, { color: '#6B7280' }]}>₹{remaining.toFixed(0)} {t('left', lang)}</Text>
-              )}
-            </View>
-          </View>
-        </PressableGlass>
-      </SwipeableRow>
-    );
-  };
+  const renderBudget = ({ item }: { item: any }) => (
+    <BudgetCard
+      item={item}
+      onEdit={() => openEdit(item)}
+      onDelete={() => requestDelete(item)}
+      onAddExpense={() => addExpenseShortcut(item)}
+    />
+  );
 
   if (loading) return <SafeAreaView style={s.bg}><BudgetSkeleton /></SafeAreaView>;
 
@@ -329,6 +316,14 @@ export default function BudgetScreen() {
           </View>
         </KeyboardAvoidingView>
       </Modal>
+
+      <DeleteBudgetSheet
+        visible={!!deleteTarget}
+        category={deleteTarget?.category}
+        amount={deleteTarget?.amount ?? deleteTarget?.budget}
+        onCancel={() => setDeleteTarget(null)}
+        onConfirm={confirmDelete}
+      />
     </SafeAreaView>
   );
 }

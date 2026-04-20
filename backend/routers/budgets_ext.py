@@ -44,15 +44,22 @@ async def smart_budget_suggestions(user_id: str = Depends(get_current_user)):
     suggestions = []
     for cat, data in sorted(spending.items(), key=lambda x: x[1]["total"], reverse=True):
         monthly_avg = data["total"] / 2  # 60 days → monthly
+
+        # Sanity cap: a single miscategorised ₹1L txn shouldn't recommend a
+        # ₹1,25,000 "Other" budget. Clamp by the Indian benchmark % of a
+        # plausible middle-class monthly income (₹50k) with a 3× safety margin.
+        # If user legitimately spends more, they can manually increase.
         benchmark_pct = INDIAN_BENCHMARKS.get(cat, 0.10)
-        
-        # Suggest 10-15% less than current spending (achievable)
-        suggested = int(monthly_avg * 0.88 / 100) * 100  # Round to nearest 100
+        upper_cap = int(50_000 * benchmark_pct * 3)  # e.g. Food → ₹37,500 cap
+        monthly_avg_capped = min(monthly_avg, upper_cap)
+
+        # Suggest 10-15% less than (capped) current spending (achievable)
+        suggested = int(monthly_avg_capped * 0.88 / 100) * 100  # Round to nearest 100
         suggested = max(suggested, 500)  # Minimum ₹500
-        
+
         is_new = cat not in existing_cats
         status = "over" if monthly_avg > suggested else "under"
-        
+
         suggestions.append({
             "category": cat,
             "current_monthly_avg": round(monthly_avg),
@@ -94,73 +101,135 @@ async def auto_apply_budgets(user_id: str = Depends(get_current_user)):
 
 @api_router.get("/budgets/live")
 async def live_budget_status(user_id: str = Depends(get_current_user)):
-    """Get real-time budget status with actual spending from ALL sources (transactions + splits)"""
+    """Real-time budget status — correct per-budget period + burn-rate + projection.
+
+    Returns each budget enriched with:
+      spent (txns + split share)  ·  remaining  ·  percentage
+      burn_rate (₹/day on avg)   ·  days_left   ·  projected_spend  ·  projected_over
+      status_code (healthy|on_track|warning|exceeded|risk_overspend)
+
+    This endpoint is the single source of truth for the Budget screen after
+    the Phase-1 overhaul — total_budget and total_spent returned by the
+    summary MUST match the sum of individual category `spent` values.
+    """
     now = datetime.utcnow()
-    month_start = now.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
-    
     budgets = await db.budgets.find({"user_id": user_id}).to_list(30)
-    
-    # Get spending from transactions
-    txn_pipe = [
-        {"$match": {"user_id": user_id, "type": {"$in": ["expense", "debit"]}, "date": {"$gte": month_start}}},
-        {"$group": {"_id": "$category", "total": {"$sum": "$amount"}, "count": {"$sum": 1}}}
-    ]
-    txn_spending = {}
-    async for doc in db.transactions.aggregate(txn_pipe):
-        txn_spending[doc["_id"]] = doc["total"]
-    
-    # Get spending from split expenses (user's share)
-    split_expenses = await db.split_expenses.find({"created_at": {"$gte": month_start}}).to_list(500)
-    split_spending = {}
-    for exp in split_expenses:
-        splits = exp.get("splits", {})
-        if isinstance(splits, dict) and user_id in splits:
-            cat = exp.get("category", "Other")
-            split_spending[cat] = split_spending.get(cat, 0) + splits[user_id]
-    
-    # Combine spending
-    all_spending = {}
-    for cat in set(list(txn_spending.keys()) + list(split_spending.keys())):
-        all_spending[cat] = txn_spending.get(cat, 0) + split_spending.get(cat, 0)
-    
+
+    def period_bounds(period: str):
+        if period == "daily":
+            start = now.replace(hour=0, minute=0, second=0, microsecond=0)
+            length = 1  # days in period
+            end = start + timedelta(days=1)
+        elif period == "weekly":
+            # Monday-start ISO week
+            start = (now - timedelta(days=now.weekday())).replace(hour=0, minute=0, second=0, microsecond=0)
+            length = 7
+            end = start + timedelta(days=7)
+        else:  # monthly
+            start = now.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+            if start.month == 12:
+                end = start.replace(year=start.year + 1, month=1)
+            else:
+                end = start.replace(month=start.month + 1)
+            length = (end - start).days
+        return start, end, length
+
     result = []
+    total_txn_spent = 0.0
+    total_split_spent = 0.0
+
     for b in budgets:
         cat = b["category"]
-        spent = all_spending.get(cat, 0)
-        pct = (spent / max(b["amount"], 1)) * 100
-        remaining = max(0, b["amount"] - spent)
-        
-        if pct >= 100: status = "exceeded"
-        elif pct >= 80: status = "warning"
-        elif pct >= 50: status = "on_track"
-        else: status = "healthy"
-        
+        period = b.get("period", "monthly")
+        period_start, period_end, period_days = period_bounds(period)
+
+        # Txns for this period + category
+        txn_cursor = db.transactions.find({
+            "user_id": user_id,
+            "category": cat,
+            "type": {"$in": ["expense", "debit"]},
+            "date": {"$gte": period_start, "$lt": period_end},
+        })
+        txn_total = 0.0
+        async for t in txn_cursor:
+            txn_total += float(t.get("amount", 0) or 0)
+
+        # Split share (user's portion of shared expenses)
+        split_total = 0.0
+        async for exp in db.split_expenses.find({
+            "category": cat,
+            "created_at": {"$gte": period_start, "$lt": period_end},
+        }):
+            splits = exp.get("splits") or {}
+            if isinstance(splits, dict) and user_id in splits:
+                split_total += float(splits[user_id] or 0)
+
+        spent = round(txn_total + split_total, 2)
+        total_txn_spent += txn_total
+        total_split_spent += split_total
+
+        limit = float(b.get("amount", 0) or 0)
+        remaining = max(0.0, round(limit - spent, 2))
+        over_by = max(0.0, round(spent - limit, 2))
+        pct = round((spent / limit * 100.0) if limit > 0 else 0.0, 1)
+
+        # Burn rate & projection
+        elapsed_days = max(1.0, (now - period_start).total_seconds() / 86400.0)
+        burn_rate = round(spent / elapsed_days, 2)
+        days_left = max(0, int((period_end - now).total_seconds() // 86400))
+        projected_spend = round(burn_rate * period_days, 2)
+        projected_over = max(0.0, round(projected_spend - limit, 2))
+
+        if pct >= 100:
+            status = "exceeded"
+        elif projected_over > 0:
+            status = "risk_overspend"
+        elif pct >= 80:
+            status = "warning"
+        elif pct >= 50:
+            status = "on_track"
+        else:
+            status = "healthy"
+
         result.append({
             "id": str(b["_id"]),
             "category": cat,
-            "budget": b["amount"],
-            "spent": round(spent, 2),
-            "from_transactions": round(txn_spending.get(cat, 0), 2),
-            "from_splits": round(split_spending.get(cat, 0), 2),
-            "remaining": round(remaining, 2),
-            "percentage": round(pct, 1),
+            "amount": limit,   # alias — frontend uses `amount`
+            "budget": limit,   # backward-compat
+            "spent": spent,
+            "from_transactions": round(txn_total, 2),
+            "from_splits": round(split_total, 2),
+            "remaining": remaining,
+            "over_by": over_by,
+            "percentage": pct,
             "status": status,
-            "period": b.get("period", "monthly"),
+            "period": period,
+            "recurring": b.get("recurring", True),
+            "description": b.get("description"),
+            # Phase-1 insights
+            "burn_rate": burn_rate,
+            "days_left": days_left,
+            "elapsed_days": round(elapsed_days, 1),
+            "projected_spend": projected_spend,
+            "projected_over": projected_over,
         })
-    
+
     result.sort(key=lambda x: x["percentage"], reverse=True)
-    
-    total_budgeted = sum(b["amount"] for b in budgets)
+
+    total_budgeted = sum(float(b.get("amount", 0) or 0) for b in budgets)
     total_spent = sum(r["spent"] for r in result)
-    
+
     return {
         "budgets": result,
         "summary": {
-            "total_budgeted": total_budgeted,
+            "total_budgeted": round(total_budgeted, 2),
             "total_spent": round(total_spent, 2),
             "total_remaining": round(max(0, total_budgeted - total_spent), 2),
             "overall_pct": round((total_spent / max(total_budgeted, 1)) * 100, 1),
-            "sources": {"transactions": round(sum(txn_spending.values()), 2), "splits": round(sum(split_spending.values()), 2)},
-        }
+            "sources": {
+                "transactions": round(total_txn_spent, 2),
+                "splits": round(total_split_spent, 2),
+            },
+        },
     }
 
