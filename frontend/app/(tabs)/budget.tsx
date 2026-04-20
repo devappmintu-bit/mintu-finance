@@ -16,6 +16,7 @@ import DeleteBudgetSheet from '../../components/budget/DeleteBudgetSheet';
 import BudgetInsightsSheet from '../../components/budget/BudgetInsightsSheet';
 import BudgetShareCard from '../../components/budget/BudgetShareCard';
 import BudgetSummaryDonut from '../../components/budget/BudgetSummaryDonut';
+import BudgetAchievements from '../../components/budget/BudgetAchievements';
 import { useLangStore } from '../../store/langStore';
 import { t } from '../../utils/i18n';
 import Toast from 'react-native-toast-message';
@@ -33,6 +34,7 @@ export default function BudgetScreen() {
   const [editingBudget, setEditingBudget] = useState<any>(null);
   const [formData, setFormData] = useState({ category: 'Food', amount: '', period: 'monthly', recurring: true, description: '' });
   const [aiCategorizing, setAiCategorizing] = useState(false);
+  const [achievementsKey, setAchievementsKey] = useState(0);
   // Phase-1: delete confirmation + undo buffer
   const [deleteTarget, setDeleteTarget] = useState<any>(null);
   const lastDeletedRef = useRef<any>(null);
@@ -60,7 +62,7 @@ export default function BudgetScreen() {
   }, []);
 
   useEffect(() => { fetchAll(); }, []);
-  const onRefresh = () => { setRefreshing(true); fetchAll(); };
+  const onRefresh = () => { setRefreshing(true); setAchievementsKey(k => k + 1); fetchAll(); };
 
   const applySmartBudgets = async () => {
     try {
@@ -231,6 +233,8 @@ export default function BudgetScreen() {
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={COLORS.accent.primary} />}
         ListHeaderComponent={
           <>
+            {/* Phase-3 Gamification: streak, stats, achievements strip */}
+            {budgets.length > 0 && <BudgetAchievements refreshKey={achievementsKey} />}
             {/* Donut chart + legend — primary summary per design ask.
                 "Budget Health" + "Watching" cards were removed. */}
             <BudgetSummaryDonut budgets={budgets} />

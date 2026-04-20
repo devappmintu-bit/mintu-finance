@@ -1,5 +1,6 @@
 """budgets_ext router — AI-powered budget suggestions + live budget status."""
 from datetime import datetime, timedelta
+from typing import Dict
 from fastapi import APIRouter, Depends
 
 from core import db, get_current_user
@@ -423,3 +424,217 @@ async def budget_ai_apply(category: str, data: dict, user_id: str = Depends(get_
         )
         return {"ok": True, "applied": action, "threshold": threshold}
     return {"ok": False, "error": "unknown_action"}
+
+
+
+# ══════════════════════════════════════════════════════════════════════════
+#  PHASE 3 — GAMIFICATION: streaks, badges, and "days-under-budget" progress
+#  Endpoint: GET /api/budgets/achievements
+#  Response shape:
+#    {
+#      streak:      { current_days, longest_days, target, pct },
+#      stats:       { days_under_budget_mtd, days_in_month_so_far, under_rate_pct,
+#                     categories_under, categories_over, total_categories,
+#                     saved_amount, saved_pct },
+#      badges:      [{ id, name, emoji, tagline, unlocked, progress_pct, progress_label }],
+#      next_badge:  { ... }  # first locked badge — surfaced as the "chase this" card
+#      headline:    "You're on a 5-day streak 🔥"
+#    }
+#  Pure derivation from existing /transactions + /budgets — no extra DB writes.
+# ══════════════════════════════════════════════════════════════════════════
+@api_router.get("/budgets/achievements")
+async def budget_achievements(user_id: str = Depends(get_current_user)):
+    """Gamification layer for the Budget screen — streaks + badges + progress."""
+    now = datetime.utcnow()
+    budgets = await db.budgets.find({"user_id": user_id}).to_list(30)
+
+    # Build monthly-budget map (daily equivalents used for streak calc)
+    monthly_by_cat: Dict[str, float] = {}
+    for b in budgets:
+        cat = b["category"]
+        period = b.get("period", "monthly")
+        amt = float(b.get("amount", 0) or 0)
+        if period == "daily":
+            monthly_by_cat[cat] = monthly_by_cat.get(cat, 0) + amt * 30
+        elif period == "weekly":
+            monthly_by_cat[cat] = monthly_by_cat.get(cat, 0) + amt * (30 / 7)
+        else:
+            monthly_by_cat[cat] = monthly_by_cat.get(cat, 0) + amt
+
+    total_monthly_limit = sum(monthly_by_cat.values())
+    daily_limit = total_monthly_limit / 30 if total_monthly_limit else 0
+
+    # Pull 60 days of expenses
+    sixty_days_ago = now - timedelta(days=60)
+    cursor = db.transactions.find({
+        "user_id": user_id,
+        "type": {"$in": ["expense", "debit"]},
+        "date": {"$gte": sixty_days_ago},
+    })
+    # Bucket per UTC day (YYYY-MM-DD -> total spent that day)
+    by_day: Dict[str, float] = {}
+    by_cat_month: Dict[str, float] = {}
+    month_start = now.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+    async for t in cursor:
+        d = t.get("date")
+        amt = float(t.get("amount", 0) or 0)
+        cat = t.get("category", "Other")
+        if hasattr(d, "date"):
+            day_key = d.strftime("%Y-%m-%d")
+            by_day[day_key] = by_day.get(day_key, 0) + amt
+            if d >= month_start:
+                by_cat_month[cat] = by_cat_month.get(cat, 0) + amt
+
+    # ── Streak: consecutive days (ending today) where daily spend ≤ daily_limit
+    def _day_spent(dt):
+        return by_day.get(dt.strftime("%Y-%m-%d"), 0.0)
+
+    current_streak = 0
+    if daily_limit > 0:
+        cursor_day = now.replace(hour=0, minute=0, second=0, microsecond=0)
+        # Today counts only if user has budgets configured; 0 spend day also counts as under.
+        while _day_spent(cursor_day) <= daily_limit and (now - cursor_day).days < 60:
+            current_streak += 1
+            cursor_day -= timedelta(days=1)
+
+    # Longest streak across the last 60 days
+    longest_streak = 0
+    if daily_limit > 0:
+        run = 0
+        for i in range(60):
+            d = (now - timedelta(days=i)).replace(hour=0, minute=0, second=0, microsecond=0)
+            if _day_spent(d) <= daily_limit:
+                run += 1
+                longest_streak = max(longest_streak, run)
+            else:
+                run = 0
+
+    # ── This-month stats
+    days_in_month = (now - month_start).days + 1
+    days_under = 0
+    if daily_limit > 0:
+        for i in range(days_in_month):
+            d = (month_start + timedelta(days=i))
+            if d > now: break
+            if _day_spent(d) <= daily_limit:
+                days_under += 1
+
+    under_rate = round((days_under / max(days_in_month, 1)) * 100, 0)
+
+    # Category adherence for current month
+    cats_under = 0
+    cats_over = 0
+    for cat, limit in monthly_by_cat.items():
+        spent = by_cat_month.get(cat, 0.0)
+        if spent > limit and limit > 0:
+            cats_over += 1
+        else:
+            cats_under += 1
+    total_cats = len(monthly_by_cat)
+
+    total_spent_mtd = sum(by_cat_month.values())
+    # Pro-rated expectation based on days elapsed
+    expected_spend = (total_monthly_limit * days_in_month / 30) if total_monthly_limit else 0
+    saved_amount = max(0.0, round(expected_spend - total_spent_mtd, 2))
+    saved_pct = round((saved_amount / expected_spend * 100) if expected_spend > 0 else 0, 0)
+
+    # ── Badge definitions ─────────────────────────────────────────────────
+    def _badge(id_, name, emoji, tagline, unlocked, progress, label):
+        return {
+            "id": id_, "name": name, "emoji": emoji, "tagline": tagline,
+            "unlocked": unlocked,
+            "progress_pct": int(max(0, min(100, round(progress * 100)))),
+            "progress_label": label,
+        }
+
+    badges = [
+        _badge(
+            "budget_master", "Budget Master", "🏆",
+            "7-day streak of staying under",
+            current_streak >= 7,
+            min(1.0, current_streak / 7),
+            f"{min(current_streak, 7)}/7 days",
+        ),
+        _badge(
+            "streak_legend", "Streak Legend", "🔥",
+            "30 days in the green",
+            current_streak >= 30 or longest_streak >= 30,
+            min(1.0, max(current_streak, longest_streak) / 30),
+            f"{min(max(current_streak, longest_streak), 30)}/30 days",
+        ),
+        _badge(
+            "category_captain", "Category Captain", "🎯",
+            "All categories under budget this month",
+            total_cats > 0 and cats_over == 0,
+            (cats_under / total_cats) if total_cats > 0 else 0,
+            f"{cats_under}/{max(total_cats, 1)} cats",
+        ),
+        _badge(
+            "savings_sprinter", "Savings Sprinter", "⚡",
+            "Saved ≥20% vs your budgeted pace",
+            saved_pct >= 20,
+            min(1.0, saved_pct / 20),
+            f"{int(saved_pct)}% saved",
+        ),
+        _badge(
+            "comeback_king", "Comeback King", "👑",
+            "3-day recovery after an over-budget day",
+            current_streak >= 3 and longest_streak > current_streak,
+            min(1.0, current_streak / 3) if longest_streak > current_streak else 0,
+            f"{min(current_streak, 3)}/3 days"
+            if longest_streak > current_streak else "Waiting for first recovery",
+        ),
+        _badge(
+            "perfect_month", "Perfect Month", "🌟",
+            "All 30 days under budget",
+            days_under >= 30,
+            min(1.0, days_under / 30),
+            f"{days_under}/30 days",
+        ),
+    ]
+
+    # Streak target — next milestone
+    if current_streak < 3:   target = 3
+    elif current_streak < 7: target = 7
+    elif current_streak < 14: target = 14
+    elif current_streak < 30: target = 30
+    else: target = current_streak + 7
+    streak_pct = int(min(100, round((current_streak / target) * 100))) if target else 0
+
+    # Headline
+    if current_streak >= 30:
+        headline = f"🌟 {current_streak}-day legend streak!"
+    elif current_streak >= 7:
+        headline = f"🔥 You're on a {current_streak}-day streak — keep it burning!"
+    elif current_streak >= 3:
+        headline = f"🔥 {current_streak}-day streak building up!"
+    elif current_streak >= 1:
+        headline = f"✨ Day {current_streak} — streak started!"
+    elif total_cats == 0:
+        headline = "Set your first budget to unlock streaks & badges 🎯"
+    else:
+        headline = "Today's a fresh start — come in under budget 💪"
+
+    next_badge = next((b for b in badges if not b["unlocked"]), None)
+
+    return {
+        "streak": {
+            "current_days": current_streak,
+            "longest_days": longest_streak,
+            "target": target,
+            "pct": streak_pct,
+        },
+        "stats": {
+            "days_under_budget_mtd": days_under,
+            "days_in_month_so_far": days_in_month,
+            "under_rate_pct": int(under_rate),
+            "categories_under": cats_under,
+            "categories_over": cats_over,
+            "total_categories": total_cats,
+            "saved_amount": saved_amount,
+            "saved_pct": int(saved_pct),
+        },
+        "badges": badges,
+        "next_badge": next_badge,
+        "headline": headline,
+    }

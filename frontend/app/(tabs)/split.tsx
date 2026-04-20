@@ -332,6 +332,40 @@ export default function SplitScreen() {
     }
   };
 
+  // Razorpay-backed settlement — opens hosted checkout in expo-web-browser.
+  // On success, the backend verifies the signature and auto-inserts the settlement,
+  // so we just refresh the data once the browser closes.
+  const payViaRazorpay = async (amount: number, coinsToUse: number = 0) => {
+    if (!payTarget) return;
+    const { to_id, to_name, group_id } = payTarget;
+    try {
+      const orderRes = await api.post('/split/razorpay-order', {
+        target_user_id: to_id,
+        amount,
+        group_id,
+        coins_to_use: Number(coinsToUse || 0),
+      });
+      const checkoutUrl: string = orderRes.data?.checkout_url;
+      if (!checkoutUrl) {
+        Toast.show({ type: 'error', text1: 'Payment unavailable', text2: 'Checkout URL not configured' });
+        return;
+      }
+      setModal('');
+      const WebBrowser = await import('expo-web-browser');
+      const result = await WebBrowser.openBrowserAsync(checkoutUrl);
+      // Result is dismissed when user closes the browser — refresh to pick up new settlement
+      if (result) {
+        setTimeout(() => {
+          fetchData();
+          Toast.show({ type: 'success', text1: `Razorpay settlement`, text2: `₹${amount.toFixed(0)} to ${to_name} — check chat for status` });
+        }, 600);
+      }
+    } catch (e: any) {
+      const msg = e?.response?.data?.detail || 'Could not start Razorpay payment';
+      Toast.show({ type: 'error', text1: 'Payment error', text2: msg });
+    }
+  };
+
   const markPaidOffline = (row: DebtRow, method: 'cash' | 'bank_transfer' = 'cash') => {
     Alert.alert('Mark as Paid?',
       `Mark ₹${row.amount.toFixed(0)} to ${row.to_name} as paid in ${method === 'cash' ? 'cash' : 'bank transfer'}?`,
@@ -561,6 +595,7 @@ export default function SplitScreen() {
           onPayUPI={(coins) => payViaUPI(coins || 0)}
           onPayCash={(coins) => { setModal(''); if (payTarget) settleReward({ ...payTarget, method: 'cash', coins_to_use: coins || 0 }); }}
           onPayPartial={(amt, coins) => partialSettle(amt, coins || 0)}
+          onPayRazorpay={(amt, coins) => payViaRazorpay(amt, coins || 0)}
         />
       )}
       {modal === 'remind' && <RemindSheet visible={true} onClose={close} target={remindTarget} onSend={sendReminder} />}

@@ -13,9 +13,13 @@ type Props = {
   onPayUPI: (coinsToUse?: number) => void;
   onPayCash: (coinsToUse?: number) => void;
   onPayPartial: (amount: number, coinsToUse?: number) => void;
+  /** When provided, PaySheet shows a Razorpay CTA. Invoked with the effective
+   *  amount (after partial selection) + coins the user chose to redeem. The
+   *  parent handles the WebBrowser + order-create flow. */
+  onPayRazorpay?: (amount: number, coinsToUse?: number) => void;
 };
 
-export default function PaySheet({ visible, onClose, target, onPayUPI, onPayCash, onPayPartial }: Props) {
+export default function PaySheet({ visible, onClose, target, onPayUPI, onPayCash, onPayPartial, onPayRazorpay }: Props) {
   const [partialOn, setPartialOn] = useState(false);
   const [partialAmt, setPartialAmt] = useState('');
   const [coinRedeem, setCoinRedeem] = useState<{ coinsToUse: number; discount: number; effective: number }>({
@@ -120,6 +124,29 @@ export default function PaySheet({ visible, onClose, target, onPayUPI, onPayCash
             )}
 
             <Text style={s.payS}>Select payment method</Text>
+            {onPayRazorpay && (
+              <TouchableOpacity
+                style={[s.rzpBtn, !isValid && { opacity: 0.4 }]}
+                disabled={!isValid}
+                onPress={() => { if (isValid) onPayRazorpay(finalAmt, coinRedeem.coinsToUse); }}
+                activeOpacity={0.88}
+              >
+                <LinearGradient
+                  colors={['#F56E1E', '#C14A06']}
+                  start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }}
+                  style={s.rzpInner}
+                >
+                  <View style={s.rzpIcon}>
+                    <Ionicons name="card" size={20} color="#fff" />
+                  </View>
+                  <View style={{ flex: 1 }}>
+                    <Text style={s.rzpTitle}>Pay with Razorpay</Text>
+                    <Text style={s.rzpSub}>Cards · Netbanking · UPI · Wallets</Text>
+                  </View>
+                  <Ionicons name="chevron-forward" size={18} color="#fff" />
+                </LinearGradient>
+              </TouchableOpacity>
+            )}
             {UPI_APPS.map((app) => (
               <TouchableOpacity
                 key={app.id}
@@ -180,5 +207,10 @@ const s = StyleSheet.create({
   upiName: { flex: 1, fontSize: 16, fontWeight: '600', color: C.text1 },
   cashBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, paddingVertical: 14, marginTop: 12, borderRadius: 14, backgroundColor: C.accentDim },
   cashBtnT: { fontSize: 15, fontWeight: '600', color: C.accent },
+  rzpBtn: { borderRadius: 14, overflow: 'hidden', marginBottom: 10, shadowColor: '#C14A06', shadowOffset: { width: 0, height: 6 }, shadowOpacity: 0.22, shadowRadius: 10, elevation: 5 },
+  rzpInner: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 14, paddingHorizontal: 14 },
+  rzpIcon: { width: 36, height: 36, borderRadius: 18, backgroundColor: 'rgba(255,255,255,0.22)', alignItems: 'center', justifyContent: 'center' },
+  rzpTitle: { color: '#fff', fontSize: 15, fontWeight: '900', letterSpacing: 0.2 },
+  rzpSub: { color: 'rgba(255,255,255,0.85)', fontSize: 11, fontWeight: '700', marginTop: 1 },
   cancelT: { textAlign: 'center', fontSize: 15, color: C.text3, paddingVertical: 14 },
 });
