@@ -19,6 +19,7 @@ import { TransactionsSkeleton } from '../../components/SkeletonLoader';
 import EmptyState from '../../components/ui/EmptyState';
 import SheetHeader from '../../components/ui/SheetHeader';
 import PrimaryButton from '../../components/ui/PrimaryButton';
+import GmailConnectCard from '../../components/transactions/GmailConnectCard';
 import {
   fetchTransactions as fetchTxnsSrv, addTransaction, updateTransaction, deleteTransaction,
 } from '../../services/transactions';
@@ -298,6 +299,9 @@ export default function TransactionsScreen() {
         estimatedItemSize={74}
         ListHeaderComponent={
           <>
+            {/* Gmail auto-import CTA — shows only when not yet connected. */}
+            <GmailConnectCard />
+
             {/* Smart Insights — Data-driven spending summary */}
             <SmartInsightsStrip transactions={transactions} />
 

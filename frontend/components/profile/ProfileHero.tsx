@@ -44,7 +44,10 @@ export default function ProfileHero({
           <Image source={{ uri: avatar }} style={s.avatar} />
         ) : (
           <View style={s.avatarPlace}>
-            <Text style={s.avatarInitial}>{(user?.name || 'U').charAt(0).toUpperCase()}</Text>
+            <Image
+              source={require('../../assets/images/mintu-logo.png')}
+              style={s.avatar}
+            />
           </View>
         )}
         <View style={s.camBadge}>

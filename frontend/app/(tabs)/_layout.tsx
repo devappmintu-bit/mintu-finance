@@ -30,42 +30,55 @@ import MintULogo from '../../components/MintULogo';
 import AICoachChat from '../../components/AICoachChat';
 
 // Tab metadata — iconsets are native to @expo/vector-icons so they stay crisp.
-const TAB_META: Record<string, { out: string; fill: string; key: string }> = {
+const TAB_META: Record<string, { out: string; fill: string; key: string; label?: string }> = {
   index: { out: 'home-outline', fill: 'home', key: 'home' },
   transactions: { out: 'receipt-outline', fill: 'receipt', key: 'transactions' },
+  'ai-coach': { out: 'sparkles-outline', fill: 'sparkles', key: 'ai-coach', label: 'AI Coach' },
   budget: { out: 'pie-chart-outline', fill: 'pie-chart', key: 'budgets' },
   split: { out: 'people-outline', fill: 'people', key: 'split' },
 };
 
 function labelOf(name: string, lang: any): string {
-  const k = TAB_META[name]?.key || name;
+  const meta = TAB_META[name];
+  if (meta?.label) return meta.label;
+  const k = meta?.key || name;
   const raw = t(k, lang);
   const fallback: Record<string, string> = { home: 'Home', transactions: 'Transactions', budgets: 'Budgets', split: 'Split' };
   if (raw === k || !raw) return fallback[k] || name;
   return raw.charAt(0).toUpperCase() + raw.slice(1);
 }
 
-function SideTab({ icon, iconFilled, label, focused, onPress, testID }:
-  { icon: string; iconFilled: string; label: string; focused: boolean; onPress: () => void; testID?: string }) {
+function SideTab({ icon, iconFilled, label, focused, onPress, testID, isCenter }:
+  { icon: string; iconFilled: string; label: string; focused: boolean; onPress: () => void; testID?: string; isCenter?: boolean }) {
+  // Center tab (AI Coach) gets the mascot image instead of an icon
   return (
     <TouchableOpacity testID={testID} style={st.sideTab} onPress={onPress} activeOpacity={0.7}>
-      <View style={[st.sideIconCircle, focused && st.sideIconCircleOn]}>
-        <Ionicons
-          name={(focused ? iconFilled : icon) as any}
-          size={20}
-          color={focused ? '#FFFFFF' : '#1F2937'}
-        />
-      </View>
+      {isCenter ? (
+        <View style={[st.sideIconCircle, focused && st.sideIconCircleCenterOn, st.centerCircle]}>
+          <Image
+            source={require('../../assets/images/mintu-logo.png')}
+            style={{ width: 28, height: 28, borderRadius: 14 }}
+            contentFit="cover"
+            cachePolicy="memory-disk"
+          />
+        </View>
+      ) : (
+        <View style={[st.sideIconCircle, focused && st.sideIconCircleOn]}>
+          <Ionicons
+            name={(focused ? iconFilled : icon) as any}
+            size={20}
+            color={focused ? '#FFFFFF' : '#1F2937'}
+          />
+        </View>
+      )}
       <Text style={[st.sideLabel, focused && st.sideLabelOn]} numberOfLines={1}>{label}</Text>
     </TouchableOpacity>
   );
 }
 
-function MintUTabBar({ state, navigation, onPressCenter }: BottomTabBarProps & { onPressCenter: () => void }) {
+function MintUTabBar({ state, navigation }: BottomTabBarProps) {
   const { lang } = useLangStore();
   const visible = state.routes.filter(r => TAB_META[r.name]);
-  const left = visible.slice(0, 2);
-  const right = visible.slice(2, 4);
 
   const fire = (route: any, focused: boolean) => {
     const event = navigation.emit({ type: 'tabPress', target: route.key, canPreventDefault: true });
@@ -74,94 +87,45 @@ function MintUTabBar({ state, navigation, onPressCenter }: BottomTabBarProps & {
 
   return (
     <View style={st.wrap} pointerEvents="box-none">
-      {/* Raised center puck — Kiwi-style "white pedestal + filled saffron tile" (squircle).
-          Outer white frame + inner saffron tile; mascot fills the entire tile. */}
-      <TouchableOpacity
-        testID="tab-ai-coach"
-        onPress={onPressCenter}
-        activeOpacity={0.88}
-        style={st.raisedWrap}
-        accessibilityLabel="Open AI Coach"
-      >
-        <View style={st.raisedPedestal}>
-          <View style={st.raisedTile}>
-            <Image
-              source={require('../../assets/images/mintu-logo.png')}
-              style={st.raisedMascot}
-              contentFit="cover"
-              cachePolicy="memory-disk"
-            />
-          </View>
-        </View>
-      </TouchableOpacity>
-
-      {/* Pill container */}
+      {/* Floating pill with all 5 tabs — AI Coach merged as a regular tab */}
       <View style={st.pill}>
-        <View style={st.pillSide}>
-          {left.map((route) => {
-            const focused = state.index === state.routes.findIndex(r => r.key === route.key);
-            const meta = TAB_META[route.name];
-            return (
-              <SideTab
-                key={route.key}
-                icon={meta.out}
-                iconFilled={meta.fill}
-                label={labelOf(route.name, lang)}
-                focused={focused}
-                onPress={() => fire(route, focused)}
-                testID={`tab-${route.name}`}
-              />
-            );
-          })}
-        </View>
-        {/* Spacer under the raised puck — empty (label removed; puck speaks for itself) */}
-        <View style={st.pillCenterSpace} />
-        <View style={st.pillSide}>
-          {right.map((route) => {
-            const focused = state.index === state.routes.findIndex(r => r.key === route.key);
-            const meta = TAB_META[route.name];
-            return (
-              <SideTab
-                key={route.key}
-                icon={meta.out}
-                iconFilled={meta.fill}
-                label={labelOf(route.name, lang)}
-                focused={focused}
-                onPress={() => fire(route, focused)}
-                testID={`tab-${route.name}`}
-              />
-            );
-          })}
-        </View>
+        {visible.map((route) => {
+          const focused = state.index === state.routes.findIndex(r => r.key === route.key);
+          const meta = TAB_META[route.name];
+          return (
+            <SideTab
+              key={route.key}
+              icon={meta.out}
+              iconFilled={meta.fill}
+              label={labelOf(route.name, lang)}
+              focused={focused}
+              onPress={() => fire(route, focused)}
+              testID={`tab-${route.name}`}
+              isCenter={route.name === 'ai-coach'}
+            />
+          );
+        })}
       </View>
     </View>
   );
 }
 
 export default function TabLayout() {
-  const [aiVisible, setAiVisible] = useState(false);
   return (
     <View style={{ flex: 1 }}>
       <Tabs
         screenOptions={{ headerShown: false }}
-        tabBar={(props) => <MintUTabBar {...props} onPressCenter={() => setAiVisible(true)} />}
+        tabBar={(props) => <MintUTabBar {...props} />}
       >
         <Tabs.Screen name="index" />
         <Tabs.Screen name="transactions" />
-        <Tabs.Screen name="insights" options={{ href: null }} />
+        <Tabs.Screen name="ai-coach" />
         <Tabs.Screen name="budget" />
         <Tabs.Screen name="split" />
+        <Tabs.Screen name="insights" options={{ href: null }} />
         <Tabs.Screen name="profile" options={{ href: null }} />
         <Tabs.Screen name="rewards" options={{ href: null }} />
       </Tabs>
-
-      <Modal
-        visible={aiVisible}
-        animationType="slide"
-        presentationStyle={Platform.OS === 'ios' ? 'pageSheet' : 'fullScreen'}
-      >
-        <AICoachChat onClose={() => setAiVisible(false)} />
-      </Modal>
     </View>
   );
 }
@@ -208,6 +172,14 @@ const st = StyleSheet.create({
   },
   sideIconCircleOn: {
     backgroundColor: COLORS.accent.primary,
+  },
+  sideIconCircleCenterOn: {
+    backgroundColor: '#FFF0E3',
+    borderWidth: 2,
+    borderColor: COLORS.accent.primary,
+  },
+  centerCircle: {
+    backgroundColor: '#FFF0E3',
   },
   sideLabel: { fontSize: 10.5, color: '#6B7280', marginTop: 3, fontWeight: '600' },
   sideLabelOn: { color: COLORS.accent.primary, fontWeight: '800' },

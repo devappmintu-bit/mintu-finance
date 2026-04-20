@@ -23,6 +23,7 @@ import DailyQuestCard from '../../components/DailyQuestCard';
 import PremiumHomeCard from '../../components/home/PremiumHomeCard';
 import AIInsightCard from '../../components/home/AIInsightCard';
 import UnifiedLeaderboard from '../../components/leaderboard/UnifiedLeaderboard';
+import AnimatedCoin from '../../components/AnimatedCoin';
 import NewsCarousel from '../../components/home/NewsCarousel';
 import WeeklyReport from '../../components/home/WeeklyReport';
 import Confetti from '../../components/Confetti';
@@ -260,8 +261,7 @@ export default function HomeScreen() {
               activeOpacity={0.8}
               testID="header-coins-chip"
             >
-              <Text style={{ fontSize: 14 }}>🪙</Text>
-              <Text style={styles.coinsChipVal}>{coinsStatus.balance}</Text>
+              <AnimatedCoin value={Number(coinsStatus.balance || 0)} size="sm" />
             </TouchableOpacity>
           )}
           <TouchableOpacity onPress={() => router.push('/(tabs)/profile')} style={styles.avatarWrap}>
@@ -286,38 +286,18 @@ export default function HomeScreen() {
 
         {/* Freshness strip removed per design ask — auto-refresh still triggers on focus */}
 
-        {/* Coins moved to header chip next to avatar; rank + streak remain below */}
-        {(leaderboard || snapshot) && (
+        {/* Top-percentile pill removed per design ask — streak badge kept */}
+        {(snapshot?.tier?.streak_days ?? user?.streak_days ?? 0) > 0 && (
           <View style={styles.pillRow}>
-            {leaderboard?.percentile > 0 && (
-              <TouchableOpacity style={[styles.pill, styles.pillRank]} onPress={() => router.push('/(tabs)/profile')} activeOpacity={0.7}>
-                <Text style={styles.pillEmoji}>🏆</Text>
-                <Text style={styles.pillValue}>Top {Math.max(1, 100 - leaderboard.percentile)}%</Text>
-              </TouchableOpacity>
-            )}
-            {(snapshot?.tier?.streak_days ?? user?.streak_days ?? 0) > 0 && (
-              <View style={[styles.pill, styles.pillStreak]}>
-                <Text style={styles.pillEmoji}>🔥</Text>
-                <Text style={styles.pillValue}>{snapshot?.tier?.streak_days ?? user?.streak_days ?? 0}</Text>
-                <Text style={styles.pillLabel}>day streak</Text>
-              </View>
-            )}
+            <View style={[styles.pill, styles.pillStreak]}>
+              <Text style={styles.pillEmoji}>🔥</Text>
+              <Text style={styles.pillValue}>{snapshot?.tier?.streak_days ?? user?.streak_days ?? 0}</Text>
+              <Text style={styles.pillLabel}>day streak</Text>
+            </View>
           </View>
         )}
 
-        {/* CARD OF THE DAY */}
-        {cardOfDay && (
-          <View style={[styles.cotdCard, { borderLeftColor: cardOfDay.color || COLORS.accent.primary }]}>
-            <View style={styles.cotdHeader}>
-              <Text style={styles.cotdEmoji}>{cardOfDay.emoji}</Text>
-              <Text style={[styles.cotdType, { color: cardOfDay.color }]}>{cardOfDay.title}</Text>
-              <TouchableOpacity onPress={refreshCardOfDay} style={styles.cotdRefresh}>
-                <Ionicons name="refresh" size={14} color={COLORS.text.muted} />
-              </TouchableOpacity>
-            </View>
-            <Text style={styles.cotdText}>{cardOfDay.text}</Text>
-          </View>
-        )}
+        {/* Card of the Day (quotes) removed per design ask */}
 
         {/* FINANCIAL INSIGHTS — MintU 2.0 Dynamic Pulse Card */}
         {snapshot ? (

@@ -312,10 +312,10 @@ export default function ProfileScreen() {
           <Text style={[s.menuText, { marginLeft: 12 }]}>{t('help_support', lang)}</Text>
           <Ionicons name="chevron-forward" size={16} color={COLORS.text.muted} />
         </TouchableOpacity>
-        <TouchableOpacity style={s.menuItem} onPress={() => setAboutVisible(true)}>
+        <TouchableOpacity style={s.menuItem} onPress={() => router.push('/about' as any)}>
           <Ionicons name="information-circle-outline" size={20} color={COLORS.accent.primary} />
           <Text style={[s.menuText, { marginLeft: 12 }]}>About MintU</Text>
-          <Text style={s.menuHint}>Privacy · Terms · Data</Text>
+          <Text style={s.menuHint}>Features · Why MintU · v1.0.0</Text>
           <Ionicons name="chevron-forward" size={16} color={COLORS.text.muted} />
         </TouchableOpacity>
         <TouchableOpacity style={s.logoutBtn} onPress={handleLogout}>

@@ -201,16 +201,7 @@ export default function GmailConnectScreen() {
           </View>
         )}
 
-        {/* Supported banks */}
-        <Text style={s.sect}>Supported banks</Text>
-        <View style={s.bankGrid}>
-          {BANKS.map((b) => (
-            <View key={b.name} style={s.bankChip}>
-              <Text style={s.bankEmoji}>{b.emoji}</Text>
-              <Text style={s.bankName}>{b.name}</Text>
-            </View>
-          ))}
-        </View>
+        {/* Supported banks section removed per design ask */}
 
         {/* How it works */}
         <Text style={s.sect}>How it works</Text>
