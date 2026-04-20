@@ -27,7 +27,7 @@ export default function PinSetupModal({ visible, onDone, onSkip }: Props) {
     if (await biometricAvailable()) setBioLabel(await supportedBiometricLabel());
   })(); }, []);
 
-  const reset = () => { setStage('enter'); setPin(''); setFirstPin(''); setError(''); setShowDone(false); };
+  const reset = () => { setStage('enter'); setPinVal(''); setFirstPin(''); setError(''); setShowDone(false); };
 
   const press = async (d: string) => {
     if (pin.length >= 4) return;
