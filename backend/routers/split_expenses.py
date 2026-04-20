@@ -23,7 +23,6 @@ from routers.split_common import (
 
 @api_router.post("/split/expenses")
 async def add_split_expense(expense: SplitExpenseCreate, user_id: str = Depends(get_current_user)):
-    from bson import ObjectId
     group = await db.split_groups.find_one({"_id": ObjectId(expense.group_id), "members.user_id": user_id})
     if not group:
         raise HTTPException(status_code=404, detail="Group not found")
@@ -129,7 +128,8 @@ def _compute_splits(amount: float, split_type: str, member_ids: List[str], raw_s
 
 @api_router.get("/split/groups/{group_id}/expenses")
 async def get_group_expenses(group_id: str, user_id: str = Depends(get_current_user)):
-    from bson import ObjectId
+    if not ObjectId.is_valid(group_id):
+        raise HTTPException(status_code=400, detail="Invalid group_id")
     group = await db.split_groups.find_one({"_id": ObjectId(group_id), "members.user_id": user_id})
     if not group:
         raise HTTPException(status_code=404, detail="Group not found")
@@ -144,8 +144,9 @@ async def get_group_expenses(group_id: str, user_id: str = Depends(get_current_u
 
 @api_router.get("/split/groups/{group_id}/summary")
 async def group_expense_summary(group_id: str, user_id: str = Depends(get_current_user)):
+    if not ObjectId.is_valid(group_id):
+        raise HTTPException(status_code=400, detail="Invalid group_id")
     """Get comprehensive group summary with simplified debts"""
-    from bson import ObjectId
     group = await db.split_groups.find_one({"_id": ObjectId(group_id)})
     if not group:
         raise HTTPException(status_code=404, detail="Group not found")
@@ -234,8 +235,9 @@ async def group_expense_summary(group_id: str, user_id: str = Depends(get_curren
 
 @api_router.delete("/split/expenses/{expense_id}")
 async def delete_expense(expense_id: str, user_id: str = Depends(get_current_user)):
+    if not ObjectId.is_valid(expense_id):
+        raise HTTPException(status_code=400, detail="Invalid expense_id")
     """Delete a split expense"""
-    from bson import ObjectId
     await db.split_expenses.delete_one({"_id": ObjectId(expense_id)})
     return {"message": "Expense deleted"}
 
@@ -243,8 +245,9 @@ async def delete_expense(expense_id: str, user_id: str = Depends(get_current_use
 
 @api_router.put("/split/expenses/{expense_id}")
 async def edit_expense(expense_id: str, data: dict, user_id: str = Depends(get_current_user)):
+    if not ObjectId.is_valid(expense_id):
+        raise HTTPException(status_code=400, detail="Invalid expense_id")
     """Edit a split expense — full support for amount/splits/split_type/description/category."""
-    from bson import ObjectId
     existing = await db.split_expenses.find_one({"_id": ObjectId(expense_id)})
     if not existing:
         raise HTTPException(status_code=404, detail="Expense not found")

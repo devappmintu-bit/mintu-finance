@@ -19,8 +19,9 @@ export async function verifyPremiumPayment(payload: { order_id: string; payment_
   return r.data;
 }
 
-export async function awardCoins(reason: string, amount: number = 1): Promise<any> {
-  const r = await api.post('/coins/award', { reason, amount });
+export async function awardCoins(action: string, amount: number = 1): Promise<any> {
+  // Backend contract: {action: string} — looked up in COIN_RULES for the coin value
+  const r = await api.post('/coins/award', { action, amount });
   return r.data;
 }
 

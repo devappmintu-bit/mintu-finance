@@ -11,6 +11,7 @@ import { useAuthStore } from '../../store/authStore';
 import { useLangStore } from '../../store/langStore';
 import { t, LANGUAGES } from '../../utils/i18n';
 import api from '../../utils/api';
+import { fetchUpi, fetchAvatar, updateProfile, uploadAvatar } from '../../services/user';
 import { COLORS, shadowStyle } from '../../utils/theme';
 import Toast from 'react-native-toast-message';
 import { shareSmart, copyToClipboard, shareImageSmart } from '../../utils/share';
@@ -53,8 +54,8 @@ export default function ProfileScreen() {
   const loadData = useCallback(async () => {
     try {
       const [upiRes, avatarRes, refRes, statsRes] = await Promise.all([
-        api.get('/user/upi').catch(() => ({ data: {} })),
-        api.get('/user/avatar').catch(() => ({ data: {} })),
+        fetchUpi().then(data => ({ data })).catch(() => ({ data: {} })),
+        fetchAvatar().then(data => ({ data })).catch(() => ({ data: {} })),
         api.get('/referral/enhanced-status').catch(() => ({ data: null })),
         api.get('/analytics/summary').catch(() => ({ data: null })),
       ]);
@@ -115,7 +116,7 @@ export default function ProfileScreen() {
   const updateName = async () => {
     if (!editName.trim()) return;
     try {
-      await api.put('/user/profile', { name: editName.trim() });
+      await updateProfile({ name: editName.trim() });
       Toast.show({ type: 'success', text1: 'Name Updated!' });
       setEditNameVisible(false);
     } catch { Toast.show({ type: 'error', text1: 'Error' }); }
@@ -128,7 +129,7 @@ export default function ProfileScreen() {
     if (!result.canceled && result.assets[0].base64) {
       const b64 = `data:image/jpeg;base64,${result.assets[0].base64}`;
       setAvatar(b64);
-      try { await api.post('/user/avatar', { avatar: b64 }); Toast.show({ type: 'success', text1: 'Photo Updated!' }); } catch { /* noop */ }
+      try { await uploadAvatar(b64); Toast.show({ type: 'success', text1: 'Photo Updated!' }); } catch { /* noop */ }
     }
   };
 
@@ -136,7 +137,7 @@ export default function ProfileScreen() {
     { text: 'Cancel', style: 'cancel' },
     { text: 'Remove', style: 'destructive', onPress: async () => {
       await setAvatar('');
-      try { await api.post('/user/avatar', { avatar: '' }); } catch { /* noop */ }
+      try { await uploadAvatar(''); } catch { /* noop */ }
     } },
   ]);
 

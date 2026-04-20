@@ -27,7 +27,6 @@ async def create_split_group(group: SplitGroupCreate, user_id: str = Depends(get
     MintU user are stored as `pending_invites` (by phone) instead of creating fake
     placeholder users like "User 1234". The group surfaces these as invite-pending
     rows and the real user joins automatically once they sign up with that phone."""
-    from bson import ObjectId
     user = await db.users.find_one({"_id": ObjectId(user_id)})
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
@@ -110,8 +109,9 @@ async def get_split_groups(user_id: str = Depends(get_current_user)):
 
 @api_router.post("/split/groups/{group_id}/members")
 async def add_members_to_group(group_id: str, data: dict, user_id: str = Depends(get_current_user)):
+    if not ObjectId.is_valid(group_id):
+        raise HTTPException(status_code=400, detail="Invalid group_id")
     """Add new members to an existing split group — auto-creates users if not registered"""
-    from bson import ObjectId
     phones = data.get("phones", [])
     if not phones:
         raise HTTPException(status_code=400, detail="Provide phone numbers to add")
@@ -158,8 +158,9 @@ async def add_members_to_group(group_id: str, data: dict, user_id: str = Depends
 
 @api_router.get("/split/groups/{group_id}/manage")
 async def get_group_management(group_id: str, user_id: str = Depends(get_current_user)):
+    if not ObjectId.is_valid(group_id):
+        raise HTTPException(status_code=400, detail="Invalid group_id")
     """Get group management data (GPay-style)"""
-    from bson import ObjectId
     group = await db.split_groups.find_one({"_id": ObjectId(group_id)})
     if not group:
         raise HTTPException(status_code=404, detail="Group not found")
@@ -189,8 +190,9 @@ async def get_group_management(group_id: str, user_id: str = Depends(get_current
 
 @api_router.put("/split/groups/{group_id}/name")
 async def rename_group(group_id: str, data: dict, user_id: str = Depends(get_current_user)):
+    if not ObjectId.is_valid(group_id):
+        raise HTTPException(status_code=400, detail="Invalid group_id")
     """Rename a split group"""
-    from bson import ObjectId
     name = data.get("name", "").strip()
     if not name:
         raise HTTPException(status_code=400, detail="Name required")
@@ -201,8 +203,9 @@ async def rename_group(group_id: str, data: dict, user_id: str = Depends(get_cur
 
 @api_router.delete("/split/groups/{group_id}/members/{member_id}")
 async def remove_member(group_id: str, member_id: str, user_id: str = Depends(get_current_user)):
+    if not ObjectId.is_valid(group_id):
+        raise HTTPException(status_code=400, detail="Invalid group_id")
     """Remove a member from group"""
-    from bson import ObjectId
     await db.split_groups.update_one(
         {"_id": ObjectId(group_id)},
         {"$pull": {"members": {"user_id": member_id}}}
@@ -213,8 +216,9 @@ async def remove_member(group_id: str, member_id: str, user_id: str = Depends(ge
 
 @api_router.delete("/split/groups/{group_id}")
 async def delete_group(group_id: str, user_id: str = Depends(get_current_user)):
+    if not ObjectId.is_valid(group_id):
+        raise HTTPException(status_code=400, detail="Invalid group_id")
     """Delete a split group"""
-    from bson import ObjectId
     group = await db.split_groups.find_one({"_id": ObjectId(group_id)})
     if not group:
         raise HTTPException(status_code=404, detail="Group not found")
@@ -227,7 +231,6 @@ async def delete_group(group_id: str, user_id: str = Depends(get_current_user)):
 @api_router.delete("/split/groups/{group_id}/leave")
 async def leave_group(group_id: str, user_id: str = Depends(get_current_user)):
     """Leave a split group"""
-    from bson import ObjectId
     user = await db.users.find_one({"_id": ObjectId(user_id)}) if ObjectId.is_valid(user_id) else await db.users.find_one({"phone": user_id})
     name = user.get("name", "Someone") if user else "Someone"
     await db.split_groups.update_one(
@@ -242,6 +245,8 @@ async def leave_group(group_id: str, user_id: str = Depends(get_current_user)):
 
 @api_router.get("/split/groups/{group_id}/messages")
 async def get_group_messages(group_id: str, limit: int = 50, user_id: str = Depends(get_current_user)):
+    if not ObjectId.is_valid(group_id):
+        raise HTTPException(status_code=400, detail="Invalid group_id")
     """Get chat messages for a group"""
     messages = await db.split_messages.find(
         {"group_id": group_id}
@@ -265,8 +270,9 @@ async def get_group_messages(group_id: str, limit: int = 50, user_id: str = Depe
 
 @api_router.post("/split/groups/{group_id}/messages")
 async def send_group_message(group_id: str, data: dict, user_id: str = Depends(get_current_user)):
+    if not ObjectId.is_valid(group_id):
+        raise HTTPException(status_code=400, detail="Invalid group_id")
     """Send a chat message to a group"""
-    from bson import ObjectId
     user = await db.users.find_one({"_id": ObjectId(user_id)}) if ObjectId.is_valid(user_id) else await db.users.find_one({"phone": user_id})
     name = user.get("name", "User") if user else "User"
     msg_type = data.get("type", "text")

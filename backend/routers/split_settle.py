@@ -173,8 +173,9 @@ async def get_overall_balances(user_id: str = Depends(get_current_user)):
 
 @api_router.get("/split/pay-intent/{target_user_id}")
 async def generate_upi_pay_intent(target_user_id: str, amount: float, user_id: str = Depends(get_current_user)):
+    if not ObjectId.is_valid(target_user_id):
+        raise HTTPException(status_code=400, detail="Invalid target_user_id")
     """Generate UPI deep link for payment"""
-    from bson import ObjectId
     from urllib.parse import quote
     
     target = await db.users.find_one({"_id": ObjectId(target_user_id)}, {"upi_id": 1, "name": 1})
@@ -202,7 +203,6 @@ async def generate_upi_pay_intent(target_user_id: str, amount: float, user_id: s
 @api_router.post("/split/settle")
 async def settle_payment(data: SettlePayment, user_id: str = Depends(get_current_user)):
     """Mark a split payment as settled"""
-    from bson import ObjectId
     
     settlement = {
         "payer_id": user_id,
@@ -245,7 +245,6 @@ async def settle_payment(data: SettlePayment, user_id: str = Depends(get_current
 @api_router.get("/split/settlements")
 async def get_settlements(user_id: str = Depends(get_current_user)):
     """Get payment settlement history"""
-    from bson import ObjectId
     
     settlements = await db.settlements.find({
         "$or": [{"payer_id": user_id}, {"payee_id": user_id}]
@@ -288,7 +287,6 @@ async def partial_settle(data: dict, user_id: str = Depends(get_current_user)):
     less than or equal to the remaining debt. Multiple partials accumulate into a single
     conceptual 'settlement_amount' that reduces the balance in /summary calculations.
     """
-    from bson import ObjectId
     target_user_id = data.get("target_user_id")
     amount = float(data.get("amount", 0))
     group_id = data.get("group_id")
@@ -382,7 +380,6 @@ async def partial_settle(data: dict, user_id: str = Depends(get_current_user)):
 @api_router.post("/split/settle-with-rewards")
 async def settle_with_rewards(data: SettlePayment, user_id: str = Depends(get_current_user)):
     """Settle payment and earn reward coins. Supports optional coin redemption via data.coins_to_use."""
-    from bson import ObjectId
 
     # Calculate reward tier
     reward = SETTLEMENT_REWARDS["on_time"]
@@ -460,7 +457,6 @@ async def settle_with_rewards(data: SettlePayment, user_id: str = Depends(get_cu
 @api_router.get("/split/settlement-leaderboard")
 async def settlement_leaderboard(user_id: str = Depends(get_current_user)):
     """Settlement speed leaderboard with rewards"""
-    from bson import ObjectId
 
     # Get all users with settlement data
     users = await db.users.find(
@@ -502,7 +498,6 @@ async def settlement_leaderboard(user_id: str = Depends(get_current_user)):
 @api_router.post("/split/redeem-coins")
 async def redeem_coins(data: dict, user_id: str = Depends(get_current_user)):
     """Redeem reward coins as cashback on next settlement"""
-    from bson import ObjectId
     coins_to_redeem = data.get("coins", 0)
     user = await db.users.find_one({"_id": ObjectId(user_id)})
     available = user.get("reward_coins", 0) if user else 0
@@ -656,7 +651,6 @@ async def get_my_reminders(user_id: str = Depends(get_current_user)):
 @api_router.post("/split/reminders/{reminder_id}/dismiss")
 async def dismiss_reminder(reminder_id: str, user_id: str = Depends(get_current_user)):
     """Dismiss a received reminder (mark as read)"""
-    from bson import ObjectId
     try:
         await db.split_reminders.update_one(
             {"_id": ObjectId(reminder_id), "recipient_id": user_id},
@@ -787,7 +781,6 @@ async def split_activity(limit: int = 15, user_id: str = Depends(get_current_use
       - 'Arjun added ₹300 for Lunch in Goa Trip' — 5h ago
       - 'You got ₹1,200 back from Anita 🎉' — yesterday
     """
-    from bson import ObjectId
     user = await db.users.find_one({"_id": ObjectId(user_id)}) or {}
     my_name = user.get("name", "You")
 
@@ -933,7 +926,6 @@ async def invite_to_settle(data: dict, user_id: str = Depends(get_current_user))
     Body: {target_user_id, target_name, target_phone (optional), amount, group_name (optional)}
     Returns: {upi_link, whatsapp_text, web_fallback, share_text}
     """
-    from bson import ObjectId
     target_name = data.get("target_name", "Friend")
     target_phone = (data.get("target_phone") or "").replace("+", "").replace(" ", "").replace("-", "")
     target_user_id = data.get("target_user_id")

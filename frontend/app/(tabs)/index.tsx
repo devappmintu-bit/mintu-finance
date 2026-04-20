@@ -11,6 +11,9 @@ import { useAuthStore } from '../../store/authStore';
 import { useLangStore } from '../../store/langStore';
 import { t } from '../../utils/i18n';
 import api from '../../utils/api';
+import { fetchCurrentUser, fetchAvatar, uploadAvatar } from '../../services/user';
+import { awardCoins } from '../../services/premium';
+import { fetchStatsOverview, fetchTransactions } from '../../services/transactions';
 import { COLORS, RADIUS, SPACING, CATEGORIES, SHADOW, shadowStyle } from '../../utils/theme';
 import PressableGlass from '../../components/PressableGlass';
 import { router, useFocusEffect } from 'expo-router';
@@ -101,7 +104,7 @@ export default function HomeScreen() {
           res.fresh.then((fresh) => { if (fresh) paint(fresh); }).catch(() => {});
         }
         // Side-effects — don't block UI
-        api.post('/coins/award', { action: 'open_app_daily' })
+        awardCoins('open_app_daily').then(data => ({ data }))
           .then((r) => { if (r?.data?.awarded > 0) setShowConfetti(true); })
           .catch(() => {});
         api.get(`/money-school/dynamic?lang=${lang}`)
@@ -118,10 +121,10 @@ export default function HomeScreen() {
       // ──── Legacy path (kept for graceful degradation) ────
       // Phase 1: Critical data (shown above the fold)
       const [profileRes, statsRes, txnRes, avatarRes, snapRes] = await Promise.all([
-        api.get('/user/me'),
-        api.get('/stats/overview'),
-        api.get('/transactions?limit=5'),
-        api.get('/user/avatar'),
+        fetchCurrentUser().then(data => ({ data })),
+        fetchStatsOverview().then(data => ({ data })),
+        fetchTransactions({ limit: 5 }).then(data => ({ data })),
+        fetchAvatar().then(data => ({ data })),
         api.get('/home/snapshot').catch(() => ({ data: null })),
       ]);
       setUser(profileRes.data);
@@ -144,7 +147,7 @@ export default function HomeScreen() {
             api.get('/referral/fomo-feed').catch(() => ({ data: { items: [] } })),
             api.get('/ai/predict').catch(() => ({ data: null })),
             api.get('/coins/status').catch(() => ({ data: null })),
-            api.post('/coins/award', { action: 'open_app_daily' }).catch(() => ({ data: null })),
+            awardCoins('open_app_daily').then(data => ({ data })).catch(() => ({ data: null })),
           ]);
           if (lessonRes.data) setDailyLesson(lessonRes.data);
           setSmartAlerts(alertsRes.data?.alerts || []);
@@ -224,7 +227,7 @@ export default function HomeScreen() {
       const b64 = `data:image/jpeg;base64,${result.assets[0].base64}`;
       setAvatar(b64);
       try {
-        await api.post('/user/avatar', { avatar: b64 });
+        await uploadAvatar(b64);
       } catch (e) { Alert.alert('Error', 'Could not upload photo'); }
     }
   };

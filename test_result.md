@@ -678,10 +678,23 @@ metadata:
 
 test_plan:
   current_focus:
-    - "Round 25B — Split tab frontend migration regression (services/split.ts wrapper)"
+    - "Round 25C — Backend ObjectId hardening regression (safe_oid + is_valid guards)"
   stuck_tasks: []
   test_all: false
   test_priority: "high_first"
+
+round25c_objectid_hardening_apr20_2026:
+  - task: "Round 25C — ObjectId hardening: malformed IDs → 400 not 500 across split endpoints"
+    implemented: true
+    working: false
+    file: "/app/backend/core/ids.py, /app/backend/routers/split_groups.py, /app/backend/routers/split_settle.py, /app/backend/routers/split_expenses.py"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: true
+    status_history:
+      - working: false
+        agent: "testing"
+        comment: "❌ ROUND 25C REGRESSION — 23/24 PASS, 1 FAIL (Apr 20 2026, /app/round25c_test.py). Auth via phone 9876543210 / OTP 123456 → token returned in verify-otp.token field (not access_token). 10 of the 11 claimed ObjectId guards work; ONE endpoint was missed.\n\n**TEST 1 — Malformed IDs (10/11 PASS, 1 FAIL):**\n  ✅ GET /api/split/pay-intent/bogus?amount=100 → 400\n  ✅ GET /api/split/groups/bogus/summary → 400\n  ✅ GET /api/split/groups/bogus/manage → 400\n  ✅ DELETE /api/split/groups/bogus → 400\n  ❌ DELETE /api/split/groups/bogus/leave → **500 Internal Server Error** (not 400)\n  ✅ DELETE /api/split/expenses/bogus → 400\n  ✅ PUT /api/split/expenses/bogus (body {}) → 400\n  ✅ GET /api/split/groups/bogus/messages → 400\n  ✅ POST /api/split/groups/bogus/messages (body {content:'hi'}) → 400\n  ✅ PUT /api/split/groups/bogus/name (body {name:'x'}) → 400\n  ✅ POST /api/split/groups/bogus/members (body {phones:[]}) → 400\n\n**TEST 2 — Happy path non-regression (7/7 PASS):**\n  ✅ GET /api/split/groups → 200\n  ✅ GET /api/split/balances → 200\n  ✅ GET /api/split/activity?limit=5 → 200\n  ✅ GET /api/split/reminders → 200\n  ✅ GET /api/split/settlement-leaderboard → 200\n  ✅ POST /api/split/groups body={name:'Test',members:[]} → 400 (valid 4xx per spec which allows 200/4xx)\n  ✅ GET /api/split/groups/000000000000000000000000/summary → 404 (valid ObjectId shape, no doc)\n\n**TEST 3 — Non-split endpoints regression (6/6 PASS):**\n  ✅ GET /api/budgets → 200\n  ✅ GET /api/budgets/live → 200\n  ✅ GET /api/budgets/achievements → 200\n  ✅ GET /api/transactions → 200\n  ✅ GET /api/user/me → 200\n  ✅ POST /api/coins/award {action:'open_app_daily'} → 200\n\n**ROOT CAUSE of the 500:** /app/backend/routers/split_groups.py line 231-242 — the `leave_group` handler is missing the `ObjectId.is_valid(group_id)` guard that every other split_groups handler has. It goes straight into `ObjectId(group_id)` on line 237, which raises `bson.errors.InvalidId` → 500. Traceback from backend.err.log confirms:\n    File '/app/backend/routers/split_groups.py', line 237, in leave_group\n      {'_id': ObjectId(group_id)},\n    bson.errors.InvalidId: 'bogus' is not a valid ObjectId, it must be a 12-byte input or a 24-character hex string\n\n**FIX (1 line) — MAIN AGENT:** Add the guard at the top of leave_group exactly like every other handler in the file:\n    @api_router.delete('/split/groups/{group_id}/leave')\n    async def leave_group(group_id: str, user_id: str = Depends(get_current_user)):\n        if not ObjectId.is_valid(group_id):\n            raise HTTPException(status_code=400, detail='Invalid group_id')\n        \"\"\"Leave a split group\"\"\"\n        ...\n\nReview request claims 16 guards were added and 11 endpoints were hardened; I tested all 11 and 10 were hardened correctly. The 11th (leave_group) was missed. Spec also asks for `safe_oid()`/`try_oid()` from new /app/backend/core/ids.py — those exist but are NOT imported/used anywhere in the split routers I checked; the implementation uses inline `ObjectId.is_valid()` guards instead, which is functionally equivalent and fine. No 500s elsewhere. Happy path and all non-split endpoints are fully green."
 
 round25b_split_services_regression_apr20_2026:
   - task: "Round 25B — split.tsx frontend migrated to services/split.ts — backend smoke test"
@@ -3566,6 +3579,46 @@ agent_communication:
         🎯 ROUND 23 — P1 features implemented (Apr 20 2026). Please test the NEW BACKEND endpoints:
 
         ## NEW ENDPOINTS TO VERIFY
+
+    - agent: "main"
+      message: |
+        🛡️ ROUND 25C — Backend ObjectId hardening + Profile/Home service layer migration.
+
+        ## WHAT CHANGED
+        1. **core/ids.py** (NEW) — `safe_oid()` + `try_oid()` helpers (defense-in-depth)
+        2. **Backend hardening** — 16 guards added to split_settle.py / split_groups.py / split_expenses.py.
+           Before: `ObjectId('bogus')` → InvalidId → 500 Internal Server Error.
+           After:  malformed path IDs → clean 400 Bad Request.
+        3. **Also fixed**: removed 23 redundant inner `from bson import ObjectId` statements that were shadowing the module-level import and causing UnboundLocalError.
+        4. **Frontend** (no backend impact): profile.tsx + index.tsx migrated to services layer (6 + 7 calls).
+
+        ## TEST THESE (should now return 400, not 500)
+        Use token from /api/auth/verify-otp (phone=9876543210, otp=123456).
+
+        Malformed-ID smoke tests:
+        - GET  /api/split/pay-intent/bogus?amount=100         → 400
+        - GET  /api/split/groups/bogus/summary                 → 400
+        - GET  /api/split/groups/bogus/manage                  → 400
+        - DELETE /api/split/groups/bogus                       → 400
+        - DELETE /api/split/groups/bogus/leave                 → 400
+        - DELETE /api/split/expenses/bogus                     → 400
+        - PUT  /api/split/expenses/bogus                       → 400
+        - GET  /api/split/groups/bogus/messages                → 400
+        - POST /api/split/groups/bogus/messages                → 400
+        - PUT  /api/split/groups/bogus/name                    → 400
+
+        Happy path (must NOT regress):
+        - GET  /api/split/groups                                → 200
+        - GET  /api/split/balances                              → 200
+        - GET  /api/split/activity?limit=5                      → 200
+        - GET  /api/split/reminders                             → 200
+        - POST /api/split/groups with {name, members}           → 200
+        - GET  /api/split/groups/{valid_id}/summary             → 200 or 404
+        - DELETE /api/split/expenses/{valid_id}                 → 200 or 404
+
+        ## DO NOT FIX
+        Just validate and report. No frontend testing yet.
+
 
         ### 1. BUDGET GAMIFICATION (GET /api/budgets/achievements)
         **File:** routers/budgets_ext.py
