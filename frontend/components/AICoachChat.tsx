@@ -24,6 +24,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import api from '../utils/api';
+import MintULogo from './MintULogo';
 import { useAuthStore } from '../store/authStore';
 import { useLangStore } from '../store/langStore';
 import { COLORS } from '../utils/theme';
@@ -236,7 +237,7 @@ export default function AICoachChat({ onClose }: { onClose: () => void }) {
     return (
       <View style={[s.msgRow, isUser ? s.msgRowUser : s.msgRowAi]}>
         {!isUser && (
-          <View style={s.aiAv}><Ionicons name="sparkles" size={13} color={COLORS.accent.primary} /></View>
+          <View style={s.aiAv}><MintULogo size={22} /></View>
         )}
         <View style={{ maxWidth: '80%' }}>
           {!isUser && item.agent && !item.loading && (
@@ -260,7 +261,7 @@ export default function AICoachChat({ onClose }: { onClose: () => void }) {
   return (
     <SafeAreaView style={s.container}>
       <View style={s.header}>
-        <View style={s.headerIcon}><Ionicons name="sparkles" size={18} color={COLORS.accent.primary} /></View>
+        <View style={s.headerIcon}><MintULogo size={34} /></View>
         <View style={{ flex: 1 }}>
           <Text style={s.headerTitle}>AI Coach</Text>
           <Text style={s.headerSub}>
@@ -355,7 +356,7 @@ export default function AICoachChat({ onClose }: { onClose: () => void }) {
 const s = StyleSheet.create({
   container: { flex: 1, backgroundColor: COLORS.bg.primary },
   header: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingHorizontal: 16, paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: COLORS.border.subtle },
-  headerIcon: { width: 36, height: 36, borderRadius: 18, backgroundColor: COLORS.accent.primary + '12', justifyContent: 'center', alignItems: 'center' },
+  headerIcon: { width: 40, height: 40, borderRadius: 20, backgroundColor: 'transparent', justifyContent: 'center', alignItems: 'center' },
   headerTitle: { fontSize: 17, fontWeight: '800', color: COLORS.text.primary },
   headerSub: { fontSize: 11, color: COLORS.text.muted, marginTop: 1 },
   closeBtn: { width: 36, height: 36, borderRadius: 18, backgroundColor: COLORS.bg.card, justifyContent: 'center', alignItems: 'center' },

@@ -25,6 +25,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import * as Haptics from 'expo-haptics';
+import MintULogo from '../components/MintULogo';
 import api from '../utils/api';
 import { useAuthStore } from '../store/authStore';
 import {
@@ -172,7 +173,7 @@ export default function UnlockScreen() {
       {/* ─── Top bar ─── */}
       <View style={s.topBar}>
         <View style={s.brandRow}>
-          <View style={s.brandDot} />
+          <MintULogo size={26} />
           <Text style={s.brandName}>MINTU</Text>
         </View>
         <View style={s.secBadge}>
