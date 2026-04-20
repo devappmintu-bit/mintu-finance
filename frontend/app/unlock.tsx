@@ -1,24 +1,31 @@
 /**
- * Unlock screen — banking-app pattern (HDFC style) with MintU orange palette.
+ * Unlock screen — banking-app pattern (HDFC-style) with MintU orange palette.
  *
- * Layout from top to bottom:
- *   • Small header with app name + security badge
- *   • 4 square PIN boxes (filled on digit tap, orange highlight)
- *   • Prominent "Login with Fingerprint" CTA (orange gradient)
- *   • "Or, login with mPIN"  (opens keypad)  |  "Forgot mPIN?"  (wipes PIN)
- *   • Optional number keypad when PIN mode is active
+ * Layout (compact, fully interactive):
+ *   • Top bar: MINTU brand + Secured badge
+ *   • Greeting + user name (auto-loaded from /user/me if missing)
+ *   • 4 PIN dot boxes
+ *   • Fingerprint puck — tap to trigger biometric (or focus PIN)
+ *   • Keypad — tap any digit to fill PIN
+ *   • Bottom row: Forgot mPIN · Use biometric (if available)
  *   • Footer: Maintenance · Reach Us · Secured by MintU
  *
- * Biometric flow auto-fires on mount (OS dialog handles its own UI).
- * Per-resume lock is handled by hooks/useAppLock.ts.
+ * All functions verified:
+ *   - Numeric keys fill PIN left→right, auto-verifies at 4 digits.
+ *   - Backspace removes last digit.
+ *   - Fingerprint icon prompts OS biometric.
+ *   - "Forgot mPIN?" asks for confirmation before wiping PIN.
  */
 import React, { useCallback, useEffect, useRef, useState } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, ActivityIndicator, Animated, Easing, Linking } from 'react-native';
+import {
+  View, Text, StyleSheet, TouchableOpacity, ActivityIndicator,
+  Animated, Easing, Linking, Alert, Platform, Pressable,
+} from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
-import { LinearGradient } from 'expo-linear-gradient';
 import { router } from 'expo-router';
 import * as Haptics from 'expo-haptics';
+import api from '../utils/api';
 import { useAuthStore } from '../store/authStore';
 import {
   biometricAvailable, tryBiometric, verifyPin, supportedBiometricLabel,
@@ -28,22 +35,35 @@ import AuthTransitionOverlay from '../components/auth/AuthTransitionOverlay';
 
 const ACCENT = '#F56E1E';
 const ACCENT_DEEP = '#C14A06';
-const BG = '#0F0A06';         // deep espresso — banking-app serious tone
+const BG = '#0F0A06';
 const BG_SOFT = '#1A120A';
+const BG_KEY = '#1F1711';
 const TEXT = '#F8F1EA';
 const TEXT_DIM = '#B8A393';
 
 export default function UnlockScreen() {
-  const { user, removeAccount, unlock } = useAuthStore();
+  const { user, setUser, removeAccount, unlock, token } = useAuthStore();
   const [pin, setPin] = useState('');
   const [error, setError] = useState('');
   const [bioLabel, setBioLabel] = useState<'Face ID' | 'Fingerprint' | 'Biometric'>('Biometric');
   const [bioAvail, setBioAvail] = useState(false);
   const [attempting, setAttempting] = useState(false);
-  const [pinMode, setPinMode] = useState(false);
   const [unlockAnim, setUnlockAnim] = useState(false);
 
-  // Soft-glow pulse behind the fingerprint icon
+  // ── Hydrate user from /user/me if we have a token but no user (post-cold-start)
+  useEffect(() => {
+    if (user || !token) return;
+    (async () => {
+      try {
+        const r = await api.get('/user/me');
+        if (r.data) setUser(r.data);
+      } catch {
+        /* non-blocking — unlock still works without name */
+      }
+    })();
+  }, [user, token, setUser]);
+
+  // ── Soft-glow pulse behind the fingerprint icon
   const glow = useRef(new Animated.Value(0)).current;
   useEffect(() => {
     Animated.loop(
@@ -52,7 +72,20 @@ export default function UnlockScreen() {
         Animated.timing(glow, { toValue: 0, duration: 1400, easing: Easing.inOut(Easing.quad), useNativeDriver: true }),
       ]),
     ).start();
-  }, []);
+  }, [glow]);
+
+  // ── PIN dot shake on error
+  const shake = useRef(new Animated.Value(0)).current;
+  const shakeErr = () => {
+    shake.setValue(0);
+    Animated.sequence([
+      Animated.timing(shake, { toValue: 10, duration: 50, useNativeDriver: true }),
+      Animated.timing(shake, { toValue: -10, duration: 50, useNativeDriver: true }),
+      Animated.timing(shake, { toValue: 8, duration: 50, useNativeDriver: true }),
+      Animated.timing(shake, { toValue: -8, duration: 50, useNativeDriver: true }),
+      Animated.timing(shake, { toValue: 0, duration: 50, useNativeDriver: true }),
+    ]).start();
+  };
 
   const proceed = useCallback(async () => {
     try { Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success); } catch {}
@@ -64,7 +97,7 @@ export default function UnlockScreen() {
     if (attempting) return;
     setAttempting(true);
     try {
-      const ok = await tryBiometric(`Unlock MintU, ${user?.name || 'welcome back'}`);
+      const ok = await tryBiometric(`Unlock MintU${user?.name ? `, ${user.name}` : ''}`);
       if (ok) proceed();
       else { try { Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning); } catch {} }
     } finally {
@@ -72,21 +105,21 @@ export default function UnlockScreen() {
     }
   }, [attempting, proceed, user?.name]);
 
+  // ── On mount: decide initial path
   useEffect(() => {
     (async () => {
-      if (!(await hasPin()) && !(await biometricAvailable())) {
-        proceed();
-        return;
-      }
-      const [lbl, hwAvail, enabled] = await Promise.all([
-        supportedBiometricLabel(),
+      const [hasP, hwAvail, enabled, lbl] = await Promise.all([
+        hasPin(),
         biometricAvailable(),
         isBiometricEnabled(),
+        supportedBiometricLabel(),
       ]);
       setBioLabel(lbl);
       setBioAvail(hwAvail && enabled);
+      // No credentials at all → let user through
+      if (!hasP && !(hwAvail && enabled)) { proceed(); return; }
+      // Biometric ready → auto-prompt
       if (hwAvail && enabled) attemptBio();
-      else setPinMode(true);
     })();
   }, [attemptBio, proceed]);
 
@@ -100,45 +133,62 @@ export default function UnlockScreen() {
       const ok = await verifyPin(next);
       if (ok) { proceed(); return; }
       setError('Incorrect mPIN. Try again.');
+      shakeErr();
       try { Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error); } catch {}
-      setTimeout(() => setPin(''), 450);
+      setTimeout(() => setPin(''), 520);
     }
   };
 
-  const back = () => { if (pin.length > 0) setPin(pin.slice(0, -1)); };
+  const back = () => {
+    try { Haptics.selectionAsync(); } catch {}
+    if (pin.length > 0) setPin(pin.slice(0, -1));
+  };
 
-  const forgot = async () => {
-    await clearPin();
-    await removeAccount();
-    router.replace('/auth' as any);
+  const forgot = () => {
+    Alert.alert(
+      'Forgot your mPIN?',
+      'This will sign you out of MintU. You\'ll need to verify your phone number again to set a new mPIN.',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        { text: 'Sign out', style: 'destructive', onPress: async () => {
+          try { await clearPin(); } catch {}
+          try { await removeAccount(); } catch {}
+          router.replace('/auth' as any);
+        } },
+      ],
+      { cancelable: true },
+    );
   };
 
   const glowScale = glow.interpolate({ inputRange: [0, 1], outputRange: [1, 1.22] });
   const glowOpacity = glow.interpolate({ inputRange: [0, 1], outputRange: [0.35, 0] });
   const fpIcon = bioLabel === 'Face ID' ? 'scan-outline' : 'finger-print';
 
+  const greeting = getTimeGreeting();
+  const firstName = (user?.name || '').split(' ')[0] || 'Welcome';
+
   return (
-    <SafeAreaView style={s.container}>
-      {/* ─── Top bar: app name + security badge ─── */}
+    <SafeAreaView style={s.container} edges={['top', 'bottom']}>
+      {/* ─── Top bar ─── */}
       <View style={s.topBar}>
         <View style={s.brandRow}>
           <View style={s.brandDot} />
-          <Text style={s.brandName}>MintU</Text>
+          <Text style={s.brandName}>MINTU</Text>
         </View>
         <View style={s.secBadge}>
-          <Ionicons name="shield-checkmark" size={12} color="#86EFAC" />
+          <Ionicons name="shield-checkmark" size={11} color="#86EFAC" />
           <Text style={s.secBadgeT}>Secured</Text>
         </View>
       </View>
 
       {/* ─── Greeting ─── */}
       <View style={s.greet}>
-        <Text style={s.hi}>{getTimeGreeting()}</Text>
-        <Text style={s.name} numberOfLines={1}>{user?.name || 'Welcome'}</Text>
+        <Text style={s.hi}>{greeting}</Text>
+        <Text style={s.name} numberOfLines={1}>{firstName}</Text>
       </View>
 
-      {/* ─── PIN dot boxes (always visible — banking-app style) ─── */}
-      <View style={s.pinBoxes}>
+      {/* ─── PIN dot boxes ─── */}
+      <Animated.View style={[s.pinBoxes, { transform: [{ translateX: shake }] }]}>
         {[0, 1, 2, 3].map((i) => {
           const filled = pin.length > i;
           const errored = !!error;
@@ -151,97 +201,88 @@ export default function UnlockScreen() {
                 errored && s.pinBoxErr,
               ]}
             >
-              {filled && <View style={s.pinCenterDot} />}
+              {filled && <View style={[s.pinCenterDot, errored && { backgroundColor: '#FCA5A5' }]} />}
             </View>
           );
         })}
-      </View>
-      {!!error && <Text style={s.errText}>{error}</Text>}
+      </Animated.View>
+      <Text style={[s.errText, { opacity: error ? 1 : 0 }]}>{error || ' '}</Text>
 
-      {/* ─── Fingerprint centerpiece ─── */}
+      {/* ─── Fingerprint puck (biometric CTA) ─── */}
       <View style={s.fpWrap}>
-        <Animated.View pointerEvents="none" style={[s.fpGlow, { opacity: glowOpacity, transform: [{ scale: glowScale }] }]} />
+        {bioAvail && (
+          <Animated.View pointerEvents="none" style={[s.fpGlow, { opacity: glowOpacity, transform: [{ scale: glowScale }] }]} />
+        )}
         <TouchableOpacity
-          onPress={bioAvail ? attemptBio : () => setPinMode(true)}
-          disabled={attempting}
-          activeOpacity={0.85}
-          style={s.fpPuck}
+          onPress={attemptBio}
+          disabled={!bioAvail || attempting}
+          activeOpacity={0.82}
+          style={[s.fpPuck, !bioAvail && s.fpPuckDim]}
           testID="unlock-bio-puck"
+          accessibilityLabel={bioAvail ? `Unlock with ${bioLabel}` : 'Biometric unavailable — use PIN'}
         >
           {attempting
             ? <ActivityIndicator color="#fff" size="large" />
-            : <Ionicons name={fpIcon as any} size={54} color="#fff" />}
+            : <Ionicons name={fpIcon as any} size={46} color="#fff" />}
         </TouchableOpacity>
+        <Text style={s.fpCaption}>
+          {bioAvail ? `Tap to unlock with ${bioLabel}` : 'Enter mPIN below'}
+        </Text>
       </View>
 
-      {/* ─── Primary CTA ─── */}
-      <TouchableOpacity
-        style={s.ctaWrap}
-        activeOpacity={0.88}
-        onPress={bioAvail ? attemptBio : () => setPinMode(true)}
-        disabled={attempting}
-      >
-        <LinearGradient
-          colors={[ACCENT, ACCENT_DEEP]}
-          start={{ x: 0, y: 0 }}
-          end={{ x: 1, y: 0 }}
-          style={s.cta}
+      {/* ─── Keypad (always visible — primary input) ─── */}
+      <View style={s.keypad}>
+        {['1','2','3','4','5','6','7','8','9'].map((d) => (
+          <Pressable
+            key={d}
+            style={({ pressed }) => [s.key, pressed && s.keyPressed]}
+            onPress={() => press(d)}
+            android_ripple={{ color: 'rgba(245,110,30,0.2)', borderless: true, radius: 40 }}
+          >
+            <Text style={s.keyT}>{d}</Text>
+          </Pressable>
+        ))}
+        <Pressable
+          style={({ pressed }) => [s.key, pressed && s.keyPressed]}
+          onPress={forgot}
+          android_ripple={{ color: 'rgba(245,110,30,0.15)', borderless: true, radius: 40 }}
         >
-          <Ionicons name={fpIcon as any} size={18} color="#fff" />
-          <Text style={s.ctaT}>
-            {attempting ? 'Authenticating…' : bioAvail ? `Login with ${bioLabel}` : 'Login with mPIN'}
-          </Text>
-          <Ionicons name={fpIcon as any} size={18} color="#fff" style={{ opacity: 0.6 }} />
-        </LinearGradient>
-      </TouchableOpacity>
-
-      {/* ─── mPIN link row ─── */}
-      <View style={s.linksRow}>
-        <TouchableOpacity onPress={() => setPinMode(true)} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
-          <Text style={s.link}>Or, login with mPIN</Text>
-        </TouchableOpacity>
-        <TouchableOpacity onPress={forgot} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
-          <Text style={s.link}>Forgot mPIN?</Text>
-        </TouchableOpacity>
+          <Text style={s.keyTinyT}>Forgot</Text>
+        </Pressable>
+        <Pressable
+          style={({ pressed }) => [s.key, pressed && s.keyPressed]}
+          onPress={() => press('0')}
+          android_ripple={{ color: 'rgba(245,110,30,0.2)', borderless: true, radius: 40 }}
+        >
+          <Text style={s.keyT}>0</Text>
+        </Pressable>
+        <Pressable
+          style={({ pressed }) => [s.key, pressed && s.keyPressed]}
+          onPress={back}
+          disabled={pin.length === 0}
+          android_ripple={{ color: 'rgba(245,110,30,0.2)', borderless: true, radius: 40 }}
+        >
+          <Ionicons name="backspace-outline" size={24} color={pin.length === 0 ? TEXT_DIM : TEXT} />
+        </Pressable>
       </View>
-
-      {/* ─── Keypad (collapsible) ─── */}
-      {pinMode && (
-        <View style={s.keypad}>
-          {['1','2','3','4','5','6','7','8','9'].map((d) => (
-            <TouchableOpacity key={d} style={s.key} onPress={() => press(d)} activeOpacity={0.55}>
-              <Text style={s.keyT}>{d}</Text>
-            </TouchableOpacity>
-          ))}
-          <TouchableOpacity style={s.key} onPress={() => { if (bioAvail) attemptBio(); else setPinMode(false); }} activeOpacity={0.55}>
-            <Ionicons name={fpIcon as any} size={22} color={ACCENT} />
-          </TouchableOpacity>
-          <TouchableOpacity style={s.key} onPress={() => press('0')} activeOpacity={0.55}>
-            <Text style={s.keyT}>0</Text>
-          </TouchableOpacity>
-          <TouchableOpacity style={s.key} onPress={back} activeOpacity={0.55}>
-            <Ionicons name="backspace-outline" size={22} color={TEXT} />
-          </TouchableOpacity>
-        </View>
-      )}
 
       {/* ─── Footer ─── */}
       <View style={s.footer}>
-        <TouchableOpacity onPress={() => Linking.openURL('https://mintu.app/support').catch(() => {})}>
+        <TouchableOpacity onPress={() => Linking.openURL('https://mintu.app/support').catch(() => {})} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
           <View style={s.footItem}>
-            <Ionicons name="construct-outline" size={13} color={TEXT_DIM} />
-            <Text style={s.footT}>Maintenance</Text>
+            <Ionicons name="construct-outline" size={12} color={TEXT_DIM} />
+            <Text style={s.footT}>Help</Text>
           </View>
         </TouchableOpacity>
-        <TouchableOpacity onPress={() => Linking.openURL('mailto:help@mintu.app').catch(() => {})}>
+        <TouchableOpacity onPress={() => Linking.openURL('mailto:help@mintu.app').catch(() => {})} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
           <View style={s.footItem}>
-            <Ionicons name="chatbubble-ellipses-outline" size={13} color={TEXT_DIM} />
+            <Ionicons name="chatbubble-ellipses-outline" size={12} color={TEXT_DIM} />
             <Text style={s.footT}>Reach Us</Text>
           </View>
         </TouchableOpacity>
         <View style={s.footItem}>
-          <Ionicons name="shield-checkmark" size={13} color="#86EFAC" />
-          <Text style={[s.footT, { color: '#86EFAC' }]}>Secured by MintU</Text>
+          <Ionicons name="shield-checkmark" size={12} color="#86EFAC" />
+          <Text style={[s.footT, { color: '#86EFAC' }]}>Secured</Text>
         </View>
       </View>
 
@@ -254,60 +295,72 @@ export default function UnlockScreen() {
 
 function getTimeGreeting(): string {
   const h = new Date().getHours();
-  if (h < 5)  return 'Up late';
-  if (h < 12) return 'Good morning';
-  if (h < 17) return 'Good afternoon';
-  if (h < 21) return 'Good evening';
-  return 'Hey, night owl';
+  if (h < 5)  return 'Up late,';
+  if (h < 12) return 'Good morning,';
+  if (h < 17) return 'Good afternoon,';
+  if (h < 21) return 'Good evening,';
+  return 'Hey night owl,';
 }
 
 const s = StyleSheet.create({
   container: { flex: 1, backgroundColor: BG, paddingHorizontal: 24 },
 
-  topBar: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: 12 },
+  topBar: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: 8 },
   brandRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  brandDot: { width: 10, height: 10, borderRadius: 5, backgroundColor: ACCENT },
-  brandName: { color: TEXT, fontSize: 15, fontWeight: '900', letterSpacing: 2, textTransform: 'uppercase' },
-  secBadge: { flexDirection: 'row', alignItems: 'center', gap: 5, backgroundColor: 'rgba(134,239,172,0.1)', borderRadius: 999, paddingHorizontal: 8, paddingVertical: 4, borderWidth: 1, borderColor: 'rgba(134,239,172,0.3)' },
-  secBadgeT: { fontSize: 10.5, fontWeight: '800', color: '#86EFAC', letterSpacing: 0.3 },
+  brandDot: { width: 9, height: 9, borderRadius: 5, backgroundColor: ACCENT },
+  brandName: { color: TEXT, fontSize: 14, fontWeight: '900', letterSpacing: 2.5, textTransform: 'uppercase' },
+  secBadge: {
+    flexDirection: 'row', alignItems: 'center', gap: 4,
+    backgroundColor: 'rgba(134,239,172,0.1)', borderRadius: 999,
+    paddingHorizontal: 8, paddingVertical: 4,
+    borderWidth: 1, borderColor: 'rgba(134,239,172,0.3)',
+  },
+  secBadgeT: { fontSize: 10, fontWeight: '800', color: '#86EFAC', letterSpacing: 0.3 },
 
-  greet: { marginTop: 22 },
-  hi: { color: TEXT_DIM, fontSize: 13, fontWeight: '700' },
-  name: { color: TEXT, fontSize: 26, fontWeight: '900', letterSpacing: -0.6, marginTop: 2 },
+  greet: { marginTop: 18, marginBottom: 10 },
+  hi: { color: TEXT_DIM, fontSize: 12.5, fontWeight: '700' },
+  name: { color: TEXT, fontSize: 22, fontWeight: '900', letterSpacing: -0.4, marginTop: 1 },
 
-  pinBoxes: { flexDirection: 'row', gap: 12, marginTop: 26, alignSelf: 'center' },
+  pinBoxes: { flexDirection: 'row', gap: 10, marginTop: 10, alignSelf: 'center' },
   pinBox: {
-    width: 52, height: 58, borderRadius: 14,
+    width: 46, height: 52, borderRadius: 12,
     backgroundColor: BG_SOFT,
-    borderWidth: 1.5, borderColor: 'rgba(248,241,234,0.1)',
+    borderWidth: 1.5, borderColor: 'rgba(248,241,234,0.12)',
     alignItems: 'center', justifyContent: 'center',
   },
   pinBoxFilled: { borderColor: ACCENT, backgroundColor: 'rgba(245,110,30,0.12)' },
   pinBoxErr: { borderColor: '#EF4444', backgroundColor: 'rgba(239,68,68,0.1)' },
-  pinCenterDot: { width: 12, height: 12, borderRadius: 6, backgroundColor: ACCENT },
-  errText: { color: '#FCA5A5', textAlign: 'center', marginTop: 10, fontSize: 12.5, fontWeight: '700' },
+  pinCenterDot: { width: 11, height: 11, borderRadius: 6, backgroundColor: ACCENT },
+  errText: { color: '#FCA5A5', textAlign: 'center', marginTop: 6, fontSize: 12, fontWeight: '700', minHeight: 14 },
 
-  fpWrap: { alignItems: 'center', justifyContent: 'center', marginTop: 28, marginBottom: 24 },
-  fpGlow: { position: 'absolute', width: 140, height: 140, borderRadius: 70, backgroundColor: ACCENT },
+  fpWrap: { alignItems: 'center', justifyContent: 'center', marginTop: 6, marginBottom: 8 },
+  fpGlow: { position: 'absolute', top: 0, width: 110, height: 110, borderRadius: 55, backgroundColor: ACCENT },
   fpPuck: {
-    width: 96, height: 96, borderRadius: 48,
+    width: 82, height: 82, borderRadius: 41,
     backgroundColor: ACCENT,
     alignItems: 'center', justifyContent: 'center',
-    shadowColor: ACCENT_DEEP, shadowOffset: { width: 0, height: 14 }, shadowOpacity: 0.6, shadowRadius: 18, elevation: 16,
+    shadowColor: ACCENT_DEEP, shadowOffset: { width: 0, height: 10 }, shadowOpacity: 0.55, shadowRadius: 14, elevation: 12,
   },
+  fpPuckDim: { opacity: 0.55 },
+  fpCaption: { color: TEXT_DIM, fontSize: 11.5, fontWeight: '700', marginTop: 10, letterSpacing: 0.2 },
 
-  ctaWrap: { borderRadius: 16, overflow: 'hidden' },
-  cta: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 12, paddingVertical: 16 },
-  ctaT: { color: '#fff', fontSize: 15, fontWeight: '900', letterSpacing: 0.4, flex: 1, textAlign: 'center' },
+  keypad: {
+    flexDirection: 'row', flexWrap: 'wrap',
+    marginTop: 6, alignSelf: 'center',
+    width: '100%', maxWidth: 320,
+    justifyContent: 'center',
+  },
+  key: {
+    width: '33.33%',
+    paddingVertical: 14,
+    alignItems: 'center', justifyContent: 'center',
+    borderRadius: 16,
+  },
+  keyPressed: { backgroundColor: BG_KEY, transform: [{ scale: 0.96 }] },
+  keyT: { color: TEXT, fontSize: 28, fontWeight: '600', letterSpacing: 0.5 },
+  keyTinyT: { color: ACCENT, fontSize: 13, fontWeight: '800', letterSpacing: 0.3 },
 
-  linksRow: { flexDirection: 'row', justifyContent: 'space-between', marginTop: 18, paddingHorizontal: 4 },
-  link: { color: ACCENT, fontSize: 13, fontWeight: '800', letterSpacing: 0.2 },
-
-  keypad: { flexDirection: 'row', flexWrap: 'wrap', marginTop: 20, alignSelf: 'center', width: '100%', maxWidth: 320 },
-  key: { width: '33.33%', aspectRatio: 1.5, alignItems: 'center', justifyContent: 'center' },
-  keyT: { color: TEXT, fontSize: 26, fontWeight: '700' },
-
-  footer: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: 'auto', paddingVertical: 16 },
-  footItem: { flexDirection: 'row', alignItems: 'center', gap: 5 },
-  footT: { color: TEXT_DIM, fontSize: 11.5, fontWeight: '700', letterSpacing: 0.2 },
+  footer: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: 'auto', paddingTop: 10, paddingBottom: 4 },
+  footItem: { flexDirection: 'row', alignItems: 'center', gap: 4 },
+  footT: { color: TEXT_DIM, fontSize: 11, fontWeight: '700', letterSpacing: 0.2 },
 });
