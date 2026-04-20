@@ -73,15 +73,20 @@ function MintUTabBar({ state, navigation, onPressCenter }: BottomTabBarProps & {
 
   return (
     <View style={st.wrap} pointerEvents="box-none">
-      {/* Raised center card — MintU app icon on an ivory tile so the green-bars icon stays clearly visible */}
+      {/* Raised center puck — outer saffron glow → white ring → dark card (Kiwi style) */}
       <TouchableOpacity
         testID="tab-ai-coach"
         onPress={onPressCenter}
         activeOpacity={0.88}
         style={st.raisedWrap}
+        accessibilityLabel="Open AI Coach"
       >
-        <View style={st.raisedCard}>
-          <MintULogo size={58} />
+        <View style={st.raisedOuterRing}>
+          <View style={st.raisedMidRing}>
+            <View style={st.raisedCard}>
+              <MintULogo size={52} />
+            </View>
+          </View>
         </View>
       </TouchableOpacity>
 
@@ -104,11 +109,8 @@ function MintUTabBar({ state, navigation, onPressCenter }: BottomTabBarProps & {
             );
           })}
         </View>
-        {/* Spacer under the raised card — houses the AI Coach label aligned to row */}
-        <TouchableOpacity style={st.pillCenterSpace} onPress={onPressCenter} activeOpacity={0.7}>
-          <View style={{ height: 38 }} />
-          <Text style={st.centerLabel} numberOfLines={1}>AI Coach</Text>
-        </TouchableOpacity>
+        {/* Spacer under the raised puck — empty (label removed; puck speaks for itself) */}
+        <View style={st.pillCenterSpace} />
         <View style={st.pillSide}>
           {right.map((route) => {
             const focused = state.index === state.routes.findIndex(r => r.key === route.key);
@@ -159,82 +161,99 @@ export default function TabLayout() {
   );
 }
 
-const RAISED_SIZE = 72;
+const RAISED_SIZE = 64;
 
 const st = StyleSheet.create({
+  // Outer wrap — transparent container that positions the floating pill + raised puck
   wrap: {
     position: 'absolute', left: 0, right: 0, bottom: 0,
-    height: 120,
+    height: 112,
     alignItems: 'center',
     justifyContent: 'flex-end',
-    paddingBottom: Platform.OS === 'ios' ? 18 : 10,
-    paddingHorizontal: 12,
+    paddingBottom: Platform.OS === 'ios' ? 24 : 14,
+    paddingHorizontal: 18,            // Kiwi-style: pill floats with margin from screen edges
     backgroundColor: 'transparent',
   },
+
+  // Pill container — floating white capsule, doesn't touch screen edges.
   pill: {
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: '#FFFFFF',
-    borderRadius: 32,
-    paddingHorizontal: 8,
-    paddingVertical: 10,
-    width: '100%',
+    borderRadius: 34,                 // fully rounded pill
+    paddingHorizontal: 10,
+    paddingVertical: 8,
+    width: '100%',                    // fills wrap which has paddingHorizontal:18
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: '#F1E7DB',
     ...Platform.select({
-      ios: { shadowColor: '#0F172A', shadowOpacity: 0.12, shadowRadius: 18, shadowOffset: { width: 0, height: 6 } },
-      android: { elevation: 10 },
-      web: { boxShadow: '0 6px 20px rgba(15,23,42,0.1)' as any },
+      ios:     { shadowColor: '#0F172A', shadowOpacity: 0.14, shadowRadius: 22, shadowOffset: { width: 0, height: 10 } },
+      android: { elevation: 14 },
+      web:     { boxShadow: '0 10px 28px rgba(15,23,42,0.14)' as any },
     }),
   },
-  pillSide: {
-    flex: 1,
-    flexDirection: 'row',
-    justifyContent: 'space-around',
-  },
-  pillCenterSpace: { width: RAISED_SIZE + 8, alignItems: 'center', justifyContent: 'flex-end' },
-  centerLabel: { fontSize: 11, color: COLORS.accent.primary, fontWeight: '800', marginTop: 4, textAlign: 'center' },
+  pillSide: { flex: 1, flexDirection: 'row', justifyContent: 'space-around' },
+  pillCenterSpace: { width: RAISED_SIZE + 8, alignItems: 'center', justifyContent: 'center', paddingVertical: 6 },
+  centerLabel: { fontSize: 11, color: COLORS.accent.primary, fontWeight: '800', marginTop: 2, textAlign: 'center' },
   sideTab: { alignItems: 'center', flex: 1, paddingVertical: 2 },
   sideIconCircle: {
-    width: 38, height: 38, borderRadius: 19,
-    backgroundColor: '#F5F6F8',
+    width: 36, height: 36, borderRadius: 18,
+    backgroundColor: '#F7F3EE',
     alignItems: 'center', justifyContent: 'center',
   },
   sideIconCircleOn: {
     backgroundColor: COLORS.accent.primary,
   },
-  sideLabel: { fontSize: 11, color: '#6B7280', marginTop: 4, fontWeight: '600' },
+  sideLabel: { fontSize: 10.5, color: '#6B7280', marginTop: 3, fontWeight: '600' },
   sideLabelOn: { color: COLORS.accent.primary, fontWeight: '800' },
 
-  // Raised card — floats above the pill; ivory background lets the green icon POP.
+  // ── Raised center puck (Kiwi style) ─────────────────────────────────────
+  // Sits ABOVE the pill with clear gap. Has an outer saffron glow ring +
+  // white mid-ring + inner warm tile so the MintU mascot pops.
   raisedWrap: {
     position: 'absolute',
-    top: 0,
+    // Lift the puck so ~60% of it sits above the pill. Pill top edge ≈ 70px from bottom.
+    bottom: (Platform.OS === 'ios' ? 24 : 14) + 54,
     left: '50%',
-    marginLeft: -(RAISED_SIZE / 2),
-    width: RAISED_SIZE,
+    marginLeft: -(RAISED_SIZE / 2) - 6,   // -6 to offset the 6px outer ring
+    width: RAISED_SIZE + 12,
     alignItems: 'center',
-    zIndex: 10,
+    zIndex: 20,
   },
+  // Outer neon-style ring — saffron gradient glow that makes the puck read at any distance
+  raisedOuterRing: {
+    width: RAISED_SIZE + 12,
+    height: RAISED_SIZE + 12,
+    borderRadius: (RAISED_SIZE + 12) / 2,
+    backgroundColor: COLORS.accent.primary,
+    alignItems: 'center',
+    justifyContent: 'center',
+    ...Platform.select({
+      ios:     { shadowColor: COLORS.accent.primary, shadowOpacity: 0.55, shadowRadius: 16, shadowOffset: { width: 0, height: 6 } },
+      android: { elevation: 18 },
+      web:     { boxShadow: '0 8px 22px rgba(230,81,0,0.45)' as any },
+    }),
+  },
+  // White mid-ring — creates the crisp "neon glow + punch-out" effect
+  raisedMidRing: {
+    width: RAISED_SIZE + 6,
+    height: RAISED_SIZE + 6,
+    borderRadius: (RAISED_SIZE + 6) / 2,
+    backgroundColor: '#FFFFFF',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  // Inner card — dark charcoal tile (Kiwi pattern) so the saffron mascot glows against it
   raisedCard: {
     width: RAISED_SIZE,
     height: RAISED_SIZE,
-    borderRadius: 22,
+    borderRadius: RAISED_SIZE / 2,
     alignItems: 'center',
     justifyContent: 'center',
-    borderWidth: 2,
-    borderColor: '#FFFFFF',
-    backgroundColor: '#FFFFFF', // clean white — lets the green icon breathe without any tinted halo
-    // Neutral depth shadow only — no saffron glow per design ask
-    ...Platform.select({
-      ios: { shadowColor: '#0F172A', shadowOpacity: 0.12, shadowRadius: 10, shadowOffset: { width: 0, height: 4 } },
-      android: { elevation: 8 },
-      web: { boxShadow: '0 6px 16px rgba(15,23,42,0.1)' as any },
-    }),
+    backgroundColor: '#0F0A06',       // deep espresso — lets the orange mascot POP
   },
   raisedLabel: {
-    fontSize: 10,
-    fontWeight: '800',
-    color: COLORS.accent.primary,
-    marginTop: 4,
-    letterSpacing: 0.3,
+    fontSize: 10, fontWeight: '800', color: COLORS.accent.primary,
+    marginTop: 4, letterSpacing: 0.3,
   },
 });
