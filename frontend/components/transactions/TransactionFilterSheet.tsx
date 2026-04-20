@@ -40,6 +40,7 @@ const SOURCE_OPTS = [
   { id: 'cash', label: 'Cash', icon: 'cash' },
   { id: 'wallet', label: 'Wallet', icon: 'wallet' },
   { id: 'bank', label: 'Bank Transfer', icon: 'business' },
+  { id: 'gmail', label: 'Gmail auto-import', icon: 'mail' },
 ];
 
 const TYPE_OPTS: { id: TxnFilter['type']; label: string; icon: string }[] = [

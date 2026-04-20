@@ -25,6 +25,7 @@ import TransactionFilterSheet, { DEFAULT_FILTER, TxnFilter, applyFilterToList, f
 const TxnRow = memo(function TxnRow({ item, lang, onEdit, onDelete }: { item: any; lang: string; onEdit: (t: any) => void; onDelete: (id: string) => void }) {
   const cat = CATEGORIES[item.category] || CATEGORIES.Other;
   const isCash = item.source === 'cash' || item.source === 'cash_recurring';
+  const isGmail = item.source === 'gmail';
   return (
     <SwipeableRow
       onDelete={() => onDelete(item.id)}
@@ -35,7 +36,15 @@ const TxnRow = memo(function TxnRow({ item, lang, onEdit, onDelete }: { item: an
           <Ionicons name={cat.icon as any} size={20} color={cat.color} />
         </View>
         <View style={styles.txnInfo}>
-          <Text style={styles.txnDesc} numberOfLines={1}>{item.description}</Text>
+          <View style={styles.txnDescRow}>
+            <Text style={styles.txnDesc} numberOfLines={1}>{item.description}</Text>
+            {isGmail && (
+              <View style={styles.gmailBadge}>
+                <Ionicons name="mail" size={9} color="#C14A06" style={{ marginRight: 3 }} />
+                <Text style={styles.gmailBadgeText}>Gmail</Text>
+              </View>
+            )}
+          </View>
           <View style={styles.txnMetaRow}>
             <Text style={styles.txnMeta} numberOfLines={1}>{item.category} · {format(new Date(item.date), 'MMM dd')}</Text>
             {isCash && <View style={styles.cashBadge}><Text style={styles.cashBadgeText}>{t('cash', lang)}</Text></View>}
@@ -465,7 +474,10 @@ const styles = StyleSheet.create({
   txnCard: { flexDirection: 'row', alignItems: 'center', backgroundColor: 'rgba(255,255,255,0.9)', borderRadius: 20, padding: SPACING.lg, marginBottom: 10, borderWidth: 1, borderColor: 'rgba(255,255,255,0.6)', ...SHADOW.sm },
   txnIcon: { width: 44, height: 44, borderRadius: 16, justifyContent: 'center', alignItems: 'center', marginRight: SPACING.md },
   txnInfo: { flex: 1 },
-  txnDesc: { fontSize: 15, fontWeight: '600', color: COLORS.text.primary },
+  txnDesc: { fontSize: 15, fontWeight: '600', color: COLORS.text.primary, flex: 1 },
+  txnDescRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  gmailBadge: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#FFF7ED', borderColor: '#FED7AA', borderWidth: 1, paddingHorizontal: 6, paddingVertical: 2, borderRadius: 6 },
+  gmailBadgeText: { fontSize: 9, fontWeight: '800', color: '#C14A06', letterSpacing: 0.3 },
   txnMetaRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 3 },
   txnMeta: { fontSize: 12, color: COLORS.text.muted },
   cashBadge: { backgroundColor: COLORS.accent.warning + '20', paddingHorizontal: 8, paddingVertical: 2, borderRadius: 6 },
