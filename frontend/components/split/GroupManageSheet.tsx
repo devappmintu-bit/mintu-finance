@@ -6,12 +6,25 @@
 //   4. Members list (with remove action)
 //   5. Danger zone (leave · delete) — visually separated red block
 import React, { useMemo, useState } from 'react';
-import { View, Text, StyleSheet, Modal, ScrollView, TouchableOpacity, TextInput, Alert, Share } from 'react-native';
+import { View, Text, StyleSheet, Modal, ScrollView, TouchableOpacity, TextInput, Alert, Share, Platform } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import Toast from 'react-native-toast-message';
 import { COLORS } from '../../utils/theme';
 import { C, MEMBER_COLORS } from './theme';
+
+// Cross-platform confirmation — native Alert is unreliable on react-native-web.
+function confirmThen(title: string, msg: string, onYes: () => void, yesLabel = 'Confirm', destructive = false) {
+  if (Platform.OS === 'web') {
+    // eslint-disable-next-line no-alert
+    if (typeof window !== 'undefined' && window.confirm(`${title}\n\n${msg}`)) onYes();
+    return;
+  }
+  Alert.alert(title, msg, [
+    { text: 'Cancel', style: 'cancel' },
+    { text: yesLabel, style: destructive ? 'destructive' : 'default', onPress: onYes },
+  ]);
+}
 
 type Props = {
   visible: boolean;
@@ -54,24 +67,15 @@ export default function GroupManageSheet({ visible, onClose, manage, currentUser
   };
 
   const handleRemove = (mid: string, name: string) => {
-    Alert.alert('Remove member?', `${name} will lose access to this group's expenses.`, [
-      { text: 'Cancel', style: 'cancel' },
-      { text: 'Remove', style: 'destructive', onPress: () => onRemoveMember(mid) },
-    ]);
+    confirmThen('Remove member?', `${name} will lose access to this group's expenses.`, () => onRemoveMember(mid), 'Remove', true);
   };
 
   const handleDelete = () => {
-    Alert.alert('Delete group?', 'This permanently deletes all expenses. This cannot be undone.', [
-      { text: 'Cancel', style: 'cancel' },
-      { text: 'Delete', style: 'destructive', onPress: onDelete },
-    ]);
+    confirmThen('Delete group?', 'This permanently deletes all expenses. This cannot be undone.', onDelete, 'Delete', true);
   };
 
   const handleLeave = () => {
-    Alert.alert('Leave group?', 'You will stop seeing new expenses here.', [
-      { text: 'Cancel', style: 'cancel' },
-      { text: 'Leave', style: 'destructive', onPress: onLeave },
-    ]);
+    confirmThen('Leave group?', 'You will stop seeing new expenses here.', onLeave, 'Leave', true);
   };
 
   return (

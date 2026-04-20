@@ -46,12 +46,13 @@ _FALLBACK = [
 def _enrich_article(a: dict) -> dict:
     """Attach a `source_url` pointing to authentic articles about the topic.
 
-    Strategy (rolled back to simpler, more reliable approach):
-      1. Keep LLM-provided https URL if plausibly valid.
-      2. Otherwise, search Google News for the article's exact TITLE — this
-         gives the user real, topically-matching articles from the outlet
-         (or the next most authoritative source) without us guessing at
-         fragile deep-link URLs that break whenever outlets re-slug.
+    Priority:
+      1. Keep LLM-provided https URL when plausibly valid (direct article link).
+      2. If the `source` is a known Indian outlet (Moneycontrol / ET / Mint /
+         BusinessLine etc.) search that outlet directly so the link lands on
+         their own published article.
+      3. Otherwise fall back to a Google News topic-search scoped to India —
+         which itself resolves to legitimate outlet articles.
     """
     if not isinstance(a, dict):
         return a
@@ -61,8 +62,35 @@ def _enrich_article(a: dict) -> dict:
     import urllib.parse as up
     title = (a.get("title") or "").strip()
     src = (a.get("source") or "").strip()
-    q = up.quote_plus(f"{title} {src}".strip() or src)
-    # Google News search — lands on a curated list of REAL articles on this exact topic.
+    src_low = src.lower()
+
+    # Outlet-direct search URLs — land the user on the outlet's own article list
+    # for this exact story. These search endpoints are stable and public.
+    outlet_search = {
+        "moneycontrol": "https://www.moneycontrol.com/news/tags/{q}.html",
+        "economic times": "https://economictimes.indiatimes.com/topic/{q}",
+        "et": "https://economictimes.indiatimes.com/topic/{q}",
+        "mint": "https://www.livemint.com/Search/Link/Keyword/{q}",
+        "livemint": "https://www.livemint.com/Search/Link/Keyword/{q}",
+        "business standard": "https://www.business-standard.com/search?q={q}",
+        "businessline": "https://www.thehindubusinessline.com/search/?q={q}",
+        "ndtv profit": "https://www.ndtvprofit.com/search?searchText={q}",
+        "zee business": "https://www.zeebiz.com/search?search_string={q}",
+        "cnbc tv18": "https://www.cnbctv18.com/search/?q={q}",
+        "bloomberg quint": "https://www.ndtvprofit.com/search?searchText={q}",
+        "rbi": "https://www.rbi.org.in/scripts/BS_PressReleaseDisplay.aspx",
+        "nse": "https://www.nseindia.com/",
+        "pib": "https://pib.gov.in/SearchResult.aspx?KW={q}",
+        "npci": "https://www.npci.org.in/what-we-do",
+        "amfi": "https://www.amfiindia.com/",
+        "sebi": "https://www.sebi.gov.in/",
+    }
+    q = up.quote_plus(title or src)
+    for key, tpl in outlet_search.items():
+        if key in src_low:
+            return {**a, "source_url": tpl.replace("{q}", q)}
+
+    # Fallback — Google News topic search scoped to India English.
     url = f"https://news.google.com/search?q={q}&hl=en-IN&gl=IN&ceid=IN:en"
     return {**a, "source_url": url}
 

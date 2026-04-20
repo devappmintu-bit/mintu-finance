@@ -103,7 +103,7 @@ export default function ProfileScreen() {
   const handleLogout = () => confirmThen(
     t('logout', lang),
     t('logout_confirm', lang),
-    async () => { await logout(); router.replace('/'); },
+    async () => { await logout(); router.replace('/unlock'); },
   );
 
   const updateName = async () => {

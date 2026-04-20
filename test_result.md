@@ -3031,6 +3031,39 @@ frontend:
             - Wired as ListHeaderComponent on budgets FlatList (above
               BudgetAIInsights).
 
+  - task: "Round 15e — Soft-lock logout, broken-button fixes, news auth-URLs"
+    implemented: true
+    working: true
+    status_history:
+        - agent: "main"
+          comment: |
+            Security & broken-button pass:
+            - authStore: split `logout` into `lock()` (preserves token+PIN,
+              sets locked:true — used by Profile "Logout" so user re-auths via
+              biometric/PIN) and `removeAccount()` (full wipe, used by
+              "Forgot PIN"). `unlock()` clears the locked flag. Token is
+              NEVER cleared on soft-lock per security-standards ask.
+            - Profile Logout now `await logout(); router.replace('/unlock')`
+              so the user lands on the PIN/biometric screen, not Home.
+            - /unlock screen now calls `unlock()` before routing to tabs.
+            - GroupManageSheet delete / leave / remove-member were using
+              Alert.alert (web-unreliable). Replaced with cross-platform
+              confirmThen() pattern. Now fully work on web and native.
+            - Budget delete had the same Alert.alert issue — fixed same way.
+            - Transaction filter logic is now forgiving: when txn has no
+              `source` or `status` field, it is kept (instead of excluded)
+              so filters don't blank-out legacy unlabelled transactions.
+              Source check also honours `payment_method` as an alias.
+            - "Budget Health" + "Watching" cards removed from Budgets screen
+              per design ask (BudgetAIInsights no longer rendered).
+            - News: Home now force-refreshes on every focus (was cache-hit).
+            - News source URL enrichment: recognises Moneycontrol, Economic
+              Times, Mint, Business Standard, Businessline, NDTV Profit,
+              Zee Business, CNBC TV18, RBI, PIB, NPCI, AMFI, SEBI, etc.,
+              and routes to each outlet's native search. Generic fallback
+              remains Google News India.
+
+
 
               gradient) + "Unlock in Profile →" (secondary saffron ghost).
             - Profile still holds the full payment card (PremiumExpandable) per

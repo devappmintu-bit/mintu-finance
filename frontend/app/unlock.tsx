@@ -14,7 +14,7 @@ import { biometricAvailable, tryBiometric, verifyPin, supportedBiometricLabel, h
 import MintULogo from '../components/MintULogo';
 
 export default function UnlockScreen() {
-  const { user, logout } = useAuthStore();
+  const { user, removeAccount, unlock } = useAuthStore();
   const { lang } = useLangStore();
   const [pin, setPin] = useState('');
   const [error, setError] = useState('');
@@ -22,7 +22,10 @@ export default function UnlockScreen() {
   const [bioAvail, setBioAvail] = useState(false);
   const [attempting, setAttempting] = useState(false);
 
-  const proceed = useCallback(() => router.replace('/(tabs)'), []);
+  const proceed = useCallback(async () => {
+    await unlock();
+    router.replace('/(tabs)');
+  }, [unlock]);
 
   const attemptBio = useCallback(async () => {
     if (attempting) return;
@@ -69,7 +72,7 @@ export default function UnlockScreen() {
 
   const forgot = async () => {
     await clearPin();
-    logout();
+    await removeAccount();
     router.replace('/auth');
   };
 

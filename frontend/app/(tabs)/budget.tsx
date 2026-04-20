@@ -10,7 +10,6 @@ import api from '../../utils/api';
 import { COLORS, RADIUS, SPACING, CATEGORIES, CATEGORY_LIST, SHADOW } from '../../utils/theme';
 import PressableGlass from '../../components/PressableGlass';
 import SwipeableRow from '../../components/SwipeableRow';
-import BudgetAIInsights from '../../components/budget/BudgetAIInsights';
 import BudgetSummaryDonut from '../../components/budget/BudgetSummaryDonut';
 import { useLangStore } from '../../store/langStore';
 import { t } from '../../utils/i18n';
@@ -93,9 +92,8 @@ export default function BudgetScreen() {
     } catch { Toast.show({ type: 'error', text1: t('error', lang), text2: t('failed_save', lang) }); fetchAll(); }
   };
 
-  const handleDelete = (id: string, cat: string) => Alert.alert(t('delete', lang) + '?', t('remove_budget', lang, { cat }), [
-    { text: t('cancel', lang), style: 'cancel' },
-    { text: t('delete', lang), style: 'destructive', onPress: async () => {
+  const handleDelete = (id: string, cat: string) => {
+    const doDelete = async () => {
       // Optimistic delete
       const prev = budgets;
       setBudgets(curr => curr.filter(b => b.id !== id));
@@ -107,8 +105,17 @@ export default function BudgetScreen() {
         setBudgets(prev);
         Toast.show({ type: 'error', text1: t('error', lang) });
       }
-    } },
-  ]);
+    };
+    if (Platform.OS === 'web') {
+      // eslint-disable-next-line no-alert
+      if (typeof window !== 'undefined' && window.confirm(`${t('delete', lang)}?\n\n${t('remove_budget', lang, { cat })}`)) doDelete();
+      return;
+    }
+    Alert.alert(t('delete', lang) + '?', t('remove_budget', lang, { cat }), [
+      { text: t('cancel', lang), style: 'cancel' },
+      { text: t('delete', lang), style: 'destructive', onPress: doDelete },
+    ]);
+  };
 
   const totalBudget = budgets.reduce((s, b) => s + (b.amount || 0), 0);
   const totalSpent = budgets.reduce((s, b) => s + (b.spent || 0), 0);
@@ -187,10 +194,9 @@ export default function BudgetScreen() {
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={COLORS.accent.primary} />}
         ListHeaderComponent={
           <>
-            {/* Donut chart + legend */}
+            {/* Donut chart + legend — primary summary per design ask.
+                "Budget Health" + "Watching" cards were removed. */}
             <BudgetSummaryDonut budgets={budgets} />
-            {/* Graphical, personalised AI insights strip */}
-            <BudgetAIInsights budgets={budgets} />
             {/* Summary */}
             {budgets.length > 0 && (
               <View style={s.summaryRow}>

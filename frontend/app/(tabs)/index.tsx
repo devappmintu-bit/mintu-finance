@@ -144,11 +144,12 @@ export default function HomeScreen() {
     }
   }, []);
 
-  // Re-fetch news every time Home gains focus (covers tab switches & deep re-entry).
-  // Cheap because backend cache returns in ~100ms; keeps "today's news" truly today's.
+  // Re-fetch news every time Home gains focus — with force refresh so the
+  // content is truly fresh on every screen entry, not just cached. The
+  // backend refresh path is fast and falls back to cache on failure.
   useFocusEffect(
     useCallback(() => {
-      fetchNews(false);
+      fetchNews(true);
     }, [fetchNews])
   );
 

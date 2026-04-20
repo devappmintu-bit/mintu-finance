@@ -182,7 +182,7 @@ function Chip({ label, active, onPress, icon }: { label: string; active?: boolea
 }
 
 // ── helper exported for the parent screen ────────────────────────────
-export function applyFilterToList<T extends { date: string | Date; type?: string; source?: string; status?: string }>(
+export function applyFilterToList<T extends { date: string | Date; type?: string; source?: string; status?: string; payment_method?: string }>(
   list: T[], f: TxnFilter
 ): T[] {
   if (!list || list.length === 0) return list;
@@ -199,8 +199,18 @@ export function applyFilterToList<T extends { date: string | Date; type?: string
     const d = typeof t.date === 'string' ? new Date(t.date) : t.date;
     if (!inRange(d)) return false;
     if (f.type !== 'all' && t.type !== f.type) return false;
-    if (f.sources.length > 0 && !f.sources.includes((t.source || '').toLowerCase())) return false;
-    if (f.status !== 'all' && (t.status || 'success').toLowerCase() !== f.status) return false;
+    if (f.sources.length > 0) {
+      // Accept either `source` or `payment_method`; skip the check when the
+      // transaction has no source tag (legacy/unlabelled) so the user still
+      // sees them instead of an empty screen.
+      const src = String(t.source || t.payment_method || '').toLowerCase();
+      if (src && !f.sources.includes(src)) return false;
+    }
+    if (f.status !== 'all') {
+      // Default-assume 'success' for legacy txns that don't carry a status.
+      const st = String(t.status || 'success').toLowerCase();
+      if (st !== f.status) return false;
+    }
     return true;
   });
 }
