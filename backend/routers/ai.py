@@ -8,5 +8,9 @@ Actual endpoint definitions now live in:
 Importing these modules registers their routes on the shared APIRouter.
 """
 from routers.ai_common import router, api_router  # noqa: F401
-from routers import ai_insights  # noqa: F401
-from routers import ai_coach     # noqa: F401
+from routers import ai_insights     # noqa: F401
+from routers import ai_waste        # noqa: F401 — extracted in Round 26
+from routers import ai_money_school # noqa: F401 — extracted in Round 26
+from routers import ai_coach        # noqa: F401 — /ai/chat + /ai/memory + /ai/agents
+from routers import ai_voice        # noqa: F401 — /voice/transcribe (Round 26)
+from routers import ai_agent        # noqa: F401 — /ai/agent-chat (Round 26)
