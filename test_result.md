@@ -669,11 +669,28 @@ metadata:
 
 test_plan:
   current_focus:
+    - "Round 19 Budget Phase-2 — AI insights endpoint + auto-apply"
     - "Round 18 Budget Phase-1 frontend UX overhaul"
     - "Round 17 Razorpay real payments + coin discount — Apr 20 2026"
   stuck_tasks: []
   test_all: false
   test_priority: "high_first"
+
+round19_budget_ai_apr20_2026:
+  - task: "Round 19 — /api/budgets/ai-insights/{category} + /api/budgets/ai-apply/{category}"
+    implemented: true
+    working: true
+    file: "/app/backend/routers/budgets_ext.py"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+      - working: "NA"
+        agent: "main"
+        comment: "NEW Phase-2 endpoints — deterministic (no LLM) pattern-mining over the user's last 60 days. GET /api/budgets/ai-insights/{category} returns {category, tags, tips, auto_apply, stats}. POST /api/budgets/ai-apply/{category} executes 'adjust_budget' (upserts budget) or 'enable_alert' (upserts into budget_alerts). Test empty-data, populated, apply both actions, unknown action, auth."
+      - working: true
+        agent: "testing"
+        comment: "✅ ROUND 19 BUDGET PHASE-2 AI INSIGHTS — ALL 42/42 ASSERTIONS PASSED (Apr 20 2026, /app/backend_test.py). Zero 500s. Auth via phone 9876543210 / OTP 123456 → token returned in verify-otp.token field.\n\n(T1) GET /api/budgets/ai-insights/NoData (no txns) → 200 ✅. Response shape matches empty-data branch: {category:'NoData', tags:[{label:'No data yet', tone:'neutral'}], tips:[{text:'Track NoData expenses for a week to unlock insights', save:0}], auto_apply:[]}. All 6 shape assertions pass (category, tags non-empty list, tips non-empty list, auto_apply is list, first tag has label+tone).\n\n(T2) Setup Food budget ₹3000 + 6 Food debit txns over last 60 days (mix of hour>=21 for night_pct + Saturday for weekend_pct) → GET /api/budgets/ai-insights/Food → 200 ✅. Validated: category=='Food' ✅, tags=[{label:'75% spending after 9 PM',tone:'info'},{label:'Up 83% vs last month',tone:'danger'},{label:'Risk zone',tone:'danger'}] — each has label(str)+tone(str) ✅, tips non-empty with text+numeric save ✅, auto_apply contains both adjust_budget and enable_alert entries ✅, enable_alert payload={threshold:0.8} ✅. Stats: txn_count_60d=6 ✅, monthly_avg=1625.0 ✅, night_pct=67 ✅, weekend_pct=33 ✅, delta_pct=83 ✅. All 15 T2 assertions pass.\n\n(T3) POST /api/budgets/ai-apply/Food {action:'adjust_budget', payload:{amount:2500}} → 200 {ok:true, applied:'adjust_budget', new_amount:2500.0} ✅. GET /api/budgets confirms Food row amount==2500.0 ✅. All 7 T3 assertions pass.\n\n(T4) POST /api/budgets/ai-apply/Food {action:'enable_alert', payload:{threshold:0.75}} → 200 {ok:true, applied:'enable_alert', threshold:0.75} ✅. db.budget_alerts upserted (verified via shape). All 4 T4 assertions pass.\n\n(T5) POST /api/budgets/ai-apply/Food {action:'unknown_xyz'} → 200 {ok:false, error:'unknown_action'} ✅. All 3 T5 assertions pass.\n\n(T6) GET /api/budgets/ai-insights/Food without bearer → 422 (missing required Authorization header — acceptable per spec 'accept 401 or 422') ✅.\n\n(T7) Regression — all 4 endpoints 200: GET /api/budgets/live ✅, GET /api/budgets/smart-suggest ✅, GET /api/premium/status ✅, GET /api/gmail/status ✅.\n\n(T8) Cleanup — Food budget + 6 tracked Food txns deleted; user state clean for next run ✅.\n\nBackend logs during the run show expected access patterns (OTP → GET/POST budgets/transactions → GET ai-insights → POST ai-apply → regression GETs → DELETEs). All return 200 as expected. Round 19 is PRODUCTION-READY. Pattern-mining logic correctly tags behaviour (night-heavy, month-over-month delta, risk zone), generates contextual tips (skip food delivery, 24h cooling-off, etc.), and emits valid auto_apply actions."
 
 round18_budget_phase1_apr20_2026:
   - task: "Round 18 — Budget /live enriched with burn_rate, days_left, projected_spend/over + per-budget periods; smart-suggest upper cap"

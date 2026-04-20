@@ -12,6 +12,8 @@ import { COLORS, RADIUS, SPACING, CATEGORIES, CATEGORY_LIST, SHADOW } from '../.
 import PressableGlass from '../../components/PressableGlass';
 import BudgetCard from '../../components/budget/BudgetCard';
 import DeleteBudgetSheet from '../../components/budget/DeleteBudgetSheet';
+import BudgetInsightsSheet from '../../components/budget/BudgetInsightsSheet';
+import BudgetShareCard from '../../components/budget/BudgetShareCard';
 import BudgetSummaryDonut from '../../components/budget/BudgetSummaryDonut';
 import { useLangStore } from '../../store/langStore';
 import { t } from '../../utils/i18n';
@@ -33,6 +35,10 @@ export default function BudgetScreen() {
   // Phase-1: delete confirmation + undo buffer
   const [deleteTarget, setDeleteTarget] = useState<any>(null);
   const lastDeletedRef = useRef<any>(null);
+  // Phase-2: AI insights + share
+  const [insightsCat, setInsightsCat] = useState<string | null>(null);
+  const [sharing, setSharing] = useState(false);
+  const shareRef = useRef<View>(null);
 
   const fetchAll = useCallback(async () => {
     try {
@@ -155,8 +161,46 @@ export default function BudgetScreen() {
       onEdit={() => openEdit(item)}
       onDelete={() => requestDelete(item)}
       onAddExpense={() => addExpenseShortcut(item)}
+      onInsights={() => setInsightsCat(item.category)}
     />
   );
+
+  const shareBudgetSnapshot = async () => {
+    if (budgets.length === 0) {
+      Toast.show({ type: 'info', text1: 'Create a budget first 📊' });
+      return;
+    }
+    setSharing(true);
+    try {
+      // Find top over-category
+      const overBudgets = budgets.filter((b: any) => (b.spent || 0) > (b.amount || 0));
+      const topOver = overBudgets.sort((a: any, b: any) => ((b.spent || 0) - (b.amount || 0)) - ((a.spent || 0) - (a.amount || 0)))[0];
+      (shareRef as any).currentSummary = {
+        total_budgeted: totalBudget,
+        total_spent: totalSpent,
+        top_over_category: topOver?.category,
+        top_over_amount: topOver ? (topOver.spent - topOver.amount) : 0,
+        month_label: new Date().toLocaleDateString('en-IN', { month: 'long', year: 'numeric' }),
+      };
+      // Give React a tick to render the card, then capture.
+      await new Promise((r) => setTimeout(r, 120));
+      const [{ captureRef }, Sharing] = await Promise.all([
+        import('react-native-view-shot'),
+        import('expo-sharing'),
+      ]);
+      const uri = await captureRef(shareRef as any, { format: 'png', quality: 1.0, result: 'tmpfile' });
+      const available = await Sharing.isAvailableAsync();
+      if (available) {
+        await Sharing.shareAsync(uri, { dialogTitle: 'Share budget snapshot' });
+      } else if (Platform.OS === 'web' && (navigator as any)?.share) {
+        await (navigator as any).share({ title: 'MintU', url: uri });
+      } else {
+        Toast.show({ type: 'info', text1: 'Snapshot ready', text2: 'Share API not available here' });
+      }
+    } catch (e: any) {
+      Toast.show({ type: 'error', text1: 'Could not share', text2: e?.message || '' });
+    } finally { setSharing(false); }
+  };
 
   if (loading) return <SafeAreaView style={s.bg}><BudgetSkeleton /></SafeAreaView>;
 
@@ -167,9 +211,14 @@ export default function BudgetScreen() {
           <Text style={s.title}>{t('budgets', lang)}</Text>
           <Text style={s.sub}>{budgets.length} {t('active', lang)}</Text>
         </View>
-        <PressableGlass style={s.addBtn} onPress={openAdd} feedback="medium">
-          <Ionicons name="add" size={22} color="#fff" />
-        </PressableGlass>
+        <View style={{ flexDirection: 'row', gap: 8 }}>
+          <TouchableOpacity style={s.shareBtn} onPress={shareBudgetSnapshot} disabled={sharing} activeOpacity={0.85} accessibilityLabel="Share budget snapshot">
+            {sharing ? <ActivityIndicator color="#F56E1E" size="small" /> : <Ionicons name="share-social-outline" size={20} color="#F56E1E" />}
+          </TouchableOpacity>
+          <PressableGlass style={s.addBtn} onPress={openAdd} feedback="medium">
+            <Ionicons name="add" size={22} color="#fff" />
+          </PressableGlass>
+        </View>
       </View>
 
       <FlatList
@@ -324,6 +373,31 @@ export default function BudgetScreen() {
         onCancel={() => setDeleteTarget(null)}
         onConfirm={confirmDelete}
       />
+
+      <BudgetInsightsSheet
+        visible={!!insightsCat}
+        category={insightsCat}
+        onClose={() => setInsightsCat(null)}
+        onApplied={fetchAll}
+      />
+
+      {/* Off-screen share card — 1×1 overflow:hidden wrapper keeps it out of
+          view while still being in the layout tree so `captureRef` can snapshot it. */}
+      <View style={s.offscreen} pointerEvents="none" aria-hidden>
+        <BudgetShareCard
+          ref={shareRef as any}
+          summary={{
+            total_budgeted: totalBudget,
+            total_spent: totalSpent,
+            top_over_category: budgets.find((b: any) => (b.spent || 0) > (b.amount || 0))?.category,
+            top_over_amount: (() => {
+              const o = budgets.find((b: any) => (b.spent || 0) > (b.amount || 0));
+              return o ? (o.spent - o.amount) : 0;
+            })(),
+            month_label: new Date().toLocaleDateString('en-IN', { month: 'long', year: 'numeric' }),
+          }}
+        />
+      </View>
     </SafeAreaView>
   );
 }
@@ -334,6 +408,8 @@ const s = StyleSheet.create({
   title: { fontSize: 28, fontWeight: '800', color: COLORS.text.primary },
   sub: { fontSize: 13, color: COLORS.text.muted },
   addBtn: { width: 44, height: 44, borderRadius: 22, backgroundColor: COLORS.accent.primary, justifyContent: 'center', alignItems: 'center', ...SHADOW.md },
+  shareBtn: { width: 44, height: 44, borderRadius: 22, backgroundColor: '#FFF7ED', justifyContent: 'center', alignItems: 'center', borderWidth: 1, borderColor: '#FED7AA' },
+  offscreen: { position: 'absolute', top: -99999, left: -99999, width: 360, opacity: 0 },
   list: { padding: SPACING.lg, paddingBottom: 140 },
   // Summary
   summaryRow: { flexDirection: 'row', gap: 8, marginBottom: SPACING.lg },

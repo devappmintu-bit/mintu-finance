@@ -18,6 +18,7 @@ import React, { memo, useEffect, useRef, useState } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Animated, Platform, Easing } from 'react-native';
 import { Swipeable, RectButton } from 'react-native-gesture-handler';
 import { Ionicons } from '@expo/vector-icons';
+import { LinearGradient } from 'expo-linear-gradient';
 import * as Haptics from 'expo-haptics';
 import { CATEGORIES } from '../../utils/theme';
 
@@ -26,11 +27,12 @@ type Props = {
   onEdit: () => void;
   onDelete: () => void;
   onAddExpense: () => void;
+  onInsights?: () => void;  // Phase 2 — long-press / 🧠 button to open AI insights
 };
 
 function formatINR(n: number) { return `₹${Math.round(n).toLocaleString('en-IN')}`; }
 
-const BudgetCard = memo(function BudgetCard({ item, onEdit, onDelete, onAddExpense }: Props) {
+const BudgetCard = memo(function BudgetCard({ item, onEdit, onDelete, onAddExpense, onInsights }: Props) {
   const limit = Number(item.amount ?? item.budget ?? 0);
   const spent = Number(item.spent ?? 0);
   const pct = limit > 0 ? Math.min(100, (spent / limit) * 100) : 0;
@@ -103,12 +105,17 @@ const BudgetCard = memo(function BudgetCard({ item, onEdit, onDelete, onAddExpen
   if (Platform.OS === 'web') {
     return (
       <Animated.View style={[s.card, { backgroundColor: bgTint, borderColor: statusColor + '33', transform: [{ scale: pulse }, { translateX }] }]}>
-        <TouchableOpacity style={s.cardBody} activeOpacity={0.85} onPress={tap(onEdit)}>
+        <TouchableOpacity style={s.cardBody} activeOpacity={0.85} onPress={tap(onEdit)} onLongPress={onInsights ? tap(onInsights, Haptics.ImpactFeedbackStyle.Medium) : undefined} delayLongPress={350}>
           <CardContent item={item} emoji={emoji} catColor={cat.color} statusColor={statusColor}
             limit={limit} spent={spent} pct={pct} over={over} remaining={remaining}
             burnRate={burnRate} daysLeft={daysLeft} projectedOver={projectedOver} projectedSpend={projectedSpend}
             fillAnim={fillAnim} isOver={isOver} isWarn={isWarn} isRisk={isRisk} status={status} />
         </TouchableOpacity>
+        {onInsights && (
+          <TouchableOpacity style={s.aiBtn} onPress={tap(onInsights, Haptics.ImpactFeedbackStyle.Medium)} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
+            <Text style={{ fontSize: 14 }}>🧠</Text>
+          </TouchableOpacity>
+        )}
         <TouchableOpacity style={s.dotsBtn} onPress={() => setMenuOpen(v => !v)} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
           <Ionicons name="ellipsis-horizontal" size={16} color="#6B7280" />
         </TouchableOpacity>
@@ -178,12 +185,17 @@ const BudgetCard = memo(function BudgetCard({ item, onEdit, onDelete, onAddExpen
       onSwipeableWillOpen={() => { try { Haptics.selectionAsync(); } catch {} }}
     >
       <Animated.View style={[s.card, { backgroundColor: bgTint, borderColor: statusColor + '33', transform: [{ scale: pulse }, { translateX }] }]}>
-        <TouchableOpacity style={s.cardBody} activeOpacity={0.9} onPress={tap(onEdit)}>
+        <TouchableOpacity style={s.cardBody} activeOpacity={0.9} onPress={tap(onEdit)} onLongPress={onInsights ? tap(onInsights, Haptics.ImpactFeedbackStyle.Medium) : undefined} delayLongPress={350}>
           <CardContent item={item} emoji={emoji} catColor={cat.color} statusColor={statusColor}
             limit={limit} spent={spent} pct={pct} over={over} remaining={remaining}
             burnRate={burnRate} daysLeft={daysLeft} projectedOver={projectedOver} projectedSpend={projectedSpend}
             fillAnim={fillAnim} isOver={isOver} isWarn={isWarn} isRisk={isRisk} status={status} />
         </TouchableOpacity>
+        {onInsights && (
+          <TouchableOpacity style={s.aiBtn} onPress={tap(onInsights, Haptics.ImpactFeedbackStyle.Medium)} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
+            <Text style={{ fontSize: 14 }}>🧠</Text>
+          </TouchableOpacity>
+        )}
       </Animated.View>
     </Swipeable>
   );
@@ -211,9 +223,16 @@ function CardContent({ item, emoji, catColor, statusColor, limit, spent, pct, ov
         </View>
       </View>
 
-      {/* Animated gradient-ish fill */}
+      {/* Animated gradient fill — glassy soft-UI */}
       <View style={s.track}>
-        <Animated.View style={[s.fill, { width: fillWidth, backgroundColor: statusColor }]} />
+        <Animated.View style={[s.fill, { width: fillWidth }]}>
+          <LinearGradient
+            colors={[statusColor, statusColor + 'AA']}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 0 }}
+            style={{ flex: 1, borderRadius: 4 }}
+          />
+        </Animated.View>
       </View>
 
       <View style={s.row2}>
@@ -293,6 +312,7 @@ const s = StyleSheet.create({
   actTxt: { color: '#fff', fontSize: 11, fontWeight: '800', marginTop: 3 },
 
   dotsBtn: { position: 'absolute', top: 10, right: 10, width: 28, height: 28, borderRadius: 14, backgroundColor: 'rgba(255,255,255,0.85)', alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: '#E5E7EB' },
+  aiBtn: { position: 'absolute', top: 10, right: 44, width: 28, height: 28, borderRadius: 14, backgroundColor: '#FFF7ED', alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: '#FED7AA' },
   menu: { position: 'absolute', top: 42, right: 8, backgroundColor: '#fff', borderRadius: 12, paddingVertical: 6, paddingHorizontal: 4, borderWidth: 1, borderColor: '#E5E7EB', zIndex: 10, minWidth: 130, shadowColor: '#000', shadowOffset: { width: 0, height: 8 }, shadowOpacity: 0.1, shadowRadius: 14, elevation: 10 },
   menuItem: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingHorizontal: 10, paddingVertical: 8, borderRadius: 8 },
   menuT: { fontSize: 13, fontWeight: '700' },

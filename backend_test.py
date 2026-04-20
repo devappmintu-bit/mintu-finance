@@ -1,456 +1,306 @@
-"""Round 18 Budget Phase-1 backend tests.
+"""Round 19 — Budget Phase-2 AI Insights endpoints test.
 
-Tests /api/budgets/live, /api/budgets/smart-suggest cap, and regression endpoints
-against the live preview backend.
+Tests the new endpoints in /app/backend/routers/budgets_ext.py:
+  - GET /api/budgets/ai-insights/{category}
+  - POST /api/budgets/ai-apply/{category}
+
+Auth: Phone 9876543210 / OTP 123456 (mock). Token field is `token`.
 """
 import os
-import sys
 import json
 import time
-import calendar
-from datetime import datetime, timedelta, timezone
-from typing import Any, Dict, List, Optional
+from datetime import datetime, timedelta
+from typing import Optional
 
 import requests
 
-BASE_URL = "https://mintu-finance.preview.emergentagent.com/api"
+BASE = os.environ.get("BACKEND_URL", "https://mintu-finance.preview.emergentagent.com").rstrip("/") + "/api"
 PHONE = "9876543210"
 OTP = "123456"
 
-# Results tracker
-PASSED: List[str] = []
-FAILED: List[str] = []
+passed = 0
+failed = 0
+failures = []
 
 
-def record(ok: bool, name: str, detail: str = "") -> None:
-    if ok:
-        PASSED.append(name)
-        print(f"  ✅ {name}")
+def _assert(cond: bool, label: str, extra: str = ""):
+    global passed, failed
+    if cond:
+        passed += 1
+        print(f"  ✅ {label}")
     else:
-        FAILED.append(f"{name} — {detail}")
-        print(f"  ❌ {name} — {detail}")
+        failed += 1
+        failures.append(f"{label} | {extra}")
+        print(f"  ❌ {label}  {extra}")
 
 
-def auth_token() -> str:
-    r = requests.post(f"{BASE_URL}/auth/send-otp", json={"phone": PHONE}, timeout=20)
-    assert r.status_code == 200, f"send-otp failed: {r.status_code} {r.text}"
-    r = requests.post(f"{BASE_URL}/auth/verify-otp", json={"phone": PHONE, "otp": OTP}, timeout=20)
-    assert r.status_code == 200, f"verify-otp failed: {r.status_code} {r.text}"
+def auth() -> str:
+    r = requests.post(f"{BASE}/auth/send-otp", json={"phone": PHONE}, timeout=30)
+    assert r.status_code == 200, f"send-otp {r.status_code}: {r.text}"
+    r = requests.post(f"{BASE}/auth/verify-otp", json={"phone": PHONE, "otp": OTP}, timeout=30)
+    assert r.status_code == 200, f"verify-otp {r.status_code}: {r.text}"
     data = r.json()
-    tok = data.get("token") or data.get("access_token")
-    assert tok, f"no token in response: {data}"
-    return tok
+    return data["token"]
 
 
-def H(tok: str) -> Dict[str, str]:
-    return {"Authorization": f"Bearer {tok}", "Content-Type": "application/json"}
+def H(t: str):
+    return {"Authorization": f"Bearer {t}"}
 
 
-# ---------------------------------------------------------------------------
-def delete_all_budgets(tok: str) -> None:
-    r = requests.get(f"{BASE_URL}/budgets", headers=H(tok), timeout=20)
-    if r.status_code != 200:
-        return
-    for b in r.json():
-        bid = b.get("id")
-        if bid:
-            requests.delete(f"{BASE_URL}/budgets/{bid}", headers=H(tok), timeout=20)
+def main():
+    print("\n=== Round 19 — Budget Phase-2 AI Insights tests ===\n")
+    token = auth()
+    print(f"Authenticated. token={token[:20]}...\n")
+    hdr = H(token)
 
+    created_txn_ids = []
 
-def delete_all_txns(tok: str, categories: List[str], only_marked: bool = False) -> None:
-    """Delete ALL transactions in the given categories for the test user.
-    Use only_marked=True to only remove our r18_test-marked txns.
-    """
-    r = requests.get(f"{BASE_URL}/transactions?limit=2000", headers=H(tok), timeout=30)
-    if r.status_code != 200:
-        return
-    body = r.json()
-    rows = body if isinstance(body, list) else body.get("transactions", [])
-    for t in rows:
-        if t.get("category") not in categories:
-            continue
-        if only_marked and not (t.get("description") or "").startswith("r18_test"):
-            continue
-        tid = t.get("id") or t.get("_id")
+    # Pre-clean any prior Food/NoData budgets + Food/NoData txns
+    try:
+        r = requests.get(f"{BASE}/budgets", headers=hdr, timeout=30)
+        if r.status_code == 200:
+            bl = r.json() if isinstance(r.json(), list) else r.json().get("budgets", [])
+            for b in bl:
+                if b.get("category") in ("Food", "NoData"):
+                    bid = b.get("id") or b.get("_id")
+                    if bid:
+                        requests.delete(f"{BASE}/budgets/{bid}", headers=hdr, timeout=30)
+    except Exception as e:
+        print(f"  (pre-clean budgets: {e})")
+
+    try:
+        r = requests.get(f"{BASE}/transactions", headers=hdr, timeout=30)
+        if r.status_code == 200:
+            txns = r.json() if isinstance(r.json(), list) else r.json().get("transactions", [])
+            for t in txns:
+                if t.get("category") in ("Food", "NoData") and t.get("type") in ("debit", "expense"):
+                    tid = t.get("id") or t.get("_id")
+                    if tid:
+                        requests.delete(f"{BASE}/transactions/{tid}", headers=hdr, timeout=30)
+    except Exception as e:
+        print(f"  (pre-clean txns: {e})")
+
+    # ─────────────────────────────────────────────────────────
+    # T1 — GET /budgets/ai-insights/NoData (empty-data branch)
+    # ─────────────────────────────────────────────────────────
+    print("[T1] GET /api/budgets/ai-insights/NoData")
+    r = requests.get(f"{BASE}/budgets/ai-insights/NoData", headers=hdr, timeout=30)
+    _assert(r.status_code == 200, "T1 status=200", f"got {r.status_code}: {r.text[:200]}")
+    body = r.json() if r.status_code == 200 else {}
+    _assert(body.get("category") == "NoData", "T1 category==NoData", f"got {body.get('category')}")
+    _assert(isinstance(body.get("tags"), list) and len(body["tags"]) >= 1,
+            "T1 tags non-empty list", f"got {body.get('tags')}")
+    _assert(isinstance(body.get("tips"), list) and len(body["tips"]) >= 1,
+            "T1 tips non-empty list", f"got {body.get('tips')}")
+    _assert(isinstance(body.get("auto_apply"), list),
+            "T1 auto_apply is list", f"got {body.get('auto_apply')}")
+    first_tag = (body.get("tags") or [{}])[0]
+    _assert("label" in first_tag and "tone" in first_tag,
+            "T1 first tag has label+tone", f"got {first_tag}")
+
+    # ─────────────────────────────────────────────────────────
+    # T2 — Setup Food budget + 5 debit txns, then ai-insights
+    # ─────────────────────────────────────────────────────────
+    print("\n[T2] Setup Food budget=3000 + txns")
+    r = requests.post(f"{BASE}/budgets", headers=hdr,
+                      json={"category": "Food", "amount": 3000, "period": "monthly"},
+                      timeout=30)
+    _assert(r.status_code == 200, "T2 create Food budget 3000",
+            f"{r.status_code}: {r.text[:200]}")
+
+    now = datetime.utcnow()
+    # (amount, days_ago, hour) — mix night (>=21 or <3) + weekday/saturday
+    specs = [
+        (500, 5, 22),
+        (450, 10, 23),
+        (600, 15, 14),
+        (750, 20, 21),
+        (400, 25, 13),
+    ]
+    for amt, ago, hr in specs:
+        dt = (now - timedelta(days=ago)).replace(hour=hr, minute=0, second=0, microsecond=0)
+        payload = {
+            "category": "Food", "amount": amt, "type": "debit",
+            "date": dt.isoformat() + "Z",
+            "description": f"Food test txn {amt} at {dt.isoformat()}",
+        }
+        rr = requests.post(f"{BASE}/transactions", headers=hdr, json=payload, timeout=30)
+        if rr.status_code == 200:
+            jj = rr.json()
+            tid = jj.get("id") or jj.get("_id") or (jj.get("transaction") or {}).get("id")
+            if tid:
+                created_txn_ids.append(tid)
+        else:
+            print(f"    txn create failed {rr.status_code}: {rr.text[:200]}")
+
+    # Add one Saturday txn (hour 20, night>=21? Let's pick 22 for night+Saturday)
+    today = datetime.utcnow()
+    # Find nearest past Saturday
+    days_back = (today.weekday() - 5) % 7 or 7
+    sat_dt = (today - timedelta(days=days_back)).replace(hour=22, minute=0, second=0, microsecond=0)
+    rr = requests.post(f"{BASE}/transactions", headers=hdr, json={
+        "category": "Food", "amount": 550, "type": "debit",
+        "date": sat_dt.isoformat() + "Z", "description": "Saturday food outing"
+    }, timeout=30)
+    if rr.status_code == 200:
+        jj = rr.json()
+        tid = jj.get("id") or jj.get("_id") or (jj.get("transaction") or {}).get("id")
         if tid:
-            requests.delete(f"{BASE_URL}/transactions/{tid}", headers=H(tok), timeout=20)
+            created_txn_ids.append(tid)
 
+    _assert(len(created_txn_ids) >= 5, f"T2 created >=5 Food txns (got {len(created_txn_ids)})")
 
-# ---------------------------------------------------------------------------
-def days_in_current_month() -> int:
-    now = datetime.utcnow()
-    return calendar.monthrange(now.year, now.month)[1]
+    # Call ai-insights
+    print("[T2] GET /api/budgets/ai-insights/Food")
+    r = requests.get(f"{BASE}/budgets/ai-insights/Food", headers=hdr, timeout=30)
+    _assert(r.status_code == 200, "T2 status=200", f"{r.status_code}: {r.text[:300]}")
+    body = r.json() if r.status_code == 200 else {}
 
+    _assert(body.get("category") == "Food", "T2 category==Food")
+    tags = body.get("tags") or []
+    _assert(isinstance(tags, list) and len(tags) >= 1, "T2 tags non-empty", f"got {tags}")
+    tags_ok = all(isinstance(t, dict) and isinstance(t.get("label"), str) and isinstance(t.get("tone"), str) for t in tags)
+    _assert(tags_ok, "T2 each tag has label(str)+tone(str)", f"got {tags}")
 
-def today_iso() -> str:
-    # send an ISO string with "T" separator that FastAPI will parse to a datetime
-    return datetime.utcnow().replace(microsecond=0).isoformat()
+    tips = body.get("tips") or []
+    _assert(isinstance(tips, list) and len(tips) >= 1, "T2 tips non-empty", f"got {tips}")
+    tips_ok = all(isinstance(t, dict) and "text" in t and isinstance(t.get("save"), (int, float)) for t in tips)
+    _assert(tips_ok, "T2 each tip has text+numeric save", f"got {tips}")
 
+    aa = body.get("auto_apply") or []
+    _assert(isinstance(aa, list) and len(aa) >= 1, "T2 auto_apply non-empty", f"got {aa}")
+    alert_entry = next((x for x in aa if x.get("action") == "enable_alert"), None)
+    _assert(alert_entry is not None, "T2 auto_apply contains enable_alert")
+    if alert_entry:
+        pl = alert_entry.get("payload") or {}
+        _assert(pl.get("threshold") == 0.8, f"T2 enable_alert payload threshold==0.8 (got {pl})")
 
-def days_ago_iso(n: int) -> str:
-    return (datetime.utcnow() - timedelta(days=n)).replace(microsecond=0).isoformat()
+    stats = body.get("stats") or {}
+    _assert(isinstance(stats, dict) and len(stats) > 0, "T2 stats present")
+    _assert(isinstance(stats.get("txn_count_60d"), int) and stats.get("txn_count_60d", 0) >= 5,
+            f"T2 stats.txn_count_60d>=5 (got {stats.get('txn_count_60d')})")
+    _assert(isinstance(stats.get("monthly_avg"), (int, float)) and stats.get("monthly_avg", 0) > 0,
+            f"T2 stats.monthly_avg>0 (got {stats.get('monthly_avg')})")
+    _assert(isinstance(stats.get("night_pct"), (int, float)), f"T2 night_pct numeric (got {stats.get('night_pct')})")
+    _assert(isinstance(stats.get("weekend_pct"), (int, float)), f"T2 weekend_pct numeric (got {stats.get('weekend_pct')})")
+    _assert(isinstance(stats.get("delta_pct"), (int, float)), f"T2 delta_pct numeric (got {stats.get('delta_pct')})")
 
+    # ─────────────────────────────────────────────────────────
+    # T3 — POST /budgets/ai-apply/Food  adjust_budget → 2500
+    # ─────────────────────────────────────────────────────────
+    print("\n[T3] POST /api/budgets/ai-apply/Food adjust_budget amount=2500")
+    r = requests.post(f"{BASE}/budgets/ai-apply/Food", headers=hdr,
+                      json={"action": "adjust_budget", "payload": {"amount": 2500}}, timeout=30)
+    _assert(r.status_code == 200, "T3 status=200", f"{r.status_code}: {r.text[:200]}")
+    body = r.json() if r.status_code == 200 else {}
+    _assert(body.get("ok") is True, f"T3 ok==True (got {body.get('ok')})")
+    _assert(body.get("applied") == "adjust_budget", f"T3 applied==adjust_budget (got {body.get('applied')})")
+    _assert(body.get("new_amount") == 2500, f"T3 new_amount==2500 (got {body.get('new_amount')})")
 
-# ===========================================================================
-def test_1_empty_state(tok: str) -> None:
-    print("\n[Test 1] GET /api/budgets/live empty state")
-    delete_all_budgets(tok)
-    # wipe ALL txns in these categories so test-2 measures exactly what we insert
-    delete_all_txns(tok, ["Food", "Transport", "Shopping", "Other", "Bills"])
+    r = requests.get(f"{BASE}/budgets", headers=hdr, timeout=30)
+    _assert(r.status_code == 200, "T3 GET /budgets status=200")
+    bl = r.json() if r.status_code == 200 else []
+    if isinstance(bl, dict):
+        bl = bl.get("budgets", [])
+    food_row = next((b for b in bl if b.get("category") == "Food"), None)
+    _assert(food_row is not None, "T3 Food budget still exists")
+    if food_row:
+        _assert(float(food_row.get("amount", 0)) == 2500.0,
+                f"T3 Food budget amount==2500 (got {food_row.get('amount')})")
 
-    r = requests.get(f"{BASE_URL}/budgets/live", headers=H(tok), timeout=20)
-    record(r.status_code == 200, "T1 status 200", f"got {r.status_code} {r.text[:200]}")
-    if r.status_code != 200:
-        return
-    data = r.json()
-    record(data.get("budgets") == [], "T1 budgets == []", f"got {data.get('budgets')}")
-    s = data.get("summary") or {}
-    record(s.get("total_budgeted") == 0, "T1 total_budgeted == 0", f"got {s.get('total_budgeted')}")
-    record(s.get("total_spent") == 0, "T1 total_spent == 0", f"got {s.get('total_spent')}")
-    record(s.get("total_remaining") == 0, "T1 total_remaining == 0", f"got {s.get('total_remaining')}")
-    record(s.get("overall_pct") == 0, "T1 overall_pct == 0", f"got {s.get('overall_pct')}")
-    sources = s.get("sources") or {}
-    record(sources.get("transactions") == 0, "T1 sources.transactions == 0", f"got {sources}")
-    record(sources.get("splits") == 0, "T1 sources.splits == 0", f"got {sources}")
+    # ─────────────────────────────────────────────────────────
+    # T4 — POST /budgets/ai-apply/Food  enable_alert → 0.75
+    # ─────────────────────────────────────────────────────────
+    print("\n[T4] POST /api/budgets/ai-apply/Food enable_alert threshold=0.75")
+    r = requests.post(f"{BASE}/budgets/ai-apply/Food", headers=hdr,
+                      json={"action": "enable_alert", "payload": {"threshold": 0.75}}, timeout=30)
+    _assert(r.status_code == 200, "T4 status=200", f"{r.status_code}: {r.text[:200]}")
+    body = r.json() if r.status_code == 200 else {}
+    _assert(body.get("ok") is True, f"T4 ok==True (got {body.get('ok')})")
+    _assert(body.get("applied") == "enable_alert", f"T4 applied==enable_alert (got {body.get('applied')})")
+    _assert(body.get("threshold") == 0.75, f"T4 threshold==0.75 (got {body.get('threshold')})")
 
+    # ─────────────────────────────────────────────────────────
+    # T5 — POST /budgets/ai-apply/Food unknown action
+    # ─────────────────────────────────────────────────────────
+    print("\n[T5] POST /api/budgets/ai-apply/Food unknown_xyz")
+    r = requests.post(f"{BASE}/budgets/ai-apply/Food", headers=hdr,
+                      json={"action": "unknown_xyz"}, timeout=30)
+    _assert(r.status_code == 200, "T5 status=200", f"{r.status_code}: {r.text[:200]}")
+    body = r.json() if r.status_code == 200 else {}
+    _assert(body.get("ok") is False, f"T5 ok==False (got {body.get('ok')})")
+    _assert(body.get("error") == "unknown_action", f"T5 error==unknown_action (got {body.get('error')})")
 
-# ===========================================================================
-def test_2_monthly_food(tok: str) -> Dict[str, Any]:
-    print("\n[Test 2] Monthly Food budget + 2 txns")
+    # ─────────────────────────────────────────────────────────
+    # T6 — Auth guard
+    # ─────────────────────────────────────────────────────────
+    print("\n[T6] GET /api/budgets/ai-insights/Food (no bearer)")
+    r = requests.get(f"{BASE}/budgets/ai-insights/Food", timeout=30)
+    _assert(r.status_code in (401, 422), f"T6 status in (401,422) (got {r.status_code})")
 
-    # Create budget
-    r = requests.post(
-        f"{BASE_URL}/budgets",
-        headers=H(tok),
-        json={"category": "Food", "amount": 3000, "period": "monthly", "recurring": True},
-        timeout=20,
-    )
-    record(r.status_code == 200, "T2 POST Food budget 200", f"{r.status_code} {r.text[:200]}")
+    # ─────────────────────────────────────────────────────────
+    # T7 — Regression
+    # ─────────────────────────────────────────────────────────
+    print("\n[T7] Regression sanity")
+    for ep in ["/budgets/live", "/budgets/smart-suggest", "/premium/status", "/gmail/status"]:
+        r = requests.get(f"{BASE}{ep}", headers=hdr, timeout=30)
+        _assert(r.status_code == 200, f"T7 GET {ep} == 200",
+                f"{r.status_code}: {r.text[:150]}")
 
-    # 2 debit txns (use a backdated date to ensure elapsed_days > 0 even if run at midnight UTC)
-    # Use today's UTC date at 12:00:00 to avoid boundary issues
-    now = datetime.utcnow()
-    d1 = now.replace(hour=0, minute=30, second=0, microsecond=0)
-    for amt, desc in [(500, "r18_test food1"), (800, "r18_test food2")]:
-        r = requests.post(
-            f"{BASE_URL}/transactions",
-            headers=H(tok),
-            json={
-                "category": "Food",
-                "amount": amt,
-                "type": "debit",
-                "date": d1.isoformat(),
-                "description": desc,
-            },
-            timeout=20,
-        )
-        record(r.status_code == 200, f"T2 txn Food {amt} inserted", f"{r.status_code} {r.text[:200]}")
+    # ─────────────────────────────────────────────────────────
+    # T8 — Cleanup
+    # ─────────────────────────────────────────────────────────
+    print("\n[T8] Cleanup")
+    try:
+        r = requests.get(f"{BASE}/budgets", headers=hdr, timeout=30)
+        if r.status_code == 200:
+            bl = r.json()
+            if isinstance(bl, dict):
+                bl = bl.get("budgets", [])
+            for b in bl:
+                if b.get("category") in ("Food", "NoData"):
+                    bid = b.get("id") or b.get("_id")
+                    if bid:
+                        rr = requests.delete(f"{BASE}/budgets/{bid}", headers=hdr, timeout=30)
+                        print(f"    deleted {b.get('category')} budget {bid}: {rr.status_code}")
+    except Exception as e:
+        print(f"    cleanup budget err: {e}")
 
-    # GET live
-    r = requests.get(f"{BASE_URL}/budgets/live", headers=H(tok), timeout=20)
-    record(r.status_code == 200, "T2 GET live 200")
-    data = r.json()
-    food = next((b for b in data.get("budgets", []) if b["category"] == "Food"), None)
-    record(food is not None, "T2 Food row present", f"budgets={data.get('budgets')}")
-    if not food:
-        return {}
+    cleaned = 0
+    for tid in created_txn_ids:
+        try:
+            rr = requests.delete(f"{BASE}/transactions/{tid}", headers=hdr, timeout=30)
+            if rr.status_code == 200:
+                cleaned += 1
+        except Exception:
+            pass
+    print(f"    deleted {cleaned}/{len(created_txn_ids)} tracked Food txns")
 
-    # Check txn-source vs split-source (the endpoint adds split shares too;
-    # test env may have residual split_expenses the test-agent can't wipe).
-    from_tx = food.get("from_transactions")
-    from_sp = food.get("from_splits", 0)
-    record(abs(from_tx - 1300) <= 1, "T2 from_transactions ≈ 1300 (our inserts)",
-           f"got from_transactions={from_tx}, from_splits={from_sp}")
-    record(abs(food["spent"] - (from_tx + from_sp)) <= 0.01,
-           "T2 spent == from_transactions + from_splits",
-           f"spent={food['spent']} tx={from_tx} sp={from_sp}")
+    try:
+        r = requests.get(f"{BASE}/transactions", headers=hdr, timeout=30)
+        if r.status_code == 200:
+            txns = r.json() if isinstance(r.json(), list) else r.json().get("transactions", [])
+            extras = 0
+            for t in txns:
+                if t.get("category") == "Food":
+                    tid = t.get("id") or t.get("_id")
+                    if tid:
+                        rr = requests.delete(f"{BASE}/transactions/{tid}", headers=hdr, timeout=30)
+                        if rr.status_code == 200:
+                            extras += 1
+            print(f"    extra Food txn cleanup: {extras}")
+    except Exception as e:
+        print(f"    cleanup txns err: {e}")
 
-    # Strict 1300 assertion only holds when there is no residual split pollution
-    if from_sp == 0:
-        record(abs(food["spent"] - 1300) <= 1, "T2 spent ≈ 1300 (no splits)",
-               f"got {food['spent']}")
-        record(abs(food["remaining"] - 1700) <= 1, "T2 remaining ≈ 1700",
-               f"got {food['remaining']}")
-        record(42 <= food["percentage"] <= 44, "T2 pct 42-44", f"got {food['percentage']}")
-    else:
-        print(f"    ℹ️  T2 residual split_expenses adding ₹{from_sp} to Food spent (env artifact, endpoint logic correct)")
-        # sanity: pct should still be consistent with spent/limit
-        exp_pct = round(food["spent"] / 3000 * 100, 1)
-        record(abs(food["percentage"] - exp_pct) <= 0.2,
-               "T2 pct consistent with spent/limit",
-               f"got {food['percentage']}, expected {exp_pct}")
-        record(abs(food["remaining"] - max(0, 3000 - food["spent"])) <= 0.5,
-               "T2 remaining == max(0, 3000 - spent)",
-               f"got {food['remaining']}")
-
-    record(food.get("amount") == 3000, "T2 amount alias == 3000", f"got {food.get('amount')}")
-    record(food.get("budget") == 3000, "T2 budget alias == 3000", f"got {food.get('budget')}")
-
-    # burn_rate sanity
-    elapsed = food.get("elapsed_days")
-    burn = food.get("burn_rate")
-    record(burn is not None and burn > 0, "T2 burn_rate > 0", f"got {burn}")
-    # burn_rate = round(spent/elapsed, 2); elapsed_days in response is rounded to .1 so allow ±0.5 tolerance
-    expected_burn = round(food["spent"] / max(1, elapsed), 2)
-    record(abs(burn - expected_burn) <= 0.5, "T2 burn_rate ≈ round(spent/elapsed,2)",
-           f"got {burn}, expected ~{expected_burn} (spent={food['spent']}, elapsed={elapsed})")
-
-    # days_left
-    dl = food.get("days_left")
-    max_dl = days_in_current_month()
-    record(dl is not None and 0 <= dl <= max_dl,
-           f"T2 days_left 0..{max_dl}", f"got {dl}")
-
-    # projected_spend ≈ burn_rate * period_days
-    period_days = days_in_current_month()
-    expected_proj = round(burn * period_days, 2)
-    record(abs(food.get("projected_spend", 0) - expected_proj) <= 1.0,
-           "T2 projected_spend ≈ burn × period_days",
-           f"got {food.get('projected_spend')}, expected ~{expected_proj}")
-
-    # projected_over = max(0, projected_spend - 3000)
-    exp_over = max(0.0, round(food.get("projected_spend", 0) - 3000, 2))
-    record(abs(food.get("projected_over", 0) - exp_over) <= 0.5,
-           "T2 projected_over = max(0, projected_spend-3000)",
-           f"got {food.get('projected_over')}, expected {exp_over}")
-
-    # status sensible
-    valid_statuses = {"healthy", "on_track", "warning", "risk_overspend", "exceeded"}
-    record(food.get("status") in valid_statuses, "T2 status valid", f"got {food.get('status')}")
-
-    pct = food["percentage"]
-    if pct < 50:
-        expected = "healthy" if food.get("projected_over", 0) == 0 else "risk_overspend"
-    elif pct < 80:
-        expected = "risk_overspend" if food.get("projected_over", 0) > 0 else "on_track"
-    elif pct < 100:
-        expected = "warning"
-    else:
-        expected = "exceeded"
-    record(food.get("status") == expected, "T2 status matches rule",
-           f"got {food.get('status')}, expected {expected} (pct={pct}, proj_over={food.get('projected_over')})")
-
-    return {"food_id": food["id"], "food_spent": food["spent"]}
-
-
-# ===========================================================================
-def test_3_daily_transport(tok: str, food_spent_before: float) -> None:
-    print("\n[Test 3] Daily Transport budget — period isolation")
-    r = requests.post(
-        f"{BASE_URL}/budgets",
-        headers=H(tok),
-        json={"category": "Transport", "amount": 200, "period": "daily"},
-        timeout=20,
-    )
-    record(r.status_code == 200, "T3 POST Transport daily 200", f"{r.status_code} {r.text[:200]}")
-
-    now = datetime.utcnow()
-    r = requests.post(
-        f"{BASE_URL}/transactions",
-        headers=H(tok),
-        json={
-            "category": "Transport",
-            "amount": 250,
-            "type": "debit",
-            "date": now.replace(hour=1, minute=0, second=0, microsecond=0).isoformat(),
-            "description": "r18_test cab",
-        },
-        timeout=20,
-    )
-    record(r.status_code == 200, "T3 Transport txn today 250 inserted")
-
-    # Old txn 3 days ago
-    r = requests.post(
-        f"{BASE_URL}/transactions",
-        headers=H(tok),
-        json={
-            "category": "Transport",
-            "amount": 999,
-            "type": "debit",
-            "date": (now - timedelta(days=3)).replace(hour=12, minute=0, second=0, microsecond=0).isoformat(),
-            "description": "r18_test cab_old",
-        },
-        timeout=20,
-    )
-    record(r.status_code == 200, "T3 Transport txn 3d-ago inserted (should not count for daily)")
-
-    r = requests.get(f"{BASE_URL}/budgets/live", headers=H(tok), timeout=20)
-    record(r.status_code == 200, "T3 GET live 200")
-    data = r.json()
-    rows = data.get("budgets", [])
-    transport = next((b for b in rows if b["category"] == "Transport"), None)
-    food = next((b for b in rows if b["category"] == "Food"), None)
-
-    record(transport is not None, "T3 Transport row present")
-    if transport:
-        record(transport["spent"] == 250, "T3 Transport spent == 250 (no bleed from old txn)",
-               f"got {transport['spent']}")
-        record(transport["over_by"] == 50, "T3 Transport over_by == 50", f"got {transport['over_by']}")
-        record(transport["percentage"] == 125, "T3 Transport pct == 125", f"got {transport['percentage']}")
-        record(transport["status"] == "exceeded", "T3 Transport status == exceeded",
-               f"got {transport['status']}")
-
-    record(food is not None, "T3 Food row still present")
-    if food:
-        record(abs(food["spent"] - food_spent_before) <= 0.5,
-               "T3 Food spent UNCHANGED by Transport txn",
-               f"before={food_spent_before} after={food['spent']}")
-
-
-# ===========================================================================
-def test_4_weekly_shopping(tok: str) -> None:
-    print("\n[Test 4] Weekly Shopping budget, no txns")
-    r = requests.post(
-        f"{BASE_URL}/budgets",
-        headers=H(tok),
-        json={"category": "Shopping", "amount": 1000, "period": "weekly"},
-        timeout=20,
-    )
-    record(r.status_code == 200, "T4 POST Shopping weekly 200", f"{r.status_code} {r.text[:200]}")
-
-    r = requests.get(f"{BASE_URL}/budgets/live", headers=H(tok), timeout=20)
-    data = r.json()
-    shop = next((b for b in data.get("budgets", []) if b["category"] == "Shopping"), None)
-    record(shop is not None, "T4 Shopping row present")
-    if shop:
-        record(shop["spent"] == 0, "T4 Shopping spent == 0", f"got {shop['spent']}")
-        record(shop["percentage"] == 0, "T4 Shopping pct == 0", f"got {shop['percentage']}")
-        record(shop["status"] == "healthy", "T4 Shopping status == healthy", f"got {shop['status']}")
-        record(shop["remaining"] == 1000, "T4 Shopping remaining == 1000", f"got {shop['remaining']}")
-
-
-# ===========================================================================
-def test_5_summary_invariant(tok: str) -> None:
-    print("\n[Test 5] Summary invariants")
-    r = requests.get(f"{BASE_URL}/budgets/live", headers=H(tok), timeout=20)
-    data = r.json()
-    summ = data.get("summary") or {}
-    rows = data.get("budgets") or []
-
-    record(summ.get("total_budgeted") == 4200, "T5 total_budgeted == 4200",
-           f"got {summ.get('total_budgeted')}")
-    row_sum = round(sum(b["spent"] for b in rows), 2)
-    record(abs(summ.get("total_spent", 0) - row_sum) < 0.01,
-           "T5 total_spent == sum(row.spent)",
-           f"summary={summ.get('total_spent')}, rows sum={row_sum}")
-    expected_remaining = max(0, summ.get("total_budgeted", 0) - summ.get("total_spent", 0))
-    record(abs(summ.get("total_remaining", 0) - expected_remaining) < 0.01,
-           "T5 total_remaining == max(0, budgeted-spent)",
-           f"got {summ.get('total_remaining')}, expected {expected_remaining}")
-
-
-# ===========================================================================
-def test_6_smart_suggest_cap(tok: str) -> None:
-    print("\n[Test 6] Smart-suggest cap for 'Other'")
-    # insert a 150k Other debit yesterday
-    yesterday = (datetime.utcnow() - timedelta(days=1)).replace(hour=12, minute=0, second=0, microsecond=0)
-    r = requests.post(
-        f"{BASE_URL}/transactions",
-        headers=H(tok),
-        json={
-            "category": "Other",
-            "amount": 150000,
-            "type": "debit",
-            "date": yesterday.isoformat(),
-            "description": "r18_test huge_other",
-        },
-        timeout=20,
-    )
-    record(r.status_code == 200, "T6 huge Other txn inserted", f"{r.status_code} {r.text[:200]}")
-
-    r = requests.get(f"{BASE_URL}/budgets/smart-suggest", headers=H(tok), timeout=30)
-    record(r.status_code == 200, "T6 smart-suggest 200", f"{r.status_code} {r.text[:200]}")
-    data = r.json()
-    other = next((s for s in data.get("suggestions", []) if s["category"] == "Other"), None)
-    record(other is not None, "T6 Other suggestion present",
-           f"got suggestions={[s.get('category') for s in data.get('suggestions', [])]}")
-    if other:
-        sb = other.get("suggested_budget", 0)
-        record(sb <= 15000, f"T6 suggested_budget <= 15000 (got {sb})",
-               f"cap should be 3 × 0.10 × 50k = 15000, got {sb}")
-        record(sb < 100000, "T6 not the old ₹1.25L bug", f"got {sb}")
-
-
-# ===========================================================================
-def test_7_regression(tok: str) -> Dict[str, str]:
-    print("\n[Test 7] Regression sanity")
-    ids: Dict[str, str] = {}
-
-    # POST create/upsert
-    r = requests.post(
-        f"{BASE_URL}/budgets",
-        headers=H(tok),
-        json={"category": "Bills", "amount": 1500, "period": "monthly"},
-        timeout=20,
-    )
-    record(r.status_code == 200, "T7 POST /budgets 200", f"{r.status_code} {r.text[:200]}")
-    if r.status_code == 200:
-        ids["bills"] = r.json().get("id")
-
-    # PUT
-    if ids.get("bills"):
-        r = requests.put(
-            f"{BASE_URL}/budgets/{ids['bills']}",
-            headers=H(tok),
-            json={"amount": 1800},
-            timeout=20,
-        )
-        record(r.status_code == 200, "T7 PUT /budgets/{id} 200", f"{r.status_code} {r.text[:200]}")
-
-    # POST /budgets/categorize
-    r = requests.post(
-        f"{BASE_URL}/budgets/categorize",
-        headers=H(tok),
-        json={"description": "Paid electricity bill"},
-        timeout=30,
-    )
-    record(r.status_code == 200, "T7 POST /budgets/categorize 200", f"{r.status_code} {r.text[:200]}")
-
-    # DELETE
-    if ids.get("bills"):
-        r = requests.delete(f"{BASE_URL}/budgets/{ids['bills']}", headers=H(tok), timeout=20)
-        record(r.status_code == 200, "T7 DELETE /budgets/{id} 200", f"{r.status_code} {r.text[:200]}")
-
-    # GET gmail/status, premium/status
-    r = requests.get(f"{BASE_URL}/gmail/status", headers=H(tok), timeout=20)
-    record(r.status_code == 200, "T7 GET /gmail/status 200", f"{r.status_code} {r.text[:200]}")
-
-    r = requests.get(f"{BASE_URL}/premium/status", headers=H(tok), timeout=20)
-    record(r.status_code == 200, "T7 GET /premium/status 200", f"{r.status_code} {r.text[:200]}")
-
-    return ids
-
-
-# ===========================================================================
-def cleanup(tok: str) -> None:
-    print("\n[Cleanup] Removing test budgets + txns")
-    delete_all_budgets(tok)
-    delete_all_txns(tok, ["Food", "Transport", "Shopping", "Other", "Bills"])
-
-
-# ===========================================================================
-def main() -> int:
-    print(f"== Round 18 Budget Phase-1 tests against {BASE_URL} ==")
-    tok = auth_token()
-    print(f"Auth OK, token length {len(tok)}")
-
-    test_1_empty_state(tok)
-    t2 = test_2_monthly_food(tok)
-    test_3_daily_transport(tok, t2.get("food_spent", 1300))
-    test_4_weekly_shopping(tok)
-    test_5_summary_invariant(tok)
-    test_6_smart_suggest_cap(tok)
-    test_7_regression(tok)
-    cleanup(tok)
-
-    print("\n" + "=" * 60)
-    print(f"PASSED: {len(PASSED)}")
-    print(f"FAILED: {len(FAILED)}")
-    for f in FAILED:
-        print(f"  ❌ {f}")
-    print("=" * 60)
-    return 0 if not FAILED else 1
+    total = passed + failed
+    print(f"\n=== RESULT: {passed}/{total} assertions passed, {failed} failed ===\n")
+    if failures:
+        print("FAILURES:")
+        for f in failures:
+            print(f"  - {f}")
+    return failed == 0
 
 
 if __name__ == "__main__":
-    sys.exit(main())
+    ok = main()
+    raise SystemExit(0 if ok else 1)

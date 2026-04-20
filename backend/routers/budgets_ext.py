@@ -233,3 +233,193 @@ async def live_budget_status(user_id: str = Depends(get_current_user)):
         },
     }
 
+
+
+
+# ══════════════════════════════════════════════════════════════════════════
+#  PHASE 2 — AI INSIGHTS per category
+#  Pattern-mined from the user's last 60 days of transactions. Purely
+#  deterministic (no LLM call needed) but shaped in the same vocabulary the
+#  user requested: behaviour tags, specific tips, and auto-apply suggestions.
+# ══════════════════════════════════════════════════════════════════════════
+@api_router.get("/budgets/ai-insights/{category}")
+async def budget_ai_insights(category: str, user_id: str = Depends(get_current_user)):
+    """Return AI-style behaviour tags + specific tips + auto-apply suggestions
+    for one budget category.
+
+    Response:
+      {
+        category, tags: [{label, tone}],
+        tips: [{text, save}],
+        auto_apply: [{action, label, payload, delta}]
+      }
+    """
+    now = datetime.utcnow()
+    start = now - timedelta(days=60)
+    month_start = now.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+
+    cursor = db.transactions.find({
+        "user_id": user_id,
+        "category": category,
+        "type": {"$in": ["expense", "debit"]},
+        "date": {"$gte": start},
+    })
+    txns = []
+    async for t in cursor:
+        txns.append(t)
+
+    budget = await db.budgets.find_one({"user_id": user_id, "category": category})
+    budget_amt = float((budget or {}).get("amount", 0) or 0)
+
+    if not txns:
+        return {
+            "category": category,
+            "tags": [{"label": "No data yet", "tone": "neutral"}],
+            "tips": [{"text": f"Track {category} expenses for a week to unlock insights", "save": 0}],
+            "auto_apply": [],
+        }
+
+    # ── Compute patterns ────────────────────────────────────────────────
+    amounts = [float(t.get("amount", 0) or 0) for t in txns]
+    total = sum(amounts)
+    count = len(amounts)
+    avg = total / count if count else 0
+    monthly_avg = total / 2  # 60 days → monthly projection
+
+    # Time-of-day buckets
+    night_count = sum(1 for t in txns if 21 <= t["date"].hour or t["date"].hour < 3)
+    weekend_count = sum(1 for t in txns if t["date"].weekday() >= 5)
+    # Big-ticket: any single txn > 3× avg
+    big_count = sum(1 for a in amounts if avg > 0 and a > 3 * avg)
+    night_pct = round(100 * night_count / count) if count else 0
+    weekend_pct = round(100 * weekend_count / count) if count else 0
+
+    # This-month vs prior-month delta
+    this_month_total = sum(a for t, a in zip(txns, amounts) if t["date"] >= month_start)
+    prev_start = (month_start - timedelta(days=1)).replace(day=1)
+    prev_total = sum(a for t, a in zip(txns, amounts) if prev_start <= t["date"] < month_start)
+    delta_pct = 0
+    if prev_total > 0:
+        delta_pct = round(100 * (this_month_total - prev_total) / prev_total)
+
+    # ── Behaviour tags ──────────────────────────────────────────────────
+    tags = []
+    if big_count >= 3:
+        tags.append({"label": "Impulse heavy", "tone": "warning"})
+    if night_pct >= 40:
+        tags.append({"label": f"{night_pct}% spending after 9 PM", "tone": "info"})
+    if weekend_pct >= 55:
+        tags.append({"label": "Weekend-heavy", "tone": "info"})
+    if delta_pct >= 25:
+        tags.append({"label": f"Up {delta_pct}% vs last month", "tone": "danger"})
+    elif delta_pct <= -20:
+        tags.append({"label": f"Down {abs(delta_pct)}% vs last month", "tone": "success"})
+    if budget_amt and this_month_total <= budget_amt * 0.6:
+        tags.append({"label": "Stable", "tone": "success"})
+    if budget_amt and this_month_total > budget_amt:
+        tags.append({"label": "Risk zone", "tone": "danger"})
+    if not tags:
+        tags = [{"label": "Steady", "tone": "success"}]
+
+    # ── Tips with savings estimates ────────────────────────────────────
+    tips = []
+    cat_lower = category.lower()
+    if "food" in cat_lower:
+        # Rough heuristic: avg ≈ per-order; suggest 2 fewer/week
+        potential = round(avg * 8)
+        if potential > 100:
+            tips.append({"text": f"Skip 2 food-delivery orders/week → save ≈ ₹{potential:,}/mo", "save": potential})
+    if "shopping" in cat_lower:
+        if monthly_avg > budget_amt * 1.3 and budget_amt > 0:
+            spike = round(monthly_avg - budget_amt)
+            tips.append({"text": f"You overspent by ₹{spike:,} — set an alert at 80% budget", "save": spike})
+        if night_pct >= 40:
+            tips.append({"text": "80% of shopping is after 9 PM — try a 24-hour cooling-off rule", "save": round(monthly_avg * 0.15)})
+    if "transport" in cat_lower:
+        if avg > 150:
+            tips.append({"text": "Switch 3 rides/week to metro → save ≈ ₹800/mo", "save": 800})
+    if "entertainment" in cat_lower:
+        tips.append({"text": "Audit recurring subs — cancel unused → avg ₹500/mo saved", "save": 500})
+    if not tips:
+        target = round(monthly_avg * 0.85 / 100) * 100
+        save = max(0, round(monthly_avg - target))
+        if save > 50:
+            tips.append({"text": f"A 15% cap (₹{target:,}/mo) would save ≈ ₹{save:,}", "save": save})
+    if not tips:
+        tips.append({"text": "Great pace — stay the course this month!", "save": 0})
+
+    # ── Auto-apply actions ─────────────────────────────────────────────
+    auto_apply = []
+    if budget_amt > 0 and monthly_avg > budget_amt * 1.1:
+        new_amt = int(max(monthly_avg * 0.9, budget_amt * 1.05) / 100) * 100
+        auto_apply.append({
+            "action": "adjust_budget",
+            "label": f"Raise budget to ₹{new_amt:,}",
+            "payload": {"amount": new_amt},
+            "delta": new_amt - int(budget_amt),
+        })
+    elif budget_amt > 0 and monthly_avg < budget_amt * 0.6:
+        new_amt = int(monthly_avg * 1.1 / 100) * 100 or 500
+        auto_apply.append({
+            "action": "adjust_budget",
+            "label": f"Tighten budget to ₹{new_amt:,}",
+            "payload": {"amount": new_amt},
+            "delta": new_amt - int(budget_amt),
+        })
+    auto_apply.append({
+        "action": "enable_alert",
+        "label": "Alert me at 80% of budget",
+        "payload": {"threshold": 0.8},
+        "delta": 0,
+    })
+
+    return {
+        "category": category,
+        "tags": tags[:4],
+        "tips": tips[:3],
+        "auto_apply": auto_apply,
+        "stats": {
+            "txn_count_60d": count,
+            "monthly_avg": round(monthly_avg, 2),
+            "this_month": round(this_month_total, 2),
+            "delta_pct": delta_pct,
+            "night_pct": night_pct,
+            "weekend_pct": weekend_pct,
+        },
+    }
+
+
+@api_router.post("/budgets/ai-apply/{category}")
+async def budget_ai_apply(category: str, data: dict, user_id: str = Depends(get_current_user)):
+    """Execute an auto-apply action emitted by /budgets/ai-insights/{category}."""
+    action = data.get("action")
+    payload = data.get("payload") or {}
+    existing = await db.budgets.find_one({"user_id": user_id, "category": category})
+    if action == "adjust_budget":
+        new_amt = float(payload.get("amount", 0) or 0)
+        if new_amt <= 0:
+            return {"ok": False, "error": "invalid_amount"}
+        if existing:
+            await db.budgets.update_one(
+                {"_id": existing["_id"]},
+                {"$set": {"amount": new_amt, "updated_at": datetime.utcnow()}},
+            )
+            return {"ok": True, "applied": action, "new_amount": new_amt}
+        await db.budgets.insert_one({
+            "user_id": user_id, "category": category, "amount": new_amt,
+            "period": "monthly", "recurring": True, "spent": 0,
+            "created_at": datetime.utcnow(),
+        })
+        return {"ok": True, "applied": action, "new_amount": new_amt, "created": True}
+    if action == "enable_alert":
+        threshold = float(payload.get("threshold", 0.8) or 0.8)
+        await db.budget_alerts.update_one(
+            {"user_id": user_id, "category": category},
+            {"$set": {
+                "user_id": user_id, "category": category, "threshold": threshold,
+                "enabled": True, "updated_at": datetime.utcnow(),
+            }},
+            upsert=True,
+        )
+        return {"ok": True, "applied": action, "threshold": threshold}
+    return {"ok": False, "error": "unknown_action"}
