@@ -69,6 +69,52 @@ export default function HomeScreen() {
 
   const fetchData = useCallback(async () => {
     try {
+      // ──── Fast path: one bundled call with SWR ────
+      // Round-20 /home/bundle fans out 13 endpoints server-side via asyncio.gather.
+      // `swrGet` returns the cached copy INSTANTLY on tab revisits, then does a
+      // background revalidation. TTL 30s — tuned to balance freshness + snappiness.
+      try {
+        const { swrGet } = await import('../../utils/swrGet');
+        const res = await swrGet(`/home/bundle?lang=${lang}`, { ttlMs: 30_000 });
+        const paint = (b: any) => {
+          if (!b) return;
+          if (b.user) setUser(b.user);
+          if (b.stats) setStats(b.stats);
+          if (Array.isArray(b.recent_txns)) setRecentTxns(b.recent_txns.slice(0, 4));
+          if (b.avatar?.avatar) setAvatar(b.avatar.avatar);
+          if (b.snapshot) setSnapshot(b.snapshot);
+          setSmartAlerts(b.alerts?.alerts || []);
+          if (b.weekly_report) setWeeklyReport(b.weekly_report);
+          if (b.leaderboard) setLeaderboard(b.leaderboard);
+          if (b.gamification) setGamification(b.gamification);
+          if (b.card_of_the_day) setCardOfDay(b.card_of_the_day);
+          setFomoItems(b.fomo_feed?.items || []);
+          if (b.ai_predict) setPredict(b.ai_predict);
+          if (b.coins) setCoinsStatus(b.coins);
+        };
+        // Paint cached immediately (0 RTT)
+        paint(res.data);
+        setLoading(false);
+        // Background revalidation — repaint if fresh data differs
+        if (res.isStale) {
+          res.fresh.then((fresh) => { if (fresh) paint(fresh); }).catch(() => {});
+        }
+        // Side-effects — don't block UI
+        api.post('/coins/award', { action: 'open_app_daily' })
+          .then((r) => { if (r?.data?.awarded > 0) setShowConfetti(true); })
+          .catch(() => {});
+        api.get(`/money-school/dynamic?lang=${lang}`)
+          .then((r) => setDailyLesson(r.data))
+          .catch(() => {});
+        fetchNews(false);
+        setLastSyncAt(Date.now());
+        setRefreshing(false);
+        return;
+      } catch (bundleErr) {
+        console.warn('home/bundle failed, falling back to parallel calls', bundleErr);
+      }
+
+      // ──── Legacy path (kept for graceful degradation) ────
       // Phase 1: Critical data (shown above the fold)
       const [profileRes, statsRes, txnRes, avatarRes, snapRes] = await Promise.all([
         api.get('/user/me'),
@@ -108,15 +154,13 @@ export default function HomeScreen() {
           setFomoItems(fomoRes.data?.items || []);
           if (predRes.data) setPredict(predRes.data);
           if (coinsRes.data) setCoinsStatus(coinsRes.data);
-          // Trigger confetti if we just awarded daily-open coins
           if (_openCoinsAward?.data?.awarded && _openCoinsAward.data.awarded > 0) {
             setShowConfetti(true);
           }
         } catch (e) { console.error('Phase2 err', e); }
       });
 
-      // Phase 3 (fully independent): India Finance news — fire separately so
-      // it never blocks the rest of the secondary data and shows fallback fast.
+      // Phase 3: India Finance news (independent)
       fetchNews(/* refresh */ false);
     } catch (error) {
       console.error('Dashboard fetch error:', error);

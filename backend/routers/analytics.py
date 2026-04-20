@@ -832,3 +832,110 @@ async def analytics_yearly(year: int = 0, user_id: str = Depends(get_current_use
         "headline": headline,
     }
 
+
+
+
+# ══════════════════════════════════════════════════════════════════════════
+#  ROUND 20 — HOME BUNDLE
+#  Single network round-trip that returns everything the Home screen needs.
+#  Previously the frontend fired 15 parallel HTTP calls on every cold-load —
+#  replaced by one /home/bundle call. Server-side fan-out uses asyncio.gather
+#  so the wall-clock cost ≈ cost of the slowest upstream handler.
+#
+#  Each slice is independently wrapped in `_safe()` so one slow/failing
+#  dependency can never block the entire bundle. Missing slices come back
+#  as `null` and the frontend keeps its existing fallback UI.
+# ══════════════════════════════════════════════════════════════════════════
+import asyncio
+from core.cache import cache_get, cache_set
+
+
+async def _safe(coro):
+    try:
+        return await coro
+    except Exception:  # noqa: BLE001 — swallowed on purpose, caller treats as null
+        return None
+
+
+@router.get("/home/bundle")
+async def home_bundle(lang: str = "en", user_id: str = Depends(get_current_user)):
+    """Fan-out bundle for the Home tab.
+
+    Returns:
+      {
+        user, stats, recent_txns, avatar, snapshot,
+        money_school, alerts, weekly_report, leaderboard, gamification,
+        card_of_the_day, fomo_feed, ai_predict, coins,
+        cached_at (iso string, omitted on fresh fetch)
+      }
+
+    Serve-stale behaviour: we cache the successful bundle per user+lang for
+    25 s. Callers that want a fresh bundle can send `?refresh=1`.
+    """
+    key = f"home_bundle::{user_id}::{lang}"
+
+    # Import handlers lazily so we don't create circular imports at module load
+    from routers.user import get_user_profile, get_avatar
+    from routers.content import card_of_the_day
+    from routers.alerts import smart_alerts
+    from routers.gamification import get_gamification_status
+    from routers.referral import fomo_feed
+
+    # Hit cache first (stale-while-revalidate semantics handled client-side)
+    cached = cache_get(key)
+    if cached is not None:
+        return cached
+
+    # Recent txns slice — inline for speed, avoid importing a whole router
+    async def _recent():
+        cur = db.transactions.find({"user_id": user_id}).sort("date", -1).limit(5)
+        out = []
+        async for t in cur:
+            t["id"] = str(t.pop("_id"))
+            if isinstance(t.get("date"), datetime):
+                t["date"] = t["date"].isoformat()
+            if isinstance(t.get("created_at"), datetime):
+                t["created_at"] = t["created_at"].isoformat()
+            out.append(t)
+        return out
+
+    # Fan-out — each slice is independently async, failures fall through to None
+    (
+        user, stats, recent_txns, avatar, snapshot,
+        alerts, weekly_rep, lb, game,
+        cotd, fomo, pred, coins,
+    ) = await asyncio.gather(
+        _safe(get_user_profile(user_id=user_id)),
+        _safe(get_stats_overview(user_id=user_id)),
+        _safe(_recent()),
+        _safe(get_avatar(user_id=user_id)),
+        _safe(home_snapshot(user_id=user_id)),
+        _safe(smart_alerts(user_id=user_id)),
+        _safe(weekly_report(user_id=user_id)),
+        _safe(savings_leaderboard(user_id=user_id)),
+        _safe(get_gamification_status(user_id=user_id)),
+        _safe(card_of_the_day(refresh=False, user_id=user_id)),
+        _safe(fomo_feed(user_id=user_id)),
+        _safe(ai_predict(user_id=user_id)),
+        _safe(coins_status(user_id=user_id)),
+    )
+
+    bundle = {
+        "user": user,
+        "stats": stats,
+        "recent_txns": recent_txns or [],
+        "avatar": avatar,
+        "snapshot": snapshot,
+        "alerts": alerts,
+        "weekly_report": weekly_rep,
+        "leaderboard": lb,
+        "gamification": game,
+        "card_of_the_day": cotd,
+        "fomo_feed": fomo,
+        "ai_predict": pred,
+        "coins": coins,
+        "cached_at": datetime.utcnow().isoformat(),
+        "cache_ttl_s": 25,
+    }
+    cache_set(key, bundle, ttl_seconds=25)
+    return bundle

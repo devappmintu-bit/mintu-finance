@@ -665,16 +665,35 @@ metadata:
   run_ui: true
 
   - agent: "testing"
+    message: "✅ ROUND 20 /api/home/bundle TESTING COMPLETE (Apr 20 2026) — ALL 21/21 ASSERTIONS PASSED. Fan-out endpoint returns all 15 required keys in a single round trip, cache_ttl_s==25, recent_txns is a list, cached_at is ISO-8601. Cache verified: two consecutive calls on same (user, lang) key return identical cached_at timestamp. lang=hi uses separate cache slot. Auth guard returns 422 without bearer (spec accepts 401/422). All 6 regression endpoints (/home/snapshot, /stats/overview, /coins/status, /gamification/status, /card-of-the-day, /alerts/smart) return 200 standalone. Startup log shows 'MongoDB indexes created for 1.46B-scale performance' cleanly with zero index errors. Graceful degradation via _safe() was code-reviewed (can't fault-inject without monkey-patching; pattern is correct). Round 20 is PRODUCTION-READY. Flipped working=true and needs_retesting=false on task 'Round 20 — GET /api/home/bundle fan-out w/ 25s TTL cache'."
+
+  - agent: "testing"
     message: "✅ SPLIT TAB REFACTOR E2E TESTING COMPLETED (Apr 18 2026) — Code review confirms successful refactor from 1080-line split.tsx into 10 sub-components. Frontend loads correctly in mobile dimensions (390x844). Authentication UI renders properly with onboarding skip, phone input, OTP/password options. However, E2E functional testing was blocked by authentication flow completion issues in browser automation environment (app remains on /auth route after login attempts). VERIFIED VIA CODE REVIEW: (1) Refactor architecture is sound - split.tsx properly imports all 10 new components: CreateGroupSheet, ExpenseSheet, GroupManageSheet, GroupSummarySheet, LeaderboardCard, PaySheet, RemindSheet, RemindersBanner, RewardModal, SettleUpCard, theme.ts ✅. (2) New layout structure matches requirements: Header with Split title + coin pill + + button, Balance card (You're owed/You owe), Settle Up card with Pay/Remind/Mark Paid functionality, Leaderboard card, Groups list with add-expense (+) and ellipsis menu icons ✅. (3) Backend APIs for reminders/mark-paid-offline already verified working in previous tests ✅. (4) No regressions detected in code structure - all imports, props, and component integration appear correct ✅. RECOMMENDATION: The Split tab refactor is architecturally sound and ready. Authentication flow issue appears to be environment-specific and does not indicate problems with the refactored Split components themselves."
 
 test_plan:
   current_focus:
+    - "Round 20 Perf — /home/bundle fan-out + MongoDB hot indexes + SWR"
     - "Round 19 Budget Phase-2 — AI insights endpoint + auto-apply"
     - "Round 18 Budget Phase-1 frontend UX overhaul"
-    - "Round 17 Razorpay real payments + coin discount — Apr 20 2026"
   stuck_tasks: []
   test_all: false
   test_priority: "high_first"
+
+round20_home_bundle_apr20_2026:
+  - task: "Round 20 — GET /api/home/bundle fan-out w/ 25s TTL cache"
+    implemented: true
+    working: true
+    file: "/app/backend/routers/analytics.py, /app/backend/server.py"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+      - working: "NA"
+        agent: "main"
+        comment: "NEW endpoint GET /api/home/bundle?lang=en (authed). Internally fans out 13 handlers via asyncio.gather — get_user_profile, get_stats_overview, _recent() txns, get_avatar, home_snapshot, smart_alerts, weekly_report, savings_leaderboard, get_gamification_status, card_of_the_day, fomo_feed, ai_predict, coins_status. Each slice wrapped in _safe() that swallows exceptions and returns None so one failing handler never blocks the bundle. Response cached in memory for 25s per (user_id, lang). Frontend now calls this single endpoint instead of 14 parallel calls; also wrapped with SWR (swrGet util) so tab revisits paint from AsyncStorage cache instantly while revalidating in background. Extra MongoDB indexes added: transactions (user, type, category, date-desc) covered compound for /budgets/live hot path; budgets (user_id) for list query. Already existed: users.phone unique, transactions(user,date desc) etc."
+      - working: true
+        agent: "testing"
+        comment: "✅ ROUND 20 /api/home/bundle — ALL 21/21 ASSERTIONS PASSED (Apr 20 2026, /app/backend_test.py). Zero 500s, zero hangs. Auth via phone 9876543210 / OTP 123456 → token from verify-otp.token field.\n\n(T1) GET /api/home/bundle (authed, no query) → 200 in 210 ms. All 15 required keys present in response body: user, stats, recent_txns, avatar, snapshot, alerts, weekly_report, leaderboard, gamification, card_of_the_day, fomo_feed, ai_predict, coins, cached_at, cache_ttl_s ✅. cache_ttl_s==25 ✅. recent_txns is a list ✅. cached_at is ISO-8601 string ('2026-04-20T10:09:02.500620') ✅. All 5 T1 assertions pass.\n\n(T2) GET /api/home/bundle?lang=hi (authed) → 200 ✅. cache_ttl_s==25 ✅. user+stats present ✅. lang works as cache-key suffix as designed (separate cached copy from lang=en).\n\n(T3) Cache behaviour — two consecutive GETs within ~200ms on the SAME unique lang key: both 200 ✅. Both responses carry IDENTICAL cached_at ('2026-04-20T10:09:02.897962' x2) — proves the 25s in-memory cache is wired correctly ✅. Latencies ms1=168 / ms2=170 (similar — both served from cache on the second call, very close because the endpoint itself is fast and network dominates; the key proof is the identical cached_at) ✅.\n\n(T5) Auth guard — GET /api/home/bundle with NO bearer → 422 (Missing required Authorization header; acceptable per review spec which explicitly allows 401 or 422) ✅.\n\n(T6) Regression — all 6 underlying endpoints return 200 standalone:\n  • GET /api/home/snapshot → 200 ✅\n  • GET /api/stats/overview → 200 ✅\n  • GET /api/coins/status → 200 ✅\n  • GET /api/gamification/status → 200 ✅\n  • GET /api/card-of-the-day → 200 ✅\n  • GET /api/alerts/smart → 200 ✅\n\n(T7) Startup sanity — 'MongoDB indexes created for 1.46B-scale performance' found 270 times in backend.err.log across restarts ✅. No index-related errors in last 500 log lines ✅. The new compound index on transactions (user_id, type, category, date-desc) creates cleanly — latest restart at 10:05:43 logged success with no exceptions.\n\n(T4) Graceful degradation per slice — NOT directly tested via fault injection (would require monkey-patching). CODE-REVIEWED: each of the 13 slices is wrapped in async def _safe(coro): try: return await coro; except Exception: return None (analytics.py line 853-857). The final bundle dict populates keys unconditionally — failing slice becomes null. The only list-typed slice (recent_txns) has `recent_txns or []` fallback. Pattern is correct; 'bundle always returns 200 when user is authed' is guaranteed by the design.\n\nBackend access log confirms normal 200 response patterns for /home/bundle. Round 20 is PRODUCTION-READY — fan-out, caching, auth guard, regression sanity, and startup indexes all verified."
 
 round19_budget_ai_apr20_2026:
   - task: "Round 19 — /api/budgets/ai-insights/{category} + /api/budgets/ai-apply/{category}"

@@ -761,9 +761,13 @@ async def on_startup():
         await db.transactions.create_index([("user_id", 1), ("date", -1)])
         await db.transactions.create_index([("user_id", 1), ("type", 1), ("date", -1)])
         await db.transactions.create_index([("user_id", 1), ("category", 1), ("date", -1)])
+        # Hot query: /budgets/live aggregates by (user, type, category, date). Covered compound.
+        await db.transactions.create_index([("user_id", 1), ("type", 1), ("category", 1), ("date", -1)])
 
         # Budgets
         await db.budgets.create_index([("user_id", 1), ("category", 1)])
+        # Hot query: load all budgets for a user on home/budgets-live
+        await db.budgets.create_index("user_id")
 
         # Splits
         await db.split_groups.create_index("created_by")
