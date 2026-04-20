@@ -7,6 +7,7 @@ import { toastConfig } from '../components/ToastConfig';
 import { useAuthStore } from '../store/authStore';
 import { useLangStore } from '../store/langStore';
 import { usePushNotifications } from '../hooks/usePushNotifications';
+import { useAppLock } from '../hooks/useAppLock';
 
 // Silence noisy, non-actionable deprecation warnings from RN core + libs.
 // These warnings are informational for future RN versions and don't affect runtime.
@@ -41,6 +42,9 @@ export default function RootLayout() {
   // Registers device push token with backend once auth is ready.
   // Silent on web/simulators, idempotent across remounts.
   usePushNotifications();
+
+  // Re-lock the app on resume from background — reinvokes biometric/PIN every time.
+  useAppLock();
 
   useEffect(() => {
     loadFromStorage();
