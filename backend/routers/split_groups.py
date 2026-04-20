@@ -231,6 +231,8 @@ async def delete_group(group_id: str, user_id: str = Depends(get_current_user)):
 @api_router.delete("/split/groups/{group_id}/leave")
 async def leave_group(group_id: str, user_id: str = Depends(get_current_user)):
     """Leave a split group"""
+    if not ObjectId.is_valid(group_id):
+        raise HTTPException(status_code=400, detail="Invalid group_id")
     user = await db.users.find_one({"_id": ObjectId(user_id)}) if ObjectId.is_valid(user_id) else await db.users.find_one({"phone": user_id})
     name = user.get("name", "Someone") if user else "Someone"
     await db.split_groups.update_one(
