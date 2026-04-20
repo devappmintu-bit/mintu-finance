@@ -16,6 +16,7 @@ import { router, useFocusEffect } from 'expo-router';
 import { HomeSkeleton } from '../../components/SkeletonLoader';
 import InsightsCard from '../../components/home/InsightsCard';
 import DailyQuestCard from '../../components/DailyQuestCard';
+import PremiumHomeCard from '../../components/home/PremiumHomeCard';
 import AIInsightCard from '../../components/home/AIInsightCard';
 import UnifiedLeaderboard from '../../components/leaderboard/UnifiedLeaderboard';
 import NewsCarousel from '../../components/home/NewsCarousel';
@@ -228,7 +229,8 @@ export default function HomeScreen() {
           </TouchableOpacity>
         </View>
 
-        {/* Premium card moved back to Profile tab (per design ask) */}
+        {/* PREMIUM — expandable card on Home, locked for free users */}
+        <PremiumHomeCard />
 
         {/* MintU 2.0 — Daily Quest Card (habit loop) */}
         <DailyQuestCard coinsStatus={coinsStatus} />

@@ -251,7 +251,7 @@ export default function ProfileScreen() {
 
         <PaymentMethods upiId={upiId} />
 
-        {/* PREMIUM — back on profile with expandable plans + personalized reports */}
+        {/* PREMIUM payment card lives here — Home only shows the feature list */}
         <PremiumExpandable onExplore={() => router.push('/premium' as any)} />
 
         <ReferralDashboard

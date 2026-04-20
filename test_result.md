@@ -2987,6 +2987,32 @@ frontend:
               inshorts-style "read more at SOURCE" footer that opens the article
               source_url via Linking.openURL.
   - task: "Round 15b — Budget recurring toggle + AI 'Other' auto-category + Premium comparison table"
+  - task: "Round 15c — Premium Hub full-screen + PremiumHomeCard + budget AI"
+    implemented: true
+    working: true
+    status_history:
+        - agent: "main"
+          comment: |
+            New pieces:
+            - NEW /premium-hub full-screen route (app/premium-hub.tsx) —
+              dashboard of 8 premium tools (Deep Reports, AI Coach, Tax Planner,
+              Investment Planner, Money School, Auto-Categorise, Badges, Priority
+              Support). Free users see a locked hero + lock icon overlays on
+              every tile; tap any tile → routes to /(tabs)/profile to pay.
+              Premium users see a saffron "You're Premium ✨" hero + fully
+              active tiles that route to each tool.
+            - NEW components/home/PremiumHomeCard.tsx — compact expandable
+              Premium card on Home (right under greeting). Collapsed shows
+              "Premium · 7 features locked/unlocked · tap to preview" with a
+              LOCKED/ACTIVE badge. Expanded lists all 7 perks with individual
+              lock/check icons. CTA row: "Open Premium Hub" (primary saffron
+              gradient) + "Unlock in Profile →" (secondary saffron ghost).
+            - Profile still holds the full payment card (PremiumExpandable) per
+              the latest design ask — the home card is view-only; payment
+              lives on Profile.
+            - _layout.tsx registers premium-hub screen.
+
+
     implemented: true
     working: true
     status_history:
