@@ -7,7 +7,7 @@
  *  • Chunky rounded CTA with bottom-shadow
  *  • Page dots grow + pulse on active
  */
-import React, { useRef, useState } from 'react';
+import React, { useRef, useState, useEffect } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Dimensions, Animated, FlatList, Platform } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import { router } from 'expo-router';
@@ -16,6 +16,7 @@ import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import { useLangStore } from '../store/langStore';
 import { t } from '../utils/i18n';
+import ConfettiBurst from '../components/ConfettiBurst';
 
 const { width, height } = Dimensions.get('window');
 
@@ -52,6 +53,8 @@ const S: Slide[] = [
 
 export default function Onboarding() {
   const [idx, setIdx] = useState(0);
+  const [burstKey, setBurstKey] = useState(0);        // increments on last-slide entry → re-fires confetti
+  const hasBurstedRef = useRef(false);
   const { lang } = useLangStore();
   const scrollX = useRef(new Animated.Value(0)).current;
   const listRef = useRef<FlatList>(null);
@@ -73,6 +76,15 @@ export default function Onboarding() {
   };
 
   const skip = async () => { try { Haptics.selectionAsync(); } catch {} complete(); };
+
+  // Fire confetti the first time user reaches the final slide (3 of 3)
+  useEffect(() => {
+    if (idx === S.length - 1 && !hasBurstedRef.current) {
+      hasBurstedRef.current = true;
+      setBurstKey((k) => k + 1);
+      try { Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success); } catch {}
+    }
+  }, [idx]);
 
   const renderSlide = ({ item, index }: { item: Slide; index: number }) => {
     const inputRange = [(index - 1) * width, index * width, (index + 1) * width];
@@ -125,6 +137,9 @@ export default function Onboarding() {
         onMomentumScrollEnd={(e) => setIdx(Math.round(e.nativeEvent.contentOffset.x / width))}
         scrollEventThrottle={16}
       />
+
+      {/* 🎉 Confetti burst — one-shot when user lands on the last slide */}
+      {burstKey > 0 && <ConfettiBurst trigger={burstKey} particles={30} />}
 
       {/* Footer — dots + chunky CTA */}
       <View style={s.footer}>
