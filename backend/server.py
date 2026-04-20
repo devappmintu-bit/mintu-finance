@@ -706,6 +706,7 @@ from routers import (  # noqa: E402
     upi as upi_router,
     insights_ext as insights_ext_router,
     gmail_oauth as gmail_oauth_router,
+    home_bundle as home_bundle_router,
 )
 
 for r in (
@@ -714,6 +715,7 @@ for r in (
     user_router, splits_router, ai_router, cash_router, notifications_router,
     sms_router, premium_router, premium_reports_router, ab_router, share_router, privacy_router,
     budgets_ext_router, alerts_router, upi_router, insights_ext_router, gmail_oauth_router,
+    home_bundle_router,
 ):
     api_router.include_router(r.router)
 

@@ -6,6 +6,12 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import api from '../../utils/api';
+import {
+  fetchReferralCode, fetchGamificationStatus, fetchPaywallTrigger,
+  fetchShareScoreCard, fetchPaywallGroup, fetchSavingsLeaderboard,
+  fetchFriendsLeaderboard, fetchReferralStatus, trackAbEvent,
+} from '../../services/rewards';
+import { fetchPremiumStatus } from '../../services/premium';
 import { useLangStore } from '../../store/langStore';
 import { useAuthStore } from '../../store/authStore';
 import { COLORS, RADIUS, SPACING } from '../../utils/theme';
@@ -33,15 +39,15 @@ export default function RewardsScreen() {
   const fetchData = async () => {
     try {
       const [refRes, gameRes, premRes, payRes, cardRes, abRes, lbRes, friendRes, enhRefRes] = await Promise.all([
-        api.get('/referral/my-code'),
-        api.get('/gamification/status'),
-        api.get('/premium/status'),
-        api.get('/premium/paywall-trigger'),
-        api.get('/share/score-card'),
-        api.get('/ab/paywall-group'),
-        api.get('/leaderboard/savings'),
-        api.get('/leaderboard/friends'),
-        api.get('/referral/enhanced-status'),
+        fetchReferralCode().then(data => ({ data })),
+        fetchGamificationStatus().then(data => ({ data })),
+        fetchPremiumStatus().then(data => ({ data })),
+        fetchPaywallTrigger().then(data => ({ data })),
+        fetchShareScoreCard().then(data => ({ data })),
+        fetchPaywallGroup().then(data => ({ data })),
+        fetchSavingsLeaderboard().then(data => ({ data })),
+        fetchFriendsLeaderboard().then(data => ({ data })),
+        fetchReferralStatus().then(data => ({ data })),
       ]);
       setReferral(refRes.data);
       setGamification(gameRes.data);
@@ -74,7 +80,7 @@ export default function RewardsScreen() {
   const shareReferral = () => { if (referral?.share_text) shareWhatsApp(referral.share_text); };
 
   const trackABEvent = async (event: string) => {
-    try { await api.post('/ab/track-event', { event, group: abGroup?.group, placement: abGroup?.placement }); } catch {}
+    trackAbEvent(event, abGroup?.group, abGroup?.placement);
   };
 
   if (loading) return <SafeAreaView style={s.container}><ActivityIndicator size="large" color={COLORS.accent.primary} style={{ marginTop: 100 }} /></SafeAreaView>;

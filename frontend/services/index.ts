@@ -21,4 +21,6 @@ export * from './transactions';
 export * from './split';
 export * from './user';
 export * from './premium';
+export * from './gmail';
+export * from './rewards';
 export type * from './types';

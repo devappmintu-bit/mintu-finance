@@ -19,6 +19,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { router } from 'expo-router';
 import api from '../utils/api';
+import { fetchPremiumStatus } from '../services/premium';
 
 type Status = { is_premium?: boolean; tier?: string; plan?: string; premium_until?: string } | null;
 
@@ -39,7 +40,7 @@ export default function PremiumHubScreen() {
 
   const fetchStatus = async () => {
     try {
-      const res = await api.get('/premium/status');
+      const res = { data: await fetchPremiumStatus() };
       setStatus(res.data);
     } catch { setStatus({ is_premium: false }); }
   };

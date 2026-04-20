@@ -7,6 +7,7 @@ import * as WebBrowser from 'expo-web-browser';
 import { router } from 'expo-router';
 import Toast from 'react-native-toast-message';
 import api from '../utils/api';
+import { fetchGmailStatus, startGmailOAuth, syncGmailNow, disconnectGmail } from '../services/gmail';
 import { COLORS, SPACING, RADIUS } from '../utils/theme';
 
 type Status = {
@@ -37,7 +38,7 @@ export default function GmailConnectScreen() {
 
   const fetchStatus = useCallback(async () => {
     try {
-      const r = await api.get('/gmail/status');
+      const r = { data: await fetchGmailStatus() };
       setStatus(r.data);
     } catch (e) {
       setStatus({ connected: false });
@@ -51,7 +52,7 @@ export default function GmailConnectScreen() {
   const connect = async () => {
     setConnecting(true);
     try {
-      const r = await api.get('/oauth/gmail/start');
+      const r = { data: await startGmailOAuth() };
       const authUrl: string = r.data.auth_url;
       if (!authUrl) throw new Error('no auth url');
       if (Platform.OS === 'web') {
@@ -60,7 +61,7 @@ export default function GmailConnectScreen() {
         // Poll status for ~60s while user signs in
         const start = Date.now();
         const tick = async () => {
-          const s = await api.get('/gmail/status').then((x) => x.data).catch(() => null);
+          const s = await fetchGmailStatus().catch(() => null);
           if (s?.connected) { setStatus(s); setConnecting(false); Toast.show({ type: 'success', text1: 'Gmail connected', text2: s.email }); return; }
           if (Date.now() - start > 90_000) { setConnecting(false); return; }
           setTimeout(tick, 2500);
@@ -82,7 +83,7 @@ export default function GmailConnectScreen() {
   const syncNow = async () => {
     setSyncing(true);
     try {
-      const r = await api.post('/gmail/sync-now');
+      const r = { data: await syncGmailNow() };
       Toast.show({
         type: r.data.imported > 0 ? 'success' : 'info',
         text1: `Fetched ${r.data.fetched} · Imported ${r.data.imported}`,
@@ -98,7 +99,7 @@ export default function GmailConnectScreen() {
 
   const disconnect = async () => {
     try {
-      await api.delete('/gmail/disconnect');
+      await disconnectGmail();
       Toast.show({ type: 'success', text1: 'Disconnected' });
       await fetchStatus();
     } catch {

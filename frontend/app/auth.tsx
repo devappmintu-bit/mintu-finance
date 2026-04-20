@@ -8,6 +8,7 @@ import { useAuthStore } from '../store/authStore';
 import { useLangStore } from '../store/langStore';
 import { t } from '../utils/i18n';
 import api from '../utils/api';
+import { sendOtp, verifyOtp } from '../services/user';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { COLORS, RADIUS, SPACING, ONBOARDING_IMAGES } from '../utils/theme';
@@ -39,7 +40,7 @@ export default function AuthScreen() {
     if (cleanPhone.length !== 10) { Alert.alert(t('error', lang), 'Enter valid 10-digit number'); return; }
     setLoading(true);
     try {
-      const res = await api.post('/auth/send-otp', { phone: cleanPhone });
+      const res = { data: await sendOtp(cleanPhone) };
       setIsNewUser(res.data.is_new_user);
       setStep('otp');
       setResendTimer(30);
@@ -64,7 +65,7 @@ export default function AuthScreen() {
     if (isNewUser) { setStep('name'); return; }
     setLoading(true);
     try {
-      const res = await api.post('/auth/verify-otp', { phone: phone.replace(/\D/g, ''), otp: code });
+      const res = { data: await verifyOtp(phone.replace(/\D/g, ''), code) };
       await setToken(res.data.token); setUser(res.data.user);
       // Returning user — offer PIN setup if they've never set one.
       const { hasPin } = await import('../utils/lockManager');
@@ -78,7 +79,7 @@ export default function AuthScreen() {
     if (!name.trim()) { Alert.alert(t('error', lang), 'Enter your name'); return; }
     setLoading(true);
     try {
-      const res = await api.post('/auth/verify-otp', { phone: phone.replace(/\D/g, ''), otp: otp.join(''), name: name.trim() });
+      const res = { data: await api.post('/auth/verify-otp', { phone: phone.replace(/\D/g, ''), otp: otp.join(''), name: name.trim() }).then(r => r.data) };
       await setToken(res.data.token); setUser(res.data.user);
       setPinSetupVisible(true); // fresh user → always prompt for PIN setup
     } catch (err: any) { Alert.alert(t('error', lang), err.response?.data?.detail || 'Something went wrong'); }
@@ -88,7 +89,7 @@ export default function AuthScreen() {
   const handleResend = async () => {
     if (resendTimer > 0) return;
     setLoading(true);
-    try { await api.post('/auth/resend-otp', { phone: phone.replace(/\D/g, '') }); setResendTimer(30); }
+    try { await sendOtp(phone.replace(/\D/g, '')); setResendTimer(30); }
     catch (err: any) { Alert.alert(t('error', lang), err.response?.data?.detail || 'Failed'); }
     finally { setLoading(false); }
   };
