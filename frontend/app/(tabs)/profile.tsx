@@ -23,6 +23,7 @@ import ProfileHero from '../../components/profile/ProfileHero';
 import FinancialSnapshot from '../../components/profile/FinancialSnapshot';
 import PaymentMethods from '../../components/profile/PaymentMethods';
 import RewardsHub from '../../components/profile/RewardsHub';
+import AuthTransitionOverlay from '../../components/auth/AuthTransitionOverlay';
 import PremiumExpandable from '../../components/profile/PremiumExpandable';
 import ReferralDashboard from '../../components/profile/ReferralDashboard';
 import ViewShot, { captureRef } from 'react-native-view-shot';
@@ -44,6 +45,7 @@ export default function ProfileScreen() {
   const [stats, setStats] = useState<any>(null);
   const [gamiStatus, setGamiStatus] = useState<any>(null);
   const [gamiExpanded, setGamiExpanded] = useState(false);
+  const [logoutAnim, setLogoutAnim] = useState(false);
   const [shareCardVisible, setShareCardVisible] = useState(false);
   const [sharing, setSharing] = useState(false);
   const scoreCardRef = useRef<View>(null);
@@ -103,7 +105,11 @@ export default function ProfileScreen() {
   const handleLogout = () => confirmThen(
     t('logout', lang),
     t('logout_confirm', lang),
-    async () => { await logout(); router.replace('/unlock'); },
+    async () => {
+      setLogoutAnim(true);
+      await logout();
+      // Overlay animates for ~900ms then calls onDone which routes to /unlock
+    },
   );
 
   const updateName = async () => {
@@ -458,6 +464,14 @@ export default function ProfileScreen() {
           </ScrollView>
         </View>
       </Modal>
+
+      {/* Animated logout transition — "Securing your session…" with lock pulse */}
+      {logoutAnim && (
+        <AuthTransitionOverlay
+          variant="locking"
+          onDone={() => { setLogoutAnim(false); router.replace('/unlock'); }}
+        />
+      )}
     </SafeAreaView>
   );
 }

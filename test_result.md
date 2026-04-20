@@ -3087,6 +3087,33 @@ frontend:
             - MockActivateRequest now accepts `coins_to_use` and mock-activate
               invokes coin_redeem_apply() server-side so the discount flow
               works end-to-end in the mock flow too.
+  - task: "Round 15g — Plan-wise comparison + Coin slider + Bell-only + Animated logout"
+    implemented: true
+    working: true
+    status_history:
+        - agent: "main"
+          comment: |
+            1. PremiumComparison rewritten as a plan-wise (Monthly / Yearly /
+               Lifetime) matrix with 15 feature rows, per-column SAVE badges,
+               strike-through effective monthly cost, and commitment-based
+               money-back guarantees. Horizontal-scroll for small screens.
+            2. NEW components/premium/CoinRedeemPanel.tsx — shows coin balance
+               from /api/coins/status, "No coins / Apply all" segmented pill,
+               calls /api/premium/coin-redeem-preview on change, returns the
+               applied coins + discount + effective price to the parent.
+               Plugged into PremiumExpandable; mock-activate now sends
+               coins_to_use so the redemption deducts from balance.
+            3. Settle-up reminder button: replaced "Remind" text with a
+               circular bell-only icon button (saffron gradient, 34x34).
+            4. NEW components/auth/AuthTransitionOverlay.tsx — animated
+               overlay with pulsing ring + Ionicons glyph (lock-closed for
+               locking, checkmark for unlocking), AES-256 caption.
+               Wired into Profile logout ("Securing your session…") and the
+               Unlock screen success path ("Welcome back").
+            5. Split-settle reminder chat message now stores bell+amount only
+               (old string "X reminded Y about ₹Z" → "🔔 ₹1,410" + meta dict).
+
+
             - Registered in routers/premium.py sibling imports.
 
 

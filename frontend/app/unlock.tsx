@@ -12,6 +12,7 @@ import { t } from '../utils/i18n';
 import { COLORS, SPACING, RADIUS } from '../utils/theme';
 import { biometricAvailable, tryBiometric, verifyPin, supportedBiometricLabel, hasPin, clearPin } from '../utils/lockManager';
 import MintULogo from '../components/MintULogo';
+import AuthTransitionOverlay from '../components/auth/AuthTransitionOverlay';
 
 export default function UnlockScreen() {
   const { user, removeAccount, unlock } = useAuthStore();
@@ -21,10 +22,11 @@ export default function UnlockScreen() {
   const [bioLabel, setBioLabel] = useState<'Face ID' | 'Fingerprint' | 'Biometric'>('Biometric');
   const [bioAvail, setBioAvail] = useState(false);
   const [attempting, setAttempting] = useState(false);
+  const [unlockAnim, setUnlockAnim] = useState(false);
 
   const proceed = useCallback(async () => {
     await unlock();
-    router.replace('/(tabs)');
+    setUnlockAnim(true);
   }, [unlock]);
 
   const attemptBio = useCallback(async () => {
@@ -119,6 +121,13 @@ export default function UnlockScreen() {
           </TouchableOpacity>
         </View>
       </View>
+
+      {unlockAnim && (
+        <AuthTransitionOverlay
+          variant="unlocking"
+          onDone={() => router.replace('/(tabs)')}
+        />
+      )}
     </SafeAreaView>
   );
 }

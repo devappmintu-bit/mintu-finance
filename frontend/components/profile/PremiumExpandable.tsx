@@ -9,6 +9,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { router } from 'expo-router';
 import api from '../../utils/api';
 import PremiumComparison from '../premium/PremiumComparison';
+import CoinRedeemPanel from '../premium/CoinRedeemPanel';
 import { COLORS } from '../../utils/theme';
 import MockPaymentSheet from '../MockPaymentSheet';
 import Toast from 'react-native-toast-message';
@@ -42,6 +43,7 @@ interface Props {
 export default function PremiumExpandable({ onExplore }: Props) {
   const [expanded, setExpanded] = useState(false);
   const [showComparison, setShowComparison] = useState(false);
+  const [coinRedeem, setCoinRedeem] = useState<{ coinsToUse: number; discount: number; effective: number }>({ coinsToUse: 0, discount: 0, effective: 0 });
   const [plans, setPlans] = useState<Plan[]>([]);
   const [selected, setSelected] = useState<string>('yearly');
   const [status, setStatus] = useState<{ is_premium: boolean; plan?: string; tier?: string; premium_until?: string } | null>(null);
@@ -75,7 +77,7 @@ export default function PremiumExpandable({ onExplore }: Props) {
 
   const onPaymentSuccess = async () => {
     try {
-      const res = await api.post('/premium/mock-activate', { plan: selected });
+      const res = await api.post('/premium/mock-activate', { plan: selected, coins_to_use: coinRedeem.coinsToUse });
       setShowPay(false);
       Toast.show({
         type: 'success',
@@ -189,11 +191,29 @@ export default function PremiumExpandable({ onExplore }: Props) {
               <Text style={s.featureText}>{t('feature_money_school', lang)}</Text>
             </View>
 
+            {/* Coin redeem — apply earned coins for an instant discount */}
+            {chosen && (
+              <CoinRedeemPanel
+                plan={selected}
+                listPrice={chosen.price || 0}
+                onChange={setCoinRedeem}
+              />
+            )}
+
             {/* CTA row */}
             <View style={s.ctaRow}>
               <View>
                 <Text style={s.ctaTotalLbl}>{t('total_today', lang)}</Text>
-                <Text style={s.ctaTotal}>₹{(chosen?.price || 0).toLocaleString('en-IN')}</Text>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                  {coinRedeem.discount > 0 && (
+                    <Text style={{ fontSize: 12, color: '#9CA3AF', fontWeight: '600', textDecorationLine: 'line-through' }}>
+                      ₹{(chosen?.price || 0).toLocaleString('en-IN')}
+                    </Text>
+                  )}
+                  <Text style={s.ctaTotal}>
+                    ₹{Math.max(0, (chosen?.price || 0) - coinRedeem.discount).toLocaleString('en-IN')}
+                  </Text>
+                </View>
               </View>
               <TouchableOpacity style={s.cta} onPress={() => setShowPay(true)} disabled={!chosen}>
                 <LinearGradient colors={['#F56E1E', '#C14A06']} style={s.ctaGrad}>

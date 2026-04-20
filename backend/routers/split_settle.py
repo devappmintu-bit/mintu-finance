@@ -474,7 +474,13 @@ async def send_payment_reminder(data: dict, user_id: str = Depends(get_current_u
             await db.split_messages.insert_one({
                 "group_id": group_id,
                 "type": "system",
-                "content": f"🔔 {sender_name} reminded {recipient_name} about ₹{amount:,.0f}",
+                "content": f"🔔 ₹{amount:,.0f}",
+                "meta": {
+                    "sender": sender_name,
+                    "recipient": recipient_name,
+                    "amount": float(amount),
+                    "kind": "reminder",
+                },
                 "sender_id": user_id,
                 "sender_name": sender_name,
                 "reminder_data": {"amount": amount, "recipient_id": target_user_id, "reminder_id": reminder_id},

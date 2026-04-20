@@ -48,10 +48,9 @@ export default function SettleUpCard({ rows, onPay, onRemind, onMarkPaid }: Prop
               </PressableGlass>
             </>
           ) : (
-            <PressableGlass onPress={() => onRemind(row)} feedback="light" style={{ marginLeft: 8 }}>
-              <LinearGradient colors={['#F59E0B', '#FB923C']} style={s.settleBtn}>
-                <Ionicons name="notifications" size={12} color={C.inv} />
-                <Text style={s.settleBtnT}>Remind</Text>
+            <PressableGlass onPress={() => onRemind(row)} feedback="light" style={{ marginLeft: 8 }} hitSlop={8}>
+              <LinearGradient colors={['#F59E0B', '#FB923C']} style={s.settleBellBtn}>
+                <Ionicons name="notifications" size={18} color={C.inv} />
               </LinearGradient>
             </PressableGlass>
           )}
@@ -84,6 +83,8 @@ const s = StyleSheet.create({
   settleAmt: { fontSize: 15, fontWeight: '800', marginLeft: 6 },
   settleBtn: { flexDirection: 'row', alignItems: 'center', gap: 3, paddingHorizontal: 10, paddingVertical: 6, borderRadius: 12 },
   settleBtnT: { fontSize: 12, fontWeight: '700', color: C.inv },
+  // Bell-only reminder button — no text, per design ask
+  settleBellBtn: { width: 34, height: 34, borderRadius: 17, alignItems: 'center', justifyContent: 'center' },
   settleIconBtn: {
     width: 34, height: 34, borderRadius: 12, justifyContent: 'center', alignItems: 'center', marginLeft: 4,
     backgroundColor: COLORS.bg.primary, borderWidth: 1, borderColor: C.border,
