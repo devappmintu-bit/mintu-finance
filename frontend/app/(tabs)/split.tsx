@@ -266,7 +266,7 @@ export default function SplitScreen() {
     setModal('pay');
   };
 
-  const payViaUPI = async () => {
+  const payViaUPI = async (coinsToUse: number = 0) => {
     if (!payTarget) return;
     const { to_id, to_name, amount, group_id } = payTarget;
     try {
@@ -277,14 +277,14 @@ export default function SplitScreen() {
           `Pay ₹${amount.toFixed(0)} to ${to_name}?\n(UPI deep-link only works on phone.)`,
           [
             { text: 'Cancel', style: 'cancel' },
-            { text: 'Confirm Paid', onPress: () => settleReward({ to_id, to_name, amount, method: 'upi', group_id }) },
+            { text: 'Confirm Paid', onPress: () => settleReward({ to_id, to_name, amount, method: 'upi', group_id, coins_to_use: coinsToUse }) },
           ]), 100);
         return;
       }
       await Linking.openURL(r.data.upi_link);
       setTimeout(() => Alert.alert('Payment Status', 'Did the payment go through?', [
         { text: 'No', style: 'cancel' },
-        { text: 'Yes, Paid', onPress: () => settleReward({ to_id, to_name, amount, method: 'upi', group_id }) },
+        { text: 'Yes, Paid', onPress: () => settleReward({ to_id, to_name, amount, method: 'upi', group_id, coins_to_use: coinsToUse }) },
       ]), 2500);
     } catch (e: any) {
       setModal('');
@@ -294,25 +294,38 @@ export default function SplitScreen() {
         isUpiErr ? `${to_name} hasn't added their UPI ID yet. Pay in cash instead?` : 'Could not start payment. Try marking as cash?',
         [
           { text: 'Cancel', style: 'cancel' },
-          { text: 'Mark as Cash', onPress: () => settleReward({ to_id, to_name, amount, method: 'cash', group_id }) },
+          { text: 'Mark as Cash', onPress: () => settleReward({ to_id, to_name, amount, method: 'cash', group_id, coins_to_use: coinsToUse }) },
         ]);
     }
   };
 
   const settleReward = async (t: any) => {
     try {
-      const r = await api.post('/split/settle-with-rewards', { target_user_id: t.to_id, amount: t.amount, method: t.method || 'upi', group_id: t.group_id });
+      const r = await api.post('/split/settle-with-rewards', {
+        target_user_id: t.to_id,
+        amount: t.amount,
+        method: t.method || 'upi',
+        group_id: t.group_id,
+        coins_to_use: Number(t.coins_to_use || 0),
+      });
       setLastReward(r.data.reward); setModal('reward'); fetchData();
     } catch { Toast.show({ type: 'error', text1: 'Error', text2: 'Could not settle' }); }
   };
 
-  const partialSettle = async (partialAmt: number) => {
+  const partialSettle = async (partialAmt: number, coinsToUse: number = 0) => {
     if (!payTarget) return;
     const { to_id, to_name, group_id } = payTarget;
     try {
-      const r = await api.post('/split/partial-settle', { target_user_id: to_id, amount: partialAmt, method: 'upi', group_id });
+      const r = await api.post('/split/partial-settle', {
+        target_user_id: to_id,
+        amount: partialAmt,
+        method: 'upi',
+        group_id,
+        coins_to_use: Number(coinsToUse || 0),
+      });
       close();
-      Toast.show({ type: 'success', text1: `Partial ₹${partialAmt.toFixed(0)} paid to ${to_name}`, text2: `+${r.data.coins_earned} 🪙` });
+      const coinSuffix = r.data.coins_applied > 0 ? ` · 🪙${r.data.coins_applied}` : '';
+      Toast.show({ type: 'success', text1: `Partial ₹${partialAmt.toFixed(0)} paid to ${to_name}${coinSuffix}`, text2: `+${r.data.coins_earned} 🪙 earned` });
       fetchData();
     } catch (e: any) {
       Toast.show({ type: 'error', text1: 'Error', text2: e?.response?.data?.detail || 'Failed' });
@@ -545,9 +558,9 @@ export default function SplitScreen() {
           visible={true}
           onClose={close}
           target={payTarget}
-          onPayUPI={payViaUPI}
-          onPayCash={() => { setModal(''); if (payTarget) settleReward({ ...payTarget, method: 'cash' }); }}
-          onPayPartial={partialSettle}
+          onPayUPI={(coins) => payViaUPI(coins || 0)}
+          onPayCash={(coins) => { setModal(''); if (payTarget) settleReward({ ...payTarget, method: 'cash', coins_to_use: coins || 0 }); }}
+          onPayPartial={(amt, coins) => partialSettle(amt, coins || 0)}
         />
       )}
       {modal === 'remind' && <RemindSheet visible={true} onClose={close} target={remindTarget} onSend={sendReminder} />}
@@ -562,6 +575,32 @@ export default function SplitScreen() {
             onAddExpense={(gr) => { setChatGroup(null); openAddExpense(gr); }}
             onManage={(gr) => { setChatGroup(null); openManage(gr); }}
             onEditExpense={(exp, gr) => { setChatGroup(null); setSelectedGroup(gr); setTimeout(() => openEditExpense(exp), 150); }}
+            onDirectPay={(debt, gr) => {
+              if (!debt) return;
+              setChatGroup(null);
+              setTimeout(() => openPay({
+                to_id: debt.to_id,
+                to_name: debt.to_name,
+                amount: debt.amount,
+                group_id: gr?.id || debt.group_id,
+              }), 180);
+            }}
+            onRemind={(debt, gr) => {
+              if (!debt) return;
+              const row: DebtRow = {
+                from_id: debt.from_id,
+                from_name: debt.from_name,
+                to_id: debt.to_id,
+                to_name: debt.to_name,
+                amount: debt.amount,
+                group_id: gr?.id || debt.group_id,
+                group_name: gr?.name || '',
+                group_emoji: gr?.custom_emoji || '💰',
+                direction: debt.from_id === user?.id ? 'i_owe' : 'owed_to_me',
+              } as DebtRow;
+              setChatGroup(null);
+              setTimeout(() => openRemind(row), 180);
+            }}
           />
         )}
       </Modal>

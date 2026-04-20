@@ -21,6 +21,88 @@ from routers.split_common import (
 )
 
 
+# ============== COIN REDEMPTION FOR SPLIT PAYMENTS ==============
+# Rate is shared with premium coin redemption so the UX feels consistent.
+COINS_PER_RUPEE = 10           # 10 coins = ₹1
+SPLIT_MAX_DISCOUNT_PCT = 0.50  # Cap redemption at 50% of the debt amount
+
+
+async def _get_user_coin_balance(user_id: str) -> int:
+    try:
+        u = await db.users.find_one({"_id": ObjectId(user_id)})
+    except Exception:
+        return 0
+    if not u:
+        return 0
+    return int(u.get("coins", 0) or 0)
+
+
+def _split_max_discount(amount: float) -> int:
+    return int(max(0.0, float(amount)) * SPLIT_MAX_DISCOUNT_PCT)
+
+
+@api_router.post("/split/coin-redeem-preview")
+async def split_coin_redeem_preview(data: dict, user_id: str = Depends(get_current_user)):
+    """Preview coin redemption for a split settlement.
+
+    Body: {amount: float, coins_to_use: int (optional, defaults to max)}
+    Returns {amount, coin_balance, coins_applied, discount, effective_amount, max_discount, rate}.
+    Never mutates state — safe for repeated slider calls.
+    """
+    amount = float(data.get("amount", 0) or 0)
+    if amount <= 0:
+        raise HTTPException(status_code=400, detail="Amount must be positive")
+
+    balance = await _get_user_coin_balance(user_id)
+    requested = int(data.get("coins_to_use", balance) or 0)
+    requested = max(0, requested)
+
+    max_disc = _split_max_discount(amount)
+    applied_coins = min(requested, balance, max_disc * COINS_PER_RUPEE)
+    discount = applied_coins // COINS_PER_RUPEE
+    effective = max(0.0, round(amount - discount, 2))
+
+    return {
+        "amount": amount,
+        "coin_balance": balance,
+        "coins_applied": applied_coins,
+        "discount": discount,
+        "effective_amount": effective,
+        "effective_price": effective,  # alias so shared CoinRedeemPanel works unchanged
+        "list_price": amount,
+        "max_discount": max_disc,
+        "rate": {"coins_per_rupee": COINS_PER_RUPEE, "max_pct": int(SPLIT_MAX_DISCOUNT_PCT * 100)},
+    }
+
+
+async def _apply_split_coin_redemption(user_id: str, amount: float, coins_requested: int) -> dict:
+    """Shared helper — deducts coins and returns breakdown. Used by settle endpoints below."""
+    if coins_requested <= 0 or amount <= 0:
+        return {"coins_applied": 0, "discount": 0, "effective_amount": amount}
+    balance = await _get_user_coin_balance(user_id)
+    max_disc_coins = _split_max_discount(amount) * COINS_PER_RUPEE
+    applied_coins = min(coins_requested, balance, max_disc_coins)
+    discount = applied_coins // COINS_PER_RUPEE
+    if applied_coins > 0:
+        await db.users.update_one({"_id": ObjectId(user_id)}, {"$inc": {"coins": -applied_coins}})
+        try:
+            await db.coin_ledger.insert_one({
+                "user_id": user_id,
+                "action": "split_redemption",
+                "amount": -applied_coins,
+                "at": datetime.utcnow(),
+            })
+        except Exception:
+            pass
+    return {
+        "coins_applied": applied_coins,
+        "discount": int(discount),
+        "effective_amount": max(0.0, round(amount - discount, 2)),
+    }
+
+
+
+
 @api_router.get("/split/balances")
 async def get_overall_balances(user_id: str = Depends(get_current_user)):
     """Get overall who owes you / you owe across all groups.
@@ -212,14 +294,20 @@ async def partial_settle(data: dict, user_id: str = Depends(get_current_user)):
     group_id = data.get("group_id")
     method = data.get("method", "upi")
     note = (data.get("note") or "").strip()
+    coins_to_use = int(data.get("coins_to_use", 0) or 0)
 
     if not target_user_id or amount <= 0:
         raise HTTPException(status_code=400, detail="target_user_id and positive amount required")
+
+    redemption = await _apply_split_coin_redemption(user_id, amount, coins_to_use)
 
     settlement = {
         "payer_id": user_id,
         "payee_id": target_user_id,
         "amount": amount,
+        "cash_paid": redemption["effective_amount"],
+        "coin_discount": redemption["discount"],
+        "coins_applied": redemption["coins_applied"],
         "method": method,
         "txn_ref": f"PART-{uuid_lib.uuid4().hex[:8].upper()}",
         "group_id": group_id,
@@ -257,13 +345,21 @@ async def partial_settle(data: dict, user_id: str = Depends(get_current_user)):
 
     if group_id:
         try:
+            coin_tag = f" 🪙{redemption['coins_applied']} coins" if redemption["coins_applied"] > 0 else ""
             await db.split_messages.insert_one({
                 "group_id": group_id,
                 "type": "system",
-                "content": f"💰 {payer_name} paid ₹{amount:,.0f} (partial) to {payee_name}",
+                "content": f"💰 {payer_name} paid ₹{amount:,.0f} (partial) to {payee_name}{coin_tag}",
                 "sender_id": user_id,
                 "sender_name": payer_name,
-                "settlement_data": {"amount": amount, "method": method, "settlement_id": str(result.inserted_id), "is_partial": True},
+                "settlement_data": {
+                    "amount": amount,
+                    "method": method,
+                    "settlement_id": str(result.inserted_id),
+                    "is_partial": True,
+                    "coins_applied": redemption["coins_applied"],
+                    "coin_discount": redemption["discount"],
+                },
                 "created_at": datetime.utcnow(),
             })
         except Exception as e:
@@ -274,6 +370,9 @@ async def partial_settle(data: dict, user_id: str = Depends(get_current_user)):
         "message": f"Partial ₹{amount:,.0f} to {payee_name} recorded ✅",
         "amount": amount,
         "coins_earned": coins_earned,
+        "coins_applied": redemption["coins_applied"],
+        "coin_discount": redemption["discount"],
+        "cash_paid": redemption["effective_amount"],
         "txn_ref": settlement["txn_ref"],
         "is_partial": True,
     }
@@ -282,7 +381,7 @@ async def partial_settle(data: dict, user_id: str = Depends(get_current_user)):
 
 @api_router.post("/split/settle-with-rewards")
 async def settle_with_rewards(data: SettlePayment, user_id: str = Depends(get_current_user)):
-    """Settle payment and earn reward coins"""
+    """Settle payment and earn reward coins. Supports optional coin redemption via data.coins_to_use."""
     from bson import ObjectId
 
     # Calculate reward tier
@@ -291,10 +390,16 @@ async def settle_with_rewards(data: SettlePayment, user_id: str = Depends(get_cu
         reward = tier
         break  # Give best available reward for now
 
+    # Apply coin redemption first (deducts from balance). Debt still cleared fully.
+    redemption = await _apply_split_coin_redemption(user_id, data.amount, int(data.coins_to_use or 0))
+
     settlement = {
         "payer_id": user_id,
         "payee_id": data.target_user_id,
         "amount": data.amount,
+        "cash_paid": redemption["effective_amount"],
+        "coin_discount": redemption["discount"],
+        "coins_applied": redemption["coins_applied"],
         "method": data.method,
         "txn_ref": data.txn_ref or f"MINTU{uuid_lib.uuid4().hex[:8].upper()}",
         "group_id": data.group_id,
@@ -338,6 +443,9 @@ async def settle_with_rewards(data: SettlePayment, user_id: str = Depends(get_cu
         "id": str(result.inserted_id),
         "message": f"₹{data.amount:,.0f} paid to {payee_name}! 🎉",
         "txn_ref": settlement["txn_ref"],
+        "coins_applied": redemption["coins_applied"],
+        "coin_discount": redemption["discount"],
+        "cash_paid": redemption["effective_amount"],
         "reward": {
             "coins_earned": reward["coins"],
             "label": reward["label"],
@@ -566,20 +674,31 @@ async def mark_paid_offline(data: dict, user_id: str = Depends(get_current_user)
 
     Creates a settlement record + posts a system message in group chat.
     Used when a user says 'I already paid in cash' without going through UPI.
+    Supports optional `coins_to_use` to apply a coin-based discount (debt is still
+    fully settled — coins cover the discount portion; the payer only pays the
+    remainder in cash/bank).
     """
     target_user_id = data.get("target_user_id")
     amount = float(data.get("amount", 0))
     group_id = data.get("group_id")
     method = data.get("method", "cash")  # cash | bank_transfer | other
     note = (data.get("note") or "").strip()
+    coins_to_use = int(data.get("coins_to_use", 0) or 0)
 
     if not target_user_id or amount <= 0:
         raise HTTPException(status_code=400, detail="target_user_id and positive amount required")
+
+    # Apply coin redemption (deducts coins from balance). Still settle the FULL
+    # debt amount — coins cover a discount on the actual cash outflow.
+    redemption = await _apply_split_coin_redemption(user_id, amount, coins_to_use)
 
     settlement = {
         "payer_id": user_id,
         "payee_id": target_user_id,
         "amount": amount,
+        "cash_paid": redemption["effective_amount"],
+        "coin_discount": redemption["discount"],
+        "coins_applied": redemption["coins_applied"],
         "method": method,
         "txn_ref": f"OFFLINE-{uuid_lib.uuid4().hex[:8].upper()}",
         "group_id": group_id,
@@ -626,23 +745,34 @@ async def mark_paid_offline(data: dict, user_id: str = Depends(get_current_user)
     if group_id:
         try:
             method_label = {"cash": "💵 cash", "bank_transfer": "🏦 bank transfer", "other": "✅"}.get(method, "offline")
+            coin_tag = f" (🪙{redemption['coins_applied']} coins applied — ₹{redemption['discount']} off)" if redemption["coins_applied"] > 0 else ""
             await db.split_messages.insert_one({
                 "group_id": group_id,
                 "type": "system",
-                "content": f"✅ {payer_name} paid ₹{amount:,.0f} to {payee_name} ({method_label})",
+                "content": f"✅ {payer_name} paid ₹{amount:,.0f} to {payee_name} ({method_label}){coin_tag}",
                 "sender_id": user_id,
                 "sender_name": payer_name,
-                "settlement_data": {"amount": amount, "method": method, "settlement_id": str(result.inserted_id)},
+                "settlement_data": {
+                    "amount": amount,
+                    "method": method,
+                    "settlement_id": str(result.inserted_id),
+                    "coins_applied": redemption["coins_applied"],
+                    "coin_discount": redemption["discount"],
+                },
                 "created_at": datetime.utcnow(),
             })
         except Exception as e:
             logging.warning(f"Could not post settlement system message: {e}")
 
+    coin_suffix = f" · 🪙{redemption['coins_applied']} coins applied" if redemption["coins_applied"] > 0 else ""
     return {
         "id": str(result.inserted_id),
-        "message": f"₹{amount:,.0f} marked as paid to {payee_name} ✅",
+        "message": f"₹{amount:,.0f} marked as paid to {payee_name} ✅{coin_suffix}",
         "method": method,
         "txn_ref": settlement["txn_ref"],
+        "coins_applied": redemption["coins_applied"],
+        "coin_discount": redemption["discount"],
+        "cash_paid": redemption["effective_amount"],
     }
 
 

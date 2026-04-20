@@ -1,247 +1,292 @@
-"""Round 14 regression test — premium router refactor + deep-report validation.
+"""Round 15 Split Coin Redemption Backend Tests.
 
-Tests:
-A) Core premium endpoints after the refactor (status, mock-activate, paywall, tax, invest, catalog)
-B) NEW GET /api/premium/deep-report — 403 before premium, 200 after
-C) Previously crashing AI endpoints (insights/daily, waste-detector, money-school/dynamic, ai/agents, ai/chat)
-D) Sanity on other routers (splits, transactions, analytics)
+Validates:
+  - NEW POST /api/split/coin-redeem-preview
+  - POST /api/split/mark-paid-offline with coins_to_use
+  - POST /api/split/partial-settle with coins_to_use
+  - POST /api/split/settle-with-rewards with coins_to_use + backward-compat
+  - Regression: /split/groups, /split/balances, /coins/status, /premium/status
+
+Auth: phone 9876543210 / OTP 123456 (mock).
 """
+import os
 import sys
 import requests
 
-BASE = "https://mintu-finance.preview.emergentagent.com/api"
+BASE = os.environ.get("BACKEND_URL", "https://mintu-finance.preview.emergentagent.com").rstrip("/") + "/api"
 PHONE = "9876543210"
 OTP = "123456"
+FAKE_TARGET_ID = "507f1f77bcf86cd799439011"  # Valid 24-char hex ObjectId shape
 
-results = []
-
-
-def check(name, cond, info=""):
-    status = "PASS" if cond else "FAIL"
-    print(f"[{status}] {name}{' — ' + info if info else ''}")
-    results.append((name, cond, info))
-    return cond
+passed: list[str] = []
+failed: list[tuple[str, str]] = []
 
 
-def post(path, token=None, **kwargs):
-    h = kwargs.pop("headers", {})
-    if token:
-        h["Authorization"] = f"Bearer {token}"
-    return requests.post(BASE + path, headers=h, timeout=60, **kwargs)
+def _rec(name: str, ok: bool, detail: str = ""):
+    if ok:
+        passed.append(name)
+        print(f"  ✅ {name}")
+    else:
+        failed.append((name, detail))
+        print(f"  ❌ {name} — {detail}")
 
 
-def get(path, token=None, **kwargs):
-    h = kwargs.pop("headers", {})
-    if token:
-        h["Authorization"] = f"Bearer {token}"
-    return requests.get(BASE + path, headers=h, timeout=60, **kwargs)
+def _post(path, body=None, headers=None, timeout=30):
+    return requests.post(f"{BASE}{path}", json=body or {}, headers=headers or {}, timeout=timeout)
 
 
-# ---------- AUTH ----------
-print("\n===== AUTH =====")
-r = post("/auth/send-otp", json={"phone": PHONE})
-check("send-otp", r.status_code == 200, f"status={r.status_code}")
-r = post("/auth/verify-otp", json={"phone": PHONE, "otp": OTP})
-check("verify-otp", r.status_code == 200, f"status={r.status_code}")
-token = r.json().get("access_token") or r.json().get("token")
-check("token present", bool(token))
+def _get(path, headers=None, timeout=30):
+    return requests.get(f"{BASE}{path}", headers=headers or {}, timeout=timeout)
 
 
-# ---------- A) PREMIUM CORE ----------
-print("\n===== A) PREMIUM CORE =====")
-r = get("/premium/status", token)
-check("GET /premium/status (200)", r.status_code == 200, f"status={r.status_code}")
-status_body = r.json() if r.status_code == 200 else {}
-was_premium_before = status_body.get("is_premium", False)
-check("/premium/status has expected keys",
-      all(k in status_body for k in ["is_premium", "tier", "features", "pricing"]),
-      f"keys={list(status_body.keys())}")
-print(f"   (was_premium_before={was_premium_before})")
+# ============== STEP 1: AUTH ==============
+print("\n=== AUTH ===")
+r = _post("/auth/send-otp", {"phone": PHONE})
+assert r.status_code == 200, f"send-otp failed {r.status_code} {r.text}"
+r = _post("/auth/verify-otp", {"phone": PHONE, "otp": OTP})
+assert r.status_code == 200, f"verify-otp failed {r.status_code} {r.text}"
+j = r.json()
+TOKEN = j.get("access_token") or j.get("token")
+USER_ID = (j.get("user") or {}).get("id") or j.get("user_id")
+assert TOKEN, f"no token in verify-otp response: {j}"
+H = {"Authorization": f"Bearer {TOKEN}"}
+print(f"  ✅ authed as {PHONE} uid={USER_ID}")
 
-# If user was already premium from a previous test run, reset tier for 403 check
-if was_premium_before:
-    print("   -> downgrading user to free tier (direct DB) so we can test 403 path")
+
+# ============== STEP 2: SEED COINS ==============
+print("\n=== SEED COINS ===")
+r = _get("/coins/status", headers=H)
+initial_bal = r.json().get("balance", 0) if r.status_code == 200 else 0
+print(f"  initial balance = {initial_bal}")
+
+for action in ("open_app_daily", "add_transaction", "scan_sms", "settle_split", "complete_lesson"):
+    r = _post("/coins/award", {"action": action}, headers=H)
+    if r.status_code == 200:
+        print(f"  action={action} awarded={r.json().get('awarded')} bal={r.json().get('balance')}")
+
+r = _get("/coins/status", headers=H)
+post_seed_bal = r.json().get("balance", 0) if r.status_code == 200 else 0
+print(f"  post-seed balance = {post_seed_bal}")
+
+# If we still have < 100 coins, bump via MongoDB so we can test redemption paths
+if post_seed_bal < 100 and USER_ID:
+    print("  balance low — bumping via direct MongoDB write")
     try:
-        import pymongo
-        mongo_url = "mongodb://localhost:27017"
-        db_name = "test_database"
-        with open("/app/backend/.env") as f:
-            for line in f:
-                line = line.strip()
-                if line.startswith("MONGO_URL"):
-                    mongo_url = line.split("=", 1)[1].strip().strip('"').strip("'")
-                elif line.startswith("DB_NAME"):
-                    db_name = line.split("=", 1)[1].strip().strip('"').strip("'")
-        cli = pymongo.MongoClient(mongo_url)
-        dbh = cli[db_name]
-        res = dbh.users.update_one(
-            {"phone": PHONE},
-            {"$set": {"premium_tier": "free", "premium_until": None, "premium_plan": None}}
-        )
-        print(f"      downgrade result: matched={res.matched_count} modified={res.modified_count}")
+        import motor.motor_asyncio
+        import asyncio
+        from bson import ObjectId
+
+        async def _bump():
+            client = motor.motor_asyncio.AsyncIOMotorClient("mongodb://localhost:27017")
+            db = client["mintu_database"]
+            await db.users.update_one({"_id": ObjectId(USER_ID)}, {"$inc": {"coins": 1000}})
+            client.close()
+
+        asyncio.run(_bump())
+        r = _get("/coins/status", headers=H)
+        post_seed_bal = r.json().get("balance", 0)
+        print(f"  bumped balance = {post_seed_bal}")
     except Exception as e:
-        print(f"   downgrade failed: {e}")
+        print(f"  bump failed: {e}")
 
-# B) Deep-report 403 BEFORE premium
-print("\n===== B) DEEP-REPORT 403 BEFORE PREMIUM =====")
-r = get("/premium/deep-report?months=6", token)
-check("GET /premium/deep-report?months=6 BEFORE activation -> 403",
-      r.status_code == 403, f"status={r.status_code} body={r.text[:200]}")
 
-# Now mock-activate monthly
-print("\n===== A) MOCK-ACTIVATE monthly =====")
-r = post("/premium/mock-activate", token, json={"plan": "monthly"})
-check("POST /premium/mock-activate monthly", r.status_code == 200,
-      f"status={r.status_code} body={r.text[:200]}")
+# ============== T1: coin-redeem-preview amount=500 ==============
+print("\n=== T1: POST /split/coin-redeem-preview {amount:500} ===")
+r = _post("/split/coin-redeem-preview", {"amount": 500}, headers=H)
+_rec("T1 status=200", r.status_code == 200, f"{r.status_code} {r.text[:200]}")
 if r.status_code == 200:
-    body = r.json()
-    check("mock-activate -> is_premium true", body.get("is_premium") is True)
-    check("mock-activate -> tier=premium", body.get("tier") == "premium")
-    check("mock-activate -> plan=monthly", body.get("plan") == "monthly")
-    check("mock-activate -> premium_until set", bool(body.get("premium_until")))
+    d = r.json()
+    required = {"amount", "coin_balance", "coins_applied", "discount", "effective_amount",
+                "effective_price", "list_price", "max_discount", "rate"}
+    _rec("T1 shape complete", required.issubset(d.keys()), f"missing: {required - set(d.keys())}")
+    rate = d.get("rate", {})
+    _rec("T1 rate.coins_per_rupee=10", rate.get("coins_per_rupee") == 10, f"got {rate.get('coins_per_rupee')}")
+    _rec("T1 rate.max_pct=50", rate.get("max_pct") == 50, f"got {rate.get('max_pct')}")
+    _rec("T1 max_discount=250 (50% of 500)", d.get("max_discount") == 250, f"got {d.get('max_discount')}")
+    _rec("T1 discount <= max_discount", d.get("discount", 0) <= d.get("max_discount", 0))
+    _rec("T1 effective_amount = amount - discount",
+         abs(d.get("effective_amount", 0) - (d.get("amount", 0) - d.get("discount", 0))) < 0.01)
+    _rec("T1 effective_price == effective_amount", d.get("effective_price") == d.get("effective_amount"))
+    bal = d.get("coin_balance", 0)
+    max_coins = 250 * 10
+    expected_applied = min(bal, bal, max_coins)
+    _rec("T1 coins_applied = min(bal, max_disc*10)", d.get("coins_applied") == expected_applied,
+         f"got {d.get('coins_applied')} expected {expected_applied} (bal={bal})")
+    print(f"  [T1] balance={bal} coins_applied={d.get('coins_applied')} discount={d.get('discount')} eff={d.get('effective_amount')}")
 
-# Confirm /premium/status reflects premium
-r = get("/premium/status", token)
-check("/premium/status after activation -> is_premium true",
-      r.status_code == 200 and r.json().get("is_premium") is True,
-      f"body={r.text[:200]}")
 
-# Paywall trigger
-r = get("/premium/paywall-trigger", token)
-check("GET /premium/paywall-trigger", r.status_code == 200, f"status={r.status_code}")
+# ============== T2: coin-redeem-preview amount=100 coins_to_use=0 ==============
+print("\n=== T2: POST /split/coin-redeem-preview {amount:100, coins_to_use:0} ===")
+r = _post("/split/coin-redeem-preview", {"amount": 100, "coins_to_use": 0}, headers=H)
+_rec("T2 status=200", r.status_code == 200, f"{r.status_code}")
 if r.status_code == 200:
-    body = r.json()
-    check("paywall has total_spent / hook_text / pricing",
-          all(k in body for k in ["total_spent", "hook_text", "pricing", "features"]),
-          f"keys={list(body.keys())}")
+    d = r.json()
+    _rec("T2 discount=0", d.get("discount") == 0)
+    _rec("T2 effective_amount=100", d.get("effective_amount") == 100)
+    _rec("T2 coins_applied=0", d.get("coins_applied") == 0)
 
-# Tax calculator
-r = post("/premium/tax-calculator", token,
-         json={"annual_income": 1200000, "section_80c": 50000})
-check("POST /premium/tax-calculator", r.status_code == 200,
-      f"status={r.status_code} body={r.text[:300]}")
+
+# ============== T3: coin-redeem-preview amount=0 -> 400 ==============
+print("\n=== T3: POST /split/coin-redeem-preview {amount:0} ===")
+r = _post("/split/coin-redeem-preview", {"amount": 0}, headers=H)
+_rec("T3 status=400", r.status_code == 400, f"{r.status_code} {r.text[:150]}")
+if r.status_code == 400:
+    _rec("T3 error message matches", "positive" in r.text.lower(), f"{r.text[:200]}")
+
+
+# ============== T4: coin-redeem-preview no auth ==============
+print("\n=== T4: POST /split/coin-redeem-preview (no auth) ===")
+r = _post("/split/coin-redeem-preview", {"amount": 100})
+_rec("T4 status in (401, 422)", r.status_code in (401, 422), f"got {r.status_code}")
+
+
+# ============== T5: mark-paid-offline with coins_to_use=50 ==============
+print("\n=== T5: POST /split/mark-paid-offline {amount:200, coins_to_use:50} ===")
+r = _get("/coins/status", headers=H)
+bal_before = r.json().get("balance", 0) if r.status_code == 200 else 0
+print(f"  balance before = {bal_before}")
+
+r = _post("/split/mark-paid-offline", {
+    "target_user_id": FAKE_TARGET_ID,
+    "amount": 200,
+    "group_id": None,
+    "method": "cash",
+    "coins_to_use": 50,
+}, headers=H)
+_rec("T5 status=200", r.status_code == 200, f"{r.status_code} {r.text[:300]}")
+coins_applied_t5 = 0
 if r.status_code == 200:
-    body = r.json()
-    has_fields = any(k in body for k in ["new_regime", "old_regime", "recommended"])
-    check("tax-calc shape", has_fields, f"keys={list(body.keys())}")
+    d = r.json()
+    for k in ("coins_applied", "coin_discount", "cash_paid", "message", "txn_ref", "method"):
+        _rec(f"T5 has '{k}'", k in d, f"missing {k} (body keys={list(d.keys())})")
+    coins_applied_t5 = d.get("coins_applied", 0)
+    _rec("T5 coins_applied <= 50", coins_applied_t5 <= 50, f"got {coins_applied_t5}")
+    _rec("T5 coin_discount == coins_applied // 10",
+         d.get("coin_discount") == coins_applied_t5 // 10,
+         f"cd={d.get('coin_discount')} exp={coins_applied_t5 // 10}")
+    _rec("T5 cash_paid = 200 - coin_discount",
+         abs(d.get("cash_paid", 0) - (200 - d.get("coin_discount", 0))) < 0.01,
+         f"cash={d.get('cash_paid')} cd={d.get('coin_discount')}")
+    print(f"  [T5] coins_applied={coins_applied_t5} coin_discount={d.get('coin_discount')} cash_paid={d.get('cash_paid')}")
 
-# Investment suggest
-r = post("/premium/investment-suggest", token,
-         json={"monthly_income": 80000, "age": 28, "risk": "medium"})
-check("POST /premium/investment-suggest", r.status_code == 200,
-      f"status={r.status_code} body={r.text[:300]}")
+r = _get("/coins/status", headers=H)
+bal_after = r.json().get("balance", 0) if r.status_code == 200 else 0
+_rec("T5 balance decreased by coins_applied",
+     bal_before - bal_after == coins_applied_t5,
+     f"before={bal_before} after={bal_after} diff={bal_before - bal_after} exp={coins_applied_t5}")
+
+
+# ============== T6: mark-paid-offline with coins_to_use=0 ==============
+print("\n=== T6: POST /split/mark-paid-offline {coins_to_use:0} ===")
+bal_before_t6 = bal_after
+r = _post("/split/mark-paid-offline", {
+    "target_user_id": FAKE_TARGET_ID,
+    "amount": 100,
+    "group_id": None,
+    "method": "cash",
+    "coins_to_use": 0,
+}, headers=H)
+_rec("T6 status=200", r.status_code == 200, f"{r.status_code}")
 if r.status_code == 200:
-    body = r.json()
-    check("investment-suggest returns data", bool(body),
-          f"keys={list(body.keys())}")
+    d = r.json()
+    _rec("T6 coins_applied=0", d.get("coins_applied") == 0)
+    _rec("T6 coin_discount=0", d.get("coin_discount") == 0)
+    _rec("T6 cash_paid=100", d.get("cash_paid") == 100)
+r = _get("/coins/status", headers=H)
+bal_after_t6 = r.json().get("balance", 0) if r.status_code == 200 else 0
+_rec("T6 balance unchanged", bal_before_t6 == bal_after_t6,
+     f"before={bal_before_t6} after={bal_after_t6}")
 
-# Features catalog
-r = get("/premium/features-catalog", token)
-check("GET /premium/features-catalog", r.status_code == 200, f"status={r.status_code}")
+
+# ============== T7: partial-settle with coins_to_use=20 ==============
+print("\n=== T7: POST /split/partial-settle {amount:300, coins_to_use:20} ===")
+bal_before_t7 = bal_after_t6
+r = _post("/split/partial-settle", {
+    "target_user_id": FAKE_TARGET_ID,
+    "amount": 300,
+    "method": "cash",
+    "coins_to_use": 20,
+}, headers=H)
+_rec("T7 status=200", r.status_code == 200, f"{r.status_code} {r.text[:300]}")
+coins_applied_t7 = 0
 if r.status_code == 200:
-    body = r.json()
-    check("features-catalog sections >=4", len(body.get("sections", [])) >= 4,
-          f"sections={len(body.get('sections', []))}")
+    d = r.json()
+    for k in ("coins_applied", "coin_discount", "cash_paid", "coins_earned", "is_partial"):
+        _rec(f"T7 has '{k}'", k in d, f"missing {k}")
+    _rec("T7 is_partial=True", d.get("is_partial") is True)
+    coins_applied_t7 = d.get("coins_applied", 0)
+    _rec("T7 coins_applied <= 20", coins_applied_t7 <= 20)
+    _rec("T7 coin_discount == coins_applied // 10", d.get("coin_discount") == coins_applied_t7 // 10)
+    print(f"  [T7] coins_applied={coins_applied_t7} coin_discount={d.get('coin_discount')} cash_paid={d.get('cash_paid')}")
 
-# B) Deep-report AFTER premium
-print("\n===== B) DEEP-REPORT AFTER PREMIUM =====")
-r = get("/premium/deep-report?months=6", token)
-check("GET /premium/deep-report?months=6 AFTER activation -> 200",
-      r.status_code == 200, f"status={r.status_code} body={r.text[:300]}")
+r = _get("/coins/status", headers=H)
+bal_after_t7 = r.json().get("balance", 0) if r.status_code == 200 else 0
+_rec("T7 balance decreased by coins_applied",
+     bal_before_t7 - bal_after_t7 == coins_applied_t7,
+     f"before={bal_before_t7} after={bal_after_t7}")
+
+
+# ============== T8: settle-with-rewards with coins_to_use=30 ==============
+print("\n=== T8: POST /split/settle-with-rewards {amount:500, coins_to_use:30} ===")
+bal_before_t8 = bal_after_t7
+r = _post("/split/settle-with-rewards", {
+    "target_user_id": FAKE_TARGET_ID,
+    "amount": 500,
+    "method": "upi",
+    "coins_to_use": 30,
+}, headers=H)
+_rec("T8 status=200", r.status_code == 200, f"{r.status_code} {r.text[:300]}")
+coins_applied_t8 = 0
 if r.status_code == 200:
-    body = r.json()
-    required = ["totals", "averages", "predicted", "monthly_series",
-                "top_categories", "top_merchants", "exec_summary", "generated_at"]
-    missing = [k for k in required if k not in body]
-    check("deep-report top-level keys", not missing, f"missing={missing}")
+    d = r.json()
+    for k in ("coins_applied", "coin_discount", "cash_paid", "reward"):
+        _rec(f"T8 has top-level '{k}'", k in d, f"missing {k}")
+    _rec("T8 reward is dict", isinstance(d.get("reward"), dict))
+    coins_applied_t8 = d.get("coins_applied", 0)
+    _rec("T8 coins_applied <= 30", coins_applied_t8 <= 30)
+    _rec("T8 coin_discount == coins_applied // 10", d.get("coin_discount") == coins_applied_t8 // 10)
+    print(f"  [T8] coins_applied={coins_applied_t8} reward.coins_earned={d.get('reward', {}).get('coins_earned')}")
 
-    totals = body.get("totals", {})
-    check("totals has income/expense/savings/savings_rate/transaction_count",
-          all(k in totals for k in ["income", "expense", "savings",
-                                     "savings_rate", "transaction_count"]),
-          f"totals keys={list(totals.keys())}")
+r = _get("/coins/status", headers=H)
+bal_after_t8 = r.json().get("balance", 0) if r.status_code == 200 else 0
+_rec("T8 balance decreased by coins_applied",
+     bal_before_t8 - bal_after_t8 == coins_applied_t8,
+     f"before={bal_before_t8} after={bal_after_t8}")
 
-    averages = body.get("averages", {})
-    check("averages has monthly_income/expense/mom_expense_growth_pct",
-          all(k in averages for k in ["monthly_income", "monthly_expense",
-                                       "mom_expense_growth_pct"]),
-          f"averages keys={list(averages.keys())}")
 
-    predicted = body.get("predicted", {})
-    check("predicted has year_expense/year_savings",
-          all(k in predicted for k in ["year_expense", "year_savings"]),
-          f"predicted keys={list(predicted.keys())}")
+# ============== T9: settle-with-rewards WITHOUT coins_to_use (backward compat) ==============
+print("\n=== T9: /split/settle-with-rewards without coins_to_use ===")
+bal_before_t9 = bal_after_t8
+r = _post("/split/settle-with-rewards", {
+    "target_user_id": FAKE_TARGET_ID,
+    "amount": 250,
+    "method": "upi",
+}, headers=H)
+_rec("T9 status=200", r.status_code == 200, f"{r.status_code}")
+if r.status_code == 200:
+    d = r.json()
+    _rec("T9 coins_applied=0 (omitted)", d.get("coins_applied") == 0)
+    _rec("T9 reward present", isinstance(d.get("reward"), dict))
 
-    ms = body.get("monthly_series", [])
-    if ms:
-        check("monthly_series items have month/income/expense/net",
-              all(k in ms[0] for k in ["month", "income", "expense", "net"]),
-              f"first item keys={list(ms[0].keys())}")
+r = _get("/coins/status", headers=H)
+bal_after_t9 = r.json().get("balance", 0) if r.status_code == 200 else 0
+_rec("T9 balance unchanged (no redemption)", bal_before_t9 == bal_after_t9,
+     f"before={bal_before_t9} after={bal_after_t9}")
 
-    tc = body.get("top_categories", [])
-    if tc:
-        check("top_categories items have name/amount/pct",
-              all(k in tc[0] for k in ["name", "amount", "pct"]),
-              f"first item keys={list(tc[0].keys())}")
 
-    tm = body.get("top_merchants", [])
-    if tm:
-        check("top_merchants items have name/amount/pct",
-              all(k in tm[0] for k in ["name", "amount", "pct"]),
-              f"first item keys={list(tm[0].keys())}")
+# ============== T10: REGRESSION ==============
+print("\n=== T10: REGRESSION ===")
+for path in ("/split/groups", "/split/balances", "/coins/status", "/premium/status"):
+    r = _get(path, headers=H)
+    _rec(f"GET {path} = 200", r.status_code == 200, f"got {r.status_code} {r.text[:150]}")
 
-    check("exec_summary is string", isinstance(body.get("exec_summary"), str))
-    check("generated_at is iso", bool(body.get("generated_at")))
-    print(f"   deep-report sample: txn_count={totals.get('transaction_count')}, "
-          f"income={totals.get('income')}, expense={totals.get('expense')}, "
-          f"months_in_series={len(body.get('monthly_series', []))}, "
-          f"top_cats={len(body.get('top_categories', []))}, "
-          f"exec_summary_len={len(body.get('exec_summary', ''))}")
 
-# Also test months=12 and months=3
-r = get("/premium/deep-report?months=12", token)
-check("GET /premium/deep-report?months=12 -> 200", r.status_code == 200, f"status={r.status_code}")
-r = get("/premium/deep-report?months=3", token)
-check("GET /premium/deep-report?months=3 -> 200", r.status_code == 200, f"status={r.status_code}")
-
-# ---------- C) Previously crashing AI endpoints ----------
-print("\n===== C) AI ENDPOINTS (verify no NameError) =====")
-r = get("/insights/daily", token)
-check("GET /api/insights/daily", r.status_code == 200,
-      f"status={r.status_code} body={r.text[:200]}")
-
-r = get("/waste-detector", token)
-check("GET /api/waste-detector", r.status_code == 200,
-      f"status={r.status_code} body={r.text[:200]}")
-
-r = get("/money-school/dynamic?lang=en", token)
-check("GET /api/money-school/dynamic?lang=en", r.status_code == 200,
-      f"status={r.status_code} body={r.text[:200]}")
-
-r = get("/ai/agents", token)
-check("GET /api/ai/agents", r.status_code == 200, f"status={r.status_code}")
-
-r = post("/ai/chat", token, json={"message": "Hi", "lang": "en"})
-check("POST /api/ai/chat", r.status_code == 200,
-      f"status={r.status_code} body={r.text[:200]}")
-
-# ---------- D) SANITY OTHER ROUTERS ----------
-print("\n===== D) OTHER ROUTER SANITY =====")
-r = get("/split/groups", token)
-check("GET /api/split/groups", r.status_code == 200, f"status={r.status_code}")
-
-r = get("/transactions", token)
-check("GET /api/transactions", r.status_code == 200, f"status={r.status_code}")
-
-r = get("/analytics/summary", token)
-check("GET /api/analytics/summary", r.status_code == 200, f"status={r.status_code}")
-
-# ---------- SUMMARY ----------
+# ============== SUMMARY ==============
 print("\n" + "=" * 60)
-passed = sum(1 for _, c, _ in results if c)
-total = len(results)
-print(f"RESULT: {passed}/{total} passed")
-for n, c, info in results:
-    if not c:
-        print(f"  FAIL: {n} — {info}")
-sys.exit(0 if passed == total else 1)
+print(f"RESULTS: {len(passed)} passed, {len(failed)} failed")
+print("=" * 60)
+if failed:
+    print("\nFAILURES:")
+    for name, detail in failed:
+        print(f"  ❌ {name}\n     {detail}")
+sys.exit(0 if not failed else 1)

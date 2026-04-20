@@ -1,27 +1,35 @@
 /**
- * CoinRedeemPanel — apply earned coins toward a premium / split payment.
+ * CoinRedeemPanel — apply earned coins toward a premium plan OR split payment.
  *
  *   [🪙 You have 520 coins]
  *   [  No coins  |  Apply all — ₹52 off  ]
  *   Effective price: ₹47
  *
- * - Fetches balance from /api/coins/status
- * - Calls /api/premium/coin-redeem-preview whenever `apply` flips
- * - Parent receives { coinsToUse } via onChange
+ * Supports two modes (same UX, different endpoint):
+ *   • context="premium" → POST /api/premium/coin-redeem-preview {plan, coins_to_use}
+ *   • context="split"   → POST /api/split/coin-redeem-preview   {amount, coins_to_use}
+ *
+ * Fetches balance from /api/coins/status.
+ * Parent receives { coinsToUse, discount, effective } via onChange.
  */
 import React, { useEffect, useState } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, ActivityIndicator } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
 import api from '../../utils/api';
 
 type Props = {
-  plan: string;           // 'monthly' | 'yearly' | 'lifetime' (or split/custom for splits)
-  listPrice: number;      // display-only; backend is source-of-truth
+  /** For premium mode this is the plan key ('monthly'|'yearly'|'lifetime'). Unused for split mode. */
+  plan?: string;
+  /** For split mode this is the debt amount (₹). Unused for premium mode. */
+  amount?: number;
+  /** Display list price (₹). Backend remains source-of-truth. */
+  listPrice: number;
+  /** Premium coins applied to a plan, or split coins applied to a settlement. */
+  context?: 'premium' | 'split';
   onChange: (payload: { coinsToUse: number; discount: number; effective: number }) => void;
-  compact?: boolean;      // tighter layout
+  compact?: boolean;
 };
 
-export default function CoinRedeemPanel({ plan, listPrice, onChange, compact }: Props) {
+export default function CoinRedeemPanel({ plan, amount, listPrice, context = 'premium', onChange, compact }: Props) {
   const [balance, setBalance] = useState<number | null>(null);
   const [apply, setApply] = useState<boolean>(false);
   const [preview, setPreview] = useState<{ discount: number; effective: number; coins_applied: number } | null>(null);
@@ -46,16 +54,24 @@ export default function CoinRedeemPanel({ plan, listPrice, onChange, compact }: 
     (async () => {
       setLoading(true);
       try {
-        const res = await api.post('/premium/coin-redeem-preview', { plan, coins_to_use: balance });
+        let res;
+        if (context === 'split') {
+          res = await api.post('/split/coin-redeem-preview', { amount: amount ?? listPrice, coins_to_use: balance });
+        } else {
+          res = await api.post('/premium/coin-redeem-preview', { plan: plan || 'monthly', coins_to_use: balance });
+        }
         const p = res.data;
-        setPreview({ discount: p.discount, effective: p.effective_price, coins_applied: p.coins_applied });
-        onChange({ coinsToUse: p.coins_applied, discount: p.discount, effective: p.effective_price });
+        const eff = p.effective_price ?? p.effective_amount ?? listPrice;
+        setPreview({ discount: p.discount, effective: eff, coins_applied: p.coins_applied });
+        onChange({ coinsToUse: p.coins_applied, discount: p.discount, effective: eff });
       } catch {
         setPreview(null);
         onChange({ coinsToUse: 0, discount: 0, effective: listPrice });
       } finally { setLoading(false); }
     })();
-  }, [apply, balance, plan, listPrice]);
+    // Reset apply when amount/listPrice changes materially
+     
+  }, [apply, balance, plan, amount, listPrice, context]);
 
   if (balance == null) {
     return <View style={[s.wrap, compact && s.wrapCompact]}><ActivityIndicator color="#F56E1E" size="small" /></View>;
@@ -105,10 +121,10 @@ export default function CoinRedeemPanel({ plan, listPrice, onChange, compact }: 
       </View>
 
       <View style={s.priceRow}>
-        <Text style={s.priceLbl}>Effective price</Text>
+        <Text style={s.priceLbl}>{context === 'split' ? 'You pay' : 'Effective price'}</Text>
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-          {savings > 0 && <Text style={s.priceStrike}>₹{listPrice}</Text>}
-          <Text style={s.priceVal}>₹{effective}</Text>
+          {savings > 0 && <Text style={s.priceStrike}>₹{Math.round(listPrice)}</Text>}
+          <Text style={s.priceVal}>₹{Math.round(effective)}</Text>
         </View>
       </View>
     </View>

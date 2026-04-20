@@ -36,6 +36,7 @@ class SettlePayment(BaseModel):
     txn_ref: Optional[str] = None
     method: str = "upi"  # "upi", "cash", "bank_transfer"
     group_id: Optional[str] = None
+    coins_to_use: Optional[int] = 0  # Optional coin redemption (applied as discount on cash outflow)
 
 
 SETTLEMENT_BADGES = [

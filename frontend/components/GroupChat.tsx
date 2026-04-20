@@ -21,9 +21,11 @@ interface Props {
   onAddExpense: (group: any) => void;
   onManage: (group: any) => void;
   onEditExpense?: (expense: any, group: any) => void;
+  onDirectPay?: (debt: any, group: any) => void;
+  onRemind?: (debt: any, group: any) => void;
 }
 
-export default function GroupChat({ group, onClose, onAddExpense, onManage, onEditExpense }: Props) {
+export default function GroupChat({ group, onClose, onAddExpense, onManage, onEditExpense, onDirectPay, onRemind }: Props) {
   const { user } = useAuthStore();
   const { lang } = useLangStore();
   const [tab, setTab] = useState<'chat' | 'expenses'>('chat');
@@ -170,6 +172,8 @@ export default function GroupChat({ group, onClose, onAddExpense, onManage, onEd
           currentUserId={user?.id}
           onAddExpense={() => onAddExpense(group)}
           onEditExpense={onEditExpense ? (exp: any) => onEditExpense(exp, group) : undefined}
+          onDirectPay={onDirectPay ? (debt: any) => onDirectPay(debt, group) : undefined}
+          onRemind={onRemind ? (debt: any) => onRemind(debt, group) : undefined}
           onDeleteExpense={async (exp: any) => {
             // Optimistic remove from summary
             setSummary((prev: any) => prev ? { ...prev, recent_expenses: (prev.recent_expenses || []).filter((e: any) => (e.id || e._id) !== (exp.id || exp._id)) } : prev);
