@@ -10,7 +10,7 @@ import { useAuthStore } from '../store/authStore';
 import { useLangStore } from '../store/langStore';
 import { t } from '../utils/i18n';
 import { COLORS, SPACING, RADIUS } from '../utils/theme';
-import { biometricAvailable, tryBiometric, verifyPin, supportedBiometricLabel, hasPin, clearPin } from '../utils/lockManager';
+import { biometricAvailable, tryBiometric, verifyPin, supportedBiometricLabel, hasPin, clearPin, isBiometricEnabled } from '../utils/lockManager';
 import MintULogo from '../components/MintULogo';
 import AuthTransitionOverlay from '../components/auth/AuthTransitionOverlay';
 
@@ -49,9 +49,11 @@ export default function UnlockScreen() {
       }
       const lbl = await supportedBiometricLabel();
       const avail = await biometricAvailable();
+      const enabled = await isBiometricEnabled();
       setBioLabel(lbl);
-      setBioAvail(avail);
-      if (avail) attemptBio();
+      setBioAvail(avail && enabled);
+      // Auto-prompt biometric if hardware available AND user hasn't opted out.
+      if (avail && enabled) attemptBio();
     })();
   }, [attemptBio, proceed]);
 

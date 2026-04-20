@@ -3112,6 +3112,24 @@ frontend:
                Unlock screen success path ("Welcome back").
             5. Split-settle reminder chat message now stores bell+amount only
                (old string "X reminded Y about ₹Z" → "🔔 ₹1,410" + meta dict).
+  - task: "Round 15h — Biometric-by-default post-registration"
+    implemented: true
+    working: true
+    status_history:
+        - agent: "main"
+          comment: |
+            - lockManager: added isBiometricEnabled() / setBiometricEnabled() /
+              enableBiometricByDefault() helpers backed by a new
+              BIO_ENABLED_KEY preference (default ON — explicit opt-out).
+            - PinSetupModal now calls enableBiometricByDefault() right after
+              setPin() so biometric fast-path is armed the moment registration
+              completes (no extra tap, no screen).
+            - Unlock screen honours the preference: only auto-prompts
+              biometric when the device supports it AND the user hasn't
+              opted out. This is a user-preference flag in SecureStore —
+              falls back to PIN gracefully in every other case.
+
+
 
 
             - Registered in routers/premium.py sibling imports.

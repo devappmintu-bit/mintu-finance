@@ -13,6 +13,7 @@ import { Platform } from 'react-native';
 
 const PIN_KEY = 'mintu_lock_pin_v1';
 const PIN_SALT_KEY = 'mintu_lock_salt_v1';
+const BIO_ENABLED_KEY = 'mintu_bio_enabled_v1';  // user-preference flag — defaults to true post-registration
 
 function randSalt(): string {
   return Array.from({ length: 16 }, () => Math.random().toString(36).charAt(2)).join('');
@@ -111,4 +112,26 @@ export async function tryBiometric(promptMessage = 'Unlock MintU'): Promise<bool
     });
     return !!res.success;
   } catch { return false; }
+}
+
+// ── Biometric-enabled preference ──────────────────────────────────────
+// We default to TRUE post-registration (the user explicitly set a PIN and,
+// if the hardware+enrolment check passes, they've implicitly opted in to
+// biometric fast-path). They can toggle this later from Profile → Security.
+
+export async function isBiometricEnabled(): Promise<boolean> {
+  const v = await getItem(BIO_ENABLED_KEY);
+  // default ON — only false if user explicitly toggled off
+  return v !== '0';
+}
+
+export async function setBiometricEnabled(on: boolean): Promise<void> {
+  await setItem(BIO_ENABLED_KEY, on ? '1' : '0');
+}
+
+/** Called once from PIN setup success — marks biometric as opt-in enabled. */
+export async function enableBiometricByDefault(): Promise<boolean> {
+  const avail = await biometricAvailable();
+  await setBiometricEnabled(avail);  // on phones with enrolled Face ID / fingerprint
+  return avail;
 }

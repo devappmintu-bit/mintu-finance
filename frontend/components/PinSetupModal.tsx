@@ -6,7 +6,7 @@ import { View, Text, StyleSheet, TouchableOpacity, Modal } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import { COLORS, SPACING, RADIUS } from '../utils/theme';
-import { setPin, biometricAvailable, supportedBiometricLabel } from '../utils/lockManager';
+import { setPin, biometricAvailable, supportedBiometricLabel, enableBiometricByDefault } from '../utils/lockManager';
 import MintULogo from './MintULogo';
 
 interface Props {
@@ -44,6 +44,9 @@ export default function PinSetupModal({ visible, onDone, onSkip }: Props) {
         if (firstPin === next) {
           try {
             await setPin(next);
+            // Auto-enable biometric fast-path (user-preference flag defaults to ON).
+            // No-op on web / devices without enrolled biometrics.
+            await enableBiometricByDefault();
             setShowDone(true);
             setTimeout(() => { reset(); onDone(); }, 1200);
           } catch (e) {
