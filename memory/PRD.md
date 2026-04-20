@@ -109,3 +109,11 @@ Splash → Onboarding (3 slides) → Auth (Login/Register)
 - ✅ Complete UI with 8 screens
 - ✅ Dark fintech theme implemented
 - ✅ Bottom tab navigation (5 tabs)
+
+
+## Round 15 — Split Coin Redemption (Apr 20 2026)
+- NEW endpoint: `POST /api/split/coin-redeem-preview {amount, coins_to_use?}` — live preview of coin discount for split settlements.
+- Extended endpoints: `/split/mark-paid-offline`, `/split/partial-settle`, `/split/settle-with-rewards` now accept optional `coins_to_use` and apply the discount (10 coins = ₹1, capped at 50% of debt).
+- Frontend: `CoinRedeemPanel` supports `context="premium" | "split"` and is rendered inside `PaySheet`. Coin balance/discount is previewed live; `coins_to_use` is piped through to the settle call on tap.
+- Also wired group-chat expense-tab "Pay" and "Remind" buttons up through `GroupChat` → parent `split.tsx` so they open `PaySheet` / `RemindSheet` instead of being no-ops.
+- Backend verified 59/59 assertions passing; zero regressions.
