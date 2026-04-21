@@ -11,10 +11,10 @@
  *
  *   useFocusRefresh(loadCoinsStatus);
  */
-import { useCallback, useEffect } from 'react';
+import { useCallback, useEffect, DependencyList } from 'react';
 import { useFocusEffect } from 'expo-router';
 
-export default function useFocusRefresh(loader: () => void | Promise<void>, deps: any[] = []) {
+export default function useFocusRefresh(loader: () => void | Promise<void>, deps: DependencyList = []) {
   const run = useCallback(() => { try { loader(); } catch { /* noop */ } }, deps); // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => { run(); }, [run]);
   useFocusEffect(useCallback(() => { run(); }, [run]));

@@ -10,7 +10,7 @@ export async function fetchSplitGroups(): Promise<SplitGroup[]> {
   return (r.data || []) as SplitGroup[];
 }
 
-export async function createSplitGroup(payload: { name: string; members: any[] }): Promise<SplitGroup> {
+export async function createSplitGroup(payload: { name: string; members: Array<{ phone: string; name?: string }> }): Promise<SplitGroup> {
   const r = await api.post('/split/groups', payload);
   return r.data as SplitGroup;
 }
