@@ -83,7 +83,7 @@ export default function GroupChat({ group, onClose, onAddExpense, onManage, onEd
     try { return new Date(iso).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' }); } catch { return ''; }
   };
 
-  const renderMsg = ({ item }: { item: any }) => {
+  const renderMsg = useCallback(({ item }: { item: any }) => {
     const isMe = item.sender_id === user?.id;
 
     // System message
@@ -129,7 +129,7 @@ export default function GroupChat({ group, onClose, onAddExpense, onManage, onEd
         </View>
       </View>
     );
-  };
+  }, [user?.id, s]);
 
   // Expenses tab content is now in components/split/ExpensesTab.tsx
 

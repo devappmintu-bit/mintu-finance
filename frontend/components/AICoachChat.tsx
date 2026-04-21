@@ -250,7 +250,7 @@ export default function AICoachChat({ onClose }: { onClose?: () => void }) {
     return <Text style={s.msgText}>{parts}</Text>;
   };
 
-  const renderMsg = ({ item }: { item: ChatMsg }) => {
+  const renderMsg = useCallback(({ item }: { item: ChatMsg }) => {
     const isUser = item.role === 'user';
     return (
       <View style={[s.msgRow, isUser ? s.msgRowUser : s.msgRowAi]}>
@@ -271,7 +271,7 @@ export default function AICoachChat({ onClose }: { onClose?: () => void }) {
         </View>
       </View>
     );
-  };
+  }, [s]);
 
   // Suggested prompts — always visible above input (not only on empty state).
   const showBigChips = messages.length <= 1;

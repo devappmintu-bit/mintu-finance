@@ -176,7 +176,7 @@ export default function BudgetScreen() {
   const totalBudget = budgets.reduce((s, b) => s + (b.amount || 0), 0);
   const totalSpent = budgets.reduce((s, b) => s + (b.spent || 0), 0);
 
-  const renderBudget = ({ item }: { item: any }) => (
+  const renderBudget = useCallback(({ item }: { item: any }) => (
     <BudgetCard
       item={item}
       onEdit={() => openEdit(item)}
@@ -184,7 +184,7 @@ export default function BudgetScreen() {
       onAddExpense={() => addExpenseShortcut(item)}
       onInsights={() => setInsightsCat(item.category)}
     />
-  );
+  ), [openEdit, requestDelete, addExpenseShortcut]);
 
   const shareBudgetSnapshot = async () => {
     if (budgets.length === 0) {
