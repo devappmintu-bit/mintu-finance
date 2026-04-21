@@ -15,6 +15,7 @@ import { fetchPremiumStatus } from '../../services/premium';
 import { useLangStore } from '../../store/langStore';
 import { useAuthStore } from '../../store/authStore';
 import { COLORS, RADIUS, SPACING } from '../../utils/theme';
+import Skeleton from '../../components/ui/Skeleton';
 import ScoreCard from '../../components/ScoreCard';
 import { t } from '../../utils/i18n';
 
@@ -83,7 +84,17 @@ export default function RewardsScreen() {
     trackAbEvent(event, abGroup?.group, abGroup?.placement);
   };
 
-  if (loading) return <SafeAreaView style={s.container}><ActivityIndicator size="large" color={COLORS.accent.primary} style={{ marginTop: 100 }} /></SafeAreaView>;
+  if (loading) return (
+    <SafeAreaView style={s.container}>
+      <View style={{ padding: 20, gap: 10 }}>
+        <Skeleton.Box w="100%" h={120} radius={18} />
+        <Skeleton.Box w="100%" h={90} radius={16} />
+        <Skeleton.Box w="100%" h={60} radius={12} />
+        <Skeleton.Box w="100%" h={60} radius={12} />
+        <Skeleton.Box w="100%" h={60} radius={12} />
+      </View>
+    </SafeAreaView>
+  );
 
   const streak = gamification?.streak || 0;
   const badges = gamification?.badges_earned || [];

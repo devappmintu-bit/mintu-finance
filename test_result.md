@@ -3974,6 +3974,46 @@ agent_communication:
            - Deleted /app/frontend/components/profile/PaymentMethods.tsx (legacy v1,
              no imports). V2 is canonical.
            - Confirmed SkeletonLoader + Skeleton are distinct (tab skeletons vs primitive);
+
+# ════════════════════════════════════════════════════════════════════
+# ROUND 35 (Apr 21 2026) — Welcome v2 + HDFC arch tab bar
+# ════════════════════════════════════════════════════════════════════
+
+agent_communication:
+    - agent: "main"
+      message: |
+        Round 35 — Welcome screen + HDFC arch tab bar + cleanup
+
+        1) AuthTransitionOverlay v2 — playful mascot welcome (Toing-style):
+           - Random action per login: bounce, wave, thumbsUp, float, spin
+           - Saffron gradient background + halo ring expanding out
+           - 10 confetti dots flying outward
+           - Pedestal/trampoline shadow under mascot
+           - "Welcome back, {name}" with random action caption
+           - File: /app/frontend/components/auth/AuthTransitionOverlay.tsx
+           - Visually verified: mascot on cream tile, "✨ Smooth sailing" caption,
+             white border + shadow, matches the toing reference style.
+
+        2) Tab bar v4 — HDFC PayZapp arch cutout match:
+           - SVG <Path> draws the bar silhouette with TWO arch cutouts on either
+             side of the center puck, carving a twin-arch silhouette around it.
+           - Raised circular mascot puck sits in the cutout with saffron halo.
+           - Saffron active pill on the focused side tab.
+           - File: /app/frontend/app/(tabs)/_layout.tsx
+           - Visually verified: screenshot matches HDFC reference closely.
+
+        3) ActivityIndicator → Skeleton migration:
+           - /app/frontend/app/(tabs)/rewards.tsx full-page loader migrated to
+             Skeleton.Box layout (5 blocks mimicking final layout).
+
+        4) Cleanup audit:
+           - No stale <PaymentMethods> imports found anywhere.
+           - ConfettiBurst (used in onboarding) and Confetti (used in rewards-hub)
+             serve distinct contexts with different animations; kept separate.
+           - No duplicate imports in main tab files.
+
+        All 6 user asks delivered.
+
              Confetti + ConfettiBurst are distinct animations used in different flows.
            - No duplicate imports found in main tab files.
 

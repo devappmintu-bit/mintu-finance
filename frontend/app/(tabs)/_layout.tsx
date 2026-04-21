@@ -1,43 +1,39 @@
-// Bottom tab bar — MintU v3 (Nov 2026).
+// Bottom tab bar — MintU v4 (Apr 2026).
 //
-// Matches the "flat bar with notched raised circular puck" reference:
-//   ┌──────────────────────────────────────────────────────┐
-//   │                      ●●●                             │
-//   │                      │ │  ← perfectly circular puck  │
-//   │                      │ │    (raised, with mascot)    │
-//   │  ┌──────────────────╮ ╰╭───────────────────────────┐ │
-//   │  │  [icon] [icon]        [icon] [icon]             │ │
-//   │  │  label  label         label  label              │ │
-//   │  └──────────────────────────────────────────────────┘ │
-//   └──────────────────────────────────────────────────────┘
+// HDFC PayZapp reference match:
+//   ┌────────────────────────────────────────────────────────────────┐
+//   │                     ●                                          │
+//   │                ┌───●●●●●───┐                                    │
+//   │                │  ●●●●●●● │ ← raised circular puck               │
+//   │                │   ●●●●●   │   (mascot — cream + saffron)       │
+//   │                ╰─╮       ╭─╯                                    │
+//   │  ╭──────────╯    ╲_____╱    ╰──────────╮                        │
+//   │  │  [Pay] [Cards]          [Shop] [Bank]│  ← two arches carved   │
+//   │  ╰──────────────────────────────────────╯     out of the bar    │
+//   └────────────────────────────────────────────────────────────────┘
 //
-// The tab bar is a flat ivory capsule that fills the screen-bottom edge.
-// A "notch cutout" silhouette is simulated with an overlay mask so the
-// floating CIRCULAR AI Coach puck reads as carved-out on top of the bar
-// (exactly like the HDFC PayZapp reference). All colors pulled from
-// in-app saffron/cream palette — NO BLACK.
+// The two arch cutouts on either side of the center puck are drawn with SVG
+// <Path>. The bar itself is an off-white surface rendered INSIDE the SVG so
+// the puck appears to be carved into the bar silhouette (matches the ref).
 //
-// Design principles:
-// * Flat look — zero shadow under the bar (only on the puck).
-// * CIRCLE, not squircle — borderRadius: 50% of the size.
-// * Saffron active state for side tabs — filled pill under icon + label.
-// * One raised puck above the bar, mascot centered, saffron shadow halo.
+// Colour scheme: in-app cream (#FFFFFF surface) + saffron (#E65100) — NO BLACK.
 
+import React from 'react';
 import { Tabs } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
-import { View, StyleSheet, Platform, TouchableOpacity, Text } from 'react-native';
+import { View, StyleSheet, Platform, TouchableOpacity, Text, Dimensions } from 'react-native';
 import { Image } from 'expo-image';
+import Svg, { Path } from 'react-native-svg';
 import { BottomTabBarProps } from '@react-navigation/bottom-tabs';
 import { COLORS } from '../../utils/theme';
 import { useLangStore } from '../../store/langStore';
 import { t } from '../../utils/i18n';
 
-// Tab metadata — iconsets are native to @expo/vector-icons so they stay crisp.
 const TAB_META: Record<string, { out: string; fill: string; key: string }> = {
-  index: { out: 'home-outline', fill: 'home', key: 'home' },
-  transactions: { out: 'receipt-outline', fill: 'receipt', key: 'transactions' },
-  budget: { out: 'pie-chart-outline', fill: 'pie-chart', key: 'budgets' },
-  split: { out: 'people-outline', fill: 'people', key: 'split' },
+  index:        { out: 'home-outline',       fill: 'home',       key: 'home' },
+  transactions: { out: 'receipt-outline',    fill: 'receipt',    key: 'transactions' },
+  budget:       { out: 'pie-chart-outline',  fill: 'pie-chart',  key: 'budgets' },
+  split:        { out: 'people-outline',     fill: 'people',     key: 'split' },
 };
 
 function labelOf(name: string, lang: any): string {
@@ -46,6 +42,61 @@ function labelOf(name: string, lang: any): string {
   const fallback: Record<string, string> = { home: 'Home', transactions: 'Transactions', budgets: 'Budgets', split: 'Split' };
   if (raw === k || !raw) return fallback[k] || name;
   return raw.charAt(0).toUpperCase() + raw.slice(1);
+}
+
+// ─── Geometry constants ────────────────────────────────────────────────────
+const PUCK_SIZE  = 64;
+const PUCK_INNER = 54;
+const CUTOUT_W   = 90;   // horizontal width of the carved region
+const CUTOUT_DEPTH = 22; // how deep the arches dip inward
+const BAR_HEIGHT = 72;
+const BOTTOM_PAD = Platform.OS === 'ios' ? 18 : 10;
+const TOP_RADIUS = 24;
+// ────────────────────────────────────────────────────────────────────────────
+
+/**
+ * Builds an SVG <Path> d-string for a rounded rectangle with TWIN ARCHES
+ * carved into its top edge at the horizontal center. Think of it as the HDFC
+ * PayZapp tab bar silhouette (see reference image).
+ *
+ *   Starts:  top-left with a rounded corner
+ *   Moves:   along the top-edge to the LEFT of the cutout
+ *   Curves:  LEFT arch dipping DOWN by CUTOUT_DEPTH
+ *   Curves:  back UP and around the center puck
+ *   Curves:  RIGHT arch dipping DOWN by CUTOUT_DEPTH
+ *   Moves:   along the top-edge to the top-right corner
+ *   Closes:  right side, bottom, left side
+ */
+function barPath(w: number, h: number): string {
+  const r  = TOP_RADIUS;
+  const cx = w / 2;
+
+  // Cut-out horizontal boundaries
+  const leftStart  = cx - CUTOUT_W / 2;    // where LEFT arch begins (on top edge)
+  const leftMid    = cx - PUCK_SIZE / 2 - 4; // bottom of LEFT arch (near puck)
+  const rightMid   = cx + PUCK_SIZE / 2 + 4; // bottom of RIGHT arch (near puck)
+  const rightEnd   = cx + CUTOUT_W / 2;
+
+  const archBottom = CUTOUT_DEPTH; // y-coord where arches dip
+
+  // Build path
+  const d = [
+    `M 0 ${r}`,                              // start below TL radius
+    `Q 0 0 ${r} 0`,                          // TL rounded corner
+    `L ${leftStart} 0`,                      // top edge → LEFT arch start
+    // LEFT arch: from (leftStart, 0) down & in to (leftMid, archBottom)
+    `C ${leftStart + 14} 0 ${leftMid - 14} ${archBottom} ${leftMid} ${archBottom}`,
+    // bridge under puck: smooth curve from leftMid up to rightMid keeping same depth
+    `Q ${cx} ${archBottom + 2} ${rightMid} ${archBottom}`,
+    // RIGHT arch: from (rightMid, archBottom) up & out to (rightEnd, 0)
+    `C ${rightMid + 14} ${archBottom} ${rightEnd - 14} 0 ${rightEnd} 0`,
+    `L ${w - r} 0`,                          // top edge → TR
+    `Q ${w} 0 ${w} ${r}`,                    // TR rounded corner
+    `L ${w} ${h}`,                           // right edge down
+    `L 0 ${h}`,                              // bottom edge
+    `Z`,
+  ].join(' ');
+  return d;
 }
 
 function SideTab({ icon, iconFilled, label, focused, onPress, testID }:
@@ -66,6 +117,8 @@ function SideTab({ icon, iconFilled, label, focused, onPress, testID }:
 
 function MintUTabBar({ state, navigation }: BottomTabBarProps) {
   const { lang } = useLangStore();
+  const screenW = Dimensions.get('window').width;
+
   const visible = state.routes.filter(r => TAB_META[r.name]);
   const left = visible.slice(0, 2);
   const right = visible.slice(2, 4);
@@ -77,51 +130,64 @@ function MintUTabBar({ state, navigation }: BottomTabBarProps) {
 
   const openAiCoach = () => navigation.navigate('ai-coach' as never);
 
+  const barH = BAR_HEIGHT + BOTTOM_PAD;
+
   return (
     <View style={st.wrap} pointerEvents="box-none">
-      {/* Flat tab bar — fills bottom, rounded top corners only */}
-      <View style={st.bar}>
-        <View style={st.barInner}>
-          <View style={st.side}>
-            {left.map((route) => {
-              const focused = state.index === state.routes.findIndex(r => r.key === route.key);
-              const meta = TAB_META[route.name];
-              return (
-                <SideTab
-                  key={route.key}
-                  icon={meta.out}
-                  iconFilled={meta.fill}
-                  label={labelOf(route.name, lang)}
-                  focused={focused}
-                  onPress={() => fire(route, focused)}
-                  testID={`tab-${route.name}`}
-                />
-              );
-            })}
-          </View>
-          {/* Center gap (matches puck diameter + breathing room) */}
-          <View style={st.centerGap} />
-          <View style={st.side}>
-            {right.map((route) => {
-              const focused = state.index === state.routes.findIndex(r => r.key === route.key);
-              const meta = TAB_META[route.name];
-              return (
-                <SideTab
-                  key={route.key}
-                  icon={meta.out}
-                  iconFilled={meta.fill}
-                  label={labelOf(route.name, lang)}
-                  focused={focused}
-                  onPress={() => fire(route, focused)}
-                  testID={`tab-${route.name}`}
-                />
-              );
-            })}
-          </View>
+      {/* SVG bar silhouette with twin arch cutouts */}
+      <View style={[st.barContainer, { height: barH }]} pointerEvents="none">
+        <Svg
+          width={screenW}
+          height={barH}
+          viewBox={`0 0 ${screenW} ${barH}`}
+          // @ts-ignore (react-native-svg types don't cover this prop universally)
+          style={StyleSheet.absoluteFillObject}
+        >
+          <Path d={barPath(screenW, barH)} fill="#FFFFFF" />
+        </Svg>
+      </View>
+
+      {/* Tab icons sit ABOVE the SVG silhouette */}
+      <View style={[st.iconsRow, { height: barH, paddingBottom: BOTTOM_PAD }]}>
+        <View style={st.side}>
+          {left.map((route) => {
+            const focused = state.index === state.routes.findIndex(r => r.key === route.key);
+            const meta = TAB_META[route.name];
+            return (
+              <SideTab
+                key={route.key}
+                icon={meta.out}
+                iconFilled={meta.fill}
+                label={labelOf(route.name, lang)}
+                focused={focused}
+                onPress={() => fire(route, focused)}
+                testID={`tab-${route.name}`}
+              />
+            );
+          })}
+        </View>
+        {/* Center gap matching cutout width */}
+        <View style={{ width: CUTOUT_W }} />
+        <View style={st.side}>
+          {right.map((route) => {
+            const focused = state.index === state.routes.findIndex(r => r.key === route.key);
+            const meta = TAB_META[route.name];
+            return (
+              <SideTab
+                key={route.key}
+                icon={meta.out}
+                iconFilled={meta.fill}
+                label={labelOf(route.name, lang)}
+                focused={focused}
+                onPress={() => fire(route, focused)}
+                testID={`tab-${route.name}`}
+              />
+            );
+          })}
         </View>
       </View>
 
-      {/* Raised CIRCULAR AI Coach puck — floats above the notch */}
+      {/* Raised CIRCULAR AI Coach puck — floats above the arch cutouts */}
       <TouchableOpacity
         testID="tab-ai-coach"
         onPress={openAiCoach}
@@ -164,71 +230,30 @@ export default function TabLayout() {
   );
 }
 
-// ───────────────────────────────────────────────────────────────────
-// Geometry constants — kept as named consts so the notch/puck math stays
-// consistent across edits.
-const PUCK_SIZE = 64;            // diameter of the raised circular button
-const PUCK_INNER = 54;           // inner tile (mascot) — smaller by rim width
-const NOTCH_SIZE = PUCK_SIZE + 16;  // cutout diameter — a touch larger than puck
-const BAR_HEIGHT = 72;           // flat bar height (excluding safe-area pad)
-const WRAP_HEIGHT = 112;
-const BOTTOM_PAD = Platform.OS === 'ios' ? 18 : 10;
-// ───────────────────────────────────────────────────────────────────
-
 const st = StyleSheet.create({
-  // Outer wrap — transparent container that positions the flat bar + raised puck
   wrap: {
     position: 'absolute', left: 0, right: 0, bottom: 0,
-    height: WRAP_HEIGHT,
+    height: 112,
     alignItems: 'center',
     justifyContent: 'flex-end',
     backgroundColor: 'transparent',
   },
-
-  // FLAT bar — ivory background, fills edge-to-edge
-  bar: {
-    width: '100%',
-    height: BAR_HEIGHT + BOTTOM_PAD,
-    paddingBottom: BOTTOM_PAD,
-    backgroundColor: '#FFFFFF',
-    borderTopLeftRadius: 28,
-    borderTopRightRadius: 28,
-    // Subtle top shadow only, to lift the bar off the page
+  barContainer: {
+    position: 'absolute', left: 0, right: 0, bottom: 0,
+    // Soft shadow beneath whole bar
     ...Platform.select({
-      ios:     { shadowColor: '#2E1F1A', shadowOpacity: 0.08, shadowRadius: 18, shadowOffset: { width: 0, height: -4 } },
+      ios:     { shadowColor: '#2E1F1A', shadowOpacity: 0.09, shadowRadius: 18, shadowOffset: { width: 0, height: -4 } },
       android: { elevation: 10 },
-      web:     { boxShadow: '0 -4px 18px rgba(46,31,26,0.08)' as any },
+      web:     { boxShadow: '0 -4px 18px rgba(46,31,26,0.09)' as any },
     }),
   },
-  // Notch — a circle of app-background color overlaid on the bar, creating
-  // the illusion of a cutout around the raised puck
-  notch: {
-    position: 'absolute',
-    top: -NOTCH_SIZE / 2,
-    left: '50%',
-    marginLeft: -NOTCH_SIZE / 2,
-    width: NOTCH_SIZE,
-    height: NOTCH_SIZE,
-    borderRadius: NOTCH_SIZE / 2,
-    backgroundColor: COLORS.bg.primary,
-    zIndex: 1,
-  },
-
-  barInner: {
-    flex: 1,
+  iconsRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingTop: 6,
+    paddingTop: 10,                    // push icons below the top arch dip
+    width: '100%',
   },
-  side: {
-    flex: 1,
-    flexDirection: 'row',
-    justifyContent: 'space-around',
-    alignItems: 'center',
-  },
-  centerGap: { width: PUCK_SIZE + 12 },
-
-  // Side tab — small icon wrapper + label below
+  side: { flex: 1, flexDirection: 'row', justifyContent: 'space-around', alignItems: 'center' },
   sideTab: {
     alignItems: 'center',
     justifyContent: 'center',
@@ -241,7 +266,6 @@ const st = StyleSheet.create({
     alignItems: 'center', justifyContent: 'center',
     backgroundColor: 'transparent',
   },
-  // Active = saffron filled pill under icon (matches the "Pay" state in the ref)
   sideIconWrapOn: {
     backgroundColor: COLORS.accent.primary,
     paddingHorizontal: 12,
@@ -251,23 +275,14 @@ const st = StyleSheet.create({
       web:     { boxShadow: '0 4px 8px rgba(230,81,0,0.35)' as any },
     }),
   },
-  sideLabel: {
-    fontSize: 10.5,
-    color: COLORS.text.muted,
-    fontWeight: '600',
-    letterSpacing: 0.2,
-  },
-  sideLabelOn: {
-    color: COLORS.accent.primary,
-    fontWeight: '800',
-  },
+  sideLabel:   { fontSize: 10.5, color: COLORS.text.muted, fontWeight: '600', letterSpacing: 0.2 },
+  sideLabelOn: { color: COLORS.accent.primary, fontWeight: '800' },
 
-  // RAISED circular puck — perfectly round, floats above the notch
+  // RAISED puck sits on top of the cutout
   raisedWrap: {
     position: 'absolute',
-    bottom: BOTTOM_PAD + BAR_HEIGHT - PUCK_SIZE / 2 - 6,
-    left: '50%',
-    marginLeft: -PUCK_SIZE / 2,
+    bottom: BOTTOM_PAD + BAR_HEIGHT - PUCK_SIZE / 2 + 4,
+    alignSelf: 'center',
     width: PUCK_SIZE,
     height: PUCK_SIZE,
     alignItems: 'center',
@@ -275,14 +290,11 @@ const st = StyleSheet.create({
     zIndex: 20,
   },
   raisedOuter: {
-    width: PUCK_SIZE,
-    height: PUCK_SIZE,
-    borderRadius: PUCK_SIZE / 2,          // perfect circle
+    width: PUCK_SIZE, height: PUCK_SIZE,
+    borderRadius: PUCK_SIZE / 2,
     backgroundColor: '#FFFFFF',
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderWidth: 2,
-    borderColor: COLORS.accent.primary + '22',
+    alignItems: 'center', justifyContent: 'center',
+    borderWidth: 2, borderColor: COLORS.accent.primary + '22',
     ...Platform.select({
       ios:     { shadowColor: COLORS.accent.primary, shadowOpacity: 0.42, shadowRadius: 14, shadowOffset: { width: 0, height: 6 } },
       android: { elevation: 14 },
@@ -290,16 +302,11 @@ const st = StyleSheet.create({
     }),
   },
   raisedInner: {
-    width: PUCK_INNER,
-    height: PUCK_INNER,
-    borderRadius: PUCK_INNER / 2,         // perfect circle inside the outer ring
-    backgroundColor: '#FFF0DE',           // warm cream tile — NO BLACK
+    width: PUCK_INNER, height: PUCK_INNER,
+    borderRadius: PUCK_INNER / 2,
+    backgroundColor: '#FFF0DE',
     overflow: 'hidden',
-    alignItems: 'center',
-    justifyContent: 'center',
+    alignItems: 'center', justifyContent: 'center',
   },
-  raisedMascot: {
-    width: '100%',
-    height: '100%',
-  },
+  raisedMascot: { width: '100%', height: '100%' },
 });
