@@ -63,9 +63,12 @@ async def get_referral_code(user_id: str = Depends(get_current_user)):
 @router.post("/apply")
 async def apply_referral_code(code: dict, user_id: str = Depends(get_current_user)):
     """Apply a referral code (new users only)."""
-    referral_code = code.get("code", "").strip().upper()
+    raw_code = code.get("code") if isinstance(code, dict) else None
+    referral_code = (raw_code if isinstance(raw_code, str) else "").strip().upper()
     if not referral_code:
         raise HTTPException(status_code=400, detail="Referral code required")
+    if len(referral_code) > 50:
+        raise HTTPException(status_code=400, detail="Referral code too long")
 
     if await db.referrals.find_one({"referred_id": user_id}):
         raise HTTPException(status_code=400, detail="You've already used a referral code")

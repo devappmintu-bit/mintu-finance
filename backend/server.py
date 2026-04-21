@@ -267,6 +267,17 @@ async def _validation_exception_handler(request: Request, exc: RequestValidation
     errors = _scrub_nonfinite(exc.errors())
     body = _scrub_nonfinite(getattr(exc, "body", None))
     return _SafeJSONResponse(status_code=422, content={"detail": errors, "body": body})
+
+
+# ── Invalid ObjectId handler (e.g. malformed path params) ───────────────
+from bson.errors import InvalidId as _InvalidId
+
+
+@app.exception_handler(_InvalidId)
+async def _invalid_objectid_handler(request: Request, exc: _InvalidId):
+    """Catches every bare `ObjectId("not-a-hex")` across all routers → 400.
+    Defense-in-depth so downstream handlers don't have to wrap every ObjectId call."""
+    return _SafeJSONResponse(status_code=400, content={"detail": "Invalid ID format"})
 # ────────────────────────────────────────────────────────────────────────
 
 
@@ -335,12 +346,18 @@ def create_token(user_id: str) -> str:
 
 
 async def get_current_user(authorization: str = Header(...)) -> str:
+    """Hardened: rejects tokens with missing/invalid `user_id` → 401, never 500."""
     try:
-        if not authorization.startswith("Bearer "):
+        if not isinstance(authorization, str) or not authorization.startswith("Bearer "):
             raise HTTPException(status_code=401, detail="Invalid authorization format")
-        token = authorization.replace("Bearer ", "")
+        token = authorization.replace("Bearer ", "").strip()
+        if not token:
+            raise HTTPException(status_code=401, detail="Missing token")
         payload = jwt.decode(token, JWT_SECRET, algorithms=[JWT_ALGORITHM])
-        return payload["user_id"]
+        uid = payload.get("user_id")
+        if not isinstance(uid, str) or not re.match(r"^[0-9a-fA-F]{24}$", uid):
+            raise HTTPException(status_code=401, detail="Invalid token payload")
+        return uid
     except jwt.ExpiredSignatureError:
         raise HTTPException(status_code=401, detail="Token expired")
     except jwt.InvalidTokenError:
@@ -654,9 +671,14 @@ async def send_otp_sms(phone: str, otp: str) -> bool:
 
 @api_router.post("/auth/send-otp")
 async def send_otp(request: OTPSendRequest):  # type: ignore[name-defined]  # noqa: F405
-    phone = request.phone.strip()
-    if len(phone) != 10 or not phone.isdigit():
-        raise HTTPException(status_code=400, detail="Invalid phone number. Must be 10 digits.")
+    phone = (request.phone or "").strip()
+    # Indian mobile: must be 10 ASCII digits, first digit 6-9 (rejects 0000000000,
+    # Arabic-Indic ٩٨٧٦٥٤٣٢١٠, and non-ASCII digit attacks)
+    if (len(phone) != 10
+            or not phone.isascii()
+            or not phone.isdigit()
+            or phone[0] not in "6789"):
+        raise HTTPException(status_code=400, detail="Invalid phone number. Must be 10 digits starting with 6-9.")
 
     recent_otp = await db.otps.find_one({
         "phone": phone,

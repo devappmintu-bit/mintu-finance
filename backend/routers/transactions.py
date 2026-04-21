@@ -3,7 +3,7 @@ import math
 from datetime import datetime
 from typing import Optional, List, Dict
 from bson import ObjectId
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel, Field, field_validator
 
 from core import db, get_current_user, cache_clear_prefix
@@ -20,16 +20,27 @@ class TransactionCreate(BaseModel):
     type: str  # "debit" or "credit"
     date: Optional[datetime] = None
 
+    @field_validator("amount", mode="before")
+    @classmethod
+    def _amount_types(cls, v):
+        """Reject bool (pydantic would coerce True→1.0 / False→0.0). Reject strings."""
+        if isinstance(v, bool):
+            raise ValueError("amount must be a number, not a boolean")
+        return v
+
     @field_validator("amount")
     @classmethod
     def _amount_finite(cls, v: float) -> float:
-        """Reject NaN, +Inf, -Inf — JSON dumps crash on these values. Also
-        enforce positive (Field gt=0 already covers this but kept explicit)."""
+        """Reject NaN, +Inf, -Inf — JSON dumps crash on these values.
+        Also enforce the rounded value remains > 0 (prevents 0.0000001 → stored 0.0)."""
         if not math.isfinite(v):
             raise ValueError("amount must be a finite number (no NaN/Infinity)")
         if v <= 0:
             raise ValueError("amount must be positive")
-        return round(v, 2)
+        rounded = round(v, 2)
+        if rounded <= 0:
+            raise ValueError("amount too small (must be ≥ ₹0.01 after rounding)")
+        return rounded
 
 
 class SMSParseRequest(BaseModel):
@@ -76,7 +87,7 @@ async def create_transaction(transaction: TransactionCreate, user_id: str = Depe
 @router.get("")
 async def get_transactions(
     user_id: str = Depends(get_current_user),
-    limit: int = 100,
+    limit: int = Query(100, ge=0, le=500),
     category: Optional[str] = None,
     type: Optional[str] = None,
     source: Optional[str] = None,

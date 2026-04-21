@@ -105,13 +105,25 @@ async def split_razorpay_order(data: dict, user_id: str = Depends(get_current_us
     succeeds — mirroring the premium flow.
     """
     from routers.premium_common import razorpay_client as _rz
+    import math as _math
     target_user_id = data.get("target_user_id")
-    amount = float(data.get("amount", 0) or 0)
+    try:
+        amount = float(data.get("amount", 0) or 0)
+    except (TypeError, ValueError):
+        raise HTTPException(status_code=400, detail="amount must be a number")
     group_id = data.get("group_id")
-    coins_to_use = int(data.get("coins_to_use", 0) or 0)
+    try:
+        coins_to_use = int(data.get("coins_to_use", 0) or 0)
+    except (TypeError, ValueError):
+        coins_to_use = 0
 
-    if not target_user_id or amount <= 0:
-        raise HTTPException(status_code=400, detail="target_user_id and positive amount required")
+    if not target_user_id or not isinstance(target_user_id, str):
+        raise HTTPException(status_code=400, detail="target_user_id required")
+    if not _math.isfinite(amount) or amount <= 0:
+        raise HTTPException(status_code=400, detail="positive finite amount required")
+    # Razorpay hard cap: ₹5 crore/order (50,00,00,000 paise). We cap at ₹20 lakh for safety.
+    if amount > 20_00_000:
+        raise HTTPException(status_code=400, detail="amount exceeds per-order limit (₹20,00,000)")
 
     # Preview coin redemption — non-mutating until signature verify succeeds.
     balance = await _get_user_coin_balance(user_id)

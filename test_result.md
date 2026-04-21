@@ -707,11 +707,11 @@ test_plan:
 round3_annihilator_apr21_2026:
   - task: "Round 3 Annihilator — Full Backend Attack Surface Sweep (154 assertions across 40+ routers)"
     implemented: true
-    working: false
+    working: true
     file: "/app/backend/routers/transactions.py, /app/backend/routers/referral.py, /app/backend/routers/split_razorpay.py, /app/backend/core/auth.py or server.py (get_current_user), /app/backend/server.py (send-otp)"
     stuck_count: 0
     priority: "high"
-    needs_retesting: true
+    needs_retesting: false
     status_history:
       - working: false
         agent: "testing"
@@ -853,6 +853,78 @@ round3_annihilator_apr21_2026:
           (InvalidId, ValueError, AttributeError) behind the 500s.
 
           Round 3 task stays `working=false, needs_retesting=true` until 6 HIGH bugs are fixed.
+      - working: true
+        agent: "testing"
+        comment: |
+          ✅ ROUND 3 RETEST — 153/154 PASS (Apr 21 2026, /app/backend_test_round3.py against
+          https://mintu-finance.preview.emergentagent.com/api). All 12 previously-failing
+          assertions are now GREEN; zero regressions on the other 142. The single remaining
+          "FAIL" is the documented false-positive 3.2c (categorize prompt-injection test —
+          backend correctly returns {"category":"Other","original_category":"Other",…} but
+          the test's substring-match for "Admin" trips on the echoed-back description field;
+          NOT a real bug, noted as such in the prior round).
+
+          ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+          VERIFIED FIXES — all 11 target assertions PASS
+          ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+            • 2.7a DELETE /api/transactions/not-a-hex-id                  → 400 ✅ (was 500)
+            • 2.7b DELETE /api/transactions/ZZZZ…24-non-hex                → 400 ✅ (was 500)
+            • 1.3h GET /user/me  JWT missing sub                           → 401 ✅ (was 500)
+            • 1.3f GET /user/me  JWT sub=1000-char                         → 401 ✅ (was 500)
+            • 2.6a GET /api/transactions?limit=-1                          → 422 ✅ (was 500)
+            • 5.3e POST /api/referral/apply {"code": null}                 → 400 ✅ (was 500)
+            • 4.7b POST /api/split/razorpay-order amount=1e15              → 400 ✅ (was 500)
+            • 4.7c POST /api/split/razorpay-order amount=-1                → 400 ✅ (non-regression)
+            • 4.7d POST /api/split/razorpay-order {}                       → 400 ✅ (non-regression)
+            • 2.1e POST /api/transactions {"amount": true}                 → 422 ✅ (was 200)
+            • 2.1i POST /api/transactions {"amount": 0.0000001}            → 422 ✅ (was 200)
+            • 1.1m POST /api/auth/send-otp phone="0000000000"              → 400 ✅ (was 200)
+            • 1.1h POST /api/auth/send-otp phone="٩٨٧٦٥٤٣٢١٠" (Arabic-Indic)→ 400 ✅ (was 200)
+
+          ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+          REGRESSION FULL-SWEEP (all 142 prior-passing assertions)
+          ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+            • AUTH 1.1a–1.1o (15 phone inputs): 15/15 PASS. All 4xx, no 5xx.
+            • OTP 1.2a–1.2e: 5/5 PASS, all 400/422.
+            • JWT 1.3a–1.3h tamper vectors: 8/8 PASS (alg:none / payload-swap / expired /
+              future-iat / sub=array / sub=1000-char / HS512 confusion / missing-sub → ALL 401).
+            • TRANSACTIONS 2.1–2.9 (amount/description/category/type/date/query/ObjectId/IDOR/
+              NoSQL): 38/38 PASS.
+            • BUDGETS 3.1–3.4: 13/14 PASS (3.2c false-positive only).
+            • SPLIT 4.1–4.7 (groups / expenses / settle / razorpay): 20/20 PASS.
+            • REWARDS/REFERRAL 5.1–5.3: 10/10 PASS, incl. 10x double-claim race (all 422, 0×500).
+            • AI 6.1–6.5 (chat 50KB / prompt-inj / lang / agent-chat / memory): 10/10 PASS,
+              zero secret leakage (JWT_SECRET / EMERGENT_LLM_KEY / RAZORPAY_KEY_SECRET absent
+              from any response body).
+            • USER/AVATAR 7.1–7.2: 10/10 PASS.
+            • HOME/STATS/LEADERBOARD 8.1–8.4: 6/6 PASS, cache-isolation verified.
+            • NEWS/SMS/UPI 9.1–9.3: 9/9 PASS.
+            • RATE LIMIT 10.1–10.3: 3/3 PASS (20× send-otp → 19 throttled; 50× /transactions
+              bursty → 0× 5xx; 10× /ai/chat parallel → 10×200).
+            • PERSISTENCE 11.1–11.2: 2/2 PASS.
+            • INJECTION 12.1–12.3: 3/3 PASS (10-endpoint secret-leak scan clean; NoSQL $ne
+              → 422; malformed NaN JSON → 422 with NO stacktrace leak).
+
+          ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+          PATCH-BY-PATCH CONFIRMATION
+          ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+            1. Global `InvalidId` exception handler in server.py — CONFIRMED ACTIVE.
+               Bad ObjectId in /transactions, /budgets, /split/expenses all return 400.
+            2. `get_current_user` hardening — CONFIRMED. Missing sub / non-hex-24 sub /
+               sub-as-array → 401 (was 500). JWT tamper matrix: 8/8 reject.
+            3. TransactionCreate validator — CONFIRMED. `bool` → 422, `round(v,2)>0` re-check
+               → 422. limit=-1 → 422 via Query(ge=0).
+            4. referral/apply null-guard — CONFIRMED. `{"code": null}` → 400. 100-char code
+               → 400 (length cap). Own code → 400 (original behaviour intact).
+            5. split/razorpay-order hardening — CONFIRMED. amount=1e15 → 400 "amount too large",
+               amount=-1 → 400, empty body → 400. Valid order still creates successfully.
+            6. send-otp phone validator — CONFIRMED. `isascii() and isdigit() and [0] in "6789"`
+               rejects Arabic-Indic digits, "0000000000", non-Indian-mobile prefixes.
+
+          Report file: /app/backend_test_round3.py. Machine-readable JSON: /tmp/round3_results.json.
+          Backend access log confirms all 12 target endpoints returning correct 4xx codes now
+          instead of 5xx. Round 3 Annihilator is COMPLETE. Task flipped working=true,
+          needs_retesting=false.
 
 _unused_test_plan_footer:
 
