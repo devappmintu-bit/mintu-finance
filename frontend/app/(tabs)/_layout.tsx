@@ -138,7 +138,7 @@ function SideTab({ icon, iconFilled, label, focused, onPress, testID }:
         <Ionicons
           name={(focused ? iconFilled : icon) as any}
           size={focused ? 22 : 20}
-          color={focused ? '#FFFFFF' : COLORS.text.secondary}
+          color={focused ? '#FFFFFF' : 'rgba(255,255,255,0.75)'}
         />
       </Animated.View>
       <Animated.Text
@@ -161,11 +161,10 @@ function MintUTabBar({ state, navigation }: BottomTabBarProps) {
   const { lang } = useLangStore();
   const screenW = Dimensions.get('window').width;
   const { CUTOUT_W } = archGeom(screenW);
-  // Detect light vs dark by inspecting bg.primary luminance
-  const isLight = c.bg.primary === '#FAFAF9' || c.bg.primary.toUpperCase() === '#FAFAF9';
-  const gradTop = isLight ? '#FFFFFF' : '#1A1A24';
-  const gradBot = isLight ? '#F3F4F6' : '#0B0B12';
-  const rimStroke = isLight ? 'rgba(17,24,39,0.10)' : 'rgba(255,255,255,0.08)';
+  // HDFC PayZapp-inspired deep navy palette (consistent across themes)
+  const gradTop = '#1B3A91';       // Deep royal blue (top)
+  const gradBot = '#15307D';       // Slightly darker blue (bottom)
+  const rimStroke = 'rgba(255,255,255,0.14)';
 
   const visible = state.routes.filter(r => TAB_META[r.name]);
   const left = visible.slice(0, 2);
@@ -186,7 +185,7 @@ function MintUTabBar({ state, navigation }: BottomTabBarProps) {
       <View style={[st.barContainer, { height: barH }]} pointerEvents="none">
         {/* Blurred dark panel behind the silhouette for depth */}
         {Platform.OS !== 'android' ? (
-          <BlurView intensity={32} tint={isLight ? 'light' : 'dark'} style={[StyleSheet.absoluteFillObject, { overflow: 'hidden' }]} />
+          <BlurView intensity={32} tint="dark" style={[StyleSheet.absoluteFillObject, { overflow: 'hidden' }]} />
         ) : null}
         <Svg
           width={screenW}
@@ -197,8 +196,8 @@ function MintUTabBar({ state, navigation }: BottomTabBarProps) {
         >
           <Defs>
             <SvgLG id="barGrad" x1="0" y1="0" x2="0" y2="1">
-              <Stop offset="0" stopColor={gradTop} stopOpacity={isLight ? '0.98' : '0.92'} />
-              <Stop offset="1" stopColor={gradBot} stopOpacity={isLight ? '1' : '0.98'} />
+              <Stop offset="0" stopColor={gradTop} stopOpacity="1" />
+              <Stop offset="1" stopColor={gradBot} stopOpacity="1" />
             </SvgLG>
           </Defs>
           <Path d={barPath(screenW, barH)} fill="url(#barGrad)" stroke={rimStroke} strokeWidth={1} />
@@ -327,20 +326,21 @@ const useStyles = makeStyles((c) => ({
     backgroundColor: 'transparent',
   },
   sideIconWrapOn: {
-    backgroundColor: 'rgba(255,107,26,0.18)',
+    // HDFC-style light-blue pill around the active icon
+    backgroundColor: 'rgba(120,170,255,0.28)',
     paddingHorizontal: 12,
     borderWidth: 1,
-    borderColor: 'rgba(255,107,26,0.4)',
+    borderColor: 'rgba(160,200,255,0.45)',
     ...Platform.select({
-      ios:     { shadowColor: c.accent.primary, shadowOpacity: 0.55, shadowRadius: 10, shadowOffset: { width: 0, height: 2 } },
+      ios:     { shadowColor: '#78AAFF', shadowOpacity: 0.55, shadowRadius: 10, shadowOffset: { width: 0, height: 2 } },
       android: { elevation: 6 },
-      web:     { boxShadow: '0 0 16px rgba(255,107,26,0.55)' as any },
+      web:     { boxShadow: '0 0 16px rgba(120,170,255,0.55)' as any },
     }),
   },
-  sideLabel:   { fontSize: 10.5, color: c.text.muted, fontFamily: FONT_FAMILY.semibold, letterSpacing: 0.3 },
-  sideLabelOn: { color: c.accent.primary, fontFamily: FONT_FAMILY.bold },
+  sideLabel:   { fontSize: 10.5, color: 'rgba(255,255,255,0.80)', fontFamily: FONT_FAMILY.semibold, letterSpacing: 0.3 },
+  sideLabelOn: { color: '#FFFFFF', fontFamily: FONT_FAMILY.bold },
 
-  // RAISED puck sits on top of the cutout — neon-glow ring
+  // RAISED puck sits on top of the cutout — HDFC-blue with inner lighter-blue ring
   raisedWrap: {
     position: 'absolute',
     bottom: BOTTOM_PAD + BAR_HEIGHT - PUCK_SIZE / 2 + 4,
@@ -354,19 +354,19 @@ const useStyles = makeStyles((c) => ({
   raisedOuter: {
     width: PUCK_SIZE, height: PUCK_SIZE,
     borderRadius: PUCK_SIZE / 2,
-    backgroundColor: '#FF6B1A',
+    backgroundColor: '#2F6BE0',    // Royal blue like HDFC
     alignItems: 'center', justifyContent: 'center',
-    borderWidth: 2, borderColor: 'rgba(255,180,71,0.9)',
+    borderWidth: 2, borderColor: 'rgba(160,200,255,0.6)',
     ...Platform.select({
-      ios:     { shadowColor: c.accent.primary, shadowOpacity: 0.85, shadowRadius: 18, shadowOffset: { width: 0, height: 8 } },
+      ios:     { shadowColor: '#2F6BE0', shadowOpacity: 0.75, shadowRadius: 18, shadowOffset: { width: 0, height: 8 } },
       android: { elevation: 18 },
-      web:     { boxShadow: '0 0 24px rgba(255,107,26,0.85), 0 8px 20px rgba(255,107,26,0.55)' as any },
+      web:     { boxShadow: '0 0 24px rgba(47,107,224,0.75), 0 8px 20px rgba(21,48,125,0.55)' as any },
     }),
   },
   raisedInner: {
     width: PUCK_INNER, height: PUCK_INNER,
     borderRadius: PUCK_INNER / 2,
-    backgroundColor: '#FFF0DE',
+    backgroundColor: '#5A94F0',    // Lighter blue inner circle (mimics HDFC inner ring)
     overflow: 'hidden',
     alignItems: 'center', justifyContent: 'center',
   },

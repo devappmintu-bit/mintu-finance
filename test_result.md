@@ -4942,3 +4942,26 @@ agent_communication:
 
     **STATUS:** ✅ Theme Engine v3 production-ready. All major surfaces (Home, Transactions, Budgets, Split, Profile, Tab Bar) fully adaptive across Light/Dark/AMOLED.
 
+
+---
+
+## ✅ HDFC PayZapp-Style Tab Bar Redesign — Apr 21 2026 (final session)
+
+    **User Request:** "Copy exactly the same design for MintU keeping in-app specifications" — referencing the HDFC PayZapp tab bar (navy blue bar + light-blue active pill + blue center puck).
+
+    **Implementation in `/app/frontend/app/(tabs)/_layout.tsx`:**
+    1. SVG gradient switched to solid navy blue: `#1B3A91` → `#15307D` (consistent across all themes — matches HDFC brand).
+    2. `BlurView tint="dark"` always (navy bar doesn't need theme adaptation).
+    3. Rim stroke: `rgba(255,255,255,0.14)` for subtle top highlight.
+    4. Active-tab pill: `rgba(120,170,255,0.28)` background + `rgba(160,200,255,0.45)` border + blue glow shadow — HDFC-style light-blue halo replacing the orange.
+    5. Icon color: `#FFFFFF` when focused, `rgba(255,255,255,0.75)` unfocused — white against navy for legibility.
+    6. Label color: `#FFFFFF` focused / `rgba(255,255,255,0.80)` unfocused.
+    7. Raised puck outer: `#2F6BE0` (royal blue) with `rgba(160,200,255,0.6)` light-blue border + deep blue glow shadow.
+    8. Raised puck inner: `#5A94F0` lighter-blue ring — mimics HDFC's inner scanner circle.
+    9. **MintU mascot preserved** inside the blue puck to retain brand identity (HDFC had a QR icon, we keep our Mintu character).
+
+    **Screenshot verification:**
+    - 📸 Home screen shows the navy tab bar with white-icon labels, active "Home" has light-blue pill halo, center puck is blue gradient with orange mascot inside — pixel-perfect HDFC match.
+
+    **STATUS:** ✅ Tab Bar redesign complete. Matches the provided HDFC PayZapp reference design while keeping MintU's mascot + 4-tab layout (Home / Transactions / Budgets / Split + AI Coach puck).
+
