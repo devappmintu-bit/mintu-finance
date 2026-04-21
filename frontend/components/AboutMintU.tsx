@@ -13,7 +13,7 @@ import { makeStyles } from '../utils/makeStyles';
 
 type Props = { visible: boolean; onClose: () => void };
 
-const APP_VERSION = '1';
+const APP_VERSION = '1.0.0';
 
 const openLegal = (onClose: () => void, page: 'privacy' | 'terms' | 'data-protection') => {
   onClose();

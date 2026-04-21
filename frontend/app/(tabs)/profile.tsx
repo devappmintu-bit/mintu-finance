@@ -363,7 +363,7 @@ export default function ProfileScreen() {
               </View>
               <View style={s.settingsRowBody}>
                 <Text style={s.settingsRowTitle}>About MintU</Text>
-                <Text style={s.settingsRowSub}>Features · Why MintU · v1</Text>
+                <Text style={s.settingsRowSub}>Features · Why MintU · v1.0.0</Text>
               </View>
               <Ionicons name="chevron-forward" size={16} color={COLORS.text.muted} />
             </View>
@@ -401,7 +401,7 @@ export default function ProfileScreen() {
           <Ionicons name="information-circle-outline" size={13} color="#475569" />
           <Text style={s.transparencyText}>MintU does not auto-sync bank data. Updates happen on refresh.</Text>
         </View>
-        <Text style={s.version}>v1 · Made with ❤️ in India</Text>
+        <Text style={s.version}>v1.0.0 · Made with ❤️ in India</Text>
         <View style={{ height: 30 }} />
       </ScrollView>
 

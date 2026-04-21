@@ -48,12 +48,12 @@ function labelOf(name: string, lang: any): string {
 }
 
 // ─── Geometry constants ────────────────────────────────────────────────────
-const PUCK_SIZE  = 72;       // rounded-SQUARE center button (larger than 40px tab chips)
-const PUCK_INNER = 62;
-const BAR_HEIGHT = 76;       // floating pill height
-const BAR_INSET_X = 16;      // horizontal gap from screen edges
+const PUCK_SIZE  = 74;       // rounded-SQUARE center button (larger than side-tab chips)
+const PUCK_INNER = 64;
+const BAR_HEIGHT = 88;       // Taller floating pill so chips + labels sit with breathing room
+const BAR_INSET_X = 14;      // horizontal gap from screen edges
 const BAR_INSET_B = Platform.OS === 'ios' ? 22 : 14; // gap from bottom
-const TOP_RADIUS = 28;
+const TOP_RADIUS = 32;
 
 // Compatibility stub (keep for call sites that still import it)
 function archGeom(screenW: number) {
@@ -235,10 +235,10 @@ const useStyles = makeStyles((c) => {
   return ({
     wrap: {
       position: 'absolute', left: 0, right: 0, bottom: 0,
-      paddingBottom: BAR_INSET_B,
       alignItems: 'center',
       justifyContent: 'flex-end',
       backgroundColor: 'transparent',
+      paddingBottom: BAR_INSET_B,
     },
     // Floating pill capsule (light bg in light mode, obsidian in dark)
     barContainer: {
@@ -266,14 +266,16 @@ const useStyles = makeStyles((c) => {
       alignItems: 'center',
       justifyContent: 'center',
       flex: 1,
-      paddingVertical: 6,
+      paddingVertical: 4,
       gap: 4,
     },
     // Dark circular chip holding the icon (Paytm-style prominent chip)
     sideIconWrap: {
-      width: 40, height: 40, borderRadius: 20,
+      width: 42, height: 42, borderRadius: 21,
       alignItems: 'center', justifyContent: 'center',
-      backgroundColor: '#1F2230',
+      backgroundColor: isLight ? '#1B1D27' : '#2A2D3A',
+      borderWidth: isLight ? 0 : 1,
+      borderColor: isLight ? 'transparent' : 'rgba(255,255,255,0.06)',
     },
     // Active icon chip — orange brand halo
     sideIconWrapOn: {
@@ -287,7 +289,7 @@ const useStyles = makeStyles((c) => {
     sideLabel:   { fontSize: 10.5, color: c.text.secondary, fontFamily: FONT_FAMILY.semibold, letterSpacing: 0.2, marginTop: 2 },
     sideLabelOn: { color: c.accent.primary, fontFamily: FONT_FAMILY.bold },
 
-    // RAISED rounded-SQUARE center button (larger + transparent mascot bg)
+    // RAISED rounded-SQUARE center button (larger + orange accent ring)
     raisedWrap: {
       position: 'absolute',
       bottom: BAR_INSET_B + BAR_HEIGHT - PUCK_SIZE / 2 - 4,
@@ -300,20 +302,21 @@ const useStyles = makeStyles((c) => {
     },
     raisedOuter: {
       width: PUCK_SIZE, height: PUCK_SIZE,
-      borderRadius: 20,                // rounded-SQUARE (not circle)
+      borderRadius: 22,                // rounded-SQUARE (not circle)
       backgroundColor: isLight ? '#FFFFFF' : '#1A1C24',
       alignItems: 'center', justifyContent: 'center',
-      borderWidth: 2,
-      borderColor: isLight ? 'rgba(17,24,39,0.08)' : 'rgba(255,255,255,0.08)',
+      // Brand orange accent ring
+      borderWidth: 2.5,
+      borderColor: c.accent.primary,
       ...Platform.select({
-        ios:     { shadowColor: '#000', shadowOpacity: isLight ? 0.16 : 0.55, shadowRadius: 14, shadowOffset: { width: 0, height: 6 } },
+        ios:     { shadowColor: c.accent.primary, shadowOpacity: 0.45, shadowRadius: 14, shadowOffset: { width: 0, height: 4 } },
         android: { elevation: 18 },
-        web:     { boxShadow: isLight ? '0 8px 22px rgba(17,24,39,0.18)' : '0 8px 22px rgba(0,0,0,0.55)' as any },
+        web:     { boxShadow: `0 0 18px ${c.accent.primary}66, 0 8px 20px rgba(0,0,0,0.28)` as any },
       }),
     },
     raisedInner: {
       width: PUCK_INNER, height: PUCK_INNER,
-      borderRadius: 16,                // rounded-square inner — NO orange bg, transparent
+      borderRadius: 16,                // rounded-square inner — transparent
       backgroundColor: 'transparent',
       overflow: 'hidden',
       alignItems: 'center', justifyContent: 'center',

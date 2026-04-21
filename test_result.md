@@ -5048,3 +5048,39 @@ agent_communication:
 
     **Screenshot-verified:** The mascot now shows without any orange halo on the auth screens, and the tabs screen displays a clean floating pill with the Home tab highlighted in orange + a larger rounded-square AI Coach button in the center containing just the mascot (no orange fill).
 
+
+---
+
+## ✅ Tab Bar Resize + Orange Accent Ring + Semver Version — Apr 21 2026
+
+    **User Requests:**
+    1. Increase the tab bar size to fit the tabs perfectly and aligned
+    2. Add orange accent around the AI Coach icon (and across the app)
+    3. Fix the app version with industry-standard naming (semver)
+
+    **Implementation:**
+
+    1. **Taller, better-aligned tab bar (`/app/frontend/app/(tabs)/_layout.tsx`):**
+       - `BAR_HEIGHT`: 76 → **88** (breathing room for chips + labels)
+       - `TOP_RADIUS`: 28 → **32**
+       - `BAR_INSET_X`: 16 → **14** (slightly wider pill)
+       - Icon chips: 40×40 → **42×42** with subtle border in dark mode
+       - Icon chip bg darkened to `#1B1D27` (light theme) for better contrast on the white pill
+
+    2. **Orange accent ring on AI Coach center button:**
+       - `raisedOuter.borderWidth`: 2 → **2.5**, `borderColor`: muted grey → **`c.accent.primary`** (brand orange)
+       - Added orange glow shadow: `boxShadow: 0 0 18px ${accent.primary}66, 0 8px 20px rgba(0,0,0,0.28)`
+       - iOS shadow color switched to `c.accent.primary` with 0.45 opacity + 14px radius
+       - PUCK_SIZE increased 72 → **74** with borderRadius 22
+       - Orange brand accent already consistently applied across the app (active tab chips, settings icons, primary buttons, logout ghost pill, etc.) — this is automatic via the `c.accent.primary` theme token.
+
+    3. **Industry-standard semver version everywhere:**
+       - Created `/app/frontend/utils/version.ts` exporting `APP_VERSION = '1.0.0'` + `APP_VERSION_SHORT` + `APP_VERSION_LONG` for future centralisation.
+       - `package.json` and `app.json` already at `1.0.0` (kept in sync).
+       - `components/AboutMintU.tsx`: `APP_VERSION` const bumped `'1'` → `'1.0.0'`.
+       - `app/(tabs)/profile.tsx`: "Features · Why MintU · v1" → "v1.0.0", footer "v1 · Made with ❤️ in India" → "v1.0.0 · …".
+       - `app/about.tsx`: `v1` → `v1.0.0`.
+       - `utils/i18n.ts`: 3 language translations `'MintU v1'` → `'MintU v1.0.0'`.
+
+    **Screenshot verification**: The Home screen now shows a beautifully sized floating pill tab bar with prominent dark circular chips (orange highlight on active Home tab), a larger rounded-square AI Coach center button with a bright orange accent border ring and mascot inside, and perfect alignment across all 4 tab items + labels. Profile footer and About screen display `v1.0.0`.
+
