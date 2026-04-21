@@ -16,6 +16,9 @@ import {
   Inter_700Bold,
   Inter_900Black,
 } from '@expo-google-fonts/inter';
+import { GestureHandlerRootView } from 'react-native-gesture-handler';
+import { BottomSheetModalProvider } from '@gorhom/bottom-sheet';
+import { PortalProvider } from '@gorhom/portal';
 import { COLORS } from '../utils/theme';
 
 // Silence noisy, non-actionable deprecation warnings from RN core + libs.
@@ -82,26 +85,30 @@ export default function RootLayout() {
   }
 
   return (
-    <>
-      <StatusBar style="light" />
-      <Stack screenOptions={{ headerShown: false, animation: 'fade', contentStyle: { backgroundColor: COLORS.bg.primary } }}>
-        <Stack.Screen name="index" />
-        <Stack.Screen name="onboarding" />
-        <Stack.Screen name="auth" />
-        <Stack.Screen name="unlock" />
-        <Stack.Screen name="(tabs)" />
-        <Stack.Screen name="premium" options={{ animation: 'slide_from_right' }} />
-        <Stack.Screen name="premium-reports" options={{ animation: 'slide_from_right' }} />
-        <Stack.Screen name="premium-hub" options={{ animation: 'slide_from_right' }} />
-        <Stack.Screen name="money-school" options={{ animation: 'slide_from_right' }} />
-        <Stack.Screen name="rewards-hub" options={{ animation: 'slide_from_right' }} />
-        <Stack.Screen name="yearly" options={{ animation: 'slide_from_right' }} />
-        <Stack.Screen name="legal/[page]" options={{ animation: 'slide_from_right' }} />
-        <Stack.Screen name="gmail" options={{ animation: 'slide_from_right' }} />
-        <Stack.Screen name="gmail-connected" options={{ animation: 'fade' }} />
-        <Stack.Screen name="premium-activated" options={{ animation: 'fade' }} />
-      </Stack>
-      <Toast config={toastConfig} position="bottom" bottomOffset={100} />
-    </>
+    <GestureHandlerRootView style={{ flex: 1, backgroundColor: COLORS.bg.primary }}>
+      <PortalProvider>
+        <BottomSheetModalProvider>
+          <StatusBar style="light" />
+          <Stack screenOptions={{ headerShown: false, animation: 'fade', contentStyle: { backgroundColor: COLORS.bg.primary } }}>
+            <Stack.Screen name="index" />
+            <Stack.Screen name="onboarding" />
+            <Stack.Screen name="auth" />
+            <Stack.Screen name="unlock" />
+            <Stack.Screen name="(tabs)" />
+            <Stack.Screen name="premium" options={{ animation: 'slide_from_right' }} />
+            <Stack.Screen name="premium-reports" options={{ animation: 'slide_from_right' }} />
+            <Stack.Screen name="premium-hub" options={{ animation: 'slide_from_right' }} />
+            <Stack.Screen name="money-school" options={{ animation: 'slide_from_right' }} />
+            <Stack.Screen name="rewards-hub" options={{ animation: 'slide_from_right' }} />
+            <Stack.Screen name="yearly" options={{ animation: 'slide_from_right' }} />
+            <Stack.Screen name="legal/[page]" options={{ animation: 'slide_from_right' }} />
+            <Stack.Screen name="gmail" options={{ animation: 'slide_from_right' }} />
+            <Stack.Screen name="gmail-connected" options={{ animation: 'fade' }} />
+            <Stack.Screen name="premium-activated" options={{ animation: 'fade' }} />
+          </Stack>
+          <Toast config={toastConfig} position="bottom" bottomOffset={100} />
+        </BottomSheetModalProvider>
+      </PortalProvider>
+    </GestureHandlerRootView>
   );
 }

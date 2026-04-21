@@ -234,7 +234,14 @@ export default function TabLayout() {
   return (
     <View style={{ flex: 1 }}>
       <Tabs
-        screenOptions={{ headerShown: false }}
+        screenOptions={{
+          headerShown: false,
+          // Smooth 280ms shift animation when switching tabs — gives a premium cross-fade feel
+          animation: 'shift',
+          // Freeze inactive tabs to save CPU & keep scroll state
+          freezeOnBlur: true,
+          lazy: true,
+        } as any}
         tabBar={(props) => <MintUTabBar {...props} />}
       >
         <Tabs.Screen name="index" />
