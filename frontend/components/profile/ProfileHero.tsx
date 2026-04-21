@@ -3,6 +3,7 @@ import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { Image } from 'expo-image';
 import { Ionicons } from '@expo/vector-icons';
 import { COLORS, shadowStyle } from '../../utils/theme';
+import { makeStyles } from '../../utils/makeStyles';
 
 interface Props {
   user: any;
@@ -28,6 +29,7 @@ export default function ProfileHero({
   onEditName, onPickAvatar, onRemoveAvatar,
   onOpenReferrals, onOpenYearly, onShareScore,
 }: Props) {
+  const s = useStyles();
   const score = user?.money_score || 0;
   return (
     <View style={s.card}>
@@ -92,28 +94,28 @@ export default function ProfileHero({
   );
 }
 
-const s = StyleSheet.create({
-  card: { backgroundColor: '#FFFFFF', borderRadius: 24, padding: 24, marginBottom: 14, alignItems: 'center', borderWidth: 1, borderColor: COLORS.border.card, position: 'relative' },
-  editBtn: { position: 'absolute', top: 14, right: 14, width: 36, height: 36, borderRadius: 18, backgroundColor: COLORS.bg.primary, justifyContent: 'center', alignItems: 'center', zIndex: 2 },
+const useStyles = makeStyles((c) => ({
+  card: { backgroundColor: '#FFFFFF', borderRadius: 24, padding: 24, marginBottom: 14, alignItems: 'center', borderWidth: 1, borderColor: c.border.card, position: 'relative' },
+  editBtn: { position: 'absolute', top: 14, right: 14, width: 36, height: 36, borderRadius: 18, backgroundColor: c.bg.primary, justifyContent: 'center', alignItems: 'center', zIndex: 2 },
   avatarWrap: { position: 'relative', marginTop: 4 },
-  avatar: { width: 96, height: 96, borderRadius: 48, borderWidth: 3, borderColor: COLORS.accent.primary + '30' },
-  avatarPlace: { width: 96, height: 96, borderRadius: 48, backgroundColor: COLORS.accent.primary + '18', justifyContent: 'center', alignItems: 'center', borderWidth: 3, borderColor: COLORS.accent.primary + '40' },
-  avatarInitial: { fontSize: 40, fontWeight: '800', color: COLORS.accent.primary },
-  camBadge: { position: 'absolute', bottom: 2, right: 2, width: 28, height: 28, borderRadius: 14, backgroundColor: COLORS.accent.primary, justifyContent: 'center', alignItems: 'center', borderWidth: 3, borderColor: '#fff' },
-  name: { fontSize: 22, fontWeight: '800', color: COLORS.text.primary, marginTop: 12 },
-  phone: { fontSize: 13, color: COLORS.text.muted, marginTop: 2 },
+  avatar: { width: 96, height: 96, borderRadius: 48, borderWidth: 3, borderColor: c.accent.primary + '30' },
+  avatarPlace: { width: 96, height: 96, borderRadius: 48, backgroundColor: c.accent.primary + '18', justifyContent: 'center', alignItems: 'center', borderWidth: 3, borderColor: c.accent.primary + '40' },
+  avatarInitial: { fontSize: 40, fontWeight: '800', color: c.accent.primary },
+  camBadge: { position: 'absolute', bottom: 2, right: 2, width: 28, height: 28, borderRadius: 14, backgroundColor: c.accent.primary, justifyContent: 'center', alignItems: 'center', borderWidth: 3, borderColor: '#fff' },
+  name: { fontSize: 22, fontWeight: '800', color: c.text.primary, marginTop: 12 },
+  phone: { fontSize: 13, color: c.text.muted, marginTop: 2 },
   progWrap: { width: '100%', marginTop: 18, backgroundColor: '#F8F9FB', borderRadius: 14, padding: 14 },
   progHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 },
-  progLabel: { fontSize: 12, fontWeight: '600', color: COLORS.text.muted, letterSpacing: 0.3 },
-  progValue: { fontSize: 14, fontWeight: '800', color: COLORS.accent.primary },
-  progBar: { height: 8, backgroundColor: COLORS.border.subtle, borderRadius: 4, overflow: 'hidden' },
-  progFill: { height: '100%', backgroundColor: COLORS.accent.primary, borderRadius: 4 },
-  progTier: { fontSize: 11, color: COLORS.text.secondary, marginTop: 8, textAlign: 'center', fontWeight: '600' },
+  progLabel: { fontSize: 12, fontWeight: '600', color: c.text.muted, letterSpacing: 0.3 },
+  progValue: { fontSize: 14, fontWeight: '800', color: c.accent.primary },
+  progBar: { height: 8, backgroundColor: c.border.subtle, borderRadius: 4, overflow: 'hidden' },
+  progFill: { height: '100%', backgroundColor: c.accent.primary, borderRadius: 4 },
+  progTier: { fontSize: 11, color: c.text.secondary, marginTop: 8, textAlign: 'center', fontWeight: '600' },
   pillRow: { flexDirection: 'row', gap: 10, marginTop: 18, width: '100%' },
-  pill: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, paddingVertical: 12, backgroundColor: COLORS.bg.primary, borderRadius: 999, borderWidth: 1, borderColor: COLORS.border.card },
-  pillText: { fontSize: 13, fontWeight: '700', color: COLORS.text.primary },
-  shareCTA: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, width: '100%', marginTop: 12, paddingVertical: 14, paddingHorizontal: 16, backgroundColor: COLORS.accent.primary, borderRadius: 999 },
+  pill: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, paddingVertical: 12, backgroundColor: c.bg.primary, borderRadius: 999, borderWidth: 1, borderColor: c.border.card },
+  pillText: { fontSize: 13, fontWeight: '700', color: c.text.primary },
+  shareCTA: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, width: '100%', marginTop: 12, paddingVertical: 14, paddingHorizontal: 16, backgroundColor: c.accent.primary, borderRadius: 999 },
   shareCTAText: { fontSize: 15, fontWeight: '800', color: '#fff', letterSpacing: 0.3 },
   shareBadge: { flexDirection: 'row', alignItems: 'center', gap: 3, paddingHorizontal: 8, paddingVertical: 3, backgroundColor: 'rgba(255,255,255,0.2)', borderRadius: 999 },
   shareBadgeText: { fontSize: 9, fontWeight: '900', color: '#fff', letterSpacing: 0.8 },
-});
+}));

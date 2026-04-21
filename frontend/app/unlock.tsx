@@ -32,6 +32,7 @@ import * as Haptics from 'expo-haptics';
 import api from '../utils/api';
 import { useAuthStore } from '../store/authStore';
 import { COLORS } from '../utils/theme';
+import { makeStyles } from '../utils/makeStyles';
 import {
   biometricAvailable, tryBiometric, verifyPin, supportedBiometricLabel,
   hasPin, clearPin, isBiometricEnabled,
@@ -39,6 +40,7 @@ import {
 import AuthTransitionOverlay from '../components/auth/AuthTransitionOverlay';
 
 export default function UnlockScreen() {
+  const s = useStyles();
   const { user, setUser, removeAccount, unlock, token } = useAuthStore();
   const [pin, setPin] = useState('');
   const [error, setError] = useState('');
@@ -339,22 +341,22 @@ function getTimeGreeting(): string {
 // ══════════════════════════════════════════════════════════════════
 // STYLES — cream / saffron palette, NO BLACK
 // ══════════════════════════════════════════════════════════════════
-const s = StyleSheet.create({
-  container: { flex: 1, backgroundColor: COLORS.bg.primary, paddingHorizontal: 20 },
+const useStyles = makeStyles((c) => ({
+  container: { flex: 1, backgroundColor: c.bg.primary, paddingHorizontal: 20 },
 
   // ── Top bar ────────────────────────────────────────────────────
   topBar: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: 4 },
   brandRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   brandMark: { width: 26, height: 26, borderRadius: 7 },
-  brandName: { color: COLORS.text.primary, fontSize: 14, fontWeight: '900', letterSpacing: 2.4 },
+  brandName: { color: c.text.primary, fontSize: 14, fontWeight: '900', letterSpacing: 2.4 },
   secBadge: {
     flexDirection: 'row', alignItems: 'center', gap: 5,
-    backgroundColor: COLORS.state.successBg,
+    backgroundColor: c.state.successBg,
     borderRadius: 999,
     paddingHorizontal: 9, paddingVertical: 4,
-    borderWidth: 1, borderColor: COLORS.state.successBorder,
+    borderWidth: 1, borderColor: c.state.successBorder,
   },
-  secBadgeT: { fontSize: 10, fontWeight: '800', color: COLORS.state.success, letterSpacing: 0.3 },
+  secBadgeT: { fontSize: 10, fontWeight: '800', color: c.state.success, letterSpacing: 0.3 },
 
   // ── Greeting card ──────────────────────────────────────────────
   greetCard: {
@@ -365,30 +367,30 @@ const s = StyleSheet.create({
     alignItems: 'center',
     gap: 12,
     borderWidth: 1,
-    borderColor: COLORS.border.subtle,
+    borderColor: c.border.subtle,
     ...Platform.select({
-      ios: { shadowColor: COLORS.accent.primary, shadowOpacity: 0.12, shadowRadius: 14, shadowOffset: { width: 0, height: 6 } },
+      ios: { shadowColor: c.accent.primary, shadowOpacity: 0.12, shadowRadius: 14, shadowOffset: { width: 0, height: 6 } },
       android: { elevation: 4 },
       web: { boxShadow: '0 6px 14px rgba(230,81,0,0.10)' as any },
     }),
   },
   greetLeft: { flex: 1 },
-  hi: { color: COLORS.text.secondary, fontSize: 12.5, fontWeight: '700' },
-  name: { color: COLORS.text.primary, fontSize: 22, fontWeight: '900', letterSpacing: -0.4, marginTop: 2 },
+  hi: { color: c.text.secondary, fontSize: 12.5, fontWeight: '700' },
+  name: { color: c.text.primary, fontSize: 22, fontWeight: '900', letterSpacing: -0.4, marginTop: 2 },
   phoneRow: { flexDirection: 'row', alignItems: 'center', gap: 5, marginTop: 4 },
-  phoneT: { color: COLORS.text.muted, fontSize: 11.5, fontWeight: '700' },
+  phoneT: { color: c.text.muted, fontSize: 11.5, fontWeight: '700' },
   avatarWrap: {
     width: 56, height: 56, borderRadius: 16,
     backgroundColor: '#FFF0DE',
     alignItems: 'center', justifyContent: 'center',
-    borderWidth: 1, borderColor: COLORS.border.subtle,
+    borderWidth: 1, borderColor: c.border.subtle,
     overflow: 'hidden',
   },
   avatarImg: { width: '100%', height: '100%' },
 
   // ── PIN title + dots ───────────────────────────────────────────
   pinTitle: {
-    color: COLORS.text.primary,
+    color: c.text.primary,
     fontSize: 13,
     fontWeight: '800',
     letterSpacing: 1.6,
@@ -399,21 +401,21 @@ const s = StyleSheet.create({
   pinBoxes: { flexDirection: 'row', gap: 12, marginTop: 12, alignSelf: 'center' },
   pinBox: {
     width: 48, height: 54, borderRadius: 14,
-    backgroundColor: COLORS.bg.secondary,
-    borderWidth: 1.5, borderColor: COLORS.border.subtle,
+    backgroundColor: c.bg.secondary,
+    borderWidth: 1.5, borderColor: c.border.subtle,
     alignItems: 'center', justifyContent: 'center',
   },
   pinBoxFilled: {
-    borderColor: COLORS.accent.primary,
+    borderColor: c.accent.primary,
     backgroundColor: '#FFF0DE',
   },
   pinBoxErr: {
-    borderColor: COLORS.state.danger,
-    backgroundColor: COLORS.state.dangerBg,
+    borderColor: c.state.danger,
+    backgroundColor: c.state.dangerBg,
   },
-  pinCenterDot: { width: 12, height: 12, borderRadius: 6, backgroundColor: COLORS.accent.primary },
+  pinCenterDot: { width: 12, height: 12, borderRadius: 6, backgroundColor: c.accent.primary },
   errText: {
-    color: COLORS.state.danger,
+    color: c.state.danger,
     textAlign: 'center', marginTop: 8, fontSize: 12, fontWeight: '700', minHeight: 14,
   },
 
@@ -437,11 +439,11 @@ const s = StyleSheet.create({
     transform: [{ scale: 0.96 }],
   },
   keyT: {
-    color: COLORS.text.primary,
+    color: c.text.primary,
     fontSize: 28, fontWeight: '600', letterSpacing: 0.5,
   },
   keyTinyT: {
-    color: COLORS.accent.primary,
+    color: c.accent.primary,
     fontSize: 13, fontWeight: '800', letterSpacing: 0.3,
   },
 
@@ -449,12 +451,12 @@ const s = StyleSheet.create({
   bioGlow: {
     position: 'absolute',
     width: 72, height: 72, borderRadius: 36,
-    backgroundColor: COLORS.accent.primary,
+    backgroundColor: c.accent.primary,
   },
   bioChip: {
     width: 52, height: 52, borderRadius: 26,
     backgroundColor: '#FFF0DE',
-    borderWidth: 1.5, borderColor: COLORS.accent.primary,
+    borderWidth: 1.5, borderColor: c.accent.primary,
     alignItems: 'center', justifyContent: 'center',
   },
 
@@ -471,12 +473,12 @@ const s = StyleSheet.create({
     borderWidth: 1, borderColor: '#F6D7B5',
   },
   footerPillT: {
-    color: COLORS.accent.primary,
+    color: c.accent.primary,
     fontSize: 11.5, fontWeight: '800', letterSpacing: 0.2,
   },
   brandFooter: {
     flexDirection: 'row', justifyContent: 'center', alignItems: 'center',
     gap: 5, paddingTop: 10, paddingBottom: 4,
   },
-  brandFooterT: { color: COLORS.text.muted, fontSize: 10.5, fontWeight: '700', letterSpacing: 0.3 },
-});
+  brandFooterT: { color: c.text.muted, fontSize: 10.5, fontWeight: '700', letterSpacing: 0.3 },
+}));

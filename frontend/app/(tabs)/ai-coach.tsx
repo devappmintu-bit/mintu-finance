@@ -28,6 +28,7 @@ import NeonButton from '../../components/ui/NeonButton';
 import GlowPill from '../../components/ui/GlowPill';
 import Skeleton from '../../components/ui/Skeleton';
 import { COLORS, FONT_FAMILY, GRADIENT, SPACING } from '../../utils/theme';
+import { makeStyles } from '../../utils/makeStyles';
 import api from '../../utils/api';
 
 type Pulse = {
@@ -51,6 +52,7 @@ function pickHello() {
 }
 
 export default function AICoachTab() {
+  const s = useStyles();
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [chatOpen, setChatOpen] = useState(false);
@@ -270,8 +272,8 @@ export default function AICoachTab() {
   );
 }
 
-const s = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: COLORS.bg.primary },
+const useStyles = makeStyles((c) => ({
+  safe: { flex: 1, backgroundColor: c.bg.primary },
   scroll: { paddingHorizontal: SPACING.lg, paddingTop: SPACING.sm },
   header: {
     flexDirection: 'row',
@@ -284,20 +286,20 @@ const s = StyleSheet.create({
     fontSize: 11,
     fontFamily: FONT_FAMILY.bold,
     letterSpacing: 1.4,
-    color: COLORS.accent.primary,
+    color: c.accent.primary,
     marginBottom: 6,
   },
   title: {
     fontSize: 28,
     fontFamily: FONT_FAMILY.black,
-    color: COLORS.text.primary,
+    color: c.text.primary,
     letterSpacing: -0.6,
     lineHeight: 34,
   },
   subtitle: {
     fontSize: 14,
     fontFamily: FONT_FAMILY.regular,
-    color: COLORS.text.secondary,
+    color: c.text.secondary,
     marginTop: 10,
     marginBottom: 4,
   },
@@ -315,14 +317,14 @@ const s = StyleSheet.create({
   askTitle: {
     fontSize: 15,
     fontFamily: FONT_FAMILY.bold,
-    color: COLORS.text.primary,
+    color: c.text.primary,
     letterSpacing: -0.2,
   },
   askSub: {
     fontSize: 12,
     fontFamily: FONT_FAMILY.regular,
-    color: COLORS.text.secondary,
+    color: c.text.secondary,
     marginTop: 2,
     lineHeight: 16,
   },
-});
+}));

@@ -3,6 +3,7 @@ import { View, Text, StyleSheet, ActivityIndicator, Platform } from 'react-nativ
 import { useLocalSearchParams, router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { COLORS } from '../utils/theme';
+import { makeStyles } from '../utils/makeStyles';
 
 /**
  * Landing route hit by Google OAuth redirect after consent.
@@ -11,6 +12,7 @@ import { COLORS } from '../utils/theme';
  * the app shell directly, we navigate to /gmail which shows the connected state.
  */
 export default function GmailConnected() {
+  const s = useStyles();
   const { success, email, error } = useLocalSearchParams<{ success?: string; email?: string; error?: string }>();
 
   useEffect(() => {
@@ -37,10 +39,10 @@ export default function GmailConnected() {
   );
 }
 
-const s = StyleSheet.create({
-  wrap: { flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: COLORS.bg.primary, padding: 24 },
-  title: { fontSize: 20, fontWeight: '800', color: COLORS.text.primary, marginTop: 14 },
-  sub: { fontSize: 14, color: COLORS.text.muted, marginTop: 6 },
+const useStyles = makeStyles((c) => ({
+  wrap: { flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: c.bg.primary, padding: 24 },
+  title: { fontSize: 20, fontWeight: '800', color: c.text.primary, marginTop: 14 },
+  sub: { fontSize: 14, color: c.text.muted, marginTop: 6 },
   err: { fontSize: 12, color: '#EF4444', marginTop: 8, textAlign: 'center' },
-  hint: { fontSize: 12, color: COLORS.text.muted, marginTop: 8 },
-});
+  hint: { fontSize: 12, color: c.text.muted, marginTop: 8 },
+}));

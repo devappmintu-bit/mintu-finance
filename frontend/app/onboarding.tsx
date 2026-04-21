@@ -1,3 +1,4 @@
+import { makeStyles } from '../utils/makeStyles';
 /**
  * Gen-Z onboarding — chunky type, bold orange, playful doodles, spring transitions.
  * Keeps MintU's saffron palette but borrows the Toing-style energy:
@@ -52,6 +53,7 @@ const S: Slide[] = [
 ];
 
 export default function Onboarding() {
+  const s = useStyles();
   const [idx, setIdx] = useState(0);
   const [burstKey, setBurstKey] = useState(0);        // increments on last-slide entry → re-fires confetti
   const hasBurstedRef = useRef(false);
@@ -164,7 +166,7 @@ export default function Onboarding() {
   );
 }
 
-const s = StyleSheet.create({
+const useStyles = makeStyles((c) => ({
   root: { flex: 1, backgroundColor: '#FFF7ED' },
   skip: { position: 'absolute', top: 58, right: 22, zIndex: 10, paddingHorizontal: 14, paddingVertical: 8, borderRadius: 999, backgroundColor: 'rgba(0,0,0,0.06)' },
   skipT: { fontSize: 13, color: '#7C2D12', fontWeight: '800', letterSpacing: 0.3 },
@@ -202,4 +204,4 @@ const s = StyleSheet.create({
 
   tos: { textAlign: 'center', fontSize: 11, color: '#9CA3AF', marginTop: 6 },
   tosLink: { color: ACCENT_DEEP, fontWeight: '700' },
-});
+}));

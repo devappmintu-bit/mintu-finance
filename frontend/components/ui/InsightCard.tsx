@@ -20,6 +20,7 @@ import GlassCard from './GlassCard';
 import GlowPill from './GlowPill';
 import NeonButton from './NeonButton';
 import { COLORS, FONT_FAMILY, GRADIENT, SPACING } from '../../utils/theme';
+import { makeStyles } from '../../utils/makeStyles';
 
 type Props = {
   icon?: string;
@@ -50,6 +51,7 @@ export default function InsightCard({
   style,
   children,
 }: Props) {
+  const styles = useStyles();
   return (
     <GlassCard style={[styles.wrap, style]} tint="orange" radius={24}>
       {/* Gradient accent bar at top */}
@@ -97,7 +99,7 @@ export default function InsightCard({
   );
 }
 
-const styles = StyleSheet.create({
+const useStyles = makeStyles((c) => ({
   wrap: {
     overflow: 'hidden',
   },
@@ -127,30 +129,30 @@ const styles = StyleSheet.create({
   bigValue: {
     fontSize: 38,
     fontFamily: FONT_FAMILY.black,
-    color: COLORS.text.primary,
+    color: c.text.primary,
     letterSpacing: -1,
   },
   bigSuffix: {
     fontSize: 13,
     fontFamily: FONT_FAMILY.medium,
-    color: COLORS.text.secondary,
+    color: c.text.secondary,
     letterSpacing: 0.3,
   },
   headline: {
     fontSize: 18,
     fontFamily: FONT_FAMILY.bold,
-    color: COLORS.text.primary,
+    color: c.text.primary,
     letterSpacing: -0.3,
     lineHeight: 24,
   },
   bodyText: {
     fontSize: 14,
     fontFamily: FONT_FAMILY.regular,
-    color: COLORS.text.secondary,
+    color: c.text.secondary,
     lineHeight: 21,
   },
   cta: {
     alignSelf: 'flex-start',
     marginTop: 4,
   },
-});
+}));

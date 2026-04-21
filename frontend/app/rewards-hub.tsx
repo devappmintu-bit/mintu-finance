@@ -25,6 +25,7 @@ import Toast from 'react-native-toast-message';
 import Svg, { Path, Circle, G, Text as SvgText } from 'react-native-svg';
 import api from '../utils/api';
 import { COLORS } from '../utils/theme';
+import { makeStyles } from '../utils/makeStyles';
 import { copyToClipboard } from '../utils/share';
 import Confetti from '../components/Confetti';
 
@@ -83,6 +84,7 @@ const CATEGORIES = [
 const WHEEL_SIZE = 280;
 
 export default function RewardsHubScreen() {
+  const s = useStyles();
   const [coins, setCoins] = useState(0);
   const [spinsLeft, setSpinsLeft] = useState(3);
   const [spinCost, setSpinCost] = useState(10);
@@ -446,22 +448,22 @@ function SpinWheelSvg({ prizes, size }: { prizes: Prize[]; size: number }) {
 }
 
 // ══════════════════════════════════════════════════════════════════
-const s = StyleSheet.create({
-  bg: { flex: 1, backgroundColor: COLORS.bg.primary },
+const useStyles = makeStyles((c) => ({
+  bg: { flex: 1, backgroundColor: c.bg.primary },
 
   topbar: {
     flexDirection: 'row', alignItems: 'center', gap: 10,
     paddingHorizontal: 14, paddingVertical: 12,
-    backgroundColor: COLORS.bg.secondary,
-    borderBottomWidth: 1, borderBottomColor: COLORS.border.subtle,
+    backgroundColor: c.bg.secondary,
+    borderBottomWidth: 1, borderBottomColor: c.border.subtle,
   },
   backBtn: {
     width: 36, height: 36, borderRadius: 18,
-    backgroundColor: COLORS.bg.elevated,
+    backgroundColor: c.bg.elevated,
     alignItems: 'center', justifyContent: 'center',
   },
-  topTitle: { fontSize: 18, fontWeight: '800', color: COLORS.text.primary },
-  topSub: { fontSize: 11, color: COLORS.text.muted, marginTop: 1 },
+  topTitle: { fontSize: 18, fontWeight: '800', color: c.text.primary },
+  topSub: { fontSize: 11, color: c.text.muted, marginTop: 1 },
 
   // Coin hero
   coinHero: {
@@ -483,18 +485,18 @@ const s = StyleSheet.create({
 
   sectionTitle: {
     fontSize: 12, fontWeight: '900',
-    color: COLORS.text.muted, letterSpacing: 0.8,
+    color: c.text.muted, letterSpacing: 0.8,
     textTransform: 'uppercase',
     marginBottom: 10, marginTop: 6,
   },
 
   // Wheel
   wheelCard: {
-    backgroundColor: COLORS.bg.secondary,
+    backgroundColor: c.bg.secondary,
     borderRadius: 24,
     padding: 20,
     alignItems: 'center',
-    borderWidth: 1, borderColor: COLORS.border.subtle,
+    borderWidth: 1, borderColor: c.border.subtle,
     marginBottom: 18,
   },
   wheelWrap: {
@@ -525,12 +527,12 @@ const s = StyleSheet.create({
   wonCard: {
     marginTop: 14, padding: 12, borderRadius: 14,
     backgroundColor: '#FFF0DE',
-    borderWidth: 1, borderColor: COLORS.accent.primary + '40',
+    borderWidth: 1, borderColor: c.accent.primary + '40',
     flexDirection: 'row', alignItems: 'center', gap: 10,
     width: '100%',
   },
   wonEmoji: { fontSize: 26 },
-  wonLabel: { flex: 1, fontSize: 14, fontWeight: '800', color: COLORS.text.primary },
+  wonLabel: { flex: 1, fontSize: 14, fontWeight: '800', color: c.text.primary },
 
   // Category chips
   catRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
@@ -539,73 +541,73 @@ const s = StyleSheet.create({
     flexDirection: 'row', alignItems: 'center', gap: 6,
     paddingHorizontal: 12, paddingVertical: 8,
     borderRadius: 999,
-    backgroundColor: COLORS.bg.secondary,
-    borderWidth: 1, borderColor: COLORS.border.subtle,
+    backgroundColor: c.bg.secondary,
+    borderWidth: 1, borderColor: c.border.subtle,
   },
   catChipOn: {
-    backgroundColor: COLORS.accent.primary,
-    borderColor: COLORS.accent.primary,
+    backgroundColor: c.accent.primary,
+    borderColor: c.accent.primary,
   },
   catChipEmoji: { fontSize: 14 },
-  catChipT: { fontSize: 12, fontWeight: '800', color: COLORS.text.secondary },
+  catChipT: { fontSize: 12, fontWeight: '800', color: c.text.secondary },
   catChipTOn: { color: '#fff' },
 
   // Voucher
   voucherCard: {
     flexDirection: 'row',
     gap: 12,
-    backgroundColor: COLORS.bg.secondary,
+    backgroundColor: c.bg.secondary,
     borderRadius: 16,
     padding: 12,
     marginTop: 10,
-    borderWidth: 1, borderColor: COLORS.border.subtle,
+    borderWidth: 1, borderColor: c.border.subtle,
   },
   voucherEmoji: {
     width: 48, height: 48, borderRadius: 14,
     alignItems: 'center', justifyContent: 'center',
   },
   voucherTopRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-  voucherMerchant: { fontSize: 14, fontWeight: '900', color: COLORS.text.primary },
-  voucherDiscount: { fontSize: 11, fontWeight: '800', color: COLORS.accent.primary, maxWidth: 140 },
-  voucherDesc: { fontSize: 11.5, color: COLORS.text.secondary, marginTop: 2, lineHeight: 15 },
+  voucherMerchant: { fontSize: 14, fontWeight: '900', color: c.text.primary },
+  voucherDiscount: { fontSize: 11, fontWeight: '800', color: c.accent.primary, maxWidth: 140 },
+  voucherDesc: { fontSize: 11.5, color: c.text.secondary, marginTop: 2, lineHeight: 15 },
   voucherActions: { flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 8 },
   codeChip: {
     flexDirection: 'row', alignItems: 'center', gap: 4,
     paddingHorizontal: 10, paddingVertical: 6,
     backgroundColor: '#FFF0DE',
     borderRadius: 8,
-    borderWidth: 1, borderColor: COLORS.accent.primary + '40',
+    borderWidth: 1, borderColor: c.accent.primary + '40',
     borderStyle: 'dashed',
   },
-  codeChipT: { fontSize: 11.5, fontWeight: '900', color: COLORS.accent.primary, letterSpacing: 0.6 },
+  codeChipT: { fontSize: 11.5, fontWeight: '900', color: c.accent.primary, letterSpacing: 0.6 },
   useBtn: {
     flexDirection: 'row', alignItems: 'center', gap: 3,
     paddingHorizontal: 12, paddingVertical: 7,
-    backgroundColor: COLORS.accent.primary,
+    backgroundColor: c.accent.primary,
     borderRadius: 999,
   },
   useBtnT: { fontSize: 11.5, fontWeight: '900', color: '#fff' },
-  voucherExp: { fontSize: 10, color: COLORS.text.muted, marginTop: 6, fontWeight: '600' },
+  voucherExp: { fontSize: 10, color: c.text.muted, marginTop: 6, fontWeight: '600' },
 
   emptyCard: {
     padding: 24, alignItems: 'center',
-    backgroundColor: COLORS.bg.secondary,
+    backgroundColor: c.bg.secondary,
     borderRadius: 16,
-    borderWidth: 1, borderColor: COLORS.border.subtle,
+    borderWidth: 1, borderColor: c.border.subtle,
     marginTop: 10,
   },
   emptyEmoji: { fontSize: 28, marginBottom: 4 },
-  emptyT: { fontSize: 12, color: COLORS.text.muted, fontWeight: '700' },
+  emptyT: { fontSize: 12, color: c.text.muted, fontWeight: '700' },
 
   // Wallet
   walletRow: {
     flexDirection: 'row', alignItems: 'center', gap: 10,
     padding: 12,
-    backgroundColor: COLORS.bg.secondary,
+    backgroundColor: c.bg.secondary,
     borderRadius: 12,
-    borderWidth: 1, borderColor: COLORS.border.subtle,
+    borderWidth: 1, borderColor: c.border.subtle,
   },
-  walletName: { fontSize: 13, fontWeight: '800', color: COLORS.text.primary },
-  walletSub: { fontSize: 11, color: COLORS.text.secondary, marginTop: 2 },
-  walletDate: { fontSize: 10, color: COLORS.text.muted, fontWeight: '700' },
-});
+  walletName: { fontSize: 13, fontWeight: '800', color: c.text.primary },
+  walletSub: { fontSize: 11, color: c.text.secondary, marginTop: 2 },
+  walletDate: { fontSize: 10, color: c.text.muted, fontWeight: '700' },
+}));

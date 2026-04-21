@@ -8,6 +8,7 @@
 import React from 'react';
 import { View, Image, StyleSheet, StyleProp, ViewStyle, Platform } from 'react-native';
 import { COLORS } from '../utils/theme';
+import { makeStyles } from '../utils/makeStyles';
 
 const MASCOT = require('../assets/images/mintu-logo.png');
 
@@ -20,6 +21,7 @@ type Props = {
 };
 
 export default function Mascot({ size = 48, style, glow = false }: Props) {
+  const styles = useStyles();
   return (
     <View style={[styles.wrap, { width: size, height: size }, glow && glowStyle(size), style]}>
       <Image source={MASCOT} style={{ width: size, height: size }} resizeMode="contain" />
@@ -40,6 +42,6 @@ const glowStyle = (size: number): ViewStyle => ({
   }),
 });
 
-const styles = StyleSheet.create({
+const useStyles = makeStyles((c) => ({
   wrap: { alignItems: 'center', justifyContent: 'center' },
-});
+}));

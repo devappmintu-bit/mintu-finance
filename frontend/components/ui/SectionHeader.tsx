@@ -8,6 +8,7 @@ import React from 'react';
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { COLORS } from '../../utils/theme';
+import { makeStyles } from '../../utils/makeStyles';
 
 type Props = {
   title: string;
@@ -19,6 +20,7 @@ type Props = {
 };
 
 export default function SectionHeader({ title, actionLabel, actionIcon, onAction, tone = 'muted', testID }: Props) {
+  const s = useStyles();
   return (
     <View style={s.row} testID={testID}>
       <Text style={[s.title, tone === 'primary' && { color: COLORS.accent.primary }]}>{title}</Text>
@@ -34,7 +36,7 @@ export default function SectionHeader({ title, actionLabel, actionIcon, onAction
   );
 }
 
-const s = StyleSheet.create({
+const useStyles = makeStyles((c) => ({
   row: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -46,10 +48,10 @@ const s = StyleSheet.create({
   title: {
     fontSize: 11,
     fontWeight: '900',
-    color: COLORS.text.muted,
+    color: c.text.muted,
     letterSpacing: 1.1,
     textTransform: 'uppercase',
   },
   action: { flexDirection: 'row', alignItems: 'center', gap: 3 },
-  actionT: { fontSize: 11.5, fontWeight: '800', color: COLORS.accent.primary, letterSpacing: 0.2 },
-});
+  actionT: { fontSize: 11.5, fontWeight: '800', color: c.accent.primary, letterSpacing: 0.2 },
+}));

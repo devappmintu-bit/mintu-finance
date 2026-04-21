@@ -7,6 +7,7 @@ import { View, Text, StyleSheet } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import PrimaryButton from './PrimaryButton';
 import { COLORS } from '../../utils/theme';
+import { makeStyles } from '../../utils/makeStyles';
 
 interface Props {
   icon?: keyof typeof Ionicons.glyphMap;
@@ -19,6 +20,7 @@ interface Props {
 }
 
 export default function EmptyState({ icon, emoji, title, subtitle, ctaLabel, onCta, compact }: Props) {
+  const s = useStyles();
   return (
     <View style={[s.wrap, compact && s.wrapCompact]}>
       <View style={s.iconWrap}>
@@ -39,7 +41,7 @@ export default function EmptyState({ icon, emoji, title, subtitle, ctaLabel, onC
   );
 }
 
-const s = StyleSheet.create({
+const useStyles = makeStyles((c) => ({
   wrap: { alignItems: 'center', justifyContent: 'center', paddingVertical: 48, paddingHorizontal: 24 },
   wrapCompact: { paddingVertical: 28 },
   iconWrap: {
@@ -49,7 +51,7 @@ const s = StyleSheet.create({
     marginBottom: 14,
   },
   emoji: { fontSize: 40 },
-  title: { fontSize: 17, fontWeight: '800', color: COLORS.text.primary, textAlign: 'center', letterSpacing: -0.2 },
+  title: { fontSize: 17, fontWeight: '800', color: c.text.primary, textAlign: 'center', letterSpacing: -0.2 },
   titleCompact: { fontSize: 15 },
-  subtitle: { fontSize: 13, fontWeight: '500', color: COLORS.text.secondary, textAlign: 'center', marginTop: 6, lineHeight: 18, maxWidth: 280 },
-});
+  subtitle: { fontSize: 13, fontWeight: '500', color: c.text.secondary, textAlign: 'center', marginTop: 6, lineHeight: 18, maxWidth: 280 },
+}));

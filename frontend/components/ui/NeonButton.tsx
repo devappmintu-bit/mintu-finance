@@ -17,6 +17,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import { COLORS, GRADIENT, GLOW, RADIUS, FONT_FAMILY, MOTION } from '../../utils/theme';
+import { makeStyles } from '../../utils/makeStyles';
 
 type Variant = 'primary' | 'success' | 'ghost';
 
@@ -33,6 +34,7 @@ type Props = {
 };
 
 export default function NeonButton({ label, icon, onPress, disabled, variant = 'primary', size = 'md', style, pulse = false, testID }: Props) {
+  const styles = useStyles();
   const scale = useRef(new Animated.Value(1)).current;
   const glow = useRef(new Animated.Value(pulse ? 0 : 1)).current;
 
@@ -95,7 +97,7 @@ export default function NeonButton({ label, icon, onPress, disabled, variant = '
   );
 }
 
-const styles = StyleSheet.create({
+const useStyles = makeStyles((c) => ({
   base: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -105,11 +107,11 @@ const styles = StyleSheet.create({
   },
   ghost: {
     borderWidth: 1.5,
-    borderColor: COLORS.accent.primary,
+    borderColor: c.accent.primary,
     backgroundColor: 'rgba(255,107,26,0.08)',
   },
   label: {
     fontFamily: FONT_FAMILY.bold,
     letterSpacing: 0.2,
   },
-});
+}));

@@ -19,6 +19,7 @@ import Toast from 'react-native-toast-message';
 import api from '../../utils/api';
 import useFocusRefresh from '../../hooks/useFocusRefresh';
 import { COLORS, shadowStyle } from '../../utils/theme';
+import { makeStyles } from '../../utils/makeStyles';
 import { sendTestPush } from '../../hooks/usePushNotifications';
 
 type Prefs = {
@@ -54,6 +55,7 @@ const FREQUENCIES: Array<{ key: Prefs['frequency']; label: string; sub: string }
 ];
 
 export default function NotificationSettings() {
+  const s = useStyles();
   const [expanded, setExpanded] = useState(false);
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -220,30 +222,30 @@ export default function NotificationSettings() {
   );
 }
 
-const s = StyleSheet.create({
+const useStyles = makeStyles((c) => ({
   card: { backgroundColor: 'rgba(255,255,255,0.92)', borderRadius: 20, padding: 14, marginBottom: 14, borderWidth: 1, borderColor: 'rgba(238,221,204,0.6)', ...shadowStyle('#2E1F1A', 2, 10, 0.04, 2) },
   header: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 4 },
   iconBox: { width: 40, height: 40, borderRadius: 12, backgroundColor: '#4338CA15', justifyContent: 'center', alignItems: 'center' },
-  title: { fontSize: 16, fontWeight: '800', color: COLORS.text.primary },
-  sub: { fontSize: 12, color: COLORS.text.muted, marginTop: 2 },
+  title: { fontSize: 16, fontWeight: '800', color: c.text.primary },
+  sub: { fontSize: 12, color: c.text.muted, marginTop: 2 },
   body: { marginTop: 12, gap: 10 },
-  masterRow: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 12, paddingVertical: 10, backgroundColor: '#FFF7ED', borderRadius: 12, borderWidth: 1, borderColor: COLORS.accent.primary + '2E' },
-  masterT: { fontSize: 13.5, fontWeight: '800', color: COLORS.text.primary },
-  masterSub: { fontSize: 11, color: COLORS.text.secondary, marginTop: 2 },
-  groupTitle: { fontSize: 10.5, fontWeight: '900', color: COLORS.text.muted, letterSpacing: 0.9, textTransform: 'uppercase', marginTop: 10, marginBottom: 2 },
+  masterRow: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 12, paddingVertical: 10, backgroundColor: '#FFF7ED', borderRadius: 12, borderWidth: 1, borderColor: c.accent.primary + '2E' },
+  masterT: { fontSize: 13.5, fontWeight: '800', color: c.text.primary },
+  masterSub: { fontSize: 11, color: c.text.secondary, marginTop: 2 },
+  groupTitle: { fontSize: 10.5, fontWeight: '900', color: c.text.muted, letterSpacing: 0.9, textTransform: 'uppercase', marginTop: 10, marginBottom: 2 },
   toggleRow: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 8 },
-  toggleLabel: { flex: 1, fontSize: 13, fontWeight: '700', color: COLORS.text.primary },
-  toggleDesc: { fontSize: 10.5, color: COLORS.text.muted, marginTop: 1 },
+  toggleLabel: { flex: 1, fontSize: 13, fontWeight: '700', color: c.text.primary },
+  toggleDesc: { fontSize: 10.5, color: c.text.muted, marginTop: 1 },
   catIcon: { width: 26, height: 26, borderRadius: 7, alignItems: 'center', justifyContent: 'center' },
   freqRow: { flexDirection: 'row', gap: 8 },
-  freqChip: { flex: 1, padding: 10, borderRadius: 12, backgroundColor: COLORS.bg.primary, borderWidth: 1, borderColor: COLORS.border.subtle, alignItems: 'center' },
-  freqChipOn: { backgroundColor: COLORS.accent.primary, borderColor: COLORS.accent.primary },
-  freqLabel: { fontSize: 13, fontWeight: '800', color: COLORS.text.primary },
+  freqChip: { flex: 1, padding: 10, borderRadius: 12, backgroundColor: c.bg.primary, borderWidth: 1, borderColor: c.border.subtle, alignItems: 'center' },
+  freqChipOn: { backgroundColor: c.accent.primary, borderColor: c.accent.primary },
+  freqLabel: { fontSize: 13, fontWeight: '800', color: c.text.primary },
   freqLabelOn: { color: '#fff' },
-  freqSub: { fontSize: 10, color: COLORS.text.muted, marginTop: 2 },
+  freqSub: { fontSize: 10, color: c.text.muted, marginTop: 2 },
   freqSubOn: { color: 'rgba(255,255,255,0.85)' },
-  testBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, backgroundColor: COLORS.accent.primary + '15', paddingVertical: 10, borderRadius: 10, marginTop: 6, borderWidth: 1, borderColor: COLORS.accent.primary + '2E' },
-  testBtnT: { fontSize: 12.5, fontWeight: '800', color: COLORS.accent.primary },
+  testBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, backgroundColor: c.accent.primary + '15', paddingVertical: 10, borderRadius: 10, marginTop: 6, borderWidth: 1, borderColor: c.accent.primary + '2E' },
+  testBtnT: { fontSize: 12.5, fontWeight: '800', color: c.accent.primary },
   savingChip: { flexDirection: 'row', alignItems: 'center', gap: 6, alignSelf: 'center', marginTop: 6 },
-  savingT: { fontSize: 11, color: COLORS.text.muted },
-});
+  savingT: { fontSize: 11, color: c.text.muted },
+}));

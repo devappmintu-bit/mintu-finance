@@ -4,6 +4,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import api from '../../utils/api';
 import { COLORS } from '../../utils/theme';
+import { makeStyles } from '../../utils/makeStyles';
 import Toast from 'react-native-toast-message';
 
 type Challenge = {
@@ -23,6 +24,7 @@ export default function WeeklyChallenge({
   challenge?: Challenge | null;
   streak?: number;
 }) {
+  const s = useStyles();
   const [challenge, setChallenge] = useState<Challenge | null>(challengeProp || null);
   const [joined, setJoined] = useState(false);
   const [progress, setProgress] = useState({ current: 0, target: 1 });
@@ -125,7 +127,7 @@ export default function WeeklyChallenge({
   );
 }
 
-const s = StyleSheet.create({
+const useStyles = makeStyles((c) => ({
   card: {
     borderRadius: 20,
     padding: 18,
@@ -178,5 +180,5 @@ const s = StyleSheet.create({
     marginTop: 4,
   },
   ctaJoined: { backgroundColor: 'rgba(255,255,255,0.95)' },
-  ctaText: { fontSize: 14, fontWeight: '800', color: COLORS.accent.primary, letterSpacing: 0.3 },
-});
+  ctaText: { fontSize: 14, fontWeight: '800', color: c.accent.primary, letterSpacing: 0.3 },
+}));

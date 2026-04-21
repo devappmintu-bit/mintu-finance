@@ -9,8 +9,10 @@ import { router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { TouchableOpacity } from 'react-native';
 import { COLORS } from '../utils/theme';
+import { makeStyles } from '../utils/makeStyles';
 
 export default function AboutScreen() {
+  const s = useStyles();
   return (
     <SafeAreaView style={s.safe} edges={['top', 'bottom']}>
       {/* Header */}
@@ -69,26 +71,26 @@ export default function AboutScreen() {
   );
 }
 
-const s = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: COLORS.bg.primary },
+const useStyles = makeStyles((c) => ({
+  safe: { flex: 1, backgroundColor: c.bg.primary },
   header: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, paddingVertical: 12, justifyContent: 'space-between' },
-  back: { padding: 6, borderRadius: 14, backgroundColor: COLORS.gray[100] },
-  title: { fontSize: 18, fontWeight: '800', color: COLORS.text.primary },
+  back: { padding: 6, borderRadius: 14, backgroundColor: c.gray[100] },
+  title: { fontSize: 18, fontWeight: '800', color: c.text.primary },
   body: { padding: 20, paddingBottom: 60 },
   hero: { alignItems: 'center', marginBottom: 24 },
   logo: { width: 96, height: 96, borderRadius: 24 },
-  brand: { marginTop: 10, fontSize: 24, fontWeight: '900', color: COLORS.text.primary, letterSpacing: -0.5 },
-  tagline: { marginTop: 4, fontSize: 14, fontWeight: '600', color: COLORS.text.secondary },
-  para: { fontSize: 14.5, lineHeight: 22, color: COLORS.text.secondary, marginBottom: 14 },
-  sect: { fontSize: 16, fontWeight: '800', color: COLORS.text.primary, marginTop: 10, marginBottom: 10 },
+  brand: { marginTop: 10, fontSize: 24, fontWeight: '900', color: c.text.primary, letterSpacing: -0.5 },
+  tagline: { marginTop: 4, fontSize: 14, fontWeight: '600', color: c.text.secondary },
+  para: { fontSize: 14.5, lineHeight: 22, color: c.text.secondary, marginBottom: 14 },
+  sect: { fontSize: 16, fontWeight: '800', color: c.text.primary, marginTop: 10, marginBottom: 10 },
   bulletRow: { flexDirection: 'row', marginBottom: 6, paddingLeft: 2 },
-  bullet: { color: COLORS.accent.primary, fontSize: 18, marginRight: 8, lineHeight: 20 },
-  bulletT: { flex: 1, fontSize: 14, color: COLORS.text.secondary, lineHeight: 20 },
+  bullet: { color: c.accent.primary, fontSize: 18, marginRight: 8, lineHeight: 20 },
+  bulletT: { flex: 1, fontSize: 14, color: c.text.secondary, lineHeight: 20 },
   cta: {
     marginTop: 18, marginBottom: 16, padding: 18,
     backgroundColor: '#FFF0E3', borderRadius: 16, alignItems: 'center',
-    borderWidth: 1, borderColor: COLORS.border.subtle,
+    borderWidth: 1, borderColor: c.border.subtle,
   },
-  ctaT: { fontSize: 14.5, fontWeight: '700', color: COLORS.accent.primary, textAlign: 'center' },
-  ver: { textAlign: 'center', color: COLORS.text.muted, fontSize: 12, marginTop: 12 },
-});
+  ctaT: { fontSize: 14.5, fontWeight: '700', color: c.accent.primary, textAlign: 'center' },
+  ver: { textAlign: 'center', color: c.text.muted, fontSize: 12, marginTop: 12 },
+}));

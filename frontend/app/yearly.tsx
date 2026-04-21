@@ -13,6 +13,7 @@ import Svg, { Rect, Line, Text as SvgText } from 'react-native-svg';
 import { router } from 'expo-router';
 import api from '../utils/api';
 import { COLORS, shadowStyle } from '../utils/theme';
+import { makeStyles } from '../utils/makeStyles';
 import { useActivePlan, FEATURES, canAccess } from '../utils/premium';
 
 const CHART_H = 180;
@@ -153,6 +154,7 @@ function BarChart({ data }: { data: Monthly[] }) {
 }
 
 export default function YearlyDashboard() {
+  const s = useStyles();
   const [data, setData] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -360,11 +362,11 @@ export default function YearlyDashboard() {
   );
 }
 
-const s = StyleSheet.create({
-  container: { flex: 1, backgroundColor: COLORS.bg.primary },
-  header: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 12, paddingVertical: 12, backgroundColor: '#FFFFFF', borderBottomWidth: 1, borderBottomColor: COLORS.border.subtle },
+const useStyles = makeStyles((c) => ({
+  container: { flex: 1, backgroundColor: c.bg.primary },
+  header: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 12, paddingVertical: 12, backgroundColor: '#FFFFFF', borderBottomWidth: 1, borderBottomColor: c.border.subtle },
   backBtn: { padding: 6 },
-  headerTitle: { flex: 1, fontSize: 17, fontWeight: '800', color: COLORS.text.primary, textAlign: 'center' },
+  headerTitle: { flex: 1, fontSize: 17, fontWeight: '800', color: c.text.primary, textAlign: 'center' },
   hero: { margin: 12, padding: 18, borderRadius: 18, ...shadowStyle('#E65100', 6, 16, 0.25, 6) },
   heroLabel: { color: 'rgba(255,255,255,0.8)', fontSize: 11, fontWeight: '800', letterSpacing: 1 },
   heroHeadline: { color: '#fff', fontSize: 16, fontWeight: '800', marginTop: 4, lineHeight: 22 },
@@ -373,38 +375,38 @@ const s = StyleSheet.create({
   heroStatV: { color: '#fff', fontSize: 16, fontWeight: '900' },
   heroStatL: { color: 'rgba(255,255,255,0.85)', fontSize: 11, fontWeight: '700', marginTop: 2 },
   heroDiv: { width: 1, height: 28, backgroundColor: 'rgba(255,255,255,0.3)', alignSelf: 'center' },
-  card: { backgroundColor: '#FFFFFF', margin: 12, padding: 16, borderRadius: 16, borderWidth: 1, borderColor: COLORS.border.card, ...shadowStyle('#2E1F1A', 2, 10, 0.05, 2) },
-  cardTitle: { fontSize: 15, fontWeight: '800', color: COLORS.text.primary },
-  cardSub: { fontSize: 11, color: COLORS.text.muted, marginTop: 2, marginBottom: 10 },
+  card: { backgroundColor: '#FFFFFF', margin: 12, padding: 16, borderRadius: 16, borderWidth: 1, borderColor: c.border.card, ...shadowStyle('#2E1F1A', 2, 10, 0.05, 2) },
+  cardTitle: { fontSize: 15, fontWeight: '800', color: c.text.primary },
+  cardSub: { fontSize: 11, color: c.text.muted, marginTop: 2, marginBottom: 10 },
   legendRow: { flexDirection: 'row', justifyContent: 'center', gap: 16, marginTop: 8 },
   legendItem: { flexDirection: 'row', alignItems: 'center', gap: 5 },
   legendDot: { width: 10, height: 10, borderRadius: 2 },
-  legendText: { fontSize: 11, color: COLORS.text.muted, fontWeight: '600' },
-  selectedCard: { marginTop: 10, padding: 12, backgroundColor: COLORS.bg.subtle, borderRadius: 10, borderWidth: 1, borderColor: '#E6510040' },
+  legendText: { fontSize: 11, color: c.text.muted, fontWeight: '600' },
+  selectedCard: { marginTop: 10, padding: 12, backgroundColor: c.bg.subtle, borderRadius: 10, borderWidth: 1, borderColor: '#E6510040' },
   selectedLabel: { fontSize: 13, fontWeight: '800', color: '#E65100', marginBottom: 8 },
   selectedGrid: { flexDirection: 'row' },
   selectedCell: { flex: 1, alignItems: 'center' },
   selectedVal: { fontSize: 14, fontWeight: '800' },
-  selectedSub: { fontSize: 10, color: COLORS.text.muted, fontWeight: '600', marginTop: 2 },
-  selectedTop: { fontSize: 11, color: COLORS.text.secondary, textAlign: 'center', marginTop: 8, fontStyle: 'italic' },
+  selectedSub: { fontSize: 10, color: c.text.muted, fontWeight: '600', marginTop: 2 },
+  selectedTop: { fontSize: 11, color: c.text.secondary, textAlign: 'center', marginTop: 8, fontStyle: 'italic' },
   momentumRow: { flexDirection: 'row', alignItems: 'center', gap: 12 },
-  momentumTitle: { fontSize: 13, fontWeight: '800', color: COLORS.text.primary, letterSpacing: 0.3 },
-  momentumDetail: { fontSize: 12, color: COLORS.text.secondary, marginTop: 2 },
+  momentumTitle: { fontSize: 13, fontWeight: '800', color: c.text.primary, letterSpacing: 0.3 },
+  momentumDetail: { fontSize: 12, color: c.text.secondary, marginTop: 2 },
   catRow: { flexDirection: 'row', alignItems: 'center', gap: 10, marginTop: 10 },
   catRank: { width: 24, height: 24, borderRadius: 12, backgroundColor: '#E6510015', justifyContent: 'center', alignItems: 'center' },
   catRankNum: { fontSize: 11, fontWeight: '800', color: '#E65100' },
-  catName: { fontSize: 13, fontWeight: '700', color: COLORS.text.primary },
-  catBar: { height: 5, backgroundColor: COLORS.bg.subtle, borderRadius: 999, overflow: 'hidden', marginTop: 4 },
+  catName: { fontSize: 13, fontWeight: '700', color: c.text.primary },
+  catBar: { height: 5, backgroundColor: c.bg.subtle, borderRadius: 999, overflow: 'hidden', marginTop: 4 },
   catBarFill: { height: '100%', borderRadius: 999 },
-  catAmt: { fontSize: 12, fontWeight: '800', color: COLORS.text.primary },
-  catPct: { fontSize: 10, fontWeight: '700', color: COLORS.text.muted },
-  highRow: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: COLORS.border.subtle },
+  catAmt: { fontSize: 12, fontWeight: '800', color: c.text.primary },
+  catPct: { fontSize: 10, fontWeight: '700', color: c.text.muted },
+  highRow: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: c.border.subtle },
   highEmoji: { fontSize: 20 },
-  highTitle: { fontSize: 12, fontWeight: '800', color: COLORS.text.muted, letterSpacing: 0.3 },
-  highSub: { fontSize: 13, fontWeight: '700', color: COLORS.text.primary, marginTop: 2 },
+  highTitle: { fontSize: 12, fontWeight: '800', color: c.text.muted, letterSpacing: 0.3 },
+  highSub: { fontSize: 13, fontWeight: '700', color: c.text.primary, marginTop: 2 },
   avgGrid: { flexDirection: 'row', alignItems: 'center', marginTop: 8 },
   avgCell: { flex: 1, alignItems: 'center' },
   avgVal: { fontSize: 15, fontWeight: '800' },
-  avgLbl: { fontSize: 11, fontWeight: '600', color: COLORS.text.muted, marginTop: 2 },
-  avgDiv: { width: 1, height: 32, backgroundColor: COLORS.border.subtle },
-});
+  avgLbl: { fontSize: 11, fontWeight: '600', color: c.text.muted, marginTop: 2 },
+  avgDiv: { width: 1, height: 32, backgroundColor: c.border.subtle },
+}));

@@ -9,6 +9,7 @@ import Toast from 'react-native-toast-message';
 import api from '../utils/api';
 import { fetchGmailStatus, startGmailOAuth, syncGmailNow, disconnectGmail } from '../services/gmail';
 import { COLORS, SPACING, RADIUS } from '../utils/theme';
+import { makeStyles } from '../utils/makeStyles';
 
 type Status = {
   connected: boolean;
@@ -31,6 +32,7 @@ const BANKS = [
 const RETURN_URL = (process.env.EXPO_PUBLIC_BACKEND_URL as string) + '/gmail-connected';
 
 export default function GmailConnectScreen() {
+  const s = useStyles();
   const [status, setStatus] = useState<Status | null>(null);
   const [loading, setLoading] = useState(true);
   const [connecting, setConnecting] = useState(false);
@@ -242,10 +244,10 @@ export default function GmailConnectScreen() {
   );
 }
 
-const s = StyleSheet.create({
-  container: { flex: 1, backgroundColor: COLORS.bg.primary },
+const useStyles = makeStyles((c) => ({
+  container: { flex: 1, backgroundColor: c.bg.primary },
   header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: SPACING.lg, paddingVertical: SPACING.md },
-  title: { fontSize: 17, fontWeight: '800', color: COLORS.text.primary, letterSpacing: -0.3 },
+  title: { fontSize: 17, fontWeight: '800', color: c.text.primary, letterSpacing: -0.3 },
 
   hero: { borderRadius: 24, padding: 22, marginBottom: 14 },
   heroIcon: { alignSelf: 'flex-start', padding: 6, marginBottom: 8 },
@@ -281,4 +283,4 @@ const s = StyleSheet.create({
   privacy: { flexDirection: 'row', gap: 10, backgroundColor: '#ECFDF5', borderRadius: 14, padding: 12, marginTop: 16, borderWidth: 1, borderColor: '#A7F3D0' },
   privacyT: { fontSize: 13, fontWeight: '800', color: '#065F46' },
   privacyD: { fontSize: 12, color: '#065F46', marginTop: 4, lineHeight: 17 },
-});
+}));

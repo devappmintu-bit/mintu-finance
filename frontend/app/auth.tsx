@@ -12,6 +12,7 @@ import { sendOtp, verifyOtp } from '../services/user';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { COLORS, RADIUS, SPACING, ONBOARDING_IMAGES } from '../utils/theme';
+import { makeStyles } from '../utils/makeStyles';
 import { LANGUAGES, LangCode } from '../utils/i18n';
 import PinSetupModal from '../components/PinSetupModal';
 import AuthTransitionOverlay from '../components/auth/AuthTransitionOverlay';
@@ -19,6 +20,7 @@ import AuthTransitionOverlay from '../components/auth/AuthTransitionOverlay';
 type AuthStep = 'phone' | 'otp' | 'name';
 
 export default function AuthScreen() {
+  const s = useStyles();
   const { lang, setLang } = useLangStore();
   const [step, setStep] = useState<AuthStep>('phone');
   const [phone, setPhone] = useState('');
@@ -210,52 +212,52 @@ export default function AuthScreen() {
   );
 }
 
-const s = StyleSheet.create({
-  container: { flex: 1, backgroundColor: COLORS.bg.primary },
+const useStyles = makeStyles((c) => ({
+  container: { flex: 1, backgroundColor: c.bg.primary },
   keyboardView: { flex: 1 },
   scrollContent: { flexGrow: 1, justifyContent: 'center', padding: SPACING.xxl },
-  backBtn: { width: 44, height: 44, borderRadius: 22, backgroundColor: COLORS.bg.secondary, borderWidth: 1, borderColor: COLORS.border.subtle, justifyContent: 'center', alignItems: 'center', marginBottom: SPACING.xxl },
+  backBtn: { width: 44, height: 44, borderRadius: 22, backgroundColor: c.bg.secondary, borderWidth: 1, borderColor: c.border.subtle, justifyContent: 'center', alignItems: 'center', marginBottom: SPACING.xxl },
   header: { alignItems: 'center', marginBottom: 40 },
-  logoIcon: { width: 72, height: 72, borderRadius: 24, backgroundColor: COLORS.accent.primary, justifyContent: 'center', alignItems: 'center', marginBottom: 16 },
-  logoSymbol: { fontSize: 34, fontWeight: '800', color: COLORS.text.inverse },
-  logoText: { fontSize: 34, fontWeight: '800', color: COLORS.text.primary, marginBottom: 24 },
-  otpIconWrap: { width: 80, height: 80, borderRadius: 40, backgroundColor: COLORS.accent.moneyIn + '15', justifyContent: 'center', alignItems: 'center', marginBottom: 20 },
-  stepTitle: { fontSize: 24, fontWeight: '800', color: COLORS.text.primary, marginBottom: 8, textAlign: 'center' },
-  stepSubtitle: { fontSize: 15, color: COLORS.text.secondary, textAlign: 'center', lineHeight: 24 },
-  phoneHighlight: { color: COLORS.accent.primary, fontWeight: '600' },
+  logoIcon: { width: 72, height: 72, borderRadius: 24, backgroundColor: c.accent.primary, justifyContent: 'center', alignItems: 'center', marginBottom: 16 },
+  logoSymbol: { fontSize: 34, fontWeight: '800', color: c.text.inverse },
+  logoText: { fontSize: 34, fontWeight: '800', color: c.text.primary, marginBottom: 24 },
+  otpIconWrap: { width: 80, height: 80, borderRadius: 40, backgroundColor: c.accent.moneyIn + '15', justifyContent: 'center', alignItems: 'center', marginBottom: 20 },
+  stepTitle: { fontSize: 24, fontWeight: '800', color: c.text.primary, marginBottom: 8, textAlign: 'center' },
+  stepSubtitle: { fontSize: 15, color: c.text.secondary, textAlign: 'center', lineHeight: 24 },
+  phoneHighlight: { color: c.accent.primary, fontWeight: '600' },
   phoneRow: { flexDirection: 'row', gap: 10, marginBottom: SPACING.xxl },
-  countryCode: { backgroundColor: COLORS.bg.secondary, borderRadius: RADIUS.xl, paddingHorizontal: 16, justifyContent: 'center', borderWidth: 1, borderColor: COLORS.border.subtle },
-  countryText: { fontSize: 17, fontWeight: '600', color: COLORS.text.primary },
-  phoneInput: { flex: 1, backgroundColor: COLORS.bg.secondary, borderRadius: RADIUS.xl, paddingHorizontal: SPACING.lg, paddingVertical: 18, fontSize: 18, fontWeight: '600', color: COLORS.text.primary, borderWidth: 1, borderColor: COLORS.border.subtle, letterSpacing: 1 },
+  countryCode: { backgroundColor: c.bg.secondary, borderRadius: RADIUS.xl, paddingHorizontal: 16, justifyContent: 'center', borderWidth: 1, borderColor: c.border.subtle },
+  countryText: { fontSize: 17, fontWeight: '600', color: c.text.primary },
+  phoneInput: { flex: 1, backgroundColor: c.bg.secondary, borderRadius: RADIUS.xl, paddingHorizontal: SPACING.lg, paddingVertical: 18, fontSize: 18, fontWeight: '600', color: c.text.primary, borderWidth: 1, borderColor: c.border.subtle, letterSpacing: 1 },
   otpRow: { flexDirection: 'row', justifyContent: 'center', gap: 10, marginBottom: SPACING.xxxl },
-  otpBox: { width: 48, height: 56, borderRadius: RADIUS.lg, backgroundColor: COLORS.bg.secondary, borderWidth: 2, borderColor: COLORS.border.subtle, textAlign: 'center', fontSize: 22, fontWeight: '700', color: COLORS.text.primary },
-  otpBoxFilled: { borderColor: COLORS.accent.primary, backgroundColor: COLORS.accent.primary + '08' },
-  nameInputWrap: { flexDirection: 'row', alignItems: 'center', backgroundColor: COLORS.bg.secondary, borderRadius: RADIUS.xl, paddingHorizontal: SPACING.lg, borderWidth: 1, borderColor: COLORS.border.subtle, marginBottom: SPACING.xxl },
+  otpBox: { width: 48, height: 56, borderRadius: RADIUS.lg, backgroundColor: c.bg.secondary, borderWidth: 2, borderColor: c.border.subtle, textAlign: 'center', fontSize: 22, fontWeight: '700', color: c.text.primary },
+  otpBoxFilled: { borderColor: c.accent.primary, backgroundColor: c.accent.primary + '08' },
+  nameInputWrap: { flexDirection: 'row', alignItems: 'center', backgroundColor: c.bg.secondary, borderRadius: RADIUS.xl, paddingHorizontal: SPACING.lg, borderWidth: 1, borderColor: c.border.subtle, marginBottom: SPACING.xxl },
   nameIcon: { marginRight: 12 },
-  nameInput: { flex: 1, paddingVertical: 18, fontSize: 17, color: COLORS.text.primary },
-  primaryBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, backgroundColor: COLORS.accent.primary, borderRadius: RADIUS.full, paddingVertical: 18 },
+  nameInput: { flex: 1, paddingVertical: 18, fontSize: 17, color: c.text.primary },
+  primaryBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, backgroundColor: c.accent.primary, borderRadius: RADIUS.full, paddingVertical: 18 },
   btnDisabled: { opacity: 0.6 },
-  primaryBtnText: { fontSize: 17, fontWeight: '700', color: COLORS.text.inverse },
-  secondaryBtn: { borderRadius: RADIUS.full, paddingVertical: 16, alignItems: 'center', borderWidth: 1, borderColor: COLORS.border.subtle },
-  secondaryBtnText: { fontSize: 15, fontWeight: '600', color: COLORS.text.primary },
+  primaryBtnText: { fontSize: 17, fontWeight: '700', color: c.text.inverse },
+  secondaryBtn: { borderRadius: RADIUS.full, paddingVertical: 16, alignItems: 'center', borderWidth: 1, borderColor: c.border.subtle },
+  secondaryBtnText: { fontSize: 15, fontWeight: '600', color: c.text.primary },
   resendBtn: { alignItems: 'center', marginTop: SPACING.xxl },
-  resendText: { fontSize: 15, fontWeight: '600', color: COLORS.accent.primary },
-  resendDisabled: { color: COLORS.text.muted },
+  resendText: { fontSize: 15, fontWeight: '600', color: c.accent.primary },
+  resendDisabled: { color: c.text.muted },
   switchLink: { alignItems: 'center', marginTop: SPACING.xxl },
-  switchText: { fontSize: 14, color: COLORS.accent.primary, fontWeight: '500' },
-  mockBanner: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, backgroundColor: COLORS.accent.primary + '10', borderRadius: RADIUS.lg, padding: SPACING.md, marginTop: SPACING.lg },
-  mockBannerText: { fontSize: 13, color: COLORS.accent.primary },
+  switchText: { fontSize: 14, color: c.accent.primary, fontWeight: '500' },
+  mockBanner: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, backgroundColor: c.accent.primary + '10', borderRadius: RADIUS.lg, padding: SPACING.md, marginTop: SPACING.lg },
+  mockBannerText: { fontSize: 13, color: c.accent.primary },
   passwordSection: { marginTop: SPACING.lg, gap: SPACING.md },
-  textInput: { backgroundColor: COLORS.bg.secondary, borderRadius: RADIUS.xl, paddingHorizontal: SPACING.lg, paddingVertical: 18, fontSize: 16, color: COLORS.text.primary, borderWidth: 1, borderColor: COLORS.border.subtle },
+  textInput: { backgroundColor: c.bg.secondary, borderRadius: RADIUS.xl, paddingHorizontal: SPACING.lg, paddingVertical: 18, fontSize: 16, color: c.text.primary, borderWidth: 1, borderColor: c.border.subtle },
   // Language toggle
-  langToggle: { flexDirection: 'row', alignItems: 'center', gap: 6, alignSelf: 'center', backgroundColor: COLORS.bg.secondary, paddingHorizontal: 16, paddingVertical: 10, borderRadius: RADIUS.full, borderWidth: 1, borderColor: COLORS.border.subtle, marginBottom: SPACING.lg },
-  langToggleText: { fontSize: 14, fontWeight: '600', color: COLORS.text.primary },
-  sheetHandle: { width: 40, height: 4, borderRadius: 2, backgroundColor: COLORS.text.muted, alignSelf: 'center', marginBottom: SPACING.lg, opacity: 0.3 },
+  langToggle: { flexDirection: 'row', alignItems: 'center', gap: 6, alignSelf: 'center', backgroundColor: c.bg.secondary, paddingHorizontal: 16, paddingVertical: 10, borderRadius: RADIUS.full, borderWidth: 1, borderColor: c.border.subtle, marginBottom: SPACING.lg },
+  langToggleText: { fontSize: 14, fontWeight: '600', color: c.text.primary },
+  sheetHandle: { width: 40, height: 4, borderRadius: 2, backgroundColor: c.text.muted, alignSelf: 'center', marginBottom: SPACING.lg, opacity: 0.3 },
   langModalBg: { flex: 1, justifyContent: 'flex-end', backgroundColor: 'rgba(0,0,0,0.4)' },
-  langModalSheet: { backgroundColor: COLORS.bg.secondary, borderTopLeftRadius: 28, borderTopRightRadius: 28, padding: SPACING.xxl, maxHeight: '70%' },
-  langModalTitle: { fontSize: 22, fontWeight: '700', color: COLORS.text.primary, marginBottom: SPACING.lg, textAlign: 'center' },
+  langModalSheet: { backgroundColor: c.bg.secondary, borderTopLeftRadius: 28, borderTopRightRadius: 28, padding: SPACING.xxl, maxHeight: '70%' },
+  langModalTitle: { fontSize: 22, fontWeight: '700', color: c.text.primary, marginBottom: SPACING.lg, textAlign: 'center' },
   langOption: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingVertical: 14, paddingHorizontal: SPACING.lg, borderRadius: RADIUS.lg, marginBottom: 4 },
-  langOptionActive: { backgroundColor: COLORS.accent.primary + '10' },
-  langNative: { fontSize: 18, fontWeight: '600', color: COLORS.text.primary },
-  langEn: { fontSize: 12, color: COLORS.text.muted, marginTop: 2 },
-});
+  langOptionActive: { backgroundColor: c.accent.primary + '10' },
+  langNative: { fontSize: 18, fontWeight: '600', color: c.text.primary },
+  langEn: { fontSize: 12, color: c.text.muted, marginTop: 2 },
+}));

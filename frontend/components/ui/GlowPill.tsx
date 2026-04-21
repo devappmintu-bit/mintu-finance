@@ -10,6 +10,7 @@ import React, { useEffect, useRef } from 'react';
 import { Animated, StyleSheet, Text, View, ViewStyle, StyleProp } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { COLORS, FONT_FAMILY, RADIUS } from '../../utils/theme';
+import { makeStyles } from '../../utils/makeStyles';
 
 type Tone = 'neutral' | 'success' | 'warning' | 'danger' | 'premium' | 'neon';
 
@@ -31,6 +32,7 @@ type Props = {
 };
 
 export default function GlowPill({ label, tone = 'neutral', icon, pulse = false, style }: Props) {
+  const styles = useStyles();
   const opacity = useRef(new Animated.Value(1)).current;
 
   useEffect(() => {
@@ -58,7 +60,7 @@ export default function GlowPill({ label, tone = 'neutral', icon, pulse = false,
   );
 }
 
-const styles = StyleSheet.create({
+const useStyles = makeStyles((c) => ({
   base: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -78,4 +80,4 @@ const styles = StyleSheet.create({
     letterSpacing: 0.6,
     textTransform: 'uppercase',
   },
-});
+}));
