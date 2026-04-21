@@ -105,17 +105,18 @@ async def _refresh_news_in_background(today: str) -> None:
     _regen_in_flight.add(today)
     try:
         prompt = (
-            f"Generate 6 India-specific financial news items for {today}. Mix these types:\n"
-            "1. Government scheme update (PM schemes, tax changes, RBI policy)\n"
-            "2. Market trend (Sensex/Nifty, gold, rupee)\n"
-            "3. Personal finance tip for young Indians\n"
-            "4. Banking/UPI/digital payment news\n"
-            "5. Investment opportunity (SIP, mutual funds, FD rates)\n"
-            "6. Consumer alert (scam warning, price change, deadline reminder)\n\n"
+            f"Generate 12 India-specific financial news items for {today}. Mix these types (2 of each):\n"
+            "1. Government scheme / tax / RBI policy update\n"
+            "2. Market trend (Sensex/Nifty, gold, rupee, crypto)\n"
+            "3. Personal finance tip (young Indian professional / student / family)\n"
+            "4. Banking / UPI / digital payments news\n"
+            "5. Investment opportunity (SIP, mutual funds, FDs, stocks, gold)\n"
+            "6. Consumer alert (scam warning, price change, deadline reminder, fraud)\n\n"
             "For EACH item return JSON: "
             '{"title": "...", "summary": "2 sentences max", "category": "scheme|market|tip|banking|investment|alert", "emoji": "relevant emoji", "source": "credible source name", "source_url": "https://real-published-article-url-on-the-source-domain-or-empty-string"}\n'
             "If you are not sure about the exact article URL, return \"source_url\": \"\" and we will build a scoped search URL. Never invent fake URLs.\n"
-            "Return ONLY a JSON array of 6 items. No markdown."
+            "Make titles crisp, actionable and specific to Indian context. Prefer trending topics.\n"
+            "Return ONLY a JSON array of 12 items. No markdown."
         )
         chat = LlmChat(
             api_key=os.environ.get("EMERGENT_LLM_KEY", ""),
@@ -206,9 +207,10 @@ async def _news_refresher_loop() -> None:
                 await _refresh_news_in_background(today)
         except Exception as e:
             logging.warning(f"News refresher loop iteration failed: {e}")
-        # sleep 1 hour; short enough that users see fresh news quickly, cheap enough
-        # that we don't spam the LLM (one call per day max since cache key = date)
-        await asyncio.sleep(3600)
+        # sleep 30 mins — user asked for "auto update the latest news/articles/trends"
+        # so refresh frequently. Cache still keyed by date so the same-day LLM call
+        # is cheap (existing cache hit), but if date flipped we regen.
+        await asyncio.sleep(1800)
 
 
 def start_news_worker() -> None:

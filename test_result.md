@@ -3812,3 +3812,97 @@ agent_communication:
 
         **AWAITING:** user visual sign-off on Tab Bar v3 + Rewards Hub before Phase 2.
 
+
+
+# ════════════════════════════════════════════════════════════════════
+# ROUND 30 (Apr 21 2026) — Phase 2: Streak→Profile, Payment V2, Notif Settings, Delete Account
+# ════════════════════════════════════════════════════════════════════
+
+agent_communication:
+    - agent: "main"
+      message: |
+        Phase 2 complete:
+        - BudgetAchievements moved Budget → Profile (/app/frontend/components/profile is mount point)
+        - PaymentMethodsV2 with UPI/card/netbanking/wallet CRUD + bottom-sheet Add modal
+        - NotificationSettings — master, 4 channels, 8 categories, quiet hours, 3 freq tiers, test push
+        - DeleteAccountSection — soft (30d recovery) + hard (DELETE-typed) modes, wipes session
+        - News prompt 6→12 items, refresh cycle 1h→30min (verified "12 items" in logs)
+        - Backend: user.py +230 lines for notification-prefs, payment-methods CRUD, delete-account
+
+phase2_notif_pay_news_delete_apr21_2026:
+  - task: "Phase 2 — Notification Preferences, Payment Methods, Rewards, News-12, Delete-Account validation"
+    implemented: true
+    working: false
+    file: "/app/backend/routers/user.py, /app/backend/routers/rewards.py, /app/backend/routers/news.py"
+    stuck_count: 1
+    priority: "high"
+    needs_retesting: true
+    status_history:
+      - working: false
+        agent: "testing"
+        comment: |
+          ❌ PHASE 2 TESTING — 22/24 assertions PASS, 2 CRITICAL FAILURES on POST /api/user/payment-methods (Apr 21 2026, /app/phase2_backend_test.py).
+
+          **FAIL #1 & #2 — POST /api/user/payment-methods returns HTTP 500 on first-ever call for a user (MongoDB error).**
+          Request: POST /api/user/payment-methods {"type":"upi","upi_id":"testuser@okicici","is_default":true} → 500 Internal Server Error (expected 200).
+          Request: POST /api/user/payment-methods {"type":"card","card_last4":"1234","card_brand":"visa"} → 500 (expected 200).
+
+          Backend stack trace (from /var/log/supervisor/backend.err.log):
+            pymongo.errors.WriteError: The path 'payment_methods' must exist in the document in order to apply array updates.
+            File "/app/backend/routers/user.py", line 250, in add_payment_method
+              await db.users.update_one(
+                  {"_id": ObjectId(user_id)},
+                  {"$set": {"payment_methods.$[].is_default": False}},
+              )
+
+          ROOT CAUSE: In /app/backend/routers/user.py lines 248-253 the "demote others and promote this one" block runs a positional array update `payment_methods.$[].is_default=false` BEFORE the new method is pushed. If the user has no `payment_methods` field yet (common on first add, and also after the existing test user's legacy `upi_id` is surfaced as a "virtual" method but not persisted), the $[] operator fails with "path must exist". Because `is_default=True` is passed OR `user.get("payment_methods")` is falsy, this branch is hit on *every* first-add.
+
+          SUGGESTED FIX (main agent): Guard the demotion so it only runs when an actual array already exists in the doc, OR wrap it in a `$set: {payment_methods: []}` upsert-initializer first. Minimal patch:
+
+              user = await db.users.find_one({"_id": ObjectId(user_id)}, {"payment_methods": 1}) or {}
+              existing = user.get("payment_methods") or []
+              if body.is_default or not existing:
+                  doc["is_default"] = True
+                  if existing:  # only demote when there's something to demote
+                      await db.users.update_one(
+                          {"_id": ObjectId(user_id)},
+                          {"$set": {"payment_methods.$[].is_default": False}},
+                      )
+              await db.users.update_one({"_id": ObjectId(user_id)}, {"$push": {"payment_methods": doc}})
+
+          **ALL OTHER ASSERTIONS PASSED (22/22):**
+
+          1. Notification Preferences (7/7 ✅)
+             • GET /api/user/notification-prefs → 200 with master_enabled, channels (push/in_app/email/sms), categories (all 8: budget_alerts/bill_reminders/split_updates/transaction_alerts/security/rewards/tips_news/marketing), quiet_hours, frequency.
+             • PUT /api/user/notification-prefs {frequency:'daily', categories:{marketing:true}} → 200 {ok:true, frequency:'daily', categories:{marketing:true}}.
+             • GET again → frequency=daily ✅, categories.marketing=true ✅ — persistence verified via dotted-path $set (payment_methods.{k} subdoc).
+
+          2. Payment Methods (2/6 ✅, 2/6 ❌, 2/6 validation ✅)
+             • GET /api/user/payment-methods → 200 {methods, count, default} ✅
+             • POST upi valid → ❌ 500 (bug above)
+             • POST card valid → ❌ 500 (bug above)
+             • POST upi WITHOUT upi_id → 400 "Invalid UPI ID (expected name@bank)" ✅
+             • POST card with last4='ABCD' → 400 "Card last4 required (4 digits)" ✅
+             • PUT/DELETE/default-verification — BLOCKED by the 500s (could not verify end-to-end flow; they were never called)
+
+          3. Rewards (5/5 ✅)
+             • GET /api/rewards/summary → 200 with coins=119, spins_today, spins_left, spin_cost=10, prizes (len=8 ✅: coins_small/medium/large/jackpot, voucher_swiggy/zomato/amazon, try_again), recent_rewards.
+             • GET /api/rewards/vouchers?category=food → 200 {category:'food', vouchers:8 items (≥4 ✅)}. LLM-aggregated; resolved in ~9s on fresh cache.
+             • GET /api/rewards/wallet → 200 {items:[...]}
+             • POST /api/rewards/spin → 200 (user had coins; prize=voucher_swiggy awarded).
+
+          4. News India Finance (4/4 ✅)
+             • GET /api/news/india-finance → 200 with 12 articles (is_fallback=false). Cache was fresh — today's regen had completed in the background.
+             • GET /api/news/india-finance?refresh=1 → 200 with 12 articles. Note: per /app/backend/routers/news.py line 168, refresh=1 now calls `await _refresh_news_in_background(today)` synchronously, so it DOES block briefly (but within timeout). Response came back inside 30s.
+
+          5. Delete Account VALIDATION ONLY (2/2 ✅)  [DID NOT execute soft/hard success path]
+             • POST /api/user/delete-account {mode:'hard', confirmation:'WRONG'} → 400 "Type DELETE to confirm hard deletion" ✅
+             • POST /api/user/delete-account {mode:'invalid'} → 400 "mode must be 'soft' or 'hard'" ✅
+
+          VERDICT: 22/24 pass. Two critical 500s on the primary "add payment method" happy path — this is the core function of the new Payment Methods feature and blocks the entire UI flow for any user without an existing `payment_methods` array. Main agent must apply the 3-line fix in routers/user.py before this feature can ship. Everything else in the Phase 2 batch (notification prefs, rewards live, news 12-item, delete-account validation) is production-ready.
+
+agent_communication:
+    -agent: "testing"
+    -message: |
+      PHASE 2 TESTING COMPLETE (Apr 21 2026) — 22/24 pass. ONE CRITICAL BUG FOUND: POST /api/user/payment-methods returns HTTP 500 on the first add for any user whose doc lacks a `payment_methods` field. MongoDB error: "The path 'payment_methods' must exist in the document in order to apply array updates." Root cause at /app/backend/routers/user.py lines 248-253 — the `$set: {payment_methods.$[].is_default: False}` demotion runs even when the array doesn't exist yet. 3-line fix suggested in status_history (guard the demotion with `if existing:`). All other Phase 2 endpoints (notification-prefs GET/PUT + persistence, rewards/summary 8 prizes, rewards/vouchers ≥4 items, rewards/wallet, rewards/spin, news/india-finance with 12 items, news/india-finance?refresh=1, delete-account validation rejection paths) return the expected responses. Test script: /app/phase2_backend_test.py.
+

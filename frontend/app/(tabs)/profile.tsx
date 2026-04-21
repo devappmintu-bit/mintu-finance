@@ -22,7 +22,10 @@ import BadgesSection from '../../components/profile/BadgesSection';
 import WeeklyChallenge from '../../components/profile/WeeklyChallenge';
 import ProfileHero from '../../components/profile/ProfileHero';
 import FinancialSnapshot from '../../components/profile/FinancialSnapshot';
-import PaymentMethods from '../../components/profile/PaymentMethods';
+import PaymentMethodsV2 from '../../components/profile/PaymentMethodsV2';
+import NotificationSettings from '../../components/profile/NotificationSettings';
+import DeleteAccountSection from '../../components/profile/DeleteAccountSection';
+import BudgetAchievements from '../../components/budget/BudgetAchievements';
 import RewardsHub from '../../components/profile/RewardsHub';
 import AuthTransitionOverlay from '../../components/auth/AuthTransitionOverlay';
 import ReferralDashboard from '../../components/profile/ReferralDashboard';
@@ -256,13 +259,19 @@ export default function ProfileScreen() {
 
         <FinancialSnapshot stats={realStats} />
 
+        {/* Budget streak / achievements — moved here from Budget tab per design ask.
+            Sits next to Challenges & Achievements for a unified gamification story. */}
+        <BudgetAchievements />
+
         {/* All rewards earned across the app — consolidated here per design ask */}
         <RewardsHub />
 
-        <PaymentMethods upiId={upiId} />
+        <PaymentMethodsV2 />
 
         {/* PREMIUM moved to Home tab — see PremiumHomeCard on the Home screen.
             Profile stays focused on user settings & account management. */}
+
+        <NotificationSettings />
 
         <ReferralDashboard
           referral={referral}
@@ -321,6 +330,9 @@ export default function ProfileScreen() {
           <Ionicons name="log-out-outline" size={20} color={COLORS.accent.moneyOut} />
           <Text style={s.logoutText}>{t('logout', lang)}</Text>
         </TouchableOpacity>
+
+        {/* Danger zone — delete account (soft or hard) */}
+        <DeleteAccountSection />
 
         {/* Trust Signals */}
         <View style={s.trustSignalsRow}>

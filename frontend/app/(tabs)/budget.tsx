@@ -20,7 +20,7 @@ import DeleteBudgetSheet from '../../components/budget/DeleteBudgetSheet';
 import BudgetInsightsSheet from '../../components/budget/BudgetInsightsSheet';
 import BudgetShareCard from '../../components/budget/BudgetShareCard';
 import BudgetSummaryDonut from '../../components/budget/BudgetSummaryDonut';
-import BudgetAchievements from '../../components/budget/BudgetAchievements';
+// BudgetAchievements moved to Profile tab
 import EmptyState from '../../components/ui/EmptyState';
 import SheetHeader from '../../components/ui/SheetHeader';
 import PrimaryButton from '../../components/ui/PrimaryButton';
@@ -41,8 +41,7 @@ export default function BudgetScreen() {
   const [editingBudget, setEditingBudget] = useState<any>(null);
   const [formData, setFormData] = useState({ category: 'Food', amount: '', period: 'monthly', recurring: true, description: '' });
   const [aiCategorizing, setAiCategorizing] = useState(false);
-  const [achievementsKey, setAchievementsKey] = useState(0);
-  // Phase-1: delete confirmation + undo buffer
+  // Budget achievements moved to Profile — keep a single refresh handler
   const [deleteTarget, setDeleteTarget] = useState<any>(null);
   const lastDeletedRef = useRef<any>(null);
   // Phase-2: AI insights + share
@@ -70,7 +69,8 @@ export default function BudgetScreen() {
   }, []);
 
   useEffect(() => { fetchAll(); }, []);
-  const onRefresh = () => { setRefreshing(true); setAchievementsKey(k => k + 1); fetchAll(); };
+  // Budget achievements moved to Profile tab — keep onRefresh simple now
+  const onRefresh = () => { setRefreshing(true); fetchAll(); };
 
   const applySmartBudgets = async () => {
     try {
@@ -241,8 +241,7 @@ export default function BudgetScreen() {
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={COLORS.accent.primary} />}
         ListHeaderComponent={
           <>
-            {/* Phase-3 Gamification: streak, stats, achievements strip */}
-            {budgets.length > 0 && <BudgetAchievements refreshKey={achievementsKey} />}
+            {/* Budget streak/achievements moved to Profile tab per design ask */}
             {/* Donut chart + legend — primary summary per design ask.
                 "Budget Health" + "Watching" cards were removed. */}
             <BudgetSummaryDonut budgets={budgets} />
