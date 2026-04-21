@@ -1,15 +1,138 @@
-// MintU Design System v3 — Next-gen fintech · Dark + Neon Orange + Glassmorphism
+// MintU Design System v3 — Next-gen fintech · ADAPTIVE Theme Engine
 //
-// This file is intentionally backward-compatible: `COLORS.bg.primary`,
-// `COLORS.text.primary`, `COLORS.accent.primary` keys are preserved across the
-// app (50+ screens) but their VALUES now point at the dark v3 palette.
-// Legacy-looking screens automatically re-skin without any structural edits.
+// Phase 1 infrastructure for full light/dark theme switching.
+//
+// This file exposes:
+//   1. `COLORS` — a module-mutable proxy object. Dozens of StyleSheet.create
+//      calls across the app read from this symbol at module-load time. When
+//      the user flips themes, we mutate the values IN PLACE + force a full
+//      Stack remount at the root so every screen re-reads fresh tokens.
+//   2. `applyTheme(mode)` — imperative mutation helper. Call on app boot +
+//      whenever the user picks a new theme in Settings.
+//   3. `LIGHT_PALETTE` / `DARK_PALETTE` — canonical token sets.
+//   4. `useAppColors()` — React hook for components that want reactive tokens
+//      (preferred for NEW code; legacy code continues to import `COLORS`).
 //
 // New v3-only tokens live under: `GLASS`, `GRADIENT`, `GLOW`, `MOTION`, `FONT_FAMILY`.
 import { Platform } from 'react-native';
+import { useSyncExternalStore } from 'react';
 
 // ══════════════════════════════════════════════════════════════════════
-//  CORE PALETTE — dark obsidian canvas + electric-orange accent
+//  LIGHT PALETTE — clean, minimal, financial clarity
+// ══════════════════════════════════════════════════════════════════════
+const LIGHT_PALETTE = {
+  bg: {
+    primary:   '#FAFAF9',        // Warm off-white canvas
+    secondary: '#FFFFFF',        // Elevated surface
+    card:      '#FFFFFF',
+    elevated:  '#FFFFFF',
+    dark:      '#F3F4F6',        // Softer tier (ironic naming kept for API)
+  },
+  accent: {
+    primary:      '#E84A0C',     // Neon orange, slightly deeper for light-bg contrast
+    primaryLight: '#FF6B1A',
+    secondary:    '#F59E0B',     // Saffron
+    tertiary:     '#A21CAF',     // Premium magenta
+    moneyIn:      '#059669',     // Emerald
+    moneyOut:     '#DC2626',     // Crimson
+    warning:      '#D97706',
+  },
+  text: {
+    primary:   '#111827',        // Near-black
+    secondary: '#4B5563',        // Slate
+    muted:     '#6B7280',
+    tertiary:  '#6B7280',
+    inverse:   '#FFFFFF',
+  },
+  border: {
+    subtle: 'rgba(17,24,39,0.08)',
+    focus:  '#E84A0C',
+    card:   'rgba(17,24,39,0.08)',
+  },
+  state: {
+    success:       '#059669',
+    successBg:     'rgba(5,150,105,0.10)',
+    successBorder: 'rgba(5,150,105,0.30)',
+    warning:       '#D97706',
+    warningBg:     'rgba(217,119,6,0.10)',
+    warningBorder: 'rgba(217,119,6,0.30)',
+    danger:        '#DC2626',
+    dangerBg:      'rgba(220,38,38,0.10)',
+    dangerBorder:  'rgba(220,38,38,0.30)',
+    info:          '#2563EB',
+    infoBg:        'rgba(37,99,235,0.10)',
+    infoBorder:    'rgba(37,99,235,0.30)',
+  },
+  gray: {
+    50: '#F9FAFB', 100: '#F3F4F6', 200: '#E5E7EB', 300: '#D1D5DB', 400: '#9CA3AF',
+    500: '#6B7280', 600: '#4B5563', 700: '#374151', 800: '#1F2937', 900: '#111827',
+  },
+};
+
+// ══════════════════════════════════════════════════════════════════════
+//  DARK PALETTE — futuristic, premium, AI-driven feel (default)
+// ══════════════════════════════════════════════════════════════════════
+const DARK_PALETTE = {
+  bg: {
+    primary:   '#0B0B12',
+    secondary: '#14141C',
+    card:      '#1A1A24',
+    elevated:  '#20202C',
+    dark:      '#070710',
+  },
+  accent: {
+    primary:      '#FF6B1A',
+    primaryLight: '#FF8C42',
+    secondary:    '#FFB547',
+    tertiary:     '#C026D3',
+    moneyIn:      '#10E0A0',
+    moneyOut:     '#FF5470',
+    warning:      '#FFB020',
+  },
+  text: {
+    primary:   '#F5F5F7',
+    secondary: '#A1A1AA',
+    muted:     '#71717A',
+    tertiary:  '#71717A',
+    inverse:   '#0B0B12',
+  },
+  border: {
+    subtle: 'rgba(255,255,255,0.08)',
+    focus:  '#FF6B1A',
+    card:   'rgba(255,255,255,0.08)',
+  },
+  state: {
+    success:       '#10E0A0',
+    successBg:     'rgba(16,224,160,0.12)',
+    successBorder: 'rgba(16,224,160,0.35)',
+    warning:       '#FFB020',
+    warningBg:     'rgba(255,176,32,0.14)',
+    warningBorder: 'rgba(255,176,32,0.4)',
+    danger:        '#FF5470',
+    dangerBg:      'rgba(255,84,112,0.14)',
+    dangerBorder:  'rgba(255,84,112,0.4)',
+    info:          '#60A5FA',
+    infoBg:        'rgba(96,165,250,0.14)',
+    infoBorder:    'rgba(96,165,250,0.4)',
+  },
+  gray: {
+    50: '#F9FAFB', 100: '#F3F4F6', 200: '#E5E7EB', 300: '#D1D5DB', 400: '#9CA3AF',
+    500: '#6B7280', 600: '#4B5563', 700: '#374151', 800: '#1F2937', 900: '#111827',
+  },
+};
+
+export type ThemeMode = 'light' | 'dark';
+export const PALETTES: Record<ThemeMode, typeof DARK_PALETTE> = {
+  light: LIGHT_PALETTE,
+  dark:  DARK_PALETTE,
+};
+
+// Current active mode (mutable). Defaults to dark on boot.
+let ACTIVE_MODE: ThemeMode = 'dark';
+export const getActiveMode = (): ThemeMode => ACTIVE_MODE;
+
+// ══════════════════════════════════════════════════════════════════════
+//  CORE PALETTE — mutable proxy that always reflects the active theme
 // ══════════════════════════════════════════════════════════════════════
 export const COLORS = {
   bg: {
@@ -292,3 +415,72 @@ export const UPI_APPS = [
   { id: 'paytm',   name: 'Paytm',      color: '#00BAF2', icon: 'wallet' },
   { id: 'bhim',    name: 'BHIM UPI',   color: '#00695C', icon: 'shield-checkmark' },
 ] as const;
+
+// ══════════════════════════════════════════════════════════════════════
+//  THEME ENGINE — imperative apply + React hook subscription
+// ══════════════════════════════════════════════════════════════════════
+const themeListeners = new Set<() => void>();
+const subscribe = (cb: () => void) => {
+  themeListeners.add(cb);
+  return () => {
+    themeListeners.delete(cb);
+  };
+};
+
+/**
+ * Mutate the shared COLORS object in-place to match the target palette.
+ * Because StyleSheet.create captures token VALUES at module-load time,
+ * callers MUST ALSO remount the Stack (via a `key` change on root) for the
+ * change to propagate into cached stylesheets.
+ */
+export function applyTheme(mode: ThemeMode) {
+  if (mode === ACTIVE_MODE) return;
+  ACTIVE_MODE = mode;
+  const next = PALETTES[mode];
+  // Mutate each leaf in place so the exported `COLORS` object retains identity.
+  Object.assign(COLORS.bg,     next.bg);
+  Object.assign(COLORS.accent, next.accent);
+  Object.assign(COLORS.text,   next.text);
+  Object.assign(COLORS.border, next.border);
+  Object.assign(COLORS.state,  next.state);
+  Object.assign(COLORS.gray,   next.gray);
+  // Notify all subscribers (useAppColors hook)
+  themeListeners.forEach(cb => cb());
+}
+
+/** Snapshot getter for useSyncExternalStore. */
+const getSnapshot = () => ACTIVE_MODE;
+
+/**
+ * useAppColors — reactive React hook returning the active palette.
+ *
+ * Preferred for NEW components. Legacy components that `import { COLORS }`
+ * still work because we mutate `COLORS` in-place + remount the Stack on
+ * theme change.
+ */
+export function useAppColors() {
+  // Re-render on theme change so consumers get fresh references.
+  useSyncExternalStore(subscribe, getSnapshot, getSnapshot);
+  return COLORS;
+}
+
+/**
+ * useAppTheme — same as useAppColors but also exposes mode + all tokens.
+ * Useful for components needing gradients, glows, etc.
+ */
+export function useAppTheme() {
+  useSyncExternalStore(subscribe, getSnapshot, getSnapshot);
+  return {
+    mode: ACTIVE_MODE,
+    colors: COLORS,
+    glass: GLASS,
+    gradient: GRADIENT,
+    glow: GLOW,
+    motion: MOTION,
+    font: FONT,
+    fontFamily: FONT_FAMILY,
+    radius: RADIUS,
+    spacing: SPACING,
+  };
+}
+

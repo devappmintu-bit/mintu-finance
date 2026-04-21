@@ -52,6 +52,8 @@ export default function RootLayout() {
   const loadFromStorage = useAuthStore((state) => state.loadFromStorage);
   const loadLang = useLangStore((state) => state.loadLang);
   const loadThemePref = useThemePref((state) => state.loadFromStorage);
+  const resolvedTheme = useThemePref((state) => state.resolved);
+  const themeReady    = useThemePref((state) => state.ready);
 
   // Load Inter font family — premium-feeling, bundled via @expo-google-fonts/inter
   const [fontsLoaded] = useFonts({
@@ -91,8 +93,18 @@ export default function RootLayout() {
     <GestureHandlerRootView style={{ flex: 1, backgroundColor: COLORS.bg.primary }}>
       <PortalProvider>
         <BottomSheetModalProvider>
-          <StatusBar style="light" />
-          <Stack screenOptions={{ headerShown: false, animation: 'fade', contentStyle: { backgroundColor: COLORS.bg.primary } }}>
+          {/*
+            Theme engine remount key — when the resolved theme flips
+            (light ↔ dark), React unmounts + remounts the Stack subtree so
+            every screen's StyleSheet.create re-runs against the freshly
+            mutated COLORS proxy. This is what actually makes 60+ screens
+            re-theme without per-screen code changes.
+          */}
+          <StatusBar style={resolvedTheme === 'light' ? 'dark' : 'light'} />
+          <Stack
+            key={themeReady ? resolvedTheme : 'boot'}
+            screenOptions={{ headerShown: false, animation: 'fade', contentStyle: { backgroundColor: COLORS.bg.primary } }}
+          >
             <Stack.Screen name="index" />
             <Stack.Screen name="onboarding" />
             <Stack.Screen name="auth" />

@@ -1,57 +1,75 @@
 /**
  * useThemePref — user's theme-mode preference (light / dark / system).
  *
- * The app is currently dark-by-default, but users can opt into light or let the
- * OS decide (system). This store ONLY governs preference; the components that
- * care about it (e.g. <Mascot />, some settings surfaces) read the resolved
- * theme via `useResolvedTheme()` which combines this preference with the
- * current system appearance.
+ * Persisted to AsyncStorage so the choice survives app restarts. On every
+ * change (including the initial load), this store calls `applyTheme()` from
+ * `utils/theme.ts` which mutates the shared `COLORS` proxy in-place so every
+ * StyleSheet.create in the app reads the new tokens on next remount.
  *
- * Persisted to AsyncStorage so the choice survives app restarts.
+ * Combined with the root-level `key={resolvedMode}` remount trigger in
+ * `_layout.tsx`, this gives a full light↔dark switch across all 60+ screens
+ * with zero per-screen code changes.
  */
 import { create } from 'zustand';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Appearance } from 'react-native';
+import { applyTheme as applyEngineTheme, ThemeMode as EngineMode } from '../utils/theme';
 
 export type ThemeMode = 'light' | 'dark' | 'system';
-export type ResolvedTheme = 'light' | 'dark';
+export type ResolvedTheme = EngineMode;
 
 type ThemeState = {
   mode: ThemeMode;
   ready: boolean;
+  /** Returns the resolved (non-'system') theme that the engine is currently rendering. */
+  resolved: ResolvedTheme;
   setMode: (m: ThemeMode) => Promise<void>;
   loadFromStorage: () => Promise<void>;
 };
 
 const STORAGE_KEY = '@mintu:theme_mode';
 
-export const useThemePref = create<ThemeState>((set) => ({
+const resolveMode = (pref: ThemeMode): ResolvedTheme => {
+  if (pref === 'light' || pref === 'dark') return pref;
+  const scheme = Appearance.getColorScheme();
+  return scheme === 'light' ? 'light' : 'dark';
+};
+
+export const useThemePref = create<ThemeState>((set, get) => ({
   mode: 'system',
   ready: false,
+  resolved: 'dark',
   setMode: async (m) => {
-    set({ mode: m });
+    const resolved = resolveMode(m);
+    set({ mode: m, resolved });
+    applyEngineTheme(resolved);
     try { await AsyncStorage.setItem(STORAGE_KEY, m); } catch {}
   },
   loadFromStorage: async () => {
+    let stored: ThemeMode = 'system';
     try {
       const v = await AsyncStorage.getItem(STORAGE_KEY);
-      if (v === 'light' || v === 'dark' || v === 'system') {
-        set({ mode: v, ready: true });
-        return;
-      }
+      if (v === 'light' || v === 'dark' || v === 'system') stored = v;
     } catch {}
-    set({ ready: true });
+    const resolved = resolveMode(stored);
+    set({ mode: stored, resolved, ready: true });
+    applyEngineTheme(resolved);
   },
 }));
 
+// React to OS-level appearance changes (when user has 'system' set).
+Appearance.addChangeListener(({ colorScheme }) => {
+  const state = useThemePref.getState();
+  if (state.mode !== 'system') return;
+  const resolved: ResolvedTheme = colorScheme === 'light' ? 'light' : 'dark';
+  useThemePref.setState({ resolved });
+  applyEngineTheme(resolved);
+});
+
 /**
- * Resolve the ACTIVE theme based on preference + OS appearance.
- * Returns 'light' | 'dark'.
+ * Convenience hook: returns the CURRENTLY-RESOLVED theme ('light' | 'dark'),
+ * regardless of whether the user's pref was 'light' / 'dark' / 'system'.
  */
 export function useResolvedTheme(): ResolvedTheme {
-  const mode = useThemePref((s) => s.mode);
-  if (mode === 'light' || mode === 'dark') return mode;
-  // 'system' — follow OS
-  const scheme = Appearance.getColorScheme();
-  return scheme === 'light' ? 'light' : 'dark';
+  return useThemePref((s) => s.resolved);
 }
