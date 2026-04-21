@@ -179,24 +179,30 @@ PREMIUM_FEATURES = {
 
 PRICING = {
     # ═══════════════════════════════════════════════════════════════
-    #  INDIA-HACK PRICING LADDER (Apr 2026)  —  hard-capped at ₹150
-    #  Tier       Price    Emotion
-    #  Free       ₹0       Trust
-    #  Micro      ₹29      "Why not?"
-    #  Standard   ₹99      "Useful"
-    #  Premium    ₹149     "I'm upgrading my life"
+    #  MINTU MONETIZATION LADDER (Apr 2026)  —  India-tier optimised
+    #  Tier          Price    Emotion / Trigger              Target Tier
+    #  Free          ₹0       Trust / Habit                  T1→T5 acquisition
+    #  Lite          ₹29      "It's just ₹1/day"             T2→T4 mass-play
+    #  Pro           ₹99      "Useful" / "I save more"       T1 + aspirational T2
+    #  Elite         ₹149     "Status + control"             T1 flex + serious savers
     # ═══════════════════════════════════════════════════════════════
-    "intro":   {"price": 29,  "label": "₹29/month",  "tag": "Why not?",
-                "period": "per month", "order": 1, "emotion": "Why not?"},
-    "monthly": {"price": 99,  "label": "₹99/month",  "tag": "Useful",
-                "period": "per month", "order": 2, "emotion": "Useful",
-                "best_seller": True},
-    "yearly":  {"price": 149, "label": "₹149/month", "tag": "Upgrade my life",
-                "period": "per month", "order": 3, "emotion": "I'm upgrading my life",
-                "includes_money_school": True},
+    "intro":   {"price": 29,  "label": "₹29/month",  "tag": "It's just ₹1/day",
+                "period": "per month", "order": 1,
+                "emotion": "It's just ₹1/day",
+                "plan_name": "Lite"},
+    "monthly": {"price": 99,  "label": "₹99/month",  "tag": "Useful — I save more",
+                "period": "per month", "order": 2,
+                "emotion": "Useful — I save more",
+                "best_seller": True,
+                "plan_name": "Pro"},
+    "yearly":  {"price": 149, "label": "₹149/month", "tag": "Status + Control",
+                "period": "per month", "order": 3,
+                "emotion": "Status + Control",
+                "includes_money_school": True,
+                "plan_name": "Elite"},
     # NOTE: `lifetime` tier removed — previous ₹2,999 exceeded the ₹150 India-hack cap.
-    # NOTE: `yearly` key kept for backward compatibility but is now a monthly-billed
-    #       Premium tier (₹149/mo). Rename to `premium` can happen in a follow-up.
+    # NOTE: Plan keys (`intro`/`monthly`/`yearly`) kept stable for back-compat.
+    #       Display labels live in `plan_name` field (Lite / Pro / Elite).
 }
 
 
