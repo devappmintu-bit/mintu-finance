@@ -1,24 +1,26 @@
 {
   "expo": {
-    "name": "frontend",
-    "slug": "frontend",
+    "name": "MintU",
+    "slug": "mintu",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
-    "scheme": "frontend",
-    "userInterfaceStyle": "automatic",
+    "scheme": "mintu",
+    "userInterfaceStyle": "dark",
     "newArchEnabled": true,
     "ios": {
       "supportsTablet": true,
+      "bundleIdentifier": "com.mintu.finance",
       "infoPlist": {
         "NSMicrophoneUsageDescription": "Record voice to add expenses hands-free",
         "NSContactsUsageDescription": "Pick friends to split group expenses"
       }
     },
     "android": {
+      "package": "com.mintu.finance",
       "adaptiveIcon": {
         "foregroundImage": "./assets/images/adaptive-icon.png",
-        "backgroundColor": "#000"
+        "backgroundColor": "#0B0B12"
       },
       "edgeToEdgeEnabled": true,
       "permissions": [
@@ -29,7 +31,11 @@
     "web": {
       "bundler": "metro",
       "output": "static",
-      "favicon": "./assets/images/favicon.png"
+      "favicon": "./assets/images/favicon.png",
+      "name": "MintU — Money, simplified",
+      "shortName": "MintU",
+      "themeColor": "#FF6B1A",
+      "backgroundColor": "#0B0B12"
     },
     "plugins": [
       "expo-router",
@@ -37,9 +43,9 @@
         "expo-splash-screen",
         {
           "image": "./assets/images/splash-icon.png",
-          "imageWidth": 200,
+          "imageWidth": 220,
           "resizeMode": "contain",
-          "backgroundColor": "#000"
+          "backgroundColor": "#0B0B12"
         }
       ],
       "expo-secure-store",
