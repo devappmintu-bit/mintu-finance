@@ -42,7 +42,7 @@ export default function ThemeToggle() {
           <Text style={s.title}>Theme preference</Text>
           <Text style={s.sub}>Pick a vibe. System mode follows your device.</Text>
         </View>
-        <Mascot size={52} glow variant={resolved} />
+        <Mascot size={52} glow />
       </View>
 
       <View style={s.row}>
@@ -67,7 +67,7 @@ export default function ThemeToggle() {
       </View>
 
       <Text style={s.currently}>
-        Currently showing <Text style={s.currentlyBold}>{resolved}</Text>-shield mascot
+        Currently showing <Text style={s.currentlyBold}>{resolved}</Text> mode
         {mode === 'system' ? ' (auto)' : ''}
       </Text>
     </View>

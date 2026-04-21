@@ -1,39 +1,28 @@
 /**
- * Mascot — theme-aware MintU robot mascot.
+ * Mascot — unified MintU robot mascot.
  *
- * Automatically picks the right chest-shield variant based on the user's
- * resolved theme (light → white shield, dark → dark shield). Includes
- * optional glow + scale-to-fit + size presets.
- *
- * Usage:
- *   <Mascot size={64} />              // follows theme
- *   <Mascot size={48} glow />          // with soft orange halo
- *   <Mascot size={80} variant="dark" />// force a variant
+ * One artwork across every theme (light/dark/system) per product decision.
+ * Keep the variant prop only for API compatibility with older call sites; it's
+ * now a no-op and always resolves to the canonical mascot.
  */
 import React from 'react';
 import { View, Image, StyleSheet, StyleProp, ViewStyle, Platform } from 'react-native';
-import { useResolvedTheme, ResolvedTheme } from '../store/themeStore';
 import { COLORS } from '../utils/theme';
 
-const LIGHT_SRC = require('../assets/images/mintu-logo-light.png');
-const DARK_SRC  = require('../assets/images/mintu-logo-dark.png');
+const MASCOT = require('../assets/images/mintu-logo.png');
 
 type Props = {
   size?: number;
   style?: StyleProp<ViewStyle>;
   glow?: boolean;
-  /** Force a variant. Default 'auto' follows system theme pref. */
+  /** Retained for back-compat — has no effect (single artwork now). */
   variant?: 'auto' | 'light' | 'dark';
 };
 
-export default function Mascot({ size = 48, style, glow = false, variant = 'auto' }: Props) {
-  const resolved: ResolvedTheme = useResolvedTheme();
-  const picked = variant === 'auto' ? resolved : variant;
-  const src = picked === 'light' ? LIGHT_SRC : DARK_SRC;
-
+export default function Mascot({ size = 48, style, glow = false }: Props) {
   return (
     <View style={[styles.wrap, { width: size, height: size }, glow && glowStyle(size), style]}>
-      <Image source={src} style={{ width: size, height: size }} resizeMode="contain" />
+      <Image source={MASCOT} style={{ width: size, height: size }} resizeMode="contain" />
     </View>
   );
 }

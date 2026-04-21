@@ -1,37 +1,30 @@
 /**
- * MintULogo — brand mark v3 (theme-aware).
+ * MintULogo — brand mark (single canonical mascot, theme-invariant).
  *
- * Automatically swaps between light-shield and dark-shield mascot variants
- * based on the user's resolved theme (via `useResolvedTheme()`). Still
- * accepts an explicit `source` for custom use-cases. Caller can also force
- * a variant via `variant="light"` or `variant="dark"`.
+ * Per product decision, the mascot now looks identical across all themes.
+ * This component keeps the legacy API (`size`, `glow`, `dark`, `source`,
+ * `variant`) intact so existing call sites don't break, but always renders
+ * the same artwork.
  */
 import React from 'react';
 import { View, StyleSheet, ImageSourcePropType } from 'react-native';
 import { Image } from 'expo-image';
-import { useResolvedTheme } from '../store/themeStore';
 
 interface Props {
   size?: number;
   /** Soft saffron glow halo around the mark (used on the floating tab button). */
   glow?: boolean;
-  /** Reserved for future light/dark tile styling — keeps the old API. */
+  /** No-op, kept for back-compat. */
   dark?: boolean;
-  /** Swap the asset if a caller needs a different source (very rare). */
+  /** Override source (very rare). */
   source?: ImageSourcePropType;
-  /** Force a theme variant. Default 'auto' follows user's theme preference. */
+  /** No-op, kept for back-compat. */
   variant?: 'auto' | 'light' | 'dark';
 }
 
-// Cache-once sources — resolved at module load.
-const LIGHT_SRC = require('../assets/images/mintu-logo-light.png');
-const DARK_SRC  = require('../assets/images/mintu-logo-dark.png');
+const MASCOT_SRC = require('../assets/images/mintu-logo.png');
 
-export default function MintULogo({ size = 96, glow = false, source, variant = 'auto' }: Props) {
-  const resolved = useResolvedTheme();
-  const picked = variant === 'auto' ? resolved : variant;
-  const themedSrc = picked === 'light' ? LIGHT_SRC : DARK_SRC;
-
+export default function MintULogo({ size = 96, glow = false, source }: Props) {
   const halo = size * 1.18;
   return (
     <View style={[styles.wrap, { width: halo, height: halo }]}>
@@ -44,7 +37,7 @@ export default function MintULogo({ size = 96, glow = false, source, variant = '
         />
       )}
       <Image
-        source={source || themedSrc}
+        source={source || MASCOT_SRC}
         style={{
           width: size,
           height: size,
