@@ -70,7 +70,9 @@ async def update_profile(data: dict, user_id: str = Depends(get_current_user)):
 @router.post("/avatar")
 async def upload_avatar(data: dict, user_id: str = Depends(get_current_user)):
     """Upload profile photo as base64 (<= ~500KB raw / ~700KB base64)."""
-    avatar_b64 = data.get("avatar", "")
+    avatar_b64 = data.get("avatar", "") if isinstance(data, dict) else ""
+    if not isinstance(avatar_b64, str):
+        raise HTTPException(status_code=400, detail="avatar must be a base64 string")
     if not avatar_b64:
         raise HTTPException(status_code=400, detail="No avatar data")
     if len(avatar_b64) > 700_000:
