@@ -63,7 +63,7 @@ export default function AboutScreen() {
           <Text style={s.ctaT}>Start your journey to smarter money today 🚀</Text>
         </View>
 
-        <Text style={s.ver}>v1.0.0</Text>
+        <Text style={s.ver}>v1</Text>
       </ScrollView>
     </SafeAreaView>
   );

@@ -257,7 +257,7 @@ export default function HomeScreen() {
           </View>
           {coinsStatus && (
             <TouchableOpacity
-              onPress={() => router.push('/(tabs)/profile')}
+              onPress={() => router.push('/rewards-hub' as any)}
               style={styles.coinsChip}
               activeOpacity={0.8}
               testID="header-coins-chip"

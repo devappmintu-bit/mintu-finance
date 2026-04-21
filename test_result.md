@@ -3760,3 +3760,55 @@ agent_communication:
     - agent: "testing"
       message: "✅ ROUND 25 FRONTEND SERVICE LAYER REGRESSION COMPLETED (Apr 20 2026) — Comprehensive code review confirms successful migration of Budget and Transactions tabs to new service layer architecture.\n\n**VERIFIED SERVICE LAYER INTEGRATION:**\n\n**1. Budget Tab Service Migration ✅**\n  • /app/frontend/app/(tabs)/budget.tsx properly imports from services/budgets.ts (lines 13-15)\n  • All API calls migrated: fetchBudgets → fetchBudgetsSrv, fetchLiveBudgets, createBudget, updateBudget, deleteBudget, fetchBudgetSuggestions\n  • Service functions correctly wrap api.get/post/put/delete calls with proper typing\n  • Graceful fallback: fetchLiveBudgets().catch(() => fetchBudgetsSrv()) ensures compatibility\n  • Budget CRUD operations maintain optimistic UI patterns with service layer\n\n**2. Transactions Tab Service Migration ✅**\n  • /app/frontend/app/(tabs)/transactions.tsx properly imports from services/transactions.ts (lines 22-24)\n  • All API calls migrated: fetchTransactions → fetchTxnsSrv, addTransaction, updateTransaction, deleteTransaction\n  • Service functions provide clean abstraction over raw API calls\n  • Transaction CRUD maintains optimistic UI with proper error handling\n  • SMS parsing and bulk operations preserved through service layer\n\n**3. Service Layer Architecture ✅**\n  • services/budgets.ts: 8 functions covering full budget domain (CRUD + achievements + suggestions)\n  • services/transactions.ts: 7 functions covering transaction domain (CRUD + SMS + analytics)\n  • services/types.ts: Proper TypeScript interfaces for Budget, Transaction, BudgetAchievements\n  • Consistent error handling and return types across all service functions\n\n**4. No Breaking Changes ✅**\n  • All existing UI flows preserved (create/edit/delete budgets and transactions)\n  • Optimistic UI patterns maintained with service layer abstraction\n  • Error handling and loading states unchanged\n  • Backend API endpoints remain identical (no URL changes)\n\n**TESTING LIMITATIONS:**\n  • Browser automation blocked by script parsing issues in test environment\n  • Manual E2E testing recommended for full verification\n  • Code review confirms architectural soundness and proper integration\n\n**ASSESSMENT:** Round 25 service layer refactor is PRODUCTION-READY. Budget and Transactions tabs successfully migrated to clean service architecture with zero functional regressions. Backend APIs already verified working (43/43 tests passed). Service layer provides better maintainability and type safety while preserving all existing functionality."
 
+
+
+# ════════════════════════════════════════════════════════════════════
+# ROUND 29 (Apr 21 2026) — Tab Bar v3 + Rewards Hub + HDFC Unlock
+# ════════════════════════════════════════════════════════════════════
+
+agent_communication:
+    - agent: "main"
+      message: |
+        Phase 1 of user's 11-item batch complete:
+
+        **COMPLETED:**
+        1. ✅ Unlock screen redesigned — HDFC banking style with cream/saffron (NO BLACK)
+           File: /app/frontend/app/unlock.tsx — full revamp with greeting card, pin boxes,
+           inline biometric chip in keypad, brand footer
+        2. ✅ Post-login transition added — AuthTransitionOverlay fires on successful PIN/skip
+           File: /app/frontend/app/auth.tsx — routes to /(tabs) with warm welcome animation
+        3. ✅ Premium moved from Profile → Home — PremiumExpandable removed from profile.tsx;
+           PremiumHomeCard stays on Home with Premium Hub CTA
+        4. ✅ Money School separated — new dedicated route /money-school + MoneySchoolCard
+           on Home. Files: /app/frontend/app/money-school.tsx, components/home/MoneySchoolCard.tsx
+        5. ✅ Tab bar v3 — flat ivory bar + CIRCULAR raised puck (matches user's HDFC-style ref)
+           File: /app/frontend/app/(tabs)/_layout.tsx — new geometry constants, saffron active pill,
+           perfect circle puck with mascot
+        6. ✅ Rewards Hub created — new /rewards-hub route with:
+             - Animated coin balance hero (gradient + streak chip)
+             - SVG Spin Wheel with 8 weighted prizes, 3 spins/day, 10-coin cost
+             - Confetti on win + Haptics feedback
+             - Category chip picker (10 categories) → live voucher feed
+             - Copy code / "Use" button auto-saves to wallet + opens merchant
+             - My Wallet section with claimed rewards history
+           File: /app/frontend/app/rewards-hub.tsx
+        7. ✅ Backend rewards router with LIVE voucher fetching via GPT-5.2 (EMERGENT_LLM_KEY)
+           + 6-hour cache + fallback voucher list
+           File: /app/backend/routers/rewards.py
+           Endpoints: /rewards/summary, /rewards/spin, /rewards/vouchers,
+                      /rewards/claim-voucher, /rewards/wallet
+        8. ✅ Home coin chip → now routes to /rewards-hub
+        9. ✅ App version unified to "1" everywhere (i18n.ts, AboutMintU.tsx, about.tsx,
+           profile.tsx, app.json — package.json kept at 1.0.0 for semver)
+
+        **PENDING (Phase 2 + 3):**
+        - India Finance Today: auto-refresh + more tiles
+        - Move streaks/achievements from Budget → Profile
+        - Payment Methods revamp (single source of truth, UPI/card/bank)
+        - Delete Account (soft + hard, user chooses)
+        - Notification settings (industry-standard toggles)
+        - Budget screen end-to-end core functionality fix
+        - Split screen correctness + make lively with AI insights
+
+        **AWAITING:** user visual sign-off on Tab Bar v3 + Rewards Hub before Phase 2.
+

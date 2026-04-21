@@ -12,7 +12,7 @@ import { COLORS } from '../utils/theme';
 
 type Props = { visible: boolean; onClose: () => void };
 
-const APP_VERSION = '2.0.0';
+const APP_VERSION = '1';
 
 const openLegal = (onClose: () => void, page: 'privacy' | 'terms' | 'data-protection') => {
   onClose();
