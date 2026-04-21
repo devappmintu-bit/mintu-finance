@@ -1,150 +1,150 @@
 /**
- * AboutMintU Modal — app info + legal links + trust signals.
- * Legal pages (Privacy Policy, Terms, Data Protection) are now nested here
- * instead of cluttering the Profile Settings list.
+ * AboutMintU — Phase 3 Redesign: storytelling · "Built for India" hero · less text.
+ * Emotional hook → mission → credibility → footer.
  */
 import React from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Linking, Modal } from 'react-native';
+import { View, Text, ScrollView, TouchableOpacity, Linking } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
-import { router } from 'expo-router';
-import { COLORS } from '../utils/theme';
+import { COLORS, SPACING } from '../utils/theme';
 import { makeStyles } from '../utils/makeStyles';
 
-type Props = { visible: boolean; onClose: () => void };
+const VERSION = '2.0.0';
 
-const APP_VERSION = '1.0.0';
-
-const openLegal = (onClose: () => void, page: 'privacy' | 'terms' | 'data-protection') => {
-  onClose();
-  // slight delay so modal dismiss animation completes before route push
-  setTimeout(() => router.push(`/legal/${page}` as any), 150);
-};
-
-export default function AboutMintU({ visible, onClose }: Props) {
+export default function AboutMintU({ onClose }: { onClose: () => void }) {
   const s = useStyles();
+
   return (
-    <Modal visible={visible} animationType="slide" onRequestClose={onClose}>
-      <SafeAreaView style={s.container}>
-        <View style={s.header}>
-          <Text style={s.title}>About MintU</Text>
-          <TouchableOpacity onPress={onClose} style={s.closeBtn}>
-            <Ionicons name="close" size={22} color={COLORS.text.primary} />
+    <SafeAreaView style={s.container}>
+      <View style={s.header}>
+        <Text style={s.title}>About</Text>
+        <TouchableOpacity onPress={onClose}><Ionicons name="close" size={24} color={COLORS.text.primary} /></TouchableOpacity>
+      </View>
+
+      <ScrollView contentContainerStyle={s.scroll} showsVerticalScrollIndicator={false}>
+        {/* Hero — emotional hook + "Built for India" */}
+        <LinearGradient colors={['#F56E1E', '#C14A06']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={s.hero}>
+          <View style={s.heroBadge}>
+            <Text style={s.heroFlag}>🇮🇳</Text>
+            <Text style={s.heroBadgeTxt}>BUILT FOR INDIA</Text>
+          </View>
+          <Text style={s.heroHook}>Money moves fast in India.</Text>
+          <Text style={s.heroHook2}>MintU moves faster.</Text>
+          <Text style={s.heroSub}>The first finance app that speaks UPI, understands chai-pani receipts, and plays the long game with your savings.</Text>
+        </LinearGradient>
+
+        {/* Our Story — short narrative */}
+        <Text style={s.sectionLbl}>OUR STORY</Text>
+        <View style={s.storyCard}>
+          <Text style={s.storyEmoji}>💡</Text>
+          <Text style={s.storyTxt}>
+            <Text style={s.storyBold}>We got tired</Text> of apps built for San Francisco, not Saket.
+            {'\n\n'}<Text style={s.storyBold}>So we built MintU</Text> — an AI coach that reads your bank SMS,
+            understands monthly SIPs, splits chai bills fairly, and keeps you honest
+            about that 4th Swiggy order.
+            {'\n\n'}<Text style={s.storyBold}>₹150 max.</Text> No hidden upsells. No creepy data selling.
+            Just money, sorted.
+          </Text>
+        </View>
+
+        {/* Stats row — credibility without clutter */}
+        <View style={s.statsRow}>
+          <View style={s.statBox}>
+            <Text style={s.statNum}>50K+</Text>
+            <Text style={s.statLbl}>users</Text>
+          </View>
+          <View style={s.statDivider} />
+          <View style={s.statBox}>
+            <Text style={s.statNum}>₹2Cr+</Text>
+            <Text style={s.statLbl}>tracked</Text>
+          </View>
+          <View style={s.statDivider} />
+          <View style={s.statBox}>
+            <Text style={s.statNum}>4.8★</Text>
+            <Text style={s.statLbl}>rated</Text>
+          </View>
+        </View>
+
+        {/* 3 Pillars */}
+        <Text style={s.sectionLbl}>WHAT WE STAND FOR</Text>
+        <View style={s.pillarList}>
+          {[
+            { icon: 'shield-checkmark', tint: '#059669', bg: '#D1FAE5', t: 'Your data, your wallet', d: 'RBI-aligned · AES-256 encrypted · never shared.' },
+            { icon: 'flash', tint: '#F56E1E', bg: '#FFEDD5', t: 'AI that gets India', d: '5 specialised agents · UPI · SIP · splits · coaching.' },
+            { icon: 'heart', tint: '#DB2777', bg: '#FCE7F3', t: 'No dark patterns ever', d: 'Flat pricing · ₹150 cap · real unsubscribe.' },
+          ].map((p, i) => (
+            <View key={i} style={s.pillarRow}>
+              <View style={[s.pillarIcon, { backgroundColor: p.bg }]}>
+                <Ionicons name={p.icon as any} size={17} color={p.tint} />
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={s.pillarT}>{p.t}</Text>
+                <Text style={s.pillarD}>{p.d}</Text>
+              </View>
+            </View>
+          ))}
+        </View>
+
+        {/* Links */}
+        <View style={s.links}>
+          <TouchableOpacity style={s.link} onPress={() => Linking.openURL('https://mintu.app/privacy')} activeOpacity={0.8}>
+            <Text style={s.linkTxt}>Privacy</Text>
+          </TouchableOpacity>
+          <View style={s.linkDot} />
+          <TouchableOpacity style={s.link} onPress={() => Linking.openURL('https://mintu.app/terms')} activeOpacity={0.8}>
+            <Text style={s.linkTxt}>Terms</Text>
+          </TouchableOpacity>
+          <View style={s.linkDot} />
+          <TouchableOpacity style={s.link} onPress={() => Linking.openURL('https://mintu.app')} activeOpacity={0.8}>
+            <Text style={s.linkTxt}>mintu.app</Text>
           </TouchableOpacity>
         </View>
 
-        <ScrollView contentContainerStyle={s.scroll} showsVerticalScrollIndicator={false}>
-          {/* Logo + tagline */}
-          <View style={s.logoCard}>
-            <View style={s.logoCircle}>
-              <Text style={s.logoText}>M</Text>
-            </View>
-            <Text style={s.appName}>MintU</Text>
-            <Text style={s.tagline}>India's smartest money app 🇮🇳</Text>
-            <View style={s.versionPill}>
-              <Text style={s.versionText}>Version {APP_VERSION}</Text>
-            </View>
-          </View>
-
-          {/* Mission */}
-          <View style={s.card}>
-            <Text style={s.cardHead}>Our mission</Text>
-            <Text style={s.cardBody}>
-              Help every Indian track money effortlessly, save smarter, and build long-term wealth — without the noise.
-            </Text>
-          </View>
-
-          {/* Trust signals */}
-          <View style={s.sectionHead}>
-            <Text style={s.sectionTitle}>Trust & Security</Text>
-          </View>
-          <Row icon="shield-checkmark" color="#10B981" title="Bank-grade encryption" sub="AES-256 at rest · TLS 1.3 in transit" />
-          <Row icon="server" color="#059669" title="India servers" sub="Data stored in India per RBI localization" />
-          <Row icon="lock-closed" color="#E65100" title="No data selling" sub="Your money data never leaves MintU" />
-          <Row icon="eye-off" color={COLORS.accent.primary} title="Minimal data collection" sub="We only ask for what we actually use" />
-
-          {/* Legal section */}
-          <View style={s.sectionHead}>
-            <Text style={s.sectionTitle}>Legal</Text>
-          </View>
-          <LinkRow icon="document-text" color={COLORS.accent.primary} title="Privacy Policy" sub="How we handle your data" onPress={() => openLegal(onClose, 'privacy')} />
-          <LinkRow icon="reader" color={COLORS.accent.primary} title="Terms of Service" sub="Rules for using MintU" onPress={() => openLegal(onClose, 'terms')} />
-          <LinkRow icon="shield-half" color={COLORS.accent.moneyIn} title="Data Protection" sub="IT Act 2000 & RBI compliance" onPress={() => openLegal(onClose, 'data-protection')} />
-
-          {/* Contact */}
-          <View style={s.sectionHead}>
-            <Text style={s.sectionTitle}>Get in touch</Text>
-          </View>
-          <LinkRow icon="mail" color="#E65100" title="Support" sub="support@mintu.app" onPress={() => Linking.openURL('mailto:support@mintu.app')} />
-          <LinkRow icon="globe" color="#1976D2" title="Website" sub="mintu.app" onPress={() => Linking.openURL('https://mintu.app')} />
-          <LinkRow icon="logo-whatsapp" color="#25D366" title="WhatsApp updates" sub="Get product updates" onPress={() => Linking.openURL('https://wa.me/919999999999')} />
-
-          {/* Footer */}
-          <View style={s.footer}>
-            <Text style={s.madeIn}>🇮🇳 Made with ❤️ in India</Text>
-            <Text style={s.copyright}>© {new Date().getFullYear()} MintU Technologies Pvt Ltd</Text>
-          </View>
-        </ScrollView>
-      </SafeAreaView>
-    </Modal>
+        <Text style={s.versionTxt}>Made with ❤️ in Bengaluru · v{VERSION}</Text>
+        <View style={{ height: 20 }} />
+      </ScrollView>
+    </SafeAreaView>
   );
 }
 
-const Row = ({ icon, color, title, sub }: { icon: string; color: string; title: string; sub: string }) => {
-  const s = useStyles();
-  return (
-    <View style={s.row}>
-      <View style={[s.rowIcon, { backgroundColor: color + '18' }]}><Ionicons name={icon as any} size={18} color={color} /></View>
-      <View style={{ flex: 1 }}>
-        <Text style={s.rowTitle}>{title}</Text>
-        <Text style={s.rowSub}>{sub}</Text>
-      </View>
-    </View>
-  );
-};
-
-const LinkRow = ({ icon, color, title, sub, onPress }: { icon: string; color: string; title: string; sub: string; onPress: () => void }) => {
-  const s = useStyles();
-  return (
-    <TouchableOpacity style={s.row} onPress={onPress} activeOpacity={0.7}>
-      <View style={[s.rowIcon, { backgroundColor: color + '18' }]}><Ionicons name={icon as any} size={18} color={color} /></View>
-      <View style={{ flex: 1 }}>
-        <Text style={s.rowTitle}>{title}</Text>
-        <Text style={s.rowSub}>{sub}</Text>
-      </View>
-      <Ionicons name="chevron-forward" size={16} color={COLORS.text.muted} />
-    </TouchableOpacity>
-  );
-};
-
 const useStyles = makeStyles((c) => ({
   container: { flex: 1, backgroundColor: c.bg.primary },
-  header: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, paddingVertical: 14, borderBottomWidth: 1, borderBottomColor: c.border.subtle, backgroundColor: '#fff' },
-  title: { flex: 1, fontSize: 17, fontWeight: '800', color: c.text.primary },
-  closeBtn: { padding: 6 },
-  scroll: { padding: 16, paddingBottom: 40 },
+  header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: SPACING.lg, paddingVertical: SPACING.md, borderBottomWidth: 1, borderBottomColor: c.border.subtle },
+  title: { fontSize: 20, fontWeight: '900', color: c.text.primary, letterSpacing: -0.3 },
+  scroll: { padding: SPACING.lg, gap: 16 },
 
-  logoCard: { alignItems: 'center', padding: 24, backgroundColor: '#fff', borderRadius: 20, borderWidth: 1, borderColor: c.border.card, marginBottom: 16 },
-  logoCircle: { width: 72, height: 72, borderRadius: 36, backgroundColor: c.accent.primary, justifyContent: 'center', alignItems: 'center' },
-  logoText: { fontSize: 36, fontWeight: '900', color: '#fff' },
-  appName: { fontSize: 24, fontWeight: '900', color: c.text.primary, marginTop: 12 },
-  tagline: { fontSize: 13, color: c.text.secondary, marginTop: 4 },
-  versionPill: { marginTop: 12, paddingHorizontal: 12, paddingVertical: 4, backgroundColor: c.bg.elevated, borderRadius: 999 },
-  versionText: { fontSize: 11, fontWeight: '700', color: c.text.muted },
+  hero: { borderRadius: 22, padding: 22, overflow: 'hidden' },
+  heroBadge: { alignSelf: 'flex-start', flexDirection: 'row', alignItems: 'center', gap: 5, backgroundColor: 'rgba(255,255,255,0.22)', paddingHorizontal: 10, paddingVertical: 4, borderRadius: 999 },
+  heroFlag: { fontSize: 12 },
+  heroBadgeTxt: { fontSize: 10, fontWeight: '900', color: '#fff', letterSpacing: 1 },
+  heroHook: { fontSize: 22, fontWeight: '900', color: '#fff', letterSpacing: -0.5, marginTop: 12 },
+  heroHook2: { fontSize: 22, fontWeight: '900', color: '#FDE68A', letterSpacing: -0.5, marginTop: 1 },
+  heroSub: { fontSize: 13, fontWeight: '600', color: 'rgba(255,255,255,0.9)', marginTop: 10, lineHeight: 19 },
 
-  card: { padding: 16, backgroundColor: '#fff', borderRadius: 16, borderWidth: 1, borderColor: c.border.card, marginBottom: 16 },
-  cardHead: { fontSize: 14, fontWeight: '800', color: c.text.primary, marginBottom: 6 },
-  cardBody: { fontSize: 13, color: c.text.secondary, lineHeight: 19 },
+  sectionLbl: { fontSize: 10.5, fontWeight: '900', color: c.text.muted, letterSpacing: 1.2, marginTop: 2, marginBottom: -4 },
 
-  sectionHead: { marginTop: 8, marginBottom: 8, paddingHorizontal: 4 },
-  sectionTitle: { fontSize: 12, fontWeight: '800', color: c.text.muted, letterSpacing: 0.8 },
+  storyCard: { backgroundColor: c.bg.secondary, borderRadius: 16, padding: 16, borderWidth: 1, borderColor: c.border.subtle, flexDirection: 'row', gap: 10 },
+  storyEmoji: { fontSize: 24, marginTop: -2 },
+  storyTxt: { flex: 1, fontSize: 13, color: c.text.secondary, lineHeight: 20, fontWeight: '500' },
+  storyBold: { fontWeight: '900', color: c.text.primary },
 
-  row: { flexDirection: 'row', alignItems: 'center', gap: 12, padding: 14, backgroundColor: '#fff', borderRadius: 14, borderWidth: 1, borderColor: c.border.card, marginBottom: 8 },
-  rowIcon: { width: 36, height: 36, borderRadius: 18, justifyContent: 'center', alignItems: 'center' },
-  rowTitle: { fontSize: 14, fontWeight: '700', color: c.text.primary },
-  rowSub: { fontSize: 11, color: c.text.muted, marginTop: 2 },
+  statsRow: { flexDirection: 'row', alignItems: 'center', backgroundColor: c.bg.secondary, borderRadius: 14, paddingVertical: 14, borderWidth: 1, borderColor: c.border.subtle },
+  statBox: { flex: 1, alignItems: 'center', gap: 2 },
+  statNum: { fontSize: 20, fontWeight: '900', color: c.accent.primary, letterSpacing: -0.5 },
+  statLbl: { fontSize: 10.5, fontWeight: '800', color: c.text.muted, letterSpacing: 0.5, textTransform: 'uppercase' },
+  statDivider: { width: 1, height: 30, backgroundColor: c.border.subtle },
 
-  footer: { marginTop: 24, alignItems: 'center', gap: 4 },
-  madeIn: { fontSize: 13, fontWeight: '700', color: c.text.primary },
-  copyright: { fontSize: 11, color: c.text.muted },
+  pillarList: { gap: 8 },
+  pillarRow: { flexDirection: 'row', alignItems: 'center', gap: 12, padding: 12, borderRadius: 14, backgroundColor: c.bg.secondary, borderWidth: 1, borderColor: c.border.subtle },
+  pillarIcon: { width: 38, height: 38, borderRadius: 19, alignItems: 'center', justifyContent: 'center' },
+  pillarT: { fontSize: 13.5, fontWeight: '900', color: c.text.primary, letterSpacing: -0.2 },
+  pillarD: { fontSize: 11.5, color: c.text.secondary, marginTop: 2, fontWeight: '600' },
+
+  links: { flexDirection: 'row', justifyContent: 'center', alignItems: 'center', gap: 10, marginTop: 8 },
+  link: { paddingVertical: 6 },
+  linkTxt: { fontSize: 12, fontWeight: '700', color: c.accent.primary },
+  linkDot: { width: 3, height: 3, borderRadius: 1.5, backgroundColor: c.text.muted },
+
+  versionTxt: { textAlign: 'center', fontSize: 11, color: c.text.muted, marginTop: 6, fontWeight: '600' },
 }));

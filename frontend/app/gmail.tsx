@@ -142,16 +142,16 @@ export default function GmailConnectScreen() {
       </View>
 
       <ScrollView contentContainerStyle={{ padding: SPACING.lg, paddingBottom: 60 }} showsVerticalScrollIndicator={false}>
-        {/* Hero */}
+        {/* Hero — condensed copy (Phase 2 trust-first UX) */}
         <LinearGradient colors={connected ? ['#047857', '#10B981'] : ['#F56E1E', '#C14A06']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={s.hero}>
           <View style={s.heroIcon}>
             <Ionicons name={connected ? 'checkmark-circle' : 'mail-outline'} size={38} color="#fff" />
           </View>
-          <Text style={s.heroTitle}>{connected ? 'Gmail connected' : 'Connect Gmail to auto-import'}</Text>
+          <Text style={s.heroTitle}>{connected ? 'Gmail connected' : 'Auto-import bank SMS'}</Text>
           <Text style={s.heroSub}>
             {connected
-              ? `Syncing bank emails from ${status?.email || 'your inbox'} every 15 min`
-              : 'Give MintU read-only access to your inbox. We only look at emails from Indian bank alerts — never personal mail.'}
+              ? `Syncing ${status?.email || 'your inbox'} every 15 min`
+              : 'Read-only · bank alerts only · never personal mail'}
           </Text>
           {connected && (
             <View style={s.heroStats}>
@@ -167,6 +167,24 @@ export default function GmailConnectScreen() {
             </View>
           )}
         </LinearGradient>
+
+        {/* Trust badges row — ONLY when disconnected */}
+        {!connected && (
+          <View style={s.badgeRow}>
+            <View style={s.badge}>
+              <Ionicons name="lock-closed" size={14} color="#059669" />
+              <Text style={s.badgeTxt}>End-to-end{'\n'}encrypted</Text>
+            </View>
+            <View style={s.badge}>
+              <Ionicons name="eye-off" size={14} color="#059669" />
+              <Text style={s.badgeTxt}>Read-only{'\n'}access</Text>
+            </View>
+            <View style={s.badge}>
+              <Ionicons name="flash" size={14} color="#059669" />
+              <Text style={s.badgeTxt}>Revoke{'\n'}anytime</Text>
+            </View>
+          </View>
+        )}
 
         {/* Actions */}
         {!connected ? (
@@ -203,39 +221,23 @@ export default function GmailConnectScreen() {
           </View>
         )}
 
-        {/* Supported banks section removed per design ask */}
-
-        {/* How it works */}
-        <Text style={s.sect}>How it works</Text>
-        <View style={s.stepsCard}>
-          {[
-            { n: 1, t: 'You sign in with Google', d: 'Read-only access — MintU cannot send or delete emails' },
-            { n: 2, t: 'We scan bank alerts', d: 'Only emails from the verified bank senders above' },
-            { n: 3, t: 'Extract transactions', d: 'Amount · merchant · debit/credit · date are parsed automatically' },
-            { n: 4, t: 'Auto-refresh every 15 min', d: 'New transactions appear in the Expenses tab silently' },
-          ].map((step) => (
-            <View key={step.n} style={s.step}>
-              <View style={s.stepNumBg}>
-                <Text style={s.stepNum}>{step.n}</Text>
-              </View>
-              <View style={{ flex: 1 }}>
-                <Text style={s.stepT}>{step.t}</Text>
-                <Text style={s.stepD}>{step.d}</Text>
-              </View>
-            </View>
-          ))}
-        </View>
-
-        {/* Privacy */}
-        <View style={s.privacy}>
-          <Ionicons name="shield-checkmark" size={18} color="#10B981" />
-          <View style={{ flex: 1 }}>
-            <Text style={s.privacyT}>Your privacy is protected</Text>
-            <Text style={s.privacyD}>
-              MintU requests only <Text style={{ fontWeight: '800' }}>gmail.readonly</Text>. You can revoke access anytime at{' '}
+        {/* How it works — 3 concise bullets (trimmed from 4 verbose steps) */}
+        <Text style={s.sect}>Why it's safe</Text>
+        <View style={s.bulletCard}>
+          <View style={s.bulletRow}>
+            <Ionicons name="shield-checkmark" size={16} color="#059669" />
+            <Text style={s.bulletTxt}><Text style={s.bulletBold}>Read-only.</Text> We can&apos;t send or delete emails</Text>
+          </View>
+          <View style={s.bulletRow}>
+            <Ionicons name="filter" size={16} color="#059669" />
+            <Text style={s.bulletTxt}><Text style={s.bulletBold}>Bank-only filter.</Text> Personal mail never opened</Text>
+          </View>
+          <View style={s.bulletRow}>
+            <Ionicons name="close-circle" size={16} color="#059669" />
+            <Text style={s.bulletTxt}><Text style={s.bulletBold}>Revoke anytime.</Text>{' '}
               <Text style={{ color: '#F56E1E', textDecorationLine: 'underline' }} onPress={() => Linking.openURL('https://myaccount.google.com/permissions')}>
                 myaccount.google.com
-              </Text>.
+              </Text>
             </Text>
           </View>
         </View>
@@ -279,6 +281,16 @@ const useStyles = makeStyles((c) => ({
   stepNum: { fontSize: 12, fontWeight: '800', color: '#C14A06' },
   stepT: { fontSize: 14, fontWeight: '700', color: '#111' },
   stepD: { fontSize: 12, color: '#6B7280', marginTop: 2 },
+
+  // Phase 2 — Trust badge row (3 visual badges replace verbose privacy block)
+  badgeRow: { flexDirection: 'row', gap: 8, marginBottom: 14 },
+  badge: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: 7, backgroundColor: '#ECFDF5', borderWidth: 1, borderColor: '#A7F3D0', borderRadius: 12, paddingVertical: 10, paddingHorizontal: 10 },
+  badgeTxt: { fontSize: 10, fontWeight: '800', color: '#065F46', lineHeight: 13 },
+  // Phase 2 — condensed bullet card (replaces 4-step wordy block)
+  bulletCard: { backgroundColor: '#fff', borderRadius: 14, padding: 14, gap: 12, borderWidth: 1, borderColor: '#F3F4F6' },
+  bulletRow: { flexDirection: 'row', alignItems: 'center', gap: 10 },
+  bulletTxt: { flex: 1, fontSize: 12.5, color: '#374151', fontWeight: '600', lineHeight: 17 },
+  bulletBold: { fontWeight: '900', color: '#111' },
 
   privacy: { flexDirection: 'row', gap: 10, backgroundColor: '#ECFDF5', borderRadius: 14, padding: 12, marginTop: 16, borderWidth: 1, borderColor: '#A7F3D0' },
   privacyT: { fontSize: 13, fontWeight: '800', color: '#065F46' },

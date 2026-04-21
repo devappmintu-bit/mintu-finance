@@ -1,94 +1,124 @@
-import React from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Linking } from 'react-native';
+/**
+ * HelpSupport — Phase 3 Redesign: search-first + top 5 FAQs + AI chat CTA.
+ * Replaces the heavy, scroll-heavy help screen with a focused, modern layout.
+ */
+import React, { useMemo, useState } from 'react';
+import { View, Text, ScrollView, TouchableOpacity, TextInput, Linking } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
-import { COLORS, RADIUS, SPACING } from '../utils/theme';
+import { router } from 'expo-router';
+import { COLORS, SPACING } from '../utils/theme';
 import { makeStyles } from '../utils/makeStyles';
 
 const FAQS = [
-  { q: 'How does MintU track my expenses?', a: 'MintU uses AI to parse your bank SMS messages and notifications. Simply paste your bank alerts in the Scan SMS section, and our AI will automatically extract the amount, category, and merchant. You can also add expenses manually or use voice input.' },
-  { q: 'Is my financial data safe?', a: 'Absolutely. MintU uses industry-standard encryption (AES-256) for all data at rest and TLS 1.3 for data in transit. Your financial data is stored securely on encrypted servers and is never sold to third parties. We comply with RBI data protection guidelines.' },
-  { q: 'How does the AI Coach work?', a: 'Our AI Coach is powered by GPT-5.2 with 5 specialized agents: Insights Agent (spending analysis), Budget Agent (budget management), Split Agent (group expenses), Investment Agent (SIP/mutual fund advice), and a General Agent. Each understands Indian financial context.' },
-  { q: 'How are split expenses calculated?', a: 'MintU supports 4 split types: Equal (divide equally), Custom Amount (set specific amounts per person), Shares (proportional sharing), and Percentage (percentage-based). All calculations are verified for accuracy before saving.' },
-  { q: 'What is Money Score?', a: 'Money Score (0-100) is a proprietary metric that evaluates your financial health based on: spending vs. income ratio, budget adherence, savings rate, expense diversity, and bill payment patterns. Higher scores unlock rewards and badges.' },
-  { q: 'How do UPI settlements work?', a: 'When settling split expenses, MintU generates a UPI payment intent that opens your preferred UPI app (Google Pay, PhonePe, Paytm, BHIM) with the exact amount pre-filled. After payment, you earn settlement coins and rewards.' },
-  { q: 'Can I export my data?', a: 'Yes! Go to Profile > Settings > Export Data. You can download all your transactions, budgets, and insights as a CSV file. We believe you own your data completely.' },
-  { q: 'Does MintU work offline?', a: 'Basic features like viewing cached transactions and budgets work offline. AI features, split calculations, and real-time sync require an internet connection.' },
+  { q: 'How does MintU track my expenses?', a: 'Paste bank SMS in the Scan SMS card — our AI extracts amount, merchant, and category automatically. You can also log manually or connect Gmail for auto-import.', tags: ['track', 'expense', 'sms', 'scan'] },
+  { q: 'Is my financial data safe?', a: 'Yes. AES-256 at rest, TLS 1.3 in transit, RBI-aligned data practices, zero third-party sharing.', tags: ['safe', 'secure', 'privacy', 'encryption', 'rbi'] },
+  { q: 'What is Money Score?', a: 'Your 0–100 financial health metric — blends spending ratio, savings rate, budget adherence, and bill habits. Higher = more rewards.', tags: ['score', 'rank', 'money'] },
+  { q: 'How do UPI settlements work?', a: 'MintU opens your preferred UPI app (GPay, PhonePe, Paytm, BHIM) with amount pre-filled. You pay, both sides are settled instantly.', tags: ['upi', 'payment', 'split', 'settle'] },
+  { q: 'Can I export my data?', a: 'Yes — Profile → Export Data gives you all transactions, budgets and insights as CSV. Your data, always.', tags: ['export', 'csv', 'data', 'download'] },
 ];
 
 export default function HelpSupport({ onClose }: { onClose: () => void }) {
   const s = useStyles();
+  const [q, setQ] = useState('');
+  const [expanded, setExpanded] = useState<number | null>(null);
+
+  const filtered = useMemo(() => {
+    if (!q.trim()) return FAQS;
+    const needle = q.trim().toLowerCase();
+    return FAQS.filter(f =>
+      f.q.toLowerCase().includes(needle) ||
+      f.a.toLowerCase().includes(needle) ||
+      f.tags.some(t => t.includes(needle)),
+    );
+  }, [q]);
+
+  const openAICoach = () => {
+    try { router.push('/(tabs)/ai-coach' as any); onClose(); } catch {}
+  };
+
   return (
     <SafeAreaView style={s.container}>
       <View style={s.header}>
-        <Text style={s.title}>Help & Support</Text>
+        <Text style={s.title}>Help</Text>
         <TouchableOpacity onPress={onClose}><Ionicons name="close" size={24} color={COLORS.text.primary} /></TouchableOpacity>
       </View>
+
       <ScrollView contentContainerStyle={s.scroll} showsVerticalScrollIndicator={false}>
-        {/* Quick Actions */}
-        <Text style={s.section}>Quick Actions</Text>
-        <View style={s.actionsGrid}>
-          {[
-            { icon: 'mail', color: '#E65100', label: 'Email Us', action: () => Linking.openURL('mailto:support@mintu.app?subject=MintU%20Support%20Request') },
-            { icon: 'chatbubbles', color: '#10B981', label: 'Live Chat', action: () => Linking.openURL('https://wa.me/919876543210?text=Hi%20MintU%20Support') },
-            { icon: 'bug', color: '#EF4444', label: 'Report Bug', action: () => Linking.openURL('mailto:bugs@mintu.app?subject=Bug%20Report%20-%20MintU') },
-            { icon: 'star', color: '#F59E0B', label: 'Rate App', action: () => {} },
-          ].map((a, i) => (
-            <TouchableOpacity key={i} style={s.actionCard} onPress={a.action}>
-              <View style={[s.actionIcon, { backgroundColor: a.color + '12' }]}><Ionicons name={a.icon as any} size={22} color={a.color} /></View>
-              <Text style={s.actionLabel}>{a.label}</Text>
+        {/* Search bar — FIRST */}
+        <View style={s.searchWrap}>
+          <Ionicons name="search" size={18} color={COLORS.text.muted} />
+          <TextInput
+            value={q}
+            onChangeText={setQ}
+            placeholder="Search help (e.g. UPI, Money Score, safety)"
+            placeholderTextColor={COLORS.text.muted}
+            style={s.searchInput}
+            autoCapitalize="none"
+          />
+          {q.length > 0 && (
+            <TouchableOpacity onPress={() => setQ('')}>
+              <Ionicons name="close-circle" size={16} color={COLORS.text.muted} />
             </TouchableOpacity>
-          ))}
+          )}
         </View>
 
-        {/* Contact Info */}
-        <Text style={s.section}>Contact Us</Text>
-        <View style={s.contactCard}>
-          {[
-            { icon: 'mail-outline', text: 'support@mintu.app', sub: 'General support — responds within 24hrs' },
-            { icon: 'logo-whatsapp', text: '+91 98765 43210', sub: 'WhatsApp — Mon-Sat, 9am-6pm IST' },
-            { icon: 'globe-outline', text: 'help.mintu.app', sub: 'Knowledge base & tutorials' },
-            { icon: 'logo-twitter', text: '@MintUApp', sub: 'Follow for updates & tips' },
-          ].map((c, i) => (
-            <View key={i} style={s.contactRow}>
-              <Ionicons name={c.icon as any} size={18} color={COLORS.accent.primary} />
-              <View style={{ flex: 1, marginLeft: 12 }}>
-                <Text style={s.contactText}>{c.text}</Text>
-                <Text style={s.contactSub}>{c.sub}</Text>
-              </View>
-            </View>
-          ))}
-        </View>
+        {/* AI Chat CTA */}
+        <TouchableOpacity style={s.aiCard} onPress={openAICoach} activeOpacity={0.88}>
+          <View style={s.aiIconBubble}>
+            <Ionicons name="sparkles" size={20} color="#fff" />
+          </View>
+          <View style={{ flex: 1 }}>
+            <Text style={s.aiTitle}>Ask AI Coach · instant answers</Text>
+            <Text style={s.aiSub}>Specialised agents for budgets, splits, investments · 24/7</Text>
+          </View>
+          <Ionicons name="arrow-forward" size={18} color="#C14A06" />
+        </TouchableOpacity>
 
         {/* FAQs */}
-        <Text style={s.section}>Frequently Asked Questions</Text>
-        {FAQS.map((faq, i) => (
-          <View key={i} style={s.faqCard}>
-            <Text style={s.faqQ}>{faq.q}</Text>
-            <Text style={s.faqA}>{faq.a}</Text>
+        <Text style={s.sectionLbl}>{q ? `Results (${filtered.length})` : 'Top Questions'}</Text>
+        {filtered.length === 0 ? (
+          <View style={s.emptyCard}>
+            <Ionicons name="search-outline" size={28} color={COLORS.text.muted} />
+            <Text style={s.emptyT}>No matches</Text>
+            <Text style={s.emptyS}>Try asking AI Coach — it knows everything about MintU.</Text>
+            <TouchableOpacity style={s.emptyCTA} onPress={openAICoach} activeOpacity={0.85}>
+              <Text style={s.emptyCTATxt}>Ask AI Coach</Text>
+            </TouchableOpacity>
           </View>
-        ))}
+        ) : (
+          filtered.map((faq, i) => {
+            const open = expanded === i;
+            return (
+              <TouchableOpacity key={i} style={[s.faqCard, open && s.faqCardOpen]} onPress={() => setExpanded(open ? null : i)} activeOpacity={0.85}>
+                <View style={s.faqRow}>
+                  <Text style={s.faqQ}>{faq.q}</Text>
+                  <Ionicons name={open ? 'chevron-up' : 'chevron-down'} size={16} color={COLORS.text.muted} />
+                </View>
+                {open && <Text style={s.faqA}>{faq.a}</Text>}
+              </TouchableOpacity>
+            );
+          })
+        )}
 
-        {/* Getting Started */}
-        <Text style={s.section}>Getting Started</Text>
-        <View style={s.stepsCard}>
-          {[
-            { step: '1', title: 'Sign Up', desc: 'Enter your phone number and verify with OTP' },
-            { step: '2', title: 'Add Expenses', desc: 'Paste bank SMS, use voice input, or add manually' },
-            { step: '3', title: 'Set Budgets', desc: 'Create category budgets or let AI suggest them' },
-            { step: '4', title: 'Track & Save', desc: 'Monitor spending, get AI insights, improve your Money Score' },
-            { step: '5', title: 'Split Bills', desc: 'Create groups, split expenses, settle via UPI' },
-          ].map((s2, i) => (
-            <View key={i} style={s.stepRow}>
-              <View style={s.stepBadge}><Text style={s.stepNum}>{s2.step}</Text></View>
-              <View style={{ flex: 1 }}>
-                <Text style={s.stepTitle}>{s2.title}</Text>
-                <Text style={s.stepDesc}>{s2.desc}</Text>
-              </View>
-            </View>
-          ))}
+        {/* Contact shortcuts — condensed */}
+        <Text style={s.sectionLbl}>Still stuck?</Text>
+        <View style={s.contactRow}>
+          <TouchableOpacity style={s.contactChip} activeOpacity={0.85} onPress={() => Linking.openURL('https://wa.me/919876543210?text=Hi%20MintU%20Support')}>
+            <Ionicons name="logo-whatsapp" size={16} color="#25D366" />
+            <Text style={s.contactTxt}>WhatsApp</Text>
+          </TouchableOpacity>
+          <TouchableOpacity style={s.contactChip} activeOpacity={0.85} onPress={() => Linking.openURL('mailto:support@mintu.app')}>
+            <Ionicons name="mail" size={16} color="#C14A06" />
+            <Text style={s.contactTxt}>Email</Text>
+          </TouchableOpacity>
+          <TouchableOpacity style={s.contactChip} activeOpacity={0.85} onPress={() => Linking.openURL('mailto:bugs@mintu.app?subject=Bug%20Report')}>
+            <Ionicons name="bug" size={16} color="#EF4444" />
+            <Text style={s.contactTxt}>Report bug</Text>
+          </TouchableOpacity>
         </View>
-        <View style={{ height: 40 }} />
+
+        <View style={{ height: 30 }} />
       </ScrollView>
     </SafeAreaView>
   );
@@ -96,25 +126,33 @@ export default function HelpSupport({ onClose }: { onClose: () => void }) {
 
 const useStyles = makeStyles((c) => ({
   container: { flex: 1, backgroundColor: c.bg.primary },
-  header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 20, paddingVertical: 14, borderBottomWidth: 1, borderBottomColor: c.border.subtle },
-  title: { fontSize: 20, fontWeight: '700', color: c.text.primary },
-  scroll: { padding: 20 },
-  section: { fontSize: 16, fontWeight: '700', color: c.text.primary, marginTop: 16, marginBottom: 10 },
-  actionsGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
-  actionCard: { width: '47%', backgroundColor: c.bg.card, borderRadius: RADIUS.xl, padding: 16, alignItems: 'center', gap: 8, borderWidth: 1, borderColor: c.border.card, flexGrow: 1 },
-  actionIcon: { width: 44, height: 44, borderRadius: 22, justifyContent: 'center', alignItems: 'center' },
-  actionLabel: { fontSize: 13, fontWeight: '600', color: c.text.primary },
-  contactCard: { backgroundColor: c.bg.card, borderRadius: RADIUS.xl, padding: 16, borderWidth: 1, borderColor: c.border.card },
-  contactRow: { flexDirection: 'row', alignItems: 'flex-start', paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: c.border.subtle },
-  contactText: { fontSize: 14, fontWeight: '600', color: c.text.primary },
-  contactSub: { fontSize: 11, color: c.text.muted, marginTop: 2 },
-  faqCard: { backgroundColor: c.bg.card, borderRadius: RADIUS.lg, padding: 16, marginBottom: 8, borderWidth: 1, borderColor: c.border.card },
-  faqQ: { fontSize: 14, fontWeight: '700', color: c.text.primary, marginBottom: 6 },
-  faqA: { fontSize: 13, color: c.text.secondary, lineHeight: 20 },
-  stepsCard: { backgroundColor: c.bg.card, borderRadius: RADIUS.xl, padding: 16, borderWidth: 1, borderColor: c.border.card },
-  stepRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 12, paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: c.border.subtle },
-  stepBadge: { width: 28, height: 28, borderRadius: 14, backgroundColor: c.accent.primary, justifyContent: 'center', alignItems: 'center' },
-  stepNum: { fontSize: 13, fontWeight: '700', color: '#fff' },
-  stepTitle: { fontSize: 14, fontWeight: '700', color: c.text.primary },
-  stepDesc: { fontSize: 12, color: c.text.muted, marginTop: 2 },
+  header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: SPACING.lg, paddingVertical: SPACING.md, borderBottomWidth: 1, borderBottomColor: c.border.subtle },
+  title: { fontSize: 20, fontWeight: '900', color: c.text.primary, letterSpacing: -0.3 },
+  scroll: { padding: SPACING.lg, gap: 14 },
+
+  searchWrap: { flexDirection: 'row', alignItems: 'center', gap: 9, backgroundColor: c.bg.secondary, borderRadius: 14, paddingHorizontal: 14, borderWidth: 1, borderColor: c.border.subtle },
+  searchInput: { flex: 1, paddingVertical: 12, fontSize: 14, color: c.text.primary },
+
+  aiCard: { flexDirection: 'row', alignItems: 'center', gap: 12, padding: 14, borderRadius: 16, backgroundColor: '#FFF7ED', borderWidth: 1, borderColor: '#FED7AA' },
+  aiIconBubble: { width: 40, height: 40, borderRadius: 20, backgroundColor: '#C14A06', alignItems: 'center', justifyContent: 'center' },
+  aiTitle: { fontSize: 14, fontWeight: '900', color: '#7A2E0A', letterSpacing: -0.2 },
+  aiSub: { fontSize: 11.5, color: '#92400E', marginTop: 2, fontWeight: '600' },
+
+  sectionLbl: { fontSize: 10.5, fontWeight: '900', color: c.text.muted, letterSpacing: 1, marginTop: 6, marginBottom: 2 },
+
+  faqCard: { backgroundColor: c.bg.secondary, borderRadius: 14, padding: 14, borderWidth: 1, borderColor: c.border.subtle },
+  faqCardOpen: { borderColor: c.accent.primary + '60' },
+  faqRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 10 },
+  faqQ: { flex: 1, fontSize: 13.5, fontWeight: '800', color: c.text.primary },
+  faqA: { fontSize: 12.5, color: c.text.secondary, marginTop: 8, lineHeight: 18, fontWeight: '500' },
+
+  emptyCard: { alignItems: 'center', padding: 24, gap: 8, backgroundColor: c.bg.secondary, borderRadius: 14, borderWidth: 1, borderColor: c.border.subtle },
+  emptyT: { fontSize: 14, fontWeight: '800', color: c.text.primary },
+  emptyS: { fontSize: 12, color: c.text.secondary, textAlign: 'center', fontWeight: '500' },
+  emptyCTA: { marginTop: 6, paddingVertical: 10, paddingHorizontal: 20, borderRadius: 999, backgroundColor: c.accent.primary },
+  emptyCTATxt: { fontSize: 13, fontWeight: '800', color: '#fff' },
+
+  contactRow: { flexDirection: 'row', gap: 8, flexWrap: 'wrap' },
+  contactChip: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 5, paddingVertical: 11, paddingHorizontal: 10, borderRadius: 12, backgroundColor: c.bg.secondary, borderWidth: 1, borderColor: c.border.subtle, minWidth: 100 },
+  contactTxt: { fontSize: 12, fontWeight: '800', color: c.text.primary },
 }));

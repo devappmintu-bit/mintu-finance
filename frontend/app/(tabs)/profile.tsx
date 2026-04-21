@@ -495,6 +495,7 @@ export default function ProfileScreen() {
                   savingsRate: realStats?.savingsRate || 0,
                   coins: (user as any)?.coins_balance || (gamiStatus?.total_badges || 0) * 10,
                   referralCode: referral?.referral_code,
+                  monthlyDelta: (user as any)?.monthly_score_delta ?? (gamiStatus as any)?.monthly_delta ?? 0,
                 }}
               />
             </ViewShot>

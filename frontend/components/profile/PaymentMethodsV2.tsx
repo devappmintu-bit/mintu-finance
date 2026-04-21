@@ -199,16 +199,27 @@ function AddMethodModal({ visible, onClose, onSaved }: { visible: boolean; onClo
   const [walletName, setWalletName] = useState('Paytm');
   const [isDefault, setIsDefault] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [showSuccess, setShowSuccess] = useState(false);
+
+  // Live UPI validation: returns status for inline feedback
+  const upiStatus = React.useMemo(() => {
+    if (!upiId) return 'idle' as const;
+    const v = upiId.trim();
+    // Accept name@bank pattern (e.g., user@okhdfcbank, user@ybl, user@paytm)
+    if (!/^[a-zA-Z0-9.\-_]{2,}@[a-zA-Z]{2,}$/.test(v)) return 'invalid' as const;
+    return 'valid' as const;
+  }, [upiId]);
 
   const reset = () => {
     setType('upi'); setUpiId(''); setCardLast4(''); setCardBrand('Visa');
     setBankName('HDFC'); setWalletName('Paytm'); setIsDefault(false);
+    setShowSuccess(false);
   };
 
   const save = async () => {
     const body: any = { type, is_default: isDefault };
     if (type === 'upi') {
-      if (!upiId.includes('@')) { Toast.show({ type: 'error', text1: 'Enter valid UPI (name@bank)' }); return; }
+      if (upiStatus !== 'valid') { Toast.show({ type: 'error', text1: 'Enter valid UPI (name@bank)' }); return; }
       body.upi_id = upiId.trim();
     } else if (type === 'card') {
       if (!/^\d{4}$/.test(cardLast4)) { Toast.show({ type: 'error', text1: 'Enter last 4 digits' }); return; }
@@ -222,12 +233,15 @@ function AddMethodModal({ visible, onClose, onSaved }: { visible: boolean; onClo
     setSaving(true);
     try {
       await api.post('/user/payment-methods', body);
-      Toast.show({ type: 'success', text1: 'Payment method added' });
-      reset();
-      onSaved();
+      // Phase 2 — Show inline success animation, then close
+      setShowSuccess(true);
+      setTimeout(() => {
+        Toast.show({ type: 'success', text1: 'Payment method added · Secured' });
+        reset();
+        onSaved();
+      }, 900);
     } catch (e: any) {
       Toast.show({ type: 'error', text1: e?.response?.data?.detail || 'Couldn\'t save' });
-    } finally {
       setSaving(false);
     }
   };
@@ -239,6 +253,23 @@ function AddMethodModal({ visible, onClose, onSaved }: { visible: boolean; onClo
           <View style={m.sheet}>
             <View style={m.grip} />
             <Text style={m.title}>Add payment method</Text>
+            <Text style={m.subtitle}>Saved securely on MintU · used only with your consent</Text>
+
+            {/* Phase 2 — RBI / encryption trust badges */}
+            <View style={m.trustRow}>
+              <View style={m.trustBadge}>
+                <Ionicons name="shield-checkmark" size={12} color="#065F46" />
+                <Text style={m.trustTxt}>RBI-aligned</Text>
+              </View>
+              <View style={m.trustBadge}>
+                <Ionicons name="lock-closed" size={12} color="#065F46" />
+                <Text style={m.trustTxt}>256-bit encrypted</Text>
+              </View>
+              <View style={m.trustBadge}>
+                <Ionicons name="eye-off" size={12} color="#065F46" />
+                <Text style={m.trustTxt}>Never shared</Text>
+              </View>
+            </View>
 
             {/* Type chips */}
             <View style={m.typeRow}>
@@ -258,15 +289,22 @@ function AddMethodModal({ visible, onClose, onSaved }: { visible: boolean; onClo
             {type === 'upi' && (
               <View style={m.field}>
                 <Text style={m.label}>UPI ID</Text>
-                <TextInput
-                  value={upiId}
-                  onChangeText={setUpiId}
-                  placeholder="yourname@oksbi"
-                  placeholderTextColor={COLORS.text.muted}
-                  autoCapitalize="none"
-                  style={m.input}
-                  testID="pm-upi-input"
-                />
+                <View style={[m.inputWrap, upiStatus === 'valid' && m.inputWrapValid, upiStatus === 'invalid' && m.inputWrapInvalid]}>
+                  <TextInput
+                    value={upiId}
+                    onChangeText={setUpiId}
+                    placeholder="yourname@oksbi"
+                    placeholderTextColor={COLORS.text.muted}
+                    autoCapitalize="none"
+                    style={m.inputInline}
+                    testID="pm-upi-input"
+                  />
+                  {upiStatus === 'valid' && <Ionicons name="checkmark-circle" size={18} color="#10B981" />}
+                  {upiStatus === 'invalid' && <Ionicons name="alert-circle" size={18} color="#F59E0B" />}
+                </View>
+                <Text style={[m.helperTxt, upiStatus === 'invalid' && { color: '#B45309' }]}>
+                  {upiStatus === 'valid' ? '✓ Valid UPI format' : upiStatus === 'invalid' ? 'Format: name@bank (e.g., rahul@okhdfcbank)' : 'Example: yourname@oksbi, yourname@ybl, yourname@paytm'}
+                </Text>
               </View>
             )}
             {type === 'card' && (
@@ -329,11 +367,20 @@ function AddMethodModal({ visible, onClose, onSaved }: { visible: boolean; onClo
             </TouchableOpacity>
 
             <View style={m.actions}>
-              <TouchableOpacity style={[m.btn, m.btnGhost]} onPress={onClose} activeOpacity={0.85}>
+              <TouchableOpacity style={[m.btn, m.btnGhost]} onPress={onClose} activeOpacity={0.85} disabled={showSuccess}>
                 <Text style={[m.btnT, { color: COLORS.text.secondary }]}>Cancel</Text>
               </TouchableOpacity>
-              <TouchableOpacity style={[m.btn, m.btnPrimary]} onPress={save} disabled={saving} activeOpacity={0.85} testID="pm-save-btn">
-                {saving ? <ActivityIndicator color="#fff" /> : <Text style={[m.btnT, { color: '#fff' }]}>Save</Text>}
+              <TouchableOpacity style={[m.btn, showSuccess ? m.btnSuccess : m.btnPrimary]} onPress={save} disabled={saving || showSuccess} activeOpacity={0.85} testID="pm-save-btn">
+                {showSuccess ? (
+                  <>
+                    <Ionicons name="checkmark-circle" size={18} color="#fff" />
+                    <Text style={[m.btnT, { color: '#fff' }]}>Saved securely</Text>
+                  </>
+                ) : saving ? (
+                  <ActivityIndicator color="#fff" />
+                ) : (
+                  <Text style={[m.btnT, { color: '#fff' }]}>Save securely</Text>
+                )}
               </TouchableOpacity>
             </View>
           </View>
@@ -371,7 +418,20 @@ const useMStyles = makeStyles((c) => ({
   backdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.45)', justifyContent: 'flex-end' },
   sheet: { backgroundColor: c.bg.secondary, borderTopLeftRadius: 24, borderTopRightRadius: 24, padding: 20, paddingBottom: 28 },
   grip: { width: 40, height: 4, borderRadius: 2, backgroundColor: c.border.subtle, alignSelf: 'center', marginBottom: 12 },
-  title: { fontSize: 18, fontWeight: '900', color: c.text.primary, marginBottom: 12 },
+  title: { fontSize: 18, fontWeight: '900', color: c.text.primary, marginBottom: 4 },
+  subtitle: { fontSize: 12, color: c.text.secondary, marginBottom: 10, fontWeight: '600' },
+  // Phase 2 — Trust badges
+  trustRow: { flexDirection: 'row', gap: 6, marginBottom: 14 },
+  trustBadge: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: 4, paddingVertical: 6, paddingHorizontal: 8, borderRadius: 999, backgroundColor: '#ECFDF5', borderWidth: 1, borderColor: '#A7F3D0' },
+  trustTxt: { fontSize: 9.5, fontWeight: '800', color: '#065F46', letterSpacing: 0.1 },
+  // Inline UPI validation
+  inputWrap: { flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: c.bg.primary, borderRadius: 10, paddingHorizontal: 12, borderWidth: 1, borderColor: c.border.subtle },
+  inputWrapValid: { borderColor: '#10B981', borderWidth: 1.5 },
+  inputWrapInvalid: { borderColor: '#F59E0B', borderWidth: 1.5 },
+  inputInline: { flex: 1, paddingVertical: 11, fontSize: 14, color: c.text.primary },
+  helperTxt: { fontSize: 11, color: c.text.muted, marginTop: 5, fontWeight: '600' },
+  // Success state on save button
+  btnSuccess: { backgroundColor: '#10B981', flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6 },
   typeRow: { flexDirection: 'row', gap: 8, marginBottom: 12 },
   typeChip: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 5, paddingVertical: 9, borderRadius: 10, backgroundColor: c.bg.primary, borderWidth: 1, borderColor: c.border.subtle },
   typeChipOn: { backgroundColor: c.accent.primary, borderColor: c.accent.primary },

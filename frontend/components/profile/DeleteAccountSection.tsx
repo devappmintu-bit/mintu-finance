@@ -92,40 +92,53 @@ export default function DeleteAccountSection() {
         <Text style={s.pillText}>Delete account</Text>
       </TapTile>
 
-      {/* Options sheet */}
+      {/* Options sheet — Phase 1 UX Transformation:
+          Schedule is the prominent primary CTA (safe path first); Hard
+          delete is visually demoted into a collapsed danger-zone row. */}
       <Modal visible={sheetOpen} transparent animationType="slide" onRequestClose={() => setSheetOpen(false)}>
         <TouchableOpacity style={m.backdrop} activeOpacity={1} onPress={() => setSheetOpen(false)}>
           <TouchableOpacity activeOpacity={1} onPress={() => {}} style={{ width: '100%' }}>
             <View style={m.sheet}>
               <View style={m.grip} />
               <View style={m.iconBig}><Ionicons name="warning" size={26} color={COLORS.state.danger} /></View>
-              <Text style={m.title}>Delete account</Text>
-              <Text style={m.sub}>Choose how you&apos;d like to proceed. Both actions sign you out.</Text>
+              <Text style={m.title}>Leave MintU?</Text>
+              <Text style={m.sub}>We&apos;ll be sad to see you go. Pick the option that works for you.</Text>
 
-              <TouchableOpacity style={s.optionCard} onPress={() => onPickMode('soft')} activeOpacity={0.85} testID="del-soft-btn">
-                <View style={[s.optIcon, { backgroundColor: '#F59E0B22' }]}>
-                  <Ionicons name="time-outline" size={22} color="#F59E0B" />
+              {/* PRIMARY — Schedule (recommended, visually dominant) */}
+              <TouchableOpacity style={s.primaryOption} onPress={() => onPickMode('soft')} activeOpacity={0.88} testID="del-soft-btn">
+                <View style={s.primaryHeader}>
+                  <View style={s.primaryBadge}>
+                    <Text style={s.primaryBadgeTxt}>RECOMMENDED</Text>
+                  </View>
+                  <View style={s.primaryDays}>
+                    <Text style={s.primaryDaysTxt}>30 DAYS</Text>
+                  </View>
                 </View>
-                <View style={{ flex: 1 }}>
-                  <Text style={s.optTitle}>Schedule deletion · 30 days</Text>
-                  <Text style={s.optSub}>Recoverable if you log in within the window. Data kept read-only.</Text>
+                <View style={s.primaryBody}>
+                  <Ionicons name="shield-checkmark" size={22} color="#059669" />
+                  <View style={{ flex: 1 }}>
+                    <Text style={s.primaryTitle}>Schedule deletion</Text>
+                    <Text style={s.primarySub}>Log back in within 30 days to restore — no data lost.</Text>
+                  </View>
+                  <Ionicons name="chevron-forward" size={18} color="#059669" />
                 </View>
-                <Ionicons name="chevron-forward" size={16} color={COLORS.text.muted} />
               </TouchableOpacity>
 
-              <TouchableOpacity style={s.optionCard} onPress={() => onPickMode('hard')} activeOpacity={0.85} testID="del-hard-btn">
-                <View style={[s.optIcon, { backgroundColor: COLORS.state.dangerBg }]}>
-                  <Ionicons name="nuclear" size={22} color={COLORS.state.danger} />
+              {/* DANGER ZONE — Hard delete (de-emphasised, red) */}
+              <View style={s.dangerZone}>
+                <View style={s.dangerZoneHeader}>
+                  <Ionicons name="alert-circle" size={13} color={COLORS.state.danger} />
+                  <Text style={s.dangerZoneLabel}>DANGER ZONE — IRREVERSIBLE</Text>
                 </View>
-                <View style={{ flex: 1 }}>
-                  <Text style={[s.optTitle, { color: COLORS.state.danger }]}>Delete immediately · Irreversible</Text>
-                  <Text style={s.optSub}>Wipes all transactions, budgets, splits, rewards, Gmail & login tokens. Cannot be undone.</Text>
-                </View>
-                <Ionicons name="chevron-forward" size={16} color={COLORS.state.danger} />
-              </TouchableOpacity>
+                <TouchableOpacity style={s.dangerRow} onPress={() => onPickMode('hard')} activeOpacity={0.8} testID="del-hard-btn">
+                  <Ionicons name="nuclear" size={16} color={COLORS.state.danger} />
+                  <Text style={s.dangerRowTxt}>Delete immediately · wipe all data</Text>
+                  <Ionicons name="chevron-forward" size={14} color={COLORS.state.danger} />
+                </TouchableOpacity>
+              </View>
 
               <TouchableOpacity style={m.cancelBtn} onPress={() => setSheetOpen(false)} activeOpacity={0.8}>
-                <Text style={m.cancelText}>Cancel</Text>
+                <Text style={m.cancelText}>Keep my account</Text>
               </TouchableOpacity>
             </View>
           </TouchableOpacity>
@@ -191,6 +204,23 @@ const useSStyles = makeStyles((c) => ({
   optIcon: { width: 42, height: 42, borderRadius: 12, alignItems: 'center', justifyContent: 'center' },
   optTitle: { fontSize: 13.5, fontWeight: '800', color: c.text.primary },
   optSub: { fontSize: 11, color: c.text.secondary, marginTop: 3, lineHeight: 15 },
+
+  // Phase 1 — Schedule (primary) + Danger Zone (collapsed)
+  primaryOption: { marginTop: 12, borderRadius: 18, backgroundColor: '#F0FDF4', borderWidth: 2, borderColor: '#86EFAC', padding: 14 },
+  primaryHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 },
+  primaryBadge: { backgroundColor: '#059669', paddingHorizontal: 10, paddingVertical: 3, borderRadius: 999 },
+  primaryBadgeTxt: { fontSize: 9.5, fontWeight: '900', color: '#fff', letterSpacing: 0.7 },
+  primaryDays: { backgroundColor: '#D1FAE5', paddingHorizontal: 10, paddingVertical: 3, borderRadius: 999 },
+  primaryDaysTxt: { fontSize: 10, fontWeight: '900', color: '#065F46', letterSpacing: 1 },
+  primaryBody: { flexDirection: 'row', alignItems: 'center', gap: 10 },
+  primaryTitle: { fontSize: 15, fontWeight: '900', color: '#065F46', letterSpacing: -0.2 },
+  primarySub: { fontSize: 11.5, color: '#047857', marginTop: 2, lineHeight: 15.5, fontWeight: '600' },
+
+  dangerZone: { marginTop: 14, paddingTop: 12, borderTopWidth: 1, borderTopColor: c.border.subtle },
+  dangerZoneHeader: { flexDirection: 'row', alignItems: 'center', gap: 4, marginBottom: 6 },
+  dangerZoneLabel: { fontSize: 9.5, fontWeight: '900', color: c.state.danger, letterSpacing: 0.8 },
+  dangerRow: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingVertical: 10, paddingHorizontal: 12, borderRadius: 10, backgroundColor: c.state.dangerBg, borderWidth: 1, borderColor: c.state.danger + '40' },
+  dangerRowTxt: { flex: 1, fontSize: 12.5, fontWeight: '800', color: c.state.danger },
 }));
 
 const useMStyles = makeStyles((c) => ({

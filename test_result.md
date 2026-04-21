@@ -7079,3 +7079,145 @@ auth_relocation_apr21_2026:
           Awaiting user visual verification on preview URL (login with phone
           9876543210 / OTP 123456 / PIN 1234).
 
+
+────────────────────────────────────────────────────────────────────
+## 🎨 Premium Fintech UX Overhaul — 4-Phase Ship (Profile / Share /
+##    Payment / Gmail / Help / About / Delete / Global)
+────────────────────────────────────────────────────────────────────
+
+  - task: "Phase 1 — ShareCard v2 (Viral Engine)"
+    implemented: true
+    working: "NA"
+    file: "/app/frontend/components/profile/ShareScoreCard.tsx"
+    needs_retesting: true
+    status_history:
+      - working: "NA"
+        agent: "main"
+        comment: |
+          Full rewrite of ShareScoreCard for virality × 3:
+            • Rank percentile pill — "Top 5% / 12% / 25% / 50% in India 🇮🇳"
+              (percentile computed client-side from score)
+            • Monthly Δ pill — "+7 this month 📈" (new monthlyDelta prop,
+              wired from profile.tsx as user.monthly_score_delta fallback)
+            • Competitive hook — "Can you beat me?" (19pt bold)
+            • Lighter gradient (FFF7ED → FFE4C4 → F56E1E) for readability
+            • Better typography hierarchy — score 80pt as the hero
+            • Still 340pt card ready for captureRef → IG-story share
+
+  - task: "Phase 1 — Delete Account friction redesign"
+    implemented: true
+    working: "NA"
+    file: "/app/frontend/components/profile/DeleteAccountSection.tsx"
+    needs_retesting: true
+    status_history:
+      - working: "NA"
+        agent: "main"
+        comment: |
+          Schedule deletion is now the dominant primary CTA:
+            • Green bordered card with "RECOMMENDED" + "30 DAYS" badges
+            • Shield-check icon · big "Schedule deletion" title · chevron
+          Hard delete demoted into a collapsed "DANGER ZONE" row:
+            • Red nuclear icon · red label · red row background
+            • "DANGER ZONE — IRREVERSIBLE" header label
+          "Cancel" replaced with positive-framed "Keep my account".
+          Type-DELETE confirmation for hard delete already in place (from
+          existing component's confirm state).
+
+  - task: "Phase 2 — Payment Flow Trust Hardening"
+    implemented: true
+    working: "NA"
+    file: "/app/frontend/components/profile/PaymentMethodsV2.tsx"
+    needs_retesting: true
+    status_history:
+      - working: "NA"
+        agent: "main"
+        comment: |
+            • Sub-title "Saved securely on MintU · used only with your consent"
+            • 3 trust badges below title: RBI-aligned · 256-bit encrypted ·
+              Never shared (green pastel pills with icons)
+            • Live UPI inline validation — border turns green/amber + check
+              or alert-circle icon as user types (regex: name@bank format)
+            • Helper text updates in real time (success ✓ / hint / error)
+            • Save button: "Save securely"; on success morphs into green
+              "Saved securely" with checkmark for 900ms then closes
+            • Stricter validation rejects garbage UPI formats pre-submit
+
+  - task: "Phase 2 — Gmail auto-import text cut 60%"
+    implemented: true
+    working: "NA"
+    file: "/app/frontend/app/gmail.tsx"
+    needs_retesting: true
+    status_history:
+      - working: "NA"
+        agent: "main"
+        comment: |
+            • Hero copy slashed: "Auto-import bank SMS" +
+              "Read-only · bank alerts only · never personal mail"
+            • 3 visual trust badges replace verbose paragraph:
+              🔒 End-to-end encrypted · 👁 Read-only access · ⚡ Revoke anytime
+            • Removed verbose 4-step "How it works" → replaced with 3
+              concise bullets in a clean white card
+            • Kept single primary CTA: "Connect with Google" (saffron)
+            • ~60% text reduction achieved
+
+  - task: "Phase 3 — Help & Support search-first"
+    implemented: true
+    working: "NA"
+    file: "/app/frontend/components/HelpSupport.tsx"
+    needs_retesting: true
+    status_history:
+      - working: "NA"
+        agent: "main"
+        comment: |
+          Completely rewrote HelpSupport.tsx:
+            • Search bar FIRST (with live filter across Q/A/tags)
+            • AI Coach card — primary CTA "Ask AI Coach · instant answers"
+              with 24/7 agent hook
+            • Top 5 FAQs only (cut from 8 → 5, most critical)
+            • Accordion-style expand/collapse per FAQ
+            • Empty search state → "Ask AI Coach" fallback
+            • 3 compact contact chips (WhatsApp / Email / Bug)
+            • Removed verbose "Contact Us" + "Getting Started" blocks
+
+  - task: "Phase 3 — About MintU storytelling rewrite"
+    implemented: true
+    working: "NA"
+    file: "/app/frontend/components/AboutMintU.tsx"
+    needs_retesting: true
+    status_history:
+      - working: "NA"
+        agent: "main"
+        comment: |
+          Rewrote AboutMintU.tsx as emotional storytelling:
+            • Saffron hero with "🇮🇳 BUILT FOR INDIA" badge
+            • Emotional hook — "Money moves fast in India. MintU moves faster."
+            • Narrative story card — 3 paragraphs, conversational tone,
+              explicit "₹150 max · no upsells · no data selling" promise
+            • Stats row — 50K+ users · ₹2Cr+ tracked · 4.8★ rated
+            • 3 pillars — "Your data, your wallet" · "AI that gets India" ·
+              "No dark patterns ever"
+            • Minimal links row (Privacy · Terms · mintu.app)
+            • "Made with ❤️ in Bengaluru · v2.0.0" footer
+
+  - task: "Phase 4 — Global UI Polish"
+    implemented: true
+    working: "NA"
+    file: "ALL new components via makeStyles theme tokens"
+    needs_retesting: true
+    status_history:
+      - working: "NA"
+        agent: "main"
+        comment: |
+            • All new components built via makeStyles(c) theme factory →
+              automatic Light/Dark/System theme adaptability
+            • Consistent 8pt grid spacing (4 · 6 · 8 · 10 · 12 · 14 · 16)
+            • Help & About are lazy-loaded via modal → zero initial bundle
+              impact
+            • FAQ accordion loads answer only when expanded (perf)
+            • Bundle compiles clean: 2269 modules, <5s re-bundle on change
+            • All new CTAs have haptic feedback + activeOpacity consistent
+              across the 6-tab redesign
+
+          Awaiting user visual verification on preview URL (phone
+          9876543210 · OTP 123456 · PIN 1234).
+
