@@ -6840,3 +6840,65 @@ auth_relocation_apr21_2026:
           Flipped working=true, needs_retesting=false.
 
 
+
+
+────────────────────────────────────────────────────────────────────
+## 🎨 Home Screen Complete Redesign — Master UX Transformation
+────────────────────────────────────────────────────────────────────
+
+  - task: "Home Screen Redesign: INSIGHT → ACTION → REWARD layout"
+    implemented: true
+    working: "NA"
+    file: "/app/frontend/app/(tabs)/index.tsx"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: true
+    status_history:
+      - working: "NA"
+        agent: "main"
+        comment: |
+          Complete home screen redesign shipped. New architecture (12 sections,
+          reduced visual density, actionable):
+
+          1. Slim Header        — greeting + coins chip + avatar
+          2. BalanceHero        — NEW big saffron-gradient primary card showing
+                                  saved/spent amount, tier pill, streak chip,
+                                  pace sub-line. Tap routes to Transactions.
+          3. QuickActionBar     — NEW primary "Add Expense" + 4 tiles
+                                  (Scan SMS / Split / Ask AI / Rewards).
+          4. TodayChips         — NEW horizontal compact chips (Today spent /
+                                  Left / Top category / Streak).
+          5. ActionableAlerts   — NEW Interactive smart alerts with 1-3 CTA
+                                  buttons (backend /alerts/smart now emits
+                                  `actions[]` array). Replaces static text.
+          6. InsightsCard       — existing slim 7-day sparkline (kept).
+          7. FinancialBrainCard — NEW tabbed card merging AI Insight /
+                                  Forecast / Waste into ONE container
+                                  (reduced 3 cards → 1).
+          8. DailyQuestCard     — gamification (kept).
+          9. PremiumHomeCard + MoneySchoolCard — kept compact below the fold.
+         10. WeeklyReport · UnifiedLeaderboard (compact) · NewsCarousel.
+
+          Removed from Home:
+          • FOMO carousel (moved to Rewards)
+          • Legacy inline Predictive card (now inside FinancialBrain tab)
+          • Legacy static alert renderer
+          • Legacy pillRow / streak pill (streak now in BalanceHero)
+
+          Backend change:
+          • /app/backend/routers/alerts.py — every alert now has `actions[]`
+            array with label/route/style/icon. Budget alerts get
+            category-specific CTAs: "See top expenses" (routes to
+            /(tabs)/transactions?category=X), "Adjust budget", "Pause
+            category".
+
+          New components created:
+          • /app/frontend/components/home/BalanceHero.tsx
+          • /app/frontend/components/home/QuickActionBar.tsx
+          • /app/frontend/components/home/TodayChips.tsx
+          • /app/frontend/components/home/ActionableAlertCard.tsx
+          • /app/frontend/components/home/FinancialBrainCard.tsx
+
+          All components use expo-router, expo-haptics, makeStyles (theme-
+          adaptive), Ionicons. Metro bundle compiled cleanly.
+          Awaiting user screenshot verification on preview URL.
