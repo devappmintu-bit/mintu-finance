@@ -139,15 +139,39 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
                 upsert=True,
             )
 
-        return await call_next(request)
+        # Wrap call_next so client disconnects / upstream exceptions don't
+        # crash the middleware chain. If starlette fails to return a response
+        # (common when the client aborts mid-stream), we synthesise a 499.
+        try:
+            return await call_next(request)
+        except RuntimeError as e:
+            if "No response returned" in str(e):
+                # Client disconnected before server finished writing. Return
+                # a small JSON response so downstream middleware doesn't explode.
+                return Response(
+                    content=json_module.dumps({"detail": "client_disconnected"}),
+                    status_code=499,
+                    media_type="application/json",
+                )
+            raise
 
 
 class AuditLogMiddleware(BaseHTTPMiddleware):
-    """Log all API access for compliance audit trail."""
+    """Log all API access for compliance audit trail.
+       Wraps call_next so client disconnects don't explode the chain."""
 
     async def dispatch(self, request: Request, call_next):
         start_time = time.time()
-        response = await call_next(request)
+        try:
+            response = await call_next(request)
+        except RuntimeError as e:
+            if "No response returned" in str(e):
+                return Response(
+                    content=json_module.dumps({"detail": "client_disconnected"}),
+                    status_code=499,
+                    media_type="application/json",
+                )
+            raise
         duration = time.time() - start_time
 
         if request.url.path.startswith("/api"):

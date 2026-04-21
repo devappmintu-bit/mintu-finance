@@ -34,9 +34,9 @@ type Props = {
   durationMs?: number;
 };
 
-type Action = 'bounce' | 'wave' | 'thumbsUp' | 'float' | 'spin';
+type Action = 'bounce' | 'wave' | 'thumbsUp' | 'float' | 'spin' | 'doubleJump' | 'tada';
 
-const ACTIONS: Action[] = ['bounce', 'wave', 'thumbsUp', 'float', 'spin'];
+const ACTIONS: Action[] = ['bounce', 'wave', 'thumbsUp', 'float', 'spin', 'doubleJump', 'tada'];
 
 export default function AuthTransitionOverlay({ variant, onDone, durationMs = 1500 }: Props) {
   const { user } = useAuthStore();
@@ -164,6 +164,23 @@ function actionSequence(a: Action, v: Animated.Value) {
       );
     case 'spin':
       return Animated.timing(v, { toValue: 1, duration: 900, easing: Easing.out(Easing.cubic), useNativeDriver: true });
+    case 'doubleJump':
+      // Two quick jumps with a little hover between them
+      return Animated.sequence([
+        Animated.timing(v, { toValue: 1,   duration: 220, easing: Easing.out(Easing.quad), useNativeDriver: true }),
+        Animated.timing(v, { toValue: 0.4, duration: 150, easing: Easing.in(Easing.quad),  useNativeDriver: true }),
+        Animated.timing(v, { toValue: 1.2, duration: 200, easing: Easing.out(Easing.quad), useNativeDriver: true }),
+        Animated.timing(v, { toValue: 0,   duration: 260, easing: Easing.in(Easing.quad),  useNativeDriver: true }),
+      ]);
+    case 'tada':
+      // Enthusiastic shake+scale — like a celebration burst
+      return Animated.sequence([
+        Animated.timing(v, { toValue:  0.5, duration: 120, useNativeDriver: true }),
+        Animated.timing(v, { toValue: -0.5, duration: 120, useNativeDriver: true }),
+        Animated.timing(v, { toValue:  0.7, duration: 120, useNativeDriver: true }),
+        Animated.timing(v, { toValue: -0.3, duration: 100, useNativeDriver: true }),
+        Animated.spring(v, { toValue: 0, friction: 3, tension: 140, useNativeDriver: true }),
+      ]);
   }
 }
 
@@ -179,6 +196,15 @@ function buildTransform(a: Action, v: Animated.Value): any {
       return { transform: [{ translateY: v.interpolate({ inputRange: [0, 1], outputRange: [0, -14] }) }] };
     case 'spin':
       return { transform: [{ rotate: v.interpolate({ inputRange: [0, 1], outputRange: ['0deg', '360deg'] }) }] };
+    case 'doubleJump':
+      return { transform: [{ translateY: v.interpolate({ inputRange: [0, 1.2], outputRange: [0, -42] }) }] };
+    case 'tada':
+      return {
+        transform: [
+          { rotate: v.interpolate({ inputRange: [-1, 0, 1], outputRange: ['-18deg', '0deg', '18deg'] }) },
+          { scale:  v.interpolate({ inputRange: [-1, 0, 1], outputRange: [0.92, 1, 1.12] }) },
+        ],
+      };
   }
 }
 
@@ -188,7 +214,9 @@ function actionCaption(a: Action): string {
     case 'wave':     return '👋 Hey there';
     case 'thumbsUp': return '👍 Locked and loaded';
     case 'float':    return '✨ Smooth sailing';
-    case 'spin':     return '🎉 Let\'s go';
+    case 'spin':    return '🎉 Let\'s go';
+    case 'doubleJump': return '⚡ Double tap';
+    case 'tada':    return '🎊 Tada!';
   }
 }
 

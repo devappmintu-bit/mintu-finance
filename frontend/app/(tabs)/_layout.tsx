@@ -47,11 +47,19 @@ function labelOf(name: string, lang: any): string {
 // ─── Geometry constants ────────────────────────────────────────────────────
 const PUCK_SIZE  = 64;
 const PUCK_INNER = 54;
-const CUTOUT_W   = 90;   // horizontal width of the carved region
-const CUTOUT_DEPTH = 22; // how deep the arches dip inward
 const BAR_HEIGHT = 72;
 const BOTTOM_PAD = Platform.OS === 'ios' ? 18 : 10;
 const TOP_RADIUS = 24;
+
+/** Responsive arch geometry — narrower phones get a tighter cutout, tablets
+ *  get a wider one. Keeps the silhouette balanced at any width. */
+function archGeom(screenW: number) {
+  // Phone (≤420) → 90/22; tablet (>600) → 140/34; interpolated in-between.
+  const t = Math.max(0, Math.min(1, (screenW - 360) / (720 - 360)));
+  const CUTOUT_W     = 90 + t * 60;     // 90 → 150
+  const CUTOUT_DEPTH = 22 + t * 14;     // 22 → 36
+  return { CUTOUT_W, CUTOUT_DEPTH };
+}
 // ────────────────────────────────────────────────────────────────────────────
 
 /**
@@ -70,14 +78,14 @@ const TOP_RADIUS = 24;
 function barPath(w: number, h: number): string {
   const r  = TOP_RADIUS;
   const cx = w / 2;
+  const { CUTOUT_W, CUTOUT_DEPTH } = archGeom(w);
 
   // Cut-out horizontal boundaries
-  const leftStart  = cx - CUTOUT_W / 2;    // where LEFT arch begins (on top edge)
-  const leftMid    = cx - PUCK_SIZE / 2 - 4; // bottom of LEFT arch (near puck)
-  const rightMid   = cx + PUCK_SIZE / 2 + 4; // bottom of RIGHT arch (near puck)
+  const leftStart  = cx - CUTOUT_W / 2;
+  const leftMid    = cx - PUCK_SIZE / 2 - 4;
+  const rightMid   = cx + PUCK_SIZE / 2 + 4;
   const rightEnd   = cx + CUTOUT_W / 2;
-
-  const archBottom = CUTOUT_DEPTH; // y-coord where arches dip
+  const archBottom = CUTOUT_DEPTH;
 
   // Build path
   const d = [
