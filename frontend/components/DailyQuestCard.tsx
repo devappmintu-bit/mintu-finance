@@ -1,17 +1,22 @@
 /**
- * MintU 2.0 — Daily Quest Card
- * Gamified 3-action checklist driving daily retention.
- * Reads /coins/status for remaining earnable actions today → renders as a tappable list.
+ * MintU 2.0 — Daily Quest Card (Phase-C Game Engine upgrade)
+ *
+ * Gamified 3-action checklist driving daily retention with XP mechanics.
+ *   • LEVEL + XP bar (derived from streak × 10 + total_earned + badges)
+ *   • Streak pill with milestone badges (7 → 🥉, 30 → 🥈, 100 → 🥇)
+ *   • Progress ring on completion
+ *   • Haptic feedback on quest tap
  */
-import React, { useEffect, useState } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, ActivityIndicator } from 'react-native';
+import React, { memo, useMemo } from 'react';
+import { View, Text, TouchableOpacity, Platform } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { router } from 'expo-router';
+import * as Haptics from 'expo-haptics';
 import { COLORS, shadowStyle } from '../utils/theme';
 import { makeStyles } from '../utils/makeStyles';
 
-const ACTION_ICONS: Record<string, { icon: string; route?: string; params?: string }> = {
+const ACTION_ICONS: Record<string, { icon: string; route?: string }> = {
   add_transaction: { icon: 'add-circle', route: '/transactions?openAdd=1' },
   scan_sms: { icon: 'scan', route: '/transactions?openSmsScan=1' },
   add_income: { icon: 'cash', route: '/transactions?openAdd=1&type=credit' },
@@ -27,24 +32,55 @@ type Props = {
   onAction?: () => void;
 };
 
-export default function DailyQuestCard({ coinsStatus, onAction }: Props) {
+/** XP formula: streak × 10 + (total coins earned) + (badges × 25) */
+function computeLevel(totalXp: number) {
+  // Level N requires (N × 100) XP. Cap at 99.
+  const level = Math.min(99, Math.max(1, Math.floor(totalXp / 100) + 1));
+  const xpInLevel = totalXp % 100;
+  const xpToNext = 100 - xpInLevel;
+  return { level, xpInLevel, xpToNext, pct: xpInLevel };
+}
+
+function streakMilestone(days: number) {
+  if (days >= 100) return { emoji: '🥇', label: 'LEGEND', color: '#FBBF24' };
+  if (days >= 30)  return { emoji: '🥈', label: 'SILVER', color: '#9CA3AF' };
+  if (days >= 7)   return { emoji: '🥉', label: 'BRONZE', color: '#F59E0B' };
+  return null;
+}
+
+function DailyQuestCard({ coinsStatus, onAction }: Props) {
   const s = useStyles();
-  if (!coinsStatus) return null;
 
-  const actionsDone = Object.keys(coinsStatus.today_breakdown || {});
-  const available = (coinsStatus.next_actions || []).slice(0, 3);
-  const totalToday = coinsStatus.today_earned || 0;
-  const completedCount = Object.values(coinsStatus.today_breakdown || {}).filter((b: any) => b.count > 0).length;
-  const totalPossible = completedCount + available.length;
-  const pct = totalPossible > 0 ? Math.round((completedCount / totalPossible) * 100) : 0;
+  const data = useMemo(() => {
+    if (!coinsStatus) return null;
+    const available = (coinsStatus.next_actions || []).slice(0, 3);
+    const totalToday = Number(coinsStatus.today_earned || 0);
+    const totalEarned = Number(coinsStatus.total_earned || coinsStatus.balance || 0);
+    const streak = Number(coinsStatus.streak_days || 0);
+    const badges = Number(coinsStatus.badges_count || 0);
+    const completedCount = Object.values(coinsStatus.today_breakdown || {}).filter((b: any) => b.count > 0).length;
+    const totalPossible = completedCount + available.length;
+    const pct = totalPossible > 0 ? Math.round((completedCount / totalPossible) * 100) : 0;
+    const totalXp = streak * 10 + totalEarned + badges * 25;
+    const { level, xpInLevel, xpToNext, pct: xpPct } = computeLevel(totalXp);
+    const milestone = streakMilestone(streak);
+    return { available, totalToday, streak, completedCount, totalPossible, pct, level, xpInLevel, xpToNext, xpPct, milestone };
+  }, [coinsStatus]);
 
-  if (available.length === 0 && completedCount > 0) {
+  if (!data) return null;
+
+  const haptic = () => { if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {}); };
+
+  // All quests complete → celebration card
+  if (data.available.length === 0 && data.completedCount > 0) {
     return (
-      <LinearGradient colors={['#10B981', '#059669']} style={s.allDoneCard}>
-        <Ionicons name="trophy" size={22} color="#fff" />
+      <LinearGradient colors={['#10B981', '#059669']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={s.allDoneCard}>
+        <View style={s.allDoneIcon}>
+          <Ionicons name="trophy" size={22} color="#fff" />
+        </View>
         <View style={{ flex: 1 }}>
           <Text style={s.allDoneTitle}>Daily quests complete! 🎉</Text>
-          <Text style={s.allDoneSub}>You earned {totalToday} coins today. Come back tomorrow!</Text>
+          <Text style={s.allDoneSub}>+{data.totalToday} 🪙 earned today · Lv {data.level} · {data.streak}-day streak {data.milestone?.emoji || ''}</Text>
         </View>
       </LinearGradient>
     );
@@ -52,28 +88,35 @@ export default function DailyQuestCard({ coinsStatus, onAction }: Props) {
 
   return (
     <View style={s.card}>
+      {/* Header row: Level badge + streak pill */}
       <View style={s.header}>
+        <View style={s.levelBadge}>
+          <Text style={s.levelNum}>Lv {data.level}</Text>
+        </View>
         <View style={{ flex: 1 }}>
           <Text style={s.label}>TODAY'S QUESTS</Text>
           <Text style={s.title}>
-            {completedCount > 0 ? `${completedCount}/${totalPossible} done` : 'Earn coins today'}
-            {totalToday > 0 && <Text style={s.todayGain}>  +{totalToday} 🪙</Text>}
+            {data.completedCount > 0 ? `${data.completedCount}/${data.totalPossible} done` : 'Earn coins today'}
+            {data.totalToday > 0 && <Text style={s.todayGain}>  +{data.totalToday} 🪙</Text>}
           </Text>
         </View>
-        <View style={s.streakPill}>
-          <Text style={s.streakEmoji}>🔥</Text>
-          <Text style={s.streakNum}>{coinsStatus.streak_days || 0}</Text>
+        <View style={[s.streakPill, data.milestone && { backgroundColor: (data.milestone.color || '#FEE2E2') + '22', borderColor: data.milestone.color }]}>
+          <Text style={s.streakEmoji}>{data.milestone?.emoji || '🔥'}</Text>
+          <Text style={[s.streakNum, data.milestone && { color: data.milestone.color }]}>{data.streak}d</Text>
         </View>
       </View>
 
-      {/* Progress bar */}
-      <View style={s.progressTrack}>
-        <View style={[s.progressFill, { width: `${pct}%` }]} />
+      {/* XP bar */}
+      <View style={s.xpRow}>
+        <View style={s.xpTrack}>
+          <LinearGradient colors={['#F59E0B', '#DC6E0E']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={[s.xpFill, { width: `${data.xpPct}%` }]} />
+        </View>
+        <Text style={s.xpTxt}>{data.xpInLevel}/100 XP</Text>
       </View>
 
       {/* Quest list */}
       <View style={s.questList}>
-        {available.map((q: any, i: number) => {
+        {data.available.map((q: any, i: number) => {
           const meta = ACTION_ICONS[q.id] || { icon: 'checkmark-circle' };
           return (
             <TouchableOpacity
@@ -81,10 +124,9 @@ export default function DailyQuestCard({ coinsStatus, onAction }: Props) {
               style={s.questRow}
               activeOpacity={0.75}
               onPress={() => {
+                haptic();
                 onAction?.();
-                if (meta.route) {
-                  try { router.push(meta.route as any); } catch {}
-                }
+                if (meta.route) { try { router.push(meta.route as any); } catch {} }
               }}
             >
               <View style={s.questIcon}>
@@ -100,9 +142,23 @@ export default function DailyQuestCard({ coinsStatus, onAction }: Props) {
           );
         })}
       </View>
+
+      {/* Milestone progress — nudges user toward next badge */}
+      {data.streak > 0 && data.streak < 100 && (
+        <View style={s.milestoneHint}>
+          <Ionicons name="flag" size={11} color="#92400E" />
+          <Text style={s.milestoneTxt}>
+            {data.streak < 7  && `${7 - data.streak} days to 🥉 Bronze streak`}
+            {data.streak >= 7 && data.streak < 30  && `${30 - data.streak} days to 🥈 Silver streak`}
+            {data.streak >= 30 && data.streak < 100 && `${100 - data.streak} days to 🥇 Legend`}
+          </Text>
+        </View>
+      )}
     </View>
   );
 }
+
+export default memo(DailyQuestCard);
 
 const useStyles = makeStyles((c) => ({
   card: {
@@ -114,15 +170,21 @@ const useStyles = makeStyles((c) => ({
     borderColor: '#F59E0B30',
     ...shadowStyle('#F59E0B', 3, 12, 0.10, 3),
   },
-  header: { flexDirection: 'row', alignItems: 'center', marginBottom: 10 },
+  header: { flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 10 },
+  levelBadge: { backgroundColor: '#F59E0B', paddingHorizontal: 9, paddingVertical: 4, borderRadius: 8 },
+  levelNum: { fontSize: 11, fontWeight: '900', color: '#fff', letterSpacing: 0.2 },
   label: { fontSize: 10, fontWeight: '800', color: '#F59E0B', letterSpacing: 1 },
   title: { fontSize: 15, fontWeight: '800', color: c.text.primary, marginTop: 2 },
   todayGain: { fontSize: 12, color: '#10B981', fontWeight: '700' },
-  streakPill: { flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: '#FEE2E2', borderRadius: 999, paddingHorizontal: 10, paddingVertical: 4 },
+  streakPill: { flexDirection: 'row', alignItems: 'center', gap: 3, backgroundColor: '#FEE2E2', borderRadius: 999, paddingHorizontal: 10, paddingVertical: 4, borderWidth: 1, borderColor: 'transparent' },
   streakEmoji: { fontSize: 12 },
-  streakNum: { fontSize: 12, fontWeight: '800', color: '#B91C1C' },
-  progressTrack: { height: 5, backgroundColor: '#F59E0B20', borderRadius: 999, overflow: 'hidden', marginBottom: 12 },
-  progressFill: { height: '100%', backgroundColor: '#F59E0B', borderRadius: 999 },
+  streakNum: { fontSize: 12, fontWeight: '900', color: '#B91C1C' },
+  // XP bar
+  xpRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 12 },
+  xpTrack: { flex: 1, height: 6, backgroundColor: '#FEF3C7', borderRadius: 999, overflow: 'hidden' },
+  xpFill: { height: '100%', borderRadius: 999 },
+  xpTxt: { fontSize: 10, fontWeight: '800', color: '#92400E', minWidth: 52, textAlign: 'right' },
+  // Quests
   questList: { gap: 6 },
   questRow: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 10, paddingHorizontal: 10, backgroundColor: '#FFFBEB', borderRadius: 10 },
   questIcon: { width: 30, height: 30, borderRadius: 15, backgroundColor: '#FEF3C7', justifyContent: 'center', alignItems: 'center' },
@@ -130,11 +192,12 @@ const useStyles = makeStyles((c) => ({
   rewardPill: { flexDirection: 'row', alignItems: 'center', gap: 2, backgroundColor: '#FFFFFF', borderWidth: 1, borderColor: '#F59E0B40', paddingHorizontal: 8, paddingVertical: 3, borderRadius: 999 },
   rewardCoin: { fontSize: 10 },
   rewardPts: { fontSize: 11, fontWeight: '800', color: '#92400E' },
-  allDoneCard: {
-    flexDirection: 'row', alignItems: 'center', gap: 12,
-    borderRadius: 18, padding: 14, marginBottom: 14,
-    ...shadowStyle('#10B981', 3, 12, 0.2, 4),
-  },
+  // Milestone
+  milestoneHint: { flexDirection: 'row', alignItems: 'center', gap: 5, marginTop: 10, paddingVertical: 7, paddingHorizontal: 10, borderRadius: 10, backgroundColor: '#FEF3C7', borderWidth: 1, borderColor: '#FDE68A' },
+  milestoneTxt: { flex: 1, fontSize: 11, fontWeight: '800', color: '#92400E', letterSpacing: 0.1 },
+  // All done state
+  allDoneCard: { flexDirection: 'row', alignItems: 'center', gap: 12, borderRadius: 18, padding: 14, marginBottom: 14, ...shadowStyle('#10B981', 3, 12, 0.2, 4) },
+  allDoneIcon: { width: 40, height: 40, borderRadius: 20, backgroundColor: 'rgba(255,255,255,0.2)', alignItems: 'center', justifyContent: 'center' },
   allDoneTitle: { fontSize: 14, fontWeight: '800', color: '#fff' },
-  allDoneSub: { fontSize: 11, fontWeight: '600', color: 'rgba(255,255,255,0.9)', marginTop: 1 },
+  allDoneSub: { fontSize: 11, fontWeight: '600', color: 'rgba(255,255,255,0.92)', marginTop: 2 },
 }));

@@ -28,6 +28,7 @@ import { makeStyles } from '../../utils/makeStyles';
 import { shareSmart, copyToClipboard } from '../../utils/share';
 import { C, getGA, DebtRow } from '../../components/split/theme';
 import SettleUpCard from '../../components/split/SettleUpCard';
+import SplitHero from '../../components/split/SplitHero';
 import SplitInsightsHero from '../../components/split/SplitInsightsHero';
 import RemindersBanner from '../../components/split/RemindersBanner';
 import CreateGroupSheet from '../../components/split/CreateGroupSheet';
@@ -447,33 +448,13 @@ export default function SplitScreen() {
   return (
     <SafeAreaView style={s.bg}>
       <ScrollView contentContainerStyle={s.scroll} refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); fetchData(); }} tintColor={C.accent} />}>
-        {/* HEADER */}
-        <View style={s.header}>
-          <Text style={s.title}>{t('split', lang)}</Text>
-          <View style={s.headerR}>
-            <View style={s.coinPill}><Text style={s.coinText}>🪙 {coins}</Text></View>
-            <PressableGlass onPress={() => setModal('create')} feedback="medium">
-              <LinearGradient colors={[C.accent, C.accentLight]} style={s.addBtn}>
-                <Ionicons name="add" size={22} color={C.inv} />
-              </LinearGradient>
-            </PressableGlass>
-          </View>
-        </View>
-
-        {/* BALANCE */}
-        <View style={s.balCard}>
-          <View style={s.balRow}>
-            <View style={s.balH}>
-              <Text style={[s.balV, { color: C.green }]}>{`₹${(balances?.total_owed_to_you || 0).toFixed(0)}`}</Text>
-              <Text style={s.balL}>{t('youre_owed', lang)}</Text>
-            </View>
-            <View style={s.balD} />
-            <View style={s.balH}>
-              <Text style={[s.balV, { color: C.red }]}>{`₹${(balances?.total_you_owe || 0).toFixed(0)}`}</Text>
-              <Text style={s.balL}>{t('you_owe', lang)}</Text>
-            </View>
-          </View>
-        </View>
+        {/* HERO — saffron summary card (Phase 2 redesign) */}
+        <SplitHero
+          balances={balances}
+          coins={coins}
+          groupCount={groups.length}
+          onAddGroup={() => setModal('create')}
+        />
 
         <RemindersBanner received={reminders.received} onDismiss={dismissReminder} />
 

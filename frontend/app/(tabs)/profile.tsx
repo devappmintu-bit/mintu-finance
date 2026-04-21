@@ -168,11 +168,15 @@ export default function ProfileScreen() {
     if (sharing) return;
     setSharing(true);
     try {
+      // Capture at 3.2× pixel density — produces ~1088×1792 output from the
+      // 340pt natural card, giving Instagram-story-perfect sharp PNGs with
+      // zero compression artefacts on high-DPI screens.
       const uri = await captureRef(scoreCardRef, {
         format: 'png',
         quality: 1,
         result: Platform.OS === 'web' ? 'data-uri' : 'tmpfile',
-      });
+        ...(Platform.OS !== 'web' ? { pixelRatio: 3.2 } : {}),
+      } as any);
       const score = user?.money_score || 0;
       const fallback = `🚀 My MintU Money Score is ${score}/100!\n\nTrack your expenses, split bills, and earn rewards.\nDownload: https://mintu.app ${referral?.referral_code ? `\nUse code: ${referral.referral_code}` : ''}`;
       await shareImageSmart({ uri, fallbackText: fallback, filename: `mintu-score-${score}.png` });

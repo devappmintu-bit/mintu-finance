@@ -6992,3 +6992,90 @@ auth_relocation_apr21_2026:
 
           Awaiting user screenshot verification on preview URL.
 
+
+────────────────────────────────────────────────────────────────────
+## 🎨 Phase A + B + C — Remaining Master UX Items Shipped
+────────────────────────────────────────────────────────────────────
+
+  - task: "Phase A — Profile tab redesign (saffron hero)"
+    implemented: true
+    working: "NA"
+    file: "/app/frontend/components/profile/ProfileHero.tsx"
+    needs_retesting: true
+    status_history:
+      - working: "NA"
+        agent: "main"
+        comment: |
+          Completely rewrote ProfileHero. Now uses the saffron-gradient brand
+          consistent with Home / Transactions / Budget:
+            • LinearGradient('#F56E1E' → '#C14A06') background with decorative blobs
+            • Avatar with white ring + camera badge (tap to change, long-press to remove)
+            • Name + phone centered
+            • Money Score: big 20pt bold + thin white progress bar
+            • Tier pill (🏆 Elite Saver / 💪 Smart Spender / ⚡ Growing Saver / 🌱 Just Starting)
+            • 3-pill row: Referrals · Yearly · Share (Share is white-on-saffron primary)
+            • Haptic feedback on all taps
+          Props interface unchanged — zero breakage to parent profile.tsx.
+
+  - task: "Phase A — Split tab redesign (saffron hero)"
+    implemented: true
+    working: "NA"
+    file: "/app/frontend/components/split/SplitHero.tsx"
+    needs_retesting: true
+    status_history:
+      - working: "NA"
+        agent: "main"
+        comment: |
+          Created SplitHero.tsx and wired into split.tsx:
+            • Saffron-gradient card with decorative blobs
+            • Header: groups pill · coins pill · add group (white primary)
+            • Big "NET BALANCE" amount (+₹X if net owed, −₹X if net owe)
+            • Contextual sub-line describing state
+            • 2-stat split: OWED TO YOU (green) · YOU OWE (red)
+          Replaced the plain header + balanceCard block in split.tsx.
+          All sheets, reminders, settlements, group chat preserved untouched.
+
+  - task: "Phase B — Shareable Score Card image polish"
+    implemented: true
+    working: "NA"
+    file: "/app/frontend/app/(tabs)/profile.tsx"
+    needs_retesting: true
+    status_history:
+      - working: "NA"
+        agent: "main"
+        comment: |
+          Enhanced image-capture path in profile.tsx handleShareAsImage:
+            • Added pixelRatio: 3.2 to captureRef options on native platforms
+            • Produces ~1088×1792 PNG output from 340pt source — Instagram-story
+              perfect, no compression artefacts on high-DPI screens
+            • Web continues using data-uri result (PNG download works)
+          ShareScoreCard component itself already premium (gradient, avatar,
+          score, streak, savings, coins, referral code, #MadeInIndia watermark).
+
+  - task: "Phase C — Daily Game Engine enhancements"
+    implemented: true
+    working: "NA"
+    file: "/app/frontend/components/DailyQuestCard.tsx"
+    needs_retesting: true
+    status_history:
+      - working: "NA"
+        agent: "main"
+        comment: |
+          Rewrote DailyQuestCard with full game mechanics:
+            • LEVEL badge (Lv 1–99) computed from XP formula
+              (streak × 10 + totalEarned + badges × 25)
+            • XP bar (saffron gradient) with "{xp}/100 XP" label
+            • Streak milestone badges — pill auto-changes:
+                 7+ days  → 🥉 Bronze (tint: #F59E0B)
+                30+ days  → 🥈 Silver (tint: #9CA3AF)
+               100+ days  → 🥇 Legend (tint: #FBBF24)
+            • "X days to next milestone" hint row
+            • Haptic feedback on quest tap
+            • Celebration card (green gradient) when all quests done —
+              now shows "+{coins} 🪙 · Lv X · {streak}-day streak"
+          Memoized, data-derivation via useMemo. Props API unchanged.
+          Bundle compiles clean (2269 modules).
+
+          Awaiting user visual verification on preview URL (login with phone
+          9876543210 / OTP 123456 / PIN 1234).
+
