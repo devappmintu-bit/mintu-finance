@@ -223,7 +223,7 @@ export default function PremiumReportsScreen() {
             <Text style={s.errTitle}>{err}</Text>
             <TouchableOpacity style={s.ctaBtn} onPress={() => router.replace('/premium' as any)}>
               <LinearGradient colors={['#F56E1E', '#C14A06']} style={s.ctaGrad}>
-                <Text style={s.ctaText}>Unlock Premium</Text>
+                <Text style={s.ctaText}>Start saving today</Text>
               </LinearGradient>
             </TouchableOpacity>
           </View>

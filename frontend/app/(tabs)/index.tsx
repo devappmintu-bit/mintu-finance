@@ -38,6 +38,7 @@ import InsightsCard from '../../components/home/InsightsCard';
 import DailyQuestCard from '../../components/DailyQuestCard';
 import PremiumHomeCard from '../../components/home/PremiumHomeCard';
 import MoneySchoolCard from '../../components/home/MoneySchoolCard';
+import PremiumTeaserCard from '../../components/premium/PremiumTeaserCard';
 import UnifiedLeaderboard from '../../components/leaderboard/UnifiedLeaderboard';
 import AnimatedCoin from '../../components/AnimatedCoin';
 import NewsCarousel from '../../components/home/NewsCarousel';
@@ -224,6 +225,18 @@ export default function HomeScreen() {
 
         {/* 4. TODAY CHIPS — glanceable stats */}
         <TodayChips snapshot={snapshot} stats={stats} />
+
+        {/* 4b. PREMIUM TEASER — loss-framing conversion card (free users only) */}
+        <PremiumTeaserCard
+          monthlyLoss={Number(predict?.monthly_waste || predict?.overspend_total || 0)}
+          topLeaks={(predict?.waste_comparisons || []).slice(0, 3).map((w: any) => ({
+            label: w.title || w.category || 'Spending leak',
+            amount: Number(w.amount || 0),
+            emoji: w.emoji || '💸',
+          }))}
+          hiddenInsightsCount={5}
+          ctaRoute="/premium"
+        />
 
         {/* 5. ACTIONABLE ALERTS — only when present */}
         {smartAlerts.length > 0 && (

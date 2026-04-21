@@ -86,7 +86,7 @@ export default function PremiumHubScreen() {
         </View>
         <View style={[s.statusPill, { backgroundColor: isPremium ? '#10B98118' : '#9CA3AF18', borderColor: isPremium ? '#10B981' : '#D1D5DB' }]}>
           <Ionicons name={isPremium ? 'checkmark-circle' : 'lock-closed'} size={14} color={isPremium ? '#10B981' : '#6B7280'} />
-          <Text style={[s.statusTxt, { color: isPremium ? '#047857' : '#374151' }]}>{isPremium ? 'ACTIVE' : 'LOCKED'}</Text>
+          <Text style={[s.statusTxt, { color: isPremium ? '#047857' : '#374151' }]}>{isPremium ? 'ACTIVE' : 'PREVIEW'}</Text>
         </View>
       </View>
 

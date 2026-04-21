@@ -7321,3 +7321,72 @@ auth_relocation_apr21_2026:
 
           Awaiting user visual verification on preview URL.
 
+
+────────────────────────────────────────────────────────────────────
+## 🎨 Insight-First Conversion Overhaul (Soft Paywalls · Teaser · Pulse)
+────────────────────────────────────────────────────────────────────
+
+  - task: "SoftPaywall reusable component"
+    implemented: true
+    working: "NA"
+    file: "/app/frontend/components/premium/SoftPaywall.tsx"
+    status_history:
+      - working: "NA"
+        agent: "main"
+        comment: |
+          Reusable inline soft-paywall card:
+            • "MONEY YOU'RE LEAKING" loss-framing headline with red icon
+            • Up to 3 visible teaser bullets (real data)
+            • Blurred "hidden rows" fog + locked pill ("X more insights locked")
+            • Trust signal row: 50K+ users · 4.8★ · RBI aligned
+            • CTA with PulseCTA breathing animation
+            • "Unlock ₹X savings" if lossAmount given, else "Start saving today"
+            • "7-day free trial · cancel anytime" sub-CTA copy
+          BlurView on native · translucent fog on web (graceful fallback)
+
+  - task: "PremiumTeaserCard — AI Coach loss-framing card"
+    implemented: true
+    working: "NA"
+    file: "/app/frontend/components/premium/PremiumTeaserCard.tsx"
+    status_history:
+      - working: "NA"
+        agent: "main"
+        comment: |
+          Insight-first conversion card for Home + AI Coach:
+            • Dark premium gradient base (#0B0D12 → #1A1F2E)
+            • "YOU LOST THIS MONTH" big ₹amount (38pt bold)
+            • "on avoidable spend" red trend pill
+            • Top 3 spending leaks (real data from predict.waste_comparisons
+              with sensible fallbacks)
+            • Blurred teaser row: "+5 hidden insights · save ₹X/mo"
+            • Pulsing saffron CTA: "Reveal full breakdown"
+            • Wired into Home screen (after TodayChips, before alerts)
+
+  - task: "PulseCTA breathing animation utility"
+    implemented: true
+    working: "NA"
+    file: "/app/frontend/components/premium/PulseCTA.tsx"
+    status_history:
+      - working: "NA"
+        agent: "main"
+        comment: |
+          Reusable breathing scale animation:
+            • useNativeDriver for 60fps
+            • Web bypasses animation (no jank)
+            • Configurable intensity (default 3% scale)
+            • Used by SoftPaywall + PremiumTeaserCard primary CTAs
+
+  - task: "Weak CTA copy sweep"
+    implemented: true
+    working: "NA"
+    file: "premium-reports.tsx · premium-hub.tsx"
+    status_history:
+      - working: "NA"
+        agent: "main"
+        comment: |
+            • premium-reports.tsx: "Unlock Premium" → "Start saving today"
+            • premium-hub.tsx: "LOCKED" status pill → "PREVIEW" (soft framing)
+
+          Bundle clean: 2271 modules (2269 + 2 new premium components) ·
+          backend untouched · all existing flows preserved.
+
