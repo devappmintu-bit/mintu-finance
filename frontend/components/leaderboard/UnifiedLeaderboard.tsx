@@ -7,6 +7,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect } from 'expo-router';
 import api from '../../utils/api';
 import { COLORS } from '../../utils/theme';
+import { makeStyles } from '../../utils/makeStyles';
 
 interface Props {
   title?: string;
@@ -30,6 +31,7 @@ type Entry = {
 };
 
 export default function UnifiedLeaderboard({ title = 'Leaderboard', compact = false, onPressMore, defaultScope = 'contacts' }: Props) {
+  const s = useStyles();
   const [scope, setScope] = useState<'contacts' | 'global'>(defaultScope);
   const [loading, setLoading] = useState(true);
   const [data, setData] = useState<any>(null);
@@ -157,31 +159,31 @@ export default function UnifiedLeaderboard({ title = 'Leaderboard', compact = fa
   );
 }
 
-const s = StyleSheet.create({
+const useStyles = makeStyles((c) => ({
   card: { backgroundColor: '#FFFBEB', borderRadius: 20, padding: 16, marginBottom: 14, borderWidth: 1, borderColor: '#FDE68A' },
   header: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 10 },
   title: { fontSize: 13, fontWeight: '800', letterSpacing: 0.5, color: '#92400E', flex: 1 },
   toggle: { flexDirection: 'row', backgroundColor: '#fff', borderRadius: 999, padding: 2 },
   tog: { paddingHorizontal: 12, paddingVertical: 5, borderRadius: 999 },
-  togActive: { backgroundColor: COLORS.accent.primary },
-  togText: { fontSize: 11, fontWeight: '700', color: COLORS.text.muted },
+  togActive: { backgroundColor: c.accent.primary },
+  togText: { fontSize: 11, fontWeight: '700', color: c.text.muted },
   togTextActive: { color: '#fff' },
-  headline: { fontSize: 13, fontWeight: '700', color: COLORS.text.primary, marginBottom: 12 },
+  headline: { fontSize: 13, fontWeight: '700', color: c.text.primary, marginBottom: 12 },
   meBar: { flexDirection: 'row', backgroundColor: '#fff', borderRadius: 14, padding: 12, marginBottom: 14, gap: 4 },
   meBox: { flex: 1, alignItems: 'center' },
-  meLabel: { fontSize: 9, fontWeight: '700', color: COLORS.text.muted, letterSpacing: 0.5, marginBottom: 2 },
-  meNum: { fontSize: 17, fontWeight: '800', color: COLORS.text.primary },
-  empty: { textAlign: 'center', color: COLORS.text.muted, padding: 20, fontSize: 12 },
+  meLabel: { fontSize: 9, fontWeight: '700', color: c.text.muted, letterSpacing: 0.5, marginBottom: 2 },
+  meNum: { fontSize: 17, fontWeight: '800', color: c.text.primary },
+  empty: { textAlign: 'center', color: c.text.muted, padding: 20, fontSize: 12 },
   row: { flexDirection: 'row', alignItems: 'center', paddingVertical: 8, paddingHorizontal: 6, borderRadius: 10 },
-  rowMe: { backgroundColor: COLORS.accent.primary + '12' },
+  rowMe: { backgroundColor: c.accent.primary + '12' },
   rankBox: { width: 36, alignItems: 'center' },
   medal: { fontSize: 20 },
-  rankNum: { fontSize: 12, fontWeight: '800', color: COLORS.text.muted },
-  avatar: { width: 32, height: 32, borderRadius: 16, backgroundColor: COLORS.accent.primary + '20', justifyContent: 'center', alignItems: 'center' },
-  avatarT: { fontSize: 13, fontWeight: '800', color: COLORS.accent.primary },
-  name: { fontSize: 13, fontWeight: '600', color: COLORS.text.primary },
-  meta: { fontSize: 10, color: COLORS.text.muted, marginTop: 1 },
+  rankNum: { fontSize: 12, fontWeight: '800', color: c.text.muted },
+  avatar: { width: 32, height: 32, borderRadius: 16, backgroundColor: c.accent.primary + '20', justifyContent: 'center', alignItems: 'center' },
+  avatarT: { fontSize: 13, fontWeight: '800', color: c.accent.primary },
+  name: { fontSize: 13, fontWeight: '600', color: c.text.primary },
+  meta: { fontSize: 10, color: c.text.muted, marginTop: 1 },
   score: { fontSize: 16, fontWeight: '800', color: '#E65100', minWidth: 40, textAlign: 'right' },
   moreBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 4, marginTop: 10, paddingVertical: 10 },
-  moreText: { fontSize: 12, fontWeight: '700', color: COLORS.accent.primary },
-});
+  moreText: { fontSize: 12, fontWeight: '700', color: c.accent.primary },
+}));

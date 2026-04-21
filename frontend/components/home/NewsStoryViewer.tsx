@@ -9,6 +9,7 @@ import * as WebBrowser from 'expo-web-browser';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { COLORS } from '../../utils/theme';
+import { makeStyles } from '../../utils/makeStyles';
 
 const { width: W, height: H } = Dimensions.get('window');
 const STORY_DURATION_MS = 6000; // 6s per story
@@ -33,6 +34,7 @@ interface Props {
 }
 
 export default function NewsStoryViewer({ visible, articles, startIndex, onClose }: Props) {
+  const s = useStyles();
   const [idx, setIdx] = useState(startIndex);
   const [paused, setPaused] = useState(false);
   const progress = useRef(new Animated.Value(0)).current;
@@ -170,7 +172,7 @@ export default function NewsStoryViewer({ visible, articles, startIndex, onClose
   );
 }
 
-const s = StyleSheet.create({
+const useStyles = makeStyles((c) => ({
   bg: { flex: 1, backgroundColor: '#000' },
   progressRow: { flexDirection: 'row', gap: 4, paddingTop: Platform.OS === 'ios' ? 56 : 32, paddingHorizontal: 12, marginBottom: 12 },
   progressTrack: { flex: 1, height: 3, borderRadius: 2, backgroundColor: 'rgba(255,255,255,0.25)', overflow: 'hidden' },
@@ -201,4 +203,4 @@ const s = StyleSheet.create({
   pagination: { fontSize: 11, fontWeight: '700', color: 'rgba(255,255,255,0.55)' },
   tapZone: { position: 'absolute', top: 100, bottom: 60 },
   hint: { position: 'absolute', bottom: 24, alignSelf: 'center', color: 'rgba(255,255,255,0.45)', fontSize: 11, fontWeight: '600' },
-});
+}));

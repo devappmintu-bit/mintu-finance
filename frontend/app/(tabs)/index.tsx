@@ -15,6 +15,7 @@ import { fetchCurrentUser, fetchAvatar, uploadAvatar } from '../../services/user
 import { awardCoins } from '../../services/premium';
 import { fetchStatsOverview, fetchTransactions } from '../../services/transactions';
 import { COLORS, RADIUS, SPACING, CATEGORIES, SHADOW, shadowStyle } from '../../utils/theme';
+import { makeStyles } from '../../utils/makeStyles';
 import PressableGlass from '../../components/PressableGlass';
 import TapTile from '../../components/ui/TapTile';
 import { router, useFocusEffect } from 'expo-router';
@@ -33,6 +34,7 @@ import Confetti from '../../components/Confetti';
 const APP_LINK = 'https://mintu.app/download';
 
 export default function HomeScreen() {
+  const styles = useStyles();
   const { user, setUser, avatar, setAvatar } = useAuthStore();
   const { lang } = useLangStore();
   const [stats, setStats] = useState<any>(null);
@@ -433,19 +435,19 @@ export default function HomeScreen() {
   );
 }
 
-const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: COLORS.bg.primary },
+const useStyles = makeStyles((c) => ({
+  container: { flex: 1, backgroundColor: c.bg.primary },
   scroll: { paddingHorizontal: SPACING.lg, paddingTop: SPACING.md, paddingBottom: 140 },
   // Header
   header: { flexDirection: 'row', alignItems: 'center', marginBottom: SPACING.lg },
-  greeting: { fontSize: 11, fontWeight: '700', letterSpacing: 1.4, color: COLORS.accent.primary },
-  name: { fontSize: 24, fontWeight: '900', color: COLORS.text.primary, marginTop: 2, letterSpacing: -0.4 },
+  greeting: { fontSize: 11, fontWeight: '700', letterSpacing: 1.4, color: c.accent.primary },
+  name: { fontSize: 24, fontWeight: '900', color: c.text.primary, marginTop: 2, letterSpacing: -0.4 },
   // Avatar — CRED style
   avatarWrap: { position: 'relative' },
-  avatarRing: { width: 52, height: 52, borderRadius: 26, padding: 2, borderWidth: 2.5, borderColor: COLORS.accent.primary, justifyContent: 'center', alignItems: 'center' },
+  avatarRing: { width: 52, height: 52, borderRadius: 26, padding: 2, borderWidth: 2.5, borderColor: c.accent.primary, justifyContent: 'center', alignItems: 'center' },
   avatarImg: { width: 44, height: 44, borderRadius: 22 },
   avatarPlaceholder: { width: 44, height: 44, borderRadius: 22, backgroundColor: 'rgba(255,107,26,0.18)', justifyContent: 'center', alignItems: 'center' },
-  avatarBadge: { position: 'absolute', bottom: 0, right: 0, width: 18, height: 18, borderRadius: 9, backgroundColor: COLORS.accent.primary, justifyContent: 'center', alignItems: 'center', borderWidth: 2, borderColor: COLORS.bg.primary },
+  avatarBadge: { position: 'absolute', bottom: 0, right: 0, width: 18, height: 18, borderRadius: 9, backgroundColor: c.accent.primary, justifyContent: 'center', alignItems: 'center', borderWidth: 2, borderColor: c.bg.primary },
   // Coins chip — neon glass pill
   coinsChip: { flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: 10, paddingVertical: 6, borderRadius: 16, backgroundColor: 'rgba(255,176,71,0.14)', borderWidth: 1, borderColor: 'rgba(255,176,71,0.45)', marginRight: 8 },
   coinsChipVal: { fontSize: 13, fontWeight: '800', color: '#FFB547' },
@@ -455,15 +457,15 @@ const styles = StyleSheet.create({
   cotdEmoji: { fontSize: 22 },
   cotdType: { fontSize: 13, fontWeight: '700', letterSpacing: 0.5, flex: 1 },
   cotdRefresh: { padding: 4 },
-  cotdText: { fontSize: 15, fontWeight: '500', color: COLORS.text.secondary, lineHeight: 23 },
+  cotdText: { fontSize: 15, fontWeight: '500', color: c.text.secondary, lineHeight: 23 },
   // Stats row — dark glass cards
   statsRow: { flexDirection: 'row', gap: 8, marginBottom: SPACING.lg },
   statBox: { flex: 1, backgroundColor: 'rgba(26,26,36,0.85)', borderRadius: RADIUS.lg, padding: SPACING.md, alignItems: 'center', borderWidth: 1, gap: 4, ...shadowStyle('#000', 2, 10, 0.35, 3) },
-  statVal: { fontSize: 16, fontWeight: '900', color: COLORS.text.primary },
-  statLabel: { fontSize: 10, color: COLORS.text.muted, fontWeight: '600', letterSpacing: 0.3, textTransform: 'uppercase' },
+  statVal: { fontSize: 16, fontWeight: '900', color: c.text.primary },
+  statLabel: { fontSize: 10, color: c.text.muted, fontWeight: '600', letterSpacing: 0.3, textTransform: 'uppercase' },
   // Alerts
   alertsSection: { marginBottom: SPACING.lg },
-  sectionTitle: { fontSize: 16, fontWeight: '800', color: COLORS.text.primary, marginBottom: SPACING.sm, letterSpacing: -0.2 },
+  sectionTitle: { fontSize: 16, fontWeight: '800', color: c.text.primary, marginBottom: SPACING.sm, letterSpacing: -0.2 },
   fomoSection: { marginBottom: SPACING.lg, marginTop: -4 },
   fomoScroll: { gap: 10, paddingRight: 8 },
   fomoCard: {
@@ -479,14 +481,14 @@ const styles = StyleSheet.create({
   fomoCardDanger: { backgroundColor: 'rgba(255,84,112,0.14)', borderColor: 'rgba(255,84,112,0.4)' },
   fomoCardAccent: { backgroundColor: 'rgba(255,176,32,0.12)', borderColor: 'rgba(255,176,32,0.4)' },
   fomoIcon: { fontSize: 22 },
-  fomoText: { fontSize: 13, fontWeight: '600', color: COLORS.text.primary, lineHeight: 18 },
+  fomoText: { fontSize: 13, fontWeight: '600', color: c.text.primary, lineHeight: 18 },
   fomoCtaRow: { marginTop: 4 },
-  fomoCta: { fontSize: 12, fontWeight: '800', color: COLORS.accent.primary },
+  fomoCta: { fontSize: 12, fontWeight: '800', color: c.accent.primary },
   alertCard: { flexDirection: 'row', alignItems: 'flex-start', borderRadius: RADIUS.lg, padding: SPACING.md, borderWidth: 1, gap: 10, marginBottom: 8 },
   alertEmoji: { fontSize: 20, marginTop: 2 },
   alertBody: { flex: 1 },
   alertTitle: { fontSize: 14, fontWeight: '700', marginBottom: 2 },
-  alertMsg: { fontSize: 13, color: COLORS.text.secondary, lineHeight: 19 },
+  alertMsg: { fontSize: 13, color: c.text.secondary, lineHeight: 19 },
   // Predictive insights — dark glass
   predictCard: { backgroundColor: 'rgba(26,26,36,0.9)', borderRadius: RADIUS.card, padding: 14, marginBottom: SPACING.lg, borderWidth: 1, borderColor: 'rgba(255,107,26,0.3)', ...shadowStyle('#FF6B1A', 2, 14, 0.25, 3) },
   // Pill row
@@ -496,23 +498,23 @@ const styles = StyleSheet.create({
   pillRank:   { backgroundColor: 'rgba(96,165,250,0.14)', borderColor: 'rgba(96,165,250,0.4)' },
   pillStreak: { backgroundColor: 'rgba(255,84,112,0.14)', borderColor: 'rgba(255,84,112,0.4)' },
   pillEmoji: { fontSize: 14 },
-  pillValue: { fontSize: 13, fontWeight: '800', color: COLORS.text.primary },
-  pillLabel: { fontSize: 11, fontWeight: '600', color: COLORS.text.muted },
-  pillGlow: { position: 'absolute', top: -6, right: -4, backgroundColor: '#10E0A0', paddingHorizontal: 6, paddingVertical: 1, borderRadius: 999, borderWidth: 2, borderColor: COLORS.bg.primary },
+  pillValue: { fontSize: 13, fontWeight: '800', color: c.text.primary },
+  pillLabel: { fontSize: 11, fontWeight: '600', color: c.text.muted },
+  pillGlow: { position: 'absolute', top: -6, right: -4, backgroundColor: '#10E0A0', paddingHorizontal: 6, paddingVertical: 1, borderRadius: 999, borderWidth: 2, borderColor: c.bg.primary },
   pillGlowT: { fontSize: 9, fontWeight: '800', color: '#0B0B12', letterSpacing: 0.3 },
   predictHeader: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 10 },
-  predictTitle: { flex: 1, fontSize: 11, fontWeight: '800', color: COLORS.accent.primary, letterSpacing: 0.8 },
-  aiBadge: { backgroundColor: COLORS.accent.primary, paddingHorizontal: 8, paddingVertical: 2, borderRadius: 4 },
+  predictTitle: { flex: 1, fontSize: 11, fontWeight: '800', color: c.accent.primary, letterSpacing: 0.8 },
+  aiBadge: { backgroundColor: c.accent.primary, paddingHorizontal: 8, paddingVertical: 2, borderRadius: 4 },
   aiBadgeText: { color: '#fff', fontSize: 9, fontWeight: '800', letterSpacing: 0.5 },
   predictRow: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingVertical: 10, paddingHorizontal: 10, backgroundColor: 'rgba(255,176,32,0.12)', borderRadius: 10, marginBottom: 6, borderWidth: 1, borderColor: 'rgba(255,176,32,0.3)' },
   predictRowCrit: { backgroundColor: 'rgba(255,84,112,0.14)', borderColor: 'rgba(255,84,112,0.4)' },
-  predictText: { flex: 1, fontSize: 12, color: COLORS.text.primary, fontWeight: '600', lineHeight: 17 },
-  wasteRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 8, paddingVertical: 10, paddingHorizontal: 10, backgroundColor: 'rgba(255,107,26,0.1)', borderRadius: 10, borderLeftWidth: 3, borderLeftColor: COLORS.accent.primary },
-  wasteTitle: { fontSize: 13, fontWeight: '800', color: COLORS.accent.primaryLight },
-  wasteSub: { fontSize: 11, color: COLORS.text.secondary, marginTop: 2, lineHeight: 15 },
+  predictText: { flex: 1, fontSize: 12, color: c.text.primary, fontWeight: '600', lineHeight: 17 },
+  wasteRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 8, paddingVertical: 10, paddingHorizontal: 10, backgroundColor: 'rgba(255,107,26,0.1)', borderRadius: 10, borderLeftWidth: 3, borderLeftColor: c.accent.primary },
+  wasteTitle: { fontSize: 13, fontWeight: '800', color: c.accent.primaryLight },
+  wasteSub: { fontSize: 11, color: c.text.secondary, marginTop: 2, lineHeight: 15 },
   // Fresh / last-updated strip — neon green on dark
   freshStrip: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingVertical: 8, paddingHorizontal: 12, backgroundColor: 'rgba(16,224,160,0.14)', borderRadius: 999, alignSelf: 'flex-start', marginHorizontal: SPACING.lg, marginBottom: SPACING.sm, borderWidth: 1, borderColor: 'rgba(16,224,160,0.4)' },
   freshLiveDot: { width: 7, height: 7, borderRadius: 3.5, backgroundColor: '#10E0A0' },
   freshText: { fontSize: 11, fontWeight: '700', color: '#10E0A0', letterSpacing: 0.2 },
   freshBtn: { marginLeft: 4, padding: 4, borderRadius: 999, backgroundColor: 'rgba(255,255,255,0.08)' },
-});
+}));

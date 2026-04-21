@@ -19,6 +19,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import * as Haptics from 'expo-haptics';
 import api from '../../utils/api';
 import { COLORS } from '../../utils/theme';
+import { makeStyles } from '../../utils/makeStyles';
 
 type InsightCard = {
   id: string;
@@ -29,6 +30,7 @@ type InsightCard = {
 };
 
 export default function SplitInsightsHero() {
+  const s = useStyles();
   const [cards, setCards] = useState<InsightCard[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -136,18 +138,18 @@ function AnimatedCard({ card, index }: { card: InsightCard; index: number }) {
   );
 }
 
-const s = StyleSheet.create({
+const useStyles = makeStyles((c) => ({
   wrap: { marginHorizontal: -16, marginBottom: 18 },
   headerRow: { flexDirection: 'row', alignItems: 'center', gap: 5, paddingHorizontal: 16, marginBottom: 8 },
   heading: {
     fontSize: 10.5, fontWeight: '900',
-    color: COLORS.text.muted, letterSpacing: 1.3,
+    color: c.text.muted, letterSpacing: 1.3,
   },
   card: {
     width: 182,
     borderRadius: 18,
     borderWidth: 1,
-    backgroundColor: COLORS.bg.secondary,
+    backgroundColor: c.bg.secondary,
     overflow: 'hidden',
   },
   cardInner: { padding: 12, minHeight: 110, gap: 5 },
@@ -158,5 +160,5 @@ const s = StyleSheet.create({
   },
   emoji: { fontSize: 18 },
   title: { fontSize: 17, fontWeight: '900', letterSpacing: -0.3 },
-  subtitle: { fontSize: 11, color: COLORS.text.secondary, lineHeight: 15 },
-});
+  subtitle: { fontSize: 11, color: c.text.secondary, lineHeight: 15 },
+}));

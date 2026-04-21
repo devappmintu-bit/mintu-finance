@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, ActivityIndicator, Linking } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { COLORS, SPACING } from '../../utils/theme';
+import { makeStyles } from '../../utils/makeStyles';
 import NewsStoryViewer from './NewsStoryViewer';
 
 interface Props {
@@ -22,6 +23,7 @@ const categoryColor = (cat: string) => {
 };
 
 export default function NewsCarousel({ news, newsUpdatedAt, newsLoading, onRefresh }: Props) {
+  const s = useStyles();
   const [storyOpen, setStoryOpen] = useState(false);
   const [storyStart, setStoryStart] = useState(0);
   return (
@@ -123,25 +125,25 @@ export default function NewsCarousel({ news, newsUpdatedAt, newsLoading, onRefre
   );
 }
 
-const s = StyleSheet.create({
+const useStyles = makeStyles((c) => ({
   header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: SPACING.lg, marginBottom: SPACING.sm },
-  sectionTitle: { fontSize: 12, fontWeight: '800', letterSpacing: 1, color: COLORS.text.primary },
+  sectionTitle: { fontSize: 12, fontWeight: '800', letterSpacing: 1, color: c.text.primary },
   freshPill: { flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: 8, paddingVertical: 3, backgroundColor: '#10B98115', borderRadius: 999 },
   freshDot: { width: 6, height: 6, borderRadius: 3, backgroundColor: '#10B981' },
   freshPillText: { fontSize: 9, fontWeight: '800', color: '#10B981' },
-  refreshBtn: { width: 28, height: 28, borderRadius: 14, backgroundColor: COLORS.accent.primary + '15', justifyContent: 'center', alignItems: 'center' },
+  refreshBtn: { width: 28, height: 28, borderRadius: 14, backgroundColor: c.accent.primary + '15', justifyContent: 'center', alignItems: 'center' },
   empty: { alignItems: 'center', paddingVertical: 30 },
-  emptyText: { fontSize: 12, color: COLORS.text.muted, marginTop: 8 },
-  card: { width: 260, backgroundColor: '#fff', borderRadius: 16, padding: 16, borderWidth: 1, borderColor: COLORS.border.card, borderTopWidth: 3 },
+  emptyText: { fontSize: 12, color: c.text.muted, marginTop: 8 },
+  card: { width: 260, backgroundColor: '#fff', borderRadius: 16, padding: 16, borderWidth: 1, borderColor: c.border.card, borderTopWidth: 3 },
   catRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 },
   catDot: { width: 6, height: 6, borderRadius: 3 },
   cat: { fontSize: 10, fontWeight: '800', letterSpacing: 1, textTransform: 'uppercase' },
-  title: { fontSize: 14, fontWeight: '800', color: COLORS.text.primary, lineHeight: 19, marginBottom: 6 },
-  summary: { fontSize: 12, color: COLORS.text.secondary, lineHeight: 17 },
-  footer: { flexDirection: 'row', alignItems: 'center', marginTop: 10, paddingTop: 10, borderTopWidth: 1, borderTopColor: COLORS.border.subtle },
-  source: { fontSize: 10, fontWeight: '700', color: COLORS.text.muted, textTransform: 'uppercase', letterSpacing: 0.5, flex: 1 },
+  title: { fontSize: 14, fontWeight: '800', color: c.text.primary, lineHeight: 19, marginBottom: 6 },
+  summary: { fontSize: 12, color: c.text.secondary, lineHeight: 17 },
+  footer: { flexDirection: 'row', alignItems: 'center', marginTop: 10, paddingTop: 10, borderTopWidth: 1, borderTopColor: c.border.subtle },
+  source: { fontSize: 10, fontWeight: '700', color: c.text.muted, textTransform: 'uppercase', letterSpacing: 0.5, flex: 1 },
   readMore: { flexDirection: 'row', alignItems: 'center', gap: 2 },
-  readMoreText: { fontSize: 10, fontWeight: '800', color: COLORS.accent.primary, letterSpacing: 0.3 },
+  readMoreText: { fontSize: 10, fontWeight: '800', color: c.accent.primary, letterSpacing: 0.3 },
   // Inshorts-style source bar at the bottom of the card
   sourceBar: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
@@ -149,9 +151,9 @@ const s = StyleSheet.create({
   },
   sourceText: { fontSize: 11, color: '#6B7280', flex: 1 },
   sourceName: { fontWeight: '800', color: '#111' },
-  endCard: { justifyContent: 'center', alignItems: 'center', backgroundColor: COLORS.accent.primary + '08', borderColor: COLORS.accent.primary + '30' },
-  endTitle: { fontSize: 14, fontWeight: '800', color: COLORS.text.primary, marginTop: 8 },
-  endSub: { fontSize: 11, color: COLORS.text.muted, marginTop: 4, textAlign: 'center' },
-  endBtn: { flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: COLORS.accent.primary, paddingHorizontal: 14, paddingVertical: 8, borderRadius: 999, marginTop: 10 },
+  endCard: { justifyContent: 'center', alignItems: 'center', backgroundColor: c.accent.primary + '08', borderColor: c.accent.primary + '30' },
+  endTitle: { fontSize: 14, fontWeight: '800', color: c.text.primary, marginTop: 8 },
+  endSub: { fontSize: 11, color: c.text.muted, marginTop: 4, textAlign: 'center' },
+  endBtn: { flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: c.accent.primary, paddingHorizontal: 14, paddingVertical: 8, borderRadius: 999, marginTop: 10 },
   endBtnText: { fontSize: 11, fontWeight: '800', color: '#fff' },
-});
+}));

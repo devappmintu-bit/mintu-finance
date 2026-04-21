@@ -14,6 +14,7 @@ import React from 'react';
 import { View, StyleSheet, Platform, StyleProp, ViewStyle } from 'react-native';
 import { BlurView } from 'expo-blur';
 import { COLORS, GLASS, RADIUS, SHADOW } from '../../utils/theme';
+import { makeStyles } from '../../utils/makeStyles';
 
 type Tint = 'neutral' | 'orange' | 'success' | 'danger';
 
@@ -35,6 +36,7 @@ type Props = {
 };
 
 export default function GlassCard({ children, style, tint = 'neutral', radius = RADIUS.card, intensity = GLASS.intensity, solid = false }: Props) {
+  const styles = useStyles();
   const useBlur = !solid && Platform.OS !== 'android';
   const borderColor = tintBorder[tint];
 
@@ -64,11 +66,11 @@ export default function GlassCard({ children, style, tint = 'neutral', radius = 
   );
 }
 
-const styles = StyleSheet.create({
+const useStyles = makeStyles((c) => ({
   base: {
     borderWidth: 1,
   },
   solid: {
     backgroundColor: GLASS.solidBg,
   },
-});
+}));

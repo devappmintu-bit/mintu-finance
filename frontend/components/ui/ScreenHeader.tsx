@@ -8,6 +8,7 @@ import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import { COLORS } from '../../utils/theme';
+import { makeStyles } from '../../utils/makeStyles';
 import { useHaptic } from '../../hooks/useHaptic';
 
 interface Props {
@@ -19,6 +20,7 @@ interface Props {
 }
 
 export default function ScreenHeader({ title, subtitle, showBack, onBack, rightActions }: Props) {
+  const s = useStyles();
   const haptic = useHaptic();
   const handleBack = () => {
     haptic.light();
@@ -41,10 +43,10 @@ export default function ScreenHeader({ title, subtitle, showBack, onBack, rightA
   );
 }
 
-const s = StyleSheet.create({
+const useStyles = makeStyles((c) => ({
   wrap: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, paddingTop: 12, paddingBottom: 8 },
-  back: { width: 36, height: 36, borderRadius: 18, backgroundColor: COLORS.gray[100], alignItems: 'center', justifyContent: 'center' },
-  title: { fontSize: 22, fontWeight: '900', color: COLORS.text.primary, letterSpacing: -0.5 },
-  sub: { fontSize: 12.5, fontWeight: '600', color: COLORS.text.secondary, marginTop: 2 },
+  back: { width: 36, height: 36, borderRadius: 18, backgroundColor: c.gray[100], alignItems: 'center', justifyContent: 'center' },
+  title: { fontSize: 22, fontWeight: '900', color: c.text.primary, letterSpacing: -0.5 },
+  sub: { fontSize: 12.5, fontWeight: '600', color: c.text.secondary, marginTop: 2 },
   rightRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-});
+}));

@@ -17,10 +17,12 @@ import { router } from 'expo-router';
 import api from '../../utils/api';
 import { fetchPremiumStatus } from '../../services/premium';
 import { COLORS } from '../../utils/theme';
+import { makeStyles } from '../../utils/makeStyles';
 
 type Lesson = { title?: string; tip?: string; lesson_number?: number; total_lessons?: number };
 
 export default function MoneySchoolCard() {
+  const s = useStyles();
   const [lesson, setLesson] = useState<Lesson | null>(null);
   const [isPremium, setIsPremium] = useState(false);
   const [xp, setXp] = useState(0);
@@ -107,30 +109,30 @@ export default function MoneySchoolCard() {
   );
 }
 
-const s = StyleSheet.create({
+const useStyles = makeStyles((c) => ({
   wrap: {
     flexDirection: 'row',
     borderRadius: 18,
     overflow: 'hidden',
     marginBottom: 14,
     borderWidth: 1,
-    borderColor: COLORS.accent.primary + '33',
+    borderColor: c.accent.primary + '33',
   },
   iconStrip: { width: 60, alignItems: 'center', justifyContent: 'center' },
   body: { flex: 1, padding: 12 },
   topRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 4 },
-  eyebrow: { fontSize: 10, fontWeight: '900', color: COLORS.accent.primary, letterSpacing: 1.4 },
+  eyebrow: { fontSize: 10, fontWeight: '900', color: c.accent.primary, letterSpacing: 1.4 },
   proPill: {
     flexDirection: 'row', alignItems: 'center', gap: 4,
     backgroundColor: '#fff',
     paddingHorizontal: 7, paddingVertical: 2.5,
     borderRadius: 999,
-    borderWidth: 1, borderColor: COLORS.accent.primary + '40',
+    borderWidth: 1, borderColor: c.accent.primary + '40',
   },
-  proPillOn: { backgroundColor: COLORS.accent.primary, borderColor: COLORS.accent.primary },
-  proPillT: { fontSize: 9, fontWeight: '900', color: COLORS.accent.primary, letterSpacing: 0.5 },
-  title: { fontSize: 15, fontWeight: '800', color: COLORS.text.primary, marginTop: 2 },
-  tip: { fontSize: 11.5, color: COLORS.text.secondary, marginTop: 4, lineHeight: 16 },
+  proPillOn: { backgroundColor: c.accent.primary, borderColor: c.accent.primary },
+  proPillT: { fontSize: 9, fontWeight: '900', color: c.accent.primary, letterSpacing: 0.5 },
+  title: { fontSize: 15, fontWeight: '800', color: c.text.primary, marginTop: 2 },
+  tip: { fontSize: 11.5, color: c.text.secondary, marginTop: 4, lineHeight: 16 },
   ctaRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 10 },
   progressChip: {
     flexDirection: 'row', alignItems: 'center', gap: 4,
@@ -138,7 +140,7 @@ const s = StyleSheet.create({
     paddingHorizontal: 8, paddingVertical: 4,
     borderRadius: 999,
   },
-  progressT: { fontSize: 10.5, fontWeight: '800', color: COLORS.accent.primary, letterSpacing: 0.3 },
+  progressT: { fontSize: 10.5, fontWeight: '800', color: c.accent.primary, letterSpacing: 0.3 },
   ctaBtn: { flexDirection: 'row', alignItems: 'center', gap: 4 },
-  ctaT: { fontSize: 12, fontWeight: '800', color: COLORS.accent.primary, letterSpacing: 0.2 },
-});
+  ctaT: { fontSize: 12, fontWeight: '800', color: c.accent.primary, letterSpacing: 0.2 },
+}));

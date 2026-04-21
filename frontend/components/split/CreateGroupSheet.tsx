@@ -4,6 +4,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import Toast from 'react-native-toast-message';
 import { COLORS } from '../../utils/theme';
+import { makeStyles } from '../../utils/makeStyles';
 import { C } from './theme';
 
 type Props = {
@@ -13,6 +14,7 @@ type Props = {
 };
 
 export default function CreateGroupSheet({ visible, onClose, onCreate }: Props) {
+  const s = useStyles();
   const [name, setName] = useState('');
   const [phoneInput, setPhoneInput] = useState('');
   const [phones, setPhones] = useState<string[]>([]);
@@ -71,13 +73,13 @@ export default function CreateGroupSheet({ visible, onClose, onCreate }: Props) 
   );
 }
 
-const s = StyleSheet.create({
+const useStyles = makeStyles((c) => ({
   mBg: { flex: 1, justifyContent: 'flex-end', backgroundColor: 'rgba(0,0,0,0.5)' },
   sheet: { backgroundColor: C.sheetBg, borderTopLeftRadius: 28, borderTopRightRadius: 28, padding: 24 },
   handle: { width: 40, height: 4, borderRadius: 2, backgroundColor: C.text4, alignSelf: 'center', marginBottom: 16 },
   sheetH: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 10, marginBottom: 20 },
   sheetT: { fontSize: 20, fontWeight: '700', color: C.text1 },
-  input: { backgroundColor: COLORS.bg.primary, borderRadius: 14, paddingHorizontal: 16, paddingVertical: 14, fontSize: 16, color: C.text1, borderWidth: 1, borderColor: C.border, marginBottom: 12 },
+  input: { backgroundColor: c.bg.primary, borderRadius: 14, paddingHorizontal: 16, paddingVertical: 14, fontSize: 16, color: C.text1, borderWidth: 1, borderColor: C.border, marginBottom: 12 },
   inputRow: { flexDirection: 'row', gap: 8, marginBottom: 12 },
   iconBtn: { width: 48, height: 48, borderRadius: 14, justifyContent: 'center', alignItems: 'center' },
   label: { fontSize: 13, fontWeight: '600', color: C.text3, marginBottom: 8 },
@@ -86,4 +88,4 @@ const s = StyleSheet.create({
   chipText: { fontSize: 14, color: C.accent, fontWeight: '500' },
   primaryBtn: { borderRadius: 16, paddingVertical: 16, alignItems: 'center', justifyContent: 'center', flexDirection: 'row' },
   primaryBtnText: { fontSize: 16, fontWeight: '700', color: C.inv },
-});
+}));

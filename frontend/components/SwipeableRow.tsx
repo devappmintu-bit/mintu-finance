@@ -8,6 +8,7 @@ import { View, Text, StyleSheet, TouchableOpacity, Animated, Platform } from 're
 import { Swipeable, RectButton } from 'react-native-gesture-handler';
 import { Ionicons } from '@expo/vector-icons';
 import { COLORS, RADIUS } from '../utils/theme';
+import { makeStyles } from '../utils/makeStyles';
 
 interface Props {
   children: React.ReactNode;
@@ -26,6 +27,7 @@ export default function SwipeableRow({
   deleteLabel = 'Delete',
   disabled,
 }: Props) {
+  const s = useStyles();
   const rowRef = useRef<Swipeable>(null);
   const [openActions, setOpenActions] = useState(false);
 
@@ -122,7 +124,7 @@ export default function SwipeableRow({
   );
 }
 
-const s = StyleSheet.create({
+const useStyles = makeStyles((c) => ({
   rightAction: { backgroundColor: '#EF4444', justifyContent: 'center', alignItems: 'center', width: 90, borderRadius: RADIUS.lg, marginBottom: 10, marginLeft: 8 },
   leftAction: { backgroundColor: '#3B82F6', justifyContent: 'center', alignItems: 'center', width: 90, borderRadius: RADIUS.lg, marginBottom: 10, marginRight: 8 },
   actionText: { color: '#fff', fontSize: 11, fontWeight: '700', marginTop: 2 },
@@ -147,4 +149,4 @@ const s = StyleSheet.create({
     paddingHorizontal: 12, paddingVertical: 6, borderRadius: 999,
   },
   webBarText: { color: '#fff', fontSize: 12, fontWeight: '700' },
-});
+}));

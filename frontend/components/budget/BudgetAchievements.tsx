@@ -18,6 +18,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import api from '../../utils/api';
 import { COLORS } from '../../utils/theme';
+import { makeStyles } from '../../utils/makeStyles';
 
 type Badge = {
   id: string;
@@ -51,6 +52,7 @@ type Props = {
 };
 
 export default function BudgetAchievements({ refreshKey = 0, onBadgePress }: Props) {
+  const s = useStyles();
   const [data, setData] = useState<Achievements | null>(null);
   const [loading, setLoading] = useState(true);
 
@@ -214,7 +216,7 @@ const BG = '#FFF7ED';
 const CARD = '#FFFFFF';
 const BORDER = '#FED7AA';
 
-const s = StyleSheet.create({
+const useStyles = makeStyles((c) => ({
   wrap: { marginBottom: 12 },
 
   hero: {
@@ -246,15 +248,15 @@ const s = StyleSheet.create({
     flex: 1, backgroundColor: CARD, borderRadius: 14, paddingVertical: 10,
     paddingHorizontal: 8, alignItems: 'center', borderWidth: 1, borderColor: BORDER,
   },
-  chipVal: { fontSize: 16, fontWeight: '900', color: COLORS.text.primary, letterSpacing: -0.3 },
-  chipLbl: { fontSize: 10.5, fontWeight: '700', color: COLORS.text.muted, marginTop: 2, textAlign: 'center' },
+  chipVal: { fontSize: 16, fontWeight: '900', color: c.text.primary, letterSpacing: -0.3 },
+  chipLbl: { fontSize: 10.5, fontWeight: '700', color: c.text.muted, marginTop: 2, textAlign: 'center' },
 
   badgeHeader: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
     marginBottom: 8, paddingHorizontal: 2,
   },
-  badgeTitle: { fontSize: 15, fontWeight: '800', color: COLORS.text.primary, letterSpacing: -0.2 },
-  badgeCount: { fontSize: 11, fontWeight: '700', color: COLORS.text.muted },
+  badgeTitle: { fontSize: 15, fontWeight: '800', color: c.text.primary, letterSpacing: -0.2 },
+  badgeCount: { fontSize: 11, fontWeight: '700', color: c.text.muted },
 
   badgeList: { gap: 10, paddingBottom: 4, paddingRight: 16 },
   badge: {
@@ -267,8 +269,8 @@ const s = StyleSheet.create({
   badgeOff: { borderColor: '#E5E7EB', backgroundColor: '#F9FAFB', opacity: 0.85 },
   badgeEmoji: { fontSize: 30, marginBottom: 4 },
   badgeEmojiOff: { opacity: 0.45 },
-  badgeName: { fontSize: 12.5, fontWeight: '800', color: COLORS.text.primary, textAlign: 'center' },
-  badgeNameOff: { color: COLORS.text.tertiary },
+  badgeName: { fontSize: 12.5, fontWeight: '800', color: c.text.primary, textAlign: 'center' },
+  badgeNameOff: { color: c.text.tertiary },
 
   unlockedPill: {
     marginTop: 6, flexDirection: 'row', alignItems: 'center', gap: 3,
@@ -279,11 +281,11 @@ const s = StyleSheet.create({
   lockedRow: { width: '100%', marginTop: 6, alignItems: 'center' },
   bTrack: { width: '100%', height: 4, borderRadius: 2, backgroundColor: '#E5E7EB', overflow: 'hidden' },
   bFill: { height: 4, borderRadius: 2, backgroundColor: '#F56E1E' },
-  bLabel: { fontSize: 10, fontWeight: '700', color: COLORS.text.tertiary, marginTop: 4 },
+  bLabel: { fontSize: 10, fontWeight: '700', color: c.text.tertiary, marginTop: 4 },
 
   skelCard: {
     backgroundColor: CARD, borderRadius: 20, padding: 18, marginBottom: 12,
     borderWidth: 1, borderColor: BORDER, height: 110,
   },
   skelLine: { height: 14, borderRadius: 7, backgroundColor: '#FED7AA', width: '40%' },
-});
+}));

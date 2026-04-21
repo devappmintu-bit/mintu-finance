@@ -4,10 +4,12 @@ import { router } from 'expo-router';
 import { useAuthStore } from '../store/authStore';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { COLORS, ONBOARDING_IMAGES, shadowStyle } from '../utils/theme';
+import { makeStyles } from '../utils/makeStyles';
 import { hasPin, biometricAvailable } from '../utils/lockManager';
 import MintULogo from '../components/MintULogo';
 
 export default function SplashIndex() {
+  const styles = useStyles();
   const { token, isLoading } = useAuthStore();
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const scaleAnim = useRef(new Animated.Value(0.8)).current;
@@ -50,16 +52,16 @@ export default function SplashIndex() {
   );
 }
 
-const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: COLORS.bg.primary, justifyContent: 'center', alignItems: 'center' },
-  glowCircle: { position: 'absolute', width: 300, height: 300, borderRadius: 150, backgroundColor: COLORS.accent.secondary, opacity: 0.08 },
+const useStyles = makeStyles((c) => ({
+  container: { flex: 1, backgroundColor: c.bg.primary, justifyContent: 'center', alignItems: 'center' },
+  glowCircle: { position: 'absolute', width: 300, height: 300, borderRadius: 150, backgroundColor: c.accent.secondary, opacity: 0.08 },
   logoContainer: { alignItems: 'center' },
   logoIcon: {
-    width: 96, height: 96, borderRadius: 32, backgroundColor: COLORS.accent.primary,
+    width: 96, height: 96, borderRadius: 32, backgroundColor: c.accent.primary,
     justifyContent: 'center', alignItems: 'center', marginBottom: 20,
-    ...shadowStyle(COLORS.accent.primary, 8, 20, 0.3, 12),
+    ...shadowStyle(c.accent.primary, 8, 20, 0.3, 12),
   },
-  logoEmoji: { fontSize: 46, fontWeight: '800', color: COLORS.text.inverse },
-  logoText: { fontSize: 48, fontWeight: '800', color: COLORS.text.primary, letterSpacing: -1 },
-  tagline: { fontSize: 16, color: COLORS.text.secondary, marginTop: 12 },
-});
+  logoEmoji: { fontSize: 46, fontWeight: '800', color: c.text.inverse },
+  logoText: { fontSize: 48, fontWeight: '800', color: c.text.primary, letterSpacing: -1 },
+  tagline: { fontSize: 16, color: c.text.secondary, marginTop: 12 },
+}));

@@ -24,6 +24,7 @@ import { SplitSkeleton } from '../../components/SkeletonLoader';
 import GroupChat from '../../components/GroupChat';
 import PressableGlass from '../../components/PressableGlass';
 import { SHADOW, COLORS } from '../../utils/theme';
+import { makeStyles } from '../../utils/makeStyles';
 import { shareSmart, copyToClipboard } from '../../utils/share';
 import { C, getGA, DebtRow } from '../../components/split/theme';
 import SettleUpCard from '../../components/split/SettleUpCard';
@@ -40,6 +41,7 @@ import RewardModal from '../../components/split/RewardModal';
 import EmptyState from '../../components/ui/EmptyState';
 
 export default function SplitScreen() {
+  const s = useStyles();
   const { user } = useAuthStore();
   const { lang } = useLangStore();
   const [groups, setGroups] = useState<any[]>([]);
@@ -659,7 +661,7 @@ export default function SplitScreen() {
   );
 }
 
-const s = StyleSheet.create({
+const useStyles = makeStyles((c) => ({
   bg: { flex: 1, backgroundColor: C.bg },
   scroll: { padding: 16, paddingBottom: 140 },
   header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 },
@@ -700,4 +702,4 @@ const s = StyleSheet.create({
   groupInfo: { flex: 1 },
   groupName: { fontSize: 16, fontWeight: '700', color: C.text1 },
   groupMeta: { fontSize: 12, color: C.text3, marginTop: 2 },
-});
+}));

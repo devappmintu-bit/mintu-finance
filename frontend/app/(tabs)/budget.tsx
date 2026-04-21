@@ -14,6 +14,7 @@ import {
   createBudget, updateBudget, deleteBudget,
 } from '../../services/budgets';
 import { COLORS, RADIUS, SPACING, CATEGORIES, CATEGORY_LIST, SHADOW } from '../../utils/theme';
+import { makeStyles } from '../../utils/makeStyles';
 import PressableGlass from '../../components/PressableGlass';
 import BudgetCard from '../../components/budget/BudgetCard';
 import DeleteBudgetSheet from '../../components/budget/DeleteBudgetSheet';
@@ -33,6 +34,7 @@ import { BudgetSkeleton } from '../../components/SkeletonLoader';
 const PERIODS = ['daily', 'weekly', 'monthly'];
 
 export default function BudgetScreen() {
+  const s = useStyles();
   const { lang } = useLangStore();
   const [budgets, setBudgets] = useState<any[]>([]);
   const [suggestions, setSuggestions] = useState<any>(null);
@@ -434,59 +436,59 @@ export default function BudgetScreen() {
   );
 }
 
-const s = StyleSheet.create({
-  bg: { flex: 1, backgroundColor: COLORS.bg.primary },
+const useStyles = makeStyles((c) => ({
+  bg: { flex: 1, backgroundColor: c.bg.primary },
   header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: SPACING.lg, paddingVertical: SPACING.md },
-  title: { fontSize: 28, fontWeight: '800', color: COLORS.text.primary },
-  sub: { fontSize: 13, color: COLORS.text.muted },
-  addBtn: { width: 44, height: 44, borderRadius: 22, backgroundColor: COLORS.accent.primary, justifyContent: 'center', alignItems: 'center', ...SHADOW.md },
+  title: { fontSize: 28, fontWeight: '800', color: c.text.primary },
+  sub: { fontSize: 13, color: c.text.muted },
+  addBtn: { width: 44, height: 44, borderRadius: 22, backgroundColor: c.accent.primary, justifyContent: 'center', alignItems: 'center', ...SHADOW.md },
   shareBtn: { width: 44, height: 44, borderRadius: 22, backgroundColor: 'rgba(255,107,26,0.14)', justifyContent: 'center', alignItems: 'center', borderWidth: 1, borderColor: 'rgba(255,107,26,0.4)' },
   offscreen: { position: 'absolute', top: -99999, left: -99999, width: 360, opacity: 0 },
   list: { padding: SPACING.lg, paddingBottom: 140 },
   // Summary
   summaryRow: { flexDirection: 'row', gap: 8, marginBottom: SPACING.lg },
-  summaryBox: { flex: 1, backgroundColor: COLORS.bg.card, borderRadius: RADIUS.lg, padding: 14, alignItems: 'center', borderWidth: 1, borderColor: COLORS.border.card },
-  sumLabel: { fontSize: 11, color: COLORS.text.muted, marginBottom: 4 },
-  sumVal: { fontSize: 17, fontWeight: '800', color: COLORS.text.primary },
+  summaryBox: { flex: 1, backgroundColor: c.bg.card, borderRadius: RADIUS.lg, padding: 14, alignItems: 'center', borderWidth: 1, borderColor: c.border.card },
+  sumLabel: { fontSize: 11, color: c.text.muted, marginBottom: 4 },
+  sumVal: { fontSize: 17, fontWeight: '800', color: c.text.primary },
   // Card
   card: { backgroundColor: 'rgba(255,255,255,0.9)', borderRadius: 20, padding: SPACING.lg, marginBottom: 10, borderWidth: 1, borderColor: 'rgba(255,255,255,0.6)', ...SHADOW.sm },
   cardRow: { flexDirection: 'row', alignItems: 'center', gap: 12 },
   catDot: { width: 10, height: 10, borderRadius: 5 },
-  catName: { fontSize: 16, fontWeight: '700', color: COLORS.text.primary },
-  period: { fontSize: 11, color: COLORS.text.muted, marginTop: 1 },
+  catName: { fontSize: 16, fontWeight: '700', color: c.text.primary },
+  period: { fontSize: 11, color: c.text.muted, marginTop: 1 },
   spentAmt: { fontSize: 18, fontWeight: '800' },
-  limitAmt: { fontSize: 12, color: COLORS.text.muted, marginTop: 1 },
+  limitAmt: { fontSize: 12, color: c.text.muted, marginTop: 1 },
   overBanner: { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 10, paddingVertical: 6, paddingHorizontal: 10, borderRadius: RADIUS.sm, backgroundColor: 'rgba(255,84,112,0.14)', borderWidth: 1, borderColor: 'rgba(255,84,112,0.4)' },
-  overText: { fontSize: 12, fontWeight: '600', color: COLORS.accent.moneyOut },
+  overText: { fontSize: 12, fontWeight: '600', color: c.accent.moneyOut },
   // AI Suggest — dark glass
   suggestCard: { backgroundColor: 'rgba(255,176,32,0.1)', borderRadius: RADIUS.card, padding: SPACING.lg, marginBottom: SPACING.lg, borderWidth: 1, borderColor: 'rgba(255,176,32,0.35)' },
   suggestTitle: { fontSize: 14, fontWeight: '800', color: '#FFB547' },
-  suggestMsg: { fontSize: 12, color: COLORS.text.secondary, marginBottom: 10 },
+  suggestMsg: { fontSize: 12, color: c.text.secondary, marginBottom: 10 },
   suggestRow: { flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 8, borderTopWidth: 1, borderTopColor: 'rgba(255,176,32,0.25)' },
-  suggestCat: { fontSize: 14, fontWeight: '600', color: COLORS.text.primary },
-  suggestSave: { fontSize: 13, fontWeight: '700', color: COLORS.accent.moneyIn },
-  applyBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, backgroundColor: COLORS.accent.primary, paddingVertical: 12, borderRadius: RADIUS.full, marginTop: 10 },
+  suggestCat: { fontSize: 14, fontWeight: '600', color: c.text.primary },
+  suggestSave: { fontSize: 13, fontWeight: '700', color: c.accent.moneyIn },
+  applyBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, backgroundColor: c.accent.primary, paddingVertical: 12, borderRadius: RADIUS.full, marginTop: 10 },
   applyText: { fontSize: 14, fontWeight: '700', color: '#fff' },
   // Empty
   empty: { alignItems: 'center', paddingVertical: 60 },
-  emptyTitle: { fontSize: 16, fontWeight: '600', color: COLORS.text.muted, marginTop: 12 },
-  emptyBtn: { backgroundColor: COLORS.accent.primary, paddingHorizontal: 24, paddingVertical: 12, borderRadius: RADIUS.full, marginTop: 16 },
+  emptyTitle: { fontSize: 16, fontWeight: '600', color: c.text.muted, marginTop: 12 },
+  emptyBtn: { backgroundColor: c.accent.primary, paddingHorizontal: 24, paddingVertical: 12, borderRadius: RADIUS.full, marginTop: 16 },
   emptyBtnText: { fontSize: 14, fontWeight: '600', color: '#fff' },
   // Modal — dark sheet
   mBg: { flex: 1, justifyContent: 'flex-end', backgroundColor: 'rgba(0,0,0,0.75)' },
-  sheet: { backgroundColor: COLORS.bg.elevated, borderTopLeftRadius: 28, borderTopRightRadius: 28, padding: 24, maxHeight: '88%', borderTopWidth: 1, borderColor: 'rgba(255,255,255,0.08)' },
-  handle: { width: 40, height: 4, borderRadius: 2, backgroundColor: COLORS.text.muted, alignSelf: 'center', marginBottom: 16, opacity: 0.6 },
-  sheetTitle: { fontSize: 22, fontWeight: '700', color: COLORS.text.primary },
-  formLabel: { fontSize: 13, fontWeight: '600', color: COLORS.text.muted, marginBottom: 10 },
+  sheet: { backgroundColor: c.bg.elevated, borderTopLeftRadius: 28, borderTopRightRadius: 28, padding: 24, maxHeight: '88%', borderTopWidth: 1, borderColor: 'rgba(255,255,255,0.08)' },
+  handle: { width: 40, height: 4, borderRadius: 2, backgroundColor: c.text.muted, alignSelf: 'center', marginBottom: 16, opacity: 0.6 },
+  sheetTitle: { fontSize: 22, fontWeight: '700', color: c.text.primary },
+  formLabel: { fontSize: 13, fontWeight: '600', color: c.text.muted, marginBottom: 10 },
   chip: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 14, paddingVertical: 10, borderRadius: RADIUS.full, backgroundColor: 'rgba(255,255,255,0.06)', marginRight: 8, borderWidth: 1, borderColor: 'rgba(255,255,255,0.1)' },
-  chipText: { fontSize: 13, color: COLORS.text.secondary, fontWeight: '500' },
+  chipText: { fontSize: 13, color: c.text.secondary, fontWeight: '500' },
   periodBtn: { flex: 1, paddingVertical: 14, borderRadius: RADIUS.full, borderWidth: 1, borderColor: 'rgba(255,255,255,0.12)', alignItems: 'center' },
-  periodOn: { backgroundColor: COLORS.accent.primary, borderColor: COLORS.accent.primary },
-  periodText: { fontSize: 14, color: COLORS.text.muted, fontWeight: '600' },
+  periodOn: { backgroundColor: c.accent.primary, borderColor: c.accent.primary },
+  periodText: { fontSize: 14, color: c.text.muted, fontWeight: '600' },
   amtRow: { flexDirection: 'row', alignItems: 'center', backgroundColor: 'rgba(255,255,255,0.05)', borderRadius: RADIUS.xl, paddingHorizontal: SPACING.lg, marginBottom: 24, borderWidth: 1, borderColor: 'rgba(255,255,255,0.1)' },
-  rupee: { fontSize: 24, fontWeight: '700', color: COLORS.accent.primary, marginRight: 8 },
-  amtInput: { flex: 1, fontSize: 28, fontWeight: '700', color: COLORS.text.primary, paddingVertical: 16 },
-  saveBtn: { backgroundColor: COLORS.accent.primary, borderRadius: RADIUS.full, paddingVertical: 18, alignItems: 'center' },
+  rupee: { fontSize: 24, fontWeight: '700', color: c.accent.primary, marginRight: 8 },
+  amtInput: { flex: 1, fontSize: 28, fontWeight: '700', color: c.text.primary, paddingVertical: 16 },
+  saveBtn: { backgroundColor: c.accent.primary, borderRadius: RADIUS.full, paddingVertical: 18, alignItems: 'center' },
   saveBtnText: { fontSize: 16, fontWeight: '700', color: '#fff' },
   // Bar-style category rows — dark glass
   barRow: {
@@ -495,25 +497,25 @@ const s = StyleSheet.create({
   },
   barIcon: { width: 40, height: 40, borderRadius: 12, alignItems: 'center', justifyContent: 'center' },
   barTop: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 },
-  barName: { fontSize: 14.5, fontWeight: '700', color: COLORS.text.primary, flex: 1, marginRight: 8 },
+  barName: { fontSize: 14.5, fontWeight: '700', color: c.text.primary, flex: 1, marginRight: 8 },
   barAmt: { fontSize: 13.5, fontWeight: '800' },
-  barOf: { fontSize: 11, fontWeight: '600', color: COLORS.text.muted },
+  barOf: { fontSize: 11, fontWeight: '600', color: c.text.muted },
   barTrack: { height: 6, borderRadius: 3, backgroundColor: 'rgba(255,255,255,0.08)', overflow: 'hidden' },
   barFill: { height: '100%', borderRadius: 3 },
   barFootRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 6 },
-  barPct: { fontSize: 10.5, color: COLORS.text.muted, fontWeight: '700', textTransform: 'uppercase', letterSpacing: 0.3 },
+  barPct: { fontSize: 10.5, color: c.text.muted, fontWeight: '700', textTransform: 'uppercase', letterSpacing: 0.3 },
   barTail: { fontSize: 11, fontWeight: '700' },
   // Recurring toggle — dark
   recurringRow: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 12, paddingHorizontal: 14, borderRadius: 14, backgroundColor: 'rgba(255,255,255,0.04)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.08)', marginBottom: 16 },
   recurringRowOn: { backgroundColor: 'rgba(255,107,26,0.14)', borderColor: 'rgba(255,107,26,0.4)' },
   recurringIcon: { width: 36, height: 36, borderRadius: 18, alignItems: 'center', justifyContent: 'center' },
-  recurringTitle: { fontSize: 14, fontWeight: '700', color: COLORS.text.primary },
-  recurringSub: { fontSize: 11, color: COLORS.text.muted, marginTop: 2 },
+  recurringTitle: { fontSize: 14, fontWeight: '700', color: c.text.primary },
+  recurringSub: { fontSize: 11, color: c.text.muted, marginTop: 2 },
   toggle: { width: 42, height: 24, borderRadius: 12, backgroundColor: 'rgba(255,255,255,0.12)', padding: 2, justifyContent: 'center' },
-  toggleOn: { backgroundColor: COLORS.accent.primary },
+  toggleOn: { backgroundColor: c.accent.primary },
   toggleKnob: { width: 20, height: 20, borderRadius: 10, backgroundColor: '#fff' },
   toggleKnobOn: { alignSelf: 'flex-end' },
   // Other-category description box — dark glass orange
   otherDescBox: { backgroundColor: 'rgba(255,107,26,0.1)', borderRadius: 14, padding: 12, borderWidth: 1, borderColor: 'rgba(255,107,26,0.3)', marginBottom: 16 },
-  descInput: { fontSize: 14, color: COLORS.text.primary, minHeight: 54, paddingVertical: 6, textAlignVertical: 'top' },
-});
+  descInput: { fontSize: 14, color: c.text.primary, minHeight: 54, paddingVertical: 6, textAlignVertical: 'top' },
+}));

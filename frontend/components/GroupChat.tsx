@@ -10,6 +10,7 @@ import { useAuthStore } from '../store/authStore';
 import { useLangStore } from '../store/langStore';
 import { t } from '../utils/i18n';
 import { COLORS, RADIUS, SPACING } from '../utils/theme';
+import { makeStyles } from '../utils/makeStyles';
 import { MEMBER_COLORS, STICKERS } from './split/theme';
 import ExpenseMessage from './split/ExpenseMessage';
 import ExpensesTab from './split/ExpensesTab';
@@ -27,6 +28,7 @@ interface Props {
 }
 
 export default function GroupChat({ group, onClose, onAddExpense, onManage, onEditExpense, onDirectPay, onRemind }: Props) {
+  const s = useStyles();
   const { user } = useAuthStore();
   const { lang } = useLangStore();
   const [tab, setTab] = useState<'chat' | 'expenses'>('chat');
@@ -241,55 +243,55 @@ export default function GroupChat({ group, onClose, onAddExpense, onManage, onEd
   );
 }
 
-const s = StyleSheet.create({
-  container: { flex: 1, backgroundColor: COLORS.bg.primary },
+const useStyles = makeStyles((c) => ({
+  container: { flex: 1, backgroundColor: c.bg.primary },
   // Header
-  header: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingHorizontal: 16, paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: COLORS.border.subtle },
+  header: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingHorizontal: 16, paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: c.border.subtle },
   headerAvatars: { flexDirection: 'row' },
-  headerAv: { width: 32, height: 32, borderRadius: 16, justifyContent: 'center', alignItems: 'center', borderWidth: 2, borderColor: COLORS.bg.primary },
+  headerAv: { width: 32, height: 32, borderRadius: 16, justifyContent: 'center', alignItems: 'center', borderWidth: 2, borderColor: c.bg.primary },
   headerAvT: { fontSize: 12, fontWeight: '700' },
-  headerName: { fontSize: 16, fontWeight: '700', color: COLORS.text.primary },
-  headerSub: { fontSize: 11, color: COLORS.text.muted },
+  headerName: { fontSize: 16, fontWeight: '700', color: c.text.primary },
+  headerSub: { fontSize: 11, color: c.text.muted },
   // Tabs
-  tabs: { flexDirection: 'row', borderBottomWidth: 2, borderBottomColor: COLORS.border.subtle },
+  tabs: { flexDirection: 'row', borderBottomWidth: 2, borderBottomColor: c.border.subtle },
   tab: { flex: 1, paddingVertical: 12, alignItems: 'center' },
-  tabOn: { borderBottomWidth: 2, borderBottomColor: COLORS.accent.primary, marginBottom: -2 },
-  tabText: { fontSize: 14, fontWeight: '600', color: COLORS.text.muted },
-  tabTextOn: { color: COLORS.accent.primary },
+  tabOn: { borderBottomWidth: 2, borderBottomColor: c.accent.primary, marginBottom: -2 },
+  tabText: { fontSize: 14, fontWeight: '600', color: c.text.muted },
+  tabTextOn: { color: c.accent.primary },
   // Chat
   chatList: { padding: 16, paddingBottom: 8 },
   emptyChat: { alignItems: 'center', paddingTop: 60, paddingHorizontal: 40 },
   emptyChatEmoji: { fontSize: 48, marginBottom: 12 },
-  emptyChatTitle: { fontSize: 20, fontWeight: '700', color: COLORS.text.primary, marginBottom: 8 },
-  emptyChatSub: { fontSize: 14, color: COLORS.text.muted, textAlign: 'center', lineHeight: 21 },
+  emptyChatTitle: { fontSize: 20, fontWeight: '700', color: c.text.primary, marginBottom: 8 },
+  emptyChatSub: { fontSize: 14, color: c.text.muted, textAlign: 'center', lineHeight: 21 },
   // Messages
   msgRow: { flexDirection: 'row', marginBottom: 12 },
   msgRowL: { justifyContent: 'flex-start' },
   msgRowR: { justifyContent: 'flex-end' },
   avatar: { width: 30, height: 30, borderRadius: 15, justifyContent: 'center', alignItems: 'center', marginRight: 8, marginTop: 16 },
   avatarT: { fontSize: 12, fontWeight: '700' },
-  senderName: { fontSize: 11, fontWeight: '600', color: COLORS.accent.primary, marginBottom: 3, marginLeft: 2 },
+  senderName: { fontSize: 11, fontWeight: '600', color: c.accent.primary, marginBottom: 3, marginLeft: 2 },
   bubble: { borderRadius: 18, paddingHorizontal: 14, paddingVertical: 10, maxWidth: '100%' },
-  bubbleMe: { backgroundColor: COLORS.accent.primary, borderBottomRightRadius: 4 },
-  bubbleOther: { backgroundColor: COLORS.bg.card, borderBottomLeftRadius: 4, borderWidth: 1, borderColor: COLORS.border.card },
-  bubbleText: { fontSize: 14, lineHeight: 20, color: COLORS.text.primary },
-  time: { fontSize: 9, color: COLORS.text.muted, marginTop: 3, marginLeft: 2 },
+  bubbleMe: { backgroundColor: c.accent.primary, borderBottomRightRadius: 4 },
+  bubbleOther: { backgroundColor: c.bg.card, borderBottomLeftRadius: 4, borderWidth: 1, borderColor: c.border.card },
+  bubbleText: { fontSize: 14, lineHeight: 20, color: c.text.primary },
+  time: { fontSize: 9, color: c.text.muted, marginTop: 3, marginLeft: 2 },
   // Sticker
   stickerText: { fontSize: 44, marginVertical: 4 },
   // System
   systemRow: { flexDirection: 'row', alignItems: 'center', marginVertical: 8, gap: 8 },
-  systemLine: { flex: 1, height: 1, backgroundColor: COLORS.border.subtle },
-  systemText: { fontSize: 11, color: COLORS.text.muted, textAlign: 'center' },
+  systemLine: { flex: 1, height: 1, backgroundColor: c.border.subtle },
+  systemText: { fontSize: 11, color: c.text.muted, textAlign: 'center' },
   // Expense card
   // Sticker bar
-  stickerBar: { paddingHorizontal: 12, paddingVertical: 8, borderTopWidth: 1, borderTopColor: COLORS.border.subtle, backgroundColor: COLORS.bg.card },
-  stickerBtn: { width: 44, height: 44, borderRadius: 12, backgroundColor: COLORS.bg.primary, justifyContent: 'center', alignItems: 'center' },
+  stickerBar: { paddingHorizontal: 12, paddingVertical: 8, borderTopWidth: 1, borderTopColor: c.border.subtle, backgroundColor: c.bg.card },
+  stickerBtn: { width: 44, height: 44, borderRadius: 12, backgroundColor: c.bg.primary, justifyContent: 'center', alignItems: 'center' },
   stickerEmoji: { fontSize: 24 },
   // Input bar
-  inputBar: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingHorizontal: 12, paddingVertical: 10, borderTopWidth: 1, borderTopColor: COLORS.border.subtle },
-  splitBtn: { backgroundColor: COLORS.accent.primary + '12', paddingHorizontal: 14, paddingVertical: 9, borderRadius: RADIUS.full, borderWidth: 1, borderColor: COLORS.accent.primary + '25' },
-  splitBtnT: { fontSize: 12, fontWeight: '700', color: COLORS.accent.primary },
-  msgInput: { flex: 1, backgroundColor: COLORS.bg.card, borderRadius: 20, paddingHorizontal: 14, paddingVertical: 9, fontSize: 14, color: COLORS.text.primary, borderWidth: 1, borderColor: COLORS.border.card },
-  sendBtn: { width: 38, height: 38, borderRadius: 19, backgroundColor: COLORS.accent.primary, justifyContent: 'center', alignItems: 'center' },
+  inputBar: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingHorizontal: 12, paddingVertical: 10, borderTopWidth: 1, borderTopColor: c.border.subtle },
+  splitBtn: { backgroundColor: c.accent.primary + '12', paddingHorizontal: 14, paddingVertical: 9, borderRadius: RADIUS.full, borderWidth: 1, borderColor: c.accent.primary + '25' },
+  splitBtnT: { fontSize: 12, fontWeight: '700', color: c.accent.primary },
+  msgInput: { flex: 1, backgroundColor: c.bg.card, borderRadius: 20, paddingHorizontal: 14, paddingVertical: 9, fontSize: 14, color: c.text.primary, borderWidth: 1, borderColor: c.border.card },
+  sendBtn: { width: 38, height: 38, borderRadius: 19, backgroundColor: c.accent.primary, justifyContent: 'center', alignItems: 'center' },
   // Expenses tab
-});
+}));

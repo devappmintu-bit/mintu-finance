@@ -11,6 +11,7 @@ import { format } from 'date-fns';
 import { useLangStore } from '../../store/langStore';
 import { t } from '../../utils/i18n';
 import { COLORS, RADIUS, SPACING, CATEGORIES, CATEGORY_LIST, SHADOW, shadowStyle } from '../../utils/theme';
+import { makeStyles } from '../../utils/makeStyles';
 import { FlashList } from '@shopify/flash-list';
 import PressableGlass from '../../components/PressableGlass';
 import SwipeableRow from '../../components/SwipeableRow';
@@ -68,6 +69,7 @@ const TxnRow = memo(function TxnRow({ item, lang, onEdit, onDelete }: { item: an
 });
 
 export default function TransactionsScreen() {
+  const styles = useStyles();
   const { lang } = useLangStore();
   const params = useLocalSearchParams<{ openAdd?: string; openSmsScan?: string; type?: string }>();
   const [transactions, setTransactions] = useState<any[]>([]);
@@ -463,75 +465,75 @@ export default function TransactionsScreen() {
   );
 }
 
-const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: COLORS.bg.primary },
+const useStyles = makeStyles((c) => ({
+  container: { flex: 1, backgroundColor: c.bg.primary },
   header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: SPACING.lg, paddingVertical: SPACING.md },
-  pageTitle: { fontSize: 28, fontWeight: '800', color: COLORS.text.primary, letterSpacing: -0.5 },
-  pageSubtitle: { fontSize: 13, color: COLORS.text.muted },
+  pageTitle: { fontSize: 28, fontWeight: '800', color: c.text.primary, letterSpacing: -0.5 },
+  pageSubtitle: { fontSize: 13, color: c.text.muted },
   headerActions: { flexDirection: 'row', gap: 10 },
-  addBtn: { width: 44, height: 44, borderRadius: 22, backgroundColor: COLORS.accent.primary, justifyContent: 'center', alignItems: 'center', ...SHADOW.md },
+  addBtn: { width: 44, height: 44, borderRadius: 22, backgroundColor: c.accent.primary, justifyContent: 'center', alignItems: 'center', ...SHADOW.md },
   filterBtn: { width: 44, height: 44, borderRadius: 22, backgroundColor: 'rgba(255,107,26,0.14)', justifyContent: 'center', alignItems: 'center', borderWidth: 1, borderColor: 'rgba(255,107,26,0.4)', position: 'relative' },
   filterBadge: { position: 'absolute', top: -2, right: -2, minWidth: 18, height: 18, borderRadius: 9, backgroundColor: '#F56E1E', alignItems: 'center', justifyContent: 'center', paddingHorizontal: 4, borderWidth: 2, borderColor: '#FAFAF9' },
   filterBadgeTxt: { fontSize: 10, fontWeight: '800', color: '#fff' },
   // Quick bar
   quickBar: { flexDirection: 'row', paddingHorizontal: SPACING.lg, marginBottom: SPACING.md, gap: 10 },
-  quickInputWrap: { flex: 1, flexDirection: 'row', alignItems: 'center', backgroundColor: COLORS.bg.card, borderRadius: RADIUS.full, paddingHorizontal: SPACING.lg, borderWidth: 1, borderColor: COLORS.border.card },
-  quickRupee: { fontSize: 18, fontWeight: '700', color: COLORS.accent.primary, marginRight: 6 },
-  quickInput: { flex: 1, paddingVertical: 14, fontSize: 15, color: COLORS.text.primary },
-  voiceBtn: { width: 48, height: 48, borderRadius: 24, backgroundColor: COLORS.accent.primary, justifyContent: 'center', alignItems: 'center' },
+  quickInputWrap: { flex: 1, flexDirection: 'row', alignItems: 'center', backgroundColor: c.bg.card, borderRadius: RADIUS.full, paddingHorizontal: SPACING.lg, borderWidth: 1, borderColor: c.border.card },
+  quickRupee: { fontSize: 18, fontWeight: '700', color: c.accent.primary, marginRight: 6 },
+  quickInput: { flex: 1, paddingVertical: 14, fontSize: 15, color: c.text.primary },
+  voiceBtn: { width: 48, height: 48, borderRadius: 24, backgroundColor: c.accent.primary, justifyContent: 'center', alignItems: 'center' },
   // List
   listContent: { padding: SPACING.lg, paddingTop: 0, paddingBottom: 140 },
   txnCard: { flexDirection: 'row', alignItems: 'center', backgroundColor: 'rgba(255,255,255,0.9)', borderRadius: 20, padding: SPACING.lg, marginBottom: 10, borderWidth: 1, borderColor: 'rgba(255,255,255,0.6)', ...SHADOW.sm },
   txnIcon: { width: 44, height: 44, borderRadius: 16, justifyContent: 'center', alignItems: 'center', marginRight: SPACING.md },
   txnInfo: { flex: 1 },
-  txnDesc: { fontSize: 15, fontWeight: '600', color: COLORS.text.primary, flex: 1 },
+  txnDesc: { fontSize: 15, fontWeight: '600', color: c.text.primary, flex: 1 },
   txnDescRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
   gmailBadge: { flexDirection: 'row', alignItems: 'center', backgroundColor: 'rgba(255,107,26,0.14)', borderColor: 'rgba(255,107,26,0.4)', borderWidth: 1, paddingHorizontal: 6, paddingVertical: 2, borderRadius: 6 },
   gmailBadgeText: { fontSize: 9, fontWeight: '800', color: '#C14A06', letterSpacing: 0.3 },
   txnMetaRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 3 },
-  txnMeta: { fontSize: 12, color: COLORS.text.muted },
-  cashBadge: { backgroundColor: COLORS.accent.warning + '20', paddingHorizontal: 8, paddingVertical: 2, borderRadius: 6 },
-  cashBadgeText: { fontSize: 10, fontWeight: '700', color: COLORS.accent.warning },
+  txnMeta: { fontSize: 12, color: c.text.muted },
+  cashBadge: { backgroundColor: c.accent.warning + '20', paddingHorizontal: 8, paddingVertical: 2, borderRadius: 6 },
+  cashBadgeText: { fontSize: 10, fontWeight: '700', color: c.accent.warning },
   txnAmount: { fontSize: 17, fontWeight: '700' },
   empty: { alignItems: 'center', paddingVertical: 80 },
-  emptyTitle: { fontSize: 18, fontWeight: '700', color: COLORS.text.secondary, marginTop: 16 },
-  emptyText: { fontSize: 14, color: COLORS.text.muted, marginTop: 6 },
+  emptyTitle: { fontSize: 18, fontWeight: '700', color: c.text.secondary, marginTop: 16 },
+  emptyText: { fontSize: 14, color: c.text.muted, marginTop: 6 },
   // Modal
   modalBg: { flex: 1, justifyContent: 'flex-end', backgroundColor: 'rgba(0,0,0,0.6)' },
-  modalSheet: { backgroundColor: COLORS.bg.secondary, borderTopLeftRadius: 28, borderTopRightRadius: 28, padding: SPACING.xxl, maxHeight: '88%' },
-  sheetHandle: { width: 40, height: 4, borderRadius: 2, backgroundColor: COLORS.text.muted, alignSelf: 'center', marginBottom: SPACING.lg, opacity: 0.3 },
+  modalSheet: { backgroundColor: c.bg.secondary, borderTopLeftRadius: 28, borderTopRightRadius: 28, padding: SPACING.xxl, maxHeight: '88%' },
+  sheetHandle: { width: 40, height: 4, borderRadius: 2, backgroundColor: c.text.muted, alignSelf: 'center', marginBottom: SPACING.lg, opacity: 0.3 },
   modalHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: SPACING.xxl },
-  modalTitle: { fontSize: 22, fontWeight: '700', color: COLORS.text.primary },
+  modalTitle: { fontSize: 22, fontWeight: '700', color: c.text.primary },
   typeRow: { flexDirection: 'row', gap: 12, marginBottom: SPACING.xxl },
-  typeBtn: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, paddingVertical: 14, borderRadius: RADIUS.full, borderWidth: 1, borderColor: COLORS.border.subtle },
-  typeBtnActive: { backgroundColor: COLORS.accent.primary, borderColor: COLORS.accent.primary },
-  typeBtnText: { fontSize: 15, color: COLORS.text.muted, fontWeight: '600' },
-  typeBtnTextActive: { color: COLORS.bg.primary },
-  formLabel: { fontSize: 13, fontWeight: '600', color: COLORS.text.muted, marginBottom: 10, letterSpacing: 0.3 },
-  amountRow: { flexDirection: 'row', alignItems: 'center', backgroundColor: COLORS.bg.primary, borderRadius: RADIUS.xl, paddingHorizontal: SPACING.lg, marginBottom: SPACING.xxl, borderWidth: 1, borderColor: COLORS.border.subtle },
-  rupee: { fontSize: 24, fontWeight: '700', color: COLORS.accent.primary, marginRight: 8 },
-  amountInput: { flex: 1, fontSize: 28, fontWeight: '700', color: COLORS.text.primary, paddingVertical: 16 },
+  typeBtn: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, paddingVertical: 14, borderRadius: RADIUS.full, borderWidth: 1, borderColor: c.border.subtle },
+  typeBtnActive: { backgroundColor: c.accent.primary, borderColor: c.accent.primary },
+  typeBtnText: { fontSize: 15, color: c.text.muted, fontWeight: '600' },
+  typeBtnTextActive: { color: c.bg.primary },
+  formLabel: { fontSize: 13, fontWeight: '600', color: c.text.muted, marginBottom: 10, letterSpacing: 0.3 },
+  amountRow: { flexDirection: 'row', alignItems: 'center', backgroundColor: c.bg.primary, borderRadius: RADIUS.xl, paddingHorizontal: SPACING.lg, marginBottom: SPACING.xxl, borderWidth: 1, borderColor: c.border.subtle },
+  rupee: { fontSize: 24, fontWeight: '700', color: c.accent.primary, marginRight: 8 },
+  amountInput: { flex: 1, fontSize: 28, fontWeight: '700', color: c.text.primary, paddingVertical: 16 },
   chipScroll: { marginBottom: SPACING.xxl },
-  chip: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 14, paddingVertical: 10, borderRadius: RADIUS.full, backgroundColor: COLORS.bg.primary, marginRight: 8, borderWidth: 1, borderColor: COLORS.border.subtle },
-  chipActive: { backgroundColor: COLORS.accent.primary, borderColor: COLORS.accent.primary },
-  chipText: { fontSize: 13, color: COLORS.text.secondary, fontWeight: '500' },
-  chipTextActive: { color: COLORS.bg.primary, fontWeight: '600' },
-  textInput: { backgroundColor: COLORS.bg.primary, borderRadius: RADIUS.xl, paddingHorizontal: SPACING.lg, paddingVertical: 16, fontSize: 16, color: COLORS.text.primary, borderWidth: 1, borderColor: COLORS.border.subtle, marginBottom: SPACING.xxl },
-  submitBtn: { backgroundColor: COLORS.accent.primary, borderRadius: RADIUS.full, paddingVertical: 18, alignItems: 'center' },
-  submitText: { fontSize: 16, fontWeight: '700', color: COLORS.bg.primary },
-  smsBanner: { flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: COLORS.accent.warning + '12', borderRadius: RADIUS.lg, padding: SPACING.md, marginBottom: SPACING.lg },
-  smsBannerText: { fontSize: 13, color: COLORS.accent.warning, fontWeight: '500' },
-  smsInput: { backgroundColor: COLORS.bg.primary, borderRadius: RADIUS.xl, padding: SPACING.lg, fontSize: 15, color: COLORS.text.primary, borderWidth: 1, borderColor: COLORS.border.subtle, minHeight: 120, marginBottom: SPACING.sm },
-  pasteBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, paddingVertical: 10, paddingHorizontal: 14, backgroundColor: COLORS.accent.primary + '12', borderRadius: RADIUS.full, borderWidth: 1, borderColor: COLORS.accent.primary + '30', alignSelf: 'flex-start', marginBottom: SPACING.lg },
-  pasteBtnText: { fontSize: 12, fontWeight: '700', color: COLORS.accent.primary },
+  chip: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 14, paddingVertical: 10, borderRadius: RADIUS.full, backgroundColor: c.bg.primary, marginRight: 8, borderWidth: 1, borderColor: c.border.subtle },
+  chipActive: { backgroundColor: c.accent.primary, borderColor: c.accent.primary },
+  chipText: { fontSize: 13, color: c.text.secondary, fontWeight: '500' },
+  chipTextActive: { color: c.bg.primary, fontWeight: '600' },
+  textInput: { backgroundColor: c.bg.primary, borderRadius: RADIUS.xl, paddingHorizontal: SPACING.lg, paddingVertical: 16, fontSize: 16, color: c.text.primary, borderWidth: 1, borderColor: c.border.subtle, marginBottom: SPACING.xxl },
+  submitBtn: { backgroundColor: c.accent.primary, borderRadius: RADIUS.full, paddingVertical: 18, alignItems: 'center' },
+  submitText: { fontSize: 16, fontWeight: '700', color: c.bg.primary },
+  smsBanner: { flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: c.accent.warning + '12', borderRadius: RADIUS.lg, padding: SPACING.md, marginBottom: SPACING.lg },
+  smsBannerText: { fontSize: 13, color: c.accent.warning, fontWeight: '500' },
+  smsInput: { backgroundColor: c.bg.primary, borderRadius: RADIUS.xl, padding: SPACING.lg, fontSize: 15, color: c.text.primary, borderWidth: 1, borderColor: c.border.subtle, minHeight: 120, marginBottom: SPACING.sm },
+  pasteBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, paddingVertical: 10, paddingHorizontal: 14, backgroundColor: c.accent.primary + '12', borderRadius: RADIUS.full, borderWidth: 1, borderColor: c.accent.primary + '30', alignSelf: 'flex-start', marginBottom: SPACING.lg },
+  pasteBtnText: { fontSize: 12, fontWeight: '700', color: c.accent.primary },
   // Notification paste card
   // Waste Detector & Pie Chart
-  sectionLabel: { fontSize: 14, fontWeight: '700', color: COLORS.text.muted, marginBottom: 8, marginTop: 4 },
+  sectionLabel: { fontSize: 14, fontWeight: '700', color: c.text.muted, marginBottom: 8, marginTop: 4 },
   // AI Report Card
   reportCard: { backgroundColor: 'rgba(255,255,255,0.92)', borderRadius: RADIUS.xl, padding: 16, marginBottom: 14, borderWidth: 1, borderColor: 'rgba(238,221,204,0.6)', ...shadowStyle('#2E1F1A', 2, 10, 0.04, 2) },
-  reportTitle: { fontSize: 15, fontWeight: '700', color: COLORS.text.primary },
+  reportTitle: { fontSize: 15, fontWeight: '700', color: c.text.primary },
   trendRow: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 12, paddingVertical: 8, borderRadius: RADIUS.full, marginBottom: 10 },
-  insightRow: { paddingVertical: 8, borderBottomWidth: 1, borderBottomColor: COLORS.border.subtle },
+  insightRow: { paddingVertical: 8, borderBottomWidth: 1, borderBottomColor: c.border.subtle },
   aiRecBox: { flexDirection: 'row', gap: 8, backgroundColor: 'rgba(255,176,32,0.12)', padding: 12, borderRadius: RADIUS.lg, marginTop: 10, borderWidth: 1, borderColor: 'rgba(255,176,32,0.4)' },
   aiRecTxt: { flex: 1, fontSize: 12, fontWeight: '500', color: '#78716C', lineHeight: 18 },
-});
+}));

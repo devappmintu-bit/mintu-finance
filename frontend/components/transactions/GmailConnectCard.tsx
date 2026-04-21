@@ -10,9 +10,11 @@ import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
 import { COLORS } from '../../utils/theme';
+import { makeStyles } from '../../utils/makeStyles';
 import { fetchGmailStatus } from '../../services/gmail';
 
 export default function GmailConnectCard() {
+  const s = useStyles();
   const [show, setShow] = useState(false);
 
   useEffect(() => {
@@ -49,7 +51,7 @@ export default function GmailConnectCard() {
   );
 }
 
-const s = StyleSheet.create({
+const useStyles = makeStyles((c) => ({
   wrap: { marginHorizontal: 16, marginTop: 10, marginBottom: 6 },
   card: {
     flexDirection: 'row', alignItems: 'center', gap: 12,
@@ -60,6 +62,6 @@ const s = StyleSheet.create({
     width: 38, height: 38, borderRadius: 19,
     backgroundColor: '#FFFFFF', alignItems: 'center', justifyContent: 'center',
   },
-  title: { fontSize: 14, fontWeight: '800', color: COLORS.text.primary },
-  sub: { fontSize: 11.5, color: COLORS.text.secondary, marginTop: 2, lineHeight: 15 },
-});
+  title: { fontSize: 14, fontWeight: '800', color: c.text.primary },
+  sub: { fontSize: 11.5, color: c.text.secondary, marginTop: 2, lineHeight: 15 },
+}));

@@ -4,6 +4,7 @@ import { Ionicons } from '@expo/vector-icons';
 import * as Sharing from 'expo-sharing';
 import { captureRef } from 'react-native-view-shot';
 import { COLORS, RADIUS, SPACING } from '../utils/theme';
+import { makeStyles } from '../utils/makeStyles';
 
 interface ScoreCardProps {
   name: string;
@@ -14,6 +15,7 @@ interface ScoreCardProps {
 }
 
 export default function ScoreCard({ name, score, streak, totalSaved, month }: ScoreCardProps) {
+  const s = useStyles();
   const cardRef = useRef<View>(null);
 
   const scoreColor = score >= 75 ? '#10B981' : score >= 50 ? '#F59E0B' : '#EF4444';
@@ -94,7 +96,7 @@ export default function ScoreCard({ name, score, streak, totalSaved, month }: Sc
   );
 }
 
-const s = StyleSheet.create({
+const useStyles = makeStyles((c) => ({
   card: {
     backgroundColor: '#0A0F1C',
     borderRadius: RADIUS.card,
@@ -130,7 +132,7 @@ const s = StyleSheet.create({
   },
   instaTxt: { fontSize: 15, fontWeight: '600', color: '#fff' },
   generalBtn: {
-    width: 48, height: 48, borderRadius: 24, backgroundColor: COLORS.bg.secondary,
-    borderWidth: 1, borderColor: COLORS.border.subtle, justifyContent: 'center', alignItems: 'center',
+    width: 48, height: 48, borderRadius: 24, backgroundColor: c.bg.secondary,
+    borderWidth: 1, borderColor: c.border.subtle, justifyContent: 'center', alignItems: 'center',
   },
-});
+}));

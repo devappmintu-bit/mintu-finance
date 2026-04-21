@@ -11,6 +11,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import Toast from 'react-native-toast-message';
 import { COLORS } from '../../utils/theme';
+import { makeStyles } from '../../utils/makeStyles';
 import { C, MEMBER_COLORS } from './theme';
 
 // Cross-platform confirmation — native Alert is unreliable on react-native-web.
@@ -39,6 +40,7 @@ type Props = {
 };
 
 export default function GroupManageSheet({ visible, onClose, manage, currentUserId, onRename, onAddMember, onRemoveMember, onDelete, onLeave }: Props) {
+  const s = useStyles();
   const [addPhoneVal, setAddPhoneVal] = useState('');
   const [renameVal, setRenameVal] = useState('');
   const [showRename, setShowRename] = useState(false);
@@ -214,7 +216,7 @@ function ActionRow({ icon, label, onPress, danger }: { icon: string; label: stri
   );
 }
 
-const s = StyleSheet.create({
+const useStyles = makeStyles((c) => ({
   mBg: { flex: 1, justifyContent: 'flex-end', backgroundColor: 'rgba(15,23,42,0.55)' },
   sheet: { backgroundColor: C.sheetBg, borderTopLeftRadius: 28, borderTopRightRadius: 28, padding: 20, maxHeight: '92%' },
   handle: { width: 40, height: 4, borderRadius: 2, backgroundColor: C.text4, alignSelf: 'center', marginBottom: 12 },
@@ -229,7 +231,7 @@ const s = StyleSheet.create({
   groupMeta: { fontSize: 12, color: C.text3, marginTop: 4 },
 
   statsRow: { flexDirection: 'row', gap: 8, marginBottom: 20 },
-  statCard: { flex: 1, backgroundColor: COLORS.bg.primary, borderRadius: 14, padding: 12, borderWidth: 1, borderColor: C.border, alignItems: 'center' },
+  statCard: { flex: 1, backgroundColor: c.bg.primary, borderRadius: 14, padding: 12, borderWidth: 1, borderColor: C.border, alignItems: 'center' },
   statVal: { fontSize: 16, fontWeight: '800', color: C.text1, maxWidth: '100%' },
   statLbl: { fontSize: 10, color: C.text3, marginTop: 4, letterSpacing: 0.3 },
 
@@ -241,7 +243,7 @@ const s = StyleSheet.create({
   actLabel: { flex: 1, fontSize: 14, fontWeight: '600' },
 
   inlineRow: { flexDirection: 'row', gap: 8, padding: 10, borderBottomWidth: 1, borderBottomColor: C.border },
-  input: { flex: 1, backgroundColor: COLORS.bg.primary, borderRadius: 12, paddingHorizontal: 12, paddingVertical: 10, fontSize: 14, color: C.text1, borderWidth: 1, borderColor: C.border },
+  input: { flex: 1, backgroundColor: c.bg.primary, borderRadius: 12, paddingHorizontal: 12, paddingVertical: 10, fontSize: 14, color: C.text1, borderWidth: 1, borderColor: C.border },
   iconBtn: { width: 40, height: 40, borderRadius: 12, justifyContent: 'center', alignItems: 'center' },
 
   memRow: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 10, paddingHorizontal: 14 },
@@ -252,4 +254,4 @@ const s = StyleSheet.create({
   youTag: { fontSize: 10, color: C.accent, fontWeight: '700', letterSpacing: 0.5, marginTop: 2 },
   adminBadge: { backgroundColor: C.accent + '20', paddingHorizontal: 8, paddingVertical: 3, borderRadius: 8 },
   adminTxt: { fontSize: 10, fontWeight: '700', color: C.accent, letterSpacing: 0.3 },
-});
+}));

@@ -28,6 +28,7 @@ import { BottomTabBarProps } from '@react-navigation/bottom-tabs';
 import { BlurView } from 'expo-blur';
 import Mascot from '../../components/Mascot';
 import { COLORS, FONT_FAMILY, GLOW } from '../../utils/theme';
+import { makeStyles } from '../../utils/makeStyles';
 import { useLangStore } from '../../store/langStore';
 import { t } from '../../utils/i18n';
 
@@ -227,6 +228,7 @@ function MintUTabBar({ state, navigation }: BottomTabBarProps) {
 }
 
 export default function TabLayout() {
+  const st = useStyles();
   return (
     <View style={{ flex: 1 }}>
       <Tabs
@@ -253,7 +255,7 @@ export default function TabLayout() {
   );
 }
 
-const st = StyleSheet.create({
+const useStyles = makeStyles((c) => ({
   wrap: {
     position: 'absolute', left: 0, right: 0, bottom: 0,
     height: 112,
@@ -295,13 +297,13 @@ const st = StyleSheet.create({
     borderWidth: 1,
     borderColor: 'rgba(255,107,26,0.4)',
     ...Platform.select({
-      ios:     { shadowColor: COLORS.accent.primary, shadowOpacity: 0.55, shadowRadius: 10, shadowOffset: { width: 0, height: 2 } },
+      ios:     { shadowColor: c.accent.primary, shadowOpacity: 0.55, shadowRadius: 10, shadowOffset: { width: 0, height: 2 } },
       android: { elevation: 6 },
       web:     { boxShadow: '0 0 16px rgba(255,107,26,0.55)' as any },
     }),
   },
-  sideLabel:   { fontSize: 10.5, color: COLORS.text.muted, fontFamily: FONT_FAMILY.semibold, letterSpacing: 0.3 },
-  sideLabelOn: { color: COLORS.accent.primary, fontFamily: FONT_FAMILY.bold },
+  sideLabel:   { fontSize: 10.5, color: c.text.muted, fontFamily: FONT_FAMILY.semibold, letterSpacing: 0.3 },
+  sideLabelOn: { color: c.accent.primary, fontFamily: FONT_FAMILY.bold },
 
   // RAISED puck sits on top of the cutout — neon-glow ring
   raisedWrap: {
@@ -321,7 +323,7 @@ const st = StyleSheet.create({
     alignItems: 'center', justifyContent: 'center',
     borderWidth: 2, borderColor: 'rgba(255,180,71,0.9)',
     ...Platform.select({
-      ios:     { shadowColor: COLORS.accent.primary, shadowOpacity: 0.85, shadowRadius: 18, shadowOffset: { width: 0, height: 8 } },
+      ios:     { shadowColor: c.accent.primary, shadowOpacity: 0.85, shadowRadius: 18, shadowOffset: { width: 0, height: 8 } },
       android: { elevation: 18 },
       web:     { boxShadow: '0 0 24px rgba(255,107,26,0.85), 0 8px 20px rgba(255,107,26,0.55)' as any },
     }),
@@ -334,4 +336,4 @@ const st = StyleSheet.create({
     alignItems: 'center', justifyContent: 'center',
   },
   raisedMascot: { width: '100%', height: '100%' },
-});
+}));

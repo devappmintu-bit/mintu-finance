@@ -9,6 +9,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { router, useLocalSearchParams } from 'expo-router';
 import { COLORS, shadowStyle } from '../../utils/theme';
+import { makeStyles } from '../../utils/makeStyles';
 
 type Section = { heading: string; body: string };
 type LegalDoc = { title: string; emoji: string; lastUpdated: string; intro: string; sections: Section[] };
@@ -73,6 +74,7 @@ const DOCS: Record<string, LegalDoc> = {
 };
 
 export default function LegalPage() {
+  const s = useStyles();
   const { page } = useLocalSearchParams<{ page: string }>();
   const key = String(page || 'privacy').toLowerCase();
   const doc = DOCS[key] || DOCS.privacy;
@@ -116,20 +118,20 @@ export default function LegalPage() {
   );
 }
 
-const s = StyleSheet.create({
-  container: { flex: 1, backgroundColor: COLORS.bg.primary },
-  header: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 12, paddingVertical: 12, backgroundColor: '#FFFFFF', borderBottomWidth: 1, borderBottomColor: COLORS.border.subtle },
+const useStyles = makeStyles((c) => ({
+  container: { flex: 1, backgroundColor: c.bg.primary },
+  header: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 12, paddingVertical: 12, backgroundColor: '#FFFFFF', borderBottomWidth: 1, borderBottomColor: c.border.subtle },
   backBtn: { padding: 6 },
-  headerTitle: { flex: 1, fontSize: 16, fontWeight: '800', color: COLORS.text.primary, textAlign: 'center' },
+  headerTitle: { flex: 1, fontSize: 16, fontWeight: '800', color: c.text.primary, textAlign: 'center' },
   scroll: { padding: 16 },
   hero: { alignItems: 'center', paddingVertical: 24, backgroundColor: '#FFFFFF', borderRadius: 18, marginBottom: 14, ...shadowStyle('#2E1F1A', 2, 10, 0.05, 2) },
   heroEmoji: { fontSize: 38, marginBottom: 6 },
-  heroTitle: { fontSize: 18, fontWeight: '900', color: COLORS.text.primary },
-  heroDate: { fontSize: 11, fontWeight: '600', color: COLORS.text.muted, marginTop: 4, letterSpacing: 0.3 },
-  intro: { fontSize: 14, color: COLORS.text.secondary, lineHeight: 22, marginBottom: 16, fontWeight: '500' },
-  section: { backgroundColor: '#FFFFFF', borderRadius: 12, padding: 14, marginBottom: 10, borderWidth: 1, borderColor: COLORS.border.card },
+  heroTitle: { fontSize: 18, fontWeight: '900', color: c.text.primary },
+  heroDate: { fontSize: 11, fontWeight: '600', color: c.text.muted, marginTop: 4, letterSpacing: 0.3 },
+  intro: { fontSize: 14, color: c.text.secondary, lineHeight: 22, marginBottom: 16, fontWeight: '500' },
+  section: { backgroundColor: '#FFFFFF', borderRadius: 12, padding: 14, marginBottom: 10, borderWidth: 1, borderColor: c.border.card },
   sectionTitle: { fontSize: 14, fontWeight: '800', color: '#E65100', marginBottom: 6 },
-  sectionBody: { fontSize: 13, color: COLORS.text.primary, lineHeight: 20, fontWeight: '500' },
+  sectionBody: { fontSize: 13, color: c.text.primary, lineHeight: 20, fontWeight: '500' },
   footer: { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 18, padding: 12, backgroundColor: '#10B98110', borderRadius: 10, borderWidth: 1, borderColor: '#10B98125' },
   footerText: { flex: 1, fontSize: 11, color: '#059669', fontWeight: '700', lineHeight: 15 },
-});
+}));

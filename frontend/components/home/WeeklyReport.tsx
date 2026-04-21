@@ -3,6 +3,7 @@ import { View, Text, StyleSheet, TouchableOpacity, Linking, Share } from 'react-
 import { Ionicons } from '@expo/vector-icons';
 import Toast from 'react-native-toast-message';
 import { COLORS, RADIUS, SPACING, shadowStyle } from '../../utils/theme';
+import { makeStyles } from '../../utils/makeStyles';
 
 const APP_LINK = 'https://mintu.app/download';
 
@@ -13,6 +14,7 @@ interface Props {
 }
 
 export default function WeeklyReport({ weeklyReport, snapshot, user }: Props) {
+  const s = useStyles();
   if (!weeklyReport || weeklyReport.total_spent <= 0) return null;
 
   const handleShare = async () => {
@@ -81,18 +83,18 @@ export default function WeeklyReport({ weeklyReport, snapshot, user }: Props) {
   );
 }
 
-const s = StyleSheet.create({
+const useStyles = makeStyles((c) => ({
   card: { backgroundColor: 'rgba(255,255,255,0.92)', borderRadius: RADIUS.card, padding: SPACING.xl, marginBottom: SPACING.lg, borderWidth: 1, borderColor: 'rgba(238,221,204,0.6)', ...shadowStyle('#2E1F1A', 2, 12, 0.04, 3) },
   header: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 6 },
-  label: { fontSize: 11, fontWeight: '800', letterSpacing: 1, color: COLORS.accent.secondary, flex: 1 },
-  period: { fontSize: 10, fontWeight: '700', color: COLORS.text.muted, letterSpacing: 0.5 },
-  headline: { fontSize: 15, fontWeight: '700', color: COLORS.text.primary, lineHeight: 22, marginBottom: 12 },
+  label: { fontSize: 11, fontWeight: '800', letterSpacing: 1, color: c.accent.secondary, flex: 1 },
+  period: { fontSize: 10, fontWeight: '700', color: c.text.muted, letterSpacing: 0.5 },
+  headline: { fontSize: 15, fontWeight: '700', color: c.text.primary, lineHeight: 22, marginBottom: 12 },
   statsRow: { flexDirection: 'row', alignItems: 'center', gap: 14, marginBottom: 10 },
   stat: { },
   statVal: { fontSize: 18, fontWeight: '800' },
-  statLbl: { fontSize: 10, color: COLORS.text.muted, marginTop: 2, fontWeight: '600' },
+  statLbl: { fontSize: 10, color: c.text.muted, marginTop: 2, fontWeight: '600' },
   changePill: { flexDirection: 'row', alignItems: 'center', gap: 3, paddingHorizontal: 8, paddingVertical: 4, borderRadius: 999 },
-  suggestion: { fontSize: 13, color: COLORS.text.secondary, lineHeight: 18, marginTop: 4 },
+  suggestion: { fontSize: 13, color: c.text.secondary, lineHeight: 18, marginTop: 4 },
   shareBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, backgroundColor: '#25D366', paddingVertical: 12, borderRadius: 999, marginTop: 12 },
   shareBtnText: { fontSize: 13, fontWeight: '800', color: '#fff' },
-});
+}));

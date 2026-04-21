@@ -11,6 +11,7 @@ import api from '../../utils/api';
 import PremiumComparison from '../premium/PremiumComparison';
 import CoinRedeemPanel from '../premium/CoinRedeemPanel';
 import { COLORS } from '../../utils/theme';
+import { makeStyles } from '../../utils/makeStyles';
 import MockPaymentSheet from '../MockPaymentSheet';
 import Toast from 'react-native-toast-message';
 import { useLangStore } from '../../store/langStore';
@@ -41,6 +42,7 @@ interface Props {
 }
 
 export default function PremiumExpandable({ onExplore }: Props) {
+  const s = useStyles();
   const [expanded, setExpanded] = useState(false);
   const [showComparison, setShowComparison] = useState(false);
   const [coinRedeem, setCoinRedeem] = useState<{ coinsToUse: number; discount: number; effective: number }>({ coinsToUse: 0, discount: 0, effective: 0 });
@@ -269,7 +271,7 @@ export default function PremiumExpandable({ onExplore }: Props) {
   );
 }
 
-const s = StyleSheet.create({
+const useStyles = makeStyles((c) => ({
   card: { borderRadius: 20, marginBottom: 14, borderWidth: 1, borderColor: '#F56E1E55', overflow: 'hidden' },
   header: { flexDirection: 'row', alignItems: 'center', gap: 12, padding: 16 },
   headerRow: { flexDirection: 'row', alignItems: 'center', gap: 12 },
@@ -324,4 +326,4 @@ const s = StyleSheet.create({
     borderWidth: 1, borderColor: 'rgba(255,255,255,0.3)',
   },
   perkTxt: { color: '#fff', fontWeight: '800', fontSize: 12.5 },
-});
+}));

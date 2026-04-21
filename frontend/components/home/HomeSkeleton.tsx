@@ -12,8 +12,10 @@ import React from 'react';
 import { View, StyleSheet } from 'react-native';
 import Skeleton from '../ui/Skeleton';
 import { COLORS } from '../../utils/theme';
+import { makeStyles } from '../../utils/makeStyles';
 
 export default function HomeSkeleton() {
+  const s = useStyles();
   return (
     <View style={s.container}>
       {/* Header */}
@@ -53,9 +55,9 @@ export default function HomeSkeleton() {
   );
 }
 
-const s = StyleSheet.create({
-  container: { padding: 16, backgroundColor: COLORS.bg.primary, flex: 1 },
+const useStyles = makeStyles((c) => ({
+  container: { padding: 16, backgroundColor: c.bg.primary, flex: 1 },
   header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
   quickRow: { flexDirection: 'row', justifyContent: 'space-between', marginTop: 18 },
   txnRow: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 10 },
-});
+}));

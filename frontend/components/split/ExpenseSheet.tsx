@@ -4,6 +4,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import Toast from 'react-native-toast-message';
 import { COLORS } from '../../utils/theme';
+import { makeStyles } from '../../utils/makeStyles';
 import { C, MEMBER_COLORS, SPLIT_TYPES } from './theme';
 
 type Props = {
@@ -16,6 +17,7 @@ type Props = {
 };
 
 export default function ExpenseSheet({ visible, onClose, group, currentUserId, editing, onSubmit }: Props) {
+  const s = useStyles();
   const [amount, setAmount] = useState('');
   const [desc, setDesc] = useState('');
   const [splitType, setSplitType] = useState('equal');
@@ -172,7 +174,7 @@ export default function ExpenseSheet({ visible, onClose, group, currentUserId, e
   );
 }
 
-const s = StyleSheet.create({
+const useStyles = makeStyles((c) => ({
   mBg: { flex: 1, justifyContent: 'flex-end', backgroundColor: 'rgba(0,0,0,0.5)' },
   sheet: { backgroundColor: C.sheetBg, borderTopLeftRadius: 28, borderTopRightRadius: 28, padding: 24 },
   handle: { width: 40, height: 4, borderRadius: 2, backgroundColor: C.text4, alignSelf: 'center', marginBottom: 16 },
@@ -192,13 +194,13 @@ const s = StyleSheet.create({
   memInfo: { flex: 1 },
   memName: { fontSize: 15, fontWeight: '600', color: C.text1 },
   memAmt: { fontSize: 12, color: C.accent, marginTop: 2 },
-  amtWrap: { flexDirection: 'row', alignItems: 'center', backgroundColor: COLORS.bg.primary, borderRadius: 8, paddingHorizontal: 8, borderWidth: 1, borderColor: C.border },
+  amtWrap: { flexDirection: 'row', alignItems: 'center', backgroundColor: c.bg.primary, borderRadius: 8, paddingHorizontal: 8, borderWidth: 1, borderColor: C.border },
   amtPre: { fontSize: 14, color: C.text3 },
   amtSuf: { fontSize: 14, color: C.text3, marginLeft: 2 },
   memAmtIn: { fontSize: 16, fontWeight: '600', color: C.text1, width: 60, textAlign: 'right', paddingVertical: 6 },
   sharesW: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  shareBtn: { width: 30, height: 30, borderRadius: 15, backgroundColor: COLORS.bg.primary, justifyContent: 'center', alignItems: 'center', borderWidth: 1, borderColor: C.border },
+  shareBtn: { width: 30, height: 30, borderRadius: 15, backgroundColor: c.bg.primary, justifyContent: 'center', alignItems: 'center', borderWidth: 1, borderColor: C.border },
   shareV: { fontSize: 18, fontWeight: '700', color: C.text1, width: 24, textAlign: 'center' },
   primaryBtn: { borderRadius: 16, paddingVertical: 16, alignItems: 'center', justifyContent: 'center', flexDirection: 'row' },
   primaryBtnText: { fontSize: 16, fontWeight: '700', color: C.inv },
-});
+}));

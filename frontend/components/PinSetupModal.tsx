@@ -6,6 +6,7 @@ import { View, Text, StyleSheet, TouchableOpacity, Modal } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import { COLORS, SPACING, RADIUS } from '../utils/theme';
+import { makeStyles } from '../utils/makeStyles';
 import { setPin, biometricAvailable, supportedBiometricLabel, enableBiometricByDefault } from '../utils/lockManager';
 import MintULogo from './MintULogo';
 
@@ -16,6 +17,7 @@ interface Props {
 }
 
 export default function PinSetupModal({ visible, onDone, onSkip }: Props) {
+  const s = useStyles();
   const [stage, setStage] = useState<'enter' | 'confirm'>('enter');
   const [pin, setPinVal] = useState('');
   const [firstPin, setFirstPin] = useState('');
@@ -116,23 +118,23 @@ export default function PinSetupModal({ visible, onDone, onSkip }: Props) {
   );
 }
 
-const s = StyleSheet.create({
-  container: { flex: 1, backgroundColor: COLORS.bg.primary, alignItems: 'center', justifyContent: 'space-between', paddingVertical: SPACING.xl },
+const useStyles = makeStyles((c) => ({
+  container: { flex: 1, backgroundColor: c.bg.primary, alignItems: 'center', justifyContent: 'space-between', paddingVertical: SPACING.xl },
   top: { alignItems: 'center', marginTop: SPACING.xl, paddingHorizontal: SPACING.lg },
-  title: { fontSize: 22, fontWeight: '800', color: COLORS.text.primary, marginTop: SPACING.md, textAlign: 'center' },
-  sub: { fontSize: 14, color: COLORS.text.muted, marginTop: 8, textAlign: 'center' },
+  title: { fontSize: 22, fontWeight: '800', color: c.text.primary, marginTop: SPACING.md, textAlign: 'center' },
+  sub: { fontSize: 14, color: c.text.muted, marginTop: 8, textAlign: 'center' },
   dotsRow: { flexDirection: 'row', gap: 18, marginVertical: SPACING.lg },
-  dot: { width: 16, height: 16, borderRadius: 8, borderWidth: 2, borderColor: COLORS.accent.primary + '55' },
-  dotFilled: { backgroundColor: COLORS.accent.primary, borderColor: COLORS.accent.primary },
+  dot: { width: 16, height: 16, borderRadius: 8, borderWidth: 2, borderColor: c.accent.primary + '55' },
+  dotFilled: { backgroundColor: c.accent.primary, borderColor: c.accent.primary },
   dotErr: { borderColor: '#EF4444', backgroundColor: '#FEE2E2' },
   errorText: { color: '#EF4444', fontSize: 13, marginTop: 4 },
   keypad: { width: '100%', maxWidth: 320, flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'center', marginBottom: SPACING.lg },
   key: { width: '33.33%', aspectRatio: 1.6, alignItems: 'center', justifyContent: 'center' },
-  keyText: { fontSize: 26, fontWeight: '600', color: COLORS.text.primary },
-  skipText: { fontSize: 13, color: COLORS.text.muted, fontWeight: '600' },
+  keyText: { fontSize: 26, fontWeight: '600', color: c.text.primary },
+  skipText: { fontSize: 13, color: c.text.muted, fontWeight: '600' },
   checkCircle: {
     width: 84, height: 84, borderRadius: 42, backgroundColor: '#10B981',
     alignItems: 'center', justifyContent: 'center',
     marginTop: SPACING.xl,
   },
-});
+}));

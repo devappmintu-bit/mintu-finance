@@ -11,8 +11,10 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
 import AICoachChat from '../../components/AICoachChat';
 import { COLORS } from '../../utils/theme';
+import { makeStyles } from '../../utils/makeStyles';
 
 export default function InsightsScreen() {
+  const s = useStyles();
   return (
     <SafeAreaView style={s.wrap} edges={['top']}>
       <View style={s.content}>
@@ -22,7 +24,7 @@ export default function InsightsScreen() {
   );
 }
 
-const s = StyleSheet.create({
-  wrap: { flex: 1, backgroundColor: COLORS.bg.primary },
+const useStyles = makeStyles((c) => ({
+  wrap: { flex: 1, backgroundColor: c.bg.primary },
   content: { flex: 1 },
-});
+}));

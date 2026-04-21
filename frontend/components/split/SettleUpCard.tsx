@@ -3,6 +3,7 @@ import { View, Text, StyleSheet } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { COLORS, SHADOW } from '../../utils/theme';
+import { makeStyles } from '../../utils/makeStyles';
 import PressableGlass from '../PressableGlass';
 import { C, DebtRow } from './theme';
 
@@ -14,6 +15,7 @@ type Props = {
 };
 
 export default function SettleUpCard({ rows, onPay, onRemind, onMarkPaid }: Props) {
+  const s = useStyles();
   if (!rows || rows.length === 0) return null;
   return (
     <View style={s.settleCard}>
@@ -63,7 +65,7 @@ export default function SettleUpCard({ rows, onPay, onRemind, onMarkPaid }: Prop
   );
 }
 
-const s = StyleSheet.create({
+const useStyles = makeStyles((c) => ({
   settleCard: {
     backgroundColor: 'rgba(255,255,255,0.88)',
     borderRadius: 22,
@@ -87,7 +89,7 @@ const s = StyleSheet.create({
   settleBellBtn: { width: 34, height: 34, borderRadius: 17, alignItems: 'center', justifyContent: 'center' },
   settleIconBtn: {
     width: 34, height: 34, borderRadius: 12, justifyContent: 'center', alignItems: 'center', marginLeft: 4,
-    backgroundColor: COLORS.bg.primary, borderWidth: 1, borderColor: C.border,
+    backgroundColor: c.bg.primary, borderWidth: 1, borderColor: C.border,
   },
   settleMore: { fontSize: 12, color: C.text3, textAlign: 'center', marginTop: 8, fontStyle: 'italic' },
-});
+}));

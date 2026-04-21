@@ -27,6 +27,7 @@ import * as Print from 'expo-print';
 import * as Sharing from 'expo-sharing';
 import api from '../utils/api';
 import { COLORS } from '../utils/theme';
+import { makeStyles } from '../utils/makeStyles';
 import { useAuthStore } from '../store/authStore';
 import Toast from 'react-native-toast-message';
 import { shareSmart } from '../utils/share';
@@ -51,6 +52,7 @@ const inr = (n: number) => `₹${Math.round(n).toLocaleString('en-IN')}`;
 const CHART_COLORS = ['#F56E1E', '#10B981', '#3B82F6', '#8B5CF6', '#F59E0B', '#EF4444', '#14B8A6', '#EC4899', '#6366F1', '#84CC16'];
 
 export default function PremiumReportsScreen() {
+  const s = useStyles();
   const { user } = useAuthStore();
   const [months, setMonths] = useState<number>(6);
   const [data, setData] = useState<Report | null>(null);
@@ -379,7 +381,7 @@ function TableHeader({ cols }: { cols: string[] }) {
   );
 }
 
-const s = StyleSheet.create({
+const useStyles = makeStyles((c) => ({
   bg: { flex: 1, backgroundColor: '#FAFAF9' },
   topbar: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingHorizontal: 14, paddingVertical: 12, backgroundColor: '#fff', borderBottomWidth: 1, borderBottomColor: '#F3F4F6' },
   backBtn: { width: 36, height: 36, borderRadius: 18, backgroundColor: '#F3F4F6', alignItems: 'center', justifyContent: 'center' },
@@ -433,4 +435,4 @@ const s = StyleSheet.create({
   ctaBtn: { marginTop: 16, borderRadius: 999, overflow: 'hidden' },
   ctaGrad: { paddingHorizontal: 24, paddingVertical: 12 },
   ctaText: { color: '#fff', fontWeight: '800', fontSize: 14 },
-});
+}));

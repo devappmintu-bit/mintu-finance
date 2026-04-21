@@ -10,6 +10,7 @@ import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Platform, Linking
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { COLORS } from '../../utils/theme';
+import { makeStyles } from '../../utils/makeStyles';
 import { MEMBER_COLORS } from './theme';
 import SwipeableRow from '../SwipeableRow';
 import { useLangStore } from '../../store/langStore';
@@ -50,6 +51,7 @@ const fmtDate = (s: string): string => {
 };
 
 export default function ExpensesTab({ summary, currentUserId, onAddExpense, onEditExpense, onDeleteExpense, onDirectPay, onRemind }: Props) {
+  const s = useStyles();
   const { lang } = useLangStore();
 
   const owedByYou =
@@ -238,7 +240,7 @@ export default function ExpensesTab({ summary, currentUserId, onAddExpense, onEd
   );
 }
 
-const s = StyleSheet.create({
+const useStyles = makeStyles((c) => ({
   // Hero
   hero: { borderRadius: 22, padding: 18, overflow: 'hidden' },
   heroHead: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
@@ -286,4 +288,4 @@ const s = StyleSheet.create({
   empty: { alignItems: 'center', paddingVertical: 36 },
   emptyTitle: { fontSize: 15, fontWeight: '800', color: '#111', marginTop: 10 },
   emptySub: { fontSize: 12, color: '#6B7280', marginTop: 4, textAlign: 'center', maxWidth: 260 },
-});
+}));

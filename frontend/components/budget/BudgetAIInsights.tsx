@@ -14,12 +14,14 @@ import { View, Text, StyleSheet, ScrollView } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { COLORS } from '../../utils/theme';
+import { makeStyles } from '../../utils/makeStyles';
 
 type Budget = { id: string; category: string; amount: number; period?: string; spent?: number };
 
 const fmtINR = (n: number) => `₹${Math.round(n).toLocaleString('en-IN')}`;
 
 export default function BudgetAIInsights({ budgets }: { budgets: Budget[] }) {
+  const s = useStyles();
   const insights = useMemo(() => {
     if (!budgets || budgets.length === 0) return null;
 
@@ -122,7 +124,7 @@ export default function BudgetAIInsights({ budgets }: { budgets: Budget[] }) {
 }
 
 const CARD_W = 180;
-const s = StyleSheet.create({
+const useStyles = makeStyles((c) => ({
   strip: { marginBottom: 16 },
   stripContent: { paddingHorizontal: 12, gap: 10 },
   card: {
@@ -151,4 +153,4 @@ const s = StyleSheet.create({
     backgroundColor: '#FFF4E8', borderRadius: 14, padding: 12, marginHorizontal: 12, marginBottom: 12,
   },
   emptyText: { flex: 1, fontSize: 12, color: '#78350F', fontWeight: '600' },
-});
+}));

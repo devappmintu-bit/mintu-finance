@@ -3,6 +3,7 @@ import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { COLORS, RADIUS } from '../../utils/theme';
+import { makeStyles } from '../../utils/makeStyles';
 import { MEMBER_COLORS } from './theme';
 
 interface Props {
@@ -12,6 +13,7 @@ interface Props {
 }
 
 export default function ExpenseMessage({ item, isMe, formatTime }: Props) {
+  const s = useStyles();
   const ed = item.expense_data;
   const totalSplits = ed.split_count || ed.splits_count || 0;
   const paidCount = ed.paid_count != null ? ed.paid_count : 1;
@@ -88,26 +90,26 @@ export default function ExpenseMessage({ item, isMe, formatTime }: Props) {
   );
 }
 
-const s = StyleSheet.create({
+const useStyles = makeStyles((c) => ({
   row: { flexDirection: 'row', marginBottom: 12 },
   rowL: { justifyContent: 'flex-start' },
   rowR: { justifyContent: 'flex-end' },
   avatar: { width: 30, height: 30, borderRadius: 15, justifyContent: 'center', alignItems: 'center', marginRight: 8, marginTop: 16 },
   avatarT: { fontSize: 12, fontWeight: '700' },
-  senderName: { fontSize: 11, fontWeight: '600', color: COLORS.accent.primary, marginBottom: 3, marginLeft: 2 },
-  card: { backgroundColor: COLORS.bg.card, borderRadius: RADIUS.xl, padding: 16, borderWidth: 1, borderColor: COLORS.border.card, minWidth: 240, gap: 10 },
+  senderName: { fontSize: 11, fontWeight: '600', color: c.accent.primary, marginBottom: 3, marginLeft: 2 },
+  card: { backgroundColor: c.bg.card, borderRadius: RADIUS.xl, padding: 16, borderWidth: 1, borderColor: c.border.card, minWidth: 240, gap: 10 },
   head: { flexDirection: 'row', alignItems: 'center', gap: 10 },
-  emojiWrap: { width: 32, height: 32, borderRadius: 10, backgroundColor: COLORS.accent.primary + '15', justifyContent: 'center', alignItems: 'center' },
-  title: { fontSize: 14, fontWeight: '700', color: COLORS.text.primary },
-  sub: { fontSize: 11, color: COLORS.text.muted, marginTop: 1 },
-  amount: { fontSize: 28, fontWeight: '800', color: COLORS.text.primary },
+  emojiWrap: { width: 32, height: 32, borderRadius: 10, backgroundColor: c.accent.primary + '15', justifyContent: 'center', alignItems: 'center' },
+  title: { fontSize: 14, fontWeight: '700', color: c.text.primary },
+  sub: { fontSize: 11, color: c.text.muted, marginTop: 1 },
+  amount: { fontSize: 28, fontWeight: '800', color: c.text.primary },
   avatarStack: { flexDirection: 'row', alignItems: 'center', marginTop: 2 },
-  stackAvatar: { width: 28, height: 28, borderRadius: 14, justifyContent: 'center', alignItems: 'center', borderWidth: 2, borderColor: COLORS.bg.card },
+  stackAvatar: { width: 28, height: 28, borderRadius: 14, justifyContent: 'center', alignItems: 'center', borderWidth: 2, borderColor: c.bg.card },
   stackAvT: { fontSize: 11, fontWeight: '700' },
-  progressTrack: { height: 4, backgroundColor: COLORS.bg.secondary, borderRadius: 2, overflow: 'hidden' },
+  progressTrack: { height: 4, backgroundColor: c.bg.secondary, borderRadius: 2, overflow: 'hidden' },
   progressFill: { height: '100%', borderRadius: 2 },
   footer: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-  status: { fontSize: 12, fontWeight: '700', color: COLORS.accent.primary },
-  perPerson: { fontSize: 11, color: COLORS.text.muted, fontWeight: '600' },
-  time: { fontSize: 9, color: COLORS.text.muted, marginTop: 3, marginLeft: 2 },
-});
+  status: { fontSize: 12, fontWeight: '700', color: c.accent.primary },
+  perPerson: { fontSize: 11, color: c.text.muted, fontWeight: '600' },
+  time: { fontSize: 9, color: c.text.muted, marginTop: 3, marginLeft: 2 },
+}));

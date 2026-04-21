@@ -3,6 +3,7 @@ import { View, Text, StyleSheet, Modal, TouchableOpacity, TextInput, Platform, K
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { COLORS } from '../../utils/theme';
+import { makeStyles } from '../../utils/makeStyles';
 import { C, UPI_APPS } from './theme';
 import CoinRedeemPanel from '../premium/CoinRedeemPanel';
 import SheetHeader from '../ui/SheetHeader';
@@ -21,6 +22,7 @@ type Props = {
 };
 
 export default function PaySheet({ visible, onClose, target, onPayUPI, onPayCash, onPayPartial, onPayRazorpay }: Props) {
+  const s = useStyles();
   const [partialOn, setPartialOn] = useState(false);
   const [partialAmt, setPartialAmt] = useState('');
   const [coinRedeem, setCoinRedeem] = useState<{ coinsToUse: number; discount: number; effective: number }>({
@@ -181,7 +183,7 @@ export default function PaySheet({ visible, onClose, target, onPayUPI, onPayCash
   );
 }
 
-const s = StyleSheet.create({
+const useStyles = makeStyles((c) => ({
   mBg: { flex: 1, justifyContent: 'flex-end', backgroundColor: 'rgba(0,0,0,0.5)' },
   sheet: { backgroundColor: C.sheetBg, borderTopLeftRadius: 28, borderTopRightRadius: 28, paddingHorizontal: 24, paddingTop: 8, paddingBottom: 24, maxHeight: '92%' },
   handle: { width: 40, height: 4, borderRadius: 2, backgroundColor: C.text4, alignSelf: 'center', marginVertical: 10 },
@@ -191,7 +193,7 @@ const s = StyleSheet.create({
   modeOn: { backgroundColor: C.accentDim, borderColor: C.accent },
   modeT: { fontSize: 14, fontWeight: '600', color: C.text3 },
   modeTOn: { color: C.accent, fontWeight: '700' },
-  partialBox: { backgroundColor: COLORS.bg.primary, borderRadius: 14, padding: 14, marginBottom: 12, borderWidth: 1, borderColor: C.border },
+  partialBox: { backgroundColor: c.bg.primary, borderRadius: 14, padding: 14, marginBottom: 12, borderWidth: 1, borderColor: C.border },
   amtRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center' },
   rupee: { fontSize: 28, fontWeight: '300', color: C.text3, marginRight: 4 },
   amtInput: { fontSize: 32, fontWeight: '800', color: C.text1, minWidth: 60, textAlign: 'center' },
@@ -217,4 +219,4 @@ const s = StyleSheet.create({
   rzpTitle: { color: '#fff', fontSize: 15, fontWeight: '900', letterSpacing: 0.2 },
   rzpSub: { color: 'rgba(255,255,255,0.85)', fontSize: 11, fontWeight: '700', marginTop: 1 },
   cancelT: { textAlign: 'center', fontSize: 15, color: C.text3, paddingVertical: 14 },
-});
+}));

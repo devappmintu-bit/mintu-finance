@@ -13,6 +13,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { View, Text, StyleSheet, Animated, Easing } from 'react-native';
 import { COLORS } from '../utils/theme';
+import { makeStyles } from '../utils/makeStyles';
 
 type Size = 'xs' | 'sm' | 'md' | 'lg';
 
@@ -36,6 +37,7 @@ const TYPO: Record<Size, { num: number; emoji: number; gap: number }> = {
 export default function AnimatedCoin({
   value, size = 'sm', showEmoji = true, duration = 600, style,
 }: Props) {
+  const s = useStyles();
   const [display, setDisplay] = useState<number>(value);
   const prev = useRef<number>(value);
   const anim = useRef(new Animated.Value(value)).current;
@@ -80,7 +82,7 @@ export default function AnimatedCoin({
   );
 }
 
-const s = StyleSheet.create({
+const useStyles = makeStyles((c) => ({
   wrap: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 8, paddingVertical: 4, borderRadius: 999 },
   glow: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, borderRadius: 999 },
-});
+}));

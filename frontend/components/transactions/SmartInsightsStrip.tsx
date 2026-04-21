@@ -8,6 +8,7 @@ import React, { useMemo } from 'react';
 import { View, Text, StyleSheet, ScrollView } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { COLORS } from '../../utils/theme';
+import { makeStyles } from '../../utils/makeStyles';
 
 type Txn = {
   id: string;
@@ -25,6 +26,7 @@ const WEEKDAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 const fmtINR = (n: number) => `₹${Math.round(n).toLocaleString('en-IN')}`;
 
 export default function SmartInsightsStrip({ transactions }: { transactions: Txn[] }) {
+  const s = useStyles();
   const insights = useMemo(() => {
     const debits = (transactions || []).filter((t) => t.type === 'debit' && Number(t.amount) > 0);
     if (debits.length === 0) return null;
@@ -147,12 +149,12 @@ function Card({ icon, tint, label, value, sub }: { icon: string; tint: string; l
   );
 }
 
-const s = StyleSheet.create({
+const useStyles = makeStyles((c) => ({
   wrap: { marginBottom: 12 },
   header: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 16, marginBottom: 8 },
-  title: { fontSize: 13, fontWeight: '800', color: COLORS.text.primary, flex: 1 },
-  chip: { backgroundColor: COLORS.accent.primary + '15', paddingHorizontal: 8, paddingVertical: 2, borderRadius: 999 },
-  chipText: { fontSize: 10, fontWeight: '800', color: COLORS.accent.primary },
+  title: { fontSize: 13, fontWeight: '800', color: c.text.primary, flex: 1 },
+  chip: { backgroundColor: c.accent.primary + '15', paddingHorizontal: 8, paddingVertical: 2, borderRadius: 999 },
+  chipText: { fontSize: 10, fontWeight: '800', color: c.accent.primary },
 
   strip: { paddingHorizontal: 16, gap: 10, paddingVertical: 2 },
   card: {
@@ -161,12 +163,12 @@ const s = StyleSheet.create({
     backgroundColor: '#fff',
     borderRadius: 14,
     borderWidth: 1,
-    borderColor: COLORS.border.card,
+    borderColor: c.border.card,
     borderLeftWidth: 3,
     gap: 4,
   },
   iconBox: { width: 30, height: 30, borderRadius: 15, justifyContent: 'center', alignItems: 'center', marginBottom: 2 },
   cardLabel: { fontSize: 9, fontWeight: '900', letterSpacing: 0.8 },
-  cardValue: { fontSize: 14, fontWeight: '800', color: COLORS.text.primary, lineHeight: 18 },
-  cardSub: { fontSize: 10, color: COLORS.text.muted, fontWeight: '600' },
-});
+  cardValue: { fontSize: 14, fontWeight: '800', color: c.text.primary, lineHeight: 18 },
+  cardSub: { fontSize: 10, color: c.text.muted, fontWeight: '600' },
+}));

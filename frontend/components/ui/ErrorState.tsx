@@ -6,6 +6,7 @@ import { View, Text, StyleSheet } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import PrimaryButton from './PrimaryButton';
 import { COLORS } from '../../utils/theme';
+import { makeStyles } from '../../utils/makeStyles';
 
 interface Props {
   title?: string;
@@ -20,6 +21,7 @@ export default function ErrorState({
   onRetry,
   retryLabel = 'Retry',
 }: Props) {
+  const s = useStyles();
   return (
     <View style={s.wrap}>
       <View style={s.iconWrap}>
@@ -36,14 +38,14 @@ export default function ErrorState({
   );
 }
 
-const s = StyleSheet.create({
+const useStyles = makeStyles((c) => ({
   wrap: { alignItems: 'center', justifyContent: 'center', paddingVertical: 40, paddingHorizontal: 24 },
   iconWrap: {
     width: 72, height: 72, borderRadius: 36,
-    backgroundColor: COLORS.state.dangerBg,
+    backgroundColor: c.state.dangerBg,
     alignItems: 'center', justifyContent: 'center',
     marginBottom: 12,
   },
-  title: { fontSize: 16, fontWeight: '800', color: COLORS.text.primary, textAlign: 'center' },
-  subtitle: { fontSize: 13, fontWeight: '500', color: COLORS.text.secondary, textAlign: 'center', marginTop: 6, maxWidth: 280 },
-});
+  title: { fontSize: 16, fontWeight: '800', color: c.text.primary, textAlign: 'center' },
+  subtitle: { fontSize: 13, fontWeight: '500', color: c.text.secondary, textAlign: 'center', marginTop: 6, maxWidth: 280 },
+}));

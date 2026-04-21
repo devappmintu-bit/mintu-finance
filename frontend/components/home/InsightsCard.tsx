@@ -12,6 +12,7 @@ import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import Svg, { Polyline, Circle, Defs, LinearGradient, Stop, Polygon } from 'react-native-svg';
 import { Ionicons } from '@expo/vector-icons';
 import { COLORS, RADIUS, SPACING, shadowStyle } from '../../utils/theme';
+import { makeStyles } from '../../utils/makeStyles';
 
 type SparkPoint = { day: string; date: string; amount: number };
 type Tier = { current: any; next: any | null; progress_pct: number; score: number; streak_days: number };
@@ -100,6 +101,7 @@ const Sparkline: React.FC<{ points: SparkPoint[] }> = ({ points }) => {
 };
 
 export default function InsightsCard({ snapshot, onPressSparkline }: Props) {
+  const s = useStyles();
   const { mtd_spend, mtd_income, savings_rate, sparkline, pace_headline, pace_emoji, top_category, week_change_pct, this_week_total, tier, transaction_count } = snapshot;
   const weekTrendDown = week_change_pct < 0;
   const hasData = transaction_count > 0;
@@ -186,14 +188,14 @@ export default function InsightsCard({ snapshot, onPressSparkline }: Props) {
   );
 }
 
-const s = StyleSheet.create({
+const useStyles = makeStyles((c) => ({
   card: {
     backgroundColor: '#FFFFFF',
     borderRadius: 20,
     padding: 18,
     marginBottom: 14,
     borderWidth: 1,
-    borderColor: COLORS.border.card,
+    borderColor: c.border.card,
     ...shadowStyle('#2E1F1A', 4, 14, 0.07, 4),
   },
   tierRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 },
@@ -201,30 +203,30 @@ const s = StyleSheet.create({
   tierEmoji: { fontSize: 15 },
   tierName: { fontSize: 12, fontWeight: '800', letterSpacing: 0.3 },
   scorePill: { flexDirection: 'row', alignItems: 'baseline' },
-  scoreNum: { fontSize: 26, fontWeight: '900', color: COLORS.text.primary },
-  scoreMax: { fontSize: 13, fontWeight: '700', color: COLORS.text.muted },
+  scoreNum: { fontSize: 26, fontWeight: '900', color: c.text.primary },
+  scoreMax: { fontSize: 13, fontWeight: '700', color: c.text.muted },
   progressBlock: { marginBottom: 14 },
-  progressTrack: { height: 6, backgroundColor: COLORS.border.subtle, borderRadius: 3, overflow: 'hidden' },
+  progressTrack: { height: 6, backgroundColor: c.border.subtle, borderRadius: 3, overflow: 'hidden' },
   progressFill: { height: '100%', borderRadius: 3 },
   progressLabelRow: { flexDirection: 'row', justifyContent: 'space-between', marginTop: 6 },
-  progressLabel: { fontSize: 11, fontWeight: '600', color: COLORS.text.muted },
-  progressLabelR: { fontSize: 11, fontWeight: '700', color: COLORS.text.secondary },
-  paceBox: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingVertical: 10, paddingHorizontal: 12, backgroundColor: COLORS.accent.primary + '08', borderRadius: 12, marginBottom: 14 },
+  progressLabel: { fontSize: 11, fontWeight: '600', color: c.text.muted },
+  progressLabelR: { fontSize: 11, fontWeight: '700', color: c.text.secondary },
+  paceBox: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingVertical: 10, paddingHorizontal: 12, backgroundColor: c.accent.primary + '08', borderRadius: 12, marginBottom: 14 },
   paceEmoji: { fontSize: 18 },
-  paceText: { flex: 1, fontSize: 13, fontWeight: '700', color: COLORS.text.primary, lineHeight: 18 },
+  paceText: { flex: 1, fontSize: 13, fontWeight: '700', color: c.text.primary, lineHeight: 18 },
   sparkHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 },
-  sparkTitle: { fontSize: 12, fontWeight: '700', color: COLORS.text.muted, letterSpacing: 0.5 },
-  sparkSub: { fontSize: 16, fontWeight: '800', color: COLORS.text.primary, marginTop: 2 },
+  sparkTitle: { fontSize: 12, fontWeight: '700', color: c.text.muted, letterSpacing: 0.5 },
+  sparkSub: { fontSize: 16, fontWeight: '800', color: c.text.primary, marginTop: 2 },
   trendPill: { flexDirection: 'row', alignItems: 'center', gap: 3, paddingHorizontal: 10, paddingVertical: 4, borderRadius: 999 },
   trendText: { fontSize: 11, fontWeight: '800' },
   sparkWrap: { alignItems: 'center', marginVertical: 6 },
   sparkLabels: { flexDirection: 'row', justifyContent: 'space-between', width: CHART_W - PAD * 2, marginTop: 2, paddingHorizontal: PAD },
-  sparkLabel: { flex: 1, fontSize: 10, color: COLORS.text.muted, fontWeight: '600', textAlign: 'center' },
-  emptySparkBox: { alignItems: 'center', padding: 20, backgroundColor: COLORS.bg.subtle, borderRadius: 14, marginVertical: 10, gap: 8 },
-  emptySparkText: { fontSize: 12, color: COLORS.text.muted, fontWeight: '500', textAlign: 'center' },
-  statsGrid: { flexDirection: 'row', alignItems: 'center', paddingTop: 14, borderTopWidth: 1, borderTopColor: COLORS.border.subtle, marginTop: 4 },
+  sparkLabel: { flex: 1, fontSize: 10, color: c.text.muted, fontWeight: '600', textAlign: 'center' },
+  emptySparkBox: { alignItems: 'center', padding: 20, backgroundColor: c.bg.subtle, borderRadius: 14, marginVertical: 10, gap: 8 },
+  emptySparkText: { fontSize: 12, color: c.text.muted, fontWeight: '500', textAlign: 'center' },
+  statsGrid: { flexDirection: 'row', alignItems: 'center', paddingTop: 14, borderTopWidth: 1, borderTopColor: c.border.subtle, marginTop: 4 },
   statCell: { flex: 1, alignItems: 'center', gap: 3 },
-  statLabel: { fontSize: 10, fontWeight: '700', color: COLORS.text.muted, letterSpacing: 0.5 },
+  statLabel: { fontSize: 10, fontWeight: '700', color: c.text.muted, letterSpacing: 0.5 },
   statVal: { fontSize: 15, fontWeight: '800' },
-  statDiv: { width: 1, height: 28, backgroundColor: COLORS.border.subtle },
-});
+  statDiv: { width: 1, height: 28, backgroundColor: c.border.subtle },
+}));

@@ -25,6 +25,7 @@ import Toast from 'react-native-toast-message';
 import PressableGlass from '../PressableGlass';
 import { haptic } from '../../utils/haptics';
 import { COLORS, SHADOW } from '../../utils/theme';
+import { makeStyles } from '../../utils/makeStyles';
 import { C, MEMBER_COLORS, getGA } from './theme';
 
 type Contact = { id: string; name: string; phone: string };
@@ -38,6 +39,7 @@ type Props = {
 };
 
 export default function ContactPickerSheet({ visible, onClose, onCreate }: Props) {
+  const s = useStyles();
   const [step, setStep] = useState<1 | 2>(1);
   const [search, setSearch] = useState('');
   const [selected, setSelected] = useState<Contact[]>([]);
@@ -316,7 +318,7 @@ export default function ContactPickerSheet({ visible, onClose, onCreate }: Props
   );
 }
 
-const s = StyleSheet.create({
+const useStyles = makeStyles((c) => ({
   bg: { flex: 1, justifyContent: 'flex-end', backgroundColor: 'rgba(0,0,0,0.5)' },
   sheet: { backgroundColor: C.sheetBg, borderTopLeftRadius: 28, borderTopRightRadius: 28, padding: 20, paddingTop: 16 },
   head: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 10, marginBottom: 12 },
@@ -327,10 +329,10 @@ const s = StyleSheet.create({
   selectedAvT: { fontSize: 18, fontWeight: '700' },
   selectedBadge: { position: 'absolute', top: -2, right: -2, width: 18, height: 18, borderRadius: 9, backgroundColor: C.red, justifyContent: 'center', alignItems: 'center', borderWidth: 2, borderColor: C.sheetBg },
   selectedName: { fontSize: 11, color: C.text2 },
-  searchBar: { flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: COLORS.bg.primary, borderRadius: 14, paddingHorizontal: 12, paddingVertical: 10, borderWidth: 1, borderColor: C.border, marginBottom: 10 },
+  searchBar: { flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: c.bg.primary, borderRadius: 14, paddingHorizontal: 12, paddingVertical: 10, borderWidth: 1, borderColor: C.border, marginBottom: 10 },
   searchInput: { flex: 1, fontSize: 15, color: C.text1 },
   manualRow: { flexDirection: 'row', gap: 8, marginBottom: 10 },
-  input: { backgroundColor: COLORS.bg.primary, borderRadius: 14, paddingHorizontal: 14, paddingVertical: 12, fontSize: 15, color: C.text1, borderWidth: 1, borderColor: C.border },
+  input: { backgroundColor: c.bg.primary, borderRadius: 14, paddingHorizontal: 14, paddingVertical: 12, fontSize: 15, color: C.text1, borderWidth: 1, borderColor: C.border },
   manualBtn: { width: 48, height: 48, borderRadius: 14, justifyContent: 'center', alignItems: 'center' },
   contactRow: { flexDirection: 'row', alignItems: 'center', paddingVertical: 10, gap: 12 },
   contactAv: { width: 40, height: 40, borderRadius: 20, justifyContent: 'center', alignItems: 'center' },
@@ -348,8 +350,8 @@ const s = StyleSheet.create({
   sAv: { width: 34, height: 34, borderRadius: 17, justifyContent: 'center', alignItems: 'center', borderWidth: 2, borderColor: C.sheetBg },
   sAvT: { fontSize: 13, fontWeight: '700' },
   label: { fontSize: 13, fontWeight: '700', color: C.text3, marginBottom: 8, marginTop: 8, letterSpacing: 0.3 },
-  bigInput: { backgroundColor: COLORS.bg.primary, borderRadius: 16, padding: 18, fontSize: 18, fontWeight: '600', color: C.text1, borderWidth: 1, borderColor: C.border, marginBottom: 4 },
+  bigInput: { backgroundColor: c.bg.primary, borderRadius: 16, padding: 18, fontSize: 18, fontWeight: '600', color: C.text1, borderWidth: 1, borderColor: C.border, marginBottom: 4 },
   emojiGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 8 },
-  emojiBtn: { width: 56, height: 56, borderRadius: 16, backgroundColor: COLORS.bg.primary, justifyContent: 'center', alignItems: 'center', borderWidth: 2, borderColor: 'transparent' },
+  emojiBtn: { width: 56, height: 56, borderRadius: 16, backgroundColor: c.bg.primary, justifyContent: 'center', alignItems: 'center', borderWidth: 2, borderColor: 'transparent' },
   emojiBtnOn: { backgroundColor: C.accentDim, borderColor: C.accent },
-});
+}));

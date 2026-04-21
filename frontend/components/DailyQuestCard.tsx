@@ -9,6 +9,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { router } from 'expo-router';
 import { COLORS, shadowStyle } from '../utils/theme';
+import { makeStyles } from '../utils/makeStyles';
 
 const ACTION_ICONS: Record<string, { icon: string; route?: string; params?: string }> = {
   add_transaction: { icon: 'add-circle', route: '/transactions?openAdd=1' },
@@ -27,6 +28,7 @@ type Props = {
 };
 
 export default function DailyQuestCard({ coinsStatus, onAction }: Props) {
+  const s = useStyles();
   if (!coinsStatus) return null;
 
   const actionsDone = Object.keys(coinsStatus.today_breakdown || {});
@@ -102,7 +104,7 @@ export default function DailyQuestCard({ coinsStatus, onAction }: Props) {
   );
 }
 
-const s = StyleSheet.create({
+const useStyles = makeStyles((c) => ({
   card: {
     backgroundColor: '#FFFFFF',
     borderRadius: 18,
@@ -114,7 +116,7 @@ const s = StyleSheet.create({
   },
   header: { flexDirection: 'row', alignItems: 'center', marginBottom: 10 },
   label: { fontSize: 10, fontWeight: '800', color: '#F59E0B', letterSpacing: 1 },
-  title: { fontSize: 15, fontWeight: '800', color: COLORS.text.primary, marginTop: 2 },
+  title: { fontSize: 15, fontWeight: '800', color: c.text.primary, marginTop: 2 },
   todayGain: { fontSize: 12, color: '#10B981', fontWeight: '700' },
   streakPill: { flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: '#FEE2E2', borderRadius: 999, paddingHorizontal: 10, paddingVertical: 4 },
   streakEmoji: { fontSize: 12 },
@@ -124,7 +126,7 @@ const s = StyleSheet.create({
   questList: { gap: 6 },
   questRow: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 10, paddingHorizontal: 10, backgroundColor: '#FFFBEB', borderRadius: 10 },
   questIcon: { width: 30, height: 30, borderRadius: 15, backgroundColor: '#FEF3C7', justifyContent: 'center', alignItems: 'center' },
-  questLabel: { flex: 1, fontSize: 13, fontWeight: '700', color: COLORS.text.primary },
+  questLabel: { flex: 1, fontSize: 13, fontWeight: '700', color: c.text.primary },
   rewardPill: { flexDirection: 'row', alignItems: 'center', gap: 2, backgroundColor: '#FFFFFF', borderWidth: 1, borderColor: '#F59E0B40', paddingHorizontal: 8, paddingVertical: 3, borderRadius: 999 },
   rewardCoin: { fontSize: 10 },
   rewardPts: { fontSize: 11, fontWeight: '800', color: '#92400E' },
@@ -135,4 +137,4 @@ const s = StyleSheet.create({
   },
   allDoneTitle: { fontSize: 14, fontWeight: '800', color: '#fff' },
   allDoneSub: { fontSize: 11, fontWeight: '600', color: 'rgba(255,255,255,0.9)', marginTop: 1 },
-});
+}));

@@ -9,6 +9,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import { COLORS } from '../utils/theme';
+import { makeStyles } from '../utils/makeStyles';
 
 type Props = { visible: boolean; onClose: () => void };
 
@@ -21,6 +22,7 @@ const openLegal = (onClose: () => void, page: 'privacy' | 'terms' | 'data-protec
 };
 
 export default function AboutMintU({ visible, onClose }: Props) {
+  const s = useStyles();
   return (
     <Modal visible={visible} animationType="slide" onRequestClose={onClose}>
       <SafeAreaView style={s.container}>
@@ -109,34 +111,34 @@ const LinkRow = ({ icon, color, title, sub, onPress }: { icon: string; color: st
   </TouchableOpacity>
 );
 
-const s = StyleSheet.create({
-  container: { flex: 1, backgroundColor: COLORS.bg.primary },
-  header: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, paddingVertical: 14, borderBottomWidth: 1, borderBottomColor: COLORS.border.subtle, backgroundColor: '#fff' },
-  title: { flex: 1, fontSize: 17, fontWeight: '800', color: COLORS.text.primary },
+const useStyles = makeStyles((c) => ({
+  container: { flex: 1, backgroundColor: c.bg.primary },
+  header: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, paddingVertical: 14, borderBottomWidth: 1, borderBottomColor: c.border.subtle, backgroundColor: '#fff' },
+  title: { flex: 1, fontSize: 17, fontWeight: '800', color: c.text.primary },
   closeBtn: { padding: 6 },
   scroll: { padding: 16, paddingBottom: 40 },
 
-  logoCard: { alignItems: 'center', padding: 24, backgroundColor: '#fff', borderRadius: 20, borderWidth: 1, borderColor: COLORS.border.card, marginBottom: 16 },
-  logoCircle: { width: 72, height: 72, borderRadius: 36, backgroundColor: COLORS.accent.primary, justifyContent: 'center', alignItems: 'center' },
+  logoCard: { alignItems: 'center', padding: 24, backgroundColor: '#fff', borderRadius: 20, borderWidth: 1, borderColor: c.border.card, marginBottom: 16 },
+  logoCircle: { width: 72, height: 72, borderRadius: 36, backgroundColor: c.accent.primary, justifyContent: 'center', alignItems: 'center' },
   logoText: { fontSize: 36, fontWeight: '900', color: '#fff' },
-  appName: { fontSize: 24, fontWeight: '900', color: COLORS.text.primary, marginTop: 12 },
-  tagline: { fontSize: 13, color: COLORS.text.secondary, marginTop: 4 },
-  versionPill: { marginTop: 12, paddingHorizontal: 12, paddingVertical: 4, backgroundColor: COLORS.bg.elevated, borderRadius: 999 },
-  versionText: { fontSize: 11, fontWeight: '700', color: COLORS.text.muted },
+  appName: { fontSize: 24, fontWeight: '900', color: c.text.primary, marginTop: 12 },
+  tagline: { fontSize: 13, color: c.text.secondary, marginTop: 4 },
+  versionPill: { marginTop: 12, paddingHorizontal: 12, paddingVertical: 4, backgroundColor: c.bg.elevated, borderRadius: 999 },
+  versionText: { fontSize: 11, fontWeight: '700', color: c.text.muted },
 
-  card: { padding: 16, backgroundColor: '#fff', borderRadius: 16, borderWidth: 1, borderColor: COLORS.border.card, marginBottom: 16 },
-  cardHead: { fontSize: 14, fontWeight: '800', color: COLORS.text.primary, marginBottom: 6 },
-  cardBody: { fontSize: 13, color: COLORS.text.secondary, lineHeight: 19 },
+  card: { padding: 16, backgroundColor: '#fff', borderRadius: 16, borderWidth: 1, borderColor: c.border.card, marginBottom: 16 },
+  cardHead: { fontSize: 14, fontWeight: '800', color: c.text.primary, marginBottom: 6 },
+  cardBody: { fontSize: 13, color: c.text.secondary, lineHeight: 19 },
 
   sectionHead: { marginTop: 8, marginBottom: 8, paddingHorizontal: 4 },
-  sectionTitle: { fontSize: 12, fontWeight: '800', color: COLORS.text.muted, letterSpacing: 0.8 },
+  sectionTitle: { fontSize: 12, fontWeight: '800', color: c.text.muted, letterSpacing: 0.8 },
 
-  row: { flexDirection: 'row', alignItems: 'center', gap: 12, padding: 14, backgroundColor: '#fff', borderRadius: 14, borderWidth: 1, borderColor: COLORS.border.card, marginBottom: 8 },
+  row: { flexDirection: 'row', alignItems: 'center', gap: 12, padding: 14, backgroundColor: '#fff', borderRadius: 14, borderWidth: 1, borderColor: c.border.card, marginBottom: 8 },
   rowIcon: { width: 36, height: 36, borderRadius: 18, justifyContent: 'center', alignItems: 'center' },
-  rowTitle: { fontSize: 14, fontWeight: '700', color: COLORS.text.primary },
-  rowSub: { fontSize: 11, color: COLORS.text.muted, marginTop: 2 },
+  rowTitle: { fontSize: 14, fontWeight: '700', color: c.text.primary },
+  rowSub: { fontSize: 11, color: c.text.muted, marginTop: 2 },
 
   footer: { marginTop: 24, alignItems: 'center', gap: 4 },
-  madeIn: { fontSize: 13, fontWeight: '700', color: COLORS.text.primary },
-  copyright: { fontSize: 11, color: COLORS.text.muted },
-});
+  madeIn: { fontSize: 13, fontWeight: '700', color: c.text.primary },
+  copyright: { fontSize: 11, color: c.text.muted },
+}));

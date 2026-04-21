@@ -2,6 +2,7 @@ import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { COLORS } from '../../utils/theme';
+import { makeStyles } from '../../utils/makeStyles';
 
 interface Props {
   stats: {
@@ -13,6 +14,7 @@ interface Props {
 }
 
 export default function FinancialSnapshot({ stats }: Props) {
+  const s = useStyles();
   if (!stats || (stats.monthlySpend <= 0 && stats.transactionCount <= 0)) return null;
 
   const rateColor =
@@ -63,15 +65,15 @@ export default function FinancialSnapshot({ stats }: Props) {
   );
 }
 
-const s = StyleSheet.create({
-  card: { backgroundColor: '#FFFFFF', borderRadius: 20, padding: 16, marginBottom: 14, borderWidth: 1, borderColor: COLORS.border.card },
+const useStyles = makeStyles((c) => ({
+  card: { backgroundColor: '#FFFFFF', borderRadius: 20, padding: 16, marginBottom: 14, borderWidth: 1, borderColor: c.border.card },
   header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 },
-  title: { fontSize: 15, fontWeight: '800', color: COLORS.text.primary },
-  badge: { backgroundColor: COLORS.accent.primary + '15', paddingHorizontal: 10, paddingVertical: 4, borderRadius: 999 },
-  badgeText: { fontSize: 10, fontWeight: '700', color: COLORS.accent.primary, letterSpacing: 0.3 },
+  title: { fontSize: 15, fontWeight: '800', color: c.text.primary },
+  badge: { backgroundColor: c.accent.primary + '15', paddingHorizontal: 10, paddingVertical: 4, borderRadius: 999 },
+  badgeText: { fontSize: 10, fontWeight: '700', color: c.accent.primary, letterSpacing: 0.3 },
   grid: { flexDirection: 'row', alignItems: 'center', paddingVertical: 8 },
   item: { flex: 1, alignItems: 'center', gap: 4 },
-  itemValue: { fontSize: 18, fontWeight: '800', color: COLORS.text.primary, marginTop: 2 },
-  itemLabel: { fontSize: 10, fontWeight: '600', color: COLORS.text.muted, letterSpacing: 0.3 },
-  divider: { width: 1, height: 40, backgroundColor: COLORS.border.subtle },
-});
+  itemValue: { fontSize: 18, fontWeight: '800', color: c.text.primary, marginTop: 2 },
+  itemLabel: { fontSize: 10, fontWeight: '600', color: c.text.muted, letterSpacing: 0.3 },
+  divider: { width: 1, height: 40, backgroundColor: c.border.subtle },
+}));

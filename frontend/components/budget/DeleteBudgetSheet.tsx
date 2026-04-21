@@ -6,6 +6,7 @@ import React from 'react';
 import { View, Text, StyleSheet, Modal, TouchableOpacity, Pressable } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { CATEGORIES } from '../../utils/theme';
+import { makeStyles } from '../../utils/makeStyles';
 
 type Props = {
   visible: boolean;
@@ -16,6 +17,7 @@ type Props = {
 };
 
 export default function DeleteBudgetSheet({ visible, category, amount, onCancel, onConfirm }: Props) {
+  const s = useStyles();
   const cat = (CATEGORIES as any)[category || 'Other'] || (CATEGORIES as any).Other;
   return (
     <Modal visible={visible} transparent animationType="fade" onRequestClose={onCancel}>
@@ -48,7 +50,7 @@ export default function DeleteBudgetSheet({ visible, category, amount, onCancel,
   );
 }
 
-const s = StyleSheet.create({
+const useStyles = makeStyles((c) => ({
   backdrop: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(15,23,42,0.55)' },
   wrap: { flex: 1, justifyContent: 'flex-end' },
   sheet: { backgroundColor: '#fff', borderTopLeftRadius: 28, borderTopRightRadius: 28, paddingHorizontal: 22, paddingTop: 10, paddingBottom: 28, alignItems: 'center' },
@@ -62,4 +64,4 @@ const s = StyleSheet.create({
   btnGhostT: { fontSize: 14, fontWeight: '700', color: '#374151' },
   btnDanger: { backgroundColor: '#EF4444' },
   btnDangerT: { fontSize: 14, fontWeight: '800', color: '#fff' },
-});
+}));

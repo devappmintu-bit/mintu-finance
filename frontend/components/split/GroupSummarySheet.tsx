@@ -3,6 +3,7 @@ import { View, Text, StyleSheet, Modal, ScrollView, TouchableOpacity } from 'rea
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { COLORS } from '../../utils/theme';
+import { makeStyles } from '../../utils/makeStyles';
 import { C, getGA } from './theme';
 
 type Props = {
@@ -17,6 +18,7 @@ type Props = {
 };
 
 export default function GroupSummarySheet({ visible, onClose, summary, onAddExpense, onEditExpense, onDeleteExpense, onPay, onRemindLegacy }: Props) {
+  const s = useStyles();
   return (
     <Modal visible={visible} animationType="slide" transparent>
       <View style={s.mBg}>
@@ -96,14 +98,14 @@ export default function GroupSummarySheet({ visible, onClose, summary, onAddExpe
   );
 }
 
-const s = StyleSheet.create({
+const useStyles = makeStyles((c) => ({
   mBg: { flex: 1, justifyContent: 'flex-end', backgroundColor: 'rgba(0,0,0,0.5)' },
   sheet: { backgroundColor: C.sheetBg, borderTopLeftRadius: 28, borderTopRightRadius: 28, padding: 24 },
   handle: { width: 40, height: 4, borderRadius: 2, backgroundColor: C.text4, alignSelf: 'center', marginBottom: 16 },
   sheetH: { flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 20 },
   sheetT: { fontSize: 20, fontWeight: '700', color: C.text1 },
   groupAv: { width: 36, height: 36, borderRadius: 14, justifyContent: 'center', alignItems: 'center' },
-  sumStats: { flexDirection: 'row', justifyContent: 'space-around', backgroundColor: COLORS.bg.primary, borderRadius: 14, padding: 16, marginBottom: 16, borderWidth: 1, borderColor: C.border },
+  sumStats: { flexDirection: 'row', justifyContent: 'space-around', backgroundColor: c.bg.primary, borderRadius: 14, padding: 16, marginBottom: 16, borderWidth: 1, borderColor: C.border },
   sumStat: { alignItems: 'center' },
   sumV: { fontSize: 20, fontWeight: '800', color: C.text1 },
   sumL: { fontSize: 11, color: C.text3, marginTop: 2 },
@@ -123,4 +125,4 @@ const s = StyleSheet.create({
   actIcon: { padding: 4, marginLeft: 4 },
   primaryBtn: { borderRadius: 16, paddingVertical: 16, alignItems: 'center', justifyContent: 'center', flexDirection: 'row' },
   primaryBtnText: { fontSize: 16, fontWeight: '700', color: C.inv },
-});
+}));

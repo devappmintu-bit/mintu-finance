@@ -13,6 +13,7 @@ import { t, LANGUAGES } from '../../utils/i18n';
 import api from '../../utils/api';
 import { fetchUpi, fetchAvatar, updateProfile, uploadAvatar } from '../../services/user';
 import { COLORS, shadowStyle } from '../../utils/theme';
+import { makeStyles } from '../../utils/makeStyles';
 import Toast from 'react-native-toast-message';
 import { shareSmart, copyToClipboard, shareImageSmart } from '../../utils/share';
 import HelpSupport from '../../components/HelpSupport';
@@ -35,6 +36,7 @@ import { sendTestPush } from '../../hooks/usePushNotifications';
 import TapTile from '../../components/ui/TapTile';
 
 export default function ProfileScreen() {
+  const s = useStyles();
   const { user, logout, avatar, setAvatar } = useAuthStore();
   const { lang, setLang } = useLangStore();
   const [loading, setLoading] = useState(true);
@@ -502,45 +504,45 @@ export default function ProfileScreen() {
   );
 }
 
-const s = StyleSheet.create({
-  bg: { flex: 1, backgroundColor: COLORS.bg.primary },
+const useStyles = makeStyles((c) => ({
+  bg: { flex: 1, backgroundColor: c.bg.primary },
   scroll: { padding: 16, paddingBottom: 140 },
   // Gamification combined card (kept inline — small and tightly coupled)
-  gamiCard: { backgroundColor: 'rgba(255,255,255,0.96)', borderRadius: 20, padding: 14, marginBottom: 14, borderWidth: 1, borderColor: COLORS.border.card },
+  gamiCard: { backgroundColor: 'rgba(255,255,255,0.96)', borderRadius: 20, padding: 14, marginBottom: 14, borderWidth: 1, borderColor: c.border.card },
   gamiHeader: { flexDirection: 'row', alignItems: 'center', gap: 12 },
-  gamiIconBox: { width: 44, height: 44, borderRadius: 14, backgroundColor: COLORS.accent.primary + '15', justifyContent: 'center', alignItems: 'center' },
-  gamiTitle: { fontSize: 16, fontWeight: '800', color: COLORS.text.primary },
-  gamiSub: { fontSize: 12, color: COLORS.text.muted, marginTop: 2 },
+  gamiIconBox: { width: 44, height: 44, borderRadius: 14, backgroundColor: c.accent.primary + '15', justifyContent: 'center', alignItems: 'center' },
+  gamiTitle: { fontSize: 16, fontWeight: '800', color: c.text.primary },
+  gamiSub: { fontSize: 12, color: c.text.muted, marginTop: 2 },
   gamiBody: { marginTop: 12 },
   // Settings
-  secTitle: { fontSize: 14, fontWeight: '700', color: COLORS.text.muted, marginTop: 8, marginBottom: 8 },
+  secTitle: { fontSize: 14, fontWeight: '700', color: c.text.muted, marginTop: 8, marginBottom: 8 },
   menuItem: { flexDirection: 'row', alignItems: 'center', backgroundColor: 'rgba(255,255,255,0.92)', borderRadius: 14, padding: 14, marginBottom: 6, borderWidth: 1, borderColor: 'rgba(238,221,204,0.5)' },
-  menuText: { flex: 1, fontSize: 15, fontWeight: '500', color: COLORS.text.primary },
-  menuHint: { fontSize: 10, color: COLORS.text.muted, marginRight: 6, fontWeight: '600' },
-  logoutBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, backgroundColor: COLORS.accent.moneyOut + '10', borderRadius: 999, paddingVertical: 16, marginTop: 16 },
-  logoutText: { fontSize: 16, fontWeight: '600', color: COLORS.accent.moneyOut },
-  version: { textAlign: 'center', fontSize: 11, color: COLORS.text.muted, marginTop: 12 },
+  menuText: { flex: 1, fontSize: 15, fontWeight: '500', color: c.text.primary },
+  menuHint: { fontSize: 10, color: c.text.muted, marginRight: 6, fontWeight: '600' },
+  logoutBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, backgroundColor: c.accent.moneyOut + '10', borderRadius: 999, paddingVertical: 16, marginTop: 16 },
+  logoutText: { fontSize: 16, fontWeight: '600', color: c.accent.moneyOut },
+  version: { textAlign: 'center', fontSize: 11, color: c.text.muted, marginTop: 12 },
   // Trust
   trustBox: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, marginTop: 14, paddingVertical: 10, paddingHorizontal: 12, backgroundColor: '#10B98110', borderRadius: 12, borderWidth: 1, borderColor: '#10B98125' },
   trustText: { fontSize: 11, fontWeight: '600', color: '#059669', flex: 0, textAlign: 'center' },
   trustSignalsRow: { flexDirection: 'row', gap: 8, marginTop: 16 },
   trustSig: { flex: 1, alignItems: 'center', gap: 6, paddingVertical: 14, paddingHorizontal: 6, backgroundColor: 'rgba(26,26,36,0.85)', borderRadius: 14, borderWidth: 1, borderColor: 'rgba(255,255,255,0.08)' },
   trustSigEmoji: { fontSize: 22 },
-  trustSigText: { fontSize: 10.5, fontWeight: '700', color: COLORS.text.secondary, textAlign: 'center', lineHeight: 13 },
+  trustSigText: { fontSize: 10.5, fontWeight: '700', color: c.text.secondary, textAlign: 'center', lineHeight: 13 },
   transparencyBox: { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 10, paddingVertical: 8, paddingHorizontal: 12, backgroundColor: '#F1F5F9', borderRadius: 10 },
   transparencyText: { flex: 1, fontSize: 10.5, color: '#475569', fontWeight: '600', lineHeight: 14 },
   // Modals
   mBg: { flex: 1, justifyContent: 'flex-end', backgroundColor: 'rgba(0,0,0,0.5)' },
-  sheet: { backgroundColor: COLORS.bg.elevated, borderTopLeftRadius: 28, borderTopRightRadius: 28, padding: 24, maxHeight: '85%', borderTopWidth: 1, borderColor: 'rgba(255,255,255,0.08)' },
-  handle: { width: 40, height: 4, borderRadius: 2, backgroundColor: COLORS.text.muted, alignSelf: 'center', marginBottom: 16, opacity: 0.3 },
-  sheetTitle: { fontSize: 20, fontWeight: '700', color: COLORS.text.primary },
-  editInput: { backgroundColor: COLORS.bg.primary, borderRadius: 14, paddingHorizontal: 16, paddingVertical: 14, fontSize: 16, color: COLORS.text.primary, borderWidth: 1, borderColor: COLORS.border.subtle, marginTop: 16, marginBottom: 16 },
-  saveBtn: { backgroundColor: COLORS.accent.primary, borderRadius: 999, paddingVertical: 16, alignItems: 'center' },
+  sheet: { backgroundColor: c.bg.elevated, borderTopLeftRadius: 28, borderTopRightRadius: 28, padding: 24, maxHeight: '85%', borderTopWidth: 1, borderColor: 'rgba(255,255,255,0.08)' },
+  handle: { width: 40, height: 4, borderRadius: 2, backgroundColor: c.text.muted, alignSelf: 'center', marginBottom: 16, opacity: 0.3 },
+  sheetTitle: { fontSize: 20, fontWeight: '700', color: c.text.primary },
+  editInput: { backgroundColor: c.bg.primary, borderRadius: 14, paddingHorizontal: 16, paddingVertical: 14, fontSize: 16, color: c.text.primary, borderWidth: 1, borderColor: c.border.subtle, marginTop: 16, marginBottom: 16 },
+  saveBtn: { backgroundColor: c.accent.primary, borderRadius: 999, paddingVertical: 16, alignItems: 'center' },
   saveBtnT: { fontSize: 16, fontWeight: '700', color: '#fff' },
   langOpt: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingVertical: 12, paddingHorizontal: 14, borderRadius: 12, marginBottom: 2 },
-  langOn: { backgroundColor: COLORS.accent.primary + '10' },
-  langNative: { fontSize: 16, fontWeight: '600', color: COLORS.text.primary },
-  langEn: { fontSize: 11, color: COLORS.text.muted, marginTop: 1 },
+  langOn: { backgroundColor: c.accent.primary + '10' },
+  langNative: { fontSize: 16, fontWeight: '600', color: c.text.primary },
+  langEn: { fontSize: 11, color: c.text.muted, marginTop: 1 },
   // Share score card modal
   shareBg: { flex: 1, backgroundColor: 'rgba(0,0,0,0.85)' },
   shareScroll: { flexGrow: 1, justifyContent: 'center', alignItems: 'center', paddingVertical: 40, paddingHorizontal: 20 },
@@ -552,4 +554,4 @@ const s = StyleSheet.create({
   shareActionSecondary: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, backgroundColor: 'rgba(255,255,255,0.1)', paddingVertical: 12, paddingHorizontal: 24, borderRadius: 999, borderWidth: 1, borderColor: 'rgba(255,255,255,0.2)' },
   shareActionSecondaryText: { fontSize: 13, fontWeight: '700', color: '#fff' },
   shareHint: { fontSize: 11, color: 'rgba(255,255,255,0.55)', textAlign: 'center', marginTop: 14, maxWidth: 280 },
-});
+}));

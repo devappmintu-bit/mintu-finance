@@ -15,6 +15,7 @@ import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import { COLORS } from '../../utils/theme';
+import { makeStyles } from '../../utils/makeStyles';
 
 type Props = {
   transactions?: any[];
@@ -37,6 +38,7 @@ export default function AIInsightCard({
   topCategoryAmount = 0,
   monthlyIncome = 0,
 }: Props) {
+  const s = useStyles();
   const insight = useMemo(() => {
     // 1) WEEKDAY SPIKE — strongest narrative when one day is 2x+ avg
     const dayTotals: Record<number, number> = {};
@@ -143,27 +145,27 @@ export default function AIInsightCard({
   );
 }
 
-const s = StyleSheet.create({
+const useStyles = makeStyles((c) => ({
   card: {
     backgroundColor: '#fff',
     borderRadius: 18,
     padding: 16,
     marginBottom: 12,
     borderWidth: 1,
-    borderColor: COLORS.border.card,
+    borderColor: c.border.card,
     gap: 10,
   },
   header: { flexDirection: 'row', gap: 12, alignItems: 'center' },
   iconBox: { width: 48, height: 48, borderRadius: 14, justifyContent: 'center', alignItems: 'center' },
   icon: { fontSize: 26 },
   headerLabelRow: { flexDirection: 'row', alignItems: 'center', gap: 4, marginBottom: 2 },
-  headerLabel: { fontSize: 9, fontWeight: '800', letterSpacing: 1, color: COLORS.accent.primary },
-  title: { fontSize: 14, fontWeight: '800', color: COLORS.text.primary, lineHeight: 19 },
-  sub: { fontSize: 12, color: COLORS.text.secondary, lineHeight: 17, marginLeft: 60 },
+  headerLabel: { fontSize: 9, fontWeight: '800', letterSpacing: 1, color: c.accent.primary },
+  title: { fontSize: 14, fontWeight: '800', color: c.text.primary, lineHeight: 19 },
+  sub: { fontSize: 12, color: c.text.secondary, lineHeight: 17, marginLeft: 60 },
   cta: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 4,
     paddingVertical: 10, borderRadius: 999, alignSelf: 'flex-start',
     paddingHorizontal: 18, marginLeft: 60, marginTop: 2,
   },
   ctaText: { fontSize: 12, fontWeight: '800', color: '#fff', letterSpacing: 0.3 },
-});
+}));
