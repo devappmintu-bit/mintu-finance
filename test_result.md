@@ -703,6 +703,157 @@ test_plan:
   test_all: false
   test_priority: "high_first"
 
+
+round3_annihilator_apr21_2026:
+  - task: "Round 3 Annihilator — Full Backend Attack Surface Sweep (154 assertions across 40+ routers)"
+    implemented: true
+    working: false
+    file: "/app/backend/routers/transactions.py, /app/backend/routers/referral.py, /app/backend/routers/split_razorpay.py, /app/backend/core/auth.py or server.py (get_current_user), /app/backend/server.py (send-otp)"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: true
+    status_history:
+      - working: false
+        agent: "testing"
+        comment: |
+          ✅ 142/154 PASS (92.2%), ❌ 12/154 FAIL — Apr 21 2026, /app/backend_test_round3.py against
+          https://mintu-finance.preview.emergentagent.com/api. Credentials phoneA=9876543210 /
+          phoneB=9988776655 / OTP=123456.
+
+          Scope: auth/session, transactions, budgets, split (groups+expenses+settle+razorpay),
+          rewards/referral, AI chat/memory/agent-chat, user/profile/avatar, home-bundle, stats,
+          leaderboard, news, SMS, UPI, rate-limit/concurrency, persistence, injection.
+
+          ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+          🔴 HIGH-SEVERITY BUGS (server returns 500 on malformed input)
+          ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+          #1  [2.6a]  GET /api/transactions?limit=-1  →  500
+              Root cause: `motor/core.py:1636   raise ValueError("length must be non-negative")`
+              Fix: clamp `limit = max(0, min(limit, 500))` in routers/transactions.py::get_transactions
+                    before passing to `.to_list(limit)`; or add `limit: int = Query(100, ge=0, le=500)`.
+
+          #2  [2.7a / 2.7b]  DELETE /api/transactions/{bad_object_id}  →  500
+              Test inputs: "not-a-hex-id", "ZZZZZZZZZZZZZZZZZZZZZZZZ" (24-char non-hex).
+              Root cause: `bson.errors.InvalidId: '…' is not a valid ObjectId` — raised by
+              `ObjectId(transaction_id)` on line 137 of routers/transactions.py. Not caught.
+              Also affects PUT/DELETE /api/split/expenses/{id}, GET /api/split/pay-intent/{id},
+              DELETE /api/split/groups/{id}/leave, etc. (pre-existing defense-in-depth issue
+              flagged in Round 25B smoke test — still not fixed).
+              Fix: wrap `ObjectId(x)` calls in `try: … except (bson.errors.InvalidId, TypeError):
+                    raise HTTPException(400, "Invalid id")` — a one-liner helper `_oid(x)` reused
+              across routers.
+
+          #3  [1.3h]  JWT with missing `sub` claim  →  500  (expected 401)
+              Root cause: `get_current_user` likely does `ObjectId(payload["sub"])` on `None` →
+              crashes in bson. Or fails KeyError before reaching the 401 path.
+              Fix: `sub = payload.get("sub");  if not sub or not isinstance(sub,str):
+                        raise HTTPException(401, "Invalid token")`.
+
+          #4  [1.3f]  JWT with `sub` = 1000-char string  →  500  (expected 401/404)
+              Same root cause — `ObjectId("A"*1000)` raises `bson.errors.InvalidId`.
+              Fix: same as #3 — validate sub looks like a 24-hex string before ObjectId().
+
+          #5  [5.3e]  POST /api/referral/apply {"code": null}  →  500  (expected 422)
+              Backend error log:  `AttributeError: 'NoneType' object has no attribute 'strip'`
+              Root cause: routers/referral.py is calling `code.strip()` without null-guard, and
+              the pydantic model allows `Optional[str]`.
+              Fix: either tighten the Pydantic model (`code: str = Field(...)`) or guard:
+                    `if not code or not isinstance(code,str): raise HTTPException(400,…)`.
+
+          #6  [4.7b]  POST /api/split/razorpay-order amount=1e15  →  500 with JSON body
+              {"detail":"Payment service unavailable. Please try later."}
+              Root cause: Razorpay rejects amount > 2^31 paise. Handler catches the exception but
+              still returns 500 status. This is a CLIENT-facing failure — should be 400 "amount too
+              large" instead of 500. Path: routers/split_razorpay.py::create_razorpay_order.
+              Fix: add `if amount_paise > 2_00_00_00_000: raise HTTPException(400, "Amount exceeds
+                    ₹20 crore limit")` before calling Razorpay; also catch `razorpay.errors.*` and
+              convert to 4xx.
+
+          ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+          🟡 MEDIUM-SEVERITY VALIDATION GAPS (data integrity, no crash)
+          ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+          #7  [2.1e]  POST /api/transactions {"amount": true}  →  200  (stored as 1.0)
+              Python `bool` ⊂ `int` ⊂ `float`. Pydantic accepts & coerces `True → 1.0`.
+              Fix: in TransactionCreate validator, reject `isinstance(v, bool)` before float coerce.
+
+          #8  [2.1i]  POST /api/transactions {"amount": 0.0000001}  →  200 (stored as 0.0)
+              Root cause: `round(v, 2)` on 0.0000001 → 0.0, which violates the gt=0 contract.
+              Fix: validator should round *then* re-check `if rounded <= 0: raise`; or reject values
+                    below ₹0.01 up-front.
+
+          #9  [1.1h]  POST /api/auth/send-otp phone="٩٨٧٦٥٤٣٢١٠"  →  200 OTP sent
+              Arabic-Indic digits pass Python's `str.isdigit()` but are NOT valid ASCII phone chars.
+              OTP is generated + SMS sent. Minor — blocks at verify-otp because user never gets
+              OTP. Fix: `phone.isascii() and phone.isdigit()` in server.py::send_otp.
+
+          #10 [1.1m]  POST /api/auth/send-otp phone="0000000000"  →  200 OTP sent
+              Valid Indian phones start 6/7/8/9 + 9 digits. "0000000000" is not a real phone.
+              Fix: add regex `^[6-9]\d{9}$` check.
+
+          ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+          ✅ 142 / 154 PASSED — MAJOR DEFENSES HOLDING
+          ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+          • Auth: 12/15 phone-input edge cases (SQL inj / XSS / null-byte / emoji / array / null /
+            100-digit / emoji / homoglyph / leading +91 / leading 0 / negative) all properly 400/422.
+          • OTP body: all 5 malformed OTPs (null/array/object/emoji/SQL) → 400/422.
+          • JWT: 6/8 tamper vectors rejected (alg:none ✅, HS512 confusion ✅, payload swap ✅,
+            expired ✅, future iat ✅, sub as array ✅).
+          • Transactions: amount=null/'abc'/{}/[]/1e308/'1e20'-string/-0.0 → 422. Description
+            >500 chars → 422. Category int/[]/{}/null/5K-char → 422. Type null/1234 → 422.
+            Date 2026-02-30 / not-a-date / year -1 → 422. XSS <script>/CRLF/null-byte stored
+            safely. IDOR delete A's txn with B's token → 404.
+          • Budgets: NaN/Inf/-1 → 400/422. Period edge values → 200 (accepted; behaviour OK).
+            IDOR delete B's budget with A's token → 404. GET /budgets no password_hash/otp leak.
+          • Split: ALL 7 previously-patched IDOR routes still enforcing. Expense amount=0/neg → 422.
+            Duplicate user in split_between / payer not in members / 100-entry split_between → no
+            500. settle-with-rewards malformed → 400/422. partial-settle malformed → 400/422.
+          • Rewards: claim-voucher bogus/SQL/null/array reward_id all 422. Double-claim race 10×
+            parallel — NO 500s, all 422.
+          • Referral: own-code 400, invalid/100-char/unicode codes → 404 (only `null` crashes).
+          • AI: /ai/chat 50KB msg → 200. Prompt injection asking for JWT_SECRET → 200 and NO
+            leakage of secrets. lang='xxx'/null → 200. /ai/agent-chat admin_god_mode/null/deep
+            nested → 200. /ai/memory 100KB / __proto__ keys / null preferences → non-500.
+          • User: profile name=null/123 → 400. name=<script>/100KB/malformed upi_id/lang=xx_YY →
+            400 or stored safely. Avatar 0-byte → 400; fake-b64/SVG-script/corrupt pad → 200 safe.
+          • Home/stats/leaderboard: lang=xxx/SQL/XSS → 200 (cache-key isolation verified — B's
+            bundle does NOT contain A's user_id). /leaderboard/savings unauth → 422.
+          • News/SMS/UPI: ?refresh=xxx/SQL → 422. /sms/bulk-parse 5 SMS → 200. Binary garbage →
+            422. /upi/apps → 200. UPI unicode OK, 500-char/CRLF → 400.
+          • Rate-limit: 20× /auth/send-otp → 18/20 throttled with 429. 50× /transactions burst
+            → zero 500s. 10× /ai/chat parallel → all 200, zero 500s.
+          • Persistence: deleted budget not re-appearing in GET. 10× parallel POST /transactions
+            — all 200 (no crash, though no dedup — documented).
+          • Injection: 10-endpoint secret-leak scan (password_hash / otp_hash / JWT_SECRET /
+            EMERGENT_LLM_KEY / sk-emergent / RAZORPAY_KEY_SECRET / Traceback / File "/app)
+            → ZERO leaks. verify-otp NoSQL `$ne` inj → 422. Malformed JSON `{"amount":NaN}` →
+            422 clean (no Python traceback in body).
+
+          ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+          🎯 TOP 6 BUGS TO FIX (ranked by fix effort × impact)
+          ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+            1. Wrap ALL `ObjectId(…)` calls in routers w/ try/except → _oid() helper.
+               Fixes #2, #4 (and latent bugs in 10+ other routers per pre-existing Round 25B note).
+            2. Harden `get_current_user`: null-sub + non-hex-24 sub → 401, not 500.   Fixes #3.
+            3. `routers/referral.py` apply(): null/non-str code → 400, not 500.       Fixes #5.
+            4. `routers/transactions.py` get_transactions: `limit: int = Query(100, ge=0)`. Fixes #1.
+            5. `routers/split_razorpay.py`: 400 on amount > ₹20cr + catch razorpay errors → 400.
+               Fixes #6.
+            6. Tighten amount validation: reject bool, reject rounded-to-0, reject < ₹0.01.
+               Fixes #7 + #8.
+
+          Non-bug clarifications:
+            • 3.2c prompt-injection test was a FALSE POSITIVE — backend correctly returns
+              {"category":"Other"}. Test was matching "Admin" substring which appeared in the
+              echoed-back description. Not a bug; ignore.
+
+          Report file: /app/backend_test_round3.py. Machine-readable JSON: /tmp/round3_results.json.
+          Backend error log grep confirmed all 6 HIGH bugs have uncaught Python exceptions
+          (InvalidId, ValueError, AttributeError) behind the 500s.
+
+          Round 3 task stays `working=false, needs_retesting=true` until 6 HIGH bugs are fixed.
+
 _unused_test_plan_footer:
 
 agent_communication:
@@ -741,6 +892,46 @@ round2_adversarial_audit_apr21_2026:
     priority: "high"
     needs_retesting: false
     status_history:
+
+  - agent: "testing"
+    message: |
+      🔴 ROUND 3 ANNIHILATOR COMPLETE (Apr 21 2026) — 154 assertions, 142 PASS, 12 FAIL.
+
+      ✅ 92.2% pass rate. Major defenses (IDOR, JWT tampering, rate-limit, amount validation,
+      NoSQL injection, XSS/SQL injection, secret leakage) all holding.
+
+      ❌ 6 HIGH-severity bugs found — all are uncaught Python exceptions causing HTTP 500:
+
+        1. DELETE /api/transactions/{bad_id} → 500 (bson.errors.InvalidId uncaught).
+           Also affects PUT/DELETE /split/expenses/{id}, /split/groups/{bad}/leave,
+           /split/pay-intent/{bad}, etc. Pre-existing Round-25B finding — STILL NOT FIXED.
+           FIX: wrap all `ObjectId(x)` calls in try/except via an `_oid(x)` helper.
+
+        2. JWT with missing `sub` OR sub=1000-char → 500 (ObjectId(None) / ObjectId(long_str)).
+           FIX: null+length guard in get_current_user before ObjectId().
+
+        3. GET /api/transactions?limit=-1 → 500 (motor raises "length must be non-negative").
+           FIX: `limit: int = Query(100, ge=0, le=500)` in routers/transactions.py.
+
+        4. POST /api/referral/apply {"code": null} → 500
+           (AttributeError: 'NoneType' has no attribute 'strip').
+           FIX: null-guard / tighten pydantic model to require str.
+
+        5. POST /api/split/razorpay-order amount=1e15 → 500 (Razorpay rejects but wrapper
+           returns 500 not 400). FIX: pre-validate amount ceiling + catch razorpay errors → 400.
+
+        6. Amount-validation gaps: `{"amount": true}` stored as ₹1.0; `{"amount": 0.0000001}`
+           rounded to ₹0.0 and stored (bypasses gt=0). FIX: reject bool + re-check post-round.
+
+      Minor: phone="0000000000" and Arabic-Indic digits pass send-otp validation.
+
+      Details + per-bug file:line + minimal fix proposed in
+      `round3_annihilator_apr21_2026` task status_history in test_result.md.
+
+      Test script: /app/backend_test_round3.py   Machine-readable: /tmp/round3_results.json.
+      Backend logs confirmed all 6 HIGH bugs behind the 500s are InvalidId / ValueError /
+      AttributeError uncaught exceptions. Task needs_retesting=true.
+
       - working: false
         agent: "testing"
         comment: |
