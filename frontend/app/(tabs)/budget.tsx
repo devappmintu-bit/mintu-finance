@@ -278,7 +278,7 @@ export default function BudgetScreen() {
                   <Text style={[s.sumVal, { color: COLORS.accent.moneyOut }]}>₹{totalSpent.toFixed(0)}</Text>
                 </View>
                 <View style={s.summaryBox}>
-                  <Text style={s.sumLabel}>{t('left', lang)}</Text>
+                  <Text style={s.sumLabel}>{totalBudget - totalSpent >= 0 ? t('left', lang) : 'Over'}</Text>
                   <Text style={[s.sumVal, { color: totalBudget - totalSpent >= 0 ? COLORS.accent.moneyIn : COLORS.accent.moneyOut }]}>₹{Math.abs(totalBudget - totalSpent).toFixed(0)}</Text>
                 </View>
               </View>
