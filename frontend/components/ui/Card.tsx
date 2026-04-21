@@ -13,7 +13,7 @@
  *
  * Pad presets (8pt grid): 'sm' 8, 'md' 12, 'lg' 16, 'xl' 20.
  *
- * Use for any boxed content — tabs, lists, modals. Pairs with SectionHeader.
+ * Use for any boxed content — tabs, lists, modals.
  */
 import React from 'react';
 import { View, StyleSheet, ViewStyle, StyleProp, Platform } from 'react-native';

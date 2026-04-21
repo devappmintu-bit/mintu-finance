@@ -68,7 +68,7 @@ export function usePushNotifications() {
         await AsyncStorage.setItem(TOKEN_STORAGE_KEY, pushToken);
       } catch (e) {
         // Swallow silently — never block app boot on notification failures.
-        console.log('Push registration skipped:', e);
+        if (__DEV__) console.log('Push registration skipped:', e);
       }
     })();
   }, [authToken]);

@@ -30,6 +30,7 @@ import { Image } from 'expo-image';
 import { router } from 'expo-router';
 import * as Haptics from 'expo-haptics';
 import api from '../utils/api';
+import { SUPPORT_URL } from '../utils/brand';
 import { useAuthStore } from '../store/authStore';
 import { COLORS } from '../utils/theme';
 import { makeStyles } from '../utils/makeStyles';
@@ -308,7 +309,7 @@ export default function UnlockScreen() {
           </TouchableOpacity>
         )}
         <TouchableOpacity
-          onPress={() => Linking.openURL('https://mintu.app/support').catch(() => {})}
+          onPress={() => Linking.openURL(SUPPORT_URL).catch(() => {})}
           hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
           style={s.footerPill}
         >

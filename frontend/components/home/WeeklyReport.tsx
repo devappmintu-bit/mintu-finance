@@ -5,7 +5,7 @@ import Toast from 'react-native-toast-message';
 import { COLORS, RADIUS, SPACING, shadowStyle } from '../../utils/theme';
 import { makeStyles } from '../../utils/makeStyles';
 
-const APP_LINK = 'https://mintu.app/download';
+import { APP_LINK } from '../../utils/brand';
 
 interface Props {
   weeklyReport: any;

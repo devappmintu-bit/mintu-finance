@@ -31,7 +31,7 @@ import NewsCarousel from '../../components/home/NewsCarousel';
 import WeeklyReport from '../../components/home/WeeklyReport';
 import Confetti from '../../components/Confetti';
 
-const APP_LINK = 'https://mintu.app/download';
+import { APP_LINK } from '../../utils/brand';
 
 export default function HomeScreen() {
   const styles = useStyles();
