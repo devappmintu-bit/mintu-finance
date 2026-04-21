@@ -1,366 +1,216 @@
-"""Round 25 REFACTOR regression — validate split_razorpay.py split + all core endpoints.
-
-Covers:
-  1. Razorpay split endpoints (moved to split_razorpay.py) — 3 routes.
-  2. Core split settlement endpoints (remain in split_settle.py).
-  3. Budget endpoints.
-  4. Transactions endpoints.
 """
-import sys
+MintU Backend Full Regression Test — Apr 21 2026
+Review: verify all major API endpoints respond correctly (no breaking changes / no middleware RuntimeError).
+"""
+import os
+import time
 import requests
-from bson import ObjectId
+import sys
+from typing import Any
 
-BASE_URL = "https://mintu-finance.preview.emergentagent.com/api"
+BASE = os.environ.get("EXPO_PUBLIC_BACKEND_URL", "https://mintu-finance.preview.emergentagent.com").rstrip("/")
+API = f"{BASE}/api"
 PHONE = "9876543210"
 OTP = "123456"
+TIMEOUT = 30
 
-results = []
+results: list[dict[str, Any]] = []
 
+def rec(group, name, method, path, status, ok, elapsed, note=""):
+    results.append({
+        "group": group, "name": name, "method": method, "path": path,
+        "status": status, "ok": ok, "elapsed_ms": round(elapsed * 1000, 1), "note": note,
+    })
+    marker = "\u2705" if ok else "\u274C"
+    slow = " \u26A0\uFE0F SLOW" if elapsed > 5 else ""
+    print(f"  {marker} [{group}] {method} {path} -> {status} ({elapsed*1000:.0f}ms){slow} {note}")
 
-def log(ok: bool, name: str, detail: str = ""):
-    mark = "✅" if ok else "❌"
-    print(f"{mark} {name}  {detail}")
-    results.append({"ok": ok, "name": name, "detail": detail})
-
-
-def bearer(tok):
-    return {"Authorization": f"Bearer {tok}"}
-
-
-def auth_token() -> str:
-    r = requests.post(f"{BASE_URL}/auth/send-otp", json={"phone": PHONE}, timeout=15)
-    assert r.status_code == 200, f"send-otp {r.status_code}: {r.text[:200]}"
-    r = requests.post(
-        f"{BASE_URL}/auth/verify-otp", json={"phone": PHONE, "otp": OTP}, timeout=15
-    )
-    assert r.status_code == 200, f"verify-otp {r.status_code}: {r.text[:200]}"
-    body = r.json()
-    tok = body.get("token") or body.get("access_token")
-    assert tok, f"No token in verify-otp response: {body}"
-    return tok
-
-
-# ════════════════════════════════════════════════════════════════════
-# 1. Razorpay split endpoints (moved to split_razorpay.py)
-# ════════════════════════════════════════════════════════════════════
-def test_razorpay_order(token):
-    print("\n---- Razorpay split endpoints (moved file) ----")
-    # Missing target_user_id
-    r = requests.post(f"{BASE_URL}/split/razorpay-order", json={"amount": 500},
-                      headers=bearer(token), timeout=15)
-    log(r.status_code == 400, "razorpay-order missing target_user_id → 400",
-        f"code={r.status_code}")
-
-    # Missing amount
-    r = requests.post(f"{BASE_URL}/split/razorpay-order",
-                      json={"target_user_id": str(ObjectId())},
-                      headers=bearer(token), timeout=15)
-    log(r.status_code == 400, "razorpay-order missing amount → 400",
-        f"code={r.status_code}")
-
-    # amount=0
-    r = requests.post(f"{BASE_URL}/split/razorpay-order",
-                      json={"target_user_id": str(ObjectId()), "amount": 0},
-                      headers=bearer(token), timeout=15)
-    log(r.status_code == 400, "razorpay-order amount=0 → 400",
-        f"code={r.status_code}")
-
-    # Valid body — try to use a real group member target for realism
-    target_uid = str(ObjectId())
+def req(method, path, *, token=None, json_body=None, params=None, expected_ok=(200,), group="", name="", note_on_fail=""):
+    url = f"{API}{path}"
+    headers = {"Content-Type": "application/json"}
+    if token:
+        headers["Authorization"] = f"Bearer {token}"
+    start = time.time()
     try:
-        gr = requests.get(f"{BASE_URL}/split/groups", headers=bearer(token), timeout=15)
-        if gr.status_code == 200:
-            for g in gr.json() or []:
-                gid = g.get("id") or g.get("_id")
-                if not gid:
-                    continue
-                mgr = requests.get(f"{BASE_URL}/split/groups/{gid}/manage",
-                                   headers=bearer(token), timeout=15)
-                if mgr.status_code == 200:
-                    for m in mgr.json().get("members") or []:
-                        muid = m.get("user_id")
-                        if muid and ObjectId.is_valid(muid):
-                            target_uid = muid
-                            break
-                if target_uid and ObjectId.is_valid(target_uid) and target_uid != str(ObjectId()):
-                    break
-    except Exception as e:
-        print(f"  (info) could not lookup member: {e}")
-
-    body = {"target_user_id": target_uid, "amount": 500, "coins_to_use": 0}
-    r = requests.post(f"{BASE_URL}/split/razorpay-order", json=body,
-                      headers=bearer(token), timeout=30)
-    ok = r.status_code == 200
-    log(ok, "razorpay-order valid body → 200",
-        f"code={r.status_code} body={r.text[:200]}")
-    if not ok:
+        r = requests.request(method, url, headers=headers, json=json_body, params=params, timeout=TIMEOUT)
+        elapsed = time.time() - start
+    except requests.exceptions.Timeout:
+        elapsed = time.time() - start
+        rec(group, name, method, path, 0, False, elapsed, f"TIMEOUT after {TIMEOUT}s")
         return None
-
-    data = r.json()
-    required = ["order_id", "amount_paise", "effective_amount", "list_amount",
-                "coin_discount", "coins_to_use", "key_id", "currency", "checkout_url"]
-    missing = [k for k in required if k not in data]
-    log(not missing, "razorpay-order response has all required keys",
-        f"missing={missing}")
-    log(data.get("currency") == "INR", "razorpay-order currency == INR",
-        f"currency={data.get('currency')}")
-    log(isinstance(data.get("amount_paise"), int) and data.get("amount_paise") > 0,
-        "razorpay-order amount_paise is positive int",
-        f"amount_paise={data.get('amount_paise')}")
-    log(str(data.get("order_id", "")).startswith("order_"),
-        "razorpay-order order_id starts with 'order_'",
-        f"order_id={data.get('order_id')}")
-    return data.get("order_id")
-
-
-def test_pay_checkout(order_id):
-    # Bad order_id → 404
-    r = requests.get(f"{BASE_URL}/split/pay-checkout",
-                     params={"order_id": "bogus_nonexistent_order_xyz"},
-                     timeout=15)
-    log(r.status_code == 404, "pay-checkout bad order_id → 404",
-        f"code={r.status_code}")
-
-    if not order_id:
-        log(False, "pay-checkout valid order skipped — no order_id")
-        return
-    # Valid order_id → 200 HTML
-    r = requests.get(f"{BASE_URL}/split/pay-checkout",
-                     params={"order_id": order_id}, timeout=15)
-    ok = r.status_code == 200
-    log(ok, "pay-checkout valid order_id → 200", f"code={r.status_code}")
-    if ok:
-        ctype = r.headers.get("Content-Type", "")
-        log("text/html" in ctype, "pay-checkout content-type is text/html",
-            f"content-type={ctype}")
-        log("Razorpay" in r.text, "pay-checkout HTML contains 'Razorpay'")
-
-
-def test_verify_settle_payment():
-    # Empty body → 400 "Missing payment details"
-    r = requests.post(f"{BASE_URL}/split/verify-settle-payment", json={}, timeout=15)
-    log(r.status_code == 400, "verify-settle-payment empty body → 400",
-        f"code={r.status_code}")
-
-    # Bad signature → 400
-    r = requests.post(f"{BASE_URL}/split/verify-settle-payment",
-                      json={"order_id": "order_fake", "payment_id": "pay_fake",
-                            "signature": "badsig"}, timeout=15)
-    log(r.status_code == 400, "verify-settle-payment bad signature → 400",
-        f"code={r.status_code}")
-
-    # Missing one field
-    r = requests.post(f"{BASE_URL}/split/verify-settle-payment",
-                      json={"order_id": "order_x"}, timeout=15)
-    log(r.status_code == 400, "verify-settle-payment missing fields → 400",
-        f"code={r.status_code}")
-
-    # No 500 across multiple malformed inputs
-    never_500 = True
-    for b in [{}, {"order_id": "x"}, {"order_id": None}, {"signature": "z"}]:
-        rr = requests.post(f"{BASE_URL}/split/verify-settle-payment", json=b, timeout=15)
-        if rr.status_code == 500:
-            never_500 = False
-            break
-    log(never_500, "verify-settle-payment never returns 500 on bad input")
-
-
-# ════════════════════════════════════════════════════════════════════
-# 2. Core split settlement endpoints (stay in split_settle.py)
-# ════════════════════════════════════════════════════════════════════
-def test_core_split(token):
-    print("\n---- Core split settlement endpoints ----")
-    # POST /split/settle — input validation (missing target_user_id / amount)
-    # SettlePayment is a pydantic model → missing fields → 422
-    r = requests.post(f"{BASE_URL}/split/settle", json={}, headers=bearer(token), timeout=15)
-    log(r.status_code in (400, 422), f"/split/settle empty body → 400/422",
-        f"code={r.status_code}")
-
-    # POST /split/partial-settle — missing fields → 400
-    r = requests.post(f"{BASE_URL}/split/partial-settle", json={},
-                      headers=bearer(token), timeout=15)
-    log(r.status_code == 400, "/split/partial-settle missing fields → 400",
-        f"code={r.status_code}")
-
-    # amount=0 → 400
-    r = requests.post(f"{BASE_URL}/split/partial-settle",
-                      json={"target_user_id": str(ObjectId()), "amount": 0},
-                      headers=bearer(token), timeout=15)
-    log(r.status_code == 400, "/split/partial-settle amount=0 → 400",
-        f"code={r.status_code}")
-
-    # GET /split/balances → 200
-    r = requests.get(f"{BASE_URL}/split/balances", headers=bearer(token), timeout=15)
-    log(r.status_code == 200, "/split/balances → 200", f"code={r.status_code}")
-
-    # POST /split/remind — missing fields → 400
-    r = requests.post(f"{BASE_URL}/split/remind", json={}, headers=bearer(token), timeout=15)
-    log(r.status_code == 400, "/split/remind empty body → 400",
-        f"code={r.status_code}")
-
-    # amount=0 → 400
-    r = requests.post(f"{BASE_URL}/split/remind",
-                      json={"target_user_id": str(ObjectId()), "amount": 0},
-                      headers=bearer(token), timeout=15)
-    log(r.status_code == 400, "/split/remind amount=0 → 400", f"code={r.status_code}")
-
-    # GET /split/reminders → 200
-    r = requests.get(f"{BASE_URL}/split/reminders", headers=bearer(token), timeout=15)
-    log(r.status_code == 200, "/split/reminders → 200", f"code={r.status_code}")
-    if r.status_code == 200:
-        data = r.json()
-        log(isinstance(data, dict) and "received" in data and "sent" in data,
-            "/split/reminders has received+sent keys",
-            f"keys={list(data.keys()) if isinstance(data, dict) else 'non-dict'}")
-
-    # GET /split/activity?limit=5 → 200
-    r = requests.get(f"{BASE_URL}/split/activity", params={"limit": 5},
-                     headers=bearer(token), timeout=20)
-    log(r.status_code == 200, "/split/activity?limit=5 → 200", f"code={r.status_code}")
-
-
-# ════════════════════════════════════════════════════════════════════
-# 3. Budget endpoints (migrated routers)
-# ════════════════════════════════════════════════════════════════════
-def test_budgets(token):
-    print("\n---- Budget endpoints ----")
-    # GET /budgets → 200
-    r = requests.get(f"{BASE_URL}/budgets", headers=bearer(token), timeout=15)
-    log(r.status_code == 200, "GET /budgets → 200", f"code={r.status_code}")
-
-    # GET /budgets/live → 200
-    r = requests.get(f"{BASE_URL}/budgets/live", headers=bearer(token), timeout=20)
-    log(r.status_code == 200, "GET /budgets/live → 200", f"code={r.status_code}")
-
-    # GET /budgets/smart-suggest → 200
-    r = requests.get(f"{BASE_URL}/budgets/smart-suggest", headers=bearer(token), timeout=30)
-    log(r.status_code == 200, "GET /budgets/smart-suggest → 200",
-        f"code={r.status_code}")
-
-    # GET /budgets/achievements → 200, correct shape
-    r = requests.get(f"{BASE_URL}/budgets/achievements", headers=bearer(token), timeout=30)
-    ok = r.status_code == 200
-    log(ok, "GET /budgets/achievements → 200", f"code={r.status_code}")
-    if ok:
-        d = r.json()
-        has_keys = all(k in d for k in ["streak", "stats", "badges", "headline"])
-        log(has_keys, "/budgets/achievements has streak/stats/badges/headline",
-            f"keys={list(d.keys())}")
-        log(isinstance(d.get("badges"), list) and len(d.get("badges", [])) == 6,
-            "/budgets/achievements has 6 badges",
-            f"count={len(d.get('badges', []))}")
-
-    # POST /budgets — missing fields → 400/422
-    r = requests.post(f"{BASE_URL}/budgets", json={}, headers=bearer(token), timeout=15)
-    log(r.status_code in (400, 422), "POST /budgets empty body → 400/422",
-        f"code={r.status_code}")
-
-    # POST /budgets — missing amount (only category) → 400
-    r = requests.post(f"{BASE_URL}/budgets", json={"category": "Entertainment"},
-                      headers=bearer(token), timeout=15)
-    log(r.status_code == 400, "POST /budgets missing amount → 400",
-        f"code={r.status_code}")
-
-    # POST /budgets — valid body → 200
-    r = requests.post(f"{BASE_URL}/budgets",
-                      json={"category": "Entertainment", "amount": 2500, "period": "monthly"},
-                      headers=bearer(token), timeout=15)
-    ok = r.status_code == 200
-    log(ok, "POST /budgets valid body → 200", f"code={r.status_code} body={r.text[:200]}")
-    budget_id = None
-    if ok:
-        budget_id = r.json().get("id")
-
-    # PUT /budgets/{bad_id} → 404
-    # Use a valid-shape ObjectId that doesn't exist
-    bogus = str(ObjectId())
-    r = requests.put(f"{BASE_URL}/budgets/{bogus}",
-                     json={"amount": 3000}, headers=bearer(token), timeout=15)
-    log(r.status_code == 404, "PUT /budgets/{bad_id} → 404", f"code={r.status_code}")
-
-    # DELETE /budgets/{bad_id} → 404
-    r = requests.delete(f"{BASE_URL}/budgets/{bogus}", headers=bearer(token), timeout=15)
-    log(r.status_code == 404, "DELETE /budgets/{bad_id} → 404", f"code={r.status_code}")
-
-    # DELETE /budgets/{real_id} → 200 (cleanup)
-    if budget_id:
-        r = requests.delete(f"{BASE_URL}/budgets/{budget_id}",
-                            headers=bearer(token), timeout=15)
-        log(r.status_code == 200, "DELETE /budgets/{real_id} → 200",
-            f"code={r.status_code}")
-
-
-# ════════════════════════════════════════════════════════════════════
-# 4. Transactions endpoints
-# ════════════════════════════════════════════════════════════════════
-def test_transactions(token):
-    print("\n---- Transactions endpoints ----")
-    # GET /transactions → 200
-    r = requests.get(f"{BASE_URL}/transactions", headers=bearer(token), timeout=15)
-    log(r.status_code == 200, "GET /transactions → 200", f"code={r.status_code}")
-
-    # POST /transactions — missing fields → 422 (pydantic)
-    r = requests.post(f"{BASE_URL}/transactions", json={},
-                      headers=bearer(token), timeout=15)
-    log(r.status_code in (400, 422), "POST /transactions empty body → 400/422",
-        f"code={r.status_code}")
-
-    # POST /transactions — valid → 200
-    r = requests.post(f"{BASE_URL}/transactions",
-                      json={"amount": 150.5, "category": "Food",
-                            "description": "Regression test chai", "type": "debit"},
-                      headers=bearer(token), timeout=15)
-    ok = r.status_code == 200
-    log(ok, "POST /transactions valid → 200",
-        f"code={r.status_code} body={r.text[:200]}")
-    txn_id = None
-    if ok:
-        txn_id = r.json().get("id")
-
-    # PUT /transactions/{bad_id} → 404
-    bogus = str(ObjectId())
-    r = requests.put(f"{BASE_URL}/transactions/{bogus}",
-                     json={"description": "updated"}, headers=bearer(token), timeout=15)
-    log(r.status_code == 404, "PUT /transactions/{bad_id} → 404",
-        f"code={r.status_code}")
-
-    # DELETE /transactions/{bad_id} → 404
-    r = requests.delete(f"{BASE_URL}/transactions/{bogus}",
-                        headers=bearer(token), timeout=15)
-    log(r.status_code == 404, "DELETE /transactions/{bad_id} → 404",
-        f"code={r.status_code}")
-
-    # DELETE /transactions/{real_id} → 200 (cleanup)
-    if txn_id:
-        r = requests.delete(f"{BASE_URL}/transactions/{txn_id}",
-                            headers=bearer(token), timeout=15)
-        log(r.status_code == 200, "DELETE /transactions/{real_id} → 200",
-            f"code={r.status_code}")
-
-
-if __name__ == "__main__":
-    try:
-        tok = auth_token()
-        print(f"Auth OK (token len={len(tok)})")
     except Exception as e:
-        print(f"Auth failed: {e}")
-        sys.exit(1)
+        elapsed = time.time() - start
+        rec(group, name, method, path, 0, False, elapsed, f"EXCEPTION: {e}")
+        return None
+    ok = r.status_code in expected_ok
+    note = note_on_fail if not ok else ""
+    if not ok:
+        try:
+            body_preview = r.text[:240].replace("\n", " ")
+            note += f" | body: {body_preview}"
+        except Exception:
+            pass
+    rec(group, name, method, path, r.status_code, ok, elapsed, note)
+    try:
+        return r.json() if r.text else None
+    except Exception:
+        return r.text
 
-    order_id = test_razorpay_order(tok)
-    test_pay_checkout(order_id)
-    test_verify_settle_payment()
-    test_core_split(tok)
-    test_budgets(tok)
-    test_transactions(tok)
 
-    print("\n========== SUMMARY ==========")
-    passed = sum(1 for r in results if r["ok"])
-    total = len(results)
-    print(f"{passed}/{total} assertions passed")
-    failed = [r for r in results if not r["ok"]]
-    if failed:
-        print("\nFailed assertions:")
-        for r in failed:
-            print(f"  - {r['name']}  {r['detail']}")
-        sys.exit(1)
-    sys.exit(0)
+# ==== 1. AUTH ====
+print("\n=== 1. AUTH ===")
+req("POST", "/auth/send-otp", json_body={"phone": PHONE}, group="auth", name="send-otp")
+verify_body = req("POST", "/auth/verify-otp", json_body={"phone": PHONE, "otp": OTP}, group="auth", name="verify-otp")
+
+token = None
+if isinstance(verify_body, dict):
+    token = verify_body.get("token") or verify_body.get("access_token")
+if not token:
+    print("\nFATAL: could not obtain auth token. Aborting.")
+    sys.exit(1)
+print(f"  token obtained ({len(token)} chars)")
+
+print("\n  -- PIN endpoints (may not exist) --")
+req("POST", "/auth/create-pin", token=token, json_body={"pin": "1234"},
+    expected_ok=(200, 404, 422), group="auth", name="create-pin",
+    note_on_fail="create-pin endpoint missing/failed")
+req("POST", "/auth/verify-pin", token=token, json_body={"pin": "1234"},
+    expected_ok=(200, 404, 422), group="auth", name="verify-pin",
+    note_on_fail="verify-pin endpoint missing/failed")
+
+# Unauth-protected route check
+req("GET", "/user/avatar", expected_ok=(401, 403, 422),
+    group="auth", name="protected-route-without-token",
+    note_on_fail="expected 401/403/422 for no-token")
+
+
+# ==== 2. USER PROFILE ====
+print("\n=== 2. USER PROFILE ===")
+req("GET", "/user/avatar", token=token, group="user", name="avatar")
+req("GET", "/user/payment-methods", token=token, group="user", name="payment-methods")
+req("GET", "/user/upi", token=token, group="user", name="upi")
+req("GET", "/user/notification-prefs", token=token, group="user", name="notification-prefs")
+req("POST", "/user/delete-account", token=token, json_body={},
+    expected_ok=(200, 400, 422, 403), group="user", name="delete-account (schema)",
+    note_on_fail="schema check, should not 500")
+
+
+# ==== 3. TRANSACTIONS ====
+print("\n=== 3. TRANSACTIONS ===")
+req("GET", "/transactions", token=token, group="transactions", name="list")
+new_tx = req("POST", "/transactions", token=token, json_body={
+    "amount": 250.0,
+    "type": "debit",
+    "category": "Food",
+    "description": "Regression test lunch",
+}, group="transactions", name="create")
+
+tx_id = None
+if isinstance(new_tx, dict):
+    tx_id = new_tx.get("id") or new_tx.get("_id") or new_tx.get("transaction_id")
+if tx_id:
+    req("PUT", f"/transactions/{tx_id}", token=token, json_body={
+        "amount": 300.0, "type": "debit", "category": "Food",
+        "description": "Regression updated",
+    }, group="transactions", name="edit")
+    req("DELETE", f"/transactions/{tx_id}", token=token, group="transactions", name="delete")
+else:
+    print("  (skipping edit/delete, no id)")
+
+req("GET", "/stats/overview", token=token, group="transactions", name="stats/overview")
+req("GET", "/analytics/summary", token=token, group="transactions", name="analytics/summary")
+
+
+# ==== 4. BUDGETS ====
+print("\n=== 4. BUDGETS ===")
+req("GET", "/budgets/live", token=token, group="budgets", name="live")
+req("GET", "/budgets/smart-suggest", token=token, group="budgets", name="smart-suggest")
+req("GET", "/budgets/achievements", token=token, group="budgets", name="achievements")
+req("POST", "/budgets", token=token, json_body={
+    "category": "Entertainment", "amount": 2000, "period": "monthly",
+}, group="budgets", name="create")
+
+
+# ==== 5. SPLIT ====
+print("\n=== 5. SPLIT ===")
+req("GET", "/split/groups", token=token, group="split", name="groups")
+req("GET", "/split/balances", token=token, group="split", name="balances")
+req("GET", "/split/insights", token=token, group="split", name="insights")
+req("GET", "/split/reminders", token=token, group="split", name="reminders")
+req("GET", "/split/settlement-leaderboard", token=token, group="split", name="settlement-leaderboard")
+req("POST", "/split/groups", token=token, json_body={
+    "name": "Regression Apr21 Group", "members": ["9999888877"],
+}, group="split", name="create-group")
+
+
+# ==== 6. AI COACH ====
+print("\n=== 6. AI COACH ===")
+req("GET", "/ai/insights", token=token,
+    expected_ok=(200, 404), group="ai", name="ai/insights (exact-path)",
+    note_on_fail="may not exist; /insights/daily is the canonical path")
+req("GET", "/insights/daily", token=token, group="ai", name="insights/daily (alt)")
+req("GET", "/ai/proactive-nudges", token=token, group="ai", name="ai/proactive-nudges")
+req("POST", "/ai/chat", token=token, json_body={
+    "message": "How can I save more money this month?",
+}, group="ai", name="ai/chat")
+
+
+# ==== 7. REWARDS ====
+print("\n=== 7. REWARDS ===")
+req("GET", "/coins/status", token=token, group="rewards", name="coins/status")
+req("GET", "/gamification/status", token=token, group="rewards", name="gamification/status")
+req("GET", "/referral/enhanced-status", token=token, group="rewards", name="referral/enhanced-status")
+
+
+# ==== 8. NEWS ====
+print("\n=== 8. NEWS ===")
+start = time.time()
+try:
+    r = requests.get(f"{API}/news/india-finance",
+                     headers={"Authorization": f"Bearer {token}"},
+                     timeout=25)
+    elapsed = time.time() - start
+    note = "" if r.status_code == 200 else f" body={r.text[:160]}"
+    rec("news", "india-finance", "GET", "/news/india-finance", r.status_code,
+        r.status_code == 200, elapsed, note)
+except requests.exceptions.Timeout:
+    elapsed = time.time() - start
+    rec("news", "india-finance", "GET", "/news/india-finance", 0, False, elapsed, "TIMEOUT>25s")
+except Exception as e:
+    elapsed = time.time() - start
+    rec("news", "india-finance", "GET", "/news/india-finance", 0, False, elapsed, f"EXC:{e}")
+
+
+# ==== 9. GMAIL ====
+print("\n=== 9. GMAIL ===")
+req("GET", "/gmail/status", token=token, group="gmail", name="status")
+
+
+# ==== SUMMARY ====
+print("\n==========================================")
+print("SUMMARY")
+print("==========================================")
+total_ok = sum(1 for r in results if r["ok"])
+total = len(results)
+print(f"\nTotal: {total_ok}/{total} PASS ({total_ok/total*100:.1f}%)\n")
+
+slow = [r for r in results if r["elapsed_ms"] > 5000]
+fails = [r for r in results if not r["ok"]]
+
+print("--- SLOW ENDPOINTS (>5s) ---")
+if slow:
+    for r in slow:
+        print(f"  SLOW: {r['method']} {r['path']} took {r['elapsed_ms']}ms")
+else:
+    print("  (none)")
+
+print("\n--- FAILURES ---")
+if fails:
+    for r in fails:
+        print(f"  FAIL: [{r['group']}] {r['method']} {r['path']} -> {r['status']} | {r['note']}")
+else:
+    print("  (none)")
+
+print("\nDONE")
+critical_fails = [r for r in fails if r["name"] not in ("create-pin", "verify-pin", "ai/insights (exact-path)")]
+sys.exit(0 if not critical_fails else 1)
