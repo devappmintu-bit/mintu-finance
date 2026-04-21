@@ -131,7 +131,9 @@ export default function AuthScreen() {
     <>
       <TouchableOpacity style={s.backBtn} onPress={() => { setStep('phone'); setOtp(['','','','','','']); }}><Ionicons name="arrow-back" size={22} color={COLORS.text.primary} /></TouchableOpacity>
       <View style={s.header}>
-        <View style={s.otpIconWrap}><Ionicons name="shield-checkmark" size={40} color={COLORS.accent.moneyIn} /></View>
+        <View style={s.mascotSmallWrap}>
+          <Mascot size={72} glow variant="auto" />
+        </View>
         <Text style={s.stepTitle}>{t('verify_otp', lang)}</Text>
         <Text style={s.stepSubtitle}>{t('verify_subtitle', lang)}{'\n'}<Text style={s.phoneHighlight}>+91 {phone}</Text></Text>
       </View>
@@ -157,7 +159,9 @@ export default function AuthScreen() {
     <>
       <TouchableOpacity style={s.backBtn} onPress={() => setStep('otp')}><Ionicons name="arrow-back" size={22} color={COLORS.text.primary} /></TouchableOpacity>
       <View style={s.header}>
-        <View style={s.otpIconWrap}><Ionicons name="person-add" size={40} color={COLORS.accent.primary} /></View>
+        <View style={s.mascotSmallWrap}>
+          <Mascot size={72} glow variant="auto" />
+        </View>
         <Text style={s.stepTitle}>{t('welcome_aboard', lang)}</Text>
         <Text style={s.stepSubtitle}>{t('what_name', lang)}</Text>
       </View>
@@ -223,6 +227,7 @@ const useStyles = makeStyles((c) => ({
   header: { alignItems: 'center', marginBottom: 40 },
   logoIcon: { width: 72, height: 72, borderRadius: 24, backgroundColor: c.accent.primary, justifyContent: 'center', alignItems: 'center', marginBottom: 16 },
   mascotWrap: { marginBottom: 16, alignItems: 'center', justifyContent: 'center' },
+  mascotSmallWrap: { marginBottom: 12, alignItems: 'center', justifyContent: 'center' },
   logoSymbol: { fontSize: 34, fontWeight: '800', color: c.text.inverse },
   logoText: { fontSize: 34, fontWeight: '800', color: c.text.primary, marginBottom: 24 },
   otpIconWrap: { width: 80, height: 80, borderRadius: 40, backgroundColor: c.accent.moneyIn + '15', justifyContent: 'center', alignItems: 'center', marginBottom: 20 },
