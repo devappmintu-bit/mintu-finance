@@ -167,6 +167,7 @@ export default function RewardsHub() {
 }
 
 function StatTile({ icon, label, value, sub, tint, border }: { icon: string; label: string; value: string; sub: string; tint: string; border: string }) {
+  const s = useStyles();
   return (
     <View style={[s.stat, { backgroundColor: tint, borderColor: border }]}>
       <Text style={{ fontSize: 18 }}>{icon}</Text>

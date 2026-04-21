@@ -204,6 +204,7 @@ export default function GroupManageSheet({ visible, onClose, manage, currentUser
 
 // --- Sub-component ---
 function ActionRow({ icon, label, onPress, danger }: { icon: string; label: string; onPress: () => void; danger?: boolean }) {
+  const s = useStyles();
   const color = danger ? C.red : C.text1;
   return (
     <TouchableOpacity style={s.actionRow} onPress={onPress} activeOpacity={0.7}>

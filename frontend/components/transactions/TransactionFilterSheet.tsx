@@ -167,6 +167,7 @@ export default function TransactionFilterSheet({ visible, value, onClose, onAppl
 }
 
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
+  const s = useStyles();
   return (
     <View style={{ paddingHorizontal: 16, marginTop: 18 }}>
       <Text style={s.sectionTitle}>{title}</Text>
@@ -176,6 +177,7 @@ function Section({ title, children }: { title: string; children: React.ReactNode
 }
 
 function Chip({ label, active, onPress, icon }: { label: string; active?: boolean; onPress: () => void; icon?: any }) {
+  const s = useStyles();
   return (
     <TouchableOpacity style={[s.chip, active && s.chipOn]} onPress={onPress} activeOpacity={0.8}>
       {icon && <Ionicons name={icon} size={14} color={active ? '#7C2D12' : '#6B7280'} />}

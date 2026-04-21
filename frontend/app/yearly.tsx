@@ -44,6 +44,7 @@ type Monthly = {
 };
 
 function BarChart({ data }: { data: Monthly[] }) {
+  const s = useStyles();
   const [selected, setSelected] = useState<number | null>(null);
   const { maxVal, chartW } = useMemo(() => {
     const maxVal = Math.max(1, ...data.flatMap(d => [d.income, d.expense]));

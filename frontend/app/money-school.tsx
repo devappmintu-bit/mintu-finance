@@ -238,6 +238,7 @@ export default function MoneySchoolScreen() {
 }
 
 function TopBar({ subtitle }: { subtitle?: string }) {
+  const s = useStyles();
   return (
     <View style={s.topbar}>
       <TouchableOpacity onPress={() => router.back()} style={s.backBtn} testID="money-school-back">

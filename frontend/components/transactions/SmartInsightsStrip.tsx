@@ -137,6 +137,7 @@ export default function SmartInsightsStrip({ transactions }: { transactions: Txn
 }
 
 function Card({ icon, tint, label, value, sub }: { icon: string; tint: string; label: string; value: string; sub: string }) {
+  const s = useStyles();
   return (
     <View style={[s.card, { borderLeftColor: tint }]}>
       <View style={[s.iconBox, { backgroundColor: tint + '18' }]}>

@@ -18,6 +18,7 @@ import { COLORS } from '../../utils/theme';
 import { makeStyles } from '../../utils/makeStyles';
 
 const ShimmerBase = ({ style }: { style?: StyleProp<ViewStyle> }) => {
+  const st = useStyles();
   const anim = useRef(new Animated.Value(0)).current;
   useEffect(() => {
     Animated.loop(

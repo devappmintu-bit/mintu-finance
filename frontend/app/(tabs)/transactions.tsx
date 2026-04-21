@@ -33,6 +33,7 @@ import TransactionFilterSheet, { DEFAULT_FILTER, TxnFilter, applyFilterToList, f
 // Per UX spec: Transactions get DELETE-only swipe (no edit gesture).
 // Users can still open the edit modal by tapping the row itself.
 const TxnRow = memo(function TxnRow({ item, lang, onEdit, onDelete }: { item: any; lang: string; onEdit: (t: any) => void; onDelete: (id: string) => void }) {
+  const styles = useStyles();
   const cat = CATEGORIES[item.category] || CATEGORIES.Other;
   const isCash = item.source === 'cash' || item.source === 'cash_recurring';
   const isGmail = item.source === 'gmail';

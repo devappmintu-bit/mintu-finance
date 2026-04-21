@@ -90,26 +90,32 @@ export default function AboutMintU({ visible, onClose }: Props) {
   );
 }
 
-const Row = ({ icon, color, title, sub }: { icon: string; color: string; title: string; sub: string }) => (
-  <View style={s.row}>
-    <View style={[s.rowIcon, { backgroundColor: color + '18' }]}><Ionicons name={icon as any} size={18} color={color} /></View>
-    <View style={{ flex: 1 }}>
-      <Text style={s.rowTitle}>{title}</Text>
-      <Text style={s.rowSub}>{sub}</Text>
+const Row = ({ icon, color, title, sub }: { icon: string; color: string; title: string; sub: string }) => {
+  const s = useStyles();
+  return (
+    <View style={s.row}>
+      <View style={[s.rowIcon, { backgroundColor: color + '18' }]}><Ionicons name={icon as any} size={18} color={color} /></View>
+      <View style={{ flex: 1 }}>
+        <Text style={s.rowTitle}>{title}</Text>
+        <Text style={s.rowSub}>{sub}</Text>
+      </View>
     </View>
-  </View>
-);
+  );
+};
 
-const LinkRow = ({ icon, color, title, sub, onPress }: { icon: string; color: string; title: string; sub: string; onPress: () => void }) => (
-  <TouchableOpacity style={s.row} onPress={onPress} activeOpacity={0.7}>
-    <View style={[s.rowIcon, { backgroundColor: color + '18' }]}><Ionicons name={icon as any} size={18} color={color} /></View>
-    <View style={{ flex: 1 }}>
-      <Text style={s.rowTitle}>{title}</Text>
-      <Text style={s.rowSub}>{sub}</Text>
-    </View>
-    <Ionicons name="chevron-forward" size={16} color={COLORS.text.muted} />
-  </TouchableOpacity>
-);
+const LinkRow = ({ icon, color, title, sub, onPress }: { icon: string; color: string; title: string; sub: string; onPress: () => void }) => {
+  const s = useStyles();
+  return (
+    <TouchableOpacity style={s.row} onPress={onPress} activeOpacity={0.7}>
+      <View style={[s.rowIcon, { backgroundColor: color + '18' }]}><Ionicons name={icon as any} size={18} color={color} /></View>
+      <View style={{ flex: 1 }}>
+        <Text style={s.rowTitle}>{title}</Text>
+        <Text style={s.rowSub}>{sub}</Text>
+      </View>
+      <Ionicons name="chevron-forward" size={16} color={COLORS.text.muted} />
+    </TouchableOpacity>
+  );
+};
 
 const useStyles = makeStyles((c) => ({
   container: { flex: 1, backgroundColor: c.bg.primary },

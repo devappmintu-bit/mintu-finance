@@ -21,7 +21,7 @@ import { Ionicons } from '@expo/vector-icons';
 import Toast from 'react-native-toast-message';
 import api from '../../utils/api';
 import useFocusRefresh from '../../hooks/useFocusRefresh';
-import { shadowStyle } from '../../utils/theme';
+import { shadowStyle, COLORS } from '../../utils/theme';
 import { useAppColors } from '../../utils/theme';
 import { makeStyles } from '../../utils/makeStyles';
 

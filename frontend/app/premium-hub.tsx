@@ -139,6 +139,7 @@ export default function PremiumHubScreen() {
 // ── Subcomponents ─────────────────────────────────────────────────────
 
 function LockedState({ onUnlock }: { onUnlock: () => void }) {
+  const s = useStyles();
   return (
     <LinearGradient colors={['#1F2937', '#0F172A']} style={s.lockedHero}>
       <View style={s.lockBig}>
@@ -161,6 +162,7 @@ function LockedState({ onUnlock }: { onUnlock: () => void }) {
 }
 
 function ToolTile({ tool, locked, onLockedTap }: { tool: Tool; locked: boolean; onLockedTap: () => void }) {
+  const s = useStyles();
   return (
     <TouchableOpacity
       activeOpacity={0.88}

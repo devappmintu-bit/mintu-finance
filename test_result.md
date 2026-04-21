@@ -4887,3 +4887,42 @@ agent_communication:
       • CrossFade transition overlay properly implemented and wired ✅
       • Theme switching infrastructure production-ready ✅
 
+
+---
+
+## ✅ AMOLED Toggle, Tab Bar Animations & Theme Engine Verification — Apr 21 2026 (new session)
+
+    **MAIN AGENT UPDATE - SESSION 2 COMPLETION**
+
+    ### Issues Found & Fixed:
+    The automated makeStyles migration script from the previous session left **20+ files** with broken runtime references where nested helper functions / arrow-implicit components referenced `s.`, `st.`, `styles.`, `sk.`, or `COLORS.` without calling the `useStyles()` hook inside their scope. This caused `ReferenceError: s is not defined` / `sk is not defined` / `COLORS is not defined` on:
+    - **AuthTransitionOverlay.tsx** (ConfettiDots)
+    - **PaymentMethodsV2.tsx** (missing COLORS import)
+    - **SkeletonLoader.tsx** (HomeSkeleton, TransactionsSkeleton, BudgetSkeleton, SplitSkeleton)
+    - **AboutMintU.tsx** (Row, LinkRow)
+    - **_layout.tsx** Tab Bar (SideTab, MintUTabBar)
+    - **ThemeToggle.tsx** (COLORS.text.secondary without import, missing amoled/toggle/knob styles)
+    - +14 other files (yearly, premium-hub, premium-reports, money-school, transactions, ConfettiBurst, AICoachChat, InsightsCard, RewardsHub, Skeleton, SplitInsightsHero, GroupManageSheet, SmartInsightsStrip, TransactionFilterSheet)
+
+    ### Fixes Applied:
+    1. **Wrote a Python scanner** to automatically detect arrow-implicit / nested functions that use style variables without hook calls.
+    2. **Auto-injected `const s = useStyles();`** at the top of each affected function (17 fixes).
+    3. **Manually converted** arrow-implicit components (AboutMintU Row/LinkRow, SkeletonLoader's 4 exports) to arrow-body with hook call.
+    4. **Added missing styles** (amoledRow, amoledTitle, amoledSub, toggle, toggleOn, knob, knobOn) in ThemeToggle.tsx.
+    5. **Fixed BudgetSummaryDonut** — replaced hardcoded text hex colors (#111, #6B7280, #9CA3AF, #fff) with theme tokens (c.text.primary, c.text.secondary, c.text.muted, c.bg.secondary, c.border.subtle) for proper Light/Dark adaptation.
+
+    ### Verification via screenshot tool:
+    - ✅ Home / Transactions / Budgets / Split tabs all render without errors
+    - ✅ Profile page renders with ThemeToggle card + Challenges & Achievements + Payment Methods
+    - ✅ Light mode activates correctly (`Currently showing Light mode`)
+    - ✅ Dark mode activates correctly
+    - ✅ AMOLED true-black toggle activates — pure black background verified on all screens
+    - ✅ Tab Bar bouncy animations work (focused tab highlights with orange + filled icon + scale)
+    - ✅ SkeletonLoader now renders correctly (visible on Split tab loading state)
+    - ✅ Mascot raised puck + glow still works across all theme modes
+
+    ### Remaining Minor Issues (non-blocking):
+    - `InsightsCard.tsx` line 92/173/183: hardcoded `#fff` stroke on sparkline dot + `#E65100` orange on stat values (mid-tone, works on both themes → acceptable).
+
+    **STATUS:** ✅ Phase 3 Polish COMPLETE. Theme Engine is production-ready with AMOLED, Tab Bar animations fully verified.
+

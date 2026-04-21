@@ -371,6 +371,7 @@ function kpi(label: string, value: string, color: string) {
 }
 
 function TableHeader({ cols }: { cols: string[] }) {
+  const s = useStyles();
   return (
     <View style={s.thRow}>
       <View style={{ width: 14 }} />

@@ -20,6 +20,7 @@ const EMOJIS = ['🎉', '✨', '💰', '🪙', '⭐', '🔥', '🚀', '💸', '�
 type ParticleProps = { emoji: string; angle: number; dist: number; delay: number; duration: number };
 
 function Particle({ emoji, angle, dist, delay, duration }: ParticleProps) {
+  const s = useStyles();
   const p = useSharedValue(0);     // 0 → 1 travel progress
   const rot = useSharedValue(0);   // rotation in deg
   const op = useSharedValue(0);    // opacity

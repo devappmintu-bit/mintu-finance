@@ -16,7 +16,7 @@ import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import { useThemePref, ThemeMode, useResolvedTheme } from '../../store/themeStore';
 import Mascot from '../Mascot';
-import { FONT_FAMILY, RADIUS, SPACING } from '../../utils/theme';
+import { FONT_FAMILY, RADIUS, SPACING, useAppColors } from '../../utils/theme';
 import { makeStyles } from '../../utils/makeStyles';
 
 const OPTIONS: { key: ThemeMode; label: string; icon: string }[] = [
@@ -31,6 +31,7 @@ export default function ThemeToggle() {
   const setMode = useThemePref((s) => s.setMode);
   const setAmoled = useThemePref((s) => s.setAmoled);
   const resolved = useResolvedTheme();
+  const c = useAppColors();
   const s = useStyles();
 
   const onPick = (m: ThemeMode) => {
@@ -62,7 +63,7 @@ export default function ThemeToggle() {
               <Ionicons
                 name={opt.icon as any}
                 size={16}
-                color={active ? '#fff' : COLORS.text.secondary}
+                color={active ? '#fff' : c.text.secondary}
               />
               <Text style={[s.pillText, active && s.pillTextOn]}>{opt.label}</Text>
             </Pressable>
@@ -172,5 +173,54 @@ const useStyles = makeStyles((c) => ({
     color: c.accent.primary,
     fontFamily: FONT_FAMILY.bold,
     textTransform: 'capitalize',
+  },
+  amoledRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    paddingVertical: 12,
+    paddingHorizontal: 14,
+    borderRadius: RADIUS.lg,
+    backgroundColor: c.bg.primary,
+    borderWidth: 1,
+    borderColor: c.border.subtle,
+  },
+  amoledTitle: {
+    fontSize: 13.5,
+    fontFamily: FONT_FAMILY.semibold,
+    color: c.text.primary,
+    letterSpacing: -0.1,
+  },
+  amoledSub: {
+    fontSize: 11,
+    fontFamily: FONT_FAMILY.regular,
+    color: c.text.muted,
+    marginTop: 2,
+    lineHeight: 15,
+  },
+  toggle: {
+    width: 42,
+    height: 24,
+    borderRadius: 12,
+    backgroundColor: c.bg.elevated,
+    borderWidth: 1,
+    borderColor: c.border.subtle,
+    padding: 2,
+    justifyContent: 'center',
+  },
+  toggleOn: {
+    backgroundColor: c.accent.primary,
+    borderColor: c.accent.primary,
+  },
+  knob: {
+    width: 18,
+    height: 18,
+    borderRadius: 9,
+    backgroundColor: c.text.secondary,
+    alignSelf: 'flex-start',
+  },
+  knobOn: {
+    backgroundColor: '#fff',
+    alignSelf: 'flex-end',
   },
 }));

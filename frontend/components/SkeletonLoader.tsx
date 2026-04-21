@@ -33,7 +33,9 @@ export const Skeleton = ({ width = '100%', height = 16, borderRadius = 8, style 
   );
 };
 
-export const HomeSkeleton = () => (
+export const HomeSkeleton = () => {
+  const sk = useStyles();
+  return (
   <View style={sk.container}>
     <View style={sk.row}>
       <View style={{ flex: 1 }}>
@@ -53,9 +55,12 @@ export const HomeSkeleton = () => (
     <Skeleton height={70} borderRadius={RADIUS.xl} style={{ marginTop: 8 }} />
     <Skeleton height={70} borderRadius={RADIUS.xl} style={{ marginTop: 8 }} />
   </View>
-);
+  );
+};
 
-export const TransactionsSkeleton = () => (
+export const TransactionsSkeleton = () => {
+  const sk = useStyles();
+  return (
   <View style={sk.container}>
     <View style={sk.row}>
       <View style={{ flex: 1 }}>
@@ -77,9 +82,12 @@ export const TransactionsSkeleton = () => (
       </View>
     ))}
   </View>
-);
+  );
+};
 
-export const BudgetSkeleton = () => (
+export const BudgetSkeleton = () => {
+  const sk = useStyles();
+  return (
   <View style={sk.container}>
     <View style={sk.row}>
       <View style={{ flex: 1 }}>
@@ -94,9 +102,12 @@ export const BudgetSkeleton = () => (
       </View>
     ))}
   </View>
-);
+  );
+};
 
-export const SplitSkeleton = () => (
+export const SplitSkeleton = () => {
+  const sk = useStyles();
+  return (
   <View style={sk.container}>
     <View style={sk.row}>
       <Skeleton width={60} height={28} />
@@ -117,7 +128,8 @@ export const SplitSkeleton = () => (
       </View>
     ))}
   </View>
-);
+  );
+};
 
 const useStyles = makeStyles((c) => ({
   container: {},

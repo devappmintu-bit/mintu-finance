@@ -227,6 +227,7 @@ function actionCaption(a: Action): string {
 // ═════════════════════════════════════════════════════════════════════════
 const DOT_COLORS = ['#FFD166', '#FFB300', '#FEE2CD', '#FFECD3', '#E0F7FA'];
 function ConfettiDots({ anim }: { anim: Animated.Value }) {
+  const s = useStyles();
   // 10 pre-computed positions so animation is deterministic per mount
   const dots = useMemo(() => {
     return Array.from({ length: 10 }, (_, i) => ({

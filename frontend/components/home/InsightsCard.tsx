@@ -50,6 +50,7 @@ const formatINR = (n: number) => {
 };
 
 const Sparkline: React.FC<{ points: SparkPoint[] }> = ({ points }) => {
+  const s = useStyles();
   const { polyPts, areaPts, maxPt, minPt, maxAmt } = useMemo(() => {
     if (!points || points.length === 0) return { polyPts: '', areaPts: '', maxPt: null, minPt: null, maxAmt: 0 };
     const amts = points.map(p => p.amount);

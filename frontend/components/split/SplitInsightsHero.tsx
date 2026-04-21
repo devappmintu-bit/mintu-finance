@@ -95,6 +95,7 @@ const DEFAULT_ZERO_STATE: InsightCard[] = [
 ];
 
 function AnimatedCard({ card, index }: { card: InsightCard; index: number }) {
+  const s = useStyles();
   const scale = useRef(new Animated.Value(0.8)).current;
   const opacity = useRef(new Animated.Value(0)).current;
 

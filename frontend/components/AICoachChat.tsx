@@ -122,6 +122,7 @@ const TypingDots = () => {
 };
 
 export default function AICoachChat({ onClose }: { onClose?: () => void }) {
+  const s = useStyles();
   const { user } = useAuthStore();
   const { lang } = useLangStore();
   const [messages, setMessages] = useState<ChatMsg[]>([]);

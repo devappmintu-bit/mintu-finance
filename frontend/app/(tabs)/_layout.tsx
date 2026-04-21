@@ -112,6 +112,7 @@ function barPath(w: number, h: number): string {
 
 function SideTab({ icon, iconFilled, label, focused, onPress, testID }:
   { icon: string; iconFilled: string; label: string; focused: boolean; onPress: () => void; testID?: string }) {
+  const st = useStyles();
   // Smooth bounce+scale on focus change + halo pulse
   const scale = React.useRef(new Animated.Value(focused ? 1 : 0.92)).current;
   const halo  = React.useRef(new Animated.Value(focused ? 1 : 0)).current;
@@ -155,6 +156,7 @@ function SideTab({ icon, iconFilled, label, focused, onPress, testID }:
 }
 
 function MintUTabBar({ state, navigation }: BottomTabBarProps) {
+  const st = useStyles();
   const { lang } = useLangStore();
   const screenW = Dimensions.get('window').width;
   const { CUTOUT_W } = archGeom(screenW);
@@ -256,7 +258,6 @@ function MintUTabBar({ state, navigation }: BottomTabBarProps) {
 }
 
 export default function TabLayout() {
-  const st = useStyles();
   return (
     <View style={{ flex: 1 }}>
       <Tabs
