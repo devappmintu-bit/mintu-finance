@@ -15,10 +15,12 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { router } from 'expo-router';
 import api from '../../utils/api';
 import { shareSmart } from '../../utils/share';
+import { makeStyles } from '../../utils/makeStyles';
 
 type Badge = { id: string; name: string; icon?: string; unlocked?: boolean; description?: string };
 
 export default function RewardsHub() {
+  const s = useStyles();
   const [expanded, setExpanded] = useState(false);
   const [loading, setLoading] = useState(true);
   const [coins, setCoins] = useState<any>(null);
@@ -175,7 +177,7 @@ function StatTile({ icon, label, value, sub, tint, border }: { icon: string; lab
   );
 }
 
-const s = StyleSheet.create({
+const useStyles = makeStyles((c) => ({
   wrap: { marginBottom: 14, borderRadius: 18, overflow: 'hidden', backgroundColor: '#fff', borderWidth: 1, borderColor: '#F3F4F6' },
 
   header: { flexDirection: 'row', alignItems: 'center', gap: 12, padding: 14 },
@@ -208,4 +210,4 @@ const s = StyleSheet.create({
 
   leaderboardBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, paddingVertical: 12, marginTop: 14, borderRadius: 12, backgroundColor: '#FFF7ED', borderWidth: 1, borderColor: '#FED7AA' },
   leaderboardTxt: { color: '#7C2D12', fontSize: 13, fontWeight: '800' },
-});
+}));

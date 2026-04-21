@@ -25,6 +25,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Image } from 'expo-image';
 import { useAuthStore } from '../../store/authStore';
+import { makeStyles } from '../../utils/makeStyles';
 
 export type AuthTransitionVariant = 'locking' | 'unlocking';
 
@@ -39,6 +40,7 @@ type Action = 'bounce' | 'wave' | 'thumbsUp' | 'float' | 'spin' | 'doubleJump' |
 const ACTIONS: Action[] = ['bounce', 'wave', 'thumbsUp', 'float', 'spin', 'doubleJump', 'tada'];
 
 export default function AuthTransitionOverlay({ variant, onDone, durationMs = 1500 }: Props) {
+  const s = useStyles();
   const { user } = useAuthStore();
   const action = useMemo<Action>(() => ACTIONS[Math.floor(Math.random() * ACTIONS.length)], []);
 
@@ -258,7 +260,7 @@ function ConfettiDots({ anim }: { anim: Animated.Value }) {
   );
 }
 
-const s = StyleSheet.create({
+const useStyles = makeStyles((c) => ({
   wrap: { position: 'absolute', top: 0, right: 0, bottom: 0, left: 0, alignItems: 'center', justifyContent: 'center', zIndex: 9999 },
   halo: { position: 'absolute', width: 140, height: 140, borderRadius: 70, borderWidth: 3, borderColor: '#fff' },
   mascotWrap: { alignItems: 'center' },
@@ -298,4 +300,4 @@ const s = StyleSheet.create({
     position: 'absolute',
     borderRadius: 100,
   },
-});
+}));

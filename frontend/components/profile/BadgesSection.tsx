@@ -3,6 +3,7 @@ import { View, Text, StyleSheet, TouchableOpacity, Modal, ScrollView } from 'rea
 import { Ionicons } from '@expo/vector-icons';
 import api from '../../utils/api';
 import { COLORS } from '../../utils/theme';
+import { makeStyles } from '../../utils/makeStyles';
 
 type Badge = { id: string; name: string; desc: string; icon: string };
 
@@ -19,6 +20,7 @@ export default function BadgesSection({
 }: {
   onStatusLoaded?: (s: GamificationStatus) => void;
 }) {
+  const s = useStyles();
   const [status, setStatus] = useState<GamificationStatus | null>(null);
   const [loading, setLoading] = useState(true);
   const [selected, setSelected] = useState<{ badge: Badge; earned: boolean } | null>(null);
@@ -181,7 +183,7 @@ export default function BadgesSection({
   );
 }
 
-const s = StyleSheet.create({
+const useStyles = makeStyles((c) => ({
   card: {
     backgroundColor: 'rgba(255,255,255,0.96)',
     borderRadius: 20,
@@ -199,8 +201,8 @@ const s = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
   },
-  title: { fontSize: 16, fontWeight: '800', color: COLORS.text.primary },
-  sub: { fontSize: 12, color: COLORS.text.muted, marginTop: 2 },
+  title: { fontSize: 16, fontWeight: '800', color: c.text.primary },
+  sub: { fontSize: 12, color: c.text.muted, marginTop: 2 },
   countPill: {
     alignItems: 'center',
     backgroundColor: '#FEF3C7',
@@ -259,11 +261,11 @@ const s = StyleSheet.create({
   badgeName: {
     fontSize: 11,
     fontWeight: '700',
-    color: COLORS.text.primary,
+    color: c.text.primary,
     textAlign: 'center',
     lineHeight: 14,
   },
-  badgeNameLocked: { color: COLORS.text.muted },
+  badgeNameLocked: { color: c.text.muted },
   earnedDot: {
     position: 'absolute',
     top: 0,
@@ -299,10 +301,10 @@ const s = StyleSheet.create({
     alignItems: 'center',
     marginBottom: 16,
   },
-  modalTitle: { fontSize: 20, fontWeight: '800', color: COLORS.text.primary, textAlign: 'center' },
+  modalTitle: { fontSize: 20, fontWeight: '800', color: c.text.primary, textAlign: 'center' },
   modalDesc: {
     fontSize: 14,
-    color: COLORS.text.secondary,
+    color: c.text.secondary,
     textAlign: 'center',
     marginTop: 6,
     lineHeight: 20,
@@ -322,9 +324,9 @@ const s = StyleSheet.create({
     paddingHorizontal: 28,
     paddingVertical: 12,
     borderRadius: 999,
-    backgroundColor: COLORS.bg.primary,
+    backgroundColor: c.bg.primary,
     borderWidth: 1,
-    borderColor: COLORS.border.card,
+    borderColor: c.border.card,
   },
-  modalCloseText: { fontSize: 14, fontWeight: '700', color: COLORS.text.primary },
-});
+  modalCloseText: { fontSize: 14, fontWeight: '700', color: c.text.primary },
+}));

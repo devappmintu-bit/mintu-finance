@@ -13,6 +13,7 @@ import { View, Text, StyleSheet, Modal, Pressable, TouchableOpacity, ActivityInd
 import { Ionicons } from '@expo/vector-icons';
 import Toast from 'react-native-toast-message';
 import api from '../../utils/api';
+import { makeStyles } from '../../utils/makeStyles';
 
 const TONE_COLOR: Record<string, { bg: string; fg: string; border: string }> = {
   success: { bg: '#DCFCE7', fg: '#065F46', border: '#86EFAC' },
@@ -30,6 +31,7 @@ type Props = {
 };
 
 export default function BudgetInsightsSheet({ visible, category, onClose, onApplied }: Props) {
+  const s = useStyles();
   const [loading, setLoading] = useState(false);
   const [data, setData] = useState<any>(null);
   const [applying, setApplying] = useState<string | null>(null);
@@ -158,7 +160,7 @@ export default function BudgetInsightsSheet({ visible, category, onClose, onAppl
   );
 }
 
-const s = StyleSheet.create({
+const useStyles = makeStyles((c) => ({
   backdrop: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(15,23,42,0.55)' },
   wrap: { flex: 1, justifyContent: 'flex-end' },
   sheet: { backgroundColor: '#fff', borderTopLeftRadius: 28, borderTopRightRadius: 28, paddingHorizontal: 20, paddingTop: 8, paddingBottom: 24, maxHeight: '90%' },
@@ -189,4 +191,4 @@ const s = StyleSheet.create({
   statV: { fontSize: 15, fontWeight: '800', color: '#111' },
   statL: { fontSize: 10, color: '#6B7280', fontWeight: '700', marginTop: 2, textTransform: 'uppercase', letterSpacing: 0.3 },
   statDiv: { width: 1, backgroundColor: '#E5E7EB' },
-});
+}));

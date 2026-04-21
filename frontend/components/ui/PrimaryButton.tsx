@@ -23,6 +23,7 @@ import {
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { useHaptic } from '../../hooks/useHaptic';
+import { makeStyles } from '../../utils/makeStyles';
 
 type Variant = 'solid' | 'ghost' | 'danger' | 'tonal';
 type Size = 'sm' | 'md' | 'lg';
@@ -53,6 +54,7 @@ export default function PrimaryButton({
   loading = false, disabled = false, icon, iconRight,
   style, labelStyle, fullWidth = true, testID,
 }: Props) {
+  const s = useStyles();
   const haptic = useHaptic();
   const scale = useRef(new Animated.Value(1)).current;
 
@@ -126,8 +128,8 @@ export default function PrimaryButton({
   );
 }
 
-const s = StyleSheet.create({
+const useStyles = makeStyles((c) => ({
   inner: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center' },
   ghostBg: { backgroundColor: 'rgba(255,107,26,0.08)', borderWidth: 1.5, borderColor: '#FF6B1A', borderRadius: 14 },
   tonalBg: { backgroundColor: 'rgba(255,107,26,0.14)', borderWidth: 1, borderColor: 'rgba(255,107,26,0.35)', borderRadius: 14 },
-});
+}));

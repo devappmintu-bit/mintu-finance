@@ -12,6 +12,7 @@ import React from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
+import { makeStyles } from '../../utils/makeStyles';
 
 type Plan = 'monthly' | 'yearly' | 'lifetime';
 type Row = { label: string; monthly: boolean | string; yearly: boolean | string; lifetime: boolean | string };
@@ -44,6 +45,7 @@ const FEATURES: Row[] = [
 type Props = { onClose?: () => void };
 
 export default function PremiumComparison({ onClose }: Props) {
+  const s = useStyles();
   return (
     <View style={s.wrap}>
       {/* Hero */}
@@ -105,7 +107,7 @@ export default function PremiumComparison({ onClose }: Props) {
   );
 }
 
-const s = StyleSheet.create({
+const useStyles = makeStyles((c) => ({
   wrap: { borderRadius: 18, overflow: 'hidden', backgroundColor: '#fff' },
 
   hero: { padding: 14 },
@@ -134,4 +136,4 @@ const s = StyleSheet.create({
   cellTxt: { fontSize: 11, fontWeight: '700', color: '#F56E1E' },
 
   fineprint: { fontSize: 10, color: '#9CA3AF', textAlign: 'center', fontStyle: 'italic', padding: 12 },
-});
+}));

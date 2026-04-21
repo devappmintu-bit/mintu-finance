@@ -5,6 +5,7 @@
  */
 import React, { useEffect } from 'react';
 import { View, StyleSheet, Dimensions } from 'react-native';
+import { makeStyles } from '../utils/makeStyles';
 import Animated, {
   useSharedValue,
   useAnimatedStyle,
@@ -82,6 +83,7 @@ const Particle: React.FC<{ index: number; trigger: boolean; originX: number; ori
 });
 
 export default function Confetti({ trigger, onDone, originX, originY }: Props) {
+  const styles = useStyles();
   const origX = originX ?? W / 2;
   const origY = originY ?? H / 3;
 
@@ -103,6 +105,6 @@ export default function Confetti({ trigger, onDone, originX, originY }: Props) {
   );
 }
 
-const styles = StyleSheet.create({
+const useStyles = makeStyles((c) => ({
   overlay: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, zIndex: 9999, pointerEvents: 'none' },
-});
+}));

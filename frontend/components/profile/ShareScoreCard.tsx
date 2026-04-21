@@ -2,6 +2,7 @@ import React from 'react';
 import { View, Text, StyleSheet, Image } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
+import { makeStyles } from '../../utils/makeStyles';
 
 export type ShareScoreCardData = {
   name: string;
@@ -24,6 +25,7 @@ export type ShareScoreCardData = {
  */
 const ShareScoreCard = React.forwardRef<View, { data: ShareScoreCardData }>(
   ({ data }, ref) => {
+  const s = useStyles();
     const tierColor =
       data.score >= 80 ? '#FCD34D' : data.score >= 60 ? '#A7F3D0' : data.score >= 40 ? '#93C5FD' : '#FCA5A5';
 
@@ -118,7 +120,7 @@ const ShareScoreCard = React.forwardRef<View, { data: ShareScoreCardData }>(
 ShareScoreCard.displayName = 'ShareScoreCard';
 export default ShareScoreCard;
 
-const s = StyleSheet.create({
+const useStyles = makeStyles((c) => ({
   wrap: {
     // Natural display size optimised for IG-story aspect ratio (9:16).
     width: 340,
@@ -222,4 +224,4 @@ const s = StyleSheet.create({
   codeLbl: { fontSize: 9, fontWeight: '800', color: 'rgba(255,255,255,0.8)', letterSpacing: 1 },
   code: { fontSize: 12, fontWeight: '900', color: '#fff', letterSpacing: 1.5 },
   madeIn: { fontSize: 10, fontWeight: '600', color: 'rgba(255,255,255,0.4)' },
-});
+}));

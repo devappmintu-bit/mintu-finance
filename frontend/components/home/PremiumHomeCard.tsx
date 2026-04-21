@@ -18,6 +18,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { router } from 'expo-router';
 import api from '../../utils/api';
+import { makeStyles } from '../../utils/makeStyles';
 
 type Status = { is_premium?: boolean; tier?: string; plan?: string; premium_until?: string } | null;
 
@@ -32,6 +33,7 @@ const PERKS: { icon: any; title: string; sub: string }[] = [
 ];
 
 export default function PremiumHomeCard() {
+  const s = useStyles();
   const [status, setStatus] = useState<Status>(null);
   const [loading, setLoading] = useState(true);
   const [expanded, setExpanded] = useState(false);
@@ -151,7 +153,7 @@ export default function PremiumHomeCard() {
   );
 }
 
-const s = StyleSheet.create({
+const useStyles = makeStyles((c) => ({
   wrap: { marginBottom: 14, borderRadius: 18, overflow: 'hidden' },
   skeleton: { height: 62, borderRadius: 18, backgroundColor: '#F3F4F6', marginBottom: 14 },
 
@@ -187,4 +189,4 @@ const s = StyleSheet.create({
     backgroundColor: '#FFF7ED', borderWidth: 1, borderColor: '#FED7AA',
   },
   secondaryCtaFullTxt: { color: '#7C2D12', fontWeight: '800', fontSize: 12.5 },
-});
+}));

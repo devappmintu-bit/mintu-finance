@@ -20,6 +20,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { router } from 'expo-router';
 import api from '../utils/api';
 import { fetchPremiumStatus } from '../services/premium';
+import { makeStyles } from '../utils/makeStyles';
 
 type Status = { is_premium?: boolean; tier?: string; plan?: string; premium_until?: string } | null;
 
@@ -34,6 +35,7 @@ type Tool = {
 };
 
 export default function PremiumHubScreen() {
+  const s = useStyles();
   const [status, setStatus] = useState<Status>(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -190,7 +192,7 @@ function ToolTile({ tool, locked, onLockedTap }: { tool: Tool; locked: boolean; 
   );
 }
 
-const s = StyleSheet.create({
+const useStyles = makeStyles((c) => ({
   bg: { flex: 1, backgroundColor: '#FAFAF9' },
 
   topbar: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingHorizontal: 14, paddingVertical: 12, backgroundColor: '#fff', borderBottomWidth: 1, borderBottomColor: '#F3F4F6' },
@@ -232,4 +234,4 @@ const s = StyleSheet.create({
 
   perkStrip: { flexDirection: 'row', alignItems: 'center', gap: 10, marginTop: 16, padding: 12, borderRadius: 12, backgroundColor: '#F0FDF4', borderWidth: 1, borderColor: '#D1FAE5' },
   perkStripTxt: { flex: 1, fontSize: 11.5, color: '#065F46', fontWeight: '600', lineHeight: 16 },
-});
+}));

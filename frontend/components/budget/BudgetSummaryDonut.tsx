@@ -9,6 +9,7 @@
 import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 import { PieChart } from 'react-native-gifted-charts';
+import { makeStyles } from '../../utils/makeStyles';
 
 type Budget = {
   id: string;
@@ -28,6 +29,7 @@ const FALLBACK_COLORS = ['#F56E1E', '#10B981', '#3B82F6', '#8B5CF6', '#F59E0B', 
 const inr = (n: number) => `₹${Math.round(n).toLocaleString('en-IN')}`;
 
 export default function BudgetSummaryDonut({ budgets }: { budgets: Budget[] }) {
+  const s = useStyles();
   if (!budgets || budgets.length === 0) return null;
 
   const totalAllocated = budgets.reduce((s, b) => s + (b.amount || 0), 0);
@@ -83,7 +85,7 @@ export default function BudgetSummaryDonut({ budgets }: { budgets: Budget[] }) {
   );
 }
 
-const s = StyleSheet.create({
+const useStyles = makeStyles((c) => ({
   wrap: { backgroundColor: '#fff', padding: 16, borderRadius: 18, marginBottom: 14, borderWidth: 1, borderColor: '#F3F4F6' },
   header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 },
   title: { fontSize: 14, fontWeight: '800', color: '#111' },
@@ -102,4 +104,4 @@ const s = StyleSheet.create({
   legendLbl: { flex: 1, fontSize: 12, color: '#111', fontWeight: '600' },
   legendAmt: { fontSize: 12, color: '#6B7280', fontWeight: '700' },
   moreTxt: { fontSize: 10, color: '#9CA3AF', fontStyle: 'italic', marginTop: 4 },
-});
+}));

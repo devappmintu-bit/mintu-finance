@@ -13,6 +13,7 @@ import React from 'react';
 import { View, Text, StyleSheet, Modal, TouchableOpacity, ScrollView, Pressable } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
+import { makeStyles } from '../../utils/makeStyles';
 
 export interface TxnFilter {
   range: 'all' | 'this_month' | 'last_3m' | 'last_6m' | 'this_year';
@@ -64,6 +65,7 @@ type Props = {
 };
 
 export default function TransactionFilterSheet({ visible, value, onClose, onApply }: Props) {
+  const s = useStyles();
   const [draft, setDraft] = React.useState<TxnFilter>(value);
   React.useEffect(() => { if (visible) setDraft(value); }, [visible, value]);
 
@@ -225,7 +227,7 @@ export function filterActiveCount(f: TxnFilter): number {
   return n;
 }
 
-const s = StyleSheet.create({
+const useStyles = makeStyles((c) => ({
   backdrop: { flex: 1, backgroundColor: 'rgba(15,23,42,0.5)' },
   sheet: { position: 'absolute', left: 0, right: 0, bottom: 0, backgroundColor: '#fff', borderTopLeftRadius: 24, borderTopRightRadius: 24, paddingBottom: 16, maxHeight: '88%' },
   grabber: { alignSelf: 'center', width: 44, height: 4, borderRadius: 2, backgroundColor: '#E5E7EB', marginTop: 10, marginBottom: 4 },
@@ -251,4 +253,4 @@ const s = StyleSheet.create({
   clearTxt: { fontSize: 14, fontWeight: '700', color: '#374151' },
   applyBtn: { paddingVertical: 14, borderRadius: 14, alignItems: 'center', justifyContent: 'center' },
   applyTxt: { color: '#fff', fontSize: 15, fontWeight: '800' },
-});
+}));

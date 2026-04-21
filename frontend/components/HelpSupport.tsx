@@ -3,6 +3,7 @@ import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Linking } from 'r
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { COLORS, RADIUS, SPACING } from '../utils/theme';
+import { makeStyles } from '../utils/makeStyles';
 
 const FAQS = [
   { q: 'How does MintU track my expenses?', a: 'MintU uses AI to parse your bank SMS messages and notifications. Simply paste your bank alerts in the Scan SMS section, and our AI will automatically extract the amount, category, and merchant. You can also add expenses manually or use voice input.' },
@@ -16,6 +17,7 @@ const FAQS = [
 ];
 
 export default function HelpSupport({ onClose }: { onClose: () => void }) {
+  const s = useStyles();
   return (
     <SafeAreaView style={s.container}>
       <View style={s.header}>
@@ -92,27 +94,27 @@ export default function HelpSupport({ onClose }: { onClose: () => void }) {
   );
 }
 
-const s = StyleSheet.create({
-  container: { flex: 1, backgroundColor: COLORS.bg.primary },
-  header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 20, paddingVertical: 14, borderBottomWidth: 1, borderBottomColor: COLORS.border.subtle },
-  title: { fontSize: 20, fontWeight: '700', color: COLORS.text.primary },
+const useStyles = makeStyles((c) => ({
+  container: { flex: 1, backgroundColor: c.bg.primary },
+  header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 20, paddingVertical: 14, borderBottomWidth: 1, borderBottomColor: c.border.subtle },
+  title: { fontSize: 20, fontWeight: '700', color: c.text.primary },
   scroll: { padding: 20 },
-  section: { fontSize: 16, fontWeight: '700', color: COLORS.text.primary, marginTop: 16, marginBottom: 10 },
+  section: { fontSize: 16, fontWeight: '700', color: c.text.primary, marginTop: 16, marginBottom: 10 },
   actionsGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
-  actionCard: { width: '47%', backgroundColor: COLORS.bg.card, borderRadius: RADIUS.xl, padding: 16, alignItems: 'center', gap: 8, borderWidth: 1, borderColor: COLORS.border.card, flexGrow: 1 },
+  actionCard: { width: '47%', backgroundColor: c.bg.card, borderRadius: RADIUS.xl, padding: 16, alignItems: 'center', gap: 8, borderWidth: 1, borderColor: c.border.card, flexGrow: 1 },
   actionIcon: { width: 44, height: 44, borderRadius: 22, justifyContent: 'center', alignItems: 'center' },
-  actionLabel: { fontSize: 13, fontWeight: '600', color: COLORS.text.primary },
-  contactCard: { backgroundColor: COLORS.bg.card, borderRadius: RADIUS.xl, padding: 16, borderWidth: 1, borderColor: COLORS.border.card },
-  contactRow: { flexDirection: 'row', alignItems: 'flex-start', paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: COLORS.border.subtle },
-  contactText: { fontSize: 14, fontWeight: '600', color: COLORS.text.primary },
-  contactSub: { fontSize: 11, color: COLORS.text.muted, marginTop: 2 },
-  faqCard: { backgroundColor: COLORS.bg.card, borderRadius: RADIUS.lg, padding: 16, marginBottom: 8, borderWidth: 1, borderColor: COLORS.border.card },
-  faqQ: { fontSize: 14, fontWeight: '700', color: COLORS.text.primary, marginBottom: 6 },
-  faqA: { fontSize: 13, color: COLORS.text.secondary, lineHeight: 20 },
-  stepsCard: { backgroundColor: COLORS.bg.card, borderRadius: RADIUS.xl, padding: 16, borderWidth: 1, borderColor: COLORS.border.card },
-  stepRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 12, paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: COLORS.border.subtle },
-  stepBadge: { width: 28, height: 28, borderRadius: 14, backgroundColor: COLORS.accent.primary, justifyContent: 'center', alignItems: 'center' },
+  actionLabel: { fontSize: 13, fontWeight: '600', color: c.text.primary },
+  contactCard: { backgroundColor: c.bg.card, borderRadius: RADIUS.xl, padding: 16, borderWidth: 1, borderColor: c.border.card },
+  contactRow: { flexDirection: 'row', alignItems: 'flex-start', paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: c.border.subtle },
+  contactText: { fontSize: 14, fontWeight: '600', color: c.text.primary },
+  contactSub: { fontSize: 11, color: c.text.muted, marginTop: 2 },
+  faqCard: { backgroundColor: c.bg.card, borderRadius: RADIUS.lg, padding: 16, marginBottom: 8, borderWidth: 1, borderColor: c.border.card },
+  faqQ: { fontSize: 14, fontWeight: '700', color: c.text.primary, marginBottom: 6 },
+  faqA: { fontSize: 13, color: c.text.secondary, lineHeight: 20 },
+  stepsCard: { backgroundColor: c.bg.card, borderRadius: RADIUS.xl, padding: 16, borderWidth: 1, borderColor: c.border.card },
+  stepRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 12, paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: c.border.subtle },
+  stepBadge: { width: 28, height: 28, borderRadius: 14, backgroundColor: c.accent.primary, justifyContent: 'center', alignItems: 'center' },
   stepNum: { fontSize: 13, fontWeight: '700', color: '#fff' },
-  stepTitle: { fontSize: 14, fontWeight: '700', color: COLORS.text.primary },
-  stepDesc: { fontSize: 12, color: COLORS.text.muted, marginTop: 2 },
-});
+  stepTitle: { fontSize: 14, fontWeight: '700', color: c.text.primary },
+  stepDesc: { fontSize: 12, color: c.text.muted, marginTop: 2 },
+}));

@@ -30,6 +30,7 @@ import MintULogo from './MintULogo';
 import { useAuthStore } from '../store/authStore';
 import { useLangStore } from '../store/langStore';
 import { COLORS } from '../utils/theme';
+import { makeStyles } from '../utils/makeStyles';
 import { FlashList } from '@shopify/flash-list';
 import { fetchPremiumStatus } from '../services/premium';
 
@@ -95,6 +96,7 @@ function smartFallback(userMsg: string, ctx: Ctx): string {
 }
 
 const TypingDots = () => {
+  const s = useStyles();
   const dot1 = useRef(new Animated.Value(0.3)).current;
   const dot2 = useRef(new Animated.Value(0.3)).current;
   const dot3 = useRef(new Animated.Value(0.3)).current;
@@ -417,51 +419,51 @@ export default function AICoachChat({ onClose }: { onClose?: () => void }) {
   );
 }
 
-const s = StyleSheet.create({
-  container: { flex: 1, backgroundColor: COLORS.bg.primary },
-  header: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingHorizontal: 16, paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: COLORS.border.subtle },
+const useStyles = makeStyles((c) => ({
+  container: { flex: 1, backgroundColor: c.bg.primary },
+  header: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingHorizontal: 16, paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: c.border.subtle },
   headerIcon: { width: 40, height: 40, borderRadius: 20, backgroundColor: 'transparent', justifyContent: 'center', alignItems: 'center' },
-  headerTitle: { fontSize: 17, fontWeight: '800', color: COLORS.text.primary },
-  headerSub: { fontSize: 11, color: COLORS.text.muted, marginTop: 1 },
-  closeBtn: { width: 36, height: 36, borderRadius: 18, backgroundColor: COLORS.bg.card, justifyContent: 'center', alignItems: 'center' },
+  headerTitle: { fontSize: 17, fontWeight: '800', color: c.text.primary },
+  headerSub: { fontSize: 11, color: c.text.muted, marginTop: 1 },
+  closeBtn: { width: 36, height: 36, borderRadius: 18, backgroundColor: c.bg.card, justifyContent: 'center', alignItems: 'center' },
   chatList: { padding: 16, paddingBottom: 8 },
   msgRow: { flexDirection: 'row', marginBottom: 14 },
   msgRowUser: { justifyContent: 'flex-end' },
   msgRowAi: { justifyContent: 'flex-start' },
-  aiAv: { width: 28, height: 28, borderRadius: 14, backgroundColor: COLORS.accent.primary + '12', justifyContent: 'center', alignItems: 'center', marginRight: 8, marginTop: 18 },
+  aiAv: { width: 28, height: 28, borderRadius: 14, backgroundColor: c.accent.primary + '12', justifyContent: 'center', alignItems: 'center', marginRight: 8, marginTop: 18 },
   agentLabelRow: { flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 3, marginLeft: 4 },
-  agentLabel: { fontSize: 10, fontWeight: '700', color: COLORS.accent.primary },
+  agentLabel: { fontSize: 10, fontWeight: '700', color: c.accent.primary },
   offlinePill: { fontSize: 8, fontWeight: '800', color: '#fff', backgroundColor: '#9CA3AF', paddingHorizontal: 6, paddingVertical: 1, borderRadius: 999, letterSpacing: 0.5 },
   bubble: { borderRadius: 18, paddingHorizontal: 14, paddingVertical: 10 },
-  bubbleUser: { backgroundColor: COLORS.accent.primary, borderBottomRightRadius: 4 },
-  bubbleAi: { backgroundColor: COLORS.bg.card, borderBottomLeftRadius: 4, borderWidth: 1, borderColor: COLORS.border.card },
-  msgText: { fontSize: 14, lineHeight: 21, color: COLORS.text.primary },
-  timeLabel: { fontSize: 9, color: COLORS.text.muted, marginTop: 3, marginLeft: 4 },
+  bubbleUser: { backgroundColor: c.accent.primary, borderBottomRightRadius: 4 },
+  bubbleAi: { backgroundColor: c.bg.card, borderBottomLeftRadius: 4, borderWidth: 1, borderColor: c.border.card },
+  msgText: { fontSize: 14, lineHeight: 21, color: c.text.primary },
+  timeLabel: { fontSize: 9, color: c.text.muted, marginTop: 3, marginLeft: 4 },
   typingWrap: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingVertical: 2, paddingHorizontal: 2 },
-  typingHint: { fontSize: 12, color: COLORS.text.muted, fontStyle: 'italic' },
+  typingHint: { fontSize: 12, color: c.text.muted, fontStyle: 'italic' },
 
   chipsWrap: { flexDirection: 'row', flexWrap: 'wrap', paddingHorizontal: 16, paddingBottom: 8, gap: 7 },
-  chipSection: { fontSize: 10, fontWeight: '800', letterSpacing: 1, color: COLORS.text.muted, paddingHorizontal: 16, paddingTop: 10, paddingBottom: 6 },
+  chipSection: { fontSize: 10, fontWeight: '800', letterSpacing: 1, color: c.text.muted, paddingHorizontal: 16, paddingTop: 10, paddingBottom: 6 },
   schoolHeaderRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingRight: 16 },
-  premiumBadge: { flexDirection: 'row', alignItems: 'center', gap: 3, backgroundColor: COLORS.accent.primary + '1E', paddingHorizontal: 7, paddingVertical: 3, borderRadius: 999, borderWidth: 1, borderColor: COLORS.accent.primary + '44' },
-  premiumBadgeT: { fontSize: 9, fontWeight: '900', color: COLORS.accent.primary, letterSpacing: 0.6 },
-  lockedSchoolCard: { marginHorizontal: 16, marginBottom: 10, borderRadius: 16, overflow: 'hidden', borderWidth: 1, borderColor: COLORS.accent.primary + '33' },
+  premiumBadge: { flexDirection: 'row', alignItems: 'center', gap: 3, backgroundColor: c.accent.primary + '1E', paddingHorizontal: 7, paddingVertical: 3, borderRadius: 999, borderWidth: 1, borderColor: c.accent.primary + '44' },
+  premiumBadgeT: { fontSize: 9, fontWeight: '900', color: c.accent.primary, letterSpacing: 0.6 },
+  lockedSchoolCard: { marginHorizontal: 16, marginBottom: 10, borderRadius: 16, overflow: 'hidden', borderWidth: 1, borderColor: c.accent.primary + '33' },
   lockedSchoolInner: { flexDirection: 'row', alignItems: 'center', gap: 12, padding: 12 },
-  lockedSchoolIcon: { width: 40, height: 40, borderRadius: 12, backgroundColor: '#fff', alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: COLORS.accent.primary + '33' },
-  lockedSchoolTitle: { fontSize: 13.5, fontWeight: '900', color: COLORS.text.primary },
-  lockedSchoolSub: { fontSize: 11, color: COLORS.text.secondary, marginTop: 3, lineHeight: 15 },
+  lockedSchoolIcon: { width: 40, height: 40, borderRadius: 12, backgroundColor: '#fff', alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: c.accent.primary + '33' },
+  lockedSchoolTitle: { fontSize: 13.5, fontWeight: '900', color: c.text.primary },
+  lockedSchoolSub: { fontSize: 11, color: c.text.secondary, marginTop: 3, lineHeight: 15 },
   lockedCTA: { flexDirection: 'row', alignItems: 'center', gap: 3, paddingHorizontal: 10, paddingVertical: 7, backgroundColor: '#fff', borderRadius: 999 },
-  lockedCTAT: { fontSize: 11.5, fontWeight: '900', color: COLORS.accent.primary, letterSpacing: 0.2 },
-  chip: { flexDirection: 'row', alignItems: 'center', gap: 5, backgroundColor: COLORS.bg.card, paddingHorizontal: 12, paddingVertical: 9, borderRadius: 999, borderWidth: 1, borderColor: COLORS.border.card },
-  chipSchool: { backgroundColor: COLORS.accent.primary + '12', borderColor: COLORS.accent.primary + '30' },
+  lockedCTAT: { fontSize: 11.5, fontWeight: '900', color: c.accent.primary, letterSpacing: 0.2 },
+  chip: { flexDirection: 'row', alignItems: 'center', gap: 5, backgroundColor: c.bg.card, paddingHorizontal: 12, paddingVertical: 9, borderRadius: 999, borderWidth: 1, borderColor: c.border.card },
+  chipSchool: { backgroundColor: c.accent.primary + '12', borderColor: c.accent.primary + '30' },
   chipEmoji: { fontSize: 13 },
-  chipText: { fontSize: 12, fontWeight: '500', color: COLORS.text.secondary },
+  chipText: { fontSize: 12, fontWeight: '500', color: c.text.secondary },
 
   stickyStrip: { paddingHorizontal: 12, paddingVertical: 8, gap: 8 },
-  stickyChip: { flexDirection: 'row', alignItems: 'center', gap: 5, backgroundColor: COLORS.accent.primary + '10', paddingHorizontal: 12, paddingVertical: 7, borderRadius: 999, borderWidth: 1, borderColor: COLORS.accent.primary + '25' },
-  chipTextSticky: { fontSize: 12, fontWeight: '600', color: COLORS.text.primary },
+  stickyChip: { flexDirection: 'row', alignItems: 'center', gap: 5, backgroundColor: c.accent.primary + '10', paddingHorizontal: 12, paddingVertical: 7, borderRadius: 999, borderWidth: 1, borderColor: c.accent.primary + '25' },
+  chipTextSticky: { fontSize: 12, fontWeight: '600', color: c.text.primary },
 
-  inputRow: { flexDirection: 'row', paddingHorizontal: 16, paddingVertical: 10, gap: 8, borderTopWidth: 1, borderTopColor: COLORS.border.subtle, backgroundColor: '#fff' },
-  chatInput: { flex: 1, backgroundColor: COLORS.bg.card, borderRadius: 22, paddingHorizontal: 16, paddingVertical: 10, fontSize: 14, color: COLORS.text.primary, borderWidth: 1, borderColor: COLORS.border.card, maxHeight: 90 },
-  sendBtn: { width: 42, height: 42, borderRadius: 21, backgroundColor: COLORS.accent.primary, justifyContent: 'center', alignItems: 'center', alignSelf: 'flex-end' },
-});
+  inputRow: { flexDirection: 'row', paddingHorizontal: 16, paddingVertical: 10, gap: 8, borderTopWidth: 1, borderTopColor: c.border.subtle, backgroundColor: '#fff' },
+  chatInput: { flex: 1, backgroundColor: c.bg.card, borderRadius: 22, paddingHorizontal: 16, paddingVertical: 10, fontSize: 14, color: c.text.primary, borderWidth: 1, borderColor: c.border.card, maxHeight: 90 },
+  sendBtn: { width: 42, height: 42, borderRadius: 21, backgroundColor: c.accent.primary, justifyContent: 'center', alignItems: 'center', alignSelf: 'flex-end' },
+}));

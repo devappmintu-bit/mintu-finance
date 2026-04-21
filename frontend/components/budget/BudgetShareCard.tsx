@@ -13,6 +13,7 @@
 import React, { forwardRef } from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
+import { makeStyles } from '../../utils/makeStyles';
 
 type Summary = {
   name?: string;
@@ -25,6 +26,7 @@ type Summary = {
 };
 
 const BudgetShareCard = forwardRef<View, { summary: Summary }>(function BudgetShareCard({ summary }, ref) {
+  const stl = useStyles();
   const s = summary || {};
   const spent = Number(s.total_spent || 0);
   const budget = Number(s.total_budgeted || 0);
@@ -84,7 +86,7 @@ const BudgetShareCard = forwardRef<View, { summary: Summary }>(function BudgetSh
 
 export default BudgetShareCard;
 
-const stl = StyleSheet.create({
+const useStyles = makeStyles((c) => ({
   card: { width: 360, borderRadius: 24, overflow: 'hidden', backgroundColor: 'transparent' },
   bg: { padding: 22 },
   headRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
@@ -107,4 +109,4 @@ const stl = StyleSheet.create({
   kpiSub: { color: 'rgba(255,255,255,0.85)', fontSize: 10, marginTop: 2, fontWeight: '700' },
 
   tag: { color: 'rgba(255,255,255,0.8)', fontSize: 11, fontWeight: '700', marginTop: 20, textAlign: 'center', letterSpacing: 0.5 },
-});
+}));

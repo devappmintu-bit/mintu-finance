@@ -9,6 +9,7 @@ import * as Haptics from 'expo-haptics';
 import MintULogo from './MintULogo';
 import { useLangStore } from '../store/langStore';
 import { t } from '../utils/i18n';
+import { makeStyles } from '../utils/makeStyles';
 
 interface Props {
   visible: boolean;
@@ -22,6 +23,7 @@ interface Props {
 type Phase = 'confirm' | 'processing' | 'success';
 
 export default function MockPaymentSheet({ visible, planId, planLabel, amount, onClose, onSuccess }: Props) {
+  const s = useStyles();
   const [phase, setPhase] = useState<Phase>('confirm');
   const { lang } = useLangStore();
 
@@ -113,7 +115,7 @@ export default function MockPaymentSheet({ visible, planId, planLabel, amount, o
   );
 }
 
-const s = StyleSheet.create({
+const useStyles = makeStyles((c) => ({
   backdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.45)', justifyContent: 'flex-end' },
   sheet: { backgroundColor: '#fff', borderTopLeftRadius: 28, borderTopRightRadius: 28, padding: 20, paddingBottom: Platform.OS === 'ios' ? 36 : 20 },
   handle: { width: 40, height: 4, borderRadius: 2, backgroundColor: '#E5E7EB', alignSelf: 'center', marginBottom: 14 },
@@ -148,4 +150,4 @@ const s = StyleSheet.create({
   stateTitle: { fontSize: 18, fontWeight: '800', color: '#0F172A', marginTop: 18 },
   stateSub: { fontSize: 13, color: '#64748B', marginTop: 6 },
   checkCircle: { width: 78, height: 78, borderRadius: 39, alignItems: 'center', justifyContent: 'center' },
-});
+}));

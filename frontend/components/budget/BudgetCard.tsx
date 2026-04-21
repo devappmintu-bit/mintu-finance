@@ -21,6 +21,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import * as Haptics from 'expo-haptics';
 import { CATEGORIES, shadowStyle } from '../../utils/theme';
+import { makeStyles } from '../../utils/makeStyles';
 
 type Props = {
   item: any;
@@ -206,6 +207,7 @@ export default BudgetCard;
 // ─── Inner layout (shared between web + native renderers) ─────────
 function CardContent({ item, emoji, catColor, statusColor, limit, spent, pct, over, remaining,
   burnRate, daysLeft, projectedOver, projectedSpend, fillAnim, isOver, isWarn, isRisk, status }: any) {
+  const s = useStyles();
   const fillWidth = fillAnim.interpolate({ inputRange: [0, 100], outputRange: ['0%', '100%'] });
   return (
     <>
@@ -279,7 +281,7 @@ function CardContent({ item, emoji, catColor, statusColor, limit, spent, pct, ov
   );
 }
 
-const s = StyleSheet.create({
+const useStyles = makeStyles((c) => ({
   card: { borderRadius: 18, padding: 14, marginBottom: 10, borderWidth: 1 },
   cardBody: {},
 
@@ -316,4 +318,4 @@ const s = StyleSheet.create({
   menu: { position: 'absolute', top: 42, right: 8, backgroundColor: '#fff', borderRadius: 12, paddingVertical: 6, paddingHorizontal: 4, borderWidth: 1, borderColor: '#E5E7EB', zIndex: 10, minWidth: 130, ...shadowStyle('#000', 8, 14, 0.1, 10) },
   menuItem: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingHorizontal: 10, paddingVertical: 8, borderRadius: 8 },
   menuT: { fontSize: 13, fontWeight: '700' },
-});
+}));

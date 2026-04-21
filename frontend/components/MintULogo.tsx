@@ -9,6 +9,7 @@
 import React from 'react';
 import { View, StyleSheet, ImageSourcePropType } from 'react-native';
 import { Image } from 'expo-image';
+import { makeStyles } from '../utils/makeStyles';
 
 interface Props {
   size?: number;
@@ -25,6 +26,7 @@ interface Props {
 const MASCOT_SRC = require('../assets/images/mintu-logo.png');
 
 export default function MintULogo({ size = 96, glow = false, source }: Props) {
+  const styles = useStyles();
   const halo = size * 1.18;
   return (
     <View style={[styles.wrap, { width: halo, height: halo }]}>
@@ -51,7 +53,7 @@ export default function MintULogo({ size = 96, glow = false, source }: Props) {
   );
 }
 
-const styles = StyleSheet.create({
+const useStyles = makeStyles((c) => ({
   wrap: { alignItems: 'center', justifyContent: 'center' },
   glow: {
     position: 'absolute',
@@ -59,4 +61,4 @@ const styles = StyleSheet.create({
     opacity: 0.32,
     transform: [{ scale: 1.08 }],
   },
-});
+}));

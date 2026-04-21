@@ -1,6 +1,7 @@
 import React, { useEffect, useRef } from 'react';
 import { View, Animated, StyleSheet, ViewStyle } from 'react-native';
 import { COLORS, SPACING, RADIUS } from '../utils/theme';
+import { makeStyles } from '../utils/makeStyles';
 
 interface SkeletonProps {
   width?: number | string;
@@ -10,6 +11,7 @@ interface SkeletonProps {
 }
 
 export const Skeleton = ({ width = '100%', height = 16, borderRadius = 8, style }: SkeletonProps) => {
+  const sk = useStyles();
   const opacity = useRef(new Animated.Value(0.3)).current;
 
   useEffect(() => {
@@ -117,7 +119,7 @@ export const SplitSkeleton = () => (
   </View>
 );
 
-const sk = StyleSheet.create({
+const useStyles = makeStyles((c) => ({
   container: {},
   row: { flexDirection: 'row', alignItems: 'center' },
-});
+}));

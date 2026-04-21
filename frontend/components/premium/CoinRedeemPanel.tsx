@@ -15,6 +15,7 @@
 import React, { useEffect, useState } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, ActivityIndicator } from 'react-native';
 import api from '../../utils/api';
+import { makeStyles } from '../../utils/makeStyles';
 
 type Props = {
   /** For premium mode this is the plan key ('monthly'|'yearly'|'lifetime'). Unused for split mode. */
@@ -30,6 +31,7 @@ type Props = {
 };
 
 export default function CoinRedeemPanel({ plan, amount, listPrice, context = 'premium', onChange, compact }: Props) {
+  const s = useStyles();
   const [balance, setBalance] = useState<number | null>(null);
   const [apply, setApply] = useState<boolean>(false);
   const [preview, setPreview] = useState<{ discount: number; effective: number; coins_applied: number } | null>(null);
@@ -131,7 +133,7 @@ export default function CoinRedeemPanel({ plan, amount, listPrice, context = 'pr
   );
 }
 
-const s = StyleSheet.create({
+const useStyles = makeStyles((c) => ({
   wrap: { backgroundColor: '#FFF7ED', borderRadius: 14, padding: 12, borderWidth: 1, borderColor: '#FED7AA', marginBottom: 10 },
   wrapCompact: { padding: 10 },
   head: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 10 },
@@ -148,4 +150,4 @@ const s = StyleSheet.create({
   priceLbl: { fontSize: 11, color: '#78350F', fontWeight: '700', textTransform: 'uppercase', letterSpacing: 0.3 },
   priceVal: { fontSize: 18, fontWeight: '800', color: '#7C2D12' },
   priceStrike: { fontSize: 13, color: '#9CA3AF', fontWeight: '600', textDecorationLine: 'line-through' },
-});
+}));

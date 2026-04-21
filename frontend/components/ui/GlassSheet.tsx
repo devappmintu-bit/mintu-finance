@@ -27,6 +27,7 @@ import BottomSheet, {
 } from '@gorhom/bottom-sheet';
 import { BlurView } from 'expo-blur';
 import { COLORS } from '../../utils/theme';
+import { makeStyles } from '../../utils/makeStyles';
 
 export type GlassSheetHandle = {
   present: () => void;
@@ -55,6 +56,7 @@ const BlurBackdrop = (props: BottomSheetBackdropProps) => (
 );
 
 const GlassSheet = forwardRef<GlassSheetHandle, Props>(({ snapPoints = ['50%', '90%'], children, onDismiss }, ref) => {
+  const styles = useStyles();
   const modalRef = useRef<BottomSheetModal>(null);
 
   useImperativeHandle(ref, () => ({
@@ -88,16 +90,16 @@ const GlassSheet = forwardRef<GlassSheetHandle, Props>(({ snapPoints = ['50%', '
 GlassSheet.displayName = 'GlassSheet';
 export default GlassSheet;
 
-const styles = StyleSheet.create({
+const useStyles = makeStyles((c) => ({
   bg: {
-    backgroundColor: COLORS.bg.elevated,
+    backgroundColor: c.bg.elevated,
     borderTopLeftRadius: 28,
     borderTopRightRadius: 28,
     borderTopWidth: 1,
     borderColor: 'rgba(255,255,255,0.08)',
   },
   handle: {
-    backgroundColor: COLORS.accent.primary,
+    backgroundColor: c.accent.primary,
     width: 48,
     height: 4,
     borderRadius: 2,
@@ -109,4 +111,4 @@ const styles = StyleSheet.create({
     paddingTop: 8,
     paddingBottom: 24,
   },
-});
+}));

@@ -15,6 +15,7 @@ import React, { useEffect, useRef } from 'react';
 import { Animated, StyleSheet, View, ViewStyle, StyleProp, Platform, Easing } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { COLORS } from '../../utils/theme';
+import { makeStyles } from '../../utils/makeStyles';
 
 const ShimmerBase = ({ style }: { style?: StyleProp<ViewStyle> }) => {
   const anim = useRef(new Animated.Value(0)).current;
@@ -38,6 +39,7 @@ const ShimmerBase = ({ style }: { style?: StyleProp<ViewStyle> }) => {
 };
 
 function Box({ w = '100%', h = 16, radius = 8, style }: { w?: any; h?: number; radius?: number; style?: StyleProp<ViewStyle> }) {
+  const st = useStyles();
   return <ShimmerBase style={[{ width: w, height: h, borderRadius: radius }, style]} />;
 }
 function Line({ w = '60%', h = 14 }: { w?: any; h?: number }) {
@@ -53,6 +55,6 @@ function Group({ children, style }: { children: React.ReactNode; style?: StylePr
 const Skeleton = { Box, Line, Circle, Group };
 export default Skeleton;
 
-const st = StyleSheet.create({
-  base: { backgroundColor: COLORS.bg.elevated, overflow: 'hidden', ...(Platform.OS === 'web' ? { } : {}) },
-});
+const useStyles = makeStyles((c) => ({
+  base: { backgroundColor: c.bg.elevated, overflow: 'hidden', ...(Platform.OS === 'web' ? { } : {}) },
+}));

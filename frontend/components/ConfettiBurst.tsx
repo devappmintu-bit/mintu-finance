@@ -9,6 +9,7 @@
  */
 import React, { useEffect } from 'react';
 import { View, StyleSheet, Text, Dimensions } from 'react-native';
+import { makeStyles } from '../utils/makeStyles';
 import Animated, {
   useSharedValue, useAnimatedStyle, withTiming, withDelay, withSequence, Easing,
 } from 'react-native-reanimated';
@@ -60,6 +61,7 @@ function Particle({ emoji, angle, dist, delay, duration }: ParticleProps) {
 }
 
 export default function ConfettiBurst({ trigger, particles = 28 }: { trigger: number | boolean; particles?: number }) {
+  const s = useStyles();
   // Each trigger mounts a fresh particle key set, guaranteeing a re-burst.
   const key = `burst-${trigger}`;
   return (
@@ -76,7 +78,7 @@ export default function ConfettiBurst({ trigger, particles = 28 }: { trigger: nu
   );
 }
 
-const s = StyleSheet.create({
+const useStyles = makeStyles((c) => ({
   host: {
     position: 'absolute',
     left: width / 2 - 12,
@@ -89,4 +91,4 @@ const s = StyleSheet.create({
   },
   particle: { position: 'absolute' },
   emoji: { fontSize: 22 },
-});
+}));
