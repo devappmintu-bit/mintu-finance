@@ -926,6 +926,151 @@ round3_annihilator_apr21_2026:
           instead of 5xx. Round 3 Annihilator is COMPLETE. Task flipped working=true,
           needs_retesting=false.
 
+round4_adversarial_apr21_2026:
+  - task: "Round 4 Adversarial — NEW uncovered attack vectors (6 vectors / 48 assertions)"
+    implemented: true
+    working: false
+    file: "/app/backend/routers/user.py"
+    stuck_count: 0
+    priority: "medium"
+    needs_retesting: true
+    status_history:
+      - working: false
+        agent: "testing"
+        comment: |
+          ✅ ROUND 4 COMPLETE (Apr 21 2026) — 48 NEW assertions, 47 PASS / 1 FAIL.
+          /app/backend_test_round4.py — 54.8s wall-clock.
+          Credentials: phoneA=9876543210, phoneB=9988776655, phoneE=7000000055 (fresh).
+
+          ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+          🔴 1 HIGH-SEVERITY BUG — non-string avatar → 500
+          ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+          Test 1h:  POST /api/user/avatar {"avatar": 12345}  →  500 (expected 400/422)
+
+          Root cause (traceback captured in /var/log/supervisor/backend.err.log):
+            File "/app/backend/routers/user.py", line 76, in upload_avatar
+              if len(avatar_b64) > 700_000:
+              ^^^^^^^^^^^^^^^
+            TypeError: object of type 'int' has no len()
+
+          The handler does `avatar_b64 = data.get("avatar", "")` — this returns the
+          raw int `12345` instead of a string, then calls `len()` on it, which
+          raises TypeError and leaks as HTTP 500.
+
+          Exact fix (1 line at /app/backend/routers/user.py:71-79):
+              @router.post("/avatar")
+              async def upload_avatar(data: dict, user_id: str = Depends(get_current_user)):
+                  avatar_b64 = data.get("avatar", "")
+              +   if not isinstance(avatar_b64, str):
+              +       raise HTTPException(status_code=400, detail="avatar must be a string")
+                  if not avatar_b64:
+                      raise HTTPException(status_code=400, detail="No avatar data")
+                  if len(avatar_b64) > 700_000:
+                      raise HTTPException(status_code=400, detail="Image too large. Max 500KB")
+
+          Impact: any client sending numeric/bool/list/dict as `avatar` crashes
+          the endpoint. Surface is narrow (single route, defensive-only), but it's
+          a 500 on malformed input — violates Round 3 hardening promise.
+
+          ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+          ✅ 47 / 48 PASS — DETAILED BY VECTOR
+          ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+          VECTOR 1 — File-upload adversarial (10/11 pass):
+            • 1a invalid-padding b64 "AAAA=X"               → 200 (stored as literal — OK)
+            • 1b SVG with onload=alert(1) data URL          → 200 (stored as b64 string, NOT rendered)
+            • 1c PNG header + JS payload polyglot           → 200 (stored safely as b64)
+            • 1d extra `filename: ../../etc/passwd` field   → 200 (field ignored — OK)
+            • 1e zero-byte avatar                           → 400 ✅
+            • 1f null bytes mid-stream                      → 200 (stored safely)
+            • 1g malformed b64 chars "AAAA$$$!!!~~~"        → 200 (stored as literal — backend does
+                                                                 NOT validate b64 format, but no 500)
+            • 1h non-string avatar {"avatar": 12345}        → 500 ❌ (BUG — see above)
+            • 1i null avatar                                → 400 ✅
+
+            KEY FINDING: Backend stores ANY string as avatar without validating it's
+            actually a valid image or base64. SVGs with embedded scripts are stored
+            as literal strings — safe server-side (no execution), but the frontend
+            MUST sanitise before rendering. Consider adding content-type/magic-byte
+            validation for defence-in-depth, but not a 500-level bug.
+
+          VECTOR 2 — Coin/wallet depletion race (7/7 pass):
+            • 2a baseline coin balance read                 → 200, balance=112
+            • 2b 20 parallel POST /split/razorpay-order     → 20x200, 0x5xx
+            • 2b final balance NEVER negative               → 112 == 112 (preview-only, no mutation)
+            • 2b razorpay-order does NOT debit pre-verify   → confirmed. Coin debit happens only
+                                                              inside verify-settle-payment after
+                                                              signature validation.
+            • 2c 20 parallel POST /coins/award              → 20x200, 0x5xx
+            • 2c total_awarded=0 (daily_cap already hit)    → balance consistent before+after
+            • 2d daily_cap=3 guard held under 20x race      → awarded ≤ 3. `$inc` atomic ✅
+
+          VECTOR 3 — Max-data performance (6/6 pass) — seeded 5,000 txns via
+          motor `insert_many`, cleaned up after:
+            • 3a GET /home/bundle?lang=en                   → 118ms  (budget <3000ms) ✅
+            • 3b GET /stats/overview                        → 68ms   (budget <2000ms) ✅
+            • 3c GET /transactions?limit=500                → 118ms  (budget <2000ms) ✅
+            • 3d GET /reports/ai-expense-card               → 68ms   (budget <10s) ✅ — note: cache hit
+            • 3e GET /waste-detector                        → 58ms   (budget <2000ms) ✅
+            • 3f No OOM/MemoryError in backend.err.log      → clean ✅
+            PERF VERDICT: All endpoints stay well under budget at 5,000-txn scale.
+            MongoDB indexes on user_id are doing their job. Cleanup took 0.2s.
+
+          VECTOR 4 — Webhook / payment replay (9/9 pass):
+            • 4a real Razorpay test-mode order created      → order_id captured ✅
+            • 4b replay same payload twice                  → 400, 400 (idempotent 4xx) ✅
+            • 4b neither returns 5xx                        → ✅
+            • 4c tampered signature (one char flipped)      → 400 ✅
+            • 4d nonexistent order_id + fresh sig           → 400 ✅
+            • 4e missing signature                          → 400 ✅
+            • 4f SQL-inj in payment_id "'; DROP;--"         → 400 ✅
+            • 4g empty body                                 → 400 ✅
+            • 4h null signature                             → 400 ✅
+            NOTE: Vector 4's happy-path 4a was limited to order creation only — we
+            cannot obtain a real Razorpay-signed payment_id in test env without
+            going through a browser checkout (skipped per review request). The
+            signature-verification path is fully exercised by 4b-4h (all 400s).
+            `razorpay.utility.verify_payment_signature` caught in try/except and
+            returned 400 cleanly — NO 500 leakage.
+
+          VECTOR 5 — Stale-state & optimistic-UI (9/9 pass):
+            • 5a create T1, delete T1, T1 absent from list  → ✅
+            • 5b parallel double-DELETE on same txn id      → 200 + 404 (no 500) ✅
+            • 5c create budget B1, delete B1, re-create same
+              category → exactly 1 row in DB, amount=3000   → ✅ (upsert semantics hold)
+            • 5d create split expense, delete expense,
+              /split/balances still 200                     → ✅
+
+          VECTOR 6 — Session fixation / token reuse (6/6 pass):
+            • 6a /user/me with fresh JWT                    → 200 ✅
+            • 6a POST /user/delete-account {"mode":"soft"} for phoneE → 200 ✅
+            • 6a JWT reuse AFTER soft-delete                → 200 (stateless JWT, expected) ✅
+              Backend doesn't invalidate soft-deleted users on read — documented behaviour.
+            • 6b JWT works twice in a row (no server-side blacklist) → ✅
+            • 6c re-login phoneA → same existing _id  =
+              69dfab73720f7ce36602727f (no duplicate user)  → ✅
+            • 6c db.users.count_documents({phone:phoneA}) == 1 → ✅
+
+          ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+          PERFORMANCE NUMBERS (Vector 3 actual p95)
+          ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+            /home/bundle          118 ms   budget 3000 ms     4% of budget
+            /stats/overview        68 ms   budget 2000 ms     3% of budget
+            /transactions?lim=500 118 ms   budget 2000 ms     6% of budget
+            /reports/ai-expense    68 ms   budget 10000 ms    cache hit
+            /waste-detector        58 ms   budget 2000 ms     3% of budget
+
+          ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+          ACTION REQUIRED
+          ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+          Fix the 2-line `isinstance(avatar_b64, str)` guard in
+          /app/backend/routers/user.py upload_avatar() to close the last 500.
+          All other 47 assertions pass clean.
+
+          Report file:   /app/backend_test_round4.py  (re-runnable)
+          Machine JSON:  /tmp/round4_results.json
+
 _unused_test_plan_footer:
 
 agent_communication:
