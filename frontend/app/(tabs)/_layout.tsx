@@ -26,6 +26,7 @@ import { Image } from 'expo-image';
 import Svg, { Path, Defs, LinearGradient as SvgLG, Stop } from 'react-native-svg';
 import { BottomTabBarProps } from '@react-navigation/bottom-tabs';
 import { BlurView } from 'expo-blur';
+import Mascot from '../../components/Mascot';
 import { COLORS, FONT_FAMILY, GLOW } from '../../utils/theme';
 import { useLangStore } from '../../store/langStore';
 import { t } from '../../utils/i18n';
@@ -217,12 +218,7 @@ function MintUTabBar({ state, navigation }: BottomTabBarProps) {
       >
         <View style={st.raisedOuter}>
           <View style={st.raisedInner}>
-            <Image
-              source={require('../../assets/images/mintu-logo.png')}
-              style={st.raisedMascot}
-              contentFit="cover"
-              cachePolicy="memory-disk"
-            />
+            <Mascot size={PUCK_INNER} variant="auto" />
           </View>
         </View>
       </TouchableOpacity>
