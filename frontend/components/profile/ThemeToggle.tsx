@@ -16,7 +16,8 @@ import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import { useThemePref, ThemeMode, useResolvedTheme } from '../../store/themeStore';
 import Mascot from '../Mascot';
-import { COLORS, FONT_FAMILY, RADIUS, SPACING } from '../../utils/theme';
+import { FONT_FAMILY, RADIUS, SPACING } from '../../utils/theme';
+import { makeStyles } from '../../utils/makeStyles';
 
 const OPTIONS: { key: ThemeMode; label: string; icon: string }[] = [
   { key: 'light',  label: 'Light',  icon: 'sunny-outline'       },
@@ -28,6 +29,7 @@ export default function ThemeToggle() {
   const mode = useThemePref((s) => s.mode);
   const setMode = useThemePref((s) => s.setMode);
   const resolved = useResolvedTheme();
+  const s = useStyles();
 
   const onPick = (m: ThemeMode) => {
     try { Haptics.selectionAsync(); } catch {}
@@ -74,14 +76,14 @@ export default function ThemeToggle() {
   );
 }
 
-const s = StyleSheet.create({
+const useStyles = makeStyles((c) => ({
   card: {
-    backgroundColor: 'rgba(26,26,36,0.85)',
+    backgroundColor: c.bg.secondary,
     borderRadius: RADIUS.card,
     padding: SPACING.lg,
     marginBottom: SPACING.lg,
     borderWidth: 1,
-    borderColor: 'rgba(255,107,26,0.25)',
+    borderColor: c.border.subtle,
     gap: 14,
   },
   header: {
@@ -93,30 +95,30 @@ const s = StyleSheet.create({
     fontSize: 10.5,
     fontFamily: FONT_FAMILY.bold,
     letterSpacing: 1.4,
-    color: COLORS.accent.primary,
+    color: c.accent.primary,
     marginBottom: 4,
   },
   title: {
     fontSize: 17,
     fontFamily: FONT_FAMILY.bold,
-    color: COLORS.text.primary,
+    color: c.text.primary,
     letterSpacing: -0.2,
   },
   sub: {
     fontSize: 12,
     fontFamily: FONT_FAMILY.regular,
-    color: COLORS.text.secondary,
+    color: c.text.secondary,
     marginTop: 3,
     lineHeight: 17,
   },
   row: {
     flexDirection: 'row',
     gap: 8,
-    backgroundColor: 'rgba(255,255,255,0.04)',
+    backgroundColor: c.bg.primary,
     padding: 4,
     borderRadius: RADIUS.full,
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.08)',
+    borderColor: c.border.subtle,
   },
   pill: {
     flex: 1,
@@ -129,12 +131,12 @@ const s = StyleSheet.create({
     borderRadius: RADIUS.full,
   },
   pillOn: {
-    backgroundColor: COLORS.accent.primary,
+    backgroundColor: c.accent.primary,
   },
   pillText: {
     fontSize: 13,
     fontFamily: FONT_FAMILY.semibold,
-    color: COLORS.text.secondary,
+    color: c.text.secondary,
     letterSpacing: 0.2,
   },
   pillTextOn: {
@@ -144,13 +146,13 @@ const s = StyleSheet.create({
   currently: {
     fontSize: 11,
     fontFamily: FONT_FAMILY.regular,
-    color: COLORS.text.muted,
+    color: c.text.muted,
     textAlign: 'center',
     letterSpacing: 0.2,
   },
   currentlyBold: {
-    color: COLORS.accent.primary,
+    color: c.accent.primary,
     fontFamily: FONT_FAMILY.bold,
     textTransform: 'capitalize',
   },
-});
+}));
