@@ -46,9 +46,10 @@ const useStyles = makeStyles((c) => ({
   wrapCompact: { paddingVertical: 28 },
   iconWrap: {
     width: 80, height: 80, borderRadius: 40,
-    backgroundColor: '#FFF0E3',
+    backgroundColor: c.accent.primary + '1F',    // theme-adaptive 12% tint of accent
     alignItems: 'center', justifyContent: 'center',
     marginBottom: 14,
+    borderWidth: 1, borderColor: c.accent.primary + '33',
   },
   emoji: { fontSize: 40 },
   title: { fontSize: 17, fontWeight: '800', color: c.text.primary, textAlign: 'center', letterSpacing: -0.2 },
