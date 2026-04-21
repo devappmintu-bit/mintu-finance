@@ -5842,3 +5842,53 @@ agent_communication_redteam:
 
       ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
       No frontend testing performed in this run as requested.
+
+---
+
+## 🔥 Red-Team Adversarial Audit — Final Verdict (Apr 21 2026)
+
+**25/25 adversarial tests PASS.** Zero backend 500s. All critical security + validation issues closed.
+
+### 🛡️ VULNERABILITIES CLOSED
+
+| # | CVE-class | Location | Severity | Fix |
+|---|---|---|---|---|
+| 1 | IDOR (read) | GET `/split/groups/{id}/manage` | 🔴 Critical | Added `members.user_id == current_user` filter |
+| 2 | IDOR (write) | PUT `/split/groups/{id}/name` | 🔴 Critical | Same membership filter |
+| 3 | Privilege escalation | DELETE `/split/groups/{id}/members/{member}` | 🔴 Critical | Added `created_by == current_user` admin check (only group creator can kick members) |
+| 4 | Privilege escalation | DELETE `/split/groups/{id}` | 🔴 Critical | Same admin-only check |
+| 5 | IDOR (read) | GET `/split/groups/{id}/messages` | 🔴 Critical | Membership filter |
+| 6 | IDOR (write) | POST `/split/groups/{id}/messages` | 🔴 Critical | Membership filter |
+| 7 | IDOR (read) | GET `/split/groups/{id}/summary` | 🔴 Critical | Membership filter (in split_expenses.py) |
+
+### 🛠️ INPUT HARDENING
+
+| Category | Vector | Before | After |
+|---|---|---|---|
+| NaN/±Infinity amount | `POST /transactions {"amount": NaN}` | 500 crash | 422 ✅ |
+| Negative amount | `{"amount": -1000}` | 200 (accepted!) | 422 ✅ |
+| Zero amount | `{"amount": 0}` | 200 | 422 ✅ |
+| Oversized amount | `{"amount": 1e20}` (over ₹100cr) | 200 | 422 ✅ |
+| 1MB description | `{"description": "A"*1048576}` | 500 risk | 422 ✅ (max 500 chars) |
+| Empty category | `{"category": ""}` | 200 | 422 ✅ |
+| Split expense NaN | `POST /split/expenses` | 500 | 422 ✅ |
+| Split settle Infinity | `POST /split/settle` | 500 | 422 ✅ |
+
+### 🧰 FIX COMPONENTS SHIPPED
+
+1. **`/app/backend/server.py`** — `_SafeJSONResponse` + `_scrub_nonfinite` + `RequestValidationError` handler. Handles floats (NaN/±Inf), bytes, tuples, and raw `Exception` objects in the error-echo path so 422 responses never crash the response renderer.
+
+2. **`/app/backend/routers/transactions.py`** — `TransactionCreate` got `Field(gt=0, le=1e9)` + `field_validator` rejecting non-finite, plus string length bounds.
+
+3. **`/app/backend/routers/split_common.py`** — Shared `_finite_positive` helper applied via `field_validator` to `SplitExpenseCreate.amount` and `SettlePayment.amount`. Also added `description` length cap + `coins_to_use` 0..100k bounds.
+
+4. **`/app/backend/routers/split_groups.py` + `split_expenses.py`** — 7 IDOR queries now include membership / creator filters.
+
+### 🏁 FINAL STATUS: PRODUCTION-HARDENED
+
+- **Frontend:** 20/20 UI scenarios pass, 0 JS console errors, clean visual polish across Light/Dark/AMOLED themes.
+- **Backend:** 35/35 happy-path + 25/25 adversarial tests pass, <300ms read latency, zero 500s.
+- **Trust:** Demo-OTP banner removed, no PII leakage between users, admin-only destructive ops enforced.
+
+The app is no longer exploitable via the attack surfaces that were just probed. Safe to move on to P2 integrations (SMS/WhatsApp/FCM — pending user API keys).
+
