@@ -600,192 +600,29 @@ razorpay_client = razorpay.Client(
 # ══════════════════════════════════════════════════════════════════════
 #  AUTH ROUTES — register, login, OTP send/verify/resend
 # ══════════════════════════════════════════════════════════════════════
-@api_router.post("/auth/register")
-async def register(user_data: UserCreate):  # type: ignore[name-defined]  # noqa: F405
-    existing = await db.users.find_one({"phone": user_data.phone})
-    if existing:
-        raise HTTPException(status_code=400, detail="Phone already registered")
-
-    user = {
-        "phone": user_data.phone,
-        "name": user_data.name,
-        "password": hash_password(user_data.password),
-        "money_score": 50,
-        "created_at": datetime.utcnow(),
-    }
-    result = await db.users.insert_one(user)
-    user_id = str(result.inserted_id)
-    token = create_token(user_id)
-
-    return {
-        "token": token,
-        "user": {
-            "id": user_id,
-            "phone": user["phone"],
-            "name": user["name"],
-            "money_score": user["money_score"],
-        },
-    }
-
-
-@api_router.post("/auth/login")
-async def login(credentials: UserLogin):  # type: ignore[name-defined]  # noqa: F405
-    user = await db.users.find_one({"phone": credentials.phone})
-    if not user or not verify_password(credentials.password, user["password"]):
-        raise HTTPException(status_code=401, detail="Invalid credentials")
-
-    user_id = str(user["_id"])
-    token = create_token(user_id)
-    return {
-        "token": token,
-        "user": {
-            "id": user_id,
-            "phone": user["phone"],
-            "name": user["name"],
-            "money_score": user.get("money_score", 50),
-        },
-    }
-
-
-# ── OTP config ─────────────────────────────────────────────────────────
+# ══════════════════════════════════════════════════════════════════════
+#  LEGACY AUTH SHIMS — actual endpoints relocated to routers/auth.py
+#  on Apr 21 2026. Only these module-level helpers remain for
+#  back-compat with a handful of callers in other routers.
+# ══════════════════════════════════════════════════════════════════════
 OTP_EXPIRY_MINUTES = 5
 MAX_OTP_ATTEMPTS = 3
-MOCK_OTP_MODE = True  # Flip to False after integrating Twilio/MSG91
-
+MOCK_OTP_MODE = True
 
 def generate_otp() -> str:
-    """Return a 6-digit OTP. In mock mode always returns 123456."""
-    if MOCK_OTP_MODE:
-        return "123456"
-    return ''.join(random.choices(string.digits, k=6))
+    from routers.auth import generate_otp as _g
+    return _g()
 
 
 async def send_otp_sms(phone: str, otp: str) -> bool:
-    """Send OTP via SMS. Mock mode just logs it."""
-    if MOCK_OTP_MODE:
-        logger.info(f"[MOCK SMS] OTP for {phone}: {otp}")
-        return True
-    # TODO: Integrate real SMS gateway (Twilio/MSG91) here.
-    return False
-
-
-@api_router.post("/auth/send-otp")
-async def send_otp(request: OTPSendRequest):  # type: ignore[name-defined]  # noqa: F405
-    phone = (request.phone or "").strip()
-    # Indian mobile: must be 10 ASCII digits, first digit 6-9 (rejects 0000000000,
-    # Arabic-Indic ٩٨٧٦٥٤٣٢١٠, and non-ASCII digit attacks)
-    if (len(phone) != 10
-            or not phone.isascii()
-            or not phone.isdigit()
-            or phone[0] not in "6789"):
-        raise HTTPException(status_code=400, detail="Invalid phone number. Must be 10 digits starting with 6-9.")
-
-    recent_otp = await db.otps.find_one({
-        "phone": phone,
-        "created_at": {"$gte": datetime.utcnow() - timedelta(seconds=30)},
-    })
-    if recent_otp:
-        raise HTTPException(status_code=429, detail="Please wait 30 seconds before requesting another OTP")
-
-    otp_code = generate_otp()
-    otp_hash = hash_password(otp_code)
-
-    await db.otps.delete_many({"phone": phone})
-    await db.otps.insert_one({
-        "phone": phone,
-        "otp_hash": otp_hash,
-        "attempts": 0,
-        "verified": False,
-        "expires_at": datetime.utcnow() + timedelta(minutes=OTP_EXPIRY_MINUTES),
-        "created_at": datetime.utcnow(),
-    })
-
-    sent = await send_otp_sms(phone, otp_code)
-    existing_user = await db.users.find_one({"phone": phone})
-
-    return {
-        "message": "OTP sent successfully" if sent else "OTP generated (mock mode)",
-        "is_new_user": existing_user is None,
-        "mock_mode": MOCK_OTP_MODE,
-        "expires_in": OTP_EXPIRY_MINUTES * 60,
-    }
-
-
-@api_router.post("/auth/verify-otp")
-async def verify_otp(request: OTPVerifyRequest):  # type: ignore[name-defined]  # noqa: F405
-    phone = request.phone.strip()
-    otp = request.otp.strip()
-
-    otp_record = await db.otps.find_one({
-        "phone": phone,
-        "verified": False,
-        "expires_at": {"$gte": datetime.utcnow()},
-    })
-    if not otp_record:
-        raise HTTPException(status_code=400, detail="OTP expired or not found. Please request a new one.")
-
-    if otp_record["attempts"] >= MAX_OTP_ATTEMPTS:
-        await db.otps.delete_one({"_id": otp_record["_id"]})
-        raise HTTPException(status_code=400, detail="Too many attempts. Please request a new OTP.")
-
-    await db.otps.update_one({"_id": otp_record["_id"]}, {"$inc": {"attempts": 1}})
-
-    if not verify_password(otp, otp_record["otp_hash"]):
-        remaining = MAX_OTP_ATTEMPTS - otp_record["attempts"] - 1
-        raise HTTPException(status_code=400, detail=f"Invalid OTP. {remaining} attempts remaining.")
-
-    await db.otps.update_one({"_id": otp_record["_id"]}, {"$set": {"verified": True}})
-
-    user = await db.users.find_one({"phone": phone})
-    if user:
-        user_id = str(user["_id"])
-        token = create_token(user_id)
-        return {
-            "token": token,
-            "is_new_user": False,
-            "user": {
-                "id": user_id,
-                "phone": user["phone"],
-                "name": user["name"],
-                "money_score": user.get("money_score", 50),
-            },
-        }
-
-    if not request.name or not request.name.strip():
-        raise HTTPException(status_code=400, detail="Name is required for new users")
-
-    new_user = {
-        "phone": phone,
-        "name": request.name.strip(),
-        "password": hash_password(''.join(random.choices(string.ascii_letters + string.digits, k=16))),
-        "money_score": 50,
-        "created_at": datetime.utcnow(),
-    }
-    result = await db.users.insert_one(new_user)
-    user_id = str(result.inserted_id)
-    token = create_token(user_id)
-
-    return {
-        "token": token,
-        "is_new_user": True,
-        "user": {
-            "id": user_id,
-            "phone": new_user["phone"],
-            "name": new_user["name"],
-            "money_score": new_user["money_score"],
-        },
-    }
-
-
-@api_router.post("/auth/resend-otp")
-async def resend_otp(request: OTPSendRequest):  # type: ignore[name-defined]  # noqa: F405
-    """Alias for send-otp with the same rate limiting."""
-    return await send_otp(request)
+    from routers.auth import send_otp_sms as _s
+    return await _s(phone, otp)
 
 
 # ══════════════════════════════════════════════════════════════════════
 #  MOUNT DOMAIN ROUTERS (all share the /api prefix)
 # ══════════════════════════════════════════════════════════════════════
+from routers import auth as auth_router  # noqa: E402
 from routers import (  # noqa: E402
     news as news_router,
     referral as referral_router,
@@ -817,6 +654,7 @@ from routers import (  # noqa: E402
 )
 
 for r in (
+    auth_router,
     news_router, referral_router, gamification_router, content_router,
     transactions_router, budgets_router, family_router, analytics_router,
     user_router, splits_router, ai_router, cash_router, notifications_router,

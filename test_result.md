@@ -6733,3 +6733,110 @@ agent_communication_redteam:
 
 The app is no longer exploitable via the attack surfaces that were just probed. Safe to move on to P2 integrations (SMS/WhatsApp/FCM — pending user API keys).
 
+---
+
+auth_relocation_apr21_2026:
+  - task: "Auth relocation refactor — server.py → routers/auth.py (regression check)"
+    implemented: true
+    working: true
+    file: "/app/backend/routers/auth.py, /app/backend/server.py"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+      - working: true
+        agent: "testing"
+        comment: |
+          ✅ AUTH RELOCATION REGRESSION TEST — 33/33 PASS (Apr 21 2026)
+          Test script: /app/auth_relocation_regression_test.py
+          Backend: https://mintu-finance.preview.emergentagent.com/api
+          Credentials: phoneA=9876543210 / phoneB=9988776655 / OTP=123456
+
+          GOAL: Confirm 100% behavioural equivalence after main agent extracted
+          ~220 lines of auth routes from server.py into new /app/backend/routers/auth.py.
+          Helpers (generate_otp, send_otp_sms, OTP_EXPIRY_MINUTES, MAX_OTP_ATTEMPTS,
+          MOCK_OTP_MODE) also moved, with back-compat lazy-re-export shims left in server.py.
+
+          ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+          RESULTS BY TEST GROUP
+          ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+          1. send-otp VALIDATION CORNER CASES (8/8 PASS):
+             • 0000000000 → 400 ✅ (Round3 prefix check holds)
+             • ٩٨٧٦٥٤٣٢١٠ (Arabic-Indic) → 400 ✅
+             • 5876543210 (prefix <6) → 400 ✅
+             • 98765 / 98765432109876 (wrong length) → 400 ✅
+             • emoji embedded → 400 ✅
+             • SQL injection → 400 ✅
+             • XSS payload → 400 ✅
+             All reject with detail="Invalid phone number. Must be 10 digits starting with 6-9."
+
+          2. send-otp HAPPY PATH + RATE LIMIT (2/2 PASS):
+             • POST /auth/send-otp {phone: 9876543210} → 200 ✅
+             • Immediate 2nd call within 30s window → 429 ✅
+
+          3. verify-otp WRONG → CORRECT → RESEND (4/4 PASS):
+             • Wrong OTP → 400 "Invalid OTP. 2 attempts remaining." ✅
+             • Correct OTP 123456 → 200 with JWT token ✅
+             • /auth/resend-otp after 31s cooldown → 200 ✅
+             • /auth/resend-otp with invalid phone (0000000000) → 400 ✅
+
+          4. verify-otp TOO MANY ATTEMPTS (1/1 PASS):
+             • After 3 consecutive wrong OTP attempts → 400
+               "Too many attempts. Please request a new OTP." ✅
+             • OTP record properly deleted on exhaustion.
+
+          5. verify-otp EXPIRED / NOT-FOUND (1/1 PASS):
+             • With no active record → 400 "OTP expired or not found" ✅
+
+          6. register DUPLICATE + NEW (2/2 PASS):
+             • /auth/register with existing phoneA → 400 "Phone already registered" ✅
+             • /auth/register with brand-new phone (7xxxxxxxxx) → 200 + token ✅
+
+          7. login WRONG CREDS (1/1 PASS):
+             • /auth/login with phoneA + wrong password → 401 ✅
+
+          8. JWT CHAIN ACROSS 5 ROUTERS (5/5 PASS):
+             Token obtained via verify-otp in test 3. All hit 200:
+             • GET /user/me → 200 ✅
+             • GET /transactions → 200 ✅
+             • GET /budgets → 200 ✅
+             • GET /split/groups → 200 ✅
+             • POST /ai/chat {message:...} → 200 ✅ (LLM round-trip succeeds)
+
+          9. INVALID AUTHORIZATION HEADERS → 401 (NOT 500) (4/4 PASS):
+             • "InvalidStuff" → 401 ✅
+             • "Bearer " (empty token) → 401 ✅
+             • "Bearer not.a.real.jwt" → 401 ✅
+             • Crafted JWT with missing sub/invalid sig → 401 ✅
+             Round3 get_current_user hardening preserved.
+
+          10. COLLATERAL SPOT-CHECKS ON UNRELATED ROUTERS (5/5 PASS):
+             • POST /budgets with "NaN" amount → 422 ✅ (Round2/3 validator active)
+             • POST /transactions with SQLi description → 200 stored safe ✅
+             • DELETE /transactions/not-a-hex-id → 400 ✅ (Round3 _oid guard active)
+             • GET /split/groups/{fake_oid}/manage → 404 ✅ (IDOR defense active)
+             • 5× rapid /user/me → all 200 ✅ (no spurious rate-limit)
+
+          ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+          ARCHITECTURAL VERIFICATION
+          ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+          • /app/backend/routers/auth.py exists (223 lines) with all 5 endpoints:
+            /auth/register, /auth/login, /auth/send-otp, /auth/verify-otp, /auth/resend-otp.
+          • server.py line 625 imports `auth as auth_router`.
+          • server.py line 657 mounts auth_router FIRST in the tuple fed to
+            api_router.include_router(), ensuring route-precedence.
+          • server.py lines 608-619 keep back-compat module-level shims
+            (generate_otp, send_otp_sms, OTP_EXPIRY_MINUTES, MAX_OTP_ATTEMPTS,
+            MOCK_OTP_MODE) via lazy re-export from routers.auth — no circular-import.
+          • Backend access log confirms all /api/auth/* endpoints served through
+            the new router. No 500s during the entire 33-assertion run.
+
+          VERDICT: Refactor is 100% behaviourally equivalent. Zero regressions.
+          All prior adversarial defenses (Round2 ai_coach NaN, Round3 ObjectId
+          guard, Round3 phone prefix check, Round3 JWT hardening, IDOR cluster)
+          remain intact. Ready to merge/ship.
+
+          Flipped working=true, needs_retesting=false.
+
+
