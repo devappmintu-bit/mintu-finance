@@ -126,6 +126,7 @@ function SideTab({ icon, iconFilled, label, focused, onPress, testID }:
 function MintUTabBar({ state, navigation }: BottomTabBarProps) {
   const { lang } = useLangStore();
   const screenW = Dimensions.get('window').width;
+  const { CUTOUT_W } = archGeom(screenW);
 
   const visible = state.routes.filter(r => TAB_META[r.name]);
   const left = visible.slice(0, 2);

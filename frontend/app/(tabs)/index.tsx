@@ -16,6 +16,7 @@ import { awardCoins } from '../../services/premium';
 import { fetchStatsOverview, fetchTransactions } from '../../services/transactions';
 import { COLORS, RADIUS, SPACING, CATEGORIES, SHADOW, shadowStyle } from '../../utils/theme';
 import PressableGlass from '../../components/PressableGlass';
+import TapTile from '../../components/ui/TapTile';
 import { router, useFocusEffect } from 'expo-router';
 import { HomeSkeleton } from '../../components/SkeletonLoader';
 import InsightsCard from '../../components/home/InsightsCard';
@@ -256,16 +257,16 @@ export default function HomeScreen() {
             <Text style={styles.name}>{t('hi', lang)}, {user?.name || 'User'}!</Text>
           </View>
           {coinsStatus && (
-            <TouchableOpacity
+            <TapTile
               onPress={() => router.push('/rewards-hub' as any)}
               style={styles.coinsChip}
-              activeOpacity={0.8}
+              feedback="light"
               testID="header-coins-chip"
             >
               <AnimatedCoin value={Number(coinsStatus.balance || 0)} size="sm" />
-            </TouchableOpacity>
+            </TapTile>
           )}
-          <TouchableOpacity onPress={() => router.push('/(tabs)/profile')} style={styles.avatarWrap}>
+          <TapTile onPress={() => router.push('/(tabs)/profile')} style={styles.avatarWrap} feedback="selection">
             <View style={styles.avatarRing}>
               {avatar ? (
                 <Image source={{ uri: avatar }} style={styles.avatarImg} />
@@ -276,7 +277,7 @@ export default function HomeScreen() {
               )}
             </View>
             <View style={styles.avatarBadge}><Ionicons name="settings-sharp" size={10} color="#fff" /></View>
-          </TouchableOpacity>
+          </TapTile>
         </View>
 
         {/* PREMIUM — expandable card on Home, locked for free users */}

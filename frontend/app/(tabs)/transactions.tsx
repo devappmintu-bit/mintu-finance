@@ -19,6 +19,7 @@ import { TransactionsSkeleton } from '../../components/SkeletonLoader';
 import EmptyState from '../../components/ui/EmptyState';
 import SheetHeader from '../../components/ui/SheetHeader';
 import PrimaryButton from '../../components/ui/PrimaryButton';
+import TapTile from '../../components/ui/TapTile';
 import GmailConnectCard from '../../components/transactions/GmailConnectCard';
 import {
   fetchTransactions as fetchTxnsSrv, addTransaction, updateTransaction, deleteTransaction,
@@ -358,10 +359,10 @@ export default function TransactionsScreen() {
             <ScrollView keyboardShouldPersistTaps="handled">
               <View style={styles.typeRow}>
                 {['debit', 'credit'].map((tp) => (
-                  <TouchableOpacity key={tp} style={[styles.typeBtn, formData.type === tp && styles.typeBtnActive]} onPress={() => setFormData({ ...formData, type: tp })}>
+                  <TapTile key={tp} style={[styles.typeBtn, formData.type === tp && styles.typeBtnActive]} onPress={() => setFormData({ ...formData, type: tp })} feedback="selection">
                     <Ionicons name={tp === 'debit' ? 'arrow-up-circle' : 'arrow-down-circle'} size={18} color={formData.type === tp ? COLORS.bg.primary : COLORS.text.muted} />
                     <Text style={[styles.typeBtnText, formData.type === tp && styles.typeBtnTextActive]}>{tp === 'debit' ? t('expense', lang) : t('income', lang)}</Text>
-                  </TouchableOpacity>
+                  </TapTile>
                 ))}
               </View>
               <Text style={styles.formLabel}>{t('amount', lang)}</Text>
@@ -372,10 +373,10 @@ export default function TransactionsScreen() {
               <Text style={styles.formLabel}>{t('category', lang)}</Text>
               <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.chipScroll}>
                 {CATEGORY_LIST.map((c) => (
-                  <TouchableOpacity key={c} style={[styles.chip, formData.category === c && styles.chipActive]} onPress={() => setFormData({ ...formData, category: c })}>
+                  <TapTile key={c} style={[styles.chip, formData.category === c && styles.chipActive]} onPress={() => setFormData({ ...formData, category: c })} feedback="selection">
                     <Ionicons name={CATEGORIES[c].icon as any} size={14} color={formData.category === c ? COLORS.bg.primary : CATEGORIES[c].color} />
                     <Text style={[styles.chipText, formData.category === c && styles.chipTextActive]}>{c}</Text>
-                  </TouchableOpacity>
+                  </TapTile>
                 ))}
               </ScrollView>
               <Text style={styles.formLabel}>{t('description', lang)}</Text>
