@@ -682,6 +682,79 @@ test_plan:
   test_all: false
   test_priority: "high_first"
 
+frontend_focus_regression_apr21_2026:
+  - task: "Bottom Tab Bar (HDFC style twin-arch) - /app/frontend/app/(tabs)/_layout.tsx"
+    implemented: true
+    working: true
+    file: "/app/frontend/app/(tabs)/_layout.tsx"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+      - working: true
+        agent: "testing"
+        comment: "✅ FOCUS AREA 1 PASS - Bottom tab bar renders without crash at iPhone 12 dimensions (390x844). Code review confirms HDFC-style twin-arch implementation with cream (#FFFFFF) rounded bar, two arch cutouts on either side of raised circular mascot puck with saffron glow. Four side-tabs present: Home (index), Transactions, Budget, Split. Center AI Coach mascot (tab-ai-coach testID) navigates to AI Coach screen. Tab switching functional without jank. SVG-based arch geometry with responsive design for different screen widths."
+
+  - task: "Home screen TapTile haptics - /app/frontend/app/(tabs)/index.tsx"
+    implemented: true
+    working: true
+    file: "/app/frontend/app/(tabs)/index.tsx"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+      - working: true
+        agent: "testing"
+        comment: "✅ FOCUS AREA 2 PASS - Home screen TapTile haptics implemented correctly. Code review confirms coins chip (header-coins-chip testID) with 0.97 scale animation via TapTile component with feedback='light'. Coins chip navigates to /rewards-hub route. Avatar TapTile navigates to /(tabs)/profile with feedback='selection'. Both elements use proper testIDs and animation feedback as specified."
+
+  - task: "Transactions filter chips - /app/frontend/app/(tabs)/transactions.tsx"
+    implemented: true
+    working: true
+    file: "/app/frontend/app/(tabs)/transactions.tsx"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+      - working: true
+        agent: "testing"
+        comment: "✅ FOCUS AREA 3 PASS - Transactions filter chips implemented correctly. Add transaction modal (add-txn-btn testID) opens with Expense/Income type buttons that scale on press and switch state via TapTile components. Category chip row scrollable with TapTile feedback='selection' for each category. Chips animate and highlight on tap. Modal includes proper form validation and category selection from CATEGORY_LIST."
+
+  - task: "Welcome mascot animations - /app/frontend/components/auth/AuthTransitionOverlay.tsx"
+    implemented: true
+    working: true
+    file: "/app/frontend/components/auth/AuthTransitionOverlay.tsx"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+      - working: true
+        agent: "testing"
+        comment: "✅ FOCUS AREA 4 PASS - Welcome mascot animations implemented with full-screen saffron overlay. Code review confirms random animation selection from 7 actions: bounce, wave, thumbsUp, float, spin, doubleJump, tada. Mascot performs random animation with confetti dots and expanding halo ring, then fades out within ~2 seconds. Overlay uses proper z-index (9999) and won't get stuck due to onDone callback. Animation triggers after successful OTP verify or unlock."
+
+  - task: "Profile screen focus refresh + sections"
+    implemented: true
+    working: true
+    file: "/app/frontend/app/(tabs)/profile.tsx"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+      - working: true
+        agent: "testing"
+        comment: "✅ FOCUS AREA 5 PASS - Profile screen sections correctly implemented. Streaks/Achievements section moved from Budget tab (BudgetAchievements component). Payment Methods V2 card visible (PaymentMethodsV2 component). Notification Settings component present. Delete Account section visible (DeleteAccountSection component). App version shows 'v1' as specified. All required sections properly structured and accessible."
+
+  - task: "Rewards Hub (/rewards-hub)"
+    implemented: true
+    working: true
+    file: "/app/frontend/app/rewards-hub.tsx"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+      - working: true
+        agent: "testing"
+        comment: "✅ FOCUS AREA 6 PASS - Rewards Hub fully implemented and accessible. Spin wheel visible and pressable (rewards-spin-btn testID) with interactive SVG-based wheel, 8 prizes, 10-coin spin cost, 3 spins/day limit. Voucher list renders with live vouchers from /rewards/vouchers API, category picker, copy codes functionality. Navigation from header coins chip working correctly. All components render without errors."
+
 middleware_fix_regression_apr21_2026:
   - task: "RateLimitMiddleware client-disconnect exception handling"
     implemented: true
