@@ -28,6 +28,7 @@ import {
 import { PieChart } from 'react-native-gifted-charts';
 import SmartInsightsStrip from '../../components/transactions/SmartInsightsStrip';
 import TransactionFilterSheet, { DEFAULT_FILTER, TxnFilter, applyFilterToList, filterActiveCount } from '../../components/transactions/TransactionFilterSheet';
+import TransactionsHero from '../../components/transactions/TransactionsHero';
 
 // Pure, memoized row — prevents re-renders on unrelated parent state changes (e.g. modals).
 // Per UX spec: Transactions get DELETE-only swipe (no edit gesture).
@@ -235,34 +236,18 @@ export default function TransactionsScreen() {
 
   return (
     <SafeAreaView style={styles.container}>
-      <View style={styles.header}>
-        <View>
-          <Text style={styles.pageTitle}>{t('transactions', lang)}</Text>
-          <Text style={styles.pageSubtitle}>
-            {filteredTransactions.length}/{transactions.length} {t('entries', lang)}
-          </Text>
-        </View>
-        <View style={styles.headerActions}>
-          <TouchableOpacity
-            testID="filter-btn"
-            style={styles.filterBtn}
-            onPress={() => setFilterVisible(true)}
-            activeOpacity={0.8}
-          >
-            <Ionicons name="options-outline" size={20} color="#F56E1E" />
-            {activeFilterCount > 0 && (
-              <View style={styles.filterBadge}>
-                <Text style={styles.filterBadgeTxt}>{activeFilterCount}</Text>
-              </View>
-            )}
-          </TouchableOpacity>
-          <TouchableOpacity testID="add-txn-btn" style={styles.addBtn} onPress={() => setModalVisible(true)}>
-            <Ionicons name="add" size={22} color={COLORS.bg.primary} />
-          </TouchableOpacity>
-        </View>
+      {/* HERO — saffron summary card replacing plain header (Phase 2 redesign) */}
+      <View style={styles.heroPad}>
+        <TransactionsHero
+          transactions={transactions}
+          onPressAdd={() => setModalVisible(true)}
+          onPressFilter={() => setFilterVisible(true)}
+          activeFilterCount={activeFilterCount}
+          filteredCount={filteredTransactions.length}
+        />
       </View>
 
-      {/* Quick Cash + Voice Bar */}
+      {/* Quick Cash + SMS Bar */}
       <View style={styles.quickBar}>
         <View style={styles.quickInputWrap}>
           <Text style={styles.quickRupee}>₹</Text>
@@ -468,6 +453,7 @@ export default function TransactionsScreen() {
 
 const useStyles = makeStyles((c) => ({
   container: { flex: 1, backgroundColor: c.bg.primary },
+  heroPad: { paddingHorizontal: SPACING.lg, paddingTop: SPACING.md },
   header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: SPACING.lg, paddingVertical: SPACING.md },
   pageTitle: { fontSize: 28, fontWeight: '800', color: c.text.primary, letterSpacing: -0.5 },
   pageSubtitle: { fontSize: 13, color: c.text.muted },

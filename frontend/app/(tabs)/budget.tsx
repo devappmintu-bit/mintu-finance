@@ -17,6 +17,7 @@ import { COLORS, RADIUS, SPACING, CATEGORIES, CATEGORY_LIST, SHADOW } from '../.
 import { makeStyles } from '../../utils/makeStyles';
 import PressableGlass from '../../components/PressableGlass';
 import BudgetCard from '../../components/budget/BudgetCard';
+import BudgetHero from '../../components/budget/BudgetHero';
 import DeleteBudgetSheet from '../../components/budget/DeleteBudgetSheet';
 import BudgetInsightsSheet from '../../components/budget/BudgetInsightsSheet';
 import BudgetShareCard from '../../components/budget/BudgetShareCard';
@@ -238,19 +239,14 @@ export default function BudgetScreen() {
 
   return (
     <SafeAreaView style={s.bg}>
-      <View style={s.header}>
-        <View>
-          <Text style={s.title}>{t('budgets', lang)}</Text>
-          <Text style={s.sub}>{budgets.length} {t('active', lang)}</Text>
-        </View>
-        <View style={{ flexDirection: 'row', gap: 8 }}>
-          <TouchableOpacity style={s.shareBtn} onPress={shareBudgetSnapshot} disabled={sharing} activeOpacity={0.85} accessibilityLabel="Share budget snapshot">
-            {sharing ? <ActivityIndicator color="#F56E1E" size="small" /> : <Ionicons name="share-social-outline" size={20} color="#F56E1E" />}
-          </TouchableOpacity>
-          <PressableGlass style={s.addBtn} onPress={openAdd} feedback="medium">
-            <Ionicons name="add" size={22} color="#fff" />
-          </PressableGlass>
-        </View>
+      {/* HERO — saffron card replacing plain header (Phase 2 redesign) */}
+      <View style={s.heroPad}>
+        <BudgetHero
+          budgets={budgets}
+          onPressAdd={openAdd}
+          onPressShare={shareBudgetSnapshot}
+          sharing={sharing}
+        />
       </View>
 
       <FlashList
@@ -266,23 +262,7 @@ export default function BudgetScreen() {
             {/* Donut chart + legend — primary summary per design ask.
                 "Budget Health" + "Watching" cards were removed. */}
             <BudgetSummaryDonut budgets={budgets} />
-            {/* Summary */}
-            {budgets.length > 0 && (
-              <View style={s.summaryRow}>
-                <View style={s.summaryBox}>
-                  <Text style={s.sumLabel}>{t('budgets', lang)}</Text>
-                  <Text style={s.sumVal}>₹{totalBudget.toFixed(0)}</Text>
-                </View>
-                <View style={s.summaryBox}>
-                  <Text style={s.sumLabel}>{t('spent', lang)}</Text>
-                  <Text style={[s.sumVal, { color: COLORS.accent.moneyOut }]}>₹{totalSpent.toFixed(0)}</Text>
-                </View>
-                <View style={s.summaryBox}>
-                  <Text style={s.sumLabel}>{totalBudget - totalSpent >= 0 ? t('left', lang) : 'Over'}</Text>
-                  <Text style={[s.sumVal, { color: totalBudget - totalSpent >= 0 ? COLORS.accent.moneyIn : COLORS.accent.moneyOut }]}>₹{Math.abs(totalBudget - totalSpent).toFixed(0)}</Text>
-                </View>
-              </View>
-            )}
+            {/* Summary row removed — totals now in BudgetHero */}
             {/* AI Suggestions */}
             {suggestions?.suggestions?.length > 0 && (
               <View style={s.suggestCard}>
@@ -438,6 +418,7 @@ export default function BudgetScreen() {
 
 const useStyles = makeStyles((c) => ({
   bg: { flex: 1, backgroundColor: c.bg.primary },
+  heroPad: { paddingHorizontal: SPACING.lg, paddingTop: SPACING.md },
   header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: SPACING.lg, paddingVertical: SPACING.md },
   title: { fontSize: 28, fontWeight: '800', color: c.text.primary },
   sub: { fontSize: 13, color: c.text.muted },

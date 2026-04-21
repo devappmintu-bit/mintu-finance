@@ -6944,3 +6944,51 @@ auth_relocation_apr21_2026:
           
           **RECOMMENDATION:**
           The home screen redesign implementation is architecturally sound and all components are correctly implemented. The authentication flow blocking is an environment limitation, not a code issue. Manual testing or authenticated session testing would be needed to verify the full home screen functionality. The redesigned layout follows the specified INSIGHT → ACTION → REWARD philosophy with proper component separation and mobile optimization.
+
+────────────────────────────────────────────────────────────────────
+## 🎨 Transactions + Budget Tabs — Design Extended
+────────────────────────────────────────────────────────────────────
+
+  - task: "Transactions tab redesign — saffron hero card"
+    implemented: true
+    working: "NA"
+    file: "/app/frontend/app/(tabs)/transactions.tsx"
+    needs_retesting: true
+    status_history:
+      - working: "NA"
+        agent: "main"
+        comment: |
+          Created /app/frontend/components/transactions/TransactionsHero.tsx
+          (saffron LinearGradient card) and wired into transactions screen:
+            • Month-at-a-glance "Spent · APRIL 2026" header
+            • Big ₹amount (36pt bold)
+            • 3-stat pill row: TODAY / INCOME / NET SAVED (or NET SPEND)
+            • Filter icon (with active count badge) + Add icon in header
+            • Filtered vs total count in footer (e.g. "3 of 12 shown")
+          Replaced the plain text header. Quick cash + SMS bar preserved
+          below the hero. Modals, FlashList, filter sheet, swipe gestures —
+          all preserved untouched. Bundle compiles clean.
+
+  - task: "Budget tab redesign — saffron hero card"
+    implemented: true
+    working: "NA"
+    file: "/app/frontend/app/(tabs)/budget.tsx"
+    needs_retesting: true
+    status_history:
+      - working: "NA"
+        agent: "main"
+        comment: |
+          Created /app/frontend/components/budget/BudgetHero.tsx and wired
+          into budget screen:
+            • Health pill (💪 ON TRACK / ⚠️ WATCHING / 🚨 OVER BUDGET)
+            • Big "₹spent of ₹budgeted" summary
+            • Animated progress bar (green / amber / red tint based on %)
+            • Meta row: "{pct}% used · ₹left · X over · X near cap"
+            • Share icon + Add icon in header
+          Replaced plain title+subtitle header and removed the redundant
+          summary row (totals now live in the hero). BudgetSummaryDonut,
+          AI Suggestions, BudgetCard grid, delete/insights sheets — all
+          preserved untouched. Bundle compiles clean (2268 modules).
+
+          Awaiting user screenshot verification on preview URL.
+
