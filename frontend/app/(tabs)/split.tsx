@@ -366,11 +366,19 @@ export default function SplitScreen() {
       setModal('');
       const WebBrowser = await import('expo-web-browser');
       const result = await WebBrowser.openBrowserAsync(checkoutUrl);
-      // Result is dismissed when user closes the browser — refresh to pick up new settlement
+      // openBrowserAsync resolves with { type: 'cancel'|'dismiss'|'opened' } when the
+      // user closes the Razorpay hosted page. Because the actual settlement is only
+      // committed by the backend on signature verify, we refresh the data here and
+      // let the Splits / Activity refresh reveal the final status rather than
+      // claiming success unconditionally.
       if (result) {
         setTimeout(() => {
           fetchData();
-          Toast.show({ type: 'success', text1: `Razorpay settlement`, text2: `₹${amount.toFixed(0)} to ${to_name} — check chat for status` });
+          Toast.show({
+            type: 'info',
+            text1: 'Payment in progress…',
+            text2: `Refreshing ₹${amount.toFixed(0)} → ${to_name}. Check Splits for confirmation.`,
+          });
         }, 600);
       }
     } catch (e: any) {
