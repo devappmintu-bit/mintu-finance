@@ -13,8 +13,9 @@ export default function AICoachTab() {
   return (
     <SafeAreaView style={s.safe} edges={['top']}>
       <View style={s.inner}>
-        {/* When opened as a tab, there's no modal to close. We pass a no-op. */}
-        <AICoachChat onClose={() => {}} />
+        {/* Tab mode — no close button (nothing to dismiss).
+            AICoachChat hides the X button automatically when onClose is undefined. */}
+        <AICoachChat />
       </View>
     </SafeAreaView>
   );

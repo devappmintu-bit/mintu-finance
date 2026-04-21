@@ -183,30 +183,41 @@ export default function BudgetScreen() {
     }
     setSharing(true);
     try {
-      // Find top over-category
+      // Build a clean text summary that works reliably on ALL platforms.
       const overBudgets = budgets.filter((b: any) => (b.spent || 0) > (b.amount || 0));
-      const topOver = overBudgets.sort((a: any, b: any) => ((b.spent || 0) - (b.amount || 0)) - ((a.spent || 0) - (a.amount || 0)))[0];
-      (shareRef as any).currentSummary = {
-        total_budgeted: totalBudget,
-        total_spent: totalSpent,
-        top_over_category: topOver?.category,
-        top_over_amount: topOver ? (topOver.spent - topOver.amount) : 0,
-        month_label: new Date().toLocaleDateString('en-IN', { month: 'long', year: 'numeric' }),
-      };
-      // Give React a tick to render the card, then capture.
-      await new Promise((r) => setTimeout(r, 120));
-      const [{ captureRef }, Sharing] = await Promise.all([
-        import('react-native-view-shot'),
-        import('expo-sharing'),
-      ]);
-      const uri = await captureRef(shareRef as any, { format: 'png', quality: 1.0, result: 'tmpfile' });
-      const available = await Sharing.isAvailableAsync();
-      if (available) {
-        await Sharing.shareAsync(uri, { dialogTitle: 'Share budget snapshot' });
-      } else if (Platform.OS === 'web' && (navigator as any)?.share) {
-        await (navigator as any).share({ title: 'MintU', url: uri });
+      const topOver = overBudgets.sort(
+        (a: any, b: any) => ((b.spent || 0) - (b.amount || 0)) - ((a.spent || 0) - (a.amount || 0)),
+      )[0];
+      const monthLabel = new Date().toLocaleDateString('en-IN', { month: 'long', year: 'numeric' });
+      const pct = totalBudget > 0 ? Math.round((totalSpent / totalBudget) * 100) : 0;
+      const healthEmoji = pct <= 70 ? '💪' : pct <= 100 ? '⚠️' : '🚨';
+
+      const lines = [
+        `📊 MintU Budget Snapshot · ${monthLabel}`,
+        '',
+        `${healthEmoji} Budgeted: ₹${totalBudget.toLocaleString('en-IN')}`,
+        `💰 Spent: ₹${totalSpent.toLocaleString('en-IN')} (${pct}%)`,
+      ];
+      if (topOver) {
+        lines.push('', `🔔 Over budget: ${topOver.category} by ₹${Math.round(topOver.spent - topOver.amount).toLocaleString('en-IN')}`);
       } else {
-        Toast.show({ type: 'info', text1: 'Snapshot ready', text2: 'Share API not available here' });
+        lines.push('', '✅ All budgets on track');
+      }
+      lines.push('', `Track yours on MintU — smart Indian money coach.`);
+      const msg = lines.join('\n');
+
+      // Prefer native Share (iOS/Android), then Web Share API, then clipboard fallback.
+      if (Platform.OS === 'web') {
+        if ((navigator as any)?.share) {
+          try { await (navigator as any).share({ title: 'MintU Budget', text: msg }); }
+          catch { await (navigator as any).clipboard?.writeText(msg); Toast.show({ type: 'success', text1: 'Copied to clipboard' }); }
+        } else {
+          await (navigator as any).clipboard?.writeText(msg);
+          Toast.show({ type: 'success', text1: 'Copied to clipboard' });
+        }
+      } else {
+        const RN = await import('react-native');
+        await RN.Share.share({ message: msg, title: 'MintU Budget Snapshot' });
       }
     } catch (e: any) {
       Toast.show({ type: 'error', text1: 'Could not share', text2: e?.message || '' });

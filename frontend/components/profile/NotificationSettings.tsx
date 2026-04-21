@@ -17,6 +17,7 @@ import { View, Text, StyleSheet, TouchableOpacity, Switch, ActivityIndicator } f
 import { Ionicons } from '@expo/vector-icons';
 import Toast from 'react-native-toast-message';
 import api from '../../utils/api';
+import useFocusRefresh from '../../hooks/useFocusRefresh';
 import { COLORS, shadowStyle } from '../../utils/theme';
 import { sendTestPush } from '../../hooks/usePushNotifications';
 
@@ -70,6 +71,7 @@ export default function NotificationSettings() {
   }, []);
 
   useEffect(() => { load(); }, [load]);
+  useFocusRefresh(load);
 
   const save = async (next: Prefs) => {
     setPrefs(next);

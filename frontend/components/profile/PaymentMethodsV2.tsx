@@ -20,6 +20,7 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import Toast from 'react-native-toast-message';
 import api from '../../utils/api';
+import useFocusRefresh from '../../hooks/useFocusRefresh';
 import { COLORS, shadowStyle } from '../../utils/theme';
 
 type Method = {
@@ -64,6 +65,7 @@ export default function PaymentMethodsV2() {
   }, []);
 
   useEffect(() => { load(); }, [load]);
+  useFocusRefresh(load);
 
   const defaultMethod = useMemo(() => methods.find(m => m.is_default), [methods]);
 

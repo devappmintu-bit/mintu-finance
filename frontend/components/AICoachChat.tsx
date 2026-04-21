@@ -23,12 +23,15 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
+import { LinearGradient } from 'expo-linear-gradient';
+import { router } from 'expo-router';
 import api from '../utils/api';
 import MintULogo from './MintULogo';
 import { useAuthStore } from '../store/authStore';
 import { useLangStore } from '../store/langStore';
 import { COLORS } from '../utils/theme';
 import { FlashList } from '@shopify/flash-list';
+import { fetchPremiumStatus } from '../services/premium';
 
 type ChatMsg = { role: 'user' | 'ai'; text: string; loading?: boolean; agent?: string; agentEmoji?: string; ts?: number; isFallback?: boolean };
 
@@ -116,13 +119,24 @@ const TypingDots = () => {
   );
 };
 
-export default function AICoachChat({ onClose }: { onClose: () => void }) {
+export default function AICoachChat({ onClose }: { onClose?: () => void }) {
   const { user } = useAuthStore();
   const { lang } = useLangStore();
   const [messages, setMessages] = useState<ChatMsg[]>([]);
   const [input, setInput] = useState('');
   const [chatLoading, setChatLoading] = useState(false);
   const [ctx, setCtx] = useState<Ctx>({ name: user?.name || 'there' });
+  const [isPremium, setIsPremium] = useState(false);
+
+  // Fetch premium status — Money School chips are gated behind this
+  useEffect(() => {
+    (async () => {
+      try {
+        const p = await fetchPremiumStatus();
+        setIsPremium(!!p?.is_premium);
+      } catch { /* default: locked */ }
+    })();
+  }, []);
   const flatRef = useRef<FlashList<any>>(null);
 
   // Load the user's real spending context once — used for prompt enrichment AND for offline fallback.
@@ -271,9 +285,11 @@ export default function AICoachChat({ onClose }: { onClose: () => void }) {
               : 'Your personal finance assistant'}
           </Text>
         </View>
-        <TouchableOpacity onPress={onClose} style={s.closeBtn}>
-          <Ionicons name="close" size={22} color={COLORS.text.primary} />
-        </TouchableOpacity>
+        {!!onClose && (
+          <TouchableOpacity onPress={onClose} style={s.closeBtn}>
+            <Ionicons name="close" size={22} color={COLORS.text.primary} />
+          </TouchableOpacity>
+        )}
       </View>
 
       <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={{ flex: 1 }} keyboardVerticalOffset={10}>
@@ -300,15 +316,61 @@ export default function AICoachChat({ onClose }: { onClose: () => void }) {
                 </TouchableOpacity>
               ))}
             </View>
-            <Text style={s.chipSection}>🎓 MONEY SCHOOL</Text>
-            <View style={s.chipsWrap}>
-              {SCHOOL_CHIPS.map((c, i) => (
-                <TouchableOpacity key={`s${i}`} style={[s.chip, s.chipSchool]} onPress={() => sendMessage(c.label)} disabled={chatLoading}>
-                  <Text style={s.chipEmoji}>{c.emoji}</Text>
-                  <Text style={s.chipText}>{c.label}</Text>
-                </TouchableOpacity>
-              ))}
+            <View style={s.schoolHeaderRow}>
+              <Text style={s.chipSection}>🎓 MONEY SCHOOL</Text>
+              {!isPremium && (
+                <View style={s.premiumBadge}>
+                  <Ionicons name="lock-closed" size={10} color={COLORS.accent.primary} />
+                  <Text style={s.premiumBadgeT}>PREMIUM</Text>
+                </View>
+              )}
             </View>
+            {!isPremium ? (
+              <TouchableOpacity
+                activeOpacity={0.9}
+                onPress={() => router.push('/money-school' as any)}
+                style={s.lockedSchoolCard}
+                testID="ai-coach-school-locked"
+              >
+                <LinearGradient
+                  colors={['#FFF7E8', '#FFE7C7']}
+                  start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}
+                  style={s.lockedSchoolInner}
+                >
+                  <View style={s.lockedSchoolIcon}>
+                    <Ionicons name="school" size={22} color={COLORS.accent.primary} />
+                  </View>
+                  <View style={{ flex: 1 }}>
+                    <Text style={s.lockedSchoolTitle}>Unlock AI Money School</Text>
+                    <Text style={s.lockedSchoolSub} numberOfLines={2}>
+                      Daily personalised lessons on SIPs, tax, mutual funds, credit score & more — included with Premium.
+                    </Text>
+                  </View>
+                  <View style={s.lockedCTA}>
+                    <Text style={s.lockedCTAT}>Upgrade</Text>
+                    <Ionicons name="arrow-forward" size={13} color={COLORS.accent.primary} />
+                  </View>
+                </LinearGradient>
+                {/* Locked preview chips — muted */}
+                <View style={[s.chipsWrap, { opacity: 0.5 }]}>
+                  {SCHOOL_CHIPS.slice(0, 4).map((c, i) => (
+                    <View key={`locked-${i}`} style={[s.chip, s.chipSchool]}>
+                      <Ionicons name="lock-closed" size={10} color={COLORS.text.muted} />
+                      <Text style={s.chipText}>{c.label}</Text>
+                    </View>
+                  ))}
+                </View>
+              </TouchableOpacity>
+            ) : (
+              <View style={s.chipsWrap}>
+                {SCHOOL_CHIPS.map((c, i) => (
+                  <TouchableOpacity key={`s${i}`} style={[s.chip, s.chipSchool]} onPress={() => sendMessage(c.label)} disabled={chatLoading}>
+                    <Text style={s.chipEmoji}>{c.emoji}</Text>
+                    <Text style={s.chipText}>{c.label}</Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+            )}
           </ScrollView>
         )}
 
@@ -380,6 +442,16 @@ const s = StyleSheet.create({
 
   chipsWrap: { flexDirection: 'row', flexWrap: 'wrap', paddingHorizontal: 16, paddingBottom: 8, gap: 7 },
   chipSection: { fontSize: 10, fontWeight: '800', letterSpacing: 1, color: COLORS.text.muted, paddingHorizontal: 16, paddingTop: 10, paddingBottom: 6 },
+  schoolHeaderRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingRight: 16 },
+  premiumBadge: { flexDirection: 'row', alignItems: 'center', gap: 3, backgroundColor: COLORS.accent.primary + '1E', paddingHorizontal: 7, paddingVertical: 3, borderRadius: 999, borderWidth: 1, borderColor: COLORS.accent.primary + '44' },
+  premiumBadgeT: { fontSize: 9, fontWeight: '900', color: COLORS.accent.primary, letterSpacing: 0.6 },
+  lockedSchoolCard: { marginHorizontal: 16, marginBottom: 10, borderRadius: 16, overflow: 'hidden', borderWidth: 1, borderColor: COLORS.accent.primary + '33' },
+  lockedSchoolInner: { flexDirection: 'row', alignItems: 'center', gap: 12, padding: 12 },
+  lockedSchoolIcon: { width: 40, height: 40, borderRadius: 12, backgroundColor: '#fff', alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: COLORS.accent.primary + '33' },
+  lockedSchoolTitle: { fontSize: 13.5, fontWeight: '900', color: COLORS.text.primary },
+  lockedSchoolSub: { fontSize: 11, color: COLORS.text.secondary, marginTop: 3, lineHeight: 15 },
+  lockedCTA: { flexDirection: 'row', alignItems: 'center', gap: 3, paddingHorizontal: 10, paddingVertical: 7, backgroundColor: '#fff', borderRadius: 999 },
+  lockedCTAT: { fontSize: 11.5, fontWeight: '900', color: COLORS.accent.primary, letterSpacing: 0.2 },
   chip: { flexDirection: 'row', alignItems: 'center', gap: 5, backgroundColor: COLORS.bg.card, paddingHorizontal: 12, paddingVertical: 9, borderRadius: 999, borderWidth: 1, borderColor: COLORS.border.card },
   chipSchool: { backgroundColor: COLORS.accent.primary + '12', borderColor: COLORS.accent.primary + '30' },
   chipEmoji: { fontSize: 13 },

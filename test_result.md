@@ -3937,6 +3937,46 @@ agent_communication:
         **New Split AI Insights:**
         3. ✅ /api/split/insights backend endpoint — aggregates savings, most-active group,
            top debtor/creditor, streak, friends count + GPT-5.2 witty fun fact (6h cache).
+
+# ════════════════════════════════════════════════════════════════════
+# ROUND 34 (Apr 21 2026) — AI Coach lock + Budget share fix + Dynamic profile
+# ════════════════════════════════════════════════════════════════════
+
+agent_communication:
+    - agent: "main"
+      message: |
+        1) AI Coach tab revamped:
+           - Money School chips now gated behind premium (fetches /premium/status).
+             Free users see a saffron gradient "Unlock AI Money School" upgrade card
+             with a preview of 4 locked chips (tapping → /money-school).
+           - PREMIUM badge rendered next to MONEY SCHOOL header for free users.
+           - Close "X" button auto-hides when rendered as tab (onClose prop is now optional).
+             ai-coach.tsx no longer passes a no-op onClose.
+           File: /app/frontend/components/AICoachChat.tsx
+           File: /app/frontend/app/(tabs)/ai-coach.tsx
+
+        2) Budget share FIXED:
+           - Replaced brittle captureRef+view-shot flow with cross-platform text share.
+             Builds a clean summary: "📊 MintU Budget Snapshot · April 2026 · Budgeted:
+             ₹X / Spent: ₹Y (Z%) · ⚠️ Over budget: Food by ₹N"
+           - Uses navigator.share on web, RN Share on mobile, clipboard fallback.
+           File: /app/frontend/app/(tabs)/budget.tsx
+
+        3) Dynamic profile:
+           - New hook /app/frontend/hooks/useFocusRefresh.ts — rerun loader on mount
+             AND every tab-focus.
+           - Adopted in: PaymentMethodsV2, NotificationSettings, BudgetAchievements.
+             These now auto-refresh whenever the user returns to the Profile tab, so
+             latest backend state (new payment methods, notif prefs, coin balance,
+             achievements) is always visible.
+
+        4) Duplicate cleanup:
+           - Deleted /app/frontend/components/profile/PaymentMethods.tsx (legacy v1,
+             no imports). V2 is canonical.
+           - Confirmed SkeletonLoader + Skeleton are distinct (tab skeletons vs primitive);
+             Confetti + ConfettiBurst are distinct animations used in different flows.
+           - No duplicate imports found in main tab files.
+
            File: /app/backend/routers/split_insights.py
         4. ✅ SplitInsightsHero component — horizontal carousel with scale-in spring
            animation per card, saffron-themed, fallback DEFAULT_ZERO_STATE (3 welcome

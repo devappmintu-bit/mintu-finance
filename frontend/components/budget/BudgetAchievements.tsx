@@ -12,6 +12,7 @@
  * only exposes a `refreshKey` prop so it re-fetches when the parent does.
  */
 import React, { useEffect, useState, useCallback, useMemo } from 'react';
+import useFocusRefresh from '../../hooks/useFocusRefresh';
 import { View, Text, StyleSheet, ScrollView, Animated, Easing, TouchableOpacity } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -65,6 +66,7 @@ export default function BudgetAchievements({ refreshKey = 0, onBadgePress }: Pro
   }, []);
 
   useEffect(() => { load(); }, [load, refreshKey]);
+  useFocusRefresh(load);
 
   // Streak flame pulse
   const pulse = React.useRef(new Animated.Value(0)).current;
