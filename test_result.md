@@ -683,6 +683,153 @@ test_plan:
   test_all: false
   test_priority: "high_first"
 
+adversarial_redteam_apr21_2026:
+  - task: "Split Group Multi-Endpoint IDOR Cluster (/api/split/groups/{id}/*)"
+    implemented: true
+    working: false
+    file: "/app/backend/routers/split_groups.py, /app/backend/routers/split_expenses.py"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: true
+    status_history:
+      - working: false
+        agent: "testing"
+        comment: |
+          🔴 CRITICAL IDOR CLUSTER DISCOVERED (Apr 21 2026, adversarial red-team run on /app/backend_test.py).
+          Created two independent users: A (phone 9876543210, user_id=69dfab73...) and B (phone 9988776655).
+          B has NO membership in A's group. Yet every one of the following endpoints served 200 with full data or performed destructive writes when called with B's JWT against A's group_id:
+
+          (1) GET  /api/split/groups/{gid}/manage     → 200, leaks all members incl. phone numbers, invite_code, admin flag.  routers/split_groups.py line 159 `get_group_management` loads by _id only, never filters by `members.user_id`.
+          (2) GET  /api/split/groups/{gid}/summary    → 200, leaks total_spent, recent_expenses, simplified_debts incl. other users' names/amounts.  routers/split_expenses.py line 145 — same bug (no membership filter).
+          (3) GET  /api/split/groups/{gid}/messages   → 200, leaks full chat history incl. sender_id/sender_name.  routers/split_groups.py line 248 — no membership check.
+          (4) PUT  /api/split/groups/{gid}/name       → 200, B can RENAME A's group to anything.  routers/split_groups.py line 191 — no membership check.
+          (5) POST /api/split/groups/{gid}/messages   → 200, B can inject chat msgs into A's group under their identity.  routers/split_groups.py line 273 — no membership check.
+          (6) DELETE /api/split/groups/{gid}/members/{mid} → 200, B can REMOVE A (the owner!) or any other member.  routers/split_groups.py line 204 — no membership check, no admin check.
+          (7) DELETE /api/split/groups/{gid}          → 200, B can DELETE A's group entirely (also nukes all split_expenses).  routers/split_groups.py line 217 — loads by _id only; no ownership check.
+
+          Only GET /api/split/groups (list) correctly filters by `members.user_id: user_id`.  get_group_expenses (line 129) and add_split_expense (line 24) correctly gate on membership.
+
+          The pattern is consistent: endpoints added after the original listing forgot the `"members.user_id": user_id` filter. `delete_group` is particularly dangerous because an attacker can destroy a group + ALL its expenses by guessing/knowing any group ObjectId (group ids are issued in the response of POST /split/groups and could also leak via referrer/log).
+
+          SEVERITY: Critical — confidentiality + integrity + availability breach on every single split-group record in production.
+
+          FIX PATTERN (applied per endpoint): replace
+              group = await db.split_groups.find_one({"_id": ObjectId(group_id)})
+          with
+              group = await db.split_groups.find_one({"_id": ObjectId(group_id), "members.user_id": user_id})
+              if not group: raise HTTPException(404, "Group not found")
+          For DELETE group + remove_member + rename: additionally require `created_by == user_id` (or at least membership).
+
+          test_plan.current_focus updated; this task should be rolled into the next backend sprint.
+
+  - task: "NaN / Infinity float in /api/transactions causes 500 crash (json.dumps ValueError)"
+    implemented: true
+    working: false
+    file: "/app/backend/routers/transactions.py"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: true
+    status_history:
+      - working: false
+        agent: "testing"
+        comment: |
+          🟠 HIGH SEVERITY CRASH. POST /api/transactions with body `{"amount": NaN, ...}` (or Infinity / -Infinity) returns HTTP 500.
+          Backend log: `ValueError: Out of range float values are not JSON compliant` from json.dumps during response serialisation. Confirmed in /var/log/supervisor/backend.err.log.
+          Root cause: `TransactionCreate.amount: float` in schemas.py — Pydantic accepts Python float NaN/Inf (Python's stdlib JSON parser with `allow_nan=True` default decodes them). Mongo stores them. When the endpoint serialises the inserted doc back to the client, json.dumps refuses to encode NaN/Inf.
+          Evidence: 3/3 variants (NaN, Infinity, -Infinity) crashed with 500.
+          FIX (file: routers/transactions.py line 15): replace `amount: float` with a validator that rejects NaN/Inf:
+            ```python
+            from pydantic import field_validator
+            import math
+            class TransactionCreate(BaseModel):
+                amount: float
+                @field_validator("amount")
+                @classmethod
+                def _reject_nan_inf(cls, v):
+                    if math.isnan(v) or math.isinf(v):
+                        raise ValueError("amount must be a finite number")
+                    return v
+            ```
+          Same fix should be applied to every other endpoint that accepts a float amount (split_expenses.SplitExpenseCreate, transactions update_transaction, settle payment, etc.).
+
+  - task: "POST /api/transactions accepts negative amounts without validation"
+    implemented: true
+    working: false
+    file: "/app/backend/routers/transactions.py"
+    stuck_count: 0
+    priority: "medium"
+    needs_retesting: true
+    status_history:
+      - working: false
+        agent: "testing"
+        comment: |
+          🟡 MEDIUM. POST /api/transactions with amount=-1,000,000,000 (or -1.0, -0.01) returns 200 and the negative amount is stored. This will corrupt every downstream aggregation (stats/overview, budgets/live, leaderboards, money_score, savings_rate). A malicious user could use this to fake their savings rate and climb the leaderboard.
+          Note: PUT /api/transactions/{id} DOES validate `amount < 0` (line 104). The validation exists — it's just missing from the POST create endpoint.
+          FIX: add the same 0-or-positive check (plus NaN/Inf check above) to TransactionCreate in /app/backend/routers/transactions.py (line 15-20). Keep the existing field; add a validator:
+            ```python
+            @field_validator("amount")
+            @classmethod
+            def _positive_finite(cls, v):
+                if math.isnan(v) or math.isinf(v): raise ValueError("amount must be finite")
+                if v < 0: raise ValueError("amount must be non-negative")
+                return v
+            ```
+
+  - task: "VAL-OVERSIZE — 1MB description accepted in POST /api/transactions (no upper cap)"
+    implemented: true
+    working: false
+    file: "/app/backend/routers/transactions.py"
+    stuck_count: 0
+    priority: "medium"
+    needs_retesting: true
+    status_history:
+      - working: false
+        agent: "testing"
+        comment: |
+          🟡 MEDIUM. POST /api/transactions with description = 1,048,576-char string returns 200 and the full MB is stored in Mongo. No 413/422.
+          Impact: bloats the collection, slows GET /api/transactions (which already returns `to_list(limit)` of full docs including description), and can be weaponised to DoS a user's home bundle.
+          Note: server.py already has a `sanitize_string(max_length=500)` helper but it's NEVER invoked on the transaction description path.
+          FIX: add `description: str = Field(..., max_length=500)` (or 1_000) to TransactionCreate in schemas.py. Same guard for category/type strings.
+
+  - task: "No dedup / idempotency on POST /api/transactions (race creates duplicates)"
+    implemented: true
+    working: false
+    file: "/app/backend/routers/transactions.py"
+    stuck_count: 0
+    priority: "low"
+    needs_retesting: false
+    status_history:
+      - working: false
+        agent: "testing"
+        comment: |
+          🟡 MEDIUM-LOW. Fired 10 concurrent POST /api/transactions with identical body → 10/10 returned 200 and 10 duplicate docs were stored. No idempotency-key mechanism.
+          Impact: mobile network retries or over-eager frontend code can silently create duplicate transactions. Consider accepting an `Idempotency-Key` header and short-circuiting within a 60s window, or at least warning the user when an identical (amount, category, description, within-N-seconds) hit exists.
+
+  - task: "Red-team confirmed WORKING defenses"
+    implemented: true
+    working: true
+    file: "/app/backend/*"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+      - working: true
+        agent: "testing"
+        comment: |
+          ✅ The following adversarial cases PASSED cleanly (Apr 21 2026):
+          • AUTH-IDOR-001 — B cannot read A's transactions (GET /api/transactions correctly scoped).
+          • AUTH-IDOR-002 — B cannot PUT or DELETE A's transactions (returns 404; update_transaction + delete_transaction correctly filter `{"user_id": user_id}`).
+          • AUTH-BYPASS-001 — ALL 9 protected routes return 401/422 when `Authorization` header is missing.
+          • INJ-NOSQL-001 — Mongo $ne injection via verify-otp body `{"phone":{"$ne":null}}` rejected by Pydantic (422). No auth bypass.
+          • INJ-XSS-001 (4 payloads) — `<script>`, `<img onerror>`, `javascript:`, `<svg onload>` all stored as plain strings without crashing the endpoint (escaping is correctly the frontend's responsibility).
+          • PATH-TRAV — `../../../etc/passwd` stored as plain string; no filesystem access.
+          • Chaos — malformed JSON → 422, phone="abc defgh" → 400, phone=500-chars → 400, OTP=null → 422, emoji UTF-8 description → 200 stored correctly, JWT with swapped signature → 401, garbage bearer → 401.
+          • VAL-OVERSIZE-avatar — POST /api/user/avatar with 800KB base64 correctly returns 400 (size cap at 700_000 chars enforced in routers/user.py line 76).
+          • RACE-SPLIT-001 — 5 concurrent POST /api/split/expenses submissions on the same group: all 5 succeeded AND balances are arithmetically correct (total_spent = 5×500 = ₹2,500 with no drift). The largest-remainder split-math helper is race-safe because each expense is an independent insert_one.
+          • AUTH-IDOR-003 list variant — GET /api/split/groups correctly filters by `members.user_id` (B does NOT see A's group in the list).
+
+
+
 mintu_e2e_regression_apr21_2026:
   - task: "MintU End-to-End Regression Testing - Mobile Viewport 390x844"
     implemented: true
@@ -5482,3 +5629,88 @@ agent_communication:
 ### 🏁 Status
 **MintU frontend is production-ready.** All critical UX friction points addressed. Remaining work requires user input (P2 integration API keys for MSG91 / Meta WhatsApp / FCM). No blocking bugs.
 
+
+---
+
+## 🔥 Red-Team Adversarial Test Matrix — Apr 21 2026
+
+**App:** MintU (Expo + FastAPI + MongoDB)  
+**Attack surface:** `/api/*` routes (port 8001) + web UI (port 3000)  
+**Auth:** JWT bearer token after phone-OTP + PIN flow
+
+### TOP 10 TESTS (ranked by risk × likelihood) 🎯
+
+| # | Test ID | Attack | Severity if vuln | Status |
+|---|---|---|---|---|
+| 1 | AUTH-IDOR-001 | Use user A's JWT to read user B's transactions (`GET /api/transactions`) | Critical | ⏳ |
+| 2 | AUTH-IDOR-002 | Modify another user's transaction (`PUT /api/transactions/{other_user_txn_id}`) | Critical | ⏳ |
+| 3 | AUTH-IDOR-003 | Read another user's split group details | Critical | ⏳ |
+| 4 | AUTH-BYPASS-001 | Hit protected routes with NO `Authorization` header | Critical | ⏳ |
+| 5 | INJ-NOSQL-001 | POST `{"phone": {"$ne": null}}` to `/api/auth/verify-otp` — Mongo operator injection | Critical | ⏳ |
+| 6 | INJ-XSS-001 | Submit transaction with `description: "<script>alert(1)</script>"` → view in txn list | High | ⏳ |
+| 7 | VAL-NEG-001 | POST transaction with `amount: -1000000000` → check if budget/stats break | High | ⏳ |
+| 8 | VAL-OVERSIZE-001 | POST transaction with 1 MB `description` string | Medium | ⏳ |
+| 9 | RACE-DOUBLE-001 | Fire 10 identical `POST /api/transactions` in <100ms — duplicate prevention | High | ⏳ |
+| 10 | RACE-SPLIT-001 | Concurrent split settlements → balance arithmetic drift | Critical | ⏳ |
+
+### CHAOS USER TESTS (UI-level)
+- CHAOS-001: Refresh browser mid-PIN entry → can user still proceed?
+- CHAOS-002: Enter non-numeric phone `abc defgh` → does OTP endpoint reject?
+- CHAOS-003: Type emoji `💰🚀😱` in transaction description → renders correctly?
+- CHAOS-004: Submit 0-amount transaction → rejected?
+- CHAOS-005: Leave OTP empty, tap Verify → graceful error?
+- CHAOS-006: Hammer "Send OTP" 20× in 2s → rate-limited or flooded?
+
+### INTEGRATION FAILURE TESTS
+- INT-LLM-001: AI Coach chat with backend LLM key removed → graceful fallback?
+- INT-LLM-002: AI Coach with timeout > 30s → user sees retry option?
+- INT-NEWS-001: News endpoint with cache invalidated → still returns data from fallback?
+
+
+agent_communication_redteam:
+  - agent: "testing"
+    message: |
+      🔴 RED-TEAM ADVERSARIAL RUN (Apr 21 2026) — test script /app/backend_test.py. Executed 41 adversarial assertions against https://mintu-finance.preview.emergentagent.com/api. Created two independent real users (phones 9876543210 and 9988776655) via OTP 123456.
+
+      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+      🚨 CRITICAL FAILURES (fix before prod):
+      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+      **Split Group IDOR cluster — routers/split_groups.py + routers/split_expenses.py**
+      User B (not a member) can successfully hit these with A's group_id:
+        • GET  /split/groups/{gid}/manage    → 200 leaks members + phones
+        • GET  /split/groups/{gid}/summary   → 200 leaks financial summary
+        • GET  /split/groups/{gid}/messages  → 200 leaks chat history
+        • POST /split/groups/{gid}/messages  → 200 can inject chat msgs
+        • PUT  /split/groups/{gid}/name      → 200 can RENAME group
+        • DELETE /split/groups/{gid}/members/{mid} → 200 can remove owner
+        • DELETE /split/groups/{gid}         → 200 can DESTROY group + all expenses
+      Root cause: 7 endpoints load group by _id only, never filter by "members.user_id": user_id. Fix is a one-line MongoDB filter per endpoint (see task status history for exact fix).
+
+      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+      🟠 HIGH FAILURES:
+      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+      **NaN / Infinity amount crashes /api/transactions** — POST with amount=NaN/Infinity/-Infinity returns HTTP 500 (`ValueError: Out of range float values are not JSON compliant`). Pydantic float default accepts them, Mongo stores them, then json.dumps crashes during response render. Backend log confirms. Fix: add field_validator rejecting NaN/Inf + negative in TransactionCreate.
+
+      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+      🟡 MEDIUM FAILURES:
+      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+        • Negative amounts accepted by POST /api/transactions (-1B stored). Will corrupt stats/overview, leaderboards, savings_rate, money_score. Note: PUT already validates but POST does not.
+        • 1 MB description stored in POST /api/transactions — bloats collection, degrades list queries.
+        • No dedup / idempotency on POST /api/transactions — 10 identical parallel POSTs → 10 duplicate docs. Frontend retries can silently duplicate expenses.
+
+      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+      ✅ Defenses that PASSED:
+      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+        • GET/PUT/DELETE /transactions correctly user-scoped (B cannot read/modify/delete A's txns; returns 404).
+        • All 9 protected routes return 401/422 when Authorization header missing.
+        • Mongo $ne injection in verify-otp rejected by Pydantic str-typing (422).
+        • XSS payloads (<script>, <img onerror>, javascript:, <svg onload>) stored as plain strings without crashing.
+        • Path traversal in category field stored as plain string; no fs access.
+        • OTP phone validation: non-numeric/500-char rejected (400), otp=null rejected (422), JWT signature swap rejected (401), garbage bearer rejected (401).
+        • POST /user/avatar 500KB cap enforced (800KB blob → 400).
+        • RACE-SPLIT-001: 5 concurrent /split/expenses POSTs → balances arithmetically correct (no drift).
+        • UTF-8 emoji description stored correctly.
+        • GET /split/groups correctly filters by membership (list endpoint is fine; the per-id endpoints are the problem).
+
+      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+      No frontend testing performed in this run as requested.
