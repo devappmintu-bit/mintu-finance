@@ -21,6 +21,7 @@ import { HomeSkeleton } from '../../components/SkeletonLoader';
 import InsightsCard from '../../components/home/InsightsCard';
 import DailyQuestCard from '../../components/DailyQuestCard';
 import PremiumHomeCard from '../../components/home/PremiumHomeCard';
+import MoneySchoolCard from '../../components/home/MoneySchoolCard';
 import AIInsightCard from '../../components/home/AIInsightCard';
 import UnifiedLeaderboard from '../../components/leaderboard/UnifiedLeaderboard';
 import AnimatedCoin from '../../components/AnimatedCoin';
@@ -280,6 +281,9 @@ export default function HomeScreen() {
 
         {/* PREMIUM — expandable card on Home, locked for free users */}
         <PremiumHomeCard />
+
+        {/* MONEY SCHOOL — separate premium feature card (AI bot distinct from AI Coach) */}
+        <MoneySchoolCard />
 
         {/* MintU 2.0 — Daily Quest Card (habit loop) */}
         <DailyQuestCard coinsStatus={coinsStatus} />

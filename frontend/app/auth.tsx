@@ -14,6 +14,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { COLORS, RADIUS, SPACING, ONBOARDING_IMAGES } from '../utils/theme';
 import { LANGUAGES, LangCode } from '../utils/i18n';
 import PinSetupModal from '../components/PinSetupModal';
+import AuthTransitionOverlay from '../components/auth/AuthTransitionOverlay';
 
 type AuthStep = 'phone' | 'otp' | 'name';
 
@@ -28,6 +29,7 @@ export default function AuthScreen() {
   const [resendTimer, setResendTimer] = useState(0);
   const [showLangPicker, setShowLangPicker] = useState(false);
   const [pinSetupVisible, setPinSetupVisible] = useState(false);
+  const [welcomeAnim, setWelcomeAnim] = useState(false);
   const { setUser, setToken } = useAuthStore();
   const otpRefs = useRef<(TextInput | null)[]>([]);
 
@@ -70,7 +72,7 @@ export default function AuthScreen() {
       // Returning user — offer PIN setup if they've never set one.
       const { hasPin } = await import('../utils/lockManager');
       if (!(await hasPin())) { setPinSetupVisible(true); return; }
-      router.replace('/(tabs)');
+      setWelcomeAnim(true);
     } catch (err: any) { Alert.alert(t('error', lang), err.response?.data?.detail || 'Invalid OTP'); setOtp(['','','','','','']); otpRefs.current[0]?.focus(); }
     finally { setLoading(false); }
   };
@@ -176,9 +178,14 @@ export default function AuthScreen() {
       {/* PIN Setup Modal — shown after fresh signup or first returning OTP login */}
       <PinSetupModal
         visible={pinSetupVisible}
-        onDone={() => { setPinSetupVisible(false); router.replace('/(tabs)'); }}
-        onSkip={() => { setPinSetupVisible(false); router.replace('/(tabs)'); }}
+        onDone={() => { setPinSetupVisible(false); setWelcomeAnim(true); }}
+        onSkip={() => { setPinSetupVisible(false); setWelcomeAnim(true); }}
       />
+
+      {/* Post-login welcome transition — fades in a saffron overlay then routes to Home */}
+      {welcomeAnim && (
+        <AuthTransitionOverlay variant="unlocking" onDone={() => router.replace('/(tabs)')} />
+      )}
 
       {/* Language Picker Modal */}
       <Modal visible={showLangPicker} animationType="slide" transparent>

@@ -25,7 +25,6 @@ import FinancialSnapshot from '../../components/profile/FinancialSnapshot';
 import PaymentMethods from '../../components/profile/PaymentMethods';
 import RewardsHub from '../../components/profile/RewardsHub';
 import AuthTransitionOverlay from '../../components/auth/AuthTransitionOverlay';
-import PremiumExpandable from '../../components/profile/PremiumExpandable';
 import ReferralDashboard from '../../components/profile/ReferralDashboard';
 import ViewShot, { captureRef } from 'react-native-view-shot';
 import { sendTestPush } from '../../hooks/usePushNotifications';
@@ -262,8 +261,8 @@ export default function ProfileScreen() {
 
         <PaymentMethods upiId={upiId} />
 
-        {/* PREMIUM payment card lives here — Home only shows the feature list */}
-        <PremiumExpandable onExplore={() => router.push('/premium' as any)} />
+        {/* PREMIUM moved to Home tab — see PremiumHomeCard on the Home screen.
+            Profile stays focused on user settings & account management. */}
 
         <ReferralDashboard
           referral={referral}
