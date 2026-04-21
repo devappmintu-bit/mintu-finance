@@ -695,6 +695,28 @@ frontend_focus_regression_apr21_2026:
         agent: "testing"
         comment: "✅ FOCUS AREA 1 PASS - Bottom tab bar renders without crash at iPhone 12 dimensions (390x844). Code review confirms HDFC-style twin-arch implementation with cream (#FFFFFF) rounded bar, two arch cutouts on either side of raised circular mascot puck with saffron glow. Four side-tabs present: Home (index), Transactions, Budget, Split. Center AI Coach mascot (tab-ai-coach testID) navigates to AI Coach screen. Tab switching functional without jank. SVG-based arch geometry with responsive design for different screen widths."
 
+design_overhaul_v3_apr21_2026:
+  - task: "Design system v3 — dark theme + neon orange + glassmorphism + Inter font"
+    implemented: true
+    working: true
+    file: "/app/frontend/utils/theme.ts, /app/frontend/app/_layout.tsx, /app/frontend/app/(tabs)/_layout.tsx, /app/frontend/app/(tabs)/index.tsx, /app/frontend/components/ui/GlassCard.tsx, NeonButton.tsx, GlowPill.tsx, InsightCard.tsx"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+      - working: true
+        agent: "main"
+        comment: "✅ Phase 1 design overhaul complete (Apr 21 2026). 1) Flipped theme.ts COLORS palette to dark (#0B0B12 bg, #F5F5F7 text, #FF6B1A neon orange accent) while preserving backward-compat keys — 50+ screens auto-re-skin. 2) Added new tokens GLASS, GRADIENT, GLOW, MOTION, FONT_FAMILY. 3) Installed @expo-google-fonts/inter and loaded Inter_400/500/600/700/900 via useFonts in root layout with 1.2s timeout fallback. 4) Fixed expo-font version mismatch (55.0.6 → 14.0.11) via `npx expo install expo-font`. 5) Tab bar now renders dark glass SVG gradient silhouette + neon-orange raised puck with pulsing glow. 6) Home header updated: neon-orange greeting, amber glass coins chip, dark glass stat boxes, neon-glow predict card. 7) Created 4 new primitives: GlassCard (BlurView on iOS/web, solid Android fallback), NeonButton (gradient + glow + press scale), GlowPill (pulse animation chip), InsightCard (AI-driven surface with gradient accent + big number). 8) Fixed pre-existing _layout.tsx bug — CUTOUT_W was referenced outside archGeom() scope."
+      - working: true
+        agent: "testing"
+        comment: "✅ 6/6 visual regression checks PASS. App boots without crash, SSR HTML confirms dark theme tokens render correctly (rgba(26,26,36), rgba(255,107,26), rgba(255,176,71) all present). OTP auth screen dark, Home screen dark, tab bar twin-arch with neon glow puck, other tabs load clean. Zero console errors beyond known deprecation warnings."
+
+agent_communication:
+    -agent: "main"
+    -message: "🎨 DESIGN SYSTEM v3 DEPLOYED (Apr 21 2026). MintU now has a next-gen fintech look — dark obsidian canvas + electric neon-orange accent + glassmorphism + Inter typography. Scope of change: theme.ts COLORS tokens flipped in-place (50+ screens auto-update), 4 new UI primitives (GlassCard, NeonButton, GlowPill, InsightCard), Inter fonts via @expo-google-fonts/inter with non-blocking 1.2s fallback, tab bar SVG now uses dark gradient + raised puck with neon glow, Home header fully dark-themed. ALSO FIXED a latent tab-bar crash bug (CUTOUT_W scope leak) and the expo-font SDK-54 version mismatch. Backend unchanged — all 12 critical endpoints remain 200. Frontend testing agent verified 6/6 visual regressions pass. Remaining phase 2 work: Transactions/Budget/Split/Profile screens can be migrated to GlassCard/NeonButton for further polish (future session)."
+
+
+
   - task: "Home screen TapTile haptics - /app/frontend/app/(tabs)/index.tsx"
     implemented: true
     working: true
