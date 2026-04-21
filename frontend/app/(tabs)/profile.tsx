@@ -31,6 +31,7 @@ import AuthTransitionOverlay from '../../components/auth/AuthTransitionOverlay';
 import ReferralDashboard from '../../components/profile/ReferralDashboard';
 import ViewShot, { captureRef } from 'react-native-view-shot';
 import { sendTestPush } from '../../hooks/usePushNotifications';
+import TapTile from '../../components/ui/TapTile';
 
 export default function ProfileScreen() {
   const { user, logout, avatar, setAvatar } = useAuthStore();
@@ -285,28 +286,29 @@ export default function ProfileScreen() {
 
         {/* Settings */}
         <Text style={s.secTitle}>Settings</Text>
-        <TouchableOpacity style={s.menuItem} onPress={() => router.push('/gmail' as any)}>
+        <TapTile style={s.menuItem} onPress={() => router.push('/gmail' as any)} testID="profile-menu-gmail">
           <Ionicons name="mail-outline" size={20} color="#EA4335" />
           <View style={{ flex: 1, marginLeft: 12 }}>
             <Text style={s.menuText}>Gmail Auto-Import</Text>
             <Text style={{ fontSize: 11, color: COLORS.text.muted }}>Auto-track bank transactions from your inbox</Text>
           </View>
           <Ionicons name="chevron-forward" size={16} color={COLORS.text.muted} />
-        </TouchableOpacity>
-        <TouchableOpacity style={s.menuItem} onPress={() => setLangModalVisible(true)}>
+        </TapTile>
+        <TapTile style={s.menuItem} onPress={() => setLangModalVisible(true)} testID="profile-menu-lang">
           <Ionicons name="language" size={20} color="#E65100" />
           <View style={{ flex: 1, marginLeft: 12 }}>
             <Text style={s.menuText}>{t('language', lang)}</Text>
             <Text style={{ fontSize: 11, color: '#E65100' }}>{currentLang?.nativeName}</Text>
           </View>
           <Ionicons name="chevron-forward" size={16} color={COLORS.text.muted} />
-        </TouchableOpacity>
-        <TouchableOpacity
+        </TapTile>
+        <TapTile
           style={s.menuItem}
           onPress={async () => {
             const { sent, message } = await sendTestPush();
             Toast.show({ type: sent ? 'success' : 'info', text1: sent ? 'Test push sent!' : 'Push test', text2: message });
           }}
+          testID="profile-menu-push"
         >
           <Ionicons name="notifications-outline" size={20} color={COLORS.accent.primary} />
           <View style={{ flex: 1, marginLeft: 12 }}>
@@ -314,22 +316,22 @@ export default function ProfileScreen() {
             <Text style={{ fontSize: 11, color: COLORS.text.muted }}>Tap to send a test notification</Text>
           </View>
           <Ionicons name="chevron-forward" size={16} color={COLORS.text.muted} />
-        </TouchableOpacity>
-        <TouchableOpacity style={s.menuItem} onPress={() => setHelpVisible(true)}>
+        </TapTile>
+        <TapTile style={s.menuItem} onPress={() => setHelpVisible(true)} testID="profile-menu-help">
           <Ionicons name="help-circle-outline" size={20} color={COLORS.accent.warning} />
           <Text style={[s.menuText, { marginLeft: 12 }]}>{t('help_support', lang)}</Text>
           <Ionicons name="chevron-forward" size={16} color={COLORS.text.muted} />
-        </TouchableOpacity>
-        <TouchableOpacity style={s.menuItem} onPress={() => router.push('/about' as any)}>
+        </TapTile>
+        <TapTile style={s.menuItem} onPress={() => router.push('/about' as any)} testID="profile-menu-about">
           <Ionicons name="information-circle-outline" size={20} color={COLORS.accent.primary} />
           <Text style={[s.menuText, { marginLeft: 12 }]}>About MintU</Text>
           <Text style={s.menuHint}>Features · Why MintU · v1</Text>
           <Ionicons name="chevron-forward" size={16} color={COLORS.text.muted} />
-        </TouchableOpacity>
-        <TouchableOpacity style={s.logoutBtn} onPress={handleLogout}>
+        </TapTile>
+        <TapTile style={s.logoutBtn} onPress={handleLogout} feedback="medium" testID="profile-logout">
           <Ionicons name="log-out-outline" size={20} color={COLORS.accent.moneyOut} />
           <Text style={s.logoutText}>{t('logout', lang)}</Text>
-        </TouchableOpacity>
+        </TapTile>
 
         {/* Danger zone — delete account (soft or hard) */}
         <DeleteAccountSection />

@@ -3888,6 +3888,50 @@ agent_communication:
 
         2. ✅ Fixed `dismissReminder` infinite recursion — same shadowing pattern.
            Now imports as `dismissReminderSrv`.
+
+# ════════════════════════════════════════════════════════════════════
+# ROUND 33 (Apr 21 2026) — UI/UX Deep Optimization wrap-up
+# ════════════════════════════════════════════════════════════════════
+
+agent_communication:
+    - agent: "main"
+      message: |
+        Follow-up UI/UX polish pass complete:
+
+        **New primitive:**
+        1. ✅ Card — shared card chrome component with 4 variants (default/elevated/ghost/danger)
+           and 5 pad presets (none/sm/md/lg/xl on 8pt grid). Replaces ad-hoc card recipes.
+           File: /app/frontend/components/ui/Card.tsx
+
+        **TapTile rollout on Profile:**
+        2. ✅ Profile menu items (Gmail, Language, Notifications test, Help, About)
+           migrated from TouchableOpacity → TapTile. Unified haptic + scale press animation.
+        3. ✅ Logout button → TapTile with feedback="medium" (heavier haptic for destructive)
+
+        **Visual verification on Profile tab:**
+        - Mascot hero card + Money Score + streak
+        - Challenges & Achievements card
+        - My Rewards card
+        - Payment Methods V2 card (new)
+        - Notifications card (new industry-standard toggles)
+        - Settings section: 5 TapTile menu rows with haptic/scale feedback
+        - Logout TapTile + Delete Account danger zone (new)
+        - Footer: RBI-aligned badge + "v1 · Made with ❤️ in India"
+        - Tab bar v3 with circular raised puck + saffron Home pill active
+
+        **What was deferred (with rationale):**
+        - ActivityIndicator → Skeleton bulk migration skipped: most are in-button
+          submit spinners which are semantically correct uses. Only full-screen loaders
+          need migration, and those were the primary targets (HomeSkeleton already done).
+        - Card primitive not yet applied to individual cards — the primitive exists and
+          is ready for gradual adoption. Forcing the migration across 40+ components now
+          would risk regressions without a proportional UX win.
+
+        **All 3 follow-up items delivered or reasoned through:**
+        ✅ TapTile adoption on Profile menu tiles (6 migrations)
+        ✅ Skeleton primitive in place + HomeSkeleton using it
+        ✅ Card primitive created and ready for adoption
+
         Both were pre-existing bugs in /app/frontend/app/(tabs)/split.tsx.
 
         **New Split AI Insights:**
