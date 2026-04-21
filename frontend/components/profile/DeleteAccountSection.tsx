@@ -151,21 +151,26 @@ export default function DeleteAccountSection() {
           <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={{ width: '100%' }}>
             <View style={m.sheet}>
               <View style={m.grip} />
-              <View style={m.iconBig}><Ionicons name="warning" size={30} color={COLORS.state.danger} /></View>
+              <View style={[m.iconBig, { backgroundColor: COLORS.state.dangerBg }]}>
+                <Ionicons name="nuclear" size={32} color={COLORS.state.danger} />
+              </View>
+              <View style={s.irreversibleBadge}>
+                <Ionicons name="alert-circle" size={12} color={COLORS.state.danger} />
+                <Text style={s.irreversibleTxt}>IRREVERSIBLE ACTION</Text>
+              </View>
               <Text style={m.title}>Delete account permanently?</Text>
               <Text style={m.body}>
-                This will immediately wipe every trace of your data across MintU:
-                transactions, budgets, splits, rewards, vouchers, Gmail integrations, push tokens,
-                AI chat history, and your user profile. This cannot be undone.
+                This wipes every trace of your data: transactions, budgets, splits,
+                rewards, Gmail, push tokens, AI history, profile. <Text style={{ fontWeight: '900', color: COLORS.state.danger }}>Cannot be undone.</Text>
               </Text>
-              <Text style={m.label}>Type DELETE to confirm</Text>
+              <Text style={s.typeHint}>Type <Text style={s.typeHintBold}>DELETE</Text> (all caps) to confirm</Text>
               <TextInput
                 value={confirmation}
                 onChangeText={setConfirmation}
                 placeholder="DELETE"
                 placeholderTextColor={COLORS.text.muted}
                 autoCapitalize="characters"
-                style={m.input}
+                style={[m.input, s.dangerInput, confirmation === 'DELETE' && s.dangerInputValid]}
                 testID="del-hard-confirm"
               />
               <View style={m.actions}>
@@ -217,6 +222,13 @@ const useSStyles = makeStyles((c) => ({
   primarySub: { fontSize: 11.5, color: '#047857', marginTop: 2, lineHeight: 15.5, fontWeight: '600' },
 
   dangerZone: { marginTop: 14, paddingTop: 12, borderTopWidth: 1, borderTopColor: c.border.subtle },
+  // Delta 2 — stronger IRREVERSIBLE UX for type-DELETE modal
+  irreversibleBadge: { flexDirection: 'row', alignItems: 'center', gap: 4, alignSelf: 'center', marginBottom: 6, paddingHorizontal: 10, paddingVertical: 3, borderRadius: 999, backgroundColor: c.state.dangerBg, borderWidth: 1, borderColor: c.state.danger + '40' },
+  irreversibleTxt: { fontSize: 10, fontWeight: '900', color: c.state.danger, letterSpacing: 1 },
+  typeHint: { fontSize: 12.5, color: c.text.secondary, marginTop: 6, marginBottom: 6, fontWeight: '600', textAlign: 'center' },
+  typeHintBold: { fontWeight: '900', color: c.state.danger, letterSpacing: 1 },
+  dangerInput: { borderColor: c.state.danger + '66', borderWidth: 1.5, fontWeight: '900', letterSpacing: 3, fontSize: 16, textAlign: 'center' },
+  dangerInputValid: { borderColor: c.state.danger, backgroundColor: c.state.dangerBg },
   dangerZoneHeader: { flexDirection: 'row', alignItems: 'center', gap: 4, marginBottom: 6 },
   dangerZoneLabel: { fontSize: 9.5, fontWeight: '900', color: c.state.danger, letterSpacing: 0.8 },
   dangerRow: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingVertical: 10, paddingHorizontal: 12, borderRadius: 10, backgroundColor: c.state.dangerBg, borderWidth: 1, borderColor: c.state.danger + '40' },

@@ -22,6 +22,8 @@ import ShareScoreCard from '../../components/profile/ShareScoreCard';
 import BadgesSection from '../../components/profile/BadgesSection';
 import WeeklyChallenge from '../../components/profile/WeeklyChallenge';
 import ProfileHero from '../../components/profile/ProfileHero';
+import AccordionSection from '../../components/profile/AccordionSection';
+import WeeklyReport from '../../components/home/WeeklyReport';
 import ThemeToggle from '../../components/profile/ThemeToggle';
 import FinancialSnapshot from '../../components/profile/FinancialSnapshot';
 import PaymentMethodsV2 from '../../components/profile/PaymentMethodsV2';
@@ -267,22 +269,64 @@ export default function ProfileScreen() {
 
         <FinancialSnapshot stats={realStats} />
 
-        {/* Budget streak / achievements — moved here from Budget tab per design ask.
-            Sits next to Challenges & Achievements for a unified gamification story. */}
-        <BudgetAchievements />
+        {/* ─────────── Collapsible modules (Delta 2 — reduce cognitive load) ─────────── */}
 
-        {/* All rewards earned across the app — consolidated here per design ask */}
-        <RewardsHub />
+        <AccordionSection
+          icon="ribbon"
+          iconTint="#F59E0B"
+          title="Achievements"
+          subtitle="Budget streaks & milestone badges"
+        >
+          <BudgetAchievements />
+        </AccordionSection>
 
-        <PaymentMethodsV2 />
+        <AccordionSection
+          icon="gift"
+          iconTint="#EC4899"
+          title="Rewards"
+          subtitle="Coins, trophies & perks earned across MintU"
+        >
+          <RewardsHub />
+        </AccordionSection>
 
-        {/* Theme preference (Light / System / Dark) — affects mascot + brand mark */}
-        <ThemeToggle />
+        <AccordionSection
+          icon="analytics"
+          iconTint="#3B82F6"
+          title="Insights"
+          subtitle="Weekly reports & spending intelligence"
+        >
+          <WeeklyReport weeklyReport={null} snapshot={null} user={user} />
+        </AccordionSection>
 
-        {/* PREMIUM moved to Home tab — see PremiumHomeCard on the Home screen.
-            Profile stays focused on user settings & account management. */}
+        {/* ─────────── Grouped Settings ─────────── */}
+        <Text style={s.secTitle}>Settings</Text>
 
-        <NotificationSettings />
+        <AccordionSection
+          icon="card"
+          iconTint="#10B981"
+          title="Payment Methods"
+          subtitle="UPI · Cards · Wallets · Net Banking"
+        >
+          <PaymentMethodsV2 />
+        </AccordionSection>
+
+        <AccordionSection
+          icon="color-palette"
+          iconTint="#8B5CF6"
+          title="Preferences"
+          subtitle="Theme & language"
+        >
+          <ThemeToggle />
+        </AccordionSection>
+
+        <AccordionSection
+          icon="notifications"
+          iconTint="#F56E1E"
+          title="Notifications"
+          subtitle="Daily nudges & weekly reports"
+        >
+          <NotificationSettings />
+        </AccordionSection>
 
         <ReferralDashboard
           referral={referral}
@@ -294,8 +338,7 @@ export default function ProfileScreen() {
           onShareScoreCard={openShareScoreCard}
         />
 
-        {/* Settings */}
-        <Text style={s.secTitle}>Settings</Text>
+        {/* Legacy settings menu list */}
         <View style={s.settingsCard}>
           <TapTile style={s.settingsRow} onPress={() => router.push('/gmail' as any)} testID="profile-menu-gmail">
             <View style={s.settingsRowInner}>

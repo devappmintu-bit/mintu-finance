@@ -7221,3 +7221,103 @@ auth_relocation_apr21_2026:
           Awaiting user visual verification on preview URL (phone
           9876543210 · OTP 123456 · PIN 1234).
 
+
+────────────────────────────────────────────────────────────────────
+## 🎨 Delta Phase — ShareCard v3 Dark · Profile Accordion · DELETE UX
+────────────────────────────────────────────────────────────────────
+
+  - task: "Delta 1 — ShareCard v3 DARK premium (CRED-level)"
+    implemented: true
+    working: "NA"
+    file: "/app/frontend/components/profile/ShareScoreCard.tsx"
+    needs_retesting: true
+    status_history:
+      - working: "NA"
+        agent: "main"
+        comment: |
+          Full dark-premium re-skin of ShareScoreCard:
+            • Base gradient flipped to dark (#0B0D12 → #1A1F2E → #0B0D12)
+            • Accent glow blobs (color-shifted per percentile) replace heavy
+              borders — soft, premium
+            • Score hero — 96pt 900-weight, −4 letter-spacing; delta pill
+              sits next to the /100 suffix
+            • Rank percentile pill now dynamic-colored (gold/green/blue/
+              purple/amber based on score tier)
+            • Competitive hook "Think you can beat me?" centered, 18pt bold
+            • CTA block "Download MintU" (saffron) + "mintu.app · 🇮🇳"
+            • Referral code row — saffron-tinted, subtle but visible
+            • Still 340pt wide → export-ready at 3.2× pixelRatio
+
+  - task: "Delta 2 — Profile Accordion restructure"
+    implemented: true
+    working: "NA"
+    file: "/app/frontend/components/profile/AccordionSection.tsx"
+    needs_retesting: true
+    status_history:
+      - working: "NA"
+        agent: "main"
+        comment: |
+          Created AccordionSection.tsx — reusable collapsible module with:
+            • LayoutAnimation-driven smooth expand/collapse
+            • Haptic selection on toggle (native only)
+            • Optional icon bubble (tinted) + badge count + subtitle
+            • Lazy children rendering (only mount after first open) —
+              means Achievements/Rewards/Insights fetches DON'T run
+              until the user expands the section (big perf win)
+            • Active-state border tint in saffron
+
+          Wired into profile.tsx — restructured to:
+            1. ProfileHero (existing saffron hero)
+            2. FinancialSnapshot (compact always-visible)
+            3. ▸ Achievements    (collapsed)
+            4. ▸ Rewards         (collapsed)
+            5. ▸ Insights        (collapsed, lazy WeeklyReport)
+            ─── "Settings" label ───
+            6. ▸ Payment Methods (collapsed, lazy PaymentMethodsV2)
+            7. ▸ Preferences     (collapsed, ThemeToggle inside)
+            8. ▸ Notifications   (collapsed, NotificationSettings inside)
+            9. ReferralDashboard (kept inline)
+           10. Settings menu + Delete zone + logout
+
+          All 6 accordion sections default collapsed — profile page now
+          scans in <3 screenfuls instead of ~8.
+
+  - task: "Delta 3 — DELETE confirmation UX polish"
+    implemented: true
+    working: "NA"
+    file: "/app/frontend/components/profile/DeleteAccountSection.tsx"
+    needs_retesting: true
+    status_history:
+      - working: "NA"
+        agent: "main"
+        comment: |
+          Strengthened the type-DELETE modal visuals:
+            • Red nuclear icon in red-tinted bubble (was generic warning)
+            • "IRREVERSIBLE ACTION" pill below icon (uppercase, red border)
+            • Hint line: "Type DELETE (all caps) to confirm" with red bold
+            • Input: 16pt 900-weight, 3pt letter-spacing, center-aligned,
+              red border; turns into red-bg when valid (matches pattern)
+            • Body copy shortened + "Cannot be undone" in red 900 weight
+            • Delete button stays at 40% opacity until text === "DELETE"
+
+  - task: "Delta 4 — Performance pass"
+    implemented: true
+    working: "NA"
+    file: "AccordionSection.tsx + profile.tsx"
+    needs_retesting: true
+    status_history:
+      - working: "NA"
+        agent: "main"
+        comment: |
+            • Lazy children in AccordionSection (lazy=true default) means
+              PaymentMethodsV2/RewardsHub/BudgetAchievements/WeeklyReport
+              are NOT mounted on initial profile render — zero fetch
+              overhead until user expands the section
+            • LayoutAnimation on expand/collapse → smooth 60fps native
+              animation without extra libs
+            • Existing skeleton loaders preserved for initial profile load
+            • Bundle compiles clean: 2269 modules · <5s re-bundle
+            • Backend untouched · Zero new API calls
+
+          Awaiting user visual verification on preview URL.
+

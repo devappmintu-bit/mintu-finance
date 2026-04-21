@@ -14,27 +14,26 @@ export type ShareScoreCardData = {
   savingsRate: number;
   coins?: number;
   referralCode?: string;
-  monthlyDelta?: number; // +X score this month
+  monthlyDelta?: number;
 };
 
 /**
- * ShareScoreCard v2 — Viral Engine Edition (Phase 1 UX redesign)
+ * ShareScoreCard v3 — Dark Premium (CRED-level polish · Phase Delta 1)
  *
- * Upgrades:
- *   • Rank percentile badge  ("Top 12% in India 🇮🇳")
- *   • Monthly Δ progress     ("+7 this month 📈")
- *   • Competitive hook CTA   ("Can you beat me?")
- *   • Lighter gradient (saffron + cream) for better contrast & readability
- *   • Clearer typography hierarchy (score is the hero, everything else serves it)
- *   • Still IG-story aspect ratio for captureRef → shareImageSmart
+ * Design goals:
+ *   • <2 second scan time (Score dominates the card)
+ *   • Dark base (#0B0D12) with saffron accent only where needed
+ *   • Minimal clutter: NO heavy borders, NO busy patterns, ONE soft shadow
+ *   • Clear hierarchy: Score → Rank → Stats → CTA → Referral
+ *   • High-resolution export-ready (captureRef at 3.2× pixelRatio upstream)
  */
 
-function percentileFor(score: number): { label: string; color: string } {
-  if (score >= 90) return { label: 'Top 5% in India 🇮🇳',  color: '#FBBF24' };
-  if (score >= 80) return { label: 'Top 12% in India 🇮🇳', color: '#10B981' };
-  if (score >= 70) return { label: 'Top 25% in India 🇮🇳', color: '#3B82F6' };
-  if (score >= 50) return { label: 'Top 50% in India 🇮🇳', color: '#A78BFA' };
-  return { label: 'Building my score 🇮🇳', color: '#F97316' };
+function percentileFor(score: number): { label: string; color: string; ring: string } {
+  if (score >= 90) return { label: 'TOP 5% IN INDIA',  color: '#FBBF24', ring: 'rgba(251,191,36,0.25)' };
+  if (score >= 80) return { label: 'TOP 12% IN INDIA', color: '#34D399', ring: 'rgba(52,211,153,0.25)' };
+  if (score >= 70) return { label: 'TOP 25% IN INDIA', color: '#60A5FA', ring: 'rgba(96,165,250,0.25)' };
+  if (score >= 50) return { label: 'TOP 50% IN INDIA', color: '#C084FC', ring: 'rgba(192,132,252,0.25)' };
+  return { label: 'BUILDING MY SCORE', color: '#FB923C', ring: 'rgba(251,146,60,0.25)' };
 }
 
 const ShareScoreCard = React.forwardRef<View, { data: ShareScoreCardData }>(
@@ -46,30 +45,35 @@ const ShareScoreCard = React.forwardRef<View, { data: ShareScoreCardData }>(
     return (
       <View ref={ref} collapsable={false} style={s.wrap}>
         <LinearGradient
-          colors={['#FFF7ED', '#FFE4C4', '#F56E1E']}
+          colors={['#0B0D12', '#1A1F2E', '#0B0D12']}
           start={{ x: 0, y: 0 }}
           end={{ x: 1, y: 1 }}
+          locations={[0, 0.5, 1]}
           style={s.card}
         >
-          {/* Top row: MintU brand + hashtag */}
+          {/* Accent glow blobs — subtle, premium */}
+          <View style={[s.glow1, { backgroundColor: pct.ring }]} />
+          <View style={s.glow2} />
+
+          {/* Brand strip */}
           <View style={s.brandRow}>
             <View style={s.logoCircle}>
               <Text style={s.logoText}>M</Text>
             </View>
             <Text style={s.brand}>MintU</Text>
-            <View style={s.tagPill}>
-              <Text style={s.tagText}>#MoneyScore</Text>
+            <View style={s.hashPill}>
+              <Text style={s.hashTxt}>#MoneyScore</Text>
             </View>
           </View>
 
-          {/* Percentile badge — new hero element above the fold */}
-          <View style={[s.percentilePill, { borderColor: pct.color + 'AA' }]}>
-            <Ionicons name="trophy" size={13} color={pct.color} />
-            <Text style={[s.percentileTxt, { color: pct.color }]}>{pct.label}</Text>
+          {/* Rank percentile pill (above the fold, under brand) */}
+          <View style={[s.rankPill, { borderColor: pct.color, backgroundColor: pct.color + '15' }]}>
+            <Ionicons name="trophy" size={12} color={pct.color} />
+            <Text style={[s.rankTxt, { color: pct.color }]}>{pct.label}</Text>
           </View>
 
-          {/* User identity */}
-          <View style={s.userBlock}>
+          {/* User row */}
+          <View style={s.userRow}>
             {data.avatar ? (
               <Image source={{ uri: data.avatar }} style={s.avatar} />
             ) : (
@@ -77,29 +81,32 @@ const ShareScoreCard = React.forwardRef<View, { data: ShareScoreCardData }>(
                 <Text style={s.avatarInit}>{(data.name || 'U').charAt(0).toUpperCase()}</Text>
               </View>
             )}
-            <Text style={s.userName} numberOfLines={1}>{data.name || 'User'}</Text>
+            <View style={{ flex: 1 }}>
+              <Text style={s.userName} numberOfLines={1}>{data.name || 'User'}</Text>
+              <View style={s.tierRow}>
+                <Text style={s.tierEmoji}>{data.tierEmoji}</Text>
+                <Text style={s.tierText}>{data.tier}</Text>
+              </View>
+            </View>
           </View>
 
           {/* BIG SCORE — the hero */}
           <View style={s.scoreBlock}>
-            <Text style={s.scoreLabel}>MONEY SCORE</Text>
-            <View style={s.scoreRow}>
+            <View style={s.scoreInnerRow}>
               <Text style={s.scoreBig}>{data.score}</Text>
-              <Text style={s.scoreOutOf}>/100</Text>
-            </View>
-            {/* Monthly delta pill */}
-            {delta !== 0 && (
-              <View style={[s.deltaPill, { backgroundColor: delta > 0 ? '#10B98120' : '#EF444420' }]}>
-                <Ionicons name={delta > 0 ? 'trending-up' : 'trending-down'} size={12} color={delta > 0 ? '#059669' : '#DC2626'} />
-                <Text style={[s.deltaTxt, { color: delta > 0 ? '#059669' : '#DC2626' }]}>
-                  {delta > 0 ? '+' : ''}{delta} this month
-                </Text>
+              <View style={s.scoreMeta}>
+                <Text style={s.scoreOutOf}>/100</Text>
+                {delta !== 0 && (
+                  <View style={[s.deltaPill, { backgroundColor: delta > 0 ? 'rgba(52,211,153,0.15)' : 'rgba(248,113,113,0.15)' }]}>
+                    <Ionicons name={delta > 0 ? 'trending-up' : 'trending-down'} size={10} color={delta > 0 ? '#34D399' : '#F87171'} />
+                    <Text style={[s.deltaTxt, { color: delta > 0 ? '#34D399' : '#F87171' }]}>
+                      {delta > 0 ? '+' : ''}{delta}
+                    </Text>
+                  </View>
+                )}
               </View>
-            )}
-            <View style={s.tierPill}>
-              <Text style={s.tierEmoji}>{data.tierEmoji}</Text>
-              <Text style={s.tierText}>{data.tier}</Text>
             </View>
+            <Text style={s.scoreLabel}>MONEY SCORE</Text>
           </View>
 
           {/* Stats row */}
@@ -107,12 +114,12 @@ const ShareScoreCard = React.forwardRef<View, { data: ShareScoreCardData }>(
             <View style={s.statBox}>
               <Text style={s.statEmoji}>🔥</Text>
               <Text style={s.statNum}>{data.streak}</Text>
-              <Text style={s.statLbl}>Day Streak</Text>
+              <Text style={s.statLbl}>Streak</Text>
             </View>
             <View style={s.statDivider} />
             <View style={s.statBox}>
               <Text style={s.statEmoji}>💰</Text>
-              <Text style={s.statNum}>{data.savingsRate}%</Text>
+              <Text style={s.statNum}>{data.savingsRate}<Text style={s.statUnit}>%</Text></Text>
               <Text style={s.statLbl}>Saved</Text>
             </View>
             <View style={s.statDivider} />
@@ -123,18 +130,23 @@ const ShareScoreCard = React.forwardRef<View, { data: ShareScoreCardData }>(
             </View>
           </View>
 
-          {/* Competitive hook footer */}
-          <View style={s.hookBlock}>
-            <Text style={s.hookLine}>Can you beat me?</Text>
-            <Text style={s.ctaLine}>Download MintU & track your score</Text>
-            {data.referralCode ? (
-              <View style={s.codeWrap}>
-                <Text style={s.codeLbl}>USE CODE</Text>
-                <Text style={s.code}>{data.referralCode}</Text>
-              </View>
-            ) : null}
-            <Text style={s.madeIn}>🇮🇳  Made in India  ·  mintu.app</Text>
+          {/* Competitive hook */}
+          <Text style={s.hook}>Think you can beat me?</Text>
+
+          {/* CTA */}
+          <View style={s.ctaBlock}>
+            <Text style={s.ctaDownload}>Download MintU</Text>
+            <Text style={s.ctaDomain}>mintu.app  ·  🇮🇳</Text>
           </View>
+
+          {/* Referral — subtle but visible */}
+          {data.referralCode ? (
+            <View style={s.codeRow}>
+              <Text style={s.codeLbl}>USE CODE</Text>
+              <Text style={s.code}>{data.referralCode}</Text>
+              <Text style={s.codeSub}>+ bonus coins</Text>
+            </View>
+          ) : null}
         </LinearGradient>
       </View>
     );
@@ -145,57 +157,63 @@ ShareScoreCard.displayName = 'ShareScoreCard';
 export default ShareScoreCard;
 
 const useStyles = makeStyles(() => ({
-  wrap: {
-    width: 340,
-    borderRadius: 28,
-    overflow: 'hidden',
-    backgroundColor: '#FFF7ED',
-  },
+  wrap: { width: 340, borderRadius: 28, overflow: 'hidden', backgroundColor: '#0B0D12' },
   card: {
-    paddingHorizontal: 22,
-    paddingVertical: 24,
+    paddingHorizontal: 24,
+    paddingTop: 22,
+    paddingBottom: 22,
     gap: 16,
-    alignItems: 'center',
+    position: 'relative',
+    overflow: 'hidden',
   },
-  brandRow: { flexDirection: 'row', alignItems: 'center', gap: 10, alignSelf: 'stretch' },
-  logoCircle: { width: 32, height: 32, borderRadius: 16, backgroundColor: '#C14A06', justifyContent: 'center', alignItems: 'center' },
-  logoText: { fontSize: 16, fontWeight: '900', color: '#fff' },
-  brand: { fontSize: 18, fontWeight: '900', color: '#7A2E0A', flex: 1, letterSpacing: 0.2 },
-  tagPill: { backgroundColor: 'rgba(122,46,10,0.1)', paddingHorizontal: 9, paddingVertical: 4, borderRadius: 999, borderWidth: 1, borderColor: 'rgba(122,46,10,0.18)' },
-  tagText: { fontSize: 10, fontWeight: '800', color: '#7A2E0A', letterSpacing: 0.3 },
+  // Premium glow accents — replace heavy gradient borders
+  glow1: { position: 'absolute', top: -80, right: -60, width: 220, height: 220, borderRadius: 110 },
+  glow2: { position: 'absolute', bottom: -100, left: -80, width: 240, height: 240, borderRadius: 120, backgroundColor: 'rgba(245,110,30,0.10)' },
 
-  percentilePill: { flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: 'rgba(255,255,255,0.8)', paddingHorizontal: 12, paddingVertical: 6, borderRadius: 999, borderWidth: 1.5 },
-  percentileTxt: { fontSize: 12, fontWeight: '900', letterSpacing: 0.2 },
+  brandRow: { flexDirection: 'row', alignItems: 'center', gap: 10 },
+  logoCircle: { width: 30, height: 30, borderRadius: 15, backgroundColor: '#F56E1E', justifyContent: 'center', alignItems: 'center' },
+  logoText: { fontSize: 15, fontWeight: '900', color: '#fff' },
+  brand: { flex: 1, fontSize: 17, fontWeight: '900', color: '#fff', letterSpacing: 0.2 },
+  hashPill: { backgroundColor: 'rgba(255,255,255,0.08)', paddingHorizontal: 10, paddingVertical: 4, borderRadius: 999 },
+  hashTxt: { fontSize: 10, fontWeight: '800', color: '#D1D5DB', letterSpacing: 0.4 },
 
-  userBlock: { alignItems: 'center', gap: 4 },
-  avatar: { width: 66, height: 66, borderRadius: 33, borderWidth: 3, borderColor: '#fff' },
-  avatarPlace: { width: 66, height: 66, borderRadius: 33, backgroundColor: '#fff', justifyContent: 'center', alignItems: 'center', borderWidth: 3, borderColor: '#fff' },
-  avatarInit: { fontSize: 26, fontWeight: '900', color: '#C14A06' },
-  userName: { fontSize: 17, fontWeight: '800', color: '#1F2937', marginTop: 2 },
+  rankPill: { alignSelf: 'flex-start', flexDirection: 'row', alignItems: 'center', gap: 5, paddingHorizontal: 11, paddingVertical: 5, borderRadius: 999, borderWidth: 1 },
+  rankTxt: { fontSize: 11, fontWeight: '900', letterSpacing: 0.8 },
 
-  scoreBlock: { alignItems: 'center', backgroundColor: 'rgba(255,255,255,0.72)', borderRadius: 22, paddingVertical: 18, paddingHorizontal: 18, borderWidth: 1, borderColor: 'rgba(193,74,6,0.12)', alignSelf: 'stretch' },
-  scoreLabel: { fontSize: 10, fontWeight: '900', color: '#C2410C', letterSpacing: 2, marginBottom: 4 },
-  scoreRow: { flexDirection: 'row', alignItems: 'flex-end' },
-  scoreBig: { fontSize: 80, fontWeight: '900', color: '#1F2937', letterSpacing: -3, lineHeight: 82 },
-  scoreOutOf: { fontSize: 20, fontWeight: '800', color: '#9CA3AF', marginBottom: 14, marginLeft: 2 },
-  deltaPill: { flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 6, paddingHorizontal: 10, paddingVertical: 4, borderRadius: 999 },
-  deltaTxt: { fontSize: 11.5, fontWeight: '900' },
-  tierPill: { flexDirection: 'row', alignItems: 'center', gap: 5, marginTop: 10, paddingHorizontal: 12, paddingVertical: 5, borderRadius: 999, backgroundColor: '#C14A06' },
-  tierEmoji: { fontSize: 13 },
-  tierText: { fontSize: 12, fontWeight: '900', color: '#fff', letterSpacing: 0.3 },
+  userRow: { flexDirection: 'row', alignItems: 'center', gap: 12 },
+  avatar: { width: 52, height: 52, borderRadius: 26, borderWidth: 2, borderColor: 'rgba(255,255,255,0.2)' },
+  avatarPlace: { width: 52, height: 52, borderRadius: 26, backgroundColor: '#F56E1E', justifyContent: 'center', alignItems: 'center', borderWidth: 2, borderColor: 'rgba(255,255,255,0.2)' },
+  avatarInit: { fontSize: 22, fontWeight: '900', color: '#fff' },
+  userName: { fontSize: 17, fontWeight: '800', color: '#fff', letterSpacing: -0.3 },
+  tierRow: { flexDirection: 'row', alignItems: 'center', gap: 5, marginTop: 2 },
+  tierEmoji: { fontSize: 12 },
+  tierText: { fontSize: 11, fontWeight: '800', color: '#9CA3AF', letterSpacing: 0.2 },
 
-  statsRow: { flexDirection: 'row', alignItems: 'center', backgroundColor: 'rgba(255,255,255,0.65)', borderRadius: 16, paddingVertical: 10, paddingHorizontal: 4, alignSelf: 'stretch' },
-  statBox: { flex: 1, alignItems: 'center', gap: 2 },
+  scoreBlock: { alignItems: 'center', marginVertical: 2 },
+  scoreInnerRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 8 },
+  scoreBig: { fontSize: 96, fontWeight: '900', color: '#fff', letterSpacing: -4, lineHeight: 98 },
+  scoreMeta: { alignItems: 'flex-start', gap: 6, marginTop: 12 },
+  scoreOutOf: { fontSize: 18, fontWeight: '800', color: '#6B7280' },
+  deltaPill: { flexDirection: 'row', alignItems: 'center', gap: 3, paddingHorizontal: 8, paddingVertical: 3, borderRadius: 999 },
+  deltaTxt: { fontSize: 11, fontWeight: '900' },
+  scoreLabel: { fontSize: 10, fontWeight: '900', color: '#6B7280', letterSpacing: 2.5, marginTop: 4 },
+
+  statsRow: { flexDirection: 'row', alignItems: 'center', backgroundColor: 'rgba(255,255,255,0.05)', borderRadius: 16, paddingVertical: 12, paddingHorizontal: 8 },
+  statBox: { flex: 1, alignItems: 'center', gap: 3 },
   statEmoji: { fontSize: 16 },
-  statNum: { fontSize: 16, fontWeight: '900', color: '#1F2937' },
-  statLbl: { fontSize: 9.5, fontWeight: '700', color: '#6B7280', letterSpacing: 0.3 },
-  statDivider: { width: 1, height: 30, backgroundColor: 'rgba(0,0,0,0.08)' },
+  statNum: { fontSize: 18, fontWeight: '900', color: '#fff', letterSpacing: -0.3 },
+  statUnit: { fontSize: 12, fontWeight: '800', color: '#9CA3AF' },
+  statLbl: { fontSize: 9.5, fontWeight: '700', color: '#6B7280', letterSpacing: 0.6 },
+  statDivider: { width: 1, height: 28, backgroundColor: 'rgba(255,255,255,0.08)' },
 
-  hookBlock: { alignItems: 'center', gap: 5, marginTop: 2, alignSelf: 'stretch' },
-  hookLine: { fontSize: 19, fontWeight: '900', color: '#7A2E0A', letterSpacing: -0.2 },
-  ctaLine: { fontSize: 12, fontWeight: '700', color: '#92400E' },
-  codeWrap: { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 6, paddingHorizontal: 12, paddingVertical: 6, borderRadius: 10, backgroundColor: 'rgba(193,74,6,0.15)', borderWidth: 1, borderColor: 'rgba(193,74,6,0.25)' },
-  codeLbl: { fontSize: 9, fontWeight: '900', color: '#7A2E0A', letterSpacing: 1 },
-  code: { fontSize: 14, fontWeight: '900', color: '#7A2E0A', letterSpacing: 1.5 },
-  madeIn: { fontSize: 10.5, fontWeight: '700', color: '#7A2E0A', marginTop: 6, letterSpacing: 0.3 },
+  hook: { fontSize: 18, fontWeight: '900', color: '#fff', textAlign: 'center', letterSpacing: -0.3, marginTop: 2 },
+
+  ctaBlock: { alignItems: 'center', gap: 3, marginTop: -8 },
+  ctaDownload: { fontSize: 14, fontWeight: '900', color: '#F56E1E', letterSpacing: 0.2 },
+  ctaDomain: { fontSize: 11, fontWeight: '700', color: '#6B7280', letterSpacing: 0.3 },
+
+  codeRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, paddingVertical: 7, paddingHorizontal: 12, borderRadius: 10, backgroundColor: 'rgba(245,110,30,0.12)', borderWidth: 1, borderColor: 'rgba(245,110,30,0.3)' },
+  codeLbl: { fontSize: 9, fontWeight: '900', color: '#9CA3AF', letterSpacing: 0.8 },
+  code: { fontSize: 13, fontWeight: '900', color: '#F56E1E', letterSpacing: 1.5 },
+  codeSub: { fontSize: 10, fontWeight: '700', color: '#6B7280' },
 }));
