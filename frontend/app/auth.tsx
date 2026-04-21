@@ -110,7 +110,7 @@ export default function AuthScreen() {
 
       <View style={s.header}>
         <View style={s.mascotWrap}>
-          <Mascot size={96} glow variant="auto" />
+          <Mascot size={96} variant="auto" />
         </View>
         <Text style={s.logoText}>MintU</Text>
         <Text style={s.stepTitle}>{t('enter_phone', lang)}</Text>
@@ -132,7 +132,7 @@ export default function AuthScreen() {
       <TouchableOpacity style={s.backBtn} onPress={() => { setStep('phone'); setOtp(['','','','','','']); }}><Ionicons name="arrow-back" size={22} color={COLORS.text.primary} /></TouchableOpacity>
       <View style={s.header}>
         <View style={s.mascotSmallWrap}>
-          <Mascot size={72} glow variant="auto" />
+          <Mascot size={72} variant="auto" />
         </View>
         <Text style={s.stepTitle}>{t('verify_otp', lang)}</Text>
         <Text style={s.stepSubtitle}>{t('verify_subtitle', lang)}{'\n'}<Text style={s.phoneHighlight}>+91 {phone}</Text></Text>
@@ -160,7 +160,7 @@ export default function AuthScreen() {
       <TouchableOpacity style={s.backBtn} onPress={() => setStep('otp')}><Ionicons name="arrow-back" size={22} color={COLORS.text.primary} /></TouchableOpacity>
       <View style={s.header}>
         <View style={s.mascotSmallWrap}>
-          <Mascot size={72} glow variant="auto" />
+          <Mascot size={72} variant="auto" />
         </View>
         <Text style={s.stepTitle}>{t('welcome_aboard', lang)}</Text>
         <Text style={s.stepSubtitle}>{t('what_name', lang)}</Text>

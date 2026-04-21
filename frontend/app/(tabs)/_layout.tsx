@@ -48,8 +48,8 @@ function labelOf(name: string, lang: any): string {
 }
 
 // ─── Geometry constants ────────────────────────────────────────────────────
-const PUCK_SIZE  = 58;       // rounded-SQUARE center button (raised above pill)
-const PUCK_INNER = 46;
+const PUCK_SIZE  = 72;       // rounded-SQUARE center button (larger than 40px tab chips)
+const PUCK_INNER = 62;
 const BAR_HEIGHT = 76;       // floating pill height
 const BAR_INSET_X = 16;      // horizontal gap from screen edges
 const BAR_INSET_B = Platform.OS === 'ios' ? 22 : 14; // gap from bottom
@@ -165,7 +165,7 @@ function MintUTabBar({ state, navigation }: BottomTabBarProps) {
           })}
         </View>
         {/* Spacer for the raised center button */}
-        <View style={{ width: PUCK_SIZE + 14 }} />
+        <View style={{ width: PUCK_SIZE + 18 }} />
         <View style={st.side}>
           {right.map((route) => {
             const focused = state.index === state.routes.findIndex(r => r.key === route.key);
@@ -287,10 +287,10 @@ const useStyles = makeStyles((c) => {
     sideLabel:   { fontSize: 10.5, color: c.text.secondary, fontFamily: FONT_FAMILY.semibold, letterSpacing: 0.2, marginTop: 2 },
     sideLabelOn: { color: c.accent.primary, fontFamily: FONT_FAMILY.bold },
 
-    // RAISED rounded-SQUARE center button (Paytm-style)
+    // RAISED rounded-SQUARE center button (larger + transparent mascot bg)
     raisedWrap: {
       position: 'absolute',
-      bottom: BAR_INSET_B + BAR_HEIGHT - PUCK_SIZE / 2 + 2,
+      bottom: BAR_INSET_B + BAR_HEIGHT - PUCK_SIZE / 2 - 4,
       alignSelf: 'center',
       width: PUCK_SIZE,
       height: PUCK_SIZE,
@@ -300,21 +300,21 @@ const useStyles = makeStyles((c) => {
     },
     raisedOuter: {
       width: PUCK_SIZE, height: PUCK_SIZE,
-      borderRadius: 18,                // rounded-SQUARE (not circle)
-      backgroundColor: isLight ? '#15171F' : '#14151B',
+      borderRadius: 20,                // rounded-SQUARE (not circle)
+      backgroundColor: isLight ? '#FFFFFF' : '#1A1C24',
       alignItems: 'center', justifyContent: 'center',
-      borderWidth: 3,
-      borderColor: isLight ? '#FFFFFF' : '#0B0C10',
+      borderWidth: 2,
+      borderColor: isLight ? 'rgba(17,24,39,0.08)' : 'rgba(255,255,255,0.08)',
       ...Platform.select({
-        ios:     { shadowColor: c.accent.primary, shadowOpacity: 0.65, shadowRadius: 14, shadowOffset: { width: 0, height: 6 } },
+        ios:     { shadowColor: '#000', shadowOpacity: isLight ? 0.16 : 0.55, shadowRadius: 14, shadowOffset: { width: 0, height: 6 } },
         android: { elevation: 18 },
-        web:     { boxShadow: '0 8px 22px rgba(255,107,26,0.55), 0 2px 10px rgba(0,0,0,0.35)' as any },
+        web:     { boxShadow: isLight ? '0 8px 22px rgba(17,24,39,0.18)' : '0 8px 22px rgba(0,0,0,0.55)' as any },
       }),
     },
     raisedInner: {
       width: PUCK_INNER, height: PUCK_INNER,
-      borderRadius: 14,                // rounded-square inner
-      backgroundColor: c.accent.primary,
+      borderRadius: 16,                // rounded-square inner — NO orange bg, transparent
+      backgroundColor: 'transparent',
       overflow: 'hidden',
       alignItems: 'center', justifyContent: 'center',
     },

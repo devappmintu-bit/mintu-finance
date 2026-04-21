@@ -5022,3 +5022,29 @@ agent_communication:
 
     **Result:** A clean, modern, floating capsule tab bar that matches the reference Paytm design while retaining MintU's orange brand accent + mascot identity. The center button now "complements" the other tab chips — they share the same dark-chip visual language, with the brand accent distinguishing the active state + the center AI Coach button.
 
+
+---
+
+## ✅ Mascot Highlight Removal + Enlarged AI Coach Tab — Apr 21 2026
+
+    **User Request:**
+    1. Remove the orange highlight/glow from the Mascot background
+    2. Remove the orange color background in the AI Coach center tab icon
+    3. Increase the AI Coach center button size compared to the other tab chips
+
+    **Implementation:**
+    1. **Removed `glow` prop from all Mascot usages:**
+       - `/app/frontend/app/auth.tsx` — Phone, OTP, Name-capture screens (3 instances)
+       - `/app/frontend/components/PinSetupModal.tsx` — PIN creation screen (1 instance)
+       → The orange-tinted box-shadow halo that was visible as a rectangle behind the mascot is now gone. Mascot sits cleanly on its card.
+    2. **Enlarged center AI Coach button in `/app/frontend/app/(tabs)/_layout.tsx`:**
+       - `PUCK_SIZE` 58 → 72 (vs. side-tab chips at 40×40 — now ~1.8× bigger)
+       - `PUCK_INNER` 46 → 62
+       - Spacer width adjusted to accommodate the larger button
+    3. **Removed orange fill on the AI Coach center button:**
+       - `raisedInner.backgroundColor`: `c.accent.primary` (orange) → `'transparent'`
+       - `raisedOuter.backgroundColor`: dark (`#15171F` / `#14151B`) → adaptive white/obsidian (`#FFFFFF` light / `#1A1C24` dark)
+       - Removed the heavy orange glow shadow; replaced with a soft neutral drop-shadow that matches the pill's styling
+
+    **Screenshot-verified:** The mascot now shows without any orange halo on the auth screens, and the tabs screen displays a clean floating pill with the Home tab highlighted in orange + a larger rounded-square AI Coach button in the center containing just the mascot (no orange fill).
+

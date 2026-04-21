@@ -69,7 +69,7 @@ export default function PinSetupModal({ visible, onDone, onSkip }: Props) {
     <Modal visible={visible} animationType="slide" transparent={false}>
       <View style={s.container}>
         <View style={s.top}>
-          <MintULogo size={76} glow />
+          <MintULogo size={76} />
           <Text style={s.title}>{showDone ? 'You\'re all set!' : stage === 'enter' ? 'Create a 4-digit PIN' : 'Confirm your PIN'}</Text>
           <Text style={s.sub}>
             {showDone
