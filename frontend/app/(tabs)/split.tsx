@@ -10,11 +10,11 @@ import Toast from 'react-native-toast-message';
 import api from '../../utils/api';
 import {
   fetchSplitGroups, createSplitGroup, fetchGroupSummary, fetchGroupManage,
-  fetchSplitBalances, fetchSplitActivity, fetchReminders, dismissReminder,
+  fetchSplitBalances, fetchSplitActivity, fetchReminders, dismissReminder as dismissReminderSrv,
   updateGroupName, addGroupMember, removeGroupMember, leaveGroup, deleteGroup,
   createExpense, updateExpense, deleteExpense,
   fetchSettlementLeaderboard, fetchPayIntent, settleWithRewards,
-  partialSettle as partialSettleSrv, markPaidOffline,
+  partialSettle as partialSettleSrv, markPaidOffline as markPaidOfflineSrv,
   createSplitRazorpayOrder, sendPaymentReminder,
 } from '../../services/split';
 import { useAuthStore } from '../../store/authStore';
@@ -27,6 +27,7 @@ import { SHADOW, COLORS } from '../../utils/theme';
 import { shareSmart, copyToClipboard } from '../../utils/share';
 import { C, getGA, DebtRow } from '../../components/split/theme';
 import SettleUpCard from '../../components/split/SettleUpCard';
+import SplitInsightsHero from '../../components/split/SplitInsightsHero';
 import RemindersBanner from '../../components/split/RemindersBanner';
 import CreateGroupSheet from '../../components/split/CreateGroupSheet';
 import ContactPickerSheet from '../../components/split/ContactPickerSheet';
@@ -383,7 +384,7 @@ export default function SplitScreen() {
         { text: 'Cancel', style: 'cancel' },
         { text: 'Yes', onPress: async () => {
           try {
-            const r = { data: await markPaidOffline({ target_user_id: row.to_id, amount: row.amount, group_id: row.group_id, method }) };
+            const r = { data: await markPaidOfflineSrv({ target_user_id: row.to_id, amount: row.amount, group_id: row.group_id, method }) };
             Toast.show({ type: 'success', text1: 'Marked as paid ✅', text2: r.data.message });
             fetchData();
           } catch (e: any) {
@@ -417,7 +418,7 @@ export default function SplitScreen() {
   };
 
   const dismissReminder = async (rid: string) => {
-    try { await dismissReminder(rid); fetchData(); } catch {}
+    try { await dismissReminderSrv(rid); fetchData(); } catch {}
   };
 
   // Legacy WhatsApp-only remind kept for Summary modal row buttons
@@ -465,6 +466,9 @@ export default function SplitScreen() {
         </View>
 
         <RemindersBanner received={reminders.received} onDismiss={dismissReminder} />
+
+        {/* AI-powered insights carousel — makes the tab lively & addictive */}
+        <SplitInsightsHero />
 
         <SettleUpCard
           rows={settleRows}
