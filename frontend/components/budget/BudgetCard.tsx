@@ -34,6 +34,7 @@ type Props = {
 function formatINR(n: number) { return `₹${Math.round(n).toLocaleString('en-IN')}`; }
 
 const BudgetCard = memo(function BudgetCard({ item, onEdit, onDelete, onAddExpense, onInsights }: Props) {
+  const s = useStyles();
   const limit = Number(item.amount ?? item.budget ?? 0);
   const spent = Number(item.spent ?? 0);
   const pct = limit > 0 ? Math.min(100, (spent / limit) * 100) : 0;

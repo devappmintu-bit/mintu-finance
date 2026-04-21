@@ -48,8 +48,12 @@ export default function DeleteAccountSection() {
       setModalMode(null);
       setSheetOpen(false);
       setConfirmation('');
-      await logout();
-      setTimeout(() => router.replace('/auth' as any), 300);
+      // Navigate BEFORE clearing auth state — this keeps the Root Layout mounted
+      // while the router transition fires (prevents "Attempted to navigate before
+      // mounting the Root Layout component" uncaught error).
+      try { router.replace('/auth' as any); } catch { /* swallow if already unmounted */ }
+      // Defer logout to next microtask so navigation commits first.
+      queueMicrotask(() => { logout().catch(() => {}); });
     } catch (e: any) {
       Toast.show({ type: 'error', text1: e?.response?.data?.detail || 'Couldn\'t delete account' });
     } finally {
