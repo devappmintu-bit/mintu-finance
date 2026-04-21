@@ -5084,3 +5084,33 @@ agent_communication:
 
     **Screenshot verification**: The Home screen now shows a beautifully sized floating pill tab bar with prominent dark circular chips (orange highlight on active Home tab), a larger rounded-square AI Coach center button with a bright orange accent border ring and mascot inside, and perfect alignment across all 4 tab items + labels. Profile footer and About screen display `v1.0.0`.
 
+
+---
+
+## 🧪 E2E Frontend Test Plan — Apr 21 2026 (new session)
+
+metadata:
+  created_by: "main_agent"
+  version: "1.0"
+  test_sequence: 12
+  run_ui: true
+
+test_plan:
+  current_focus:
+    - "Auth Flow (Phone → OTP → PIN → Home) with mascot on every step (no orange halo)"
+    - "Floating Pill Tab Bar — 4 dark chips + orange-accent AI Coach raised square, tab navigation"
+    - "Profile Settings Card (grouped rows + dividers) + Logout pill + Delete Account pill (new UI)"
+    - "Theme Engine — Light / Dark / System / AMOLED switching without crashes, all surfaces adapt"
+    - "AI Coach center button → navigates to /ai-coach screen"
+    - "App Version v1.0.0 visible in Profile footer + About screen"
+    - "All 5 tabs (Home, Transactions, Budgets, Split, Profile) load cleanly — no ReferenceError: s/st/styles/sk/COLORS"
+    - "Delete Account sheet — both soft (30-day) and hard (DELETE confirm) paths wire correctly"
+    - "Payment Methods V2 + PinSetupModal + AuthTransitionOverlay (previously broken by migration)"
+    - "Skeleton loaders (HomeSkeleton, TransactionsSkeleton, BudgetSkeleton, SplitSkeleton) render during loading states"
+  stuck_tasks: []
+  test_all: true
+  test_priority: "high_first"
+
+agent_communication:
+  - agent: "main"
+    message: "Large refactor session just landed. 22+ runtime bugs from the earlier automated makeStyles migration have been fixed (SideTab/MintUTabBar, SkeletonLoader exports, AboutMintU Row/LinkRow, ThemeToggle, PaymentMethodsV2, AuthTransitionOverlay, and 14 others — each one was missing its `const s/st/styles/sk = useStyles()` hook call or a `COLORS` import). Tab bar was fully redesigned from HDFC twin-arch → floating Paytm-style pill capsule with dark circular chips, orange-accent ring around AI Coach center button, and raised rounded-square. Version bumped to proper semver v1.0.0 everywhere. Please run full E2E frontend regression — login with test credentials phone `9876543210`, OTP `123456`, PIN `1234`. Verify all 5 tabs, Profile → Theme toggle (Light/Dark/AMOLED), Delete account sheet options, AI Coach navigation from center button, and confirm no JS runtime errors in console. Flag any visual breakage — particularly on the Profile Settings card, Delete pill, and tab bar alignment."
