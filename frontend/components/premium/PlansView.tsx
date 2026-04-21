@@ -1,35 +1,85 @@
 // Plans view — 3-tier pricing + feature comparison.
 import React from 'react';
 import { View, Text, ScrollView, TouchableOpacity, Alert } from 'react-native';
+import * as WebBrowser from 'expo-web-browser';
 import { Ionicons } from '@expo/vector-icons';
 import Toast from 'react-native-toast-message';
 import { COLORS } from '../../utils/theme';
 import { useActivePlan, PLAN_META } from '../../utils/premium';
 import type { Plan } from '../../utils/premium';
 import { premiumStyles as styles, fmtINR } from './styles';
+import api from '../../utils/api';
+
+// Frontend plan-key → backend subscription-tier ("lite"|"pro"|"elite")
+const PLAN_TO_TIER: Record<Plan, 'lite' | 'pro' | 'elite' | null> = {
+  free: null, intro: 'lite', monthly: 'pro', yearly: 'elite',
+};
 
 export default function PlansView({ potentialSavings }: { potentialSavings: number }) {
   const [plan, setPlan] = useActivePlan();
 
+  // UPI AutoPay flow — creates a Razorpay subscription and opens the hosted
+  // mandate-authorisation page. Gracefully falls back to mock-activate if the
+  // admin hasn't configured the plan_id in Razorpay Dashboard yet.
+  const startAutoPay = async (p: Plan) => {
+    const tier = PLAN_TO_TIER[p];
+    if (!tier) return;
+    try {
+      const r = await api.post('/premium/create-subscription', { tier, total_count: 12 });
+      if (r.data?.short_url) {
+        await WebBrowser.openBrowserAsync(r.data.short_url);
+        Toast.show({
+          type: 'info',
+          text1: 'UPI AutoPay mandate opened',
+          text2: 'Complete authorisation to activate ' + PLAN_META[p].label,
+          position: 'bottom',
+        });
+        return true;
+      }
+    } catch (e: any) {
+      const status = e?.response?.status;
+      const detail = e?.response?.data?.detail || '';
+      if (status === 503) {
+        // Plan not yet configured in Razorpay dashboard — offer mock activation.
+        Alert.alert(
+          'AutoPay not configured yet',
+          `${detail}\n\nActivate in demo mode instead?`,
+          [
+            { text: 'Cancel', style: 'cancel' },
+            { text: 'Demo activate', onPress: () => mockActivate(p) },
+          ],
+        );
+        return false;
+      }
+      Toast.show({ type: 'error', text1: 'Could not start AutoPay', text2: detail || 'Network error' });
+      return false;
+    }
+    return false;
+  };
+
+  const mockActivate = async (p: Plan) => {
+    await setPlan(p);
+    Toast.show({
+      type: 'success',
+      text1: `🎉 ${PLAN_META[p].label} activated!`,
+      text2: 'All premium features unlocked',
+      position: 'bottom',
+    });
+  };
+
   const buy = async (p: Plan) => {
     if (p === plan) return;
+    if (p === 'free') {
+      await mockActivate(p);
+      return;
+    }
     Alert.alert(
       `Activate ${PLAN_META[p].label}?`,
-      `${PLAN_META[p].price} ${PLAN_META[p].priceSub}\n\nDemo: no real payment. You'll unlock all ${PLAN_META[p].label} features immediately.`,
+      `${PLAN_META[p].price} ${PLAN_META[p].priceSub}\n\nChoose how you'd like to pay:`,
       [
         { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Activate',
-          onPress: async () => {
-            await setPlan(p);
-            Toast.show({
-              type: 'success',
-              text1: `🎉 ${PLAN_META[p].label} activated!`,
-              text2: 'All premium features unlocked',
-              position: 'bottom',
-            });
-          },
-        },
+        { text: 'Demo', onPress: () => mockActivate(p) },
+        { text: '🟢 UPI AutoPay', onPress: () => startAutoPay(p) },
       ],
     );
   };

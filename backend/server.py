@@ -640,6 +640,7 @@ from routers import (  # noqa: E402
     sms as sms_router,
     premium as premium_router,
     premium_reports as premium_reports_router,
+    premium_subscriptions as premium_subscriptions_router,
     ab as ab_router,
     share as share_router,
     privacy as privacy_router,
@@ -658,7 +659,8 @@ for r in (
     news_router, referral_router, gamification_router, content_router,
     transactions_router, budgets_router, family_router, analytics_router,
     user_router, splits_router, ai_router, cash_router, notifications_router,
-    sms_router, premium_router, premium_reports_router, ab_router, share_router, privacy_router,
+    sms_router, premium_router, premium_reports_router, premium_subscriptions_router,
+    ab_router, share_router, privacy_router,
     budgets_ext_router, alerts_router, upi_router, insights_ext_router, gmail_oauth_router,
     home_bundle_router, rewards_router, split_insights_router,
 ):
