@@ -70,7 +70,7 @@ export default function PrimaryButton({
 
   const p = PAD[size];
   const isDark = variant === 'solid' || variant === 'danger';
-  const fg = isDark ? '#FFFFFF' : (variant === 'ghost' ? '#F56E1E' : '#C14A06');
+  const fg = isDark ? '#FFFFFF' : (variant === 'ghost' ? '#FF8C42' : '#FFB547');
 
   const content = (
     <View style={[s.inner, { paddingVertical: p.v, paddingHorizontal: p.h }]}>
@@ -106,12 +106,12 @@ export default function PrimaryButton({
         android_ripple={{ color: 'rgba(255,255,255,0.16)' }}
       >
         {variant === 'solid' && (
-          <LinearGradient colors={['#F56E1E', '#C14A06']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }}>
+          <LinearGradient colors={['#FF8C42', '#FF6B1A', '#E84A0C']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }}>
             {content}
           </LinearGradient>
         )}
         {variant === 'danger' && (
-          <LinearGradient colors={['#EF4444', '#B91C1C']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }}>
+          <LinearGradient colors={['#FF5470', '#E11D48']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }}>
             {content}
           </LinearGradient>
         )}
@@ -128,6 +128,6 @@ export default function PrimaryButton({
 
 const s = StyleSheet.create({
   inner: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center' },
-  ghostBg: { backgroundColor: 'transparent', borderWidth: 1.5, borderColor: '#F56E1E', borderRadius: 14 },
-  tonalBg: { backgroundColor: '#FFF0E3', borderRadius: 14 },
+  ghostBg: { backgroundColor: 'rgba(255,107,26,0.08)', borderWidth: 1.5, borderColor: '#FF6B1A', borderRadius: 14 },
+  tonalBg: { backgroundColor: 'rgba(255,107,26,0.14)', borderWidth: 1, borderColor: 'rgba(255,107,26,0.35)', borderRadius: 14 },
 });

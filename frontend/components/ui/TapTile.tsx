@@ -1,17 +1,18 @@
 /**
- * TapTile — unified interactive wrapper.
+ * TapTile — unified interactive wrapper with animated ripple-glow.
  *
  * Use instead of raw <TouchableOpacity> for all tappable surfaces.
  * Applies:
  *   • Haptic selection feedback on press
- *   • Subtle scale-down (0.97) on press-in animation
+ *   • Subtle scale-down (0.97) on press-in spring animation
+ *   • Radial ripple-glow effect on tap (neon orange by default) — 260ms
  *   • Reduced-motion safe (respects system setting)
  *
  * Replaces ad-hoc `activeOpacity={0.8}` touches across the app with one
  * consistent feel. Wraps any children — styles passed through.
  */
 import React, { useRef } from 'react';
-import { Pressable, Animated, PressableProps, StyleProp, ViewStyle, Platform } from 'react-native';
+import { Pressable, Animated, View, PressableProps, StyleProp, ViewStyle, Platform, StyleSheet } from 'react-native';
 import * as Haptics from 'expo-haptics';
 
 type Feedback = 'selection' | 'light' | 'medium' | 'heavy' | 'none';
@@ -22,6 +23,10 @@ type Props = PressableProps & {
   disabled?: boolean;
   style?: StyleProp<ViewStyle>;
   children?: React.ReactNode;
+  /** Enable/disable the ripple-glow (default true). */
+  ripple?: boolean;
+  /** Ripple tint color (default neon orange 0.35 alpha). */
+  rippleColor?: string;
 };
 
 const hapticFor = (f: Feedback) => {
@@ -43,13 +48,25 @@ export default function TapTile({
   onPressIn,
   onPressOut,
   onPress,
+  ripple = true,
+  rippleColor = 'rgba(255,107,26,0.35)',
   ...rest
 }: Props) {
   const scale = useRef(new Animated.Value(1)).current;
+  const rippleScale = useRef(new Animated.Value(0)).current;
+  const rippleOpacity = useRef(new Animated.Value(0)).current;
 
   const handlePressIn = (e: any) => {
     if (!disabled) {
       Animated.spring(scale, { toValue: scaleTo, useNativeDriver: true, speed: 40, bounciness: 0 }).start();
+      if (ripple) {
+        rippleScale.setValue(0);
+        rippleOpacity.setValue(0.9);
+        Animated.parallel([
+          Animated.timing(rippleScale,   { toValue: 1, duration: 260, useNativeDriver: true }),
+          Animated.timing(rippleOpacity, { toValue: 0, duration: 260, useNativeDriver: true }),
+        ]).start();
+      }
     }
     onPressIn?.(e);
   };
@@ -68,12 +85,25 @@ export default function TapTile({
       onPressOut={handlePressOut}
       onPress={handlePress}
       disabled={disabled}
-      // On web, Pressable renders as a div; disable user-select for nicer feel
       {...(Platform.OS === 'web' ? { style: [{ outlineWidth: 0 } as any, style] } : {})}
       {...rest}
     >
-      <Animated.View style={[{ transform: [{ scale }] }, Platform.OS !== 'web' ? style : undefined]}>
+      <Animated.View style={[{ transform: [{ scale }], overflow: 'hidden' }, Platform.OS !== 'web' ? style : undefined]}>
         {children}
+        {ripple && (
+          <Animated.View
+            pointerEvents="none"
+            style={[
+              StyleSheet.absoluteFillObject,
+              {
+                backgroundColor: rippleColor,
+                opacity: rippleOpacity,
+                transform: [{ scale: rippleScale }],
+                borderRadius: 999,
+              },
+            ]}
+          />
+        )}
       </Animated.View>
     </Pressable>
   );

@@ -470,7 +470,7 @@ const styles = StyleSheet.create({
   pageSubtitle: { fontSize: 13, color: COLORS.text.muted },
   headerActions: { flexDirection: 'row', gap: 10 },
   addBtn: { width: 44, height: 44, borderRadius: 22, backgroundColor: COLORS.accent.primary, justifyContent: 'center', alignItems: 'center', ...SHADOW.md },
-  filterBtn: { width: 44, height: 44, borderRadius: 22, backgroundColor: '#FFF0E0', justifyContent: 'center', alignItems: 'center', borderWidth: 1, borderColor: '#F56E1E40', position: 'relative' },
+  filterBtn: { width: 44, height: 44, borderRadius: 22, backgroundColor: 'rgba(255,107,26,0.14)', justifyContent: 'center', alignItems: 'center', borderWidth: 1, borderColor: 'rgba(255,107,26,0.4)', position: 'relative' },
   filterBadge: { position: 'absolute', top: -2, right: -2, minWidth: 18, height: 18, borderRadius: 9, backgroundColor: '#F56E1E', alignItems: 'center', justifyContent: 'center', paddingHorizontal: 4, borderWidth: 2, borderColor: '#FAFAF9' },
   filterBadgeTxt: { fontSize: 10, fontWeight: '800', color: '#fff' },
   // Quick bar
@@ -486,7 +486,7 @@ const styles = StyleSheet.create({
   txnInfo: { flex: 1 },
   txnDesc: { fontSize: 15, fontWeight: '600', color: COLORS.text.primary, flex: 1 },
   txnDescRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
-  gmailBadge: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#FFF7ED', borderColor: '#FED7AA', borderWidth: 1, paddingHorizontal: 6, paddingVertical: 2, borderRadius: 6 },
+  gmailBadge: { flexDirection: 'row', alignItems: 'center', backgroundColor: 'rgba(255,107,26,0.14)', borderColor: 'rgba(255,107,26,0.4)', borderWidth: 1, paddingHorizontal: 6, paddingVertical: 2, borderRadius: 6 },
   gmailBadgeText: { fontSize: 9, fontWeight: '800', color: '#C14A06', letterSpacing: 0.3 },
   txnMetaRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 3 },
   txnMeta: { fontSize: 12, color: COLORS.text.muted },
@@ -532,6 +532,6 @@ const styles = StyleSheet.create({
   reportTitle: { fontSize: 15, fontWeight: '700', color: COLORS.text.primary },
   trendRow: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 12, paddingVertical: 8, borderRadius: RADIUS.full, marginBottom: 10 },
   insightRow: { paddingVertical: 8, borderBottomWidth: 1, borderBottomColor: COLORS.border.subtle },
-  aiRecBox: { flexDirection: 'row', gap: 8, backgroundColor: '#FFFBEB', padding: 12, borderRadius: RADIUS.lg, marginTop: 10, borderWidth: 1, borderColor: '#FDE68A' },
+  aiRecBox: { flexDirection: 'row', gap: 8, backgroundColor: 'rgba(255,176,32,0.12)', padding: 12, borderRadius: RADIUS.lg, marginTop: 10, borderWidth: 1, borderColor: 'rgba(255,176,32,0.4)' },
   aiRecTxt: { flex: 1, fontSize: 12, fontWeight: '500', color: '#78716C', lineHeight: 18 },
 });

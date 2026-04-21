@@ -524,7 +524,7 @@ export default function SplitScreen() {
       {inviteGroup && (
         <Modal visible={!!inviteGroup} animationType="slide" transparent onRequestClose={() => setInviteGroup(null)}>
           <View style={{ flex: 1, justifyContent: 'flex-end', backgroundColor: 'rgba(0,0,0,0.5)' }}>
-            <View style={{ backgroundColor: '#fff', borderTopLeftRadius: 28, borderTopRightRadius: 28, padding: 24, paddingBottom: 36, gap: 14 }}>
+            <View style={{ backgroundColor: COLORS.bg.elevated, borderTopLeftRadius: 28, borderTopRightRadius: 28, padding: 24, paddingBottom: 36, gap: 14, borderTopWidth: 1, borderColor: 'rgba(255,255,255,0.08)' }}>
               <View style={{ width: 40, height: 4, borderRadius: 2, backgroundColor: '#E5E7EB', alignSelf: 'center', marginBottom: 8 }} />
 
               <View style={{ alignItems: 'center', marginBottom: 4 }}>

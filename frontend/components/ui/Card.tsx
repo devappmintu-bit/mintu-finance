@@ -44,33 +44,33 @@ function base(v: Variant, radius: number): ViewStyle {
   switch (v) {
     case 'elevated':
       return {
-        backgroundColor: '#FFFFFF',
+        backgroundColor: COLORS.bg.elevated,
         borderRadius: radius,
         borderWidth: 1,
-        borderColor: COLORS.border.subtle,
-        ...shadowStyle(COLORS.accent.primary, 6, 16, 0.12, 5),
+        borderColor: 'rgba(255,107,26,0.22)',
+        ...shadowStyle(COLORS.accent.primary, 6, 20, 0.3, 6),
       };
     case 'ghost':
       return {
         backgroundColor: 'transparent',
         borderRadius: radius,
         borderWidth: 1,
-        borderColor: COLORS.accent.primary + '33',
+        borderColor: 'rgba(255,107,26,0.35)',
       };
     case 'danger':
       return {
-        backgroundColor: '#FFF7F6',
+        backgroundColor: 'rgba(255,84,112,0.1)',
         borderRadius: radius,
         borderWidth: 1,
-        borderColor: COLORS.state.danger + '33',
+        borderColor: 'rgba(255,84,112,0.35)',
       };
     default:
       return {
         backgroundColor: COLORS.bg.secondary,
         borderRadius: radius,
         borderWidth: 1,
-        borderColor: COLORS.border.subtle,
-        ...shadowStyle('#2E1F1A', 2, 10, 0.04, 2),
+        borderColor: 'rgba(255,255,255,0.08)',
+        ...shadowStyle('#000', 2, 10, 0.35, 3),
       };
   }
 }
