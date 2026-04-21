@@ -292,48 +292,84 @@ export default function ProfileScreen() {
 
         {/* Settings */}
         <Text style={s.secTitle}>Settings</Text>
-        <TapTile style={s.menuItem} onPress={() => router.push('/gmail' as any)} testID="profile-menu-gmail">
-          <Ionicons name="mail-outline" size={20} color="#EA4335" />
-          <View style={{ flex: 1, marginLeft: 12 }}>
-            <Text style={s.menuText}>Gmail Auto-Import</Text>
-            <Text style={{ fontSize: 11, color: COLORS.text.muted }}>Auto-track bank transactions from your inbox</Text>
-          </View>
-          <Ionicons name="chevron-forward" size={16} color={COLORS.text.muted} />
-        </TapTile>
-        <TapTile style={s.menuItem} onPress={() => setLangModalVisible(true)} testID="profile-menu-lang">
-          <Ionicons name="language" size={20} color="#E65100" />
-          <View style={{ flex: 1, marginLeft: 12 }}>
-            <Text style={s.menuText}>{t('language', lang)}</Text>
-            <Text style={{ fontSize: 11, color: '#E65100' }}>{currentLang?.nativeName}</Text>
-          </View>
-          <Ionicons name="chevron-forward" size={16} color={COLORS.text.muted} />
-        </TapTile>
-        <TapTile
-          style={s.menuItem}
-          onPress={async () => {
-            const { sent, message } = await sendTestPush();
-            Toast.show({ type: sent ? 'success' : 'info', text1: sent ? 'Test push sent!' : 'Push test', text2: message });
-          }}
-          testID="profile-menu-push"
-        >
-          <Ionicons name="notifications-outline" size={20} color={COLORS.accent.primary} />
-          <View style={{ flex: 1, marginLeft: 12 }}>
-            <Text style={s.menuText}>{t('notifications', lang)}</Text>
-            <Text style={{ fontSize: 11, color: COLORS.text.muted }}>Tap to send a test notification</Text>
-          </View>
-          <Ionicons name="chevron-forward" size={16} color={COLORS.text.muted} />
-        </TapTile>
-        <TapTile style={s.menuItem} onPress={() => setHelpVisible(true)} testID="profile-menu-help">
-          <Ionicons name="help-circle-outline" size={20} color={COLORS.accent.warning} />
-          <Text style={[s.menuText, { marginLeft: 12 }]}>{t('help_support', lang)}</Text>
-          <Ionicons name="chevron-forward" size={16} color={COLORS.text.muted} />
-        </TapTile>
-        <TapTile style={s.menuItem} onPress={() => router.push('/about' as any)} testID="profile-menu-about">
-          <Ionicons name="information-circle-outline" size={20} color={COLORS.accent.primary} />
-          <Text style={[s.menuText, { marginLeft: 12 }]}>About MintU</Text>
-          <Text style={s.menuHint}>Features · Why MintU · v1</Text>
-          <Ionicons name="chevron-forward" size={16} color={COLORS.text.muted} />
-        </TapTile>
+        <View style={s.settingsCard}>
+          <TapTile style={s.settingsRow} onPress={() => router.push('/gmail' as any)} testID="profile-menu-gmail">
+            <View style={s.settingsRowInner}>
+              <View style={[s.settingsIconChip, { backgroundColor: '#EA433518' }]}>
+                <Ionicons name="mail-outline" size={18} color="#EA4335" />
+              </View>
+              <View style={s.settingsRowBody}>
+                <Text style={s.settingsRowTitle}>Gmail Auto-Import</Text>
+                <Text style={s.settingsRowSub}>Auto-track bank transactions from your inbox</Text>
+              </View>
+              <Ionicons name="chevron-forward" size={16} color={COLORS.text.muted} />
+            </View>
+          </TapTile>
+          <View style={s.settingsDivider} />
+
+          <TapTile style={s.settingsRow} onPress={() => setLangModalVisible(true)} testID="profile-menu-lang">
+            <View style={s.settingsRowInner}>
+              <View style={[s.settingsIconChip, { backgroundColor: COLORS.accent.primary + '1F' }]}>
+                <Ionicons name="language" size={18} color={COLORS.accent.primary} />
+              </View>
+              <View style={s.settingsRowBody}>
+                <Text style={s.settingsRowTitle}>{t('language', lang)}</Text>
+                <Text style={[s.settingsRowSub, { color: COLORS.accent.primary, fontWeight: '700' }]}>{currentLang?.nativeName}</Text>
+              </View>
+              <Ionicons name="chevron-forward" size={16} color={COLORS.text.muted} />
+            </View>
+          </TapTile>
+          <View style={s.settingsDivider} />
+
+          <TapTile
+            style={s.settingsRow}
+            onPress={async () => {
+              const { sent, message } = await sendTestPush();
+              Toast.show({ type: sent ? 'success' : 'info', text1: sent ? 'Test push sent!' : 'Push test', text2: message });
+            }}
+            testID="profile-menu-push"
+          >
+            <View style={s.settingsRowInner}>
+              <View style={[s.settingsIconChip, { backgroundColor: '#F59E0B1F' }]}>
+                <Ionicons name="notifications-outline" size={18} color="#F59E0B" />
+              </View>
+              <View style={s.settingsRowBody}>
+                <Text style={s.settingsRowTitle}>{t('notifications', lang)}</Text>
+                <Text style={s.settingsRowSub}>Tap to send a test notification</Text>
+              </View>
+              <Ionicons name="chevron-forward" size={16} color={COLORS.text.muted} />
+            </View>
+          </TapTile>
+          <View style={s.settingsDivider} />
+
+          <TapTile style={s.settingsRow} onPress={() => setHelpVisible(true)} testID="profile-menu-help">
+            <View style={s.settingsRowInner}>
+              <View style={[s.settingsIconChip, { backgroundColor: '#38BDF81F' }]}>
+                <Ionicons name="help-circle-outline" size={18} color="#0EA5E9" />
+              </View>
+              <View style={s.settingsRowBody}>
+                <Text style={s.settingsRowTitle}>{t('help_support', lang)}</Text>
+                <Text style={s.settingsRowSub}>FAQs, bug reports & feedback</Text>
+              </View>
+              <Ionicons name="chevron-forward" size={16} color={COLORS.text.muted} />
+            </View>
+          </TapTile>
+          <View style={s.settingsDivider} />
+
+          <TapTile style={s.settingsRow} onPress={() => router.push('/about' as any)} testID="profile-menu-about">
+            <View style={s.settingsRowInner}>
+              <View style={[s.settingsIconChip, { backgroundColor: '#8B5CF61F' }]}>
+                <Ionicons name="information-circle-outline" size={18} color="#8B5CF6" />
+              </View>
+              <View style={s.settingsRowBody}>
+                <Text style={s.settingsRowTitle}>About MintU</Text>
+                <Text style={s.settingsRowSub}>Features · Why MintU · v1</Text>
+              </View>
+              <Ionicons name="chevron-forward" size={16} color={COLORS.text.muted} />
+            </View>
+          </TapTile>
+        </View>
+
         <TapTile style={s.logoutBtn} onPress={handleLogout} feedback="medium" testID="profile-logout">
           <Ionicons name="log-out-outline" size={20} color={COLORS.accent.moneyOut} />
           <Text style={s.logoutText}>{t('logout', lang)}</Text>
@@ -519,6 +555,38 @@ const useStyles = makeStyles((c) => ({
   menuItem: { flexDirection: 'row', alignItems: 'center', backgroundColor: 'rgba(255,255,255,0.92)', borderRadius: 14, padding: 14, marginBottom: 6, borderWidth: 1, borderColor: 'rgba(238,221,204,0.5)' },
   menuText: { flex: 1, fontSize: 15, fontWeight: '500', color: c.text.primary },
   menuHint: { fontSize: 10, color: c.text.muted, marginRight: 6, fontWeight: '600' },
+
+  // Unified Settings card — grouped rows with dividers, consistent icon chips
+  settingsCard: {
+    backgroundColor: c.bg.secondary,
+    borderRadius: 18,
+    borderWidth: 1,
+    borderColor: c.border.subtle,
+    overflow: 'hidden',
+    marginBottom: 8,
+  },
+  settingsRow: {
+    backgroundColor: 'transparent',
+  },
+  settingsRowInner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 14,
+    paddingHorizontal: 14,
+    gap: 12,
+  },
+  settingsIconChip: {
+    width: 38, height: 38, borderRadius: 12,
+    alignItems: 'center', justifyContent: 'center',
+  },
+  settingsRowBody: { flex: 1 },
+  settingsRowTitle: { fontSize: 14.5, fontWeight: '700', color: c.text.primary, letterSpacing: -0.1 },
+  settingsRowSub: { fontSize: 11.5, color: c.text.muted, marginTop: 2, lineHeight: 15 },
+  settingsDivider: {
+    height: StyleSheet.hairlineWidth,
+    backgroundColor: c.border.subtle,
+    marginLeft: 64, // start past the icon chip
+  },
   logoutBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, backgroundColor: c.accent.moneyOut + '10', borderRadius: 999, paddingVertical: 16, marginTop: 16 },
   logoutText: { fontSize: 16, fontWeight: '600', color: c.accent.moneyOut },
   version: { textAlign: 'center', fontSize: 11, color: c.text.muted, marginTop: 12 },

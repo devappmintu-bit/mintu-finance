@@ -16,6 +16,7 @@ import { makeStyles } from '../utils/makeStyles';
 import { LANGUAGES, LangCode } from '../utils/i18n';
 import PinSetupModal from '../components/PinSetupModal';
 import AuthTransitionOverlay from '../components/auth/AuthTransitionOverlay';
+import Mascot from '../components/Mascot';
 
 type AuthStep = 'phone' | 'otp' | 'name';
 
@@ -108,7 +109,9 @@ export default function AuthScreen() {
       </TouchableOpacity>
 
       <View style={s.header}>
-        <View style={s.logoIcon}><Text style={s.logoSymbol}>{'\u20B9'}</Text></View>
+        <View style={s.mascotWrap}>
+          <Mascot size={96} glow variant="auto" />
+        </View>
         <Text style={s.logoText}>MintU</Text>
         <Text style={s.stepTitle}>{t('enter_phone', lang)}</Text>
         <Text style={s.stepSubtitle}>{t('otp_subtitle', lang)}</Text>
@@ -219,6 +222,7 @@ const useStyles = makeStyles((c) => ({
   backBtn: { width: 44, height: 44, borderRadius: 22, backgroundColor: c.bg.secondary, borderWidth: 1, borderColor: c.border.subtle, justifyContent: 'center', alignItems: 'center', marginBottom: SPACING.xxl },
   header: { alignItems: 'center', marginBottom: 40 },
   logoIcon: { width: 72, height: 72, borderRadius: 24, backgroundColor: c.accent.primary, justifyContent: 'center', alignItems: 'center', marginBottom: 16 },
+  mascotWrap: { marginBottom: 16, alignItems: 'center', justifyContent: 'center' },
   logoSymbol: { fontSize: 34, fontWeight: '800', color: c.text.inverse },
   logoText: { fontSize: 34, fontWeight: '800', color: c.text.primary, marginBottom: 24 },
   otpIconWrap: { width: 80, height: 80, borderRadius: 40, backgroundColor: c.accent.moneyIn + '15', justifyContent: 'center', alignItems: 'center', marginBottom: 20 },

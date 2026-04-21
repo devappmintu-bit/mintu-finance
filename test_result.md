@@ -4965,3 +4965,37 @@ agent_communication:
 
     **STATUS:** ✅ Tab Bar redesign complete. Matches the provided HDFC PayZapp reference design while keeping MintU's mascot + 4-tab layout (Home / Transactions / Budgets / Split + AI Coach puck).
 
+
+---
+
+## ✅ Auth Mascot + Delete Account Pill + Settings UX Polish — Apr 21 2026
+
+    **User Requests:**
+    1. Show MintU mascot on the onboarding/login screen (replace plain ₹ icon)
+    2. Redesign Delete Account button to visually match Logout pill button
+    3. Fix/polish the Settings rows UI/UX in the Profile section
+
+    **Implementation:**
+
+    1. **Onboarding mascot (`/app/frontend/app/auth.tsx`)**:
+       - Imported `Mascot` component.
+       - Replaced the 72px orange rounded-square `logoIcon` with `<Mascot size={96} glow variant="auto" />` for a friendly, on-brand first impression.
+
+    2. **Delete Account pill (`/app/frontend/components/profile/DeleteAccountSection.tsx`)**:
+       - Rewrote the expandable card as a single pill `TapTile` matching the logout button's visual language (rounded-999, danger-red tint, centered icon + text).
+       - Tapping the pill now opens a bottom-sheet modal with the two deletion options (Soft 30-day / Hard immediate) and a Cancel action.
+       - Hard-delete confirm screen (type DELETE) preserved.
+
+    3. **Settings rows (`/app/frontend/app/(tabs)/profile.tsx`)**:
+       - Wrapped all 5 settings rows (Gmail Auto-Import, Language, Notifications, Help & Support, About MintU) inside a single rounded card (`settingsCard`) with hairline dividers.
+       - Each row uses a consistent 38×38 tinted icon chip (category colors) + bold title + muted subtitle + chevron.
+       - Added explicit `<View style={settingsRowInner}>` wrapper inside `TapTile` — needed because TapTile's inner `Animated.View` defaults to column-direction on web; the wrapper restores `flexDirection: 'row'` so the chevron sits on the right as intended.
+       - Removed the mismatched hard-coded `menuItem` white-only background (was breaking Dark/AMOLED themes).
+
+    **Screenshot verification**:
+    - 📸 Auth screen: Mascot with glow replaces the ₹ logo
+    - 📸 Settings card: All 5 rows render in a unified grouped card with proper icon-title-subtitle-chevron alignment
+    - 📸 Delete account: Pill button matches logout button style exactly
+
+    **STATUS:** ✅ All three UX improvements complete and visually verified.
+

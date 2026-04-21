@@ -1,7 +1,7 @@
 /**
- * DeleteAccountSection — expandable danger-zone panel.
+ * DeleteAccountSection — pill button (matches logout button style) + bottom-sheet options.
  *
- * Offers TWO deletion modes per user's design ask:
+ * Tapping the pill opens a sheet with TWO deletion modes:
  *   • Soft (recoverable, 30-day window) — default recommended
  *   • Hard (immediate, irreversible) — requires typing "DELETE" to confirm
  *
@@ -12,7 +12,7 @@
  */
 import React, { useState } from 'react';
 import {
-  View, Text, StyleSheet, TouchableOpacity, Modal, TextInput, ActivityIndicator,
+  View, Text, TouchableOpacity, Modal, TextInput, ActivityIndicator,
   Alert, Platform, KeyboardAvoidingView,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
@@ -22,13 +22,14 @@ import api from '../../utils/api';
 import { useAuthStore } from '../../store/authStore';
 import { COLORS } from '../../utils/theme';
 import { makeStyles } from '../../utils/makeStyles';
+import TapTile from '../ui/TapTile';
 
 type Mode = 'soft' | 'hard';
 
 export default function DeleteAccountSection() {
   const s = useSStyles();
   const m = useMStyles();
-  const [expanded, setExpanded] = useState(false);
+  const [sheetOpen, setSheetOpen] = useState(false);
   const [modalMode, setModalMode] = useState<Mode | null>(null);
   const [confirmation, setConfirmation] = useState('');
   const [submitting, setSubmitting] = useState(false);
@@ -45,8 +46,8 @@ export default function DeleteAccountSection() {
       const r = await api.post('/user/delete-account', { mode: modalMode, confirmation });
       Toast.show({ type: 'success', text1: 'Account ' + (modalMode === 'soft' ? 'scheduled for deletion' : 'deleted'), text2: r.data?.message });
       setModalMode(null);
+      setSheetOpen(false);
       setConfirmation('');
-      // Wipe client session
       await logout();
       setTimeout(() => router.replace('/auth' as any), 300);
     } catch (e: any) {
@@ -56,10 +57,9 @@ export default function DeleteAccountSection() {
     }
   };
 
-  const confirmOpen = (mode: Mode) => {
+  const onPickMode = (mode: Mode) => {
     if (mode === 'soft') {
       if (Platform.OS === 'web') {
-        // eslint-disable-next-line no-alert
         if (typeof window !== 'undefined' && window.confirm('Schedule account for deletion?\n\nYou can log back in within 30 days to restore.')) {
           setModalMode(mode);
           setTimeout(submit, 50);
@@ -81,43 +81,52 @@ export default function DeleteAccountSection() {
   };
 
   return (
-    <View style={s.card}>
-      <TouchableOpacity style={s.header} onPress={() => setExpanded(!expanded)} activeOpacity={0.75} testID="danger-header">
-        <View style={s.iconBox}><Ionicons name="warning" size={20} color={COLORS.state.danger} /></View>
-        <View style={{ flex: 1 }}>
-          <Text style={s.title}>Delete account</Text>
-          <Text style={s.sub}>Soft (30-day recovery) or hard (immediate, irreversible)</Text>
-        </View>
-        <Ionicons name={expanded ? 'chevron-up' : 'chevron-down'} size={18} color={COLORS.text.muted} />
-      </TouchableOpacity>
+    <>
+      {/* Pill button — same visual language as the logout button */}
+      <TapTile style={s.pillBtn} onPress={() => setSheetOpen(true)} feedback="medium" testID="danger-header">
+        <Ionicons name="trash-outline" size={20} color={COLORS.state.danger} />
+        <Text style={s.pillText}>Delete account</Text>
+      </TapTile>
 
-      {expanded && (
-        <View style={s.body}>
-          {/* Soft option */}
-          <TouchableOpacity style={s.optionCard} onPress={() => confirmOpen('soft')} activeOpacity={0.85} testID="del-soft-btn">
-            <View style={[s.optIcon, { backgroundColor: '#F59E0B22' }]}>
-              <Ionicons name="time-outline" size={22} color="#F59E0B" />
-            </View>
-            <View style={{ flex: 1 }}>
-              <Text style={s.optTitle}>Schedule deletion · 30 days</Text>
-              <Text style={s.optSub}>Recoverable if you log in within the window. Data kept read-only.</Text>
-            </View>
-            <Ionicons name="chevron-forward" size={16} color={COLORS.text.muted} />
-          </TouchableOpacity>
+      {/* Options sheet */}
+      <Modal visible={sheetOpen} transparent animationType="slide" onRequestClose={() => setSheetOpen(false)}>
+        <TouchableOpacity style={m.backdrop} activeOpacity={1} onPress={() => setSheetOpen(false)}>
+          <TouchableOpacity activeOpacity={1} onPress={() => {}} style={{ width: '100%' }}>
+            <View style={m.sheet}>
+              <View style={m.grip} />
+              <View style={m.iconBig}><Ionicons name="warning" size={26} color={COLORS.state.danger} /></View>
+              <Text style={m.title}>Delete account</Text>
+              <Text style={m.sub}>Choose how you&apos;d like to proceed. Both actions sign you out.</Text>
 
-          {/* Hard option */}
-          <TouchableOpacity style={s.optionCard} onPress={() => confirmOpen('hard')} activeOpacity={0.85} testID="del-hard-btn">
-            <View style={[s.optIcon, { backgroundColor: COLORS.state.dangerBg }]}>
-              <Ionicons name="nuclear" size={22} color={COLORS.state.danger} />
+              <TouchableOpacity style={s.optionCard} onPress={() => onPickMode('soft')} activeOpacity={0.85} testID="del-soft-btn">
+                <View style={[s.optIcon, { backgroundColor: '#F59E0B22' }]}>
+                  <Ionicons name="time-outline" size={22} color="#F59E0B" />
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text style={s.optTitle}>Schedule deletion · 30 days</Text>
+                  <Text style={s.optSub}>Recoverable if you log in within the window. Data kept read-only.</Text>
+                </View>
+                <Ionicons name="chevron-forward" size={16} color={COLORS.text.muted} />
+              </TouchableOpacity>
+
+              <TouchableOpacity style={s.optionCard} onPress={() => onPickMode('hard')} activeOpacity={0.85} testID="del-hard-btn">
+                <View style={[s.optIcon, { backgroundColor: COLORS.state.dangerBg }]}>
+                  <Ionicons name="nuclear" size={22} color={COLORS.state.danger} />
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text style={[s.optTitle, { color: COLORS.state.danger }]}>Delete immediately · Irreversible</Text>
+                  <Text style={s.optSub}>Wipes all transactions, budgets, splits, rewards, Gmail & login tokens. Cannot be undone.</Text>
+                </View>
+                <Ionicons name="chevron-forward" size={16} color={COLORS.state.danger} />
+              </TouchableOpacity>
+
+              <TouchableOpacity style={m.cancelBtn} onPress={() => setSheetOpen(false)} activeOpacity={0.8}>
+                <Text style={m.cancelText}>Cancel</Text>
+              </TouchableOpacity>
             </View>
-            <View style={{ flex: 1 }}>
-              <Text style={[s.optTitle, { color: COLORS.state.danger }]}>Delete immediately · Irreversible</Text>
-              <Text style={s.optSub}>Wipes all transactions, budgets, splits, rewards, Gmail & login tokens. Cannot be undone.</Text>
-            </View>
-            <Ionicons name="chevron-forward" size={16} color={COLORS.state.danger} />
           </TouchableOpacity>
-        </View>
-      )}
+        </TouchableOpacity>
+      </Modal>
 
       {/* HARD delete confirm modal */}
       <Modal visible={modalMode === 'hard'} transparent animationType="slide" onRequestClose={() => setModalMode(null)}>
@@ -160,29 +169,33 @@ export default function DeleteAccountSection() {
           </KeyboardAvoidingView>
         </View>
       </Modal>
-    </View>
+    </>
   );
 }
 
 const useSStyles = makeStyles((c) => ({
-  card: { backgroundColor: '#FFF7F6', borderRadius: 20, padding: 14, marginBottom: 14, borderWidth: 1, borderColor: c.state.danger + '33' },
-  header: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 4 },
-  iconBox: { width: 40, height: 40, borderRadius: 12, backgroundColor: c.state.dangerBg, alignItems: 'center', justifyContent: 'center' },
-  title: { fontSize: 16, fontWeight: '800', color: c.text.primary },
-  sub: { fontSize: 11.5, color: c.text.muted, marginTop: 2 },
-  body: { marginTop: 12, gap: 8 },
-  optionCard: { flexDirection: 'row', alignItems: 'center', gap: 12, padding: 12, borderRadius: 14, backgroundColor: '#fff', borderWidth: 1, borderColor: c.border.subtle },
+  // Matches the `logoutBtn` visual language — pill row with danger tint
+  pillBtn: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8,
+    backgroundColor: c.state.danger + '12',
+    borderRadius: 999, paddingVertical: 16, marginTop: 10,
+    borderWidth: 1, borderColor: c.state.danger + '2E',
+  },
+  pillText: { fontSize: 16, fontWeight: '600', color: c.state.danger },
+
+  optionCard: { flexDirection: 'row', alignItems: 'center', gap: 12, padding: 12, borderRadius: 14, backgroundColor: c.bg.primary, borderWidth: 1, borderColor: c.border.subtle, marginTop: 8 },
   optIcon: { width: 42, height: 42, borderRadius: 12, alignItems: 'center', justifyContent: 'center' },
   optTitle: { fontSize: 13.5, fontWeight: '800', color: c.text.primary },
   optSub: { fontSize: 11, color: c.text.secondary, marginTop: 3, lineHeight: 15 },
 }));
 
 const useMStyles = makeStyles((c) => ({
-  backdrop: { flex: 1, backgroundColor: 'rgba(46,31,26,0.55)', justifyContent: 'flex-end' },
+  backdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.55)', justifyContent: 'flex-end' },
   sheet: { backgroundColor: c.bg.secondary, borderTopLeftRadius: 24, borderTopRightRadius: 24, padding: 20, paddingBottom: 28 },
   grip: { width: 40, height: 4, borderRadius: 2, backgroundColor: c.border.subtle, alignSelf: 'center', marginBottom: 12 },
-  iconBig: { width: 60, height: 60, borderRadius: 30, backgroundColor: c.state.dangerBg, alignItems: 'center', justifyContent: 'center', alignSelf: 'center', marginBottom: 12 },
-  title: { fontSize: 18, fontWeight: '900', color: c.state.danger, textAlign: 'center', marginBottom: 8 },
+  iconBig: { width: 56, height: 56, borderRadius: 28, backgroundColor: c.state.dangerBg, alignItems: 'center', justifyContent: 'center', alignSelf: 'center', marginBottom: 10 },
+  title: { fontSize: 18, fontWeight: '900', color: c.text.primary, textAlign: 'center', marginBottom: 6 },
+  sub: { fontSize: 12.5, color: c.text.secondary, lineHeight: 17, textAlign: 'center', marginBottom: 6 },
   body: { fontSize: 12.5, color: c.text.secondary, lineHeight: 18, textAlign: 'center', marginBottom: 14 },
   label: { fontSize: 11, fontWeight: '800', color: c.text.muted, textTransform: 'uppercase', letterSpacing: 0.6, marginBottom: 5 },
   input: { backgroundColor: c.bg.primary, borderRadius: 10, paddingHorizontal: 12, paddingVertical: 11, fontSize: 14, color: c.text.primary, borderWidth: 1.5, borderColor: c.state.danger + '66', letterSpacing: 2, fontWeight: '900' },
@@ -191,4 +204,6 @@ const useMStyles = makeStyles((c) => ({
   btnGhost: { backgroundColor: c.bg.primary, borderWidth: 1, borderColor: c.border.subtle },
   btnDanger: { backgroundColor: c.state.danger },
   btnT: { fontSize: 14, fontWeight: '800' },
+  cancelBtn: { marginTop: 12, paddingVertical: 13, borderRadius: 999, backgroundColor: c.bg.primary, borderWidth: 1, borderColor: c.border.subtle, alignItems: 'center' },
+  cancelText: { fontSize: 14, fontWeight: '700', color: c.text.secondary },
 }));
