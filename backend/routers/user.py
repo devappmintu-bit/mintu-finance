@@ -241,18 +241,23 @@ async def add_payment_method(body: PaymentMethodBody, user_id: str = Depends(get
     doc["label"] = doc.get("label") or _default_label(doc)
     doc["created_at"] = datetime_utcnow_iso()
 
-    update: dict = {"$push": {"payment_methods": doc}}
-
-    # If this is the first method OR marked default, demote others and promote this one
+    # Load existing methods to decide default-handling path. First-ever add
+    # (or is_default=true) must NOT attempt to update the array before it
+    # exists — MongoDB's `$set: payment_methods.$[]...` requires the field.
     user = await db.users.find_one({"_id": ObjectId(user_id)}, {"payment_methods": 1}) or {}
-    if body.is_default or not user.get("payment_methods"):
-        doc["is_default"] = True
-        await db.users.update_one(
-            {"_id": ObjectId(user_id)},
-            {"$set": {"payment_methods.$[].is_default": False}},
-        )
+    existing = user.get("payment_methods") or []
 
-    await db.users.update_one({"_id": ObjectId(user_id)}, update)
+    if body.is_default or not existing:
+        doc["is_default"] = True
+        if existing:
+            # Demote all others only when the array already exists
+            await db.users.update_one(
+                {"_id": ObjectId(user_id)},
+                {"$set": {"payment_methods.$[].is_default": False}},
+            )
+
+    # $push will create the array if it doesn't exist
+    await db.users.update_one({"_id": ObjectId(user_id)}, {"$push": {"payment_methods": doc}})
     return {"ok": True, "method": doc}
 
 

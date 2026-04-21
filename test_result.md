@@ -3832,11 +3832,11 @@ agent_communication:
 phase2_notif_pay_news_delete_apr21_2026:
   - task: "Phase 2 — Notification Preferences, Payment Methods, Rewards, News-12, Delete-Account validation"
     implemented: true
-    working: false
+    working: true
     file: "/app/backend/routers/user.py, /app/backend/routers/rewards.py, /app/backend/routers/news.py"
-    stuck_count: 1
+    stuck_count: 0
     priority: "high"
-    needs_retesting: true
+    needs_retesting: false
     status_history:
       - working: false
         agent: "testing"
@@ -3906,3 +3906,24 @@ agent_communication:
     -message: |
       PHASE 2 TESTING COMPLETE (Apr 21 2026) — 22/24 pass. ONE CRITICAL BUG FOUND: POST /api/user/payment-methods returns HTTP 500 on the first add for any user whose doc lacks a `payment_methods` field. MongoDB error: "The path 'payment_methods' must exist in the document in order to apply array updates." Root cause at /app/backend/routers/user.py lines 248-253 — the `$set: {payment_methods.$[].is_default: False}` demotion runs even when the array doesn't exist yet. 3-line fix suggested in status_history (guard the demotion with `if existing:`). All other Phase 2 endpoints (notification-prefs GET/PUT + persistence, rewards/summary 8 prizes, rewards/vouchers ≥4 items, rewards/wallet, rewards/spin, news/india-finance with 12 items, news/india-finance?refresh=1, delete-account validation rejection paths) return the expected responses. Test script: /app/phase2_backend_test.py.
 
+
+      - working: true
+        agent: "testing"
+        comment: |
+          ✅ PAYMENT METHODS CRUD RETEST — 7/7 PASS (Apr 21 2026, /app/payment_methods_retest.py). The 500 bug in /app/backend/routers/user.py is FIXED. Auth via phone 9876543210 / OTP 123456.
+
+          RESULTS:
+            [1] GET /api/user/payment-methods → 200 (initial — returns virtual legacy_upi entry)
+            [2] POST /api/user/payment-methods {type:'upi', upi_id:'firsttest@okicici', is_default:true} → 200 with method.id=69e6f3b2a78a401c927ab780 and method.is_default=true ✅ (was 500 before fix)
+            [3] POST /api/user/payment-methods {type:'card', card_last4:'9999', card_brand:'visa'} → 200 with method.id=69e6f3b2a78a401c927ab782, is_default=false ✅
+            [4] PUT /api/user/payment-methods/{card_id}/default → 200 {ok:true, default_id:<card_id>} ✅
+            [5] GET → 200, default.id == card_id ✅ (UPI demoted to is_default=false, card promoted to is_default=true)
+            [6] DELETE /api/user/payment-methods/{card_id} → 200 {ok:true, deleted_id:<card_id>} ✅
+            [7] GET → 200, card absent, UPI still present (count=1) ✅
+
+          Backend access log confirms all 7 calls returned 200 (lines tail: GET 200, POST 200 x2, PUT 200, GET 200, DELETE 200, GET 200). MongoDB demotion ($set payment_methods.$[].is_default=false) now correctly gated by `if existing:` — no more "path must exist" WriteError on first-ever add. Full CRUD flow on /api/user/payment-methods is PRODUCTION-READY.
+
+agent_communication:
+    -agent: "testing"
+    -message: |
+      ✅ PAYMENT METHODS CRUD RETEST COMPLETE (Apr 21 2026) — 7/7 assertions PASS. The HTTP 500 regression on POST /api/user/payment-methods is fully resolved. All 7 review-request steps verified green: GET initial, POST UPI with is_default=true (returns 200 + method.is_default=true), POST card, PUT card/default, GET (card is now default), DELETE card, GET (card gone, UPI remains). Test script at /app/payment_methods_retest.py. Phase 2 Payment Methods feature is production-ready.
