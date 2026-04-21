@@ -24,6 +24,7 @@ import BudgetSummaryDonut from '../../components/budget/BudgetSummaryDonut';
 import EmptyState from '../../components/ui/EmptyState';
 import SheetHeader from '../../components/ui/SheetHeader';
 import PrimaryButton from '../../components/ui/PrimaryButton';
+import GlassSheet, { GlassSheetHandle } from '../../components/ui/GlassSheet';
 import { useLangStore } from '../../store/langStore';
 import { t } from '../../utils/i18n';
 import Toast from 'react-native-toast-message';
@@ -38,6 +39,13 @@ export default function BudgetScreen() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [modalVisible, setModalVisible] = useState(false);
+  const budgetSheetRef = useRef<GlassSheetHandle>(null);
+  // Bridge imperative sheet API ↔ existing boolean state. Keeps every existing
+  // call site (`setModalVisible(true)` / `(false)`) working unchanged.
+  useEffect(() => {
+    if (modalVisible) budgetSheetRef.current?.present();
+    else budgetSheetRef.current?.dismiss();
+  }, [modalVisible]);
   const [editingBudget, setEditingBudget] = useState<any>(null);
   const [formData, setFormData] = useState({ category: 'Food', amount: '', period: 'monthly', recurring: true, description: '' });
   const [aiCategorizing, setAiCategorizing] = useState(false);
@@ -306,88 +314,89 @@ export default function BudgetScreen() {
         }
       />
 
-      {/* Modal */}
-      <Modal visible={modalVisible} animationType="slide" transparent>
-        <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={s.mBg}>
-          <View style={s.sheet}>
-            <SheetHeader
-              title={editingBudget ? t('edit_budget', lang) : t('new_budget', lang)}
-              onClose={() => { setModalVisible(false); setEditingBudget(null); }}
-            />
-            <ScrollView keyboardShouldPersistTaps="handled">
-              <Text style={s.formLabel}>{t('category', lang)}</Text>
-              <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 20 }}>
-                {CATEGORY_LIST.map((c) => {
-                  const ct = CATEGORIES[c]; const on = formData.category === c;
-                  return (
-                    <TouchableOpacity key={c} style={[s.chip, on && { backgroundColor: ct.color, borderColor: ct.color }]} onPress={() => setFormData({ ...formData, category: c })}>
-                      <Ionicons name={ct.icon as any} size={14} color={on ? '#fff' : ct.color} />
-                      <Text style={[s.chipText, on && { color: '#fff' }]}>{c}</Text>
-                    </TouchableOpacity>
-                  );
-                })}
-              </ScrollView>
-              <Text style={s.formLabel}>{t('period', lang)}</Text>
-              <View style={{ flexDirection: 'row', gap: 10, marginBottom: 20 }}>
-                {PERIODS.map(p => (
-                  <TouchableOpacity key={p} style={[s.periodBtn, formData.period === p && s.periodOn]} onPress={() => setFormData({ ...formData, period: p })}>
-                    <Text style={[s.periodText, formData.period === p && { color: '#fff' }]}>{t(p, lang)}</Text>
-                  </TouchableOpacity>
-                ))}
-              </View>
-              <Text style={s.formLabel}>{t('amount', lang)}</Text>
-              <View style={s.amtRow}>
-                <Text style={s.rupee}>₹</Text>
-                <TextInput style={s.amtInput} placeholder="0" placeholderTextColor={COLORS.text.muted} value={formData.amount} onChangeText={v => setFormData({ ...formData, amount: v })} keyboardType="numeric" />
-              </View>
-
-              {/* Recurring toggle */}
-              <TouchableOpacity
-                style={[s.recurringRow, formData.recurring && s.recurringRowOn]}
-                onPress={() => setFormData({ ...formData, recurring: !formData.recurring })}
-                activeOpacity={0.85}
-              >
-                <View style={[s.recurringIcon, { backgroundColor: formData.recurring ? '#F56E1E' : '#E5E7EB' }]}>
-                  <Ionicons name="refresh" size={16} color={formData.recurring ? '#fff' : '#6B7280'} />
-                </View>
-                <View style={{ flex: 1 }}>
-                  <Text style={s.recurringTitle}>Recurring budget</Text>
-                  <Text style={s.recurringSub}>{formData.recurring ? `Rolls over every ${formData.period}` : "One-time only — won't reset"}</Text>
-                </View>
-                <View style={[s.toggle, formData.recurring && s.toggleOn]}>
-                  <View style={[s.toggleKnob, formData.recurring && s.toggleKnobOn]} />
-                </View>
+      {/* Add/Edit Budget — native snap-gesture bottom sheet */}
+      <GlassSheet
+        ref={budgetSheetRef}
+        snapPoints={['70%', '95%']}
+        onDismiss={() => { setModalVisible(false); setEditingBudget(null); }}
+      >
+        <SheetHeader
+          title={editingBudget ? t('edit_budget', lang) : t('new_budget', lang)}
+          onClose={() => { setModalVisible(false); setEditingBudget(null); }}
+        />
+        <ScrollView keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
+          <Text style={s.formLabel}>{t('category', lang)}</Text>
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 20 }}>
+            {CATEGORY_LIST.map((c) => {
+              const ct = CATEGORIES[c]; const on = formData.category === c;
+              return (
+                <TouchableOpacity key={c} style={[s.chip, on && { backgroundColor: ct.color, borderColor: ct.color }]} onPress={() => setFormData({ ...formData, category: c })}>
+                  <Ionicons name={ct.icon as any} size={14} color={on ? '#fff' : ct.color} />
+                  <Text style={[s.chipText, on && { color: '#fff' }]}>{c}</Text>
+                </TouchableOpacity>
+              );
+            })}
+          </ScrollView>
+          <Text style={s.formLabel}>{t('period', lang)}</Text>
+          <View style={{ flexDirection: 'row', gap: 10, marginBottom: 20 }}>
+            {PERIODS.map(p => (
+              <TouchableOpacity key={p} style={[s.periodBtn, formData.period === p && s.periodOn]} onPress={() => setFormData({ ...formData, period: p })}>
+                <Text style={[s.periodText, formData.period === p && { color: '#fff' }]}>{t(p, lang)}</Text>
               </TouchableOpacity>
-
-              {/* Description (required for Other → AI categorise) */}
-              {formData.category === 'Other' && (
-                <View style={s.otherDescBox}>
-                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 6 }}>
-                    <Ionicons name="sparkles" size={14} color="#F56E1E" />
-                    <Text style={s.formLabel}>Describe what this budget is for (AI will categorise)</Text>
-                  </View>
-                  <TextInput
-                    style={s.descInput}
-                    placeholder="e.g. Monthly Netflix & Spotify subscriptions"
-                    placeholderTextColor={COLORS.text.muted}
-                    value={formData.description}
-                    onChangeText={v => setFormData({ ...formData, description: v })}
-                    multiline
-                  />
-                </View>
-              )}
-
-              <PrimaryButton
-                label={editingBudget ? t('update', lang) : t('set_budget', lang)}
-                onPress={handleSave}
-                loading={aiCategorizing}
-                icon={editingBudget ? 'checkmark' : 'add-circle'}
-                size="lg"
-              />
-            </ScrollView>
+            ))}
           </View>
-        </KeyboardAvoidingView>
-      </Modal>
+          <Text style={s.formLabel}>{t('amount', lang)}</Text>
+          <View style={s.amtRow}>
+            <Text style={s.rupee}>₹</Text>
+            <TextInput style={s.amtInput} placeholder="0" placeholderTextColor={COLORS.text.muted} value={formData.amount} onChangeText={v => setFormData({ ...formData, amount: v })} keyboardType="numeric" />
+          </View>
+
+          {/* Recurring toggle */}
+          <TouchableOpacity
+            style={[s.recurringRow, formData.recurring && s.recurringRowOn]}
+            onPress={() => setFormData({ ...formData, recurring: !formData.recurring })}
+            activeOpacity={0.85}
+          >
+            <View style={[s.recurringIcon, { backgroundColor: formData.recurring ? '#FF6B1A' : 'rgba(255,255,255,0.08)' }]}>
+              <Ionicons name="refresh" size={16} color={formData.recurring ? '#fff' : COLORS.text.muted} />
+            </View>
+            <View style={{ flex: 1 }}>
+              <Text style={s.recurringTitle}>Recurring budget</Text>
+              <Text style={s.recurringSub}>{formData.recurring ? `Rolls over every ${formData.period}` : "One-time only — won't reset"}</Text>
+            </View>
+            <View style={[s.toggle, formData.recurring && s.toggleOn]}>
+              <View style={[s.toggleKnob, formData.recurring && s.toggleKnobOn]} />
+            </View>
+          </TouchableOpacity>
+
+          {/* Description (required for Other → AI categorise) */}
+          {formData.category === 'Other' && (
+            <View style={s.otherDescBox}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 6 }}>
+                <Ionicons name="sparkles" size={14} color={COLORS.accent.primary} />
+                <Text style={s.formLabel}>Describe what this budget is for (AI will categorise)</Text>
+              </View>
+              <TextInput
+                style={s.descInput}
+                placeholder="e.g. Monthly Netflix & Spotify subscriptions"
+                placeholderTextColor={COLORS.text.muted}
+                value={formData.description}
+                onChangeText={v => setFormData({ ...formData, description: v })}
+                multiline
+              />
+            </View>
+          )}
+
+          <PrimaryButton
+            label={editingBudget ? t('update', lang) : t('set_budget', lang)}
+            onPress={handleSave}
+            loading={aiCategorizing}
+            icon={editingBudget ? 'checkmark' : 'add-circle'}
+            size="lg"
+          />
+          <View style={{ height: 32 }} />
+        </ScrollView>
+      </GlassSheet>
 
       <DeleteBudgetSheet
         visible={!!deleteTarget}
