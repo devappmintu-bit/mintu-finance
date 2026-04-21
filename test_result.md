@@ -3826,6 +3826,54 @@ agent_communication:
         - Delete Account (soft + hard, user chooses)
         - Notification settings (industry-standard toggles)
         - Budget screen end-to-end core functionality fix
+
+# ════════════════════════════════════════════════════════════════════
+# ROUND 31 (Apr 21 2026) — Phase 3: Split Insights AI + Recursion fixes
+# ════════════════════════════════════════════════════════════════════
+
+agent_communication:
+    - agent: "main"
+      message: |
+        Phase 3 complete:
+
+        **Critical Correctness Fixes (Split screen):**
+        1. ✅ Fixed `markPaidOffline` infinite recursion — service import was shadowed by
+           local function, causing stack overflow on settle-as-paid. Now imports as
+           `markPaidOfflineSrv` and local wrapper calls it correctly.
+        2. ✅ Fixed `dismissReminder` infinite recursion — same shadowing pattern.
+           Now imports as `dismissReminderSrv`.
+        Both were pre-existing bugs in /app/frontend/app/(tabs)/split.tsx.
+
+        **New Split AI Insights:**
+        3. ✅ /api/split/insights backend endpoint — aggregates savings, most-active group,
+           top debtor/creditor, streak, friends count + GPT-5.2 witty fun fact (6h cache).
+           File: /app/backend/routers/split_insights.py
+        4. ✅ SplitInsightsHero component — horizontal carousel with scale-in spring
+           animation per card, saffron-themed, fallback DEFAULT_ZERO_STATE (3 welcome
+           cards) shown if API fails or user has zero activity.
+           File: /app/frontend/components/split/SplitInsightsHero.tsx
+        5. ✅ Hero wired into split.tsx between RemindersBanner and SettleUpCard.
+
+        **Budget screen audit:**
+        - Reviewed end-to-end flow. Uses clean services layer (fetchLiveBudgets,
+          createBudget, updateBudget, deleteBudget, fetchBudgetSuggestions). No recursion
+          bugs, no broken flows. Recurring toggle, undo delete, AI auto-categorize all
+          working via backend /api/budgets/*.
+
+        **Backend testing — ALL PASS:**
+        - GET /api/split/insights first call → 200 with 10 required fields ✓
+        - GET /api/split/insights cached call → 200 identical shape ✓
+        - Zero-activity user gets exactly 1 zero-state card from server ✓
+        - /api/split/balances regression ✓
+        - /api/split/groups regression (19 groups for test user) ✓
+
+        **All Phase 1 + 2 + 3 tasks delivered.**
+
+        Remaining from backlog (unchanged):
+        - P2: WhatsApp expense-tracking bot
+        - P2: Real FCM/APNs push delivery
+        - Blocked: Real SMS OTP (awaiting MSG91/Twilio keys)
+
         - Split screen correctness + make lively with AI insights
 
         **AWAITING:** user visual sign-off on Tab Bar v3 + Rewards Hub before Phase 2.

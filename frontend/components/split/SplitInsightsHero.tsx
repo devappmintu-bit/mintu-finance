@@ -35,23 +35,18 @@ export default function SplitInsightsHero() {
   const load = useCallback(async () => {
     try {
       const r = await api.get('/split/insights');
-      setCards(r.data?.cards || []);
-    } catch { setCards([]); } finally { setLoading(false); }
+      const got = r.data?.cards || [];
+      setCards(got.length > 0 ? got : DEFAULT_ZERO_STATE);
+    } catch {
+      setCards(DEFAULT_ZERO_STATE);
+    } finally {
+      setLoading(false);
+    }
   }, []);
 
   useEffect(() => { load(); }, [load]);
 
-  if (loading) {
-    return (
-      <View style={s.wrap}>
-        <View style={[s.card, { justifyContent: 'center', alignItems: 'center' }]}>
-          <Text style={{ color: COLORS.text.muted, fontSize: 11 }}>Loading insights…</Text>
-        </View>
-      </View>
-    );
-  }
-
-  if (cards.length === 0) return null;
+  if (loading) return null;
 
   return (
     <View style={s.wrap}>
@@ -71,6 +66,31 @@ export default function SplitInsightsHero() {
     </View>
   );
 }
+
+// Fallback shown if user has zero activity OR the API fails silently
+const DEFAULT_ZERO_STATE: InsightCard[] = [
+  {
+    id: 'welcome',
+    emoji: '✨',
+    title: 'Start splitting',
+    subtitle: 'Create a group and add your first expense — we\'ll do the math',
+    color: '#F56E1E',
+  },
+  {
+    id: 'how',
+    emoji: '🪙',
+    title: 'Earn coins',
+    subtitle: 'Every settlement earns MintU coins you can redeem for vouchers',
+    color: '#10B981',
+  },
+  {
+    id: 'fun',
+    emoji: '🎯',
+    title: 'Stay lively',
+    subtitle: 'Witty insights, streaks and AI nudges once you start splitting',
+    color: '#0EA5E9',
+  },
+];
 
 function AnimatedCard({ card, index }: { card: InsightCard; index: number }) {
   const scale = useRef(new Animated.Value(0.8)).current;
