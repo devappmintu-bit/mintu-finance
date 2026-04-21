@@ -64,20 +64,20 @@ export default function PremiumHomeCard() {
     >
       <LinearGradient colors={headerColors} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={s.header}>
         <View style={[s.iconBadge, isPremium ? s.iconBadgePremium : s.iconBadgeLocked]}>
-          <Ionicons name={isPremium ? 'diamond' : 'lock-closed'} size={20} color={isPremium ? '#F56E1E' : '#F56E1E'} />
+          <Ionicons name={isPremium ? 'diamond' : 'flash'} size={20} color={'#F56E1E'} />
         </View>
         <View style={{ flex: 1 }}>
           <Text style={s.headerTitle}>
-            {isPremium ? 'Premium · active' : 'Premium'}
+            {isPremium ? 'Premium · active' : 'Financial Superpowers'}
           </Text>
           <Text style={s.headerSub} numberOfLines={1}>
             {isPremium
               ? `${PERKS.length} features unlocked · tap to view`
-              : `${PERKS.length} features locked · tap to preview`}
+              : `Explore Pro · ${PERKS.length} upgrades await`}
           </Text>
         </View>
         {!isPremium && (
-          <View style={s.lockBadge}><Text style={s.lockBadgeTxt}>LOCKED</Text></View>
+          <View style={s.lockBadge}><Text style={s.lockBadgeTxt}>PRO</Text></View>
         )}
         <Ionicons name={expanded ? 'chevron-up' : 'chevron-down'} size={20} color="#fff" />
       </LinearGradient>

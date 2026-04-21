@@ -29,6 +29,7 @@ import UnifiedLeaderboard from '../../components/leaderboard/UnifiedLeaderboard'
 import AnimatedCoin from '../../components/AnimatedCoin';
 import NewsCarousel from '../../components/home/NewsCarousel';
 import WeeklyReport from '../../components/home/WeeklyReport';
+import HeroCard from '../../components/home/HeroCard';
 import Confetti from '../../components/Confetti';
 
 import { APP_LINK } from '../../utils/brand';
@@ -281,6 +282,18 @@ export default function HomeScreen() {
             <View style={styles.avatarBadge}><Ionicons name="settings-sharp" size={10} color="#fff" /></View>
           </TapTile>
         </View>
+
+        {/* ══════════════════════════════════════════════════════════════
+            HERO CARD — AI-driven daily insight + 1 CTA (INSIGHT → ACTION)
+            Dynamic: picks 1 of 6 states (first_run / big_saver / overbudget
+            / spike / on_track / neutral) from live snapshot data.
+            ══════════════════════════════════════════════════════════════ */}
+        <HeroCard
+          snapshot={snapshot}
+          stats={stats}
+          user={user}
+          txnCount={Array.isArray(recentTxns) ? recentTxns.length : 0}
+        />
 
         {/* PREMIUM — expandable card on Home, locked for free users */}
         <PremiumHomeCard />

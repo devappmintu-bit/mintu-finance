@@ -1,7 +1,7 @@
 """share router — shareable score cards and stats cards for WhatsApp/Instagram."""
 from datetime import datetime, timedelta
 from bson import ObjectId
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, HTTPException
 
 from core import db, get_current_user
 from core.content import APP_DOWNLOAD_LINK
@@ -15,6 +15,8 @@ api_router = router  # extracted code uses @api_router.*
 async def get_score_card_data(user_id: str = Depends(get_current_user)):
     """Get data for generating shareable score card"""
     user = await db.users.find_one({"_id": ObjectId(user_id)})
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
     thirty_days_ago = datetime.utcnow() - timedelta(days=30)
     txns = await db.transactions.find({"user_id": user_id, "date": {"$gte": thirty_days_ago}}).to_list(1000)
     
