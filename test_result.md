@@ -678,10 +678,78 @@ metadata:
 
 test_plan:
   current_focus:
-    - "Adversarial re-test Apr 21 2026 — IDOR + amount hardening (15/19 PASS, NaN/Inf still 500)"
-  stuck_tasks: []
+    - "Round 2 Adversarial Audit Apr 21 2026 — Expanded attack surface (39/44 PASS, 5 FAIL)"
+  stuck_tasks:
+    - "Budgets: POST /api/budgets with amount=NaN stores NaN in Mongo AND returns 500 (no finite-float validator)"
+    - "AI Chat: /api/ai/chat returns 500 for any user whose historical txns/budgets contain NaN/Inf floats (aggregation propagates non-finite to response)"
   test_all: false
   test_priority: "high_first"
+
+round2_adversarial_audit_apr21_2026:
+  - task: "Round 2 Adversarial Audit — Expanded attack surface (auth bypass, IDOR, JWT, rate-limit, malformed bodies, injection)"
+    implemented: true
+    working: false
+    file: "/app/backend/routers/budgets.py, /app/backend/routers/ai_coach.py, /app/backend/server.py"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: true
+    status_history:
+      - working: false
+        agent: "testing"
+        comment: |
+          ✅ 39/44 PASS, ❌ 5/44 FAIL (Apr 21 2026, /app/backend_test.py, tokenA=9876543210, tokenB=9988776655).
+
+          **✅ WORKING DEFENSES (39/44)**
+          • A1-A5 Transactions IDOR + auth bypass all correctly blocked (404/401).
+          • B6-B11 User endpoints correctly require auth (422); avatar 12MB correctly 400 "Image too large".
+          • C12-C13 Budget IDOR: PUT/DELETE A's budget with tokenB → 404 ✅. C15 negative → 400 ✅. C17 /budgets/live no-auth → 422 ✅.
+          • C16 POST /budgets amount=0 → 200 (accepted; documented behaviour).
+          • D21 AI chat no-token → 422 ✅.
+          • E23-E27 Coins/gamification/rewards/referral: all require auth; referral double-apply blocked (1 of 2 parallel succeeds, other 400 "already used"); /rewards/claim not a route (404); /rewards/claim-voucher accepts any payload cleanly 200 (no SQL-ish crash).
+          • F28-F31 JWT tampering (payload-swap, alg:none, expired, future-iat) — ALL 401 ✅. Python `jwt` library correctly rejects every variant with "Invalid token".
+          • G32 50× send-otp same phone → 429 kicks in on 2nd request (due to 30s-per-phone throttle). Rate-limiting present.
+          • G33 20× wrong OTP → after 3 attempts → 400 "Too many attempts. Please request a new OTP". Lockout present ✅.
+          • H34 10MB invalid JSON body → 422 json_invalid (not 500) ✅.
+          • H35 10-level nested JSON → 200 (parser fine).
+          • H36 type=null → 422 pydantic string_type ✅.
+          • H37 empty body {} → 422 missing required fields ✅.
+          • H38 null-bytes category → 200 stored safely (escaping client's responsibility).
+          • I39 /news/india-finance requires auth → 422 (documented).
+          • I40 ?limit=99999999 → 200 (query param ignored).
+
+          **❌ FAILURES (5/44) — ALL REAL BUGS**
+
+          🔴 **C14 — POST /api/budgets {"amount": NaN, "category": "Food"} → HTTP 500 AND data persisted to Mongo.**
+              Root cause: `BudgetCreate.resolved_amount()` in /app/backend/routers/budgets.py:35-39 only checks `v is None or v < 0`. For NaN, `v < 0` returns False, so NaN passes validation. The budget is inserted into Mongo with amount=nan (confirmed via direct Mongo query — doc 69e77ee8e4fe281fbd7aff5e created during this test run at 13:43:04 UTC has amount=nan). When the handler returns the response dict with amount=nan, Starlette's default JSONResponse renders with json.dumps(allow_nan=False) → `ValueError: Out of range float values are not JSON compliant` → 500.
+              Severity: **HIGH** — silently corrupts budget data AND bypasses the global validation exception handler (which only scrubs RequestValidationError, not arbitrary handler returns).
+              Fix: add `@field_validator("amount")` + `@field_validator("limit")` in BudgetCreate that reject non-finite floats with `math.isfinite(v)`. Also fix PUT /budgets/{id} — same gap at line 153-159.
+
+          🔴 **D18, D19, D20, D22 — POST /api/ai/chat → HTTP 500 for any user with corrupt historical data.**
+              All 4 failures share one root cause. `tokenA` (phone 9876543210, user_id 69dfab73720f7ce36602727f) has 3 pre-existing transactions with amount=NaN, +Inf, −Inf (confirmed via Mongo query — created 13:13:10 UTC during an earlier round's adversarial test before the input validator was hardened). These poison every aggregation in ai_coach.py:
+                  ```
+                  total_expense = sum(v["total"] for v in category_spend.values())  # → NaN
+                  savings_rate_val = round(((total_income - total_expense) / max(total_income,1))*100, 1)  # → NaN
+                  ```
+              The response `context_used` dict contains NaN → Starlette json.dumps(allow_nan=False) → 500.
+              I VERIFIED this is data-dependent: a FRESH user (phone 8111122233, created in-flight) returns 200 with a clean structured reply. Only tokenA (and any other user historically hit with bad data) 500s.
+              Severity: **HIGH** for affected users — their AI coach is permanently broken until data is purged.
+              Fixes needed (both):
+                1. **Purge bad data NOW**: `db.transactions.delete_many({"$or":[{"amount":float("nan")},{"amount":float("inf")},{"amount":float("-inf")}]})` + same for budgets. (Mongo cannot match NaN with equality — use `{"amount":{"$not":{"$type":"double"}}}` or a Python script.)
+                2. **Defense-in-depth**: wrap every `/ai/*` response in `_SafeJSONResponse` (already defined in server.py:253) OR scrub non-finite floats from the response dict before returning. Example one-liner at end of ai_coach.py handler:
+                     ```python
+                     return _scrub_nonfinite(return_dict)
+                     ```
+                   (where `_scrub_nonfinite` is already exported from server.py — import it).
+                3. **Harden AI aggregation**: in ai_coach.py line 42-52, guard: `total_expense = sum(v["total"] for v in category_spend.values() if math.isfinite(v["total"]))`.
+
+          **E26 (PASS but worth noting)** — Referral double-apply on tokenB: 1st request 200 "Referral applied", 2nd 400 "already used a referral code". Race protection is correct via Mongo-level `db.referrals.find_one({"referred_id": user_id})` check, but NOT via a unique index — theoretically a narrow window could double-credit under extreme concurrency. Recommend `db.referrals.create_index({"referred_id":1}, unique=True)` in startup for a hard guarantee.
+
+          **I39 news auth observation** — GET /api/news/india-finance requires auth (422 without token). Review request asked to "verify by design" whether it's public. Per /app/backend/routers/news.py line 149 (`Depends(get_current_user)`), auth is REQUIRED by design. Not a bug; just documenting.
+
+          📊 Summary: **39/44 PASS (88.6%)**. IDOR cluster FULLY patched on transactions + budgets. JWT tampering all rejected. Rate limits active. AI coach STRUCTURALLY broken for users with pre-existing NaN/Inf data — blocks a core feature. Budget NaN silently corrupts DB + crashes response. Both are regressions of the Round 1 validator sweep that covered transactions.py + split_common.py but MISSED budgets.py and the response-layer protection for AI chat.
+
+          needs_retesting=true until main agent applies the 2 fixes above (scrub nonfinite in ai_coach response + add finite-float validator in BudgetCreate) AND purges the 3 corrupt txns + 1 corrupt budget.
+
 
 adversarial_retest_apr21_2026:
   - task: "Re-run adversarial tests post-patch (IDOR + transaction/split amount hardening)"
