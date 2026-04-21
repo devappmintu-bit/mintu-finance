@@ -21,7 +21,9 @@ import { Ionicons } from '@expo/vector-icons';
 import Toast from 'react-native-toast-message';
 import api from '../../utils/api';
 import useFocusRefresh from '../../hooks/useFocusRefresh';
-import { COLORS, shadowStyle } from '../../utils/theme';
+import { shadowStyle } from '../../utils/theme';
+import { useAppColors } from '../../utils/theme';
+import { makeStyles } from '../../utils/makeStyles';
 
 type Method = {
   id: string;
@@ -49,6 +51,7 @@ const WALLETS = ['Paytm', 'Mobikwik', 'AmazonPay', 'PhonePe', 'FreeCharge'];
 const CARD_BRANDS = ['Visa', 'Mastercard', 'RuPay', 'Amex'];
 
 export default function PaymentMethodsV2() {
+  const s = useSStyles();
   const [expanded, setExpanded] = useState(false);
   const [loading, setLoading] = useState(false);
   const [methods, setMethods] = useState<Method[]>([]);
@@ -187,6 +190,7 @@ function maskUpi(upi: string): string {
 // Add-method modal
 // ══════════════════════════════════════════════════════════════════
 function AddMethodModal({ visible, onClose, onSaved }: { visible: boolean; onClose: () => void; onSaved: () => void }) {
+  const m = useMStyles();
   const [type, setType] = useState<Method['type']>('upi');
   const [upiId, setUpiId] = useState('');
   const [cardLast4, setCardLast4] = useState('');
@@ -339,56 +343,56 @@ function AddMethodModal({ visible, onClose, onSaved }: { visible: boolean; onClo
   );
 }
 
-const s = StyleSheet.create({
+const useSStyles = makeStyles((c) => ({
   card: { backgroundColor: 'rgba(255,255,255,0.92)', borderRadius: 20, padding: 14, marginBottom: 14, borderWidth: 1, borderColor: 'rgba(238,221,204,0.6)', ...shadowStyle('#2E1F1A', 2, 10, 0.04, 2) },
   header: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 4 },
-  iconBox: { width: 40, height: 40, borderRadius: 12, backgroundColor: COLORS.accent.primary + '15', justifyContent: 'center', alignItems: 'center' },
-  title: { fontSize: 16, fontWeight: '800', color: COLORS.text.primary },
-  sub: { fontSize: 12, color: COLORS.text.muted, marginTop: 2 },
+  iconBox: { width: 40, height: 40, borderRadius: 12, backgroundColor: c.accent.primary + '15', justifyContent: 'center', alignItems: 'center' },
+  title: { fontSize: 16, fontWeight: '800', color: c.text.primary },
+  sub: { fontSize: 12, color: c.text.muted, marginTop: 2 },
   body: { marginTop: 14, gap: 10 },
   empty: { alignItems: 'center', paddingVertical: 16 },
-  emptyT: { fontSize: 13, fontWeight: '800', color: COLORS.text.primary, marginTop: 8 },
-  emptyS: { fontSize: 11.5, color: COLORS.text.secondary, textAlign: 'center', marginTop: 4, lineHeight: 16 },
-  row: { flexDirection: 'row', alignItems: 'center', gap: 10, padding: 12, borderRadius: 14, backgroundColor: COLORS.bg.primary, borderWidth: 1, borderColor: COLORS.border.subtle },
-  rowDefault: { borderColor: COLORS.accent.primary + '60', backgroundColor: '#FFF7ED' },
+  emptyT: { fontSize: 13, fontWeight: '800', color: c.text.primary, marginTop: 8 },
+  emptyS: { fontSize: 11.5, color: c.text.secondary, textAlign: 'center', marginTop: 4, lineHeight: 16 },
+  row: { flexDirection: 'row', alignItems: 'center', gap: 10, padding: 12, borderRadius: 14, backgroundColor: c.bg.primary, borderWidth: 1, borderColor: c.border.subtle },
+  rowDefault: { borderColor: c.accent.primary + '60', backgroundColor: '#FFF7ED' },
   rowIcon: { width: 34, height: 34, borderRadius: 10, alignItems: 'center', justifyContent: 'center' },
-  rowLabel: { fontSize: 13.5, fontWeight: '800', color: COLORS.text.primary },
-  rowSub: { fontSize: 11, color: COLORS.text.muted, marginTop: 2 },
-  defaultPill: { flexDirection: 'row', alignItems: 'center', gap: 3, backgroundColor: COLORS.accent.primary, paddingHorizontal: 8, paddingVertical: 4, borderRadius: 999 },
+  rowLabel: { fontSize: 13.5, fontWeight: '800', color: c.text.primary },
+  rowSub: { fontSize: 11, color: c.text.muted, marginTop: 2 },
+  defaultPill: { flexDirection: 'row', alignItems: 'center', gap: 3, backgroundColor: c.accent.primary, paddingHorizontal: 8, paddingVertical: 4, borderRadius: 999 },
   defaultPillT: { fontSize: 10, fontWeight: '900', color: '#fff' },
-  setDefaultBtn: { paddingHorizontal: 8, paddingVertical: 5, borderRadius: 8, backgroundColor: COLORS.accent.primary + '15' },
-  setDefaultT: { fontSize: 10.5, fontWeight: '800', color: COLORS.accent.primary },
+  setDefaultBtn: { paddingHorizontal: 8, paddingVertical: 5, borderRadius: 8, backgroundColor: c.accent.primary + '15' },
+  setDefaultT: { fontSize: 10.5, fontWeight: '800', color: c.accent.primary },
   delBtn: { padding: 6 },
-  addBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, backgroundColor: COLORS.accent.primary, paddingVertical: 12, borderRadius: 12, marginTop: 6 },
+  addBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, backgroundColor: c.accent.primary, paddingVertical: 12, borderRadius: 12, marginTop: 6 },
   addBtnT: { color: '#fff', fontWeight: '800', fontSize: 13, letterSpacing: 0.2 },
-});
+}));
 
-const m = StyleSheet.create({
+const useMStyles = makeStyles((c) => ({
   backdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.45)', justifyContent: 'flex-end' },
-  sheet: { backgroundColor: COLORS.bg.secondary, borderTopLeftRadius: 24, borderTopRightRadius: 24, padding: 20, paddingBottom: 28 },
-  grip: { width: 40, height: 4, borderRadius: 2, backgroundColor: COLORS.border.subtle, alignSelf: 'center', marginBottom: 12 },
-  title: { fontSize: 18, fontWeight: '900', color: COLORS.text.primary, marginBottom: 12 },
+  sheet: { backgroundColor: c.bg.secondary, borderTopLeftRadius: 24, borderTopRightRadius: 24, padding: 20, paddingBottom: 28 },
+  grip: { width: 40, height: 4, borderRadius: 2, backgroundColor: c.border.subtle, alignSelf: 'center', marginBottom: 12 },
+  title: { fontSize: 18, fontWeight: '900', color: c.text.primary, marginBottom: 12 },
   typeRow: { flexDirection: 'row', gap: 8, marginBottom: 12 },
-  typeChip: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 5, paddingVertical: 9, borderRadius: 10, backgroundColor: COLORS.bg.primary, borderWidth: 1, borderColor: COLORS.border.subtle },
-  typeChipOn: { backgroundColor: COLORS.accent.primary, borderColor: COLORS.accent.primary },
-  typeChipT: { fontSize: 12, fontWeight: '800', color: COLORS.text.primary },
+  typeChip: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 5, paddingVertical: 9, borderRadius: 10, backgroundColor: c.bg.primary, borderWidth: 1, borderColor: c.border.subtle },
+  typeChipOn: { backgroundColor: c.accent.primary, borderColor: c.accent.primary },
+  typeChipT: { fontSize: 12, fontWeight: '800', color: c.text.primary },
   typeChipTOn: { color: '#fff' },
   rowWrap: { flexDirection: 'row', gap: 10 },
   field: { marginBottom: 12 },
-  label: { fontSize: 11, fontWeight: '800', color: COLORS.text.muted, textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 5 },
-  input: { backgroundColor: COLORS.bg.primary, borderRadius: 10, paddingHorizontal: 12, paddingVertical: 11, fontSize: 14, color: COLORS.text.primary, borderWidth: 1, borderColor: COLORS.border.subtle },
+  label: { fontSize: 11, fontWeight: '800', color: c.text.muted, textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 5 },
+  input: { backgroundColor: c.bg.primary, borderRadius: 10, paddingHorizontal: 12, paddingVertical: 11, fontSize: 14, color: c.text.primary, borderWidth: 1, borderColor: c.border.subtle },
   chipRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 6 },
-  miniChip: { paddingHorizontal: 10, paddingVertical: 6, borderRadius: 999, backgroundColor: COLORS.bg.primary, borderWidth: 1, borderColor: COLORS.border.subtle },
-  miniChipOn: { backgroundColor: COLORS.accent.primary, borderColor: COLORS.accent.primary },
-  miniChipT: { fontSize: 11, fontWeight: '800', color: COLORS.text.secondary },
+  miniChip: { paddingHorizontal: 10, paddingVertical: 6, borderRadius: 999, backgroundColor: c.bg.primary, borderWidth: 1, borderColor: c.border.subtle },
+  miniChipOn: { backgroundColor: c.accent.primary, borderColor: c.accent.primary },
+  miniChipT: { fontSize: 11, fontWeight: '800', color: c.text.secondary },
   miniChipTOn: { color: '#fff' },
   defaultRow: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 6 },
-  cbox: { width: 20, height: 20, borderRadius: 5, borderWidth: 1.5, borderColor: COLORS.border.subtle, alignItems: 'center', justifyContent: 'center' },
-  cboxOn: { backgroundColor: COLORS.accent.primary, borderColor: COLORS.accent.primary },
-  defaultT: { fontSize: 12.5, color: COLORS.text.primary, fontWeight: '700' },
+  cbox: { width: 20, height: 20, borderRadius: 5, borderWidth: 1.5, borderColor: c.border.subtle, alignItems: 'center', justifyContent: 'center' },
+  cboxOn: { backgroundColor: c.accent.primary, borderColor: c.accent.primary },
+  defaultT: { fontSize: 12.5, color: c.text.primary, fontWeight: '700' },
   actions: { flexDirection: 'row', gap: 10, marginTop: 16 },
   btn: { flex: 1, paddingVertical: 12, borderRadius: 12, alignItems: 'center' },
-  btnGhost: { backgroundColor: COLORS.bg.primary, borderWidth: 1, borderColor: COLORS.border.subtle },
-  btnPrimary: { backgroundColor: COLORS.accent.primary },
+  btnGhost: { backgroundColor: c.bg.primary, borderWidth: 1, borderColor: c.border.subtle },
+  btnPrimary: { backgroundColor: c.accent.primary },
   btnT: { fontSize: 14, fontWeight: '800' },
-});
+}));

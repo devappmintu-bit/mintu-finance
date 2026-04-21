@@ -21,10 +21,13 @@ import { router } from 'expo-router';
 import api from '../../utils/api';
 import { useAuthStore } from '../../store/authStore';
 import { COLORS } from '../../utils/theme';
+import { makeStyles } from '../../utils/makeStyles';
 
 type Mode = 'soft' | 'hard';
 
 export default function DeleteAccountSection() {
+  const s = useSStyles();
+  const m = useMStyles();
   const [expanded, setExpanded] = useState(false);
   const [modalMode, setModalMode] = useState<Mode | null>(null);
   const [confirmation, setConfirmation] = useState('');
@@ -161,31 +164,31 @@ export default function DeleteAccountSection() {
   );
 }
 
-const s = StyleSheet.create({
-  card: { backgroundColor: '#FFF7F6', borderRadius: 20, padding: 14, marginBottom: 14, borderWidth: 1, borderColor: COLORS.state.danger + '33' },
+const useSStyles = makeStyles((c) => ({
+  card: { backgroundColor: '#FFF7F6', borderRadius: 20, padding: 14, marginBottom: 14, borderWidth: 1, borderColor: c.state.danger + '33' },
   header: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 4 },
-  iconBox: { width: 40, height: 40, borderRadius: 12, backgroundColor: COLORS.state.dangerBg, alignItems: 'center', justifyContent: 'center' },
-  title: { fontSize: 16, fontWeight: '800', color: COLORS.text.primary },
-  sub: { fontSize: 11.5, color: COLORS.text.muted, marginTop: 2 },
+  iconBox: { width: 40, height: 40, borderRadius: 12, backgroundColor: c.state.dangerBg, alignItems: 'center', justifyContent: 'center' },
+  title: { fontSize: 16, fontWeight: '800', color: c.text.primary },
+  sub: { fontSize: 11.5, color: c.text.muted, marginTop: 2 },
   body: { marginTop: 12, gap: 8 },
-  optionCard: { flexDirection: 'row', alignItems: 'center', gap: 12, padding: 12, borderRadius: 14, backgroundColor: '#fff', borderWidth: 1, borderColor: COLORS.border.subtle },
+  optionCard: { flexDirection: 'row', alignItems: 'center', gap: 12, padding: 12, borderRadius: 14, backgroundColor: '#fff', borderWidth: 1, borderColor: c.border.subtle },
   optIcon: { width: 42, height: 42, borderRadius: 12, alignItems: 'center', justifyContent: 'center' },
-  optTitle: { fontSize: 13.5, fontWeight: '800', color: COLORS.text.primary },
-  optSub: { fontSize: 11, color: COLORS.text.secondary, marginTop: 3, lineHeight: 15 },
-});
+  optTitle: { fontSize: 13.5, fontWeight: '800', color: c.text.primary },
+  optSub: { fontSize: 11, color: c.text.secondary, marginTop: 3, lineHeight: 15 },
+}));
 
-const m = StyleSheet.create({
+const useMStyles = makeStyles((c) => ({
   backdrop: { flex: 1, backgroundColor: 'rgba(46,31,26,0.55)', justifyContent: 'flex-end' },
-  sheet: { backgroundColor: COLORS.bg.secondary, borderTopLeftRadius: 24, borderTopRightRadius: 24, padding: 20, paddingBottom: 28 },
-  grip: { width: 40, height: 4, borderRadius: 2, backgroundColor: COLORS.border.subtle, alignSelf: 'center', marginBottom: 12 },
-  iconBig: { width: 60, height: 60, borderRadius: 30, backgroundColor: COLORS.state.dangerBg, alignItems: 'center', justifyContent: 'center', alignSelf: 'center', marginBottom: 12 },
-  title: { fontSize: 18, fontWeight: '900', color: COLORS.state.danger, textAlign: 'center', marginBottom: 8 },
-  body: { fontSize: 12.5, color: COLORS.text.secondary, lineHeight: 18, textAlign: 'center', marginBottom: 14 },
-  label: { fontSize: 11, fontWeight: '800', color: COLORS.text.muted, textTransform: 'uppercase', letterSpacing: 0.6, marginBottom: 5 },
-  input: { backgroundColor: COLORS.bg.primary, borderRadius: 10, paddingHorizontal: 12, paddingVertical: 11, fontSize: 14, color: COLORS.text.primary, borderWidth: 1.5, borderColor: COLORS.state.danger + '66', letterSpacing: 2, fontWeight: '900' },
+  sheet: { backgroundColor: c.bg.secondary, borderTopLeftRadius: 24, borderTopRightRadius: 24, padding: 20, paddingBottom: 28 },
+  grip: { width: 40, height: 4, borderRadius: 2, backgroundColor: c.border.subtle, alignSelf: 'center', marginBottom: 12 },
+  iconBig: { width: 60, height: 60, borderRadius: 30, backgroundColor: c.state.dangerBg, alignItems: 'center', justifyContent: 'center', alignSelf: 'center', marginBottom: 12 },
+  title: { fontSize: 18, fontWeight: '900', color: c.state.danger, textAlign: 'center', marginBottom: 8 },
+  body: { fontSize: 12.5, color: c.text.secondary, lineHeight: 18, textAlign: 'center', marginBottom: 14 },
+  label: { fontSize: 11, fontWeight: '800', color: c.text.muted, textTransform: 'uppercase', letterSpacing: 0.6, marginBottom: 5 },
+  input: { backgroundColor: c.bg.primary, borderRadius: 10, paddingHorizontal: 12, paddingVertical: 11, fontSize: 14, color: c.text.primary, borderWidth: 1.5, borderColor: c.state.danger + '66', letterSpacing: 2, fontWeight: '900' },
   actions: { flexDirection: 'row', gap: 10, marginTop: 16 },
   btn: { flex: 1, paddingVertical: 12, borderRadius: 12, alignItems: 'center' },
-  btnGhost: { backgroundColor: COLORS.bg.primary, borderWidth: 1, borderColor: COLORS.border.subtle },
-  btnDanger: { backgroundColor: COLORS.state.danger },
+  btnGhost: { backgroundColor: c.bg.primary, borderWidth: 1, borderColor: c.border.subtle },
+  btnDanger: { backgroundColor: c.state.danger },
   btnT: { fontSize: 14, fontWeight: '800' },
-});
+}));

@@ -7,6 +7,7 @@ import { toastConfig } from '../components/ToastConfig';
 import { useAuthStore } from '../store/authStore';
 import { useLangStore } from '../store/langStore';
 import { useThemePref } from '../store/themeStore';
+import ThemeTransitionOverlay from '../components/ui/ThemeTransitionOverlay';
 import { usePushNotifications } from '../hooks/usePushNotifications';
 import { useAppLock } from '../hooks/useAppLock';
 import {
@@ -122,6 +123,8 @@ export default function RootLayout() {
             <Stack.Screen name="premium-activated" options={{ animation: 'fade' }} />
           </Stack>
           <Toast config={toastConfig} position="bottom" bottomOffset={100} />
+          {/* 300ms CrossFade overlay while the Stack remount re-skins the tree */}
+          <ThemeTransitionOverlay />
         </BottomSheetModalProvider>
       </PortalProvider>
     </GestureHandlerRootView>
