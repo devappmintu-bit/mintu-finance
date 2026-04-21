@@ -19,7 +19,7 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import {
   View, Text, StyleSheet, TouchableOpacity, TextInput, ScrollView,
-  KeyboardAvoidingView, Platform, FlatList, Animated,
+  KeyboardAvoidingView, Platform, Animated,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -28,6 +28,7 @@ import MintULogo from './MintULogo';
 import { useAuthStore } from '../store/authStore';
 import { useLangStore } from '../store/langStore';
 import { COLORS } from '../utils/theme';
+import { FlashList } from '@shopify/flash-list';
 
 type ChatMsg = { role: 'user' | 'ai'; text: string; loading?: boolean; agent?: string; agentEmoji?: string; ts?: number; isFallback?: boolean };
 
@@ -122,7 +123,7 @@ export default function AICoachChat({ onClose }: { onClose: () => void }) {
   const [input, setInput] = useState('');
   const [chatLoading, setChatLoading] = useState(false);
   const [ctx, setCtx] = useState<Ctx>({ name: user?.name || 'there' });
-  const flatRef = useRef<FlatList>(null);
+  const flatRef = useRef<FlashList<any>>(null);
 
   // Load the user's real spending context once — used for prompt enrichment AND for offline fallback.
   useEffect(() => {
@@ -276,11 +277,12 @@ export default function AICoachChat({ onClose }: { onClose: () => void }) {
       </View>
 
       <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={{ flex: 1 }} keyboardVerticalOffset={10}>
-        <FlatList
+        <FlashList
           ref={flatRef}
           data={messages}
           keyExtractor={(_, i) => String(i)}
           renderItem={renderMsg}
+          estimatedItemSize={80}
           contentContainerStyle={s.chatList}
           onContentSizeChange={() => flatRef.current?.scrollToEnd({ animated: true })}
           showsVerticalScrollIndicator={false}

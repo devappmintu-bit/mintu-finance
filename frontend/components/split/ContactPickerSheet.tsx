@@ -15,11 +15,12 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import {
   View, Text, StyleSheet, Modal, TouchableOpacity, TextInput,
-  FlatList, KeyboardAvoidingView, Platform, ScrollView, Alert,
+  KeyboardAvoidingView, Platform, ScrollView, Alert,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import * as Contacts from 'expo-contacts';
+import { FlashList } from '@shopify/flash-list';
 import Toast from 'react-native-toast-message';
 import PressableGlass from '../PressableGlass';
 import { haptic } from '../../utils/haptics';
@@ -188,10 +189,10 @@ export default function ContactPickerSheet({ visible, onClose, onCreate }: Props
               {contactsPermission === 'loading' ? (
                 <Text style={s.hint}>Loading contacts…</Text>
               ) : contactsPermission === 'granted' ? (
-                <FlatList
+                <FlashList
                   data={filtered}
                   keyExtractor={(c) => c.id}
-                  style={{ flex: 1 }}
+                  estimatedItemSize={62}
                   renderItem={({ item, index }) => {
                     const isSel = selected.some((s) => s.phone === item.phone);
                     return (

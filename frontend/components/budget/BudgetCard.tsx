@@ -20,7 +20,7 @@ import { Swipeable, RectButton } from 'react-native-gesture-handler';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import * as Haptics from 'expo-haptics';
-import { CATEGORIES } from '../../utils/theme';
+import { CATEGORIES, shadowStyle } from '../../utils/theme';
 
 type Props = {
   item: any;
@@ -313,7 +313,7 @@ const s = StyleSheet.create({
 
   dotsBtn: { position: 'absolute', top: 10, right: 10, width: 28, height: 28, borderRadius: 14, backgroundColor: 'rgba(255,255,255,0.85)', alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: '#E5E7EB' },
   aiBtn: { position: 'absolute', top: 10, right: 44, width: 28, height: 28, borderRadius: 14, backgroundColor: '#FFF7ED', alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: '#FED7AA' },
-  menu: { position: 'absolute', top: 42, right: 8, backgroundColor: '#fff', borderRadius: 12, paddingVertical: 6, paddingHorizontal: 4, borderWidth: 1, borderColor: '#E5E7EB', zIndex: 10, minWidth: 130, shadowColor: '#000', shadowOffset: { width: 0, height: 8 }, shadowOpacity: 0.1, shadowRadius: 14, elevation: 10 },
+  menu: { position: 'absolute', top: 42, right: 8, backgroundColor: '#fff', borderRadius: 12, paddingVertical: 6, paddingHorizontal: 4, borderWidth: 1, borderColor: '#E5E7EB', zIndex: 10, minWidth: 130, ...shadowStyle('#000', 8, 14, 0.1, 10) },
   menuItem: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingHorizontal: 10, paddingVertical: 8, borderRadius: 8 },
   menuT: { fontSize: 13, fontWeight: '700' },
 });

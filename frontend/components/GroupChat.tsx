@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import {
-  View, Text, StyleSheet, TouchableOpacity, TextInput, FlatList,
+  View, Text, StyleSheet, TouchableOpacity, TextInput,
   KeyboardAvoidingView, Platform, Modal, ScrollView,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -14,6 +14,7 @@ import { MEMBER_COLORS, STICKERS } from './split/theme';
 import ExpenseMessage from './split/ExpenseMessage';
 import ExpensesTab from './split/ExpensesTab';
 import Toast from 'react-native-toast-message';
+import { FlashList } from '@shopify/flash-list';
 
 interface Props {
   group: any;
@@ -34,7 +35,7 @@ export default function GroupChat({ group, onClose, onAddExpense, onManage, onEd
   const [sending, setSending] = useState(false);
   const [showStickers, setShowStickers] = useState(false);
   const [summary, setSummary] = useState<any>(null);
-  const flatRef = useRef<FlatList>(null);
+  const flatRef = useRef<FlashList<any>>(null);
 
   const loadMessages = useCallback(async () => {
     try {
@@ -189,11 +190,12 @@ export default function GroupChat({ group, onClose, onAddExpense, onManage, onEd
         />
       ) : (
         <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={{ flex: 1 }} keyboardVerticalOffset={10}>
-          <FlatList
+          <FlashList
             ref={flatRef}
             data={messages}
             keyExtractor={(item) => item.id}
             renderItem={renderMsg}
+            estimatedItemSize={80}
             contentContainerStyle={s.chatList}
             onContentSizeChange={() => flatRef.current?.scrollToEnd({ animated: true })}
             showsVerticalScrollIndicator={false}

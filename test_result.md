@@ -3840,6 +3840,52 @@ agent_communication:
         1. ✅ Fixed `markPaidOffline` infinite recursion — service import was shadowed by
            local function, causing stack overflow on settle-as-paid. Now imports as
            `markPaidOfflineSrv` and local wrapper calls it correctly.
+
+# ════════════════════════════════════════════════════════════════════
+# ROUND 32 (Apr 21 2026) — UI/UX End-to-End Optimization
+# ════════════════════════════════════════════════════════════════════
+
+agent_communication:
+    - agent: "main"
+      message: |
+        Comprehensive UI/UX optimization pass complete:
+
+        **New shared primitives (reusable across the app):**
+        1. ✅ TapTile — unified Pressable wrapper with haptic + scale-in animation
+           on press. Replaces ad-hoc TouchableOpacity+activeOpacity patterns.
+           File: /app/frontend/components/ui/TapTile.tsx
+        2. ✅ Skeleton — shimmer placeholder primitive with .Box, .Line, .Circle, .Group.
+           1.3s linear gradient sweep animation, warm-cream fallback.
+           File: /app/frontend/components/ui/Skeleton.tsx
+        3. ✅ SectionHeader — uppercase eyebrow title with optional right-action.
+           Consistent 10.5px/900-weight with 1.1 letter-spacing.
+           File: /app/frontend/components/ui/SectionHeader.tsx
+        4. ✅ HomeSkeleton — structural placeholder of Home tab (header + balance hero
+           + 4 quick actions + 2 content cards + 3 txn rows) using the Skeleton primitive.
+           File: /app/frontend/components/home/HomeSkeleton.tsx
+
+        **Performance — FlashList migrations (3 heavy lists):**
+        5. ✅ AICoachChat.tsx — message list now uses @shopify/flash-list
+           with estimatedItemSize=80 (was FlatList)
+        6. ✅ GroupChat.tsx — chat messages migrated to FlashList
+        7. ✅ ContactPickerSheet.tsx — contacts list migrated to FlashList
+           (important for 100+ contact scroll perf)
+
+        **Shadow audit + migration:**
+        - Audited all 9 files with raw shadowColor usage
+        - Confirmed ALL are inside Platform.select gates (no web warnings from our code)
+        - Migrated BudgetCard.tsx menu shadow → shadowStyle() helper
+        - "shadow* deprecated" warnings in logs come from third-party libs (Toast/Nav), not our code
+
+        **Visual verification:**
+        - HomeSkeleton renders with new shimmer animation on load
+        - Tab bar v3 continues to render correctly (circular raised puck, saffron active pill)
+        - No regressions observed
+
+        **Files touched:** 8 (4 new, 4 modified)
+
+        All 3 optimization tiers (High-impact + Interaction + Cleanup) delivered.
+
         2. ✅ Fixed `dismissReminder` infinite recursion — same shadowing pattern.
            Now imports as `dismissReminderSrv`.
         Both were pre-existing bugs in /app/frontend/app/(tabs)/split.tsx.
