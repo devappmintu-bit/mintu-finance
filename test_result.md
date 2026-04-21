@@ -4926,3 +4926,19 @@ agent_communication:
 
     **STATUS:** ✅ Phase 3 Polish COMPLETE. Theme Engine is production-ready with AMOLED, Tab Bar animations fully verified.
 
+
+---
+
+## ✅ Final Tab Bar & Chart Polish — Apr 21 2026
+
+    **MAIN AGENT FOLLOW-UP**:
+    - Tab Bar SVG gradient (`#1A1A24` → `#0B0B12`) and `BlurView tint="dark"` were hardcoded — making the bottom bar stay dark even in Light mode. **Fixed**: `MintUTabBar` now reads `useAppColors()` + detects luminance → swaps gradient to `#FFFFFF` → `#F3F4F6` and BlurView tint to `'light'` automatically in Light mode. Rim stroke also adapts (`rgba(17,24,39,0.10)` light vs `rgba(255,255,255,0.08)` dark).
+    - `InsightsCard.tsx` hardcoded hex colors (`#E65100`, `#10B981`, `#fff`, `#FFFFFF` card bg) replaced with theme tokens (`COLORS.accent.primary`, `COLORS.accent.moneyIn`, `COLORS.bg.secondary`) for proper Light mode WCAG contrast.
+    
+    **Screenshot verification**:
+    - 📸 Light mode: Tab bar white, focused tab orange halo, raised mascot puck with neon glow contrasts beautifully
+    - 📸 Dark mode: Tab bar dark gradient, mascot raised puck with glow
+    - 📸 AMOLED mode: Pure #000 canvas everywhere, tab bar + mascot puck pop against true black
+
+    **STATUS:** ✅ Theme Engine v3 production-ready. All major surfaces (Home, Transactions, Budgets, Split, Profile, Tab Bar) fully adaptive across Light/Dark/AMOLED.
+

@@ -27,7 +27,7 @@ import Svg, { Path, Defs, LinearGradient as SvgLG, Stop } from 'react-native-svg
 import { BottomTabBarProps } from '@react-navigation/bottom-tabs';
 import { BlurView } from 'expo-blur';
 import Mascot from '../../components/Mascot';
-import { COLORS, FONT_FAMILY, GLOW } from '../../utils/theme';
+import { COLORS, FONT_FAMILY, GLOW, useAppColors } from '../../utils/theme';
 import { makeStyles } from '../../utils/makeStyles';
 import { useLangStore } from '../../store/langStore';
 import { t } from '../../utils/i18n';
@@ -157,9 +157,15 @@ function SideTab({ icon, iconFilled, label, focused, onPress, testID }:
 
 function MintUTabBar({ state, navigation }: BottomTabBarProps) {
   const st = useStyles();
+  const c = useAppColors();
   const { lang } = useLangStore();
   const screenW = Dimensions.get('window').width;
   const { CUTOUT_W } = archGeom(screenW);
+  // Detect light vs dark by inspecting bg.primary luminance
+  const isLight = c.bg.primary === '#FAFAF9' || c.bg.primary.toUpperCase() === '#FAFAF9';
+  const gradTop = isLight ? '#FFFFFF' : '#1A1A24';
+  const gradBot = isLight ? '#F3F4F6' : '#0B0B12';
+  const rimStroke = isLight ? 'rgba(17,24,39,0.10)' : 'rgba(255,255,255,0.08)';
 
   const visible = state.routes.filter(r => TAB_META[r.name]);
   const left = visible.slice(0, 2);
@@ -180,7 +186,7 @@ function MintUTabBar({ state, navigation }: BottomTabBarProps) {
       <View style={[st.barContainer, { height: barH }]} pointerEvents="none">
         {/* Blurred dark panel behind the silhouette for depth */}
         {Platform.OS !== 'android' ? (
-          <BlurView intensity={32} tint="dark" style={[StyleSheet.absoluteFillObject, { overflow: 'hidden' }]} />
+          <BlurView intensity={32} tint={isLight ? 'light' : 'dark'} style={[StyleSheet.absoluteFillObject, { overflow: 'hidden' }]} />
         ) : null}
         <Svg
           width={screenW}
@@ -191,11 +197,11 @@ function MintUTabBar({ state, navigation }: BottomTabBarProps) {
         >
           <Defs>
             <SvgLG id="barGrad" x1="0" y1="0" x2="0" y2="1">
-              <Stop offset="0" stopColor="#1A1A24" stopOpacity="0.92" />
-              <Stop offset="1" stopColor="#0B0B12" stopOpacity="0.98" />
+              <Stop offset="0" stopColor={gradTop} stopOpacity={isLight ? '0.98' : '0.92'} />
+              <Stop offset="1" stopColor={gradBot} stopOpacity={isLight ? '1' : '0.98'} />
             </SvgLG>
           </Defs>
-          <Path d={barPath(screenW, barH)} fill="url(#barGrad)" stroke="rgba(255,255,255,0.08)" strokeWidth={1} />
+          <Path d={barPath(screenW, barH)} fill="url(#barGrad)" stroke={rimStroke} strokeWidth={1} />
         </Svg>
       </View>
 

@@ -89,7 +89,7 @@ const Sparkline: React.FC<{ points: SparkPoint[] }> = ({ points }) => {
           strokeLinecap="round"
         />
         {maxPt && maxPt.amount > 0 && (
-          <Circle cx={maxPt.x} cy={maxPt.y} r={4} fill={COLORS.accent.primary} stroke="#fff" strokeWidth={2} />
+          <Circle cx={maxPt.x} cy={maxPt.y} r={4} fill={COLORS.accent.primary} stroke={COLORS.bg.secondary} strokeWidth={2} />
         )}
       </Svg>
       <View style={s.sparkLabels}>
@@ -149,9 +149,9 @@ export default function InsightsCard({ snapshot, onPressSparkline }: Props) {
               <Text style={s.sparkSub}>{formatINR(this_week_total)} spent</Text>
             </View>
             {snapshot.last_week_total > 0 && (
-              <View style={[s.trendPill, { backgroundColor: weekTrendDown ? '#10B98118' : '#E6510018' }]}>
-                <Ionicons name={weekTrendDown ? 'trending-down' : 'trending-up'} size={12} color={weekTrendDown ? '#10B981' : '#E65100'} />
-                <Text style={[s.trendText, { color: weekTrendDown ? '#10B981' : '#E65100' }]}>
+              <View style={[s.trendPill, { backgroundColor: weekTrendDown ? COLORS.accent.moneyIn + '1E' : COLORS.accent.primary + '1E' }]}>
+                <Ionicons name={weekTrendDown ? 'trending-down' : 'trending-up'} size={12} color={weekTrendDown ? COLORS.accent.moneyIn : COLORS.accent.primary} />
+                <Text style={[s.trendText, { color: weekTrendDown ? COLORS.accent.moneyIn : COLORS.accent.primary }]}>
                   {weekTrendDown ? '' : '+'}{week_change_pct.toFixed(0)}%
                 </Text>
               </View>
@@ -170,7 +170,7 @@ export default function InsightsCard({ snapshot, onPressSparkline }: Props) {
       <View style={s.statsGrid}>
         <View style={s.statCell}>
           <Text style={s.statLabel}>Spent</Text>
-          <Text style={[s.statVal, { color: '#E65100' }]}>{formatINR(mtd_spend)}</Text>
+          <Text style={[s.statVal, { color: COLORS.accent.primary }]}>{formatINR(mtd_spend)}</Text>
         </View>
         <View style={s.statDiv} />
         <View style={s.statCell}>
@@ -180,7 +180,7 @@ export default function InsightsCard({ snapshot, onPressSparkline }: Props) {
         <View style={s.statDiv} />
         <View style={s.statCell}>
           <Text style={s.statLabel}>{top_category ? 'Top' : 'Streak'}</Text>
-          <Text style={[s.statVal, { color: '#E65100' }]} numberOfLines={1}>
+          <Text style={[s.statVal, { color: COLORS.accent.primary }]} numberOfLines={1}>
             {top_category ? top_category.name : `${tier.streak_days}d 🔥`}
           </Text>
         </View>
@@ -191,7 +191,7 @@ export default function InsightsCard({ snapshot, onPressSparkline }: Props) {
 
 const useStyles = makeStyles((c) => ({
   card: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: c.bg.secondary,
     borderRadius: 20,
     padding: 18,
     marginBottom: 14,
