@@ -152,6 +152,16 @@ def test_C_budget(tokenA, tokenB):
     r = requests.post(f"{BASE}/budgets", data=body, headers={**hA, "Content-Type": "application/json"}, timeout=TIMEOUT)
     log("C14", "POST /budgets amount=NaN → 422/400 (not 500)", r.status_code in (400, 422), "400/422", r.status_code, short(r))
 
+    # C14b amount Infinity
+    body = '{"amount": Infinity, "category": "Food"}'
+    r = requests.post(f"{BASE}/budgets", data=body, headers={**hA, "Content-Type": "application/json"}, timeout=TIMEOUT)
+    log("C14b", "POST /budgets amount=Infinity → 422/400 (not 500)", r.status_code in (400, 422), "400/422", r.status_code, short(r))
+
+    # C14c amount -Infinity
+    body = '{"amount": -Infinity, "category": "Food"}'
+    r = requests.post(f"{BASE}/budgets", data=body, headers={**hA, "Content-Type": "application/json"}, timeout=TIMEOUT)
+    log("C14c", "POST /budgets amount=-Infinity → 422/400 (not 500)", r.status_code in (400, 422), "400/422", r.status_code, short(r))
+
     # C15 amount -1000
     r = requests.post(f"{BASE}/budgets", json={"amount": -1000, "category": "Food"}, headers=hA, timeout=TIMEOUT)
     log("C15", "POST /budgets amount=-1000 → 400/422", r.status_code in (400, 422), "400/422", r.status_code, short(r))
@@ -210,6 +220,29 @@ def test_D_ai(tokenA):
                 statuses.append(f"exc:{e.__class__.__name__}")
     any_500 = any(s == 500 for s in statuses)
     log("D22", f"10 concurrent /ai/chat no 500s (got {statuses})", not any_500, "no 500s", str(statuses)[:200], "")
+
+    # D18b Inject fresh NaN via /budgets → should be rejected upfront,
+    # AND /ai/chat should stay 200 immediately after.
+    bad = requests.post(f"{BASE}/budgets",
+                       data='{"amount": NaN, "category": "TestNaNReject"}',
+                       headers={**hA, "Content-Type": "application/json"}, timeout=TIMEOUT)
+    chat = requests.post(f"{BASE}/ai/chat", json={"message": "what should I focus on today?"},
+                        headers=hA, timeout=60)
+    ok = bad.status_code in (400, 422) and chat.status_code == 200
+    log("D18b", f"NaN budget rejected (status={bad.status_code}) & /ai/chat still 200 (status={chat.status_code})",
+        ok, "budget 400/422 + chat 200", f"{bad.status_code}/{chat.status_code}", short(chat))
+    # Also sanity-check context_used has only finite floats
+    if chat.status_code == 200:
+        try:
+            ctx = chat.json().get("context_used", {})
+            import math as _m
+            all_fin = all(
+                (isinstance(v, (int, float)) and _m.isfinite(float(v))) or v is None or isinstance(v, str)
+                for v in ctx.values()
+            )
+            log("D18b.ctx", f"context_used all finite (ctx={ctx})", all_fin, "all finite", str(ctx)[:200])
+        except Exception as e:
+            log("D18b.ctx", f"context_used parse failed: {e}", False, "parseable", "exception")
 
 
 # --- E) REWARDS / COINS / REFERRAL ------------------------------------

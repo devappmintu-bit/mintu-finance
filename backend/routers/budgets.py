@@ -1,12 +1,13 @@
 """Budgets router — CRUD for per-category spending limits."""
 import os
+import math
 import json as json_mod
 import logging
 from datetime import datetime, timedelta
 from typing import Optional, List
 from bson import ObjectId
 from fastapi import APIRouter, Depends, HTTPException
-from pydantic import BaseModel
+from pydantic import BaseModel, field_validator
 
 from core import db, get_current_user
 
@@ -32,10 +33,25 @@ class BudgetCreate(BaseModel):
     recurring: bool = True  # NEW — rolls over each period by default
     description: Optional[str] = None  # NEW — free-text; used for AI categorisation when category=="Other"
 
+    @field_validator("amount", "limit")
+    @classmethod
+    def _reject_nonfinite(cls, v):
+        if v is None:
+            return v
+        try:
+            fv = float(v)
+        except Exception:
+            raise ValueError("amount / limit must be a number")
+        if not math.isfinite(fv):
+            raise ValueError("amount / limit must be a finite number")
+        return fv
+
     def resolved_amount(self) -> float:
         v = self.amount if self.amount is not None else self.limit
         if v is None or v < 0:
             raise ValueError("amount (or limit) must be a non-negative number")
+        if not math.isfinite(float(v)):
+            raise ValueError("amount (or limit) must be a finite number")
         return float(v)
 
 
@@ -153,10 +169,11 @@ async def update_budget(budget_id: str, data: dict, user_id: str = Depends(get_c
         amt = data.get("amount", data.get("limit"))
         try:
             amt = float(amt)
+            if not math.isfinite(amt): raise ValueError
             if amt < 0: raise ValueError
             updates["amount"] = amt
         except Exception:
-            raise HTTPException(status_code=400, detail="amount / limit must be a non-negative number")
+            raise HTTPException(status_code=400, detail="amount / limit must be a finite, non-negative number")
     if "period" in data and data["period"] in ("daily", "weekly", "monthly"):
         updates["period"] = data["period"]
     if "category" in data and data["category"]:

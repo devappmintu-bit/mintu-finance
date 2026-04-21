@@ -4,6 +4,7 @@ Auto-extracted from backend/routers/ai.py (Round 14 refactor).
 Decorators register on the shared APIRouter from routers.ai_common.
 """
 import os
+import math
 import logging
 from datetime import datetime, timedelta, date
 from typing import List, Dict, Optional
@@ -16,6 +17,17 @@ from routers.ai_common import (
 from core.constants import (
     AGENT_PROFILES, route_to_agent, get_lang_instruction,
 )
+
+
+def _fin(v, default: float = 0.0) -> float:
+    """Return v coerced to a finite float. Non-finite → default (0)."""
+    try:
+        fv = float(v)
+    except Exception:
+        return float(default)
+    if not math.isfinite(fv):
+        return float(default)
+    return fv
 
 
 # ── /ai/chat — primary coach chat ─────────────────────────────────────────
@@ -38,8 +50,10 @@ async def ai_financial_coach(msg: ChatMessage, user_id: str = Depends(get_curren
     ]
     category_spend = {}
     async for doc in db.transactions.aggregate(pipeline):
-        category_spend[doc["_id"]] = {"total": doc["total"], "count": doc["count"]}
-    total_expense = sum(v["total"] for v in category_spend.values())
+        t = _fin(doc.get("total"))
+        c = int(doc.get("count", 0) or 0)
+        category_spend[doc["_id"]] = {"total": t, "count": c}
+    total_expense = _fin(sum(v["total"] for v in category_spend.values()))
     total_txn_count = sum(v["count"] for v in category_spend.values())
     
     # Income
@@ -48,8 +62,8 @@ async def ai_financial_coach(msg: ChatMessage, user_id: str = Depends(get_curren
         {"$group": {"_id": None, "total": {"$sum": "$amount"}, "count": {"$sum": 1}}}
     ]
     income_docs = await db.transactions.aggregate(income_pipeline).to_list(1)
-    total_income = income_docs[0]["total"] if income_docs else 0
-    income_count = income_docs[0]["count"] if income_docs else 0
+    total_income = _fin(income_docs[0]["total"]) if income_docs else 0.0
+    income_count = int(income_docs[0]["count"]) if income_docs else 0
     
     # Budgets + duplicate detection
     budgets = await db.budgets.find({"user_id": user_id}).to_list(50)
@@ -95,6 +109,7 @@ async def ai_financial_coach(msg: ChatMessage, user_id: str = Depends(get_curren
     suggested_ctas = [c for c in suggested_ctas if not (c["id"] in seen or seen.add(c["id"]))][:3]
     
     savings_rate_val = round(((total_income - total_expense) / max(total_income, 1)) * 100, 1) if total_income > 0 else 0
+    savings_rate_val = _fin(savings_rate_val)
     
     # Build structured context
     context = f"""USER FINANCIAL PROFILE:
@@ -165,10 +180,10 @@ RULES:
             "issues": detected_issues,
             "ctas": suggested_ctas,
             "context_used": {
-                "money_score": user.get("money_score", 50),
-                "monthly_expense": total_expense,
-                "monthly_income": total_income,
-                "savings_rate": savings_rate_val,
+                "money_score": _fin(user.get("money_score", 50), 50),
+                "monthly_expense": _fin(total_expense),
+                "monthly_income": _fin(total_income),
+                "savings_rate": _fin(savings_rate_val),
                 "transaction_count": total_txn_count,
                 "top_category": max(category_spend, key=lambda k: category_spend[k]["total"]) if category_spend else None,
             }
