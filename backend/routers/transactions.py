@@ -1,9 +1,10 @@
 """Transactions router — CRUD + SMS parsing for user spending records."""
+import math
 from datetime import datetime
 from typing import Optional, List, Dict
 from bson import ObjectId
 from fastapi import APIRouter, Depends, HTTPException
-from pydantic import BaseModel
+from pydantic import BaseModel, Field, field_validator
 
 from core import db, get_current_user, cache_clear_prefix
 from core.scoring import calculate_money_score
@@ -13,11 +14,22 @@ router = APIRouter(prefix="/transactions", tags=["transactions"])
 
 # ---- Pydantic models ---------------------------------------------------------
 class TransactionCreate(BaseModel):
-    amount: float
-    category: str
-    description: str
+    amount: float = Field(..., gt=0, le=1_00_00_00_000)     # > 0 and ≤ ₹100 crore (sanity cap)
+    category: str = Field(..., min_length=1, max_length=60)
+    description: str = Field(default="", max_length=500)
     type: str  # "debit" or "credit"
     date: Optional[datetime] = None
+
+    @field_validator("amount")
+    @classmethod
+    def _amount_finite(cls, v: float) -> float:
+        """Reject NaN, +Inf, -Inf — JSON dumps crash on these values. Also
+        enforce positive (Field gt=0 already covers this but kept explicit)."""
+        if not math.isfinite(v):
+            raise ValueError("amount must be a finite number (no NaN/Infinity)")
+        if v <= 0:
+            raise ValueError("amount must be positive")
+        return round(v, 2)
 
 
 class SMSParseRequest(BaseModel):

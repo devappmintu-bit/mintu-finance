@@ -160,8 +160,8 @@ async def add_members_to_group(group_id: str, data: dict, user_id: str = Depends
 async def get_group_management(group_id: str, user_id: str = Depends(get_current_user)):
     if not ObjectId.is_valid(group_id):
         raise HTTPException(status_code=400, detail="Invalid group_id")
-    """Get group management data (GPay-style)"""
-    group = await db.split_groups.find_one({"_id": ObjectId(group_id)})
+    """Get group management data (GPay-style). Must be a group member."""
+    group = await db.split_groups.find_one({"_id": ObjectId(group_id), "members.user_id": user_id})
     if not group:
         raise HTTPException(status_code=404, detail="Group not found")
     
@@ -192,11 +192,16 @@ async def get_group_management(group_id: str, user_id: str = Depends(get_current
 async def rename_group(group_id: str, data: dict, user_id: str = Depends(get_current_user)):
     if not ObjectId.is_valid(group_id):
         raise HTTPException(status_code=400, detail="Invalid group_id")
-    """Rename a split group"""
+    """Rename a split group. Must be a group member."""
     name = data.get("name", "").strip()
     if not name:
         raise HTTPException(status_code=400, detail="Name required")
-    await db.split_groups.update_one({"_id": ObjectId(group_id)}, {"$set": {"name": name}})
+    result = await db.split_groups.update_one(
+        {"_id": ObjectId(group_id), "members.user_id": user_id},
+        {"$set": {"name": name}},
+    )
+    if result.matched_count == 0:
+        raise HTTPException(status_code=404, detail="Group not found")
     return {"message": "Group renamed", "name": name}
 
 
@@ -205,10 +210,13 @@ async def rename_group(group_id: str, data: dict, user_id: str = Depends(get_cur
 async def remove_member(group_id: str, member_id: str, user_id: str = Depends(get_current_user)):
     if not ObjectId.is_valid(group_id):
         raise HTTPException(status_code=400, detail="Invalid group_id")
-    """Remove a member from group"""
+    """Remove a member from group. Only the group admin (creator) can do this."""
+    group = await db.split_groups.find_one({"_id": ObjectId(group_id), "created_by": user_id})
+    if not group:
+        raise HTTPException(status_code=403, detail="Only the group admin can remove members")
     await db.split_groups.update_one(
         {"_id": ObjectId(group_id)},
-        {"$pull": {"members": {"user_id": member_id}}}
+        {"$pull": {"members": {"user_id": member_id}}},
     )
     return {"message": "Member removed"}
 
@@ -218,10 +226,10 @@ async def remove_member(group_id: str, member_id: str, user_id: str = Depends(ge
 async def delete_group(group_id: str, user_id: str = Depends(get_current_user)):
     if not ObjectId.is_valid(group_id):
         raise HTTPException(status_code=400, detail="Invalid group_id")
-    """Delete a split group"""
-    group = await db.split_groups.find_one({"_id": ObjectId(group_id)})
+    """Delete a split group. Only the group admin (creator) can do this."""
+    group = await db.split_groups.find_one({"_id": ObjectId(group_id), "created_by": user_id})
     if not group:
-        raise HTTPException(status_code=404, detail="Group not found")
+        raise HTTPException(status_code=403, detail="Only the group admin can delete the group")
     await db.split_groups.delete_one({"_id": ObjectId(group_id)})
     await db.split_expenses.delete_many({"group_id": group_id})
     return {"message": "Group deleted"}
@@ -249,7 +257,10 @@ async def leave_group(group_id: str, user_id: str = Depends(get_current_user)):
 async def get_group_messages(group_id: str, limit: int = 50, user_id: str = Depends(get_current_user)):
     if not ObjectId.is_valid(group_id):
         raise HTTPException(status_code=400, detail="Invalid group_id")
-    """Get chat messages for a group"""
+    """Get chat messages for a group. Must be a group member."""
+    group = await db.split_groups.find_one({"_id": ObjectId(group_id), "members.user_id": user_id})
+    if not group:
+        raise HTTPException(status_code=404, detail="Group not found")
     messages = await db.split_messages.find(
         {"group_id": group_id}
     ).sort("created_at", 1).limit(limit).to_list(limit)
@@ -274,7 +285,10 @@ async def get_group_messages(group_id: str, limit: int = 50, user_id: str = Depe
 async def send_group_message(group_id: str, data: dict, user_id: str = Depends(get_current_user)):
     if not ObjectId.is_valid(group_id):
         raise HTTPException(status_code=400, detail="Invalid group_id")
-    """Send a chat message to a group"""
+    """Send a chat message to a group. Must be a group member."""
+    group = await db.split_groups.find_one({"_id": ObjectId(group_id), "members.user_id": user_id})
+    if not group:
+        raise HTTPException(status_code=404, detail="Group not found")
     user = await db.users.find_one({"_id": ObjectId(user_id)}) if ObjectId.is_valid(user_id) else await db.users.find_one({"phone": user_id})
     name = user.get("name", "User") if user else "User"
     msg_type = data.get("type", "text")

@@ -146,8 +146,8 @@ async def get_group_expenses(group_id: str, user_id: str = Depends(get_current_u
 async def group_expense_summary(group_id: str, user_id: str = Depends(get_current_user)):
     if not ObjectId.is_valid(group_id):
         raise HTTPException(status_code=400, detail="Invalid group_id")
-    """Get comprehensive group summary with simplified debts"""
-    group = await db.split_groups.find_one({"_id": ObjectId(group_id)})
+    """Get comprehensive group summary with simplified debts. Must be a group member."""
+    group = await db.split_groups.find_one({"_id": ObjectId(group_id), "members.user_id": user_id})
     if not group:
         raise HTTPException(status_code=404, detail="Group not found")
     

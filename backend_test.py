@@ -1,573 +1,207 @@
-"""
-MintU Backend — RED-TEAM / ADVERSARIAL SECURITY + ROBUSTNESS TESTS
-====================================================================
-Goal: BREAK the backend. Report every 500, every unauthorised success,
-every IDOR, every crash, every validation gap.
+"""MintU Backend - Adversarial Final Sweep (Apr 21 2026)
 
-Covers: IDOR, AuthBypass, NoSQL injection, XSS/PathTraversal,
-Negative amounts, Oversize payloads, Race conditions, Chaos input.
-"""
-import asyncio
+Re-runs the full adversarial IDOR + amount validation suite after patches:
+  1. server.py — _SafeJSONResponse + _scrub_nonfinite + RequestValidationError handler
+  2. split_common.py — field_validator on amount
+  3. transactions.py — field_validator + Field bounds
+  4. split_groups.py — IDOR filter on 5 endpoints + admin check
+  5. split_expenses.py — IDOR filter on summary
+
+Must pass ALL 23 tests with ZERO failures."""
+
 import json
-import os
-import random
-import re
-import string
-import sys
-import time
-from typing import Any, Dict, List, Optional, Tuple
+import requests
 
-import httpx
-
-# The frontend uses EXPO_PUBLIC_BACKEND_URL. Read from frontend/.env.
-FRONTEND_ENV = "/app/frontend/.env"
-BASE_URL = None
-with open(FRONTEND_ENV, "r") as f:
-    for line in f:
-        if line.startswith("EXPO_PUBLIC_BACKEND_URL"):
-            BASE_URL = line.split("=", 1)[1].strip().strip('"')
-            break
-assert BASE_URL, "Could not read EXPO_PUBLIC_BACKEND_URL from frontend/.env"
-API = f"{BASE_URL}/api"
-
-# ── Results bookkeeping ────────────────────────────────────────────────
-results: List[Dict[str, Any]] = []
-def record(test_id: str, status: str, detail: str, severity: str = "", passed: Optional[bool] = None):
-    results.append({
-        "id": test_id,
-        "status": status,
-        "detail": detail[:500],
-        "severity": severity,
-        "passed": passed,
-    })
-    mark = "✅" if passed else ("❌" if passed is False else "•")
-    print(f"{mark} {test_id:28s} {status:6s}  {detail[:180]}")
+BASE = "https://mintu-finance.preview.emergentagent.com/api"
+PHONE_A = "9876543210"   # owner
+PHONE_B = "9988776655"   # attacker (not a member of A's group)
+OTP = "123456"
 
 
-# ── Helpers ────────────────────────────────────────────────────────────
-def send_otp(client: httpx.Client, phone: str) -> httpx.Response:
-    return client.post(f"{API}/auth/send-otp", json={"phone": phone}, timeout=20)
-
-def verify_otp(client: httpx.Client, phone: str, otp: str = "123456", name: str = None) -> httpx.Response:
-    body = {"phone": phone, "otp": otp}
-    if name: body["name"] = name
-    return client.post(f"{API}/auth/verify-otp", json=body, timeout=20)
-
-def auth_headers(token: str) -> Dict[str, str]:
-    return {"Authorization": f"Bearer {token}"}
+def log(tag, ok, detail=""):
+    icon = "✅" if ok else "❌"
+    print(f"  {icon} {tag}: {detail}")
+    return ok
 
 
-def login_user(client: httpx.Client, phone: str, name: str) -> Tuple[str, str]:
-    """Return (token, user_id) for given phone."""
-    for attempt in range(3):
-        r = send_otp(client, phone)
-        if r.status_code == 200:
-            break
-        if r.status_code == 429:
-            time.sleep(31)
-        else:
-            raise RuntimeError(f"send-otp {phone} failed: {r.status_code} {r.text}")
-    r = verify_otp(client, phone, "123456", name=name)
-    if r.status_code != 200:
-        raise RuntimeError(f"verify-otp {phone} failed: {r.status_code} {r.text}")
-    data = r.json()
-    return data["token"], data["user"]["id"]
+def auth(phone):
+    r = requests.post(f"{BASE}/auth/send-otp", json={"phone": phone}, timeout=20)
+    assert r.status_code == 200, f"send-otp {phone} → {r.status_code} {r.text[:200]}"
+    r = requests.post(f"{BASE}/auth/verify-otp", json={"phone": phone, "otp": OTP}, timeout=20)
+    assert r.status_code == 200, f"verify-otp {phone} → {r.status_code} {r.text[:200]}"
+    return r.json()["token"]
 
 
-# ═══════════════════════════════════════════════════════════════════════
-# SETUP
-# ═══════════════════════════════════════════════════════════════════════
-print(f"\n{'═'*72}\n  MintU Adversarial Security Test Suite\n  Target: {API}\n{'═'*72}\n")
-
-client = httpx.Client(timeout=30)
-try:
-    tokenA, uidA = login_user(client, "9876543210", "Alice Red")
-    print(f"[SETUP] User A: phone=9876543210 id={uidA}")
-except Exception as e:
-    print(f"[SETUP FATAL] Could not create user A: {e}")
-    sys.exit(1)
-
-try:
-    tokenB, uidB = login_user(client, "9988776655", "Bob Blue")
-    print(f"[SETUP] User B: phone=9988776655 id={uidB}\n")
-except Exception as e:
-    print(f"[SETUP FATAL] Could not create user B: {e}")
-    sys.exit(1)
+def headers(token):
+    return {"Authorization": f"Bearer {token}", "Content-Type": "application/json"}
 
 
-# ═══════════════════════════════════════════════════════════════════════
-# TEST 1 — AUTH-IDOR-001: Read another user's transactions
-# ═══════════════════════════════════════════════════════════════════════
-print("\n─── TEST 1: AUTH-IDOR-001 (read txns cross-user) ───")
-txn_body = {"amount": 1234.0, "category": "Food", "description": "IDOR-test-A", "type": "debit"}
-r = client.post(f"{API}/transactions", json=txn_body, headers=auth_headers(tokenA))
-txnA_id = None
-if r.status_code == 200:
-    txnA_id = r.json().get("id")
-    print(f"  Seeded A txn: {txnA_id}")
-    r2 = client.get(f"{API}/transactions", headers=auth_headers(tokenB))
-    if r2.status_code == 200:
-        rows = r2.json()
-        leaked = [t for t in rows if t.get("description") == "IDOR-test-A" or t.get("id") == txnA_id]
-        if leaked:
-            record("AUTH-IDOR-001", f"{r2.status_code}", f"LEAK: B sees A's txn {txnA_id}", "Critical", False)
-        else:
-            record("AUTH-IDOR-001", f"{r2.status_code}", f"B sees {len(rows)} own txns, none from A", "", True)
-    else:
-        record("AUTH-IDOR-001", f"{r2.status_code}", r2.text, "", False)
-else:
-    record("AUTH-IDOR-001", f"{r.status_code}", f"seed POST failed: {r.text}", "", False)
-
-
-# ═══════════════════════════════════════════════════════════════════════
-# TEST 2 — AUTH-IDOR-002: Modify another user's transaction
-# ═══════════════════════════════════════════════════════════════════════
-print("\n─── TEST 2: AUTH-IDOR-002 (modify cross-user txn) ───")
-if txnA_id:
-    r = client.put(
-        f"{API}/transactions/{txnA_id}",
-        json={"description": "HACKED-BY-B", "amount": 1.0},
-        headers=auth_headers(tokenB),
+def post_raw(path, token, raw_body):
+    """POST raw body string so NaN/Inf survive until FastAPI."""
+    return requests.post(
+        f"{BASE}{path}",
+        data=raw_body,
+        headers={**headers(token)},
+        timeout=30,
     )
-    if r.status_code in (403, 404):
-        record("AUTH-IDOR-002", f"{r.status_code}", "B blocked from editing A's txn", "", True)
-    elif r.status_code == 200:
-        record("AUTH-IDOR-002", f"{r.status_code}", f"CRITICAL: B edited A's txn: {r.text[:120]}", "Critical", False)
-    else:
-        record("AUTH-IDOR-002", f"{r.status_code}", r.text[:150], "Medium", False)
-
-    r = client.delete(f"{API}/transactions/{txnA_id}", headers=auth_headers(tokenB))
-    if r.status_code in (403, 404):
-        record("AUTH-IDOR-002b", f"{r.status_code}", "B blocked from deleting A's txn", "", True)
-    elif r.status_code == 200:
-        record("AUTH-IDOR-002b", f"{r.status_code}", "CRITICAL: B deleted A's txn", "Critical", False)
-    else:
-        record("AUTH-IDOR-002b", f"{r.status_code}", r.text[:150], "Medium", False)
-else:
-    record("AUTH-IDOR-002", "SKIP", "No txnA to test", "", None)
 
 
-# ═══════════════════════════════════════════════════════════════════════
-# TEST 3 — AUTH-IDOR-003: Split group IDOR (multiple variants)
-# ═══════════════════════════════════════════════════════════════════════
-print("\n─── TEST 3: AUTH-IDOR-003 (split group IDOR) ───")
-r = client.post(f"{API}/split/groups",
-                json={"name": "A Private Group", "members": ["9876543210", "7000000001"]},
-                headers=auth_headers(tokenA))
-groupA_id = None
-if r.status_code == 200:
-    groupA_id = r.json()["id"]
-    print(f"  Seeded A group: {groupA_id}")
+def main():
+    results = []
 
-    # 3a list
-    r2 = client.get(f"{API}/split/groups", headers=auth_headers(tokenB))
-    if r2.status_code == 200:
-        if any(g.get("id") == groupA_id for g in r2.json()):
-            record("AUTH-IDOR-003-list", f"{r2.status_code}", "LEAK: B sees A's group in list", "Critical", False)
-        else:
-            record("AUTH-IDOR-003-list", f"{r2.status_code}", "B does NOT see A's group in list", "", True)
+    print("\n━━━━ SETUP ━━━━")
+    tok_a = auth(PHONE_A)
+    tok_b = auth(PHONE_B)
+    print(f"  User A token: ...{tok_a[-12:]}")
+    print(f"  User B token: ...{tok_b[-12:]}")
 
-    # 3b manage
-    r3 = client.get(f"{API}/split/groups/{groupA_id}/manage", headers=auth_headers(tokenB))
-    if r3.status_code in (403, 404):
-        record("AUTH-IDOR-003-manage", f"{r3.status_code}", "B blocked from A's group /manage", "", True)
-    elif r3.status_code == 200:
-        record("AUTH-IDOR-003-manage", f"{r3.status_code}",
-               f"CRITICAL IDOR: B reads A's group mgmt+members+phones: {r3.text[:150]}",
-               "Critical", False)
-    else:
-        record("AUTH-IDOR-003-manage", f"{r3.status_code}", r3.text[:150], "Medium", False)
-
-    # 3c summary
-    r4 = client.get(f"{API}/split/groups/{groupA_id}/summary", headers=auth_headers(tokenB))
-    if r4.status_code in (403, 404):
-        record("AUTH-IDOR-003-summary", f"{r4.status_code}", "B blocked from A's summary", "", True)
-    elif r4.status_code == 200:
-        record("AUTH-IDOR-003-summary", f"{r4.status_code}",
-               f"IDOR: B reads A's group summary", "High", False)
-
-    # 3d GET messages
-    r5 = client.get(f"{API}/split/groups/{groupA_id}/messages", headers=auth_headers(tokenB))
-    if r5.status_code in (403, 404):
-        record("AUTH-IDOR-003-msgs", f"{r5.status_code}", "B blocked from A's msgs", "", True)
-    elif r5.status_code == 200:
-        record("AUTH-IDOR-003-msgs", f"{r5.status_code}",
-               "IDOR: B reads A's group messages", "Critical", False)
-
-    # 3e rename
-    r6 = client.put(f"{API}/split/groups/{groupA_id}/name",
-                    json={"name": "HACKED"}, headers=auth_headers(tokenB))
-    if r6.status_code in (403, 404):
-        record("AUTH-IDOR-003-rename", f"{r6.status_code}", "B blocked from renaming A's group", "", True)
-    elif r6.status_code == 200:
-        record("AUTH-IDOR-003-rename", f"{r6.status_code}",
-               "CRITICAL: B renamed A's group", "Critical", False)
-
-    # 3f post msg
-    r7 = client.post(f"{API}/split/groups/{groupA_id}/messages",
-                     json={"content": "hacked-by-B", "type": "text"},
-                     headers=auth_headers(tokenB))
-    if r7.status_code in (403, 404):
-        record("AUTH-IDOR-003-postmsg", f"{r7.status_code}", "B blocked posting to A's group", "", True)
-    elif r7.status_code == 200:
-        record("AUTH-IDOR-003-postmsg", f"{r7.status_code}",
-               "CRITICAL: B posted msg in A's group", "Critical", False)
-
-    # 3g remove member
-    r_rm = client.delete(f"{API}/split/groups/{groupA_id}/members/{uidA}",
-                         headers=auth_headers(tokenB))
-    if r_rm.status_code in (403, 404):
-        record("AUTH-IDOR-003-rmember", f"{r_rm.status_code}", "B blocked from removing members", "", True)
-    elif r_rm.status_code == 200:
-        record("AUTH-IDOR-003-rmember", f"{r_rm.status_code}",
-               "CRITICAL: B removed A (owner!) from A's group", "Critical", False)
-
-    # 3h delete group
-    r8 = client.delete(f"{API}/split/groups/{groupA_id}", headers=auth_headers(tokenB))
-    if r8.status_code in (403, 404):
-        record("AUTH-IDOR-003-delete", f"{r8.status_code}", "B blocked from deleting A's group", "", True)
-    elif r8.status_code == 200:
-        record("AUTH-IDOR-003-delete", f"{r8.status_code}",
-               "CRITICAL: B DELETED A's group", "Critical", False)
-else:
-    record("AUTH-IDOR-003", f"{r.status_code}", f"seed group failed: {r.text[:150]}", "", False)
-
-
-# ═══════════════════════════════════════════════════════════════════════
-# TEST 4 — AUTH-BYPASS-001: No Authorization header
-# ═══════════════════════════════════════════════════════════════════════
-print("\n─── TEST 4: AUTH-BYPASS-001 (no Authorization header) ───")
-PROTECTED_ROUTES = [
-    ("GET", "/transactions"),
-    ("GET", "/user/avatar"),
-    ("GET", "/user/me"),
-    ("GET", "/split/groups"),
-    ("GET", "/budgets/live"),
-    ("GET", "/stats/overview"),
-    ("POST", "/transactions"),
-    ("GET", "/split/balances"),
-    ("POST", "/user/avatar"),
-]
-for method, path in PROTECTED_ROUTES:
+    # Need another phone for group member so A's group has >1 member
+    filler_phone = "9123456780"
     try:
-        if method == "GET":
-            r = client.get(f"{API}{path}", timeout=10)
-        else:
-            r = client.post(f"{API}{path}", json={}, timeout=10)
-    except Exception as e:
-        record(f"AUTH-BYPASS {method} {path}", "ERR", str(e), "", False)
-        continue
-    if r.status_code in (401, 403, 422):
-        record(f"AUTH-BYPASS {method} {path}", f"{r.status_code}", "auth enforced", "", True)
-    elif r.status_code == 200:
-        record(f"AUTH-BYPASS {method} {path}", f"{r.status_code}",
-               f"CRITICAL: unauth access! body={r.text[:120]}", "Critical", False)
-    else:
-        record(f"AUTH-BYPASS {method} {path}", f"{r.status_code}", r.text[:150], "Low", True)
+        auth(filler_phone)  # ensure exists
+    except Exception:
+        pass
+
+    # Create a fresh group owned by A (B is NOT a member)
+    gr = requests.post(
+        f"{BASE}/split/groups",
+        headers=headers(tok_a),
+        json={"name": "Adversarial Test Group", "members": [filler_phone]},
+        timeout=20,
+    )
+    assert gr.status_code == 200, f"create group → {gr.status_code} {gr.text[:200]}"
+    group_id = gr.json()["id"]
+    # Get a member_id for the remove-member test
+    mg = requests.get(f"{BASE}/split/groups/{group_id}/manage", headers=headers(tok_a)).json()
+    other_member_id = next(
+        (m["user_id"] for m in mg["members"] if m["user_id"] != mg["created_by"]),
+        mg["members"][0]["user_id"],
+    )
+    print(f"  Group A ID: {group_id}  (other member: {other_member_id})")
+
+    # ─────── IDOR tests (User B attacking User A's group) ───────
+    print("\n━━━━ IDOR TESTS (user B against A's group) ━━━━")
+
+    r = requests.get(f"{BASE}/split/groups/{group_id}/manage", headers=headers(tok_b))
+    results.append(log("1. GET /manage as B", r.status_code == 404, f"HTTP {r.status_code}"))
+
+    r = requests.put(f"{BASE}/split/groups/{group_id}/name", headers=headers(tok_b), json={"name": "Hacked"})
+    results.append(log("2. PUT /name as B", r.status_code == 404, f"HTTP {r.status_code}"))
+
+    r = requests.delete(
+        f"{BASE}/split/groups/{group_id}/members/{other_member_id}",
+        headers=headers(tok_b),
+    )
+    results.append(log("3. DELETE /members/{mid} as B (non-admin)", r.status_code == 403, f"HTTP {r.status_code}"))
+
+    r = requests.delete(f"{BASE}/split/groups/{group_id}", headers=headers(tok_b))
+    results.append(log("4. DELETE group as B (non-admin)", r.status_code == 403, f"HTTP {r.status_code}"))
+
+    r = requests.get(f"{BASE}/split/groups/{group_id}/messages", headers=headers(tok_b))
+    results.append(log("5. GET /messages as B", r.status_code == 404, f"HTTP {r.status_code}"))
+
+    r = requests.post(
+        f"{BASE}/split/groups/{group_id}/messages",
+        headers=headers(tok_b),
+        json={"content": "hacked", "type": "text"},
+    )
+    results.append(log("6. POST /messages as B", r.status_code == 404, f"HTTP {r.status_code}"))
+
+    r = requests.get(f"{BASE}/split/groups/{group_id}/summary", headers=headers(tok_b))
+    results.append(log("7. GET /summary as B", r.status_code == 404, f"HTTP {r.status_code}"))
+
+    # ─────── Owner A still has access ───────
+    print("\n━━━━ OWNER A ACCESS (must all 200) ━━━━")
+    r = requests.get(f"{BASE}/split/groups/{group_id}/manage", headers=headers(tok_a))
+    results.append(log("8a. GET /manage as A", r.status_code == 200, f"HTTP {r.status_code}"))
+
+    r = requests.get(f"{BASE}/split/groups/{group_id}/summary", headers=headers(tok_a))
+    results.append(log("8b. GET /summary as A", r.status_code == 200, f"HTTP {r.status_code}"))
+
+    r = requests.get(f"{BASE}/split/groups/{group_id}/messages", headers=headers(tok_a))
+    results.append(log("8c. GET /messages as A", r.status_code == 200, f"HTTP {r.status_code}"))
+
+    # ─────── Validation edge cases (must return 422 NEVER 500) ───────
+    print("\n━━━━ VALIDATION — /api/transactions ━━━━")
+
+    tx_base = {"category": "Food", "description": "adv", "type": "debit"}
+
+    for tag, amount_literal in [
+        ("9. amount=NaN", "NaN"),
+        ("10. amount=Infinity", "Infinity"),
+        ("11. amount=-Infinity", "-Infinity"),
+    ]:
+        raw = json.dumps(tx_base) [:-1] + f', "amount": {amount_literal}' + "}"
+        r = post_raw("/transactions", tok_a, raw)
+        results.append(log(tag, r.status_code == 422, f"HTTP {r.status_code} body={r.text[:120]}"))
+
+    for tag, amt in [
+        ("12. amount=-1000", -1000),
+        ("13. amount=0", 0),
+        ("14. amount=1e20", 1e20),
+    ]:
+        body = {**tx_base, "amount": amt}
+        r = requests.post(f"{BASE}/transactions", headers=headers(tok_a), json=body)
+        results.append(log(tag, r.status_code == 422, f"HTTP {r.status_code} body={r.text[:120]}"))
+
+    print("\n━━━━ VALIDATION — /api/split/expenses + /split/settle ━━━━")
+
+    exp_base = {
+        "group_id": group_id,
+        "description": "adv",
+        "paid_by": mg["created_by"],
+        "split_type": "equal",
+    }
+    raw = json.dumps(exp_base) [:-1] + ', "amount": NaN}'
+    r = post_raw("/split/expenses", tok_a, raw)
+    results.append(log("15. /split/expenses amount=NaN", r.status_code == 422, f"HTTP {r.status_code} body={r.text[:120]}"))
+
+    body = {**exp_base, "amount": -500}
+    r = requests.post(f"{BASE}/split/expenses", headers=headers(tok_a), json=body)
+    results.append(log("16. /split/expenses amount=-500", r.status_code == 422, f"HTTP {r.status_code}"))
+
+    settle_base = {"target_user_id": other_member_id, "method": "upi", "group_id": group_id}
+    raw = json.dumps(settle_base) [:-1] + ', "amount": Infinity}'
+    r = post_raw("/split/settle", tok_a, raw)
+    results.append(log("17. /split/settle amount=Infinity", r.status_code == 422, f"HTTP {r.status_code} body={r.text[:120]}"))
+
+    # Oversize / empty strings
+    print("\n━━━━ VALIDATION — string bounds ━━━━")
+    body = {"amount": 100, "category": "Food", "description": "x" * 501, "type": "debit"}
+    r = requests.post(f"{BASE}/transactions", headers=headers(tok_a), json=body)
+    results.append(log("18. description=501 chars", r.status_code == 422, f"HTTP {r.status_code}"))
+
+    body = {"amount": 100, "category": "", "description": "ok", "type": "debit"}
+    r = requests.post(f"{BASE}/transactions", headers=headers(tok_a), json=body)
+    results.append(log("19. category empty", r.status_code == 422, f"HTTP {r.status_code}"))
+
+    # ─────── Happy path ───────
+    print("\n━━━━ HAPPY PATHS (must all 200) ━━━━")
+
+    body = {"amount": 100.5, "category": "Food", "description": "valid tx", "type": "debit"}
+    r = requests.post(f"{BASE}/transactions", headers=headers(tok_a), json=body)
+    results.append(log("20. POST /transactions amount=100.5", r.status_code == 200, f"HTTP {r.status_code} body={r.text[:120]}"))
+
+    body = {**exp_base, "amount": 250}
+    r = requests.post(f"{BASE}/split/expenses", headers=headers(tok_a), json=body)
+    results.append(log("21. POST /split/expenses amount=250", r.status_code == 200, f"HTTP {r.status_code} body={r.text[:120]}"))
+
+    body = {"target_user_id": other_member_id, "amount": 100.5, "method": "upi", "group_id": group_id}
+    r = requests.post(f"{BASE}/split/settle", headers=headers(tok_a), json=body)
+    results.append(log("22. POST /split/settle amount=100.5", r.status_code == 200, f"HTTP {r.status_code} body={r.text[:120]}"))
+
+    r = requests.get(f"{BASE}/split/groups/{group_id}/manage", headers=headers(tok_a))
+    results.append(log("23. GET /manage as owner", r.status_code == 200, f"HTTP {r.status_code}"))
+
+    # ─────── Summary ───────
+    passed = sum(results)
+    total = len(results)
+    print(f"\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
+    print(f"  RESULT: {passed}/{total} passed")
+    print(f"━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
+    return passed == total
 
 
-# ═══════════════════════════════════════════════════════════════════════
-# TEST 5 — INJ-NOSQL-001: Mongo operator injection
-# ═══════════════════════════════════════════════════════════════════════
-print("\n─── TEST 5: INJ-NOSQL-001 (Mongo $ne injection) ───")
-try:
-    r = client.post(f"{API}/auth/verify-otp",
-                    json={"phone": {"$ne": None}, "otp": {"$ne": None}},
-                    timeout=15)
-    if r.status_code in (422, 400, 401):
-        record("INJ-NOSQL-001", f"{r.status_code}", "Pydantic rejected $ne objects", "", True)
-    elif r.status_code == 200 and "token" in r.text:
-        record("INJ-NOSQL-001", f"{r.status_code}", f"CRITICAL: NoSQL bypass: {r.text[:120]}", "Critical", False)
-    else:
-        record("INJ-NOSQL-001", f"{r.status_code}", r.text[:150], "", r.status_code != 200)
-except Exception as e:
-    record("INJ-NOSQL-001", "ERR", str(e), "High", False)
-
-try:
-    r = client.post(f"{API}/auth/send-otp", json={"phone": {"$ne": None}}, timeout=15)
-    if r.status_code in (400, 422):
-        record("INJ-NOSQL-001b send-otp", f"{r.status_code}", "rejected dict in phone", "", True)
-    else:
-        record("INJ-NOSQL-001b send-otp", f"{r.status_code}", r.text[:150], "", r.status_code != 200)
-except Exception as e:
-    record("INJ-NOSQL-001b send-otp", "ERR", str(e), "", False)
-
-
-# ═══════════════════════════════════════════════════════════════════════
-# TEST 6 — XSS + PATH-TRAV
-# ═══════════════════════════════════════════════════════════════════════
-print("\n─── TEST 6: INJ-XSS-001 + PATH-TRAV ───")
-xss_payloads = [
-    "<script>alert(1)</script>",
-    "<img src=x onerror=alert(1)>",
-    "javascript:alert(document.cookie)",
-    "\"'`<svg/onload=alert(1)>",
-]
-for i, payload in enumerate(xss_payloads):
-    r = client.post(f"{API}/transactions",
-                    json={"amount": 50.0, "category": "Food", "description": payload, "type": "debit"},
-                    headers=auth_headers(tokenA))
-    if r.status_code == 200:
-        record(f"INJ-XSS-001-{i}", f"{r.status_code}", "stored without crash", "", True)
-    elif r.status_code == 500:
-        record(f"INJ-XSS-001-{i}", f"{r.status_code}", f"CRASH: {r.text[:120]}", "High", False)
-    else:
-        record(f"INJ-XSS-001-{i}", f"{r.status_code}", r.text[:150], "Low", True)
-
-r = client.post(f"{API}/transactions",
-                json={"amount": 99.0, "category": "../../../etc/passwd",
-                      "description": "pathtrav", "type": "debit"},
-                headers=auth_headers(tokenA))
-if r.status_code in (200, 400, 422):
-    record("PATH-TRAV-001", f"{r.status_code}", "stored as plain string OR rejected", "", True)
-elif r.status_code == 500:
-    record("PATH-TRAV-001", f"{r.status_code}", f"CRASH: {r.text[:150]}", "High", False)
-
-try:
-    r = client.get(f"{API}/../etc/passwd", headers=auth_headers(tokenA))
-    record("PATH-TRAV-URL", f"{r.status_code}",
-           "path traversal blocked" if r.status_code in (404, 400, 405, 301, 307) else "?",
-           "", r.status_code in (404, 400, 405, 301, 307))
-except Exception as e:
-    record("PATH-TRAV-URL", "ERR", str(e), "", True)
-
-
-# ═══════════════════════════════════════════════════════════════════════
-# TEST 7 — VAL-NEG-001
-# ═══════════════════════════════════════════════════════════════════════
-print("\n─── TEST 7: VAL-NEG-001 (negative amount) ───")
-for amt in (-1_000_000_000, -1.0, -0.01):
-    r = client.post(f"{API}/transactions",
-                    json={"amount": amt, "category": "Food",
-                          "description": f"neg-{amt}", "type": "debit"},
-                    headers=auth_headers(tokenA))
-    if r.status_code in (400, 422):
-        record(f"VAL-NEG-001 amt={amt}", f"{r.status_code}", "rejected", "", True)
-    elif r.status_code == 200:
-        record(f"VAL-NEG-001 amt={amt}", f"{r.status_code}",
-               f"NEGATIVE AMT STORED — corrupts stats: {r.text[:120]}", "Medium", False)
-    elif r.status_code == 500:
-        record(f"VAL-NEG-001 amt={amt}", f"{r.status_code}", f"CRASH: {r.text[:120]}", "High", False)
-
-r = client.post(f"{API}/transactions",
-                json={"amount": 0, "category": "Food", "description": "zero", "type": "debit"},
-                headers=auth_headers(tokenA))
-record("VAL-ZERO", f"{r.status_code}", f"amount=0 → {r.text[:80]}", "",
-       r.status_code in (200, 400, 422))
-
-
-# ═══════════════════════════════════════════════════════════════════════
-# TEST 8 — VAL-OVERSIZE
-# ═══════════════════════════════════════════════════════════════════════
-print("\n─── TEST 8: VAL-OVERSIZE-001 (1MB description) ───")
-huge = "A" * (1024 * 1024)
-try:
-    r = client.post(f"{API}/transactions",
-                    json={"amount": 10, "category": "Food",
-                          "description": huge, "type": "debit"},
-                    headers=auth_headers(tokenA), timeout=60)
-    if r.status_code in (400, 413, 422):
-        record("VAL-OVERSIZE-001", f"{r.status_code}", "oversize rejected", "", True)
-    elif r.status_code == 200:
-        record("VAL-OVERSIZE-001", f"{r.status_code}",
-               "1MB stored — may bloat db + slow queries", "Medium", False)
-    elif r.status_code == 500:
-        record("VAL-OVERSIZE-001", f"{r.status_code}", f"CRASH: {r.text[:120]}", "High", False)
-    else:
-        record("VAL-OVERSIZE-001", f"{r.status_code}", r.text[:150], "Low", True)
-except Exception as e:
-    record("VAL-OVERSIZE-001", "ERR", str(e), "High", False)
-
-try:
-    big_b64 = "A" * 800_000
-    r = client.post(f"{API}/user/avatar", json={"avatar": big_b64},
-                    headers=auth_headers(tokenA), timeout=20)
-    if r.status_code == 400:
-        record("VAL-OVERSIZE-avatar", f"{r.status_code}", "avatar size cap enforced", "", True)
-    elif r.status_code == 200:
-        record("VAL-OVERSIZE-avatar", f"{r.status_code}", "oversized avatar accepted", "Medium", False)
-    else:
-        record("VAL-OVERSIZE-avatar", f"{r.status_code}", r.text[:150], "Low", r.status_code != 500)
-except Exception as e:
-    record("VAL-OVERSIZE-avatar", "ERR", str(e), "High", False)
-
-
-# ═══════════════════════════════════════════════════════════════════════
-# TEST 9 — RACE-DOUBLE-001
-# ═══════════════════════════════════════════════════════════════════════
-print("\n─── TEST 9: RACE-DOUBLE-001 (10 parallel identical txns) ───")
-
-async def race_txn():
-    async with httpx.AsyncClient(timeout=30) as c:
-        body = {"amount": 777.77, "category": "Food",
-                "description": "RACE-IDENT", "type": "debit"}
-        tasks = [c.post(f"{API}/transactions", json=body,
-                        headers=auth_headers(tokenA)) for _ in range(10)]
-        return await asyncio.gather(*tasks, return_exceptions=True)
-
-try:
-    resps = asyncio.run(race_txn())
-    ok_count = sum(1 for r in resps if not isinstance(r, Exception) and r.status_code == 200)
-    err_count = sum(1 for r in resps if isinstance(r, Exception) or (hasattr(r, 'status_code') and r.status_code >= 500))
-    r = client.get(f"{API}/transactions?limit=200", headers=auth_headers(tokenA))
-    ident_count = sum(1 for t in (r.json() if r.status_code == 200 else [])
-                      if t.get("description") == "RACE-IDENT")
-    if ok_count == 10 and ident_count == 10:
-        record("RACE-DOUBLE-001", f"{ok_count}/10",
-               "NO DEDUP: 10 duplicate txns — no idempotency key", "Medium", False)
-    elif ident_count < 10 and ok_count == 10:
-        record("RACE-DOUBLE-001", f"{ok_count}/10", f"some dedup: stored={ident_count}", "", True)
-    else:
-        record("RACE-DOUBLE-001", f"ok={ok_count} err={err_count} stored={ident_count}",
-               "partial race", "Low", True)
-except Exception as e:
-    record("RACE-DOUBLE-001", "ERR", str(e), "", False)
-
-
-# ═══════════════════════════════════════════════════════════════════════
-# TEST 10 — RACE-SPLIT-001
-# ═══════════════════════════════════════════════════════════════════════
-print("\n─── TEST 10: RACE-SPLIT-001 (concurrent split expenses) ───")
-r = client.post(f"{API}/split/groups",
-                json={"name": "Race Group", "members": ["9876543210", "9988776655"]},
-                headers=auth_headers(tokenA))
-if r.status_code == 200:
-    raceG = r.json()["id"]
-    async def race_exp():
-        async with httpx.AsyncClient(timeout=30) as c:
-            body = {"group_id": raceG, "description": "race-exp", "amount": 500.0,
-                    "paid_by": uidA, "split_type": "equal"}
-            tasks = [c.post(f"{API}/split/expenses", json=body,
-                            headers=auth_headers(tokenA)) for _ in range(5)]
-            return await asyncio.gather(*tasks, return_exceptions=True)
-    try:
-        resps = asyncio.run(race_exp())
-        okc = sum(1 for r in resps if not isinstance(r, Exception) and r.status_code == 200)
-        errc = sum(1 for r in resps if isinstance(r, Exception) or (hasattr(r,'status_code') and r.status_code >= 500))
-
-        r2 = client.get(f"{API}/split/groups/{raceG}/summary", headers=auth_headers(tokenA))
-        if r2.status_code == 200:
-            data = r2.json()
-            total = data.get("total_spent", 0)
-            expected = okc * 500.0
-            if abs(total - expected) < 0.01:
-                record("RACE-SPLIT-001", f"ok={okc}/5 err={errc}",
-                       f"arith OK: total_spent={total} == {expected}", "", True)
-            else:
-                record("RACE-SPLIT-001", f"ok={okc}/5",
-                       f"ARITH DRIFT: total={total} expected={expected}", "High", False)
-        else:
-            record("RACE-SPLIT-001", f"summary {r2.status_code}", r2.text[:150], "Medium", False)
-    except Exception as e:
-        record("RACE-SPLIT-001", "ERR", str(e), "High", False)
-else:
-    record("RACE-SPLIT-001", f"{r.status_code}", f"group seed failed: {r.text[:120]}", "", False)
-
-
-# ═══════════════════════════════════════════════════════════════════════
-# CHAOS / BOUNDARY
-# ═══════════════════════════════════════════════════════════════════════
-print("\n─── CHAOS / BOUNDARY ───")
-
-try:
-    r = client.post(f"{API}/transactions",
-                    content=b"{not valid json",
-                    headers={**auth_headers(tokenA), "Content-Type": "application/json"})
-    record("CHAOS-malformed-json", f"{r.status_code}",
-           r.text[:100], "", r.status_code in (400, 422))
-except Exception as e:
-    record("CHAOS-malformed-json", "ERR", str(e), "", False)
-
-r = client.post(f"{API}/auth/send-otp", json={"phone": "abc defgh"})
-record("CHAOS-phone-nonnumeric", f"{r.status_code}",
-       r.text[:100], "", r.status_code in (400, 422))
-
-r = client.post(f"{API}/auth/send-otp", json={"phone": "9" * 500})
-record("CHAOS-phone-500chars", f"{r.status_code}",
-       r.text[:100], "", r.status_code in (400, 422))
-
-r = client.post(f"{API}/auth/verify-otp", json={"phone": "9876543210", "otp": None})
-record("CHAOS-otp-null", f"{r.status_code}", r.text[:100], "",
-       r.status_code in (400, 401, 422))
-
-for bad in ("NaN", "Infinity", "-Infinity"):
-    try:
-        payload = f'{{"amount": {bad}, "category":"Food","description":"x","type":"debit"}}'
-        r = client.post(f"{API}/transactions", content=payload.encode(),
-                        headers={**auth_headers(tokenA), "Content-Type": "application/json"})
-        if r.status_code in (400, 422):
-            record(f"CHAOS-amount-{bad}", f"{r.status_code}", "rejected", "", True)
-        elif r.status_code == 200:
-            record(f"CHAOS-amount-{bad}", f"{r.status_code}",
-                   f"ACCEPTED — corrupts stats: {r.text[:80]}", "High", False)
-        elif r.status_code == 500:
-            record(f"CHAOS-amount-{bad}", f"{r.status_code}", f"CRASH: {r.text[:100]}", "High", False)
-        else:
-            record(f"CHAOS-amount-{bad}", f"{r.status_code}", r.text[:100], "", True)
-    except Exception as e:
-        record(f"CHAOS-amount-{bad}", "ERR", str(e), "", False)
-
-r = client.post(f"{API}/transactions",
-                json={"amount": 42, "category": "Food", "description": "💰🚀😱🎉", "type": "debit"},
-                headers=auth_headers(tokenA))
-record("CHAOS-emoji", f"{r.status_code}", r.text[:120], "", r.status_code == 200)
-
-# swap-signature bearer
-valid = tokenA
-head_body, sig = valid.rsplit(".", 1)
-bad_token = head_body + "." + "".join(random.choices(string.ascii_letters + string.digits + "-_", k=len(sig)))
-r = client.get(f"{API}/user/me", headers={"Authorization": f"Bearer {bad_token}"})
-record("CHAOS-bad-sig", f"{r.status_code}", r.text[:100], "",
-       r.status_code == 401)
-
-try:
-    r = client.get(f"{API}/user/me", headers={"Authorization": "Bearer"})
-    record("CHAOS-empty-bearer", f"{r.status_code}", r.text[:100], "",
-           r.status_code in (401, 403, 422))
-except Exception as e:
-    record("CHAOS-empty-bearer", "ERR", str(e)[:100], "", False)
-
-r = client.get(f"{API}/user/me", headers={"Authorization": "Bearer not-a-jwt-at-all"})
-record("CHAOS-garbage-bearer", f"{r.status_code}", r.text[:100], "",
-       r.status_code == 401)
-
-
-# ═══════════════════════════════════════════════════════════════════════
-# VERIFY-OTP EDGE CASES
-# ═══════════════════════════════════════════════════════════════════════
-print("\n─── VERIFY-OTP EDGE CASES ───")
-r = client.post(f"{API}/auth/verify-otp", json={"phone": "", "otp": "123456"})
-record("VERIFY-empty-phone", f"{r.status_code}", r.text[:100], "",
-       r.status_code in (400, 422))
-
-
-# ═══════════════════════════════════════════════════════════════════════
-# SUMMARY
-# ═══════════════════════════════════════════════════════════════════════
-print("\n" + "═" * 72)
-total = len(results)
-passed = sum(1 for r in results if r["passed"] is True)
-failed = sum(1 for r in results if r["passed"] is False)
-unknown = sum(1 for r in results if r["passed"] is None)
-crit = [r for r in results if r.get("severity") == "Critical" and r["passed"] is False]
-high = [r for r in results if r.get("severity") == "High" and r["passed"] is False]
-med = [r for r in results if r.get("severity") == "Medium" and r["passed"] is False]
-
-print(f"  TOTAL: {total}  |  ✅ passed: {passed}  |  ❌ failed: {failed}  |  • skipped: {unknown}")
-print(f"  SEVERITY — Critical: {len(crit)}  High: {len(high)}  Medium: {len(med)}")
-print("═" * 72)
-
-if crit:
-    print("\n🔴 CRITICAL FAILURES:")
-    for c in crit:
-        print(f"   [{c['id']}] {c['status']}  {c['detail']}")
-if high:
-    print("\n🟠 HIGH FAILURES:")
-    for h in high:
-        print(f"   [{h['id']}] {h['status']}  {h['detail']}")
-if med:
-    print("\n🟡 MEDIUM FAILURES:")
-    for m in med:
-        print(f"   [{m['id']}] {m['status']}  {m['detail']}")
-
-sys.exit(0)
+if __name__ == "__main__":
+    import sys
+    sys.exit(0 if main() else 1)

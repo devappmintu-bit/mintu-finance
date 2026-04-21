@@ -1,7 +1,8 @@
 """Shared primitives for the split-* routers (schemas, constants, router)."""
+import math
 from typing import List, Optional, Dict
 from fastapi import APIRouter
-from pydantic import BaseModel
+from pydantic import BaseModel, Field, field_validator
 
 router = APIRouter(tags=["splits"])
 api_router = router
@@ -15,28 +16,49 @@ SETTLEMENT_REWARDS = {
 }
 
 
+def _finite_positive(v: float) -> float:
+    """Reject NaN/±Inf/negative. Round to 2 decimals."""
+    if not math.isfinite(v):
+        raise ValueError("amount must be a finite number")
+    if v <= 0:
+        raise ValueError("amount must be positive")
+    if v > 1_00_00_00_000:                # ₹100 crore sanity cap
+        raise ValueError("amount too large")
+    return round(v, 2)
+
+
 class SplitGroupCreate(BaseModel):
-    name: str
-    members: List[str]  # List of phone numbers
-    custom_emoji: Optional[str] = None  # Optional user-selected emoji icon (overrides auto-derived)
+    name: str = Field(..., min_length=1, max_length=60)
+    members: List[str] = Field(..., min_length=1, max_length=50)
+    custom_emoji: Optional[str] = None
 
 
 class SplitExpenseCreate(BaseModel):
     group_id: str
-    description: str
+    description: str = Field(..., min_length=1, max_length=300)
     amount: float
-    paid_by: str  # user_id of payer
-    split_type: str = "equal"  # "equal", "custom", "shares"
-    splits: Optional[Dict[str, float]] = None  # user_id -> amount (for custom) or user_id -> share_ratio (for shares)
+    paid_by: str
+    split_type: str = "equal"
+    splits: Optional[Dict[str, float]] = None
+
+    @field_validator("amount")
+    @classmethod
+    def _amt(cls, v: float) -> float:
+        return _finite_positive(v)
 
 
 class SettlePayment(BaseModel):
     target_user_id: str
     amount: float
     txn_ref: Optional[str] = None
-    method: str = "upi"  # "upi", "cash", "bank_transfer"
+    method: str = "upi"
     group_id: Optional[str] = None
-    coins_to_use: Optional[int] = 0  # Optional coin redemption (applied as discount on cash outflow)
+    coins_to_use: Optional[int] = Field(default=0, ge=0, le=1_00_000)
+
+    @field_validator("amount")
+    @classmethod
+    def _amt(cls, v: float) -> float:
+        return _finite_positive(v)
 
 
 SETTLEMENT_BADGES = [

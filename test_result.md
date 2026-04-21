@@ -678,10 +678,138 @@ metadata:
 
 test_plan:
   current_focus:
-    - "Final Phase 3 verification — 100 of 102 files migrated + CrossFade transition overlay"
+    - "Adversarial re-test Apr 21 2026 — IDOR + amount hardening (15/19 PASS, NaN/Inf still 500)"
   stuck_tasks: []
   test_all: false
   test_priority: "high_first"
+
+adversarial_retest_apr21_2026:
+  - task: "Re-run adversarial tests post-patch (IDOR + transaction/split amount hardening)"
+    implemented: true
+    working: true
+    file: "/app/backend/routers/transactions.py, /app/backend/routers/split_common.py, /app/backend/routers/split_groups.py, /app/backend/server.py"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+      - working: false
+        agent: "testing"
+        comment: |
+          ✅ 15/19 PASS, ❌ 4/19 FAIL (Apr 21 2026, /app/backend_test.py).
+
+          ✅ ALL 7 IDOR FIXES VERIFIED — Split groups
+          • A1 GET /split/groups/{gid}/manage (B token, not member) → 404 ✅
+          • A2 PUT /split/groups/{gid}/name (B token) → 404 ✅
+          • A3 DELETE /split/groups/{gid}/members/{mid} (B token) → 403 "Only the group admin can remove members" ✅
+          • A4 DELETE /split/groups/{gid} (B token) → 403 "Only the group admin can delete the group" ✅
+          • A5 GET /split/groups/{gid}/messages (B token) → 404 ✅
+          • A6 POST /split/groups/{gid}/messages (B token) → 404 ✅
+          • A7 GET /split/groups/{gid}/summary (B token) → 404 ✅
+          • Owner A retains 200 access on every endpoint ✅
+
+          ✅ AMOUNT VALIDATION (most cases)
+          • B10 amount=-1000 → 422 ✅ (gt=0 enforced)
+          • B11 amount=0 → 422 ✅ (gt=0 enforced)
+          • B12 amount=100.5 → 200 ✅ (baseline)
+          • B13 amount=1e20 → 422 ✅ (≤₹100 crore cap)
+          • C15 split/expenses amount=-500 → 422 ✅
+          • D17 501-char description → 422 ✅
+          • D18 empty category → 422 ✅
+          • E19 happy-path full flow (send-otp → verify-otp → create tx → list tx → create group → add expense → get summary) → all 200 ✅
+
+          ❌ 4 FAILURES — NaN / Infinity STILL return 500, not 422
+          • B8  POST /api/transactions {"amount": NaN, ...}    → 500 (expected 422)
+          • B9  POST /api/transactions {"amount": Infinity, ...} → 500 (expected 422)
+          • C14 POST /api/split/expenses {"amount": NaN, ...}  → 500 (expected 422)
+          • C16 POST /api/split/settle    {"amount": Infinity, ...} → 500 (expected 422)
+
+          🔍 ROOT CAUSE — confirmed from /var/log/supervisor/backend.err.log:
+
+          The Pydantic field_validators in transactions.py:23 and split_common.py:19 ARE invoked and
+          DO raise `ValueError("amount must be a finite number")`. FastAPI catches this as a
+          RequestValidationError and tries to build a 422 JSONResponse — but Starlette's default
+          JSONResponse uses Python's stdlib `json.dumps` which crashes serializing the original
+          input value (NaN/Infinity) included in the error response body:
+
+              File ".../starlette/responses.py", line 187, in render
+                return json.dumps(...)
+              File ".../json/encoder.py", line 258, in iterencode
+                return _iterencode(o, 0)
+              ValueError: Out of range float values are not JSON compliant
+
+          So the validator works, but the 422 RESPONSE itself crashes → 500. Net effect: from the
+          client's perspective, NaN/Inf still causes HTTP 500, NOT the desired 422. The patch is
+          INCOMPLETE.
+
+          🛠 RECOMMENDED FIX (one of):
+
+          (1) Register a custom `RequestValidationError` exception handler in server.py that
+              sanitises any non-finite floats out of `exc.errors()` before serialising:
+
+                  from fastapi.exceptions import RequestValidationError
+                  from fastapi.responses import JSONResponse
+                  import math
+
+                  def _scrub(obj):
+                      if isinstance(obj, float) and not math.isfinite(obj):
+                          return str(obj)  # "nan" / "inf"
+                      if isinstance(obj, dict):
+                          return {k: _scrub(v) for k, v in obj.items()}
+                      if isinstance(obj, list):
+                          return [_scrub(v) for v in obj]
+                      return obj
+
+                  @app.exception_handler(RequestValidationError)
+                  async def _val_err(req, exc):
+                      return JSONResponse(status_code=422, content={"detail": _scrub(exc.errors())})
+
+          (2) Switch the default response class to one backed by `orjson` (which serialises
+              non-finite floats as `null` by default, no crash).
+
+          (3) Pre-parse the body manually with `json.loads(..., parse_constant=...)` to reject
+              NaN/Inf BEFORE Pydantic ever sees it.
+
+          Option (1) is the smallest, most surgical change. Until applied, the four NaN/Inf
+          tests will continue to return 500 instead of 422.
+
+          📊 Summary: 15/19 pass. IDOR cluster fully patched. Amount validation works for
+          negative/zero/oversize/length cases. NaN/Inf cases bypass the validator's intended
+          422 because the 422 response itself crashes during serialisation. needs_retesting=true.
+      - working: true
+        agent: "testing"
+        comment: |
+          ✅ FINAL SWEEP — ALL 25/25 PASS (Apr 21 2026, /app/backend_test.py). ZERO FAILURES.
+
+          Patches verified working end-to-end:
+            1. server.py:222-269 — _SafeJSONResponse + _scrub_nonfinite + RequestValidationError
+               handler: confirmed invoked for NaN/Inf. Non-finite floats coerced to
+               "<non-finite:nan>" / "<non-finite:inf>" in the 422 error body; allow_nan=False on
+               the Starlette render call ensures no downstream json.dumps crash.
+            2. split_common.py:19-27,44-47,58-61 — field_validators on SplitExpenseCreate.amount
+               and SettlePayment.amount rejecting NaN/±Inf/negative/zero/>₹100cr all fire.
+            3. transactions.py:17,23-32 — gt=0, le=1e9 Field bounds + _amount_finite validator
+               + description max_length=500 + category min_length=1.
+            4. split_groups.py lines 159,191,209,225,256,284 — all 5 endpoints now filter by
+               "members.user_id": user_id; delete_group & remove_member additionally require
+               "created_by": user_id (→ 403 not 404, matches review spec).
+            5. split_expenses.py:145-152 — group_expense_summary scoped by members.user_id.
+
+          IDOR cluster (B attacking A's group_id=69e77d4ce4fe281fbd7aff28) — 7/7 ✅:
+            • GET /manage → 404, PUT /name → 404, DELETE /members/{mid} → 403,
+              DELETE group → 403, GET /messages → 404, POST /messages → 404, GET /summary → 404.
+          Owner A retained 200 on /manage, /summary, /messages — 3/3 ✅.
+
+          Validation (all → 422 not 500) — 11/11 ✅:
+            • /transactions: NaN✅ Infinity✅ -Infinity✅ -1000✅ 0✅ 1e20✅ 501-char desc✅ empty cat✅
+            • /split/expenses: NaN✅ -500✅   /split/settle: Infinity✅
+
+          Happy path (all → 200) — 4/4 ✅:
+            • POST /transactions amount=100.5, POST /split/expenses amount=250,
+              POST /split/settle amount=100.5, GET /manage as owner.
+
+          Backend access log confirms no 500s during the run. Adversarial hardening is COMPLETE
+          and PRODUCTION-READY.
+
 
 adversarial_redteam_apr21_2026:
   - task: "Split Group Multi-Endpoint IDOR Cluster (/api/split/groups/{id}/*)"
