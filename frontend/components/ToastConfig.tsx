@@ -59,6 +59,6 @@ const styles = StyleSheet.create({
     ...shadowStyle('#000', 4, 12, 0.08, 6),
   },
   textWrap: { flex: 1 },
-  title: { fontSize: 14, fontWeight: '700', color: COLORS.text.primary },
-  message: { fontSize: 13, color: COLORS.text.secondary, marginTop: 2, lineHeight: 18 },
+  title: { fontSize: 14, fontWeight: '700', color: '#111827' },       // static dark-on-light (toasts always have light bg)
+  message: { fontSize: 13, color: '#4B5563', marginTop: 2, lineHeight: 18 },
 });

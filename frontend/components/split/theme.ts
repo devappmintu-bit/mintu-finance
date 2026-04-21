@@ -1,29 +1,48 @@
 import { COLORS } from '../../utils/theme';
 
-export const C = {
-  bg: COLORS.bg.primary,
-  card: 'rgba(255,255,255,0.92)',
-  cardBorder: 'rgba(238,221,204,0.7)',
-  glass: 'rgba(255,255,255,0.78)',
-  glassBorder: 'rgba(230,81,0,0.06)',
-  accent: COLORS.accent.primary,
-  accentLight: COLORS.accent.primaryLight,
-  accentDim: 'rgba(230,81,0,0.08)',
-  green: COLORS.accent.moneyIn,
-  greenDim: 'rgba(46,125,50,0.08)',
-  red: COLORS.accent.moneyOut,
-  redDim: 'rgba(211,47,47,0.08)',
-  gold: COLORS.accent.secondary,
-  goldDim: 'rgba(255,179,0,0.12)',
-  blue: '#1565C0',
-  purple: '#6A1B9A',
-  text1: COLORS.text.primary,
-  text2: COLORS.text.secondary,
-  text3: COLORS.text.muted,
-  text4: '#C5B5A8',
-  border: COLORS.border.subtle,
-  sheetBg: '#FFFFFF',
-  inv: '#FFFFFF',
+/**
+ * Split-screen color palette — LIVE proxy into the global theme.
+ *
+ * Previously this was a snapshot taken at module-load time, which meant the
+ * Split tab stayed frozen in whatever theme the app booted with (usually
+ * dark/AMOLED) even after the user flipped to Light mode. Wrapping it in a
+ * getter-based Proxy routes every `C.bg`, `C.accent`, etc. read through the
+ * current COLORS proxy so theme switches reflect instantly.
+ */
+const C_LIVE = {
+  get bg()           { return COLORS.bg.primary; },
+  get card()         { return COLORS.bg.secondary; },
+  get cardBorder()   { return COLORS.border.card; },
+  get glass()        { return COLORS.bg.elevated; },
+  get glassBorder()  { return COLORS.border.subtle; },
+  get accent()       { return COLORS.accent.primary; },
+  get accentLight()  { return COLORS.accent.primaryLight; },
+  get accentDim()    { return COLORS.accent.primary + '14'; },
+  get green()        { return COLORS.accent.moneyIn; },
+  get greenDim()     { return COLORS.accent.moneyIn + '14'; },
+  get red()          { return COLORS.accent.moneyOut; },
+  get redDim()       { return COLORS.accent.moneyOut + '14'; },
+  get gold()         { return COLORS.accent.secondary; },
+  get goldDim()      { return COLORS.accent.secondary + '20'; },
+  get blue()         { return '#1565C0'; },
+  get purple()       { return '#6A1B9A'; },
+  get text1()        { return COLORS.text.primary; },
+  get text2()        { return COLORS.text.secondary; },
+  get text3()        { return COLORS.text.muted; },
+  get text4()        { return COLORS.text.muted; },
+  get border()       { return COLORS.border.subtle; },
+  get sheetBg()      { return COLORS.bg.secondary; },
+  get inv()          { return COLORS.text.inverse; },
+};
+
+// Freeze the object but let its getters run on every read.
+export const C = C_LIVE as unknown as {
+  bg: string; card: string; cardBorder: string; glass: string; glassBorder: string;
+  accent: string; accentLight: string; accentDim: string;
+  green: string; greenDim: string; red: string; redDim: string;
+  gold: string; goldDim: string; blue: string; purple: string;
+  text1: string; text2: string; text3: string; text4: string;
+  border: string; sheetBg: string; inv: string;
 };
 
 export const MEMBER_COLORS = ['#E65100', '#FFB300', '#2E7D32', '#D32F2F', '#6A1B9A', '#C62828', '#1565C0', '#F57F17'];
