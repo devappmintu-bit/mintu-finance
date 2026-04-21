@@ -123,10 +123,7 @@ export default function AuthScreen() {
       <TouchableOpacity testID="send-otp-btn" style={[s.primaryBtn, loading && s.btnDisabled]} onPress={handleSendOTP} disabled={loading}>
         {loading ? <ActivityIndicator color={COLORS.text.inverse} /> : <><Text style={s.primaryBtnText}>{t('send_otp', lang)}</Text><Ionicons name="arrow-forward" size={18} color={COLORS.text.inverse} /></>}
       </TouchableOpacity>
-      {/* Dev-only helper banner — never shown in production builds. */}
-      {__DEV__ ? (
-        <View style={s.mockBanner}><Ionicons name="information-circle" size={16} color={COLORS.accent.primary} /><Text style={s.mockBannerText}>{t('demo_mode', lang)}</Text></View>
-      ) : null}
+      {/* Demo banner removed — cleaner first-impression for all builds. */}
     </>
   );
 

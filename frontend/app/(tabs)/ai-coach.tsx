@@ -27,6 +27,7 @@ import InsightCard from '../../components/ui/InsightCard';
 import NeonButton from '../../components/ui/NeonButton';
 import GlowPill from '../../components/ui/GlowPill';
 import Skeleton from '../../components/ui/Skeleton';
+import ThinkingDots from '../../components/ui/ThinkingDots';
 import { COLORS, FONT_FAMILY, GRADIENT, SPACING } from '../../utils/theme';
 import { makeStyles } from '../../utils/makeStyles';
 import api from '../../utils/api';
@@ -137,7 +138,10 @@ export default function AICoachTab() {
           </View>
         </View>
 
-        <Text style={s.subtitle}>{loading ? helloMsg : 'Your personalised money pulse, fresh.'}</Text>
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+          <Text style={s.subtitle}>{loading ? helloMsg : 'Your personalised money pulse, fresh.'}</Text>
+          {loading && <ThinkingDots />}
+        </View>
 
         {/* Loading skeleton */}
         {loading && (
