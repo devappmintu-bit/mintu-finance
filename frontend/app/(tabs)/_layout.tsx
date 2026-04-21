@@ -23,9 +23,10 @@ import { Tabs } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { View, StyleSheet, Platform, TouchableOpacity, Text, Dimensions } from 'react-native';
 import { Image } from 'expo-image';
-import Svg, { Path } from 'react-native-svg';
+import Svg, { Path, Defs, LinearGradient as SvgLG, Stop } from 'react-native-svg';
 import { BottomTabBarProps } from '@react-navigation/bottom-tabs';
-import { COLORS } from '../../utils/theme';
+import { BlurView } from 'expo-blur';
+import { COLORS, FONT_FAMILY, GLOW } from '../../utils/theme';
 import { useLangStore } from '../../store/langStore';
 import { t } from '../../utils/i18n';
 
@@ -143,8 +144,12 @@ function MintUTabBar({ state, navigation }: BottomTabBarProps) {
 
   return (
     <View style={st.wrap} pointerEvents="box-none">
-      {/* SVG bar silhouette with twin arch cutouts */}
+      {/* SVG bar silhouette with twin arch cutouts — dark glass + subtle top rim */}
       <View style={[st.barContainer, { height: barH }]} pointerEvents="none">
+        {/* Blurred dark panel behind the silhouette for depth */}
+        {Platform.OS !== 'android' ? (
+          <BlurView intensity={32} tint="dark" style={[StyleSheet.absoluteFillObject, { overflow: 'hidden' }]} />
+        ) : null}
         <Svg
           width={screenW}
           height={barH}
@@ -152,7 +157,13 @@ function MintUTabBar({ state, navigation }: BottomTabBarProps) {
           // @ts-ignore (react-native-svg types don't cover this prop universally)
           style={StyleSheet.absoluteFillObject}
         >
-          <Path d={barPath(screenW, barH)} fill="#FFFFFF" />
+          <Defs>
+            <SvgLG id="barGrad" x1="0" y1="0" x2="0" y2="1">
+              <Stop offset="0" stopColor="#1A1A24" stopOpacity="0.92" />
+              <Stop offset="1" stopColor="#0B0B12" stopOpacity="0.98" />
+            </SvgLG>
+          </Defs>
+          <Path d={barPath(screenW, barH)} fill="url(#barGrad)" stroke="rgba(255,255,255,0.08)" strokeWidth={1} />
         </Svg>
       </View>
 
@@ -249,11 +260,11 @@ const st = StyleSheet.create({
   },
   barContainer: {
     position: 'absolute', left: 0, right: 0, bottom: 0,
-    // Soft shadow beneath whole bar
+    // Soft shadow beneath whole bar (dark theme — deeper shadow)
     ...Platform.select({
-      ios:     { shadowColor: '#2E1F1A', shadowOpacity: 0.09, shadowRadius: 18, shadowOffset: { width: 0, height: -4 } },
-      android: { elevation: 10 },
-      web:     { boxShadow: '0 -4px 18px rgba(46,31,26,0.09)' as any },
+      ios:     { shadowColor: '#000', shadowOpacity: 0.6, shadowRadius: 24, shadowOffset: { width: 0, height: -8 } },
+      android: { elevation: 16 },
+      web:     { boxShadow: '0 -8px 28px rgba(0,0,0,0.55)' as any },
     }),
   },
   iconsRow: {
@@ -276,18 +287,20 @@ const st = StyleSheet.create({
     backgroundColor: 'transparent',
   },
   sideIconWrapOn: {
-    backgroundColor: COLORS.accent.primary,
+    backgroundColor: 'rgba(255,107,26,0.18)',
     paddingHorizontal: 12,
+    borderWidth: 1,
+    borderColor: 'rgba(255,107,26,0.4)',
     ...Platform.select({
-      ios:     { shadowColor: COLORS.accent.primary, shadowOpacity: 0.35, shadowRadius: 8, shadowOffset: { width: 0, height: 4 } },
-      android: { elevation: 4 },
-      web:     { boxShadow: '0 4px 8px rgba(230,81,0,0.35)' as any },
+      ios:     { shadowColor: COLORS.accent.primary, shadowOpacity: 0.55, shadowRadius: 10, shadowOffset: { width: 0, height: 2 } },
+      android: { elevation: 6 },
+      web:     { boxShadow: '0 0 16px rgba(255,107,26,0.55)' as any },
     }),
   },
-  sideLabel:   { fontSize: 10.5, color: COLORS.text.muted, fontWeight: '600', letterSpacing: 0.2 },
-  sideLabelOn: { color: COLORS.accent.primary, fontWeight: '800' },
+  sideLabel:   { fontSize: 10.5, color: COLORS.text.muted, fontFamily: FONT_FAMILY.semibold, letterSpacing: 0.3 },
+  sideLabelOn: { color: COLORS.accent.primary, fontFamily: FONT_FAMILY.bold },
 
-  // RAISED puck sits on top of the cutout
+  // RAISED puck sits on top of the cutout — neon-glow ring
   raisedWrap: {
     position: 'absolute',
     bottom: BOTTOM_PAD + BAR_HEIGHT - PUCK_SIZE / 2 + 4,
@@ -301,13 +314,13 @@ const st = StyleSheet.create({
   raisedOuter: {
     width: PUCK_SIZE, height: PUCK_SIZE,
     borderRadius: PUCK_SIZE / 2,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: '#FF6B1A',
     alignItems: 'center', justifyContent: 'center',
-    borderWidth: 2, borderColor: COLORS.accent.primary + '22',
+    borderWidth: 2, borderColor: 'rgba(255,180,71,0.9)',
     ...Platform.select({
-      ios:     { shadowColor: COLORS.accent.primary, shadowOpacity: 0.42, shadowRadius: 14, shadowOffset: { width: 0, height: 6 } },
-      android: { elevation: 14 },
-      web:     { boxShadow: '0 6px 18px rgba(230,81,0,0.38)' as any },
+      ios:     { shadowColor: COLORS.accent.primary, shadowOpacity: 0.85, shadowRadius: 18, shadowOffset: { width: 0, height: 8 } },
+      android: { elevation: 18 },
+      web:     { boxShadow: '0 0 24px rgba(255,107,26,0.85), 0 8px 20px rgba(255,107,26,0.55)' as any },
     }),
   },
   raisedInner: {

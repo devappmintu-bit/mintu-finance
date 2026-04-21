@@ -1,13 +1,22 @@
 import { Stack } from 'expo-router';
-import { useEffect } from 'react';
+import React, { useEffect } from 'react';
 import { StatusBar } from 'expo-status-bar';
-import { LogBox, Platform } from 'react-native';
+import { LogBox, Platform, View } from 'react-native';
 import Toast from 'react-native-toast-message';
 import { toastConfig } from '../components/ToastConfig';
 import { useAuthStore } from '../store/authStore';
 import { useLangStore } from '../store/langStore';
 import { usePushNotifications } from '../hooks/usePushNotifications';
 import { useAppLock } from '../hooks/useAppLock';
+import {
+  useFonts,
+  Inter_400Regular,
+  Inter_500Medium,
+  Inter_600SemiBold,
+  Inter_700Bold,
+  Inter_900Black,
+} from '@expo-google-fonts/inter';
+import { COLORS } from '../utils/theme';
 
 // Silence noisy, non-actionable deprecation warnings from RN core + libs.
 // These warnings are informational for future RN versions and don't affect runtime.
@@ -39,6 +48,15 @@ export default function RootLayout() {
   const loadFromStorage = useAuthStore((state) => state.loadFromStorage);
   const loadLang = useLangStore((state) => state.loadLang);
 
+  // Load Inter font family — premium-feeling, bundled via @expo-google-fonts/inter
+  const [fontsLoaded] = useFonts({
+    Inter_400Regular,
+    Inter_500Medium,
+    Inter_600SemiBold,
+    Inter_700Bold,
+    Inter_900Black,
+  });
+
   // Registers device push token with backend once auth is ready.
   // Silent on web/simulators, idempotent across remounts.
   usePushNotifications();
@@ -51,10 +69,22 @@ export default function RootLayout() {
     loadLang();
   }, []);
 
+  // Keep background dark while fonts are warming up — no jarring flash.
+  // On web, `useFonts` may stall if the CDN is slow; after 1s we show the app
+  // anyway (system font will render until Inter arrives).
+  const [fontsTimeout, setFontsTimeout] = React.useState(false);
+  useEffect(() => {
+    const t = setTimeout(() => setFontsTimeout(true), 1200);
+    return () => clearTimeout(t);
+  }, []);
+  if (!fontsLoaded && !fontsTimeout) {
+    return <View style={{ flex: 1, backgroundColor: COLORS.bg.primary }} />;
+  }
+
   return (
     <>
-      <StatusBar style="dark" />
-      <Stack screenOptions={{ headerShown: false, animation: 'fade' }}>
+      <StatusBar style="light" />
+      <Stack screenOptions={{ headerShown: false, animation: 'fade', contentStyle: { backgroundColor: COLORS.bg.primary } }}>
         <Stack.Screen name="index" />
         <Stack.Screen name="onboarding" />
         <Stack.Screen name="auth" />

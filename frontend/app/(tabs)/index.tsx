@@ -438,46 +438,46 @@ const styles = StyleSheet.create({
   scroll: { paddingHorizontal: SPACING.lg, paddingTop: SPACING.md, paddingBottom: 140 },
   // Header
   header: { flexDirection: 'row', alignItems: 'center', marginBottom: SPACING.lg },
-  greeting: { fontSize: 11, fontWeight: '700', letterSpacing: 1.2, color: COLORS.text.muted },
-  name: { fontSize: 22, fontWeight: '800', color: COLORS.text.primary, marginTop: 2 },
+  greeting: { fontSize: 11, fontWeight: '700', letterSpacing: 1.4, color: COLORS.accent.primary },
+  name: { fontSize: 24, fontWeight: '900', color: COLORS.text.primary, marginTop: 2, letterSpacing: -0.4 },
   // Avatar — CRED style
   avatarWrap: { position: 'relative' },
   avatarRing: { width: 52, height: 52, borderRadius: 26, padding: 2, borderWidth: 2.5, borderColor: COLORS.accent.primary, justifyContent: 'center', alignItems: 'center' },
   avatarImg: { width: 44, height: 44, borderRadius: 22 },
-  avatarPlaceholder: { width: 44, height: 44, borderRadius: 22, backgroundColor: COLORS.accent.primary + '12', justifyContent: 'center', alignItems: 'center' },
+  avatarPlaceholder: { width: 44, height: 44, borderRadius: 22, backgroundColor: 'rgba(255,107,26,0.18)', justifyContent: 'center', alignItems: 'center' },
   avatarBadge: { position: 'absolute', bottom: 0, right: 0, width: 18, height: 18, borderRadius: 9, backgroundColor: COLORS.accent.primary, justifyContent: 'center', alignItems: 'center', borderWidth: 2, borderColor: COLORS.bg.primary },
-  // Coins chip — header pill next to avatar
-  coinsChip: { flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: 10, paddingVertical: 6, borderRadius: 16, backgroundColor: '#FFF7E6', borderWidth: 1, borderColor: '#FBBF24', marginRight: 8 },
-  coinsChipVal: { fontSize: 13, fontWeight: '800', color: '#78350F' },
-  // Leaderboard  // Card of the Day
-  cotdCard: { backgroundColor: 'rgba(255,255,255,0.92)', borderRadius: RADIUS.card, padding: SPACING.xl, marginBottom: SPACING.lg, borderLeftWidth: 4, borderWidth: 1, borderColor: 'rgba(238,221,204,0.6)', ...shadowStyle('#2E1F1A', 2, 12, 0.04, 3) },
+  // Coins chip — neon glass pill
+  coinsChip: { flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: 10, paddingVertical: 6, borderRadius: 16, backgroundColor: 'rgba(255,176,71,0.14)', borderWidth: 1, borderColor: 'rgba(255,176,71,0.45)', marginRight: 8 },
+  coinsChipVal: { fontSize: 13, fontWeight: '800', color: '#FFB547' },
+  // Leaderboard  // Card of the Day — now floating glass
+  cotdCard: { backgroundColor: 'rgba(26,26,36,0.85)', borderRadius: RADIUS.card, padding: SPACING.xl, marginBottom: SPACING.lg, borderLeftWidth: 4, borderWidth: 1, borderColor: 'rgba(255,255,255,0.08)', ...shadowStyle('#000', 4, 18, 0.45, 5) },
   cotdHeader: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 8 },
   cotdEmoji: { fontSize: 22 },
   cotdType: { fontSize: 13, fontWeight: '700', letterSpacing: 0.5, flex: 1 },
   cotdRefresh: { padding: 4 },
   cotdText: { fontSize: 15, fontWeight: '500', color: COLORS.text.secondary, lineHeight: 23 },
-  // Stats row
+  // Stats row — dark glass cards
   statsRow: { flexDirection: 'row', gap: 8, marginBottom: SPACING.lg },
-  statBox: { flex: 1, backgroundColor: 'rgba(255,255,255,0.92)', borderRadius: RADIUS.lg, padding: SPACING.md, alignItems: 'center', borderWidth: 1, gap: 4, ...shadowStyle('#2E1F1A', 1, 8, 0.03, 2) },
-  statVal: { fontSize: 15, fontWeight: '800' },
-  statLabel: { fontSize: 10, color: COLORS.text.muted, fontWeight: '600' },
+  statBox: { flex: 1, backgroundColor: 'rgba(26,26,36,0.85)', borderRadius: RADIUS.lg, padding: SPACING.md, alignItems: 'center', borderWidth: 1, gap: 4, ...shadowStyle('#000', 2, 10, 0.35, 3) },
+  statVal: { fontSize: 16, fontWeight: '900', color: COLORS.text.primary },
+  statLabel: { fontSize: 10, color: COLORS.text.muted, fontWeight: '600', letterSpacing: 0.3, textTransform: 'uppercase' },
   // Alerts
   alertsSection: { marginBottom: SPACING.lg },
-  sectionTitle: { fontSize: 16, fontWeight: '700', color: COLORS.text.primary, marginBottom: SPACING.sm },
+  sectionTitle: { fontSize: 16, fontWeight: '800', color: COLORS.text.primary, marginBottom: SPACING.sm, letterSpacing: -0.2 },
   fomoSection: { marginBottom: SPACING.lg, marginTop: -4 },
   fomoScroll: { gap: 10, paddingRight: 8 },
   fomoCard: {
     width: 260,
     padding: 14,
     borderRadius: 20,
-    backgroundColor: 'rgba(255,255,255,0.9)',
+    backgroundColor: 'rgba(26,26,36,0.9)',
     borderWidth: 1,
-    borderColor: 'rgba(230,81,0,0.18)',
+    borderColor: 'rgba(255,107,26,0.28)',
     gap: 6,
     ...SHADOW.sm,
   },
-  fomoCardDanger: { backgroundColor: 'rgba(254,242,242,0.95)', borderColor: '#FECACA' },
-  fomoCardAccent: { backgroundColor: 'rgba(254,243,199,0.95)', borderColor: '#FDE68A' },
+  fomoCardDanger: { backgroundColor: 'rgba(255,84,112,0.14)', borderColor: 'rgba(255,84,112,0.4)' },
+  fomoCardAccent: { backgroundColor: 'rgba(255,176,32,0.12)', borderColor: 'rgba(255,176,32,0.4)' },
   fomoIcon: { fontSize: 22 },
   fomoText: { fontSize: 13, fontWeight: '600', color: COLORS.text.primary, lineHeight: 18 },
   fomoCtaRow: { marginTop: 4 },
@@ -487,38 +487,32 @@ const styles = StyleSheet.create({
   alertBody: { flex: 1 },
   alertTitle: { fontSize: 14, fontWeight: '700', marginBottom: 2 },
   alertMsg: { fontSize: 13, color: COLORS.text.secondary, lineHeight: 19 },
-  // Premium banner  // Rewards
-  // Weekly  // MintU 2.0 — Predictive insights card (Waste detector + overspending)
-  predictCard: { backgroundColor: '#FFFFFF', borderRadius: RADIUS.card, padding: 14, marginBottom: SPACING.lg, borderWidth: 1, borderColor: '#E6510030', ...shadowStyle('#E65100', 2, 10, 0.08, 3) },
-  // MintU 2.0 — Top-of-home pill row (gamification)
+  // Predictive insights — dark glass
+  predictCard: { backgroundColor: 'rgba(26,26,36,0.9)', borderRadius: RADIUS.card, padding: 14, marginBottom: SPACING.lg, borderWidth: 1, borderColor: 'rgba(255,107,26,0.3)', ...shadowStyle('#FF6B1A', 2, 14, 0.25, 3) },
+  // Pill row
   pillRow: { flexDirection: 'row', gap: 8, marginBottom: 14, flexWrap: 'wrap' },
-  // Transparency notice strip — RBI-friendly data freshness disclosure
   pill: { flexDirection: 'row', alignItems: 'center', gap: 5, paddingHorizontal: 12, paddingVertical: 8, borderRadius: 999, borderWidth: 1, position: 'relative' },
-  pillCoin: { backgroundColor: '#FEF3C7', borderColor: '#F59E0B40' },
-  pillRank: { backgroundColor: '#DBEAFE', borderColor: '#3B82F640' },
-  pillStreak: { backgroundColor: '#FEE2E2', borderColor: '#EF444440' },
+  pillCoin:   { backgroundColor: 'rgba(255,176,71,0.14)', borderColor: 'rgba(255,176,71,0.4)' },
+  pillRank:   { backgroundColor: 'rgba(96,165,250,0.14)', borderColor: 'rgba(96,165,250,0.4)' },
+  pillStreak: { backgroundColor: 'rgba(255,84,112,0.14)', borderColor: 'rgba(255,84,112,0.4)' },
   pillEmoji: { fontSize: 14 },
   pillValue: { fontSize: 13, fontWeight: '800', color: COLORS.text.primary },
   pillLabel: { fontSize: 11, fontWeight: '600', color: COLORS.text.muted },
-  pillGlow: { position: 'absolute', top: -6, right: -4, backgroundColor: '#10B981', paddingHorizontal: 6, paddingVertical: 1, borderRadius: 999, borderWidth: 2, borderColor: '#FFFFFF' },
-  pillGlowT: { fontSize: 9, fontWeight: '800', color: '#FFFFFF', letterSpacing: 0.3 },
+  pillGlow: { position: 'absolute', top: -6, right: -4, backgroundColor: '#10E0A0', paddingHorizontal: 6, paddingVertical: 1, borderRadius: 999, borderWidth: 2, borderColor: COLORS.bg.primary },
+  pillGlowT: { fontSize: 9, fontWeight: '800', color: '#0B0B12', letterSpacing: 0.3 },
   predictHeader: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 10 },
-  predictTitle: { flex: 1, fontSize: 11, fontWeight: '800', color: '#E65100', letterSpacing: 0.8 },
-  aiBadge: { backgroundColor: '#E65100', paddingHorizontal: 8, paddingVertical: 2, borderRadius: 4 },
+  predictTitle: { flex: 1, fontSize: 11, fontWeight: '800', color: COLORS.accent.primary, letterSpacing: 0.8 },
+  aiBadge: { backgroundColor: COLORS.accent.primary, paddingHorizontal: 8, paddingVertical: 2, borderRadius: 4 },
   aiBadgeText: { color: '#fff', fontSize: 9, fontWeight: '800', letterSpacing: 0.5 },
-  predictRow: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingVertical: 10, paddingHorizontal: 10, backgroundColor: '#FEF3C7', borderRadius: 10, marginBottom: 6 },
-  predictRowCrit: { backgroundColor: '#FEE2E2' },
+  predictRow: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingVertical: 10, paddingHorizontal: 10, backgroundColor: 'rgba(255,176,32,0.12)', borderRadius: 10, marginBottom: 6, borderWidth: 1, borderColor: 'rgba(255,176,32,0.3)' },
+  predictRowCrit: { backgroundColor: 'rgba(255,84,112,0.14)', borderColor: 'rgba(255,84,112,0.4)' },
   predictText: { flex: 1, fontSize: 12, color: COLORS.text.primary, fontWeight: '600', lineHeight: 17 },
-  wasteRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 8, paddingVertical: 10, paddingHorizontal: 10, backgroundColor: '#FFF4E5', borderRadius: 10, borderLeftWidth: 3, borderLeftColor: '#E65100' },
-  wasteTitle: { fontSize: 13, fontWeight: '800', color: '#7C2D12' },
-  wasteSub: { fontSize: 11, color: '#92400E', marginTop: 2, lineHeight: 15 },
-  // WhatsApp share button for weekly report
-  // School  // Horizontal news cards  // Live / refresh indicators  // Fresh / last-updated strip replacing the old "data updates on refresh" trust signal
-  freshStrip: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingVertical: 8, paddingHorizontal: 12, backgroundColor: '#DCFCE7', borderRadius: 999, alignSelf: 'flex-start', marginHorizontal: SPACING.lg, marginBottom: SPACING.sm, borderWidth: 1, borderColor: '#86EFAC' },
-  freshLiveDot: { width: 7, height: 7, borderRadius: 3.5, backgroundColor: '#10B981' },
-  freshText: { fontSize: 11, fontWeight: '700', color: '#065F46', letterSpacing: 0.2 },
-  freshBtn: { marginLeft: 4, padding: 4, borderRadius: 999, backgroundColor: '#fff' },
-  // Leaderboard preview on Home
-  // Money School horizontal cards
-  // Transactions
+  wasteRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 8, paddingVertical: 10, paddingHorizontal: 10, backgroundColor: 'rgba(255,107,26,0.1)', borderRadius: 10, borderLeftWidth: 3, borderLeftColor: COLORS.accent.primary },
+  wasteTitle: { fontSize: 13, fontWeight: '800', color: COLORS.accent.primaryLight },
+  wasteSub: { fontSize: 11, color: COLORS.text.secondary, marginTop: 2, lineHeight: 15 },
+  // Fresh / last-updated strip — neon green on dark
+  freshStrip: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingVertical: 8, paddingHorizontal: 12, backgroundColor: 'rgba(16,224,160,0.14)', borderRadius: 999, alignSelf: 'flex-start', marginHorizontal: SPACING.lg, marginBottom: SPACING.sm, borderWidth: 1, borderColor: 'rgba(16,224,160,0.4)' },
+  freshLiveDot: { width: 7, height: 7, borderRadius: 3.5, backgroundColor: '#10E0A0' },
+  freshText: { fontSize: 11, fontWeight: '700', color: '#10E0A0', letterSpacing: 0.2 },
+  freshBtn: { marginLeft: 4, padding: 4, borderRadius: 999, backgroundColor: 'rgba(255,255,255,0.08)' },
 });
