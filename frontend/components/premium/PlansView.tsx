@@ -42,40 +42,40 @@ export default function PlansView({ potentialSavings }: { potentialSavings: numb
         <Text style={styles.hookHeader}>
           You could have saved <Text style={{ color: COLORS.accent.moneyOut }}>{fmtINR(potentialSavings || 1275)}</Text> this month
         </Text>
-        <Text style={styles.hookSub}>MintU Premium finds your hidden money leaks</Text>
+        <Text style={styles.hookSub}>MintU Premium finds your hidden money leaks · All tiers ≤ ₹150/month</Text>
       </View>
 
-      {/* 3-plan pricing row */}
+      {/* India-Hack 3-paid-tier pricing row (Free shown separately below) */}
       <View style={styles.plansRow}>
-        {/* Intro */}
+        {/* Micro — ₹29 "Why not?" */}
         <TouchableOpacity style={[styles.planCard, isActive('intro') && styles.planCardActive]} onPress={() => buy('intro')} activeOpacity={0.9}>
-          <Text style={styles.planLabel}>Intro</Text>
+          <Text style={styles.planLabel}>Micro</Text>
           <Text style={styles.planPrice}>₹29</Text>
-          <Text style={styles.planSub}>first month</Text>
+          <Text style={styles.planSub}>Why not?</Text>
           {isActive('intro') && <View style={styles.activeBadge}><Text style={styles.activeBadgeText}>ACTIVE</Text></View>}
         </TouchableOpacity>
 
-        {/* Yearly — highlighted */}
-        <TouchableOpacity style={[styles.planCardBest, isActive('yearly') && styles.planCardBestActive]} onPress={() => buy('yearly')} activeOpacity={0.9}>
+        {/* Standard — ₹99 "Useful" — highlighted as best-seller */}
+        <TouchableOpacity style={[styles.planCardBest, isActive('monthly') && styles.planCardBestActive]} onPress={() => buy('monthly')} activeOpacity={0.9}>
           <View style={styles.bestBadge}>
             <Text style={styles.bestBadgeText}>BEST VALUE</Text>
           </View>
-          <Text style={styles.planLabelWhite}>Yearly</Text>
-          <Text style={styles.planPriceWhite}>₹499</Text>
-          <Text style={styles.planSubWhite}>per year (58% off)</Text>
-          {isActive('yearly') && <View style={styles.activeBadgeInv}><Text style={styles.activeBadgeInvText}>✓ ACTIVE</Text></View>}
+          <Text style={styles.planLabelWhite}>Standard</Text>
+          <Text style={styles.planPriceWhite}>₹99</Text>
+          <Text style={styles.planSubWhite}>Useful</Text>
+          {isActive('monthly') && <View style={styles.activeBadgeInv}><Text style={styles.activeBadgeInvText}>✓ ACTIVE</Text></View>}
         </TouchableOpacity>
 
-        {/* Monthly */}
-        <TouchableOpacity style={[styles.planCard, isActive('monthly') && styles.planCardActive]} onPress={() => buy('monthly')} activeOpacity={0.9}>
-          <Text style={styles.planLabel}>Monthly</Text>
-          <Text style={styles.planPrice}>₹99</Text>
-          <Text style={styles.planSub}>per month</Text>
-          {isActive('monthly') && <View style={styles.activeBadge}><Text style={styles.activeBadgeText}>ACTIVE</Text></View>}
+        {/* Premium — ₹149 "Upgrade your life" */}
+        <TouchableOpacity style={[styles.planCard, isActive('yearly') && styles.planCardActive]} onPress={() => buy('yearly')} activeOpacity={0.9}>
+          <Text style={styles.planLabel}>Premium</Text>
+          <Text style={styles.planPrice}>₹149</Text>
+          <Text style={styles.planSub}>Upgrade life</Text>
+          {isActive('yearly') && <View style={styles.activeBadge}><Text style={styles.activeBadgeText}>ACTIVE</Text></View>}
         </TouchableOpacity>
       </View>
 
-      <Text style={styles.mostPopular}>💡 Most users choose <Text style={{ color: COLORS.accent.primary, fontWeight: '800' }}>Yearly</Text> — saves ₹689/year</Text>
+      <Text style={styles.mostPopular}>💡 Most users pick <Text style={{ color: COLORS.accent.primary, fontWeight: '800' }}>Standard</Text> — best balance of features & price</Text>
 
       {/* Free tier banner */}
       <TouchableOpacity style={[styles.freeBanner, isActive('free') && styles.freeBannerActive]} onPress={() => buy('free')} activeOpacity={0.8}>
@@ -83,7 +83,7 @@ export default function PlansView({ potentialSavings }: { potentialSavings: numb
           <Text style={{ fontSize: 18 }}>🌱</Text>
         </View>
         <View style={{ flex: 1 }}>
-          <Text style={styles.freeBannerTitle}>Free Plan</Text>
+          <Text style={styles.freeBannerTitle}>Free · Trust</Text>
           <Text style={styles.freeBannerSub}>Basic tracking · 5 AI msgs/day · 7-day insights</Text>
         </View>
         {isActive('free') ? (
@@ -93,7 +93,7 @@ export default function PlansView({ potentialSavings }: { potentialSavings: numb
         )}
       </TouchableOpacity>
 
-      {/* Feature comparison */}
+      {/* Feature comparison — Micro / Standard / Premium */}
       <Text style={styles.sectionTitle}>What you get</Text>
       {(['intro', 'monthly', 'yearly'] as Plan[]).map((p) => {
         const meta = PLAN_META[p];

@@ -125,17 +125,10 @@ async def mock_activate_premium(req: MockActivateRequest, user_id: str = Depends
 
     now = datetime.utcnow()
     meta = PRICING[req.plan]
-    if req.plan == "monthly":
-        until = now + timedelta(days=31)
-    elif req.plan == "yearly":
-        until = now + timedelta(days=366)
-    elif req.plan == "lifetime":
-        until = now + timedelta(days=365 * 50)
-    elif req.plan == "intro":
-        until = now + timedelta(days=31)
-    else:
-        until = now + timedelta(days=31)
-    tier = "legend" if req.plan == "lifetime" else "premium"
+    # India-Hack ladder: all 3 paid tiers are monthly-billed (intro=Micro, monthly=Standard, yearly=Premium).
+    # Lifetime tier removed — old ₹2999 exceeded the ₹150 cap.
+    until = now + timedelta(days=31)
+    tier = "premium"  # all paid plans map to the same "premium" user tier
     await db.users.update_one(
         {"_id": ObjectId(user_id)},
         {"$set": {
@@ -421,7 +414,15 @@ async def premium_features_catalog(user_id: str = Depends(get_current_user)):
     return {
         "is_premium": is_premium,
         "tier": "Premium" if is_premium else "Free",
-        "price": {"monthly": 99, "annual": 899, "annual_savings_pct": 24},
+        # India-Hack 4-tier ladder (all monthly, capped ₹150)
+        "price": {
+            "free": 0,
+            "micro": 29,
+            "standard": 99,
+            "premium": 149,
+            "cap": 150,
+            "best_seller": "standard",
+        },
         "sections": [
             {"id": "ai", "title": "Advanced AI", "emoji": "🧠", "features": [
                 {"name": "Predictive insights (month-end, category trends)", "free": True, "premium": True},

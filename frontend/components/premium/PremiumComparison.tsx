@@ -1,12 +1,10 @@
 /**
  * PremiumComparison — plan-wise feature comparison for MintU Premium.
  *
- * Three columns (Monthly / Yearly / Lifetime) with:
- *   • Price header + savings badge
- *   • 12-row feature matrix — every row is "✓" because Premium tiers all
- *     include every feature; the distinction is the commitment + savings
- *   • Perks that only Lifetime unlocks (exclusive Legend badge + free upgrades)
- *   • Bottom CTA that scrolls the caller back to the plan-picker
+ * India-Hack 3-paid-tier ladder (all monthly, capped ≤ ₹150):
+ *   • Micro    — ₹29  "Why not?"
+ *   • Standard — ₹99  "Useful"           ← best-seller
+ *   • Premium  — ₹149 "Upgrade my life"  ← top tier
  */
 import React from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity } from 'react-native';
@@ -14,32 +12,31 @@ import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { makeStyles } from '../../utils/makeStyles';
 
-type Plan = 'monthly' | 'yearly' | 'lifetime';
-type Row = { label: string; monthly: boolean | string; yearly: boolean | string; lifetime: boolean | string };
+type Plan = 'intro' | 'monthly' | 'yearly';
+type Row = { label: string; intro: boolean | string; monthly: boolean | string; yearly: boolean | string };
 
 const COLS: { id: Plan; title: string; price: string; sub: string; badge?: string; tint: string }[] = [
-  { id: 'monthly', title: 'Monthly', price: '₹99', sub: '/month', tint: '#3B82F6' },
-  { id: 'yearly',  title: 'Yearly',  price: '₹899', sub: '/year', badge: 'SAVE 24%', tint: '#F56E1E' },
-  { id: 'lifetime', title: 'Lifetime', price: '₹2,999', sub: 'one time', badge: 'BEST', tint: '#8B5CF6' },
+  { id: 'intro',   title: 'Micro',    price: '₹29',  sub: 'Why not?',            tint: '#FFB300' },
+  { id: 'monthly', title: 'Standard', price: '₹99',  sub: 'Useful',               badge: 'BEST VALUE', tint: '#F56E1E' },
+  { id: 'yearly',  title: 'Premium',  price: '₹149', sub: "Upgrade my life",      badge: 'TOP', tint: '#8B5CF6' },
 ];
 
-// All 12 premium features — same across tiers; commitment determines price.
+// Feature matrix — Micro is the lean "taste of Premium", Standard fills utility,
+// Premium is the full aspirational kit.
 const FEATURES: Row[] = [
-  { label: 'Personalised AI Coach (GPT-5.2)', monthly: true, yearly: true, lifetime: true },
-  { label: 'Deep analytics reports (PDF)',    monthly: true, yearly: true, lifetime: true },
-  { label: 'Auto-categorisation via AI',      monthly: true, yearly: true, lifetime: true },
-  { label: 'Tax calculator + ITR export',     monthly: true, yearly: true, lifetime: true },
-  { label: 'Investment / SIP planner',        monthly: true, yearly: true, lifetime: true },
-  { label: 'Money School lessons',            monthly: true, yearly: true, lifetime: true },
-  { label: 'Recurring & custom budgets',      monthly: true, yearly: true, lifetime: true },
-  { label: 'Shareable score cards',           monthly: true, yearly: true, lifetime: true },
-  { label: 'Ad-free experience',              monthly: true, yearly: true, lifetime: true },
-  { label: 'Multi-device sync',               monthly: true, yearly: true, lifetime: true },
-  { label: 'Priority human support',          monthly: true, yearly: true, lifetime: true },
-  { label: 'Exclusive Legend badge',          monthly: false, yearly: false, lifetime: 'LEGEND' },
-  { label: 'Free lifetime updates',           monthly: false, yearly: false, lifetime: true },
-  { label: 'Money-back guarantee',            monthly: '7-day', yearly: '30-day', lifetime: '60-day' },
-  { label: 'Effective monthly cost',          monthly: '₹99', yearly: '₹75', lifetime: '₹42' },
+  { label: 'Personalised AI Coach (GPT-5.2)',  intro: true,  monthly: true,  yearly: true },
+  { label: 'Unlimited AI messages',            intro: true,  monthly: true,  yearly: true },
+  { label: '30-day insights + Waste detector', intro: true,  monthly: true,  yearly: true },
+  { label: 'Auto-categorisation via AI',       intro: false, monthly: true,  yearly: true },
+  { label: 'Tax calculator + ITR export',      intro: false, monthly: true,  yearly: true },
+  { label: 'Investment / SIP planner',         intro: false, monthly: true,  yearly: true },
+  { label: 'Yearly dashboard + Reports',       intro: false, monthly: true,  yearly: true },
+  { label: 'Priority AI responses',            intro: false, monthly: false, yearly: true },
+  { label: 'Custom reports (PDF)',             intro: false, monthly: false, yearly: true },
+  { label: 'Ad-free experience',               intro: false, monthly: false, yearly: true },
+  { label: 'Exclusive badges + Early access',  intro: false, monthly: false, yearly: true },
+  { label: 'Money School lessons',             intro: false, monthly: false, yearly: true },
+  { label: 'Money-back guarantee',             intro: '7-day', monthly: '15-day', yearly: '30-day' },
 ];
 
 type Props = { onClose?: () => void };
@@ -59,7 +56,7 @@ export default function PremiumComparison({ onClose }: Props) {
             </TouchableOpacity>
           )}
         </View>
-        <Text style={s.heroSub}>All tiers unlock the same 11 core features. Pick the commitment that fits.</Text>
+        <Text style={s.heroSub}>All tiers monthly · Hard-capped at ₹150. No annual lock-ins. Cancel anytime.</Text>
       </LinearGradient>
 
       {/* Column header — horizontally scrollable for 3 columns */}
@@ -88,7 +85,7 @@ export default function PremiumComparison({ onClose }: Props) {
               <View style={s.rowLabel}>
                 <Text style={s.rowLabelTxt} numberOfLines={2}>{f.label}</Text>
               </View>
-              {(['monthly', 'yearly', 'lifetime'] as const).map((p) => (
+              {(['intro', 'monthly', 'yearly'] as const).map((p) => (
                 <View key={p} style={s.cell}>
                   {typeof f[p] === 'boolean'
                     ? <Ionicons name={f[p] ? 'checkmark-circle' : 'close-circle'} size={18} color={f[p] ? '#10B981' : '#9CA3AF'} />
@@ -101,7 +98,7 @@ export default function PremiumComparison({ onClose }: Props) {
       </ScrollView>
 
       <Text style={s.fineprint}>
-        Prices include GST. Subscriptions auto-renew until cancelled. Lifetime is a one-time payment.
+        Prices include GST. All tiers billed monthly. Cancel anytime from Profile → Subscriptions.
       </Text>
     </View>
   );

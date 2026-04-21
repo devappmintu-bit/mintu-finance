@@ -195,7 +195,7 @@ export default function YearlyDashboard() {
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 18 }}>
             <Text style={{ fontSize: 12, fontWeight: '700', color: COLORS.text.muted }}>Unlock with</Text>
             <View style={{ backgroundColor: COLORS.accent.primary + '15', borderColor: COLORS.accent.primary, borderWidth: 1.5, paddingHorizontal: 12, paddingVertical: 6, borderRadius: 999 }}>
-              <Text style={{ fontSize: 12, fontWeight: '800', color: COLORS.accent.primary }}>📊 Monthly · ₹99/mo</Text>
+              <Text style={{ fontSize: 12, fontWeight: '800', color: COLORS.accent.primary }}>📊 Standard · ₹99/mo</Text>
             </View>
           </View>
           <TouchableOpacity

@@ -178,10 +178,25 @@ PREMIUM_FEATURES = {
 }
 
 PRICING = {
-    "monthly": {"price": 99, "label": "₹99/month", "period": "per month", "order": 1},
-    "yearly": {"price": 499, "label": "₹499/year", "savings": "58% off", "best_seller": True, "period": "per year", "order": 2, "includes_money_school": True},
-    "lifetime": {"price": 2999, "label": "₹2,999 lifetime", "savings": "One payment, forever", "period": "one-time", "order": 3, "includes_money_school": True},
-    "intro": {"price": 29, "label": "₹29 first month", "trial": True, "period": "trial", "order": 0},
+    # ═══════════════════════════════════════════════════════════════
+    #  INDIA-HACK PRICING LADDER (Apr 2026)  —  hard-capped at ₹150
+    #  Tier       Price    Emotion
+    #  Free       ₹0       Trust
+    #  Micro      ₹29      "Why not?"
+    #  Standard   ₹99      "Useful"
+    #  Premium    ₹149     "I'm upgrading my life"
+    # ═══════════════════════════════════════════════════════════════
+    "intro":   {"price": 29,  "label": "₹29/month",  "tag": "Why not?",
+                "period": "per month", "order": 1, "emotion": "Why not?"},
+    "monthly": {"price": 99,  "label": "₹99/month",  "tag": "Useful",
+                "period": "per month", "order": 2, "emotion": "Useful",
+                "best_seller": True},
+    "yearly":  {"price": 149, "label": "₹149/month", "tag": "Upgrade my life",
+                "period": "per month", "order": 3, "emotion": "I'm upgrading my life",
+                "includes_money_school": True},
+    # NOTE: `lifetime` tier removed — previous ₹2,999 exceeded the ₹150 India-hack cap.
+    # NOTE: `yearly` key kept for backward compatibility but is now a monthly-billed
+    #       Premium tier (₹149/mo). Rename to `premium` can happen in a follow-up.
 }
 
 

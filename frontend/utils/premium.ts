@@ -1,11 +1,19 @@
 /**
  * MintU Premium Gating Helper
  *
- * Plan tiers:
- *   - free    → Basic tracking, 5 AI msgs/day, 7-day insights
- *   - intro   → ₹29 first month. Unlimited AI, 30-day insights, Waste detector
- *   - monthly → ₹99/mo. All intro + Tax + Investments + Yearly + Reports
- *   - yearly  → ₹499/yr. All monthly + Priority AI + Custom reports + Exclusive badges + Ad-free + Early access
+ * India-Hack 4-Tier Ladder (Apr 2026) — hard-capped at ₹150/month
+ *
+ *   Tier       Price      Emotion
+ *   Free       ₹0         Trust
+ *   Micro      ₹29        "Why not?"
+ *   Standard   ₹99        "Useful"
+ *   Premium    ₹149       "I'm upgrading my life"
+ *
+ * Plan keys (kept stable for backward compatibility):
+ *   - free       → Free tier
+ *   - intro      → Micro (₹29)
+ *   - monthly    → Standard (₹99)  ← Best Seller
+ *   - yearly     → Premium (₹149)  ← Top tier; all features
  *
  * Selection is persisted in AsyncStorage. No real payment — yet.
  */
@@ -28,36 +36,38 @@ export const PLAN_META: Record<Plan, {
     label: 'Free',
     price: '₹0',
     priceSub: 'forever',
+    tagline: 'Trust',
     features: ['Expense tracking', 'SMS parsing', 'Budgets', 'Split expenses', '5 AI messages / day', '7-day insights only'],
     color: '#9E8E84',
     emoji: '🌱',
   },
   intro: {
     id: 'intro',
-    label: 'Intro',
+    label: 'Micro',
     price: '₹29',
-    priceSub: 'first month',
-    tagline: 'Taste of Premium',
+    priceSub: 'per month',
+    tagline: 'Why not?',
     features: ['Unlimited AI Coach', '30-day insights', 'Waste detector'],
     color: '#FFB300',
     emoji: '⚡',
   },
   monthly: {
     id: 'monthly',
-    label: 'Monthly',
+    label: 'Standard',
     price: '₹99',
     priceSub: 'per month',
-    features: ['Everything in Intro', 'Tax calculator', 'Investment suggester', 'Yearly dashboard', 'Analytics & reports'],
+    tagline: 'Useful',
+    features: ['Everything in Micro', 'Tax calculator', 'Investment suggester', 'Yearly dashboard', 'Analytics & reports'],
     color: '#E65100',
     emoji: '📊',
   },
   yearly: {
     id: 'yearly',
-    label: 'Yearly',
-    price: '₹499',
-    priceSub: 'per year (58% off)',
-    tagline: 'Best Value',
-    features: ['Everything in Monthly', 'Priority AI responses', 'Custom reports', 'Exclusive badges', 'Ad-free', 'Early access', 'Smart alerts'],
+    label: 'Premium',
+    price: '₹149',
+    priceSub: 'per month',
+    tagline: "I'm upgrading my life",
+    features: ['Everything in Standard', 'Priority AI responses', 'Custom reports', 'Exclusive badges', 'Ad-free', 'Early access', 'Smart alerts', 'Money School'],
     color: '#880E4F',
     emoji: '👑',
   },
