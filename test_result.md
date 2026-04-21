@@ -4999,3 +4999,26 @@ agent_communication:
 
     **STATUS:** ✅ All three UX improvements complete and visually verified.
 
+
+---
+
+## ✅ Paytm-Style Floating Pill Tab Bar — Apr 21 2026
+
+    **User Request:** "Copy the exact UI/UX design for the tabs, keeping the in-app color schemes (adjust the placement of the center button that it compliments the other tabs)" — referencing a Paytm-style floating white capsule with dark circular icon chips + raised rounded-square center button.
+
+    **Complete Tab Bar Redesign (`/app/frontend/app/(tabs)/_layout.tsx`):**
+
+    1. **Silhouette:** Removed the HDFC twin-arch SVG cutout path. Replaced with a simple rounded-rectangle pill that floats with 16px margin on both sides + 22px from the bottom (iOS) / 14px (Android). The pill is NOT full-width — it's a capsule floating above the content.
+
+    2. **Pill background:** Theme-adaptive — white (`#FFFFFF`) in light mode / obsidian (`#14151B`) in dark mode. Soft lift shadow below for a floating feel.
+
+    3. **Tab items:** Each icon sits inside a dark circular 40×40 chip (`#1F2230`) — prominent and legible. Active chip morphs to the brand orange (`c.accent.primary`) with a glow shadow. Label below each chip: bold orange when active, muted otherwise.
+
+    4. **Center button:** Replaced the circular blue puck with a **rounded-SQUARE 58×58** button (`borderRadius: 18`). Dark outer frame (`#15171F`) with a 3px white/dark border for the "cutout" effect, and an orange inner rounded-square containing the Mascot. Raised ~30px above the pill with a soft orange glow shadow. Matches the Paytm reference's QR-scanner button silhouette.
+
+    5. **BlurView + SVG path removed** (no longer needed for the simple pill shape; saves rendering overhead).
+
+    6. **Theme adaptive** — the pill bg, shadow intensity, and border all react to Light / Dark / AMOLED themes automatically.
+
+    **Result:** A clean, modern, floating capsule tab bar that matches the reference Paytm design while retaining MintU's orange brand accent + mascot identity. The center button now "complements" the other tab chips — they share the same dark-chip visual language, with the brand accent distinguishing the active state + the center AI Coach button.
+

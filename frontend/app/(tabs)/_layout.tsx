@@ -48,66 +48,27 @@ function labelOf(name: string, lang: any): string {
 }
 
 // ─── Geometry constants ────────────────────────────────────────────────────
-const PUCK_SIZE  = 64;
-const PUCK_INNER = 54;
-const BAR_HEIGHT = 72;
-const BOTTOM_PAD = Platform.OS === 'ios' ? 18 : 10;
-const TOP_RADIUS = 24;
+const PUCK_SIZE  = 58;       // rounded-SQUARE center button (raised above pill)
+const PUCK_INNER = 46;
+const BAR_HEIGHT = 76;       // floating pill height
+const BAR_INSET_X = 16;      // horizontal gap from screen edges
+const BAR_INSET_B = Platform.OS === 'ios' ? 22 : 14; // gap from bottom
+const TOP_RADIUS = 28;
 
-/** Responsive arch geometry — narrower phones get a tighter cutout, tablets
- *  get a wider one. Keeps the silhouette balanced at any width. */
+// Compatibility stub (keep for call sites that still import it)
 function archGeom(screenW: number) {
-  // Phone (≤420) → 90/22; tablet (>600) → 140/34; interpolated in-between.
-  const t = Math.max(0, Math.min(1, (screenW - 360) / (720 - 360)));
-  const CUTOUT_W     = 90 + t * 60;     // 90 → 150
-  const CUTOUT_DEPTH = 22 + t * 14;     // 22 → 36
-  return { CUTOUT_W, CUTOUT_DEPTH };
+  return { CUTOUT_W: 80, CUTOUT_DEPTH: 0 };
 }
 // ────────────────────────────────────────────────────────────────────────────
 
 /**
- * Builds an SVG <Path> d-string for a rounded rectangle with TWIN ARCHES
- * carved into its top edge at the horizontal center. Think of it as the HDFC
- * PayZapp tab bar silhouette (see reference image).
- *
- *   Starts:  top-left with a rounded corner
- *   Moves:   along the top-edge to the LEFT of the cutout
- *   Curves:  LEFT arch dipping DOWN by CUTOUT_DEPTH
- *   Curves:  back UP and around the center puck
- *   Curves:  RIGHT arch dipping DOWN by CUTOUT_DEPTH
- *   Moves:   along the top-edge to the top-right corner
- *   Closes:  right side, bottom, left side
+ * Simple rounded-rect (pill) silhouette. No cutouts — the center button
+ * is now a separate raised element (Paytm-style floating capsule).
  */
 function barPath(w: number, h: number): string {
-  const r  = TOP_RADIUS;
-  const cx = w / 2;
-  const { CUTOUT_W, CUTOUT_DEPTH } = archGeom(w);
-
-  // Cut-out horizontal boundaries
-  const leftStart  = cx - CUTOUT_W / 2;
-  const leftMid    = cx - PUCK_SIZE / 2 - 4;
-  const rightMid   = cx + PUCK_SIZE / 2 + 4;
-  const rightEnd   = cx + CUTOUT_W / 2;
-  const archBottom = CUTOUT_DEPTH;
-
-  // Build path
-  const d = [
-    `M 0 ${r}`,                              // start below TL radius
-    `Q 0 0 ${r} 0`,                          // TL rounded corner
-    `L ${leftStart} 0`,                      // top edge → LEFT arch start
-    // LEFT arch: from (leftStart, 0) down & in to (leftMid, archBottom)
-    `C ${leftStart + 14} 0 ${leftMid - 14} ${archBottom} ${leftMid} ${archBottom}`,
-    // bridge under puck: smooth curve from leftMid up to rightMid keeping same depth
-    `Q ${cx} ${archBottom + 2} ${rightMid} ${archBottom}`,
-    // RIGHT arch: from (rightMid, archBottom) up & out to (rightEnd, 0)
-    `C ${rightMid + 14} ${archBottom} ${rightEnd - 14} 0 ${rightEnd} 0`,
-    `L ${w - r} 0`,                          // top edge → TR
-    `Q ${w} 0 ${w} ${r}`,                    // TR rounded corner
-    `L ${w} ${h}`,                           // right edge down
-    `L 0 ${h}`,                              // bottom edge
-    `Z`,
-  ].join(' ');
-  return d;
+  const r = TOP_RADIUS;
+  // Full rounded rectangle
+  return `M ${r} 0 L ${w - r} 0 Q ${w} 0 ${w} ${r} L ${w} ${h - r} Q ${w} ${h} ${w - r} ${h} L ${r} ${h} Q 0 ${h} 0 ${h - r} L 0 ${r} Q 0 0 ${r} 0 Z`;
 }
 
 function SideTab({ icon, iconFilled, label, focused, onPress, testID }:
@@ -160,11 +121,10 @@ function MintUTabBar({ state, navigation }: BottomTabBarProps) {
   const c = useAppColors();
   const { lang } = useLangStore();
   const screenW = Dimensions.get('window').width;
-  const { CUTOUT_W } = archGeom(screenW);
-  // HDFC PayZapp-inspired deep navy palette (consistent across themes)
-  const gradTop = '#1B3A91';       // Deep royal blue (top)
-  const gradBot = '#15307D';       // Slightly darker blue (bottom)
-  const rimStroke = 'rgba(255,255,255,0.14)';
+  // Paytm-inspired floating capsule palette (light/white pill adapts to theme)
+  const isLight = c.bg.primary === '#FAFAF9' || c.bg.primary.toUpperCase() === '#FAFAF9';
+  const pillBg = isLight ? '#FFFFFF' : '#14151B';
+  const pillBorder = isLight ? 'rgba(17,24,39,0.06)' : 'rgba(255,255,255,0.08)';
 
   const visible = state.routes.filter(r => TAB_META[r.name]);
   const left = visible.slice(0, 2);
@@ -177,35 +137,16 @@ function MintUTabBar({ state, navigation }: BottomTabBarProps) {
 
   const openAiCoach = () => navigation.navigate('ai-coach' as never);
 
-  const barH = BAR_HEIGHT + BOTTOM_PAD;
+  const pillW = screenW - BAR_INSET_X * 2;
+  const barH = BAR_HEIGHT;
 
   return (
     <View style={st.wrap} pointerEvents="box-none">
-      {/* SVG bar silhouette with twin arch cutouts — dark glass + subtle top rim */}
-      <View style={[st.barContainer, { height: barH }]} pointerEvents="none">
-        {/* Blurred dark panel behind the silhouette for depth */}
-        {Platform.OS !== 'android' ? (
-          <BlurView intensity={32} tint="dark" style={[StyleSheet.absoluteFillObject, { overflow: 'hidden' }]} />
-        ) : null}
-        <Svg
-          width={screenW}
-          height={barH}
-          viewBox={`0 0 ${screenW} ${barH}`}
-          // @ts-ignore (react-native-svg types don't cover this prop universally)
-          style={StyleSheet.absoluteFillObject}
-        >
-          <Defs>
-            <SvgLG id="barGrad" x1="0" y1="0" x2="0" y2="1">
-              <Stop offset="0" stopColor={gradTop} stopOpacity="1" />
-              <Stop offset="1" stopColor={gradBot} stopOpacity="1" />
-            </SvgLG>
-          </Defs>
-          <Path d={barPath(screenW, barH)} fill="url(#barGrad)" stroke={rimStroke} strokeWidth={1} />
-        </Svg>
-      </View>
+      {/* Floating pill silhouette */}
+      <View style={[st.barContainer, { width: pillW, height: barH, backgroundColor: pillBg, borderColor: pillBorder }]} pointerEvents="none" />
 
-      {/* Tab icons sit ABOVE the SVG silhouette */}
-      <View style={[st.iconsRow, { height: barH, paddingBottom: BOTTOM_PAD }]}>
+      {/* Tab icons sit inside the pill with a gap in the middle for the raised button */}
+      <View style={[st.iconsRow, { width: pillW, height: barH }]}>
         <View style={st.side}>
           {left.map((route) => {
             const focused = state.index === state.routes.findIndex(r => r.key === route.key);
@@ -223,8 +164,8 @@ function MintUTabBar({ state, navigation }: BottomTabBarProps) {
             );
           })}
         </View>
-        {/* Center gap matching cutout width */}
-        <View style={{ width: CUTOUT_W }} />
+        {/* Spacer for the raised center button */}
+        <View style={{ width: PUCK_SIZE + 14 }} />
         <View style={st.side}>
           {right.map((route) => {
             const focused = state.index === state.routes.findIndex(r => r.key === route.key);
@@ -244,7 +185,7 @@ function MintUTabBar({ state, navigation }: BottomTabBarProps) {
         </View>
       </View>
 
-      {/* Raised CIRCULAR AI Coach puck — floats above the arch cutouts */}
+      {/* Raised ROUNDED-SQUARE AI Coach button — floats above the pill */}
       <TouchableOpacity
         testID="tab-ai-coach"
         onPress={openAiCoach}
@@ -289,86 +230,94 @@ export default function TabLayout() {
   );
 }
 
-const useStyles = makeStyles((c) => ({
-  wrap: {
-    position: 'absolute', left: 0, right: 0, bottom: 0,
-    height: 112,
-    alignItems: 'center',
-    justifyContent: 'flex-end',
-    backgroundColor: 'transparent',
-  },
-  barContainer: {
-    position: 'absolute', left: 0, right: 0, bottom: 0,
-    // Soft shadow beneath whole bar (dark theme — deeper shadow)
-    ...Platform.select({
-      ios:     { shadowColor: '#000', shadowOpacity: 0.6, shadowRadius: 24, shadowOffset: { width: 0, height: -8 } },
-      android: { elevation: 16 },
-      web:     { boxShadow: '0 -8px 28px rgba(0,0,0,0.55)' as any },
-    }),
-  },
-  iconsRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingTop: 10,                    // push icons below the top arch dip
-    width: '100%',
-  },
-  side: { flex: 1, flexDirection: 'row', justifyContent: 'space-around', alignItems: 'center' },
-  sideTab: {
-    alignItems: 'center',
-    justifyContent: 'center',
-    flex: 1,
-    paddingVertical: 2,
-    gap: 3,
-  },
-  sideIconWrap: {
-    width: 40, height: 32, borderRadius: 16,
-    alignItems: 'center', justifyContent: 'center',
-    backgroundColor: 'transparent',
-  },
-  sideIconWrapOn: {
-    // HDFC-style light-blue pill around the active icon
-    backgroundColor: 'rgba(120,170,255,0.28)',
-    paddingHorizontal: 12,
-    borderWidth: 1,
-    borderColor: 'rgba(160,200,255,0.45)',
-    ...Platform.select({
-      ios:     { shadowColor: '#78AAFF', shadowOpacity: 0.55, shadowRadius: 10, shadowOffset: { width: 0, height: 2 } },
-      android: { elevation: 6 },
-      web:     { boxShadow: '0 0 16px rgba(120,170,255,0.55)' as any },
-    }),
-  },
-  sideLabel:   { fontSize: 10.5, color: 'rgba(255,255,255,0.80)', fontFamily: FONT_FAMILY.semibold, letterSpacing: 0.3 },
-  sideLabelOn: { color: '#FFFFFF', fontFamily: FONT_FAMILY.bold },
+const useStyles = makeStyles((c) => {
+  const isLight = c.bg.primary === '#FAFAF9' || c.bg.primary.toUpperCase() === '#FAFAF9';
+  return ({
+    wrap: {
+      position: 'absolute', left: 0, right: 0, bottom: 0,
+      paddingBottom: BAR_INSET_B,
+      alignItems: 'center',
+      justifyContent: 'flex-end',
+      backgroundColor: 'transparent',
+    },
+    // Floating pill capsule (light bg in light mode, obsidian in dark)
+    barContainer: {
+      borderRadius: TOP_RADIUS,
+      borderWidth: 1,
+      // Soft lift shadow beneath pill
+      ...Platform.select({
+        ios:     { shadowColor: '#000', shadowOpacity: isLight ? 0.18 : 0.55, shadowRadius: 22, shadowOffset: { width: 0, height: 10 } },
+        android: { elevation: 14 },
+        web:     { boxShadow: isLight ? '0 10px 28px rgba(17,24,39,0.15)' : '0 10px 28px rgba(0,0,0,0.55)' as any },
+      }),
+    },
+    iconsRow: {
+      position: 'absolute',
+      bottom: BAR_INSET_B,
+      left: BAR_INSET_X,
+      right: BAR_INSET_X,
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      paddingHorizontal: 6,
+    },
+    side: { flex: 1, flexDirection: 'row', justifyContent: 'space-around', alignItems: 'center' },
+    sideTab: {
+      alignItems: 'center',
+      justifyContent: 'center',
+      flex: 1,
+      paddingVertical: 6,
+      gap: 4,
+    },
+    // Dark circular chip holding the icon (Paytm-style prominent chip)
+    sideIconWrap: {
+      width: 40, height: 40, borderRadius: 20,
+      alignItems: 'center', justifyContent: 'center',
+      backgroundColor: '#1F2230',
+    },
+    // Active icon chip — orange brand halo
+    sideIconWrapOn: {
+      backgroundColor: c.accent.primary,
+      ...Platform.select({
+        ios:     { shadowColor: c.accent.primary, shadowOpacity: 0.55, shadowRadius: 10, shadowOffset: { width: 0, height: 3 } },
+        android: { elevation: 6 },
+        web:     { boxShadow: '0 4px 14px rgba(255,107,26,0.55)' as any },
+      }),
+    },
+    sideLabel:   { fontSize: 10.5, color: c.text.secondary, fontFamily: FONT_FAMILY.semibold, letterSpacing: 0.2, marginTop: 2 },
+    sideLabelOn: { color: c.accent.primary, fontFamily: FONT_FAMILY.bold },
 
-  // RAISED puck sits on top of the cutout — HDFC-blue with inner lighter-blue ring
-  raisedWrap: {
-    position: 'absolute',
-    bottom: BOTTOM_PAD + BAR_HEIGHT - PUCK_SIZE / 2 + 4,
-    alignSelf: 'center',
-    width: PUCK_SIZE,
-    height: PUCK_SIZE,
-    alignItems: 'center',
-    justifyContent: 'center',
-    zIndex: 20,
-  },
-  raisedOuter: {
-    width: PUCK_SIZE, height: PUCK_SIZE,
-    borderRadius: PUCK_SIZE / 2,
-    backgroundColor: '#2F6BE0',    // Royal blue like HDFC
-    alignItems: 'center', justifyContent: 'center',
-    borderWidth: 2, borderColor: 'rgba(160,200,255,0.6)',
-    ...Platform.select({
-      ios:     { shadowColor: '#2F6BE0', shadowOpacity: 0.75, shadowRadius: 18, shadowOffset: { width: 0, height: 8 } },
-      android: { elevation: 18 },
-      web:     { boxShadow: '0 0 24px rgba(47,107,224,0.75), 0 8px 20px rgba(21,48,125,0.55)' as any },
-    }),
-  },
-  raisedInner: {
-    width: PUCK_INNER, height: PUCK_INNER,
-    borderRadius: PUCK_INNER / 2,
-    backgroundColor: '#5A94F0',    // Lighter blue inner circle (mimics HDFC inner ring)
-    overflow: 'hidden',
-    alignItems: 'center', justifyContent: 'center',
-  },
-  raisedMascot: { width: '100%', height: '100%' },
-}));
+    // RAISED rounded-SQUARE center button (Paytm-style)
+    raisedWrap: {
+      position: 'absolute',
+      bottom: BAR_INSET_B + BAR_HEIGHT - PUCK_SIZE / 2 + 2,
+      alignSelf: 'center',
+      width: PUCK_SIZE,
+      height: PUCK_SIZE,
+      alignItems: 'center',
+      justifyContent: 'center',
+      zIndex: 20,
+    },
+    raisedOuter: {
+      width: PUCK_SIZE, height: PUCK_SIZE,
+      borderRadius: 18,                // rounded-SQUARE (not circle)
+      backgroundColor: isLight ? '#15171F' : '#14151B',
+      alignItems: 'center', justifyContent: 'center',
+      borderWidth: 3,
+      borderColor: isLight ? '#FFFFFF' : '#0B0C10',
+      ...Platform.select({
+        ios:     { shadowColor: c.accent.primary, shadowOpacity: 0.65, shadowRadius: 14, shadowOffset: { width: 0, height: 6 } },
+        android: { elevation: 18 },
+        web:     { boxShadow: '0 8px 22px rgba(255,107,26,0.55), 0 2px 10px rgba(0,0,0,0.35)' as any },
+      }),
+    },
+    raisedInner: {
+      width: PUCK_INNER, height: PUCK_INNER,
+      borderRadius: 14,                // rounded-square inner
+      backgroundColor: c.accent.primary,
+      overflow: 'hidden',
+      alignItems: 'center', justifyContent: 'center',
+    },
+    raisedMascot: { width: '100%', height: '100%' },
+  });
+});
