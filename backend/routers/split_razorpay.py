@@ -65,6 +65,27 @@ _RAZORPAY_SETTLE_CHECKOUT_TMPL = """<!doctype html>
     description: "Settlement to {payee_name}",
     order_id: "{order_id}",
     theme: {{ color: "#F56E1E" }},
+    // India-first payment UX: UPI (GPay / PhonePe / Paytm) shown first, cards/wallets second.
+    config: {{
+      display: {{
+        blocks: {{
+          upi_block: {{
+            name: "Pay with UPI",
+            instruments: [{{ method: "upi", flows: ["collect", "intent"], apps: ["google_pay", "phonepe", "paytm"] }}]
+          }},
+          other_block: {{
+            name: "Other methods",
+            instruments: [
+              {{ method: "card" }},
+              {{ method: "wallet" }},
+              {{ method: "netbanking" }}
+            ]
+          }}
+        }},
+        sequence: ["block.upi_block", "block.other_block"],
+        preferences: {{ show_default_blocks: false }}
+      }}
+    }},
     handler: function(response){{
       document.getElementById("status").innerText = "Verifying payment...";
       fetch("{verify_url}", {{

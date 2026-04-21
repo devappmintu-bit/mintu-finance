@@ -77,6 +77,37 @@ export default function PlansView({ potentialSavings }: { potentialSavings: numb
 
       <Text style={styles.mostPopular}>💡 Most users pick <Text style={{ color: COLORS.accent.primary, fontWeight: '800' }}>Standard</Text> — best balance of features & price</Text>
 
+      {/* Payment methods trust bar — India-first familiarity */}
+      <View style={styles.payTrust}>
+        <View style={styles.payTrustHeader}>
+          <Ionicons name="shield-checkmark" size={14} color={COLORS.accent.moneyIn} />
+          <Text style={styles.payTrustTitle}>Pay with what you already use</Text>
+        </View>
+        <View style={styles.payLogosRow}>
+          <View style={[styles.payPill, { backgroundColor: '#FFFFFF' }]}>
+            <Text style={[styles.payLogoTxt, { color: '#1A73E8' }]}>G</Text>
+            <Text style={[styles.payLogoTxt, { color: '#EA4335' }]}>P</Text>
+            <Text style={[styles.payLogoTxt, { color: '#FBBC04' }]}>a</Text>
+            <Text style={[styles.payLogoTxt, { color: '#34A853' }]}>y</Text>
+          </View>
+          <View style={[styles.payPill, { backgroundColor: '#5F259F' }]}>
+            <Text style={styles.payPillWhiteTxt}>PhonePe</Text>
+          </View>
+          <View style={[styles.payPill, { backgroundColor: '#02B9F1' }]}>
+            <Text style={styles.payPillWhiteTxt}>Paytm</Text>
+          </View>
+          <View style={[styles.payPill, { backgroundColor: '#0F1E36' }]}>
+            <Ionicons name="card-outline" size={12} color="#fff" />
+            <Text style={[styles.payPillWhiteTxt, { marginLeft: 3 }]}>Cards</Text>
+          </View>
+          <View style={[styles.payPill, { backgroundColor: '#E8F5E9', borderWidth: 1, borderColor: '#2E7D32' }]}>
+            <Ionicons name="phone-portrait-outline" size={12} color="#2E7D32" />
+            <Text style={[styles.payLogoTxt, { color: '#2E7D32', marginLeft: 3, fontSize: 11 }]}>UPI</Text>
+          </View>
+        </View>
+        <Text style={styles.payFootnote}>UPI AutoPay · Instant · Secured by Razorpay 🇮🇳</Text>
+      </View>
+
       {/* Free tier banner */}
       <TouchableOpacity style={[styles.freeBanner, isActive('free') && styles.freeBannerActive]} onPress={() => buy('free')} activeOpacity={0.8}>
         <View style={styles.freeBannerIcon}>

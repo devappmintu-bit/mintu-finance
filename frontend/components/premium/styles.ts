@@ -38,6 +38,17 @@ export const premiumStyles = StyleSheet.create({
   activeBadgeInv: { position: 'absolute', bottom: 8, backgroundColor: '#FFD54F', paddingHorizontal: 10, paddingVertical: 2, borderRadius: 999 },
   activeBadgeInvText: { fontSize: 9, fontWeight: '900', color: '#3E2723', letterSpacing: 0.5 },
   mostPopular: { fontSize: 12, color: COLORS.text.secondary, textAlign: 'center', marginTop: 16, fontWeight: '600' },
+
+  // Payment-methods trust bar — India-first
+  payTrust: { marginHorizontal: 16, marginTop: 14, padding: 14, backgroundColor: '#FFF7ED', borderRadius: 14, borderWidth: 1, borderColor: '#FED7AA' },
+  payTrustHeader: { flexDirection: 'row', alignItems: 'center', gap: 6, justifyContent: 'center', marginBottom: 10 },
+  payTrustTitle: { fontSize: 12, fontWeight: '800', color: '#7C2D12', letterSpacing: -0.1 },
+  payLogosRow: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'center', gap: 6 },
+  payPill: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 10, paddingVertical: 6, borderRadius: 999, borderWidth: 1, borderColor: 'rgba(0,0,0,0.08)', minHeight: 28 },
+  payLogoTxt: { fontSize: 13, fontWeight: '900', letterSpacing: -0.2 },
+  payPillWhiteTxt: { fontSize: 11, fontWeight: '800', color: '#fff', letterSpacing: -0.1 },
+  payFootnote: { fontSize: 10, fontWeight: '700', color: '#92400E', textAlign: 'center', marginTop: 10, letterSpacing: 0.2 },
+
   freeBanner: { flexDirection: 'row', alignItems: 'center', gap: 12, marginHorizontal: 16, marginTop: 14, padding: 14, backgroundColor: '#FFFFFF', borderRadius: 14, borderWidth: 1, borderColor: COLORS.border.card },
   freeBannerActive: { borderColor: COLORS.accent.moneyIn, backgroundColor: COLORS.accent.moneyIn + '08' },
   freeBannerIcon: { width: 40, height: 40, borderRadius: 20, backgroundColor: COLORS.bg.elevated, justifyContent: 'center', alignItems: 'center' },
