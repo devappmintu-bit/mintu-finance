@@ -6,6 +6,7 @@ import Toast from 'react-native-toast-message';
 import { toastConfig } from '../components/ToastConfig';
 import { useAuthStore } from '../store/authStore';
 import { useLangStore } from '../store/langStore';
+import { useThemePref } from '../store/themeStore';
 import { usePushNotifications } from '../hooks/usePushNotifications';
 import { useAppLock } from '../hooks/useAppLock';
 import {
@@ -50,6 +51,7 @@ if (Platform.OS === 'web' && typeof console !== 'undefined' && !(console as any)
 export default function RootLayout() {
   const loadFromStorage = useAuthStore((state) => state.loadFromStorage);
   const loadLang = useLangStore((state) => state.loadLang);
+  const loadThemePref = useThemePref((state) => state.loadFromStorage);
 
   // Load Inter font family — premium-feeling, bundled via @expo-google-fonts/inter
   const [fontsLoaded] = useFonts({
@@ -70,6 +72,7 @@ export default function RootLayout() {
   useEffect(() => {
     loadFromStorage();
     loadLang();
+    loadThemePref();
   }, []);
 
   // Keep background dark while fonts are warming up — no jarring flash.

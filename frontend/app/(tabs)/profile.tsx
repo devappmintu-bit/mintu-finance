@@ -21,6 +21,7 @@ import ShareScoreCard from '../../components/profile/ShareScoreCard';
 import BadgesSection from '../../components/profile/BadgesSection';
 import WeeklyChallenge from '../../components/profile/WeeklyChallenge';
 import ProfileHero from '../../components/profile/ProfileHero';
+import ThemeToggle from '../../components/profile/ThemeToggle';
 import FinancialSnapshot from '../../components/profile/FinancialSnapshot';
 import PaymentMethodsV2 from '../../components/profile/PaymentMethodsV2';
 import NotificationSettings from '../../components/profile/NotificationSettings';
@@ -268,6 +269,9 @@ export default function ProfileScreen() {
         <RewardsHub />
 
         <PaymentMethodsV2 />
+
+        {/* Theme preference (Light / System / Dark) — affects mascot + brand mark */}
+        <ThemeToggle />
 
         {/* PREMIUM moved to Home tab — see PremiumHomeCard on the Home screen.
             Profile stays focused on user settings & account management. */}
