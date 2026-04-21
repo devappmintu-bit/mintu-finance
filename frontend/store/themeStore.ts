@@ -1,14 +1,15 @@
 /**
- * useThemePref — user's theme-mode preference (light / dark / system).
+ * useThemePref — user's theme-mode preference with AMOLED escalation.
  *
- * Persisted to AsyncStorage so the choice survives app restarts. On every
- * change (including the initial load), this store calls `applyTheme()` from
- * `utils/theme.ts` which mutates the shared `COLORS` proxy in-place so every
- * StyleSheet.create in the app reads the new tokens on next remount.
+ * Modes:
+ *   • `light`  — white fintech palette
+ *   • `dark`   — obsidian + neon orange (default)
+ *   • `system` — follows OS appearance
  *
- * Combined with the root-level `key={resolvedMode}` remount trigger in
- * `_layout.tsx`, this gives a full light↔dark switch across all 60+ screens
- * with zero per-screen code changes.
+ * AMOLED is NOT a separate mode — instead, we expose an `amoled: boolean`
+ * preference. When `amoled=true` AND the resolved theme is `dark`, the engine
+ * uses the true-black AMOLED palette instead of the regular obsidian.
+ * This avoids cluttering the main toggle with 4 pills.
  */
 import { create } from 'zustand';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -16,43 +17,60 @@ import { Appearance } from 'react-native';
 import { applyTheme as applyEngineTheme, ThemeMode as EngineMode } from '../utils/theme';
 
 export type ThemeMode = 'light' | 'dark' | 'system';
-export type ResolvedTheme = EngineMode;
+export type ResolvedTheme = EngineMode;   // 'light' | 'dark' | 'amoled'
 
 type ThemeState = {
   mode: ThemeMode;
+  amoled: boolean;
   ready: boolean;
-  /** Returns the resolved (non-'system') theme that the engine is currently rendering. */
   resolved: ResolvedTheme;
   setMode: (m: ThemeMode) => Promise<void>;
+  setAmoled: (v: boolean) => Promise<void>;
   loadFromStorage: () => Promise<void>;
 };
 
-const STORAGE_KEY = '@mintu:theme_mode';
+const KEY_MODE   = '@mintu:theme_mode';
+const KEY_AMOLED = '@mintu:theme_amoled';
 
-const resolveMode = (pref: ThemeMode): ResolvedTheme => {
-  if (pref === 'light' || pref === 'dark') return pref;
-  const scheme = Appearance.getColorScheme();
-  return scheme === 'light' ? 'light' : 'dark';
+const resolveTheme = (pref: ThemeMode, amoled: boolean): ResolvedTheme => {
+  let base: 'light' | 'dark';
+  if (pref === 'light') base = 'light';
+  else if (pref === 'dark') base = 'dark';
+  else base = Appearance.getColorScheme() === 'light' ? 'light' : 'dark';
+  if (base === 'dark' && amoled) return 'amoled';
+  return base;
 };
 
 export const useThemePref = create<ThemeState>((set, get) => ({
   mode: 'system',
+  amoled: false,
   ready: false,
   resolved: 'dark',
   setMode: async (m) => {
-    const resolved = resolveMode(m);
+    const { amoled } = get();
+    const resolved = resolveTheme(m, amoled);
     set({ mode: m, resolved });
     applyEngineTheme(resolved);
-    try { await AsyncStorage.setItem(STORAGE_KEY, m); } catch {}
+    try { await AsyncStorage.setItem(KEY_MODE, m); } catch {}
+  },
+  setAmoled: async (v) => {
+    const { mode } = get();
+    const resolved = resolveTheme(mode, v);
+    set({ amoled: v, resolved });
+    applyEngineTheme(resolved);
+    try { await AsyncStorage.setItem(KEY_AMOLED, v ? '1' : '0'); } catch {}
   },
   loadFromStorage: async () => {
     let stored: ThemeMode = 'system';
+    let amoledStored = false;
     try {
-      const v = await AsyncStorage.getItem(STORAGE_KEY);
+      const v = await AsyncStorage.getItem(KEY_MODE);
       if (v === 'light' || v === 'dark' || v === 'system') stored = v;
+      const a = await AsyncStorage.getItem(KEY_AMOLED);
+      amoledStored = a === '1';
     } catch {}
-    const resolved = resolveMode(stored);
-    set({ mode: stored, resolved, ready: true });
+    const resolved = resolveTheme(stored, amoledStored);
+    set({ mode: stored, amoled: amoledStored, resolved, ready: true });
     applyEngineTheme(resolved);
   },
 }));
@@ -61,15 +79,11 @@ export const useThemePref = create<ThemeState>((set, get) => ({
 Appearance.addChangeListener(({ colorScheme }) => {
   const state = useThemePref.getState();
   if (state.mode !== 'system') return;
-  const resolved: ResolvedTheme = colorScheme === 'light' ? 'light' : 'dark';
+  const resolved = resolveTheme('system', state.amoled);
   useThemePref.setState({ resolved });
   applyEngineTheme(resolved);
 });
 
-/**
- * Convenience hook: returns the CURRENTLY-RESOLVED theme ('light' | 'dark'),
- * regardless of whether the user's pref was 'light' / 'dark' / 'system'.
- */
 export function useResolvedTheme(): ResolvedTheme {
   return useThemePref((s) => s.resolved);
 }

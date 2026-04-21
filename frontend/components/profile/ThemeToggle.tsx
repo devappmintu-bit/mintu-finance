@@ -27,7 +27,9 @@ const OPTIONS: { key: ThemeMode; label: string; icon: string }[] = [
 
 export default function ThemeToggle() {
   const mode = useThemePref((s) => s.mode);
+  const amoled = useThemePref((s) => s.amoled);
   const setMode = useThemePref((s) => s.setMode);
+  const setAmoled = useThemePref((s) => s.setAmoled);
   const resolved = useResolvedTheme();
   const s = useStyles();
 
@@ -72,6 +74,22 @@ export default function ThemeToggle() {
         Currently showing <Text style={s.currentlyBold}>{resolved}</Text> mode
         {mode === 'system' ? ' (auto)' : ''}
       </Text>
+
+      {/* AMOLED true-black toggle — only active when resolved to dark */}
+      <Pressable
+        onPress={() => { try { Haptics.selectionAsync(); } catch {} setAmoled(!amoled); }}
+        style={s.amoledRow}
+        android_ripple={{ color: 'rgba(255,107,26,0.2)' }}
+      >
+        <Ionicons name="contrast-outline" size={18} color={resolved === 'amoled' ? '#fff' : (resolved === 'light' ? '#111' : '#FF6B1A')} />
+        <View style={{ flex: 1 }}>
+          <Text style={s.amoledTitle}>AMOLED true-black</Text>
+          <Text style={s.amoledSub}>Saves battery on OLED displays (active in dark mode)</Text>
+        </View>
+        <View style={[s.toggle, amoled && s.toggleOn]}>
+          <View style={[s.knob, amoled && s.knobOn]} />
+        </View>
+      </Pressable>
     </View>
   );
 }

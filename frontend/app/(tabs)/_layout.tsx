@@ -21,7 +21,7 @@
 import React from 'react';
 import { Tabs } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
-import { View, StyleSheet, Platform, TouchableOpacity, Text, Dimensions } from 'react-native';
+import { View, StyleSheet, Platform, TouchableOpacity, Text, Dimensions, Animated } from 'react-native';
 import { Image } from 'expo-image';
 import Svg, { Path, Defs, LinearGradient as SvgLG, Stop } from 'react-native-svg';
 import { BottomTabBarProps } from '@react-navigation/bottom-tabs';
@@ -112,16 +112,44 @@ function barPath(w: number, h: number): string {
 
 function SideTab({ icon, iconFilled, label, focused, onPress, testID }:
   { icon: string; iconFilled: string; label: string; focused: boolean; onPress: () => void; testID?: string }) {
+  // Smooth bounce+scale on focus change + halo pulse
+  const scale = React.useRef(new Animated.Value(focused ? 1 : 0.92)).current;
+  const halo  = React.useRef(new Animated.Value(focused ? 1 : 0)).current;
+  const lift  = React.useRef(new Animated.Value(focused ? -2 : 0)).current;
+
+  React.useEffect(() => {
+    Animated.parallel([
+      Animated.spring(scale, { toValue: focused ? 1.05 : 0.92, friction: 6, tension: 160, useNativeDriver: true }),
+      Animated.timing(halo,  { toValue: focused ? 1 : 0, duration: 220, useNativeDriver: true }),
+      Animated.spring(lift,  { toValue: focused ? -2 : 0, friction: 7, tension: 140, useNativeDriver: true }),
+    ]).start();
+  }, [focused, scale, halo, lift]);
+
   return (
     <TouchableOpacity testID={testID} style={st.sideTab} onPress={onPress} activeOpacity={0.7}>
-      <View style={[st.sideIconWrap, focused && st.sideIconWrapOn]}>
+      <Animated.View
+        style={[
+          st.sideIconWrap,
+          focused && st.sideIconWrapOn,
+          { transform: [{ scale }, { translateY: lift }] },
+        ]}
+      >
         <Ionicons
           name={(focused ? iconFilled : icon) as any}
           size={focused ? 22 : 20}
           color={focused ? '#FFFFFF' : COLORS.text.secondary}
         />
-      </View>
-      <Text style={[st.sideLabel, focused && st.sideLabelOn]} numberOfLines={1}>{label}</Text>
+      </Animated.View>
+      <Animated.Text
+        style={[
+          st.sideLabel,
+          focused && st.sideLabelOn,
+          { opacity: halo.interpolate({ inputRange: [0, 1], outputRange: [0.7, 1] }) },
+        ]}
+        numberOfLines={1}
+      >
+        {label}
+      </Animated.Text>
     </TouchableOpacity>
   );
 }

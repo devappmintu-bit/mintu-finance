@@ -121,10 +121,64 @@ const DARK_PALETTE = {
   },
 };
 
-export type ThemeMode = 'light' | 'dark';
+// ══════════════════════════════════════════════════════════════════════
+//  AMOLED PALETTE — pure-black variant of DARK for OLED screens
+//  (saves battery + deeper blacks blend into the bezel)
+// ══════════════════════════════════════════════════════════════════════
+const AMOLED_PALETTE = {
+  bg: {
+    primary:   '#000000',        // True black (screen pixels OFF)
+    secondary: '#060608',        // Slightly lifted for surface separation
+    card:      '#0B0B0F',
+    elevated:  '#121219',
+    dark:      '#000000',
+  },
+  accent: {
+    primary:      '#FF6B1A',
+    primaryLight: '#FF8C42',
+    secondary:    '#FFB547',
+    tertiary:     '#C026D3',
+    moneyIn:      '#10E0A0',
+    moneyOut:     '#FF5470',
+    warning:      '#FFB020',
+  },
+  text: {
+    primary:   '#FFFFFF',        // Pure white on pure black — max contrast
+    secondary: '#A1A1AA',
+    muted:     '#71717A',
+    tertiary:  '#71717A',
+    inverse:   '#000000',
+  },
+  border: {
+    subtle: 'rgba(255,255,255,0.08)',
+    focus:  '#FF6B1A',
+    card:   'rgba(255,255,255,0.08)',
+  },
+  state: {
+    success:       '#10E0A0',
+    successBg:     'rgba(16,224,160,0.12)',
+    successBorder: 'rgba(16,224,160,0.35)',
+    warning:       '#FFB020',
+    warningBg:     'rgba(255,176,32,0.14)',
+    warningBorder: 'rgba(255,176,32,0.4)',
+    danger:        '#FF5470',
+    dangerBg:      'rgba(255,84,112,0.14)',
+    dangerBorder:  'rgba(255,84,112,0.4)',
+    info:          '#60A5FA',
+    infoBg:        'rgba(96,165,250,0.14)',
+    infoBorder:    'rgba(96,165,250,0.4)',
+  },
+  gray: {
+    50: '#F9FAFB', 100: '#F3F4F6', 200: '#E5E7EB', 300: '#D1D5DB', 400: '#9CA3AF',
+    500: '#6B7280', 600: '#4B5563', 700: '#374151', 800: '#1F2937', 900: '#111827',
+  },
+};
+
+export type ThemeMode = 'light' | 'dark' | 'amoled';
 export const PALETTES: Record<ThemeMode, typeof DARK_PALETTE> = {
-  light: LIGHT_PALETTE,
-  dark:  DARK_PALETTE,
+  light:  LIGHT_PALETTE,
+  dark:   DARK_PALETTE,
+  amoled: AMOLED_PALETTE,
 };
 
 // Current active mode (mutable). Defaults to dark on boot.
