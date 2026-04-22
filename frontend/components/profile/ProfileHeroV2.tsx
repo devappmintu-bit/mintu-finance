@@ -63,12 +63,14 @@ export default function ProfileHeroV2({
 
   return (
     <LinearGradient
-      colors={['#F56E1E', '#E85D1F', '#C14A06']}
-      start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}
+      colors={['#FF8B3D', '#F56E1E', '#D85514']}
+      start={{ x: 0.1, y: 0 }} end={{ x: 0.9, y: 1 }}
       style={s.card}
     >
       <View style={s.blob1} />
       <View style={s.blob2} />
+      <View style={s.glossTop} />
+      <View style={s.glossLeft} />
 
       {/* Top bar: Top X% rank + edit btn */}
       <View style={s.topBar}>
@@ -191,6 +193,9 @@ const useStyles = makeStyles(() => ({
   },
   blob1: { position: 'absolute', top: -60, right: -50, width: 180, height: 180, borderRadius: 90, backgroundColor: 'rgba(255,255,255,0.08)' },
   blob2: { position: 'absolute', bottom: -60, left: -40, width: 150, height: 150, borderRadius: 75, backgroundColor: 'rgba(0,0,0,0.1)' },
+  // Glass/gloss overlay layers
+  glossTop: { position: 'absolute', top: 0, left: 0, right: 0, height: '35%', backgroundColor: 'rgba(255,255,255,0.1)', borderTopLeftRadius: 26, borderTopRightRadius: 26 },
+  glossLeft: { position: 'absolute', top: 0, left: 0, bottom: 0, width: 60, backgroundColor: 'rgba(255,255,255,0.05)' },
   // Top bar
   topBar: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
   rankPill: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 12, paddingVertical: 6, borderRadius: 999, backgroundColor: 'rgba(0,0,0,0.28)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.15)' },

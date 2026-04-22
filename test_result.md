@@ -698,11 +698,88 @@ metadata:
       ship. Backend hardening is production-ready.
 
 test_plan:
-  current_focus: 
-    - "Split Tab UX Testing"
+  current_focus: []
   stuck_tasks: []
   test_all: false
   test_priority: "high_first"
+
+profile_hub_and_goals_apr22_2026:
+  - task: "Profile Identity Hub + Score-Boosts + Goals CRUD"
+    implemented: true
+    working: true
+    file: "/app/backend/routers/profile_identity.py, /app/backend/routers/goals.py"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+      - working: true
+        agent: "testing"
+        comment: |
+          ✅ ALL 52/52 ASSERTIONS PASS (Apr 22 2026, /app/backend_test.py against
+          https://mintu-finance.preview.emergentagent.com/api). Auth via phone
+          9876543210 / OTP 123456 → token from /auth/verify-otp.token.
+
+          ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+          GET /api/profile/identity  →  200 (18/18 ✅)
+          ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+          All required fields present with correct types:
+            user_id='69dfab73720f7ce36602727f' (str), name (str, legacy 100KB
+            value from a prior adversarial test, unrelated to this feature),
+            phone='9876543210', money_score=55 (int, in 0..100),
+            monthly_score_delta=0 (int), top_percent=5 (int),
+            coins_balance=169 (int), streak=0 (int), badges_earned=0 (int),
+            badges_total=12 (int), tier_label='Growing Saver' (str),
+            tier_emoji='⚡' (str), is_premium=False (bool),
+            avatar=<str base64>. Snapshot into score_history happens silently
+            on every call (idempotent per day via date_key dedup).
+
+          ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+          GET /api/profile/score-boosts  →  200 (11/11 ✅)
+          ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+          Returns {boosts:[...3 items], current_score:55 (int),
+          max_potential:23 (int)}.
+          Each boost has all 7 required keys {id, emoji, title, sub, points,
+          route, cta}; points is int. Priority heuristics chose
+          [save_more, streak_7, premium] for the test user — user has
+          savings_rate<20%, streak<7 days, score<60 and at least one budget/goal,
+          so the generic fallbacks were not reached (behaviour correct).
+
+          ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+          Goals CRUD  →  full cycle green (16/16 ✅)
+          ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+            • GET /api/goals → 200, returns {goals:[...]} (list).
+            • POST /api/goals {name,target_amount=50000, saved_amount=12000,
+              emoji='🏖️', color='#4CAF50'} → 200, returns
+              {ok:true, goal:{id, name, target_amount, saved_amount, emoji,
+              color, created_at ISO, updated_at ISO, ...}}. All fields
+              persisted correctly.
+            • GET /api/goals includes the newly-created goal.id.
+            • PATCH /api/goals/{id} {saved_amount=20000, name:'… Updated'}
+              → 200, persists changes.
+            • DELETE /api/goals/{id} → 200 {ok:true}. Goal disappears from
+              subsequent GET.
+            • DELETE already-deleted id → 404 'Goal not found'.
+            • DELETE 'not-a-valid-id' → 404 (via _safe_oid guard).
+
+          ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+          Auth guards  →  5/5 ✅
+          ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+            • GET  /profile/identity     no-auth → 422 ✅ (spec accepts 401/422)
+            • GET  /profile/score-boosts no-auth → 422 ✅
+            • GET  /goals                no-auth → 422 ✅
+            • POST /goals                no-auth → 422 ✅
+            • GET  /profile/identity     bad-token → 401 ✅
+
+          All 3 new/modified endpoints are PRODUCTION-READY.
+
+agent_communication:
+    -agent: "testing"
+    -message: |
+        ✅ Profile Identity Hub + Goals CRUD fully verified (52/52 assertions
+        pass). No critical issues. Backend is production-ready for the
+        requested endpoints. Test script: /app/backend_test.py. One initial
+        run tripped rate limits; retrying after 75s worked cleanly (not a
+        code issue — expected behaviour under bursty test conditions).
 
 split_tab_ux_testing_apr22_2026:
   - task: "Split Tab UX Comprehensive Testing - NEW Features"
