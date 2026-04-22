@@ -191,13 +191,14 @@ function MintUTabBar({ state, navigation }: BottomTabBarProps) {
         onPress={openAiCoach}
         activeOpacity={0.88}
         style={st.raisedWrap}
-        accessibilityLabel="Open AI Coach"
+        accessibilityLabel="Open MintU AI"
       >
         <View style={st.raisedOuter}>
           <View style={st.raisedInner}>
             <Mascot size={PUCK_INNER} variant="auto" />
           </View>
         </View>
+        <Text style={st.raisedLabel}>MintU-AI</Text>
       </TouchableOpacity>
     </View>
   );
@@ -320,6 +321,22 @@ const useStyles = makeStyles((c) => {
       backgroundColor: 'transparent',
       overflow: 'hidden',
       alignItems: 'center', justifyContent: 'center',
+    },
+    raisedLabel: {
+      position: 'absolute',
+      bottom: -18,
+      fontSize: 9.5,
+      fontWeight: '900',
+      color: c.accent.primary,
+      letterSpacing: 0.6,
+      textAlign: 'center',
+      fontFamily: FONT_FAMILY.bold,
+      // Subtle outline for readability over any background
+      ...Platform.select({
+        ios:     { textShadowColor: 'rgba(0,0,0,0.08)', textShadowOffset: { width: 0, height: 1 }, textShadowRadius: 2 },
+        android: { textShadowColor: 'rgba(0,0,0,0.08)', textShadowOffset: { width: 0, height: 1 }, textShadowRadius: 2 },
+        web:     {},
+      }),
     },
     raisedMascot: { width: '100%', height: '100%' },
   });

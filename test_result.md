@@ -7890,3 +7890,140 @@ agent_communication:
       5. Manual QA on Expo Go — login with 9876543210 / OTP 123456,
          tap Coins chip in Home header → opens new Rewards Hub.
 
+
+  - task: "Rewards Hub · Gamification v2 — Wave 2 (Marketplace, Social FOMO, Events) + Tab-bar MintU-AI label"
+    implemented: true
+    working: "NA"
+    file: "/app/backend/routers/rewards.py, /app/frontend/components/rewards/MarketplaceSection.tsx, /app/frontend/components/rewards/SocialFeedTicker.tsx, /app/frontend/components/rewards/EventsBanner.tsx, /app/frontend/app/rewards-hub.tsx, /app/frontend/services/rewards.ts, /app/frontend/app/(tabs)/_layout.tsx"
+    status_history:
+      - working: "NA"
+        agent: "main"
+        comment: |
+          Wave 2 ships the retention/monetisation/FOMO stack:
+
+          BACKEND (3 new endpoints, fully live):
+          • GET /api/rewards/marketplace
+              – Returns three lanes: Trending (top popularity),
+                Recommended (user's top spend categories mapped to
+                brand categories), Premium-locked (Pro-gated).
+              – Personalisation derived from `db.transactions` group-by
+                category aggregation (top-3). Falls back to food+shopping.
+              – Brand catalogue of 11 curated rewards (Swiggy, Zomato,
+                Amazon, Flipkart, Myntra, MakeMyTrip, Ola, BookMyShow,
+                Prime Video, Airtel) with cost_coins, popularity,
+                urgency flags (limited/trending/pro).
+              – is_pro computed from user.plan / user.premium_plan;
+                locked flag set on premium rewards when user is not Pro.
+
+          • GET /api/rewards/social-feed
+              – Tails real reward_spins from OTHER users (last 8),
+                joins user display names, and supplements with 6 demo
+                entries so the ticker never feels empty.
+
+          • GET /api/rewards/events
+              – Returns time-boxed events with server-computed
+                ends_in_seconds: Weekend Mega Spin (Sat/Sun UTC),
+                Double Rewards Hour (14–15 UTC + 20–21 UTC which
+                corresponds to IST peak couch-time), and always-present
+                Mystery Box teaser.
+
+          FRONTEND (3 new components):
+          • MarketplaceSection.tsx — 3 stacked lanes with:
+              – 🔥 Trending Now · 🎯 Recommended for you · 💎 Premium
+              – Brand cards: 68-px gradient header band with emoji,
+                urgency pill (Limited / Trending / PRO), brand name,
+                discount copy, min-order, 🔥 popularity badge
+                ("2.3K claimed today"), saffron "🪙 XX → →" claim CTA.
+              – Locked cards: lock overlay, grey CTA, tap → /premium.
+              – Inline "Unlock →" header CTA on the Premium lane for
+                non-Pro users.
+          • SocialFeedTicker.tsx — Dark pill with red LIVE badge, fade
+            + slide cross-transition every 3.2 s. Keeps FOMO humming
+            while scrolling.
+          • EventsBanner.tsx — Horizontal scroll of gradient cards.
+            Each card has 1 s-live countdown chip (h/m/s), CTA pill,
+            blob decoration; tapping routes directly into the spin
+            wheel via spinRef.forceSpin().
+
+          INTEGRATION (rewards-hub.tsx):
+          • Parallel-fetch rewards summary + marketplace + social-feed
+            + events on load (Promise.all with per-call catch).
+          • Layout order:
+              1. RewardsHero
+              2. SocialFeedTicker (new)
+              3. EventsBanner (new)
+              4. TierCard
+              5. SpinWheel + EnergyBar
+              6. Daily Missions
+              7. Pro upsell card
+              8. MarketplaceSection (new, 3 lanes)
+              9. Recent Wins strip
+
+          TAB BAR — MintU-AI label:
+          • /app/(tabs)/_layout.tsx: added "MintU-AI" Text element
+            inside the raised AI puck (Mascot), positioned 18 px below
+            the puck, saffron accent colour, weight 900, subtle text
+            shadow on mobile. Accessibility label updated to "Open
+            MintU AI".
+
+          VERIFICATION:
+          • Live API tests:
+            – GET /api/rewards/marketplace → 200 (3 lanes populated,
+              is_pro=true, top_categories=[food, other]).
+            – GET /api/rewards/social-feed → 200 (8 ticker items mix
+              of demo + real if available).
+            – GET /api/rewards/events     → 200 (Mystery Box teaser
+              always present; additional events fire on Sat/Sun + peak
+              hours).
+          • Bundle: clean compile at 2323 modules, HTTP 200 on
+            /rewards-hub.
+          • Unrelated: a Syntax error was introduced briefly while
+            inserting service functions and fixed immediately
+            (mis-placed closing brace on claimVoucher).
+
+          LIVE TRAFFIC observed during this session: the user was
+          actively spinning and claiming missions on Expo Go — backend
+          log shows >10 POST /api/rewards/spin and POST /api/rewards/
+          missions/claim hits, all returning 200.
+
+agent_communication:
+  - agent: "main"
+    message: |
+      ✅ Rewards Gamification Wave 2 + Tab-bar "MintU-AI" shipped (Apr 22 2026).
+
+      WAVE 2 HIGHLIGHTS:
+      1. Rewards Marketplace — 3 lanes (Trending / Recommended /
+         Premium-locked) with real brand catalogue, urgency pills,
+         popularity labels, personalised by user's top spend categories
+         (from db.transactions aggregation).
+      2. Live FOMO Social Feed — dark pill ticker that cross-fades
+         through real other-user wins (+seeded demo fallback) every
+         3.2 s with a pulsing red LIVE badge.
+      3. Time-boxed Events Banner — Weekend Mega Spin (Sat/Sun),
+         Double Rewards Hour (IST peak), Mystery Box teaser (always).
+         Each card has a 1 s-live countdown chip and taps straight
+         into the wheel.
+
+      BACKEND endpoints all additive & backward-compatible:
+      • GET /api/rewards/marketplace
+      • GET /api/rewards/social-feed
+      • GET /api/rewards/events
+
+      TAB BAR:
+      • Added "MintU-AI" label beneath the raised AI puck, styled to
+        match the saffron brand (9.5 pt, weight 900, 0.6 letterspace).
+
+      Bundle clean at 2323 modules. Live traffic confirms users are
+      actively engaging with Wave 1 (spins, mission claims flowing in).
+
+      Next Action Items:
+      1. Build /api/rewards/claim-marketplace endpoint to actually
+         redeem a marketplace reward (currently the UI shows a
+         "coming soon" toast).
+      2. Wire the Events card tap to apply a temporary 2× multiplier
+         server-side during active events (backend flag in /spin).
+      3. Add a dedicated Mystery Box full-screen experience with box
+         unwrapping animation.
+      4. Manual QA on Expo Go — verify FOMO ticker doesn't distract,
+         confirm the MintU-AI label renders cleanly with the puck.
+

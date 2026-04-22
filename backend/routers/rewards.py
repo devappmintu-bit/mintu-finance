@@ -444,6 +444,225 @@ async def rewards_tier(user_id: str = Depends(get_current_user)) -> Dict[str, An
     return {"xp": xp, "tier": _tier_for_xp(xp), "all_tiers": TIERS}
 
 
+# ══════════════════════════════════════════════════════════════════
+# WAVE 2 — Marketplace + Social Feed + Events (time-boxed bonuses)
+# ══════════════════════════════════════════════════════════════════
+
+# Curated brand catalog — evergreen rewards with real brand logos.
+BRAND_CATALOG = [
+    # Food
+    {"id": "swiggy_100",   "brand": "Swiggy",     "category": "food",         "discount": "₹100 off",    "min_order": "₹199",   "emoji": "🍔", "color": "#FC8019", "cost_coins": 80,  "popularity": 2340, "premium": False, "urgency": "limited"},
+    {"id": "zomato_75",    "brand": "Zomato",     "category": "food",         "discount": "₹75 off",     "min_order": "₹149",   "emoji": "🍕", "color": "#E23744", "cost_coins": 60,  "popularity": 1890, "premium": False, "urgency": None},
+    {"id": "swiggy_250",   "brand": "Swiggy",     "category": "food",         "discount": "₹250 off",    "min_order": "₹499",   "emoji": "🍽️", "color": "#FC8019", "cost_coins": 220, "popularity": 560,  "premium": True,  "urgency": "pro"},
+    # Shopping
+    {"id": "amazon_10pct", "brand": "Amazon",     "category": "shopping",     "discount": "10% off",     "min_order": "₹999",   "emoji": "🛍️", "color": "#FF9900", "cost_coins": 50,  "popularity": 3120, "premium": False, "urgency": None},
+    {"id": "flipkart_15",  "brand": "Flipkart",   "category": "shopping",     "discount": "₹150 off",    "min_order": "₹799",   "emoji": "🛒", "color": "#2874F0", "cost_coins": 70,  "popularity": 2010, "premium": False, "urgency": "trending"},
+    {"id": "myntra_30pct", "brand": "Myntra",     "category": "fashion",      "discount": "30% off",     "min_order": "₹1499",  "emoji": "👕", "color": "#FF3F6C", "cost_coins": 200, "popularity": 780,  "premium": True,  "urgency": "pro"},
+    # Travel
+    {"id": "mmt_500",      "brand": "MakeMyTrip", "category": "travel",       "discount": "₹500 off",    "min_order": "₹4999",  "emoji": "✈️", "color": "#E31E24", "cost_coins": 180, "popularity": 640,  "premium": False, "urgency": None},
+    {"id": "ola_200",      "brand": "Ola",        "category": "travel",       "discount": "₹200 off",    "min_order": "₹399",   "emoji": "🚕", "color": "#C5DE00", "cost_coins": 90,  "popularity": 1540, "premium": False, "urgency": "trending"},
+    # Entertainment
+    {"id": "bms_150",      "brand": "BookMyShow", "category": "entertainment","discount": "₹150 off",    "min_order": "₹499",   "emoji": "🎬", "color": "#C4242B", "cost_coins": 65,  "popularity": 1100, "premium": False, "urgency": None},
+    {"id": "prime_1mo",    "brand": "Prime Video","category": "entertainment","discount": "1 month free","min_order": "New user","emoji": "📺", "color": "#00A8E1", "cost_coins": 300, "popularity": 410,  "premium": True,  "urgency": "pro"},
+    # Recharge
+    {"id": "airtel_50",    "brand": "Airtel",     "category": "recharge",     "discount": "₹50 off",     "min_order": "₹199",   "emoji": "📱", "color": "#E60000", "cost_coins": 45,  "popularity": 870,  "premium": False, "urgency": None},
+]
+
+
+async def _top_user_categories(user_id: str) -> List[str]:
+    """Return user's top 3 spend categories (by transaction count)."""
+    try:
+        pipeline = [
+            {"$match": {"user_id": user_id}},
+            {"$group": {"_id": "$category", "cnt": {"$sum": 1}}},
+            {"$sort": {"cnt": -1}},
+            {"$limit": 3},
+        ]
+        cur = db.transactions.aggregate(pipeline)
+        rows = await cur.to_list(3)
+        cats = [(r["_id"] or "").lower() for r in rows if r.get("_id")]
+        # Map transaction categories to marketplace categories
+        mapping = {
+            "food": "food", "dining": "food", "groceries": "food",
+            "shopping": "shopping", "clothing": "fashion", "electronics": "shopping",
+            "travel": "travel", "transport": "travel", "cab": "travel",
+            "entertainment": "entertainment", "movie": "entertainment",
+            "bills": "recharge", "recharge": "recharge", "utilities": "recharge",
+        }
+        out: List[str] = []
+        for c in cats:
+            m = mapping.get(c, c)
+            if m and m not in out:
+                out.append(m)
+        return out[:3] if out else ["food", "shopping"]
+    except Exception:
+        return ["food", "shopping"]
+
+
+@router.get("/rewards/marketplace")
+async def rewards_marketplace(user_id: str = Depends(get_current_user)) -> Dict[str, Any]:
+    """3-lane rewards marketplace: Trending / Recommended / Premium-locked.
+
+    • Trending    = top-popularity non-premium rewards (sorted by popularity).
+    • Recommended = rewards matching user's top spend categories.
+    • Premium     = locked rewards unlocked by MintU Pro subscribers.
+    """
+    xp = await _get_lifetime_xp(user_id)
+    tier = _tier_for_xp(xp)
+    top_cats = await _top_user_categories(user_id)
+
+    # Is user premium? Simple check against users collection.
+    is_pro = False
+    try:
+        u = await db.users.find_one({"_id": safe_oid(user_id)})
+        plan = (u or {}).get("premium_plan") or (u or {}).get("plan")
+        is_pro = plan in ("monthly", "yearly", "family", "pro")
+    except Exception:
+        pass
+
+    def _enrich(r: Dict[str, Any]) -> Dict[str, Any]:
+        d = dict(r)
+        d["popularity_label"] = _popularity_label(r["popularity"])
+        d["locked"] = bool(r.get("premium") and not is_pro)
+        return d
+
+    trending = sorted(
+        [_enrich(r) for r in BRAND_CATALOG if not r.get("premium")],
+        key=lambda r: -r["popularity"],
+    )[:6]
+
+    recommended_pool = [r for r in BRAND_CATALOG if r["category"] in top_cats and not r.get("premium")]
+    if len(recommended_pool) < 4:
+        recommended_pool += [r for r in BRAND_CATALOG if not r.get("premium") and r not in recommended_pool]
+    recommended = [_enrich(r) for r in recommended_pool[:6]]
+
+    premium = [_enrich(r) for r in BRAND_CATALOG if r.get("premium")][:6]
+
+    return {
+        "tier": tier,
+        "is_pro": is_pro,
+        "top_categories": top_cats,
+        "trending": trending,
+        "recommended": recommended,
+        "premium": premium,
+    }
+
+
+def _popularity_label(n: int) -> str:
+    if n >= 1000:
+        return f"{round(n / 1000, 1)}K claimed today"
+    return f"{n} claimed today"
+
+
+@router.get("/rewards/social-feed")
+async def rewards_social_feed(user_id: str = Depends(get_current_user)) -> Dict[str, Any]:
+    """Live ticker of recent wins + tier upgrades from OTHER users.
+
+    Uses real reward_spins / coin_ledger data where possible and falls
+    back to seeded demo entries to keep the ticker lively even when
+    the app is early-stage.
+    """
+    items: List[Dict[str, Any]] = []
+    try:
+        cur = db.reward_spins.find({"user_id": {"$ne": user_id}}).sort("created_at", -1).limit(8)
+        rows = await cur.to_list(8)
+        for r in rows:
+            # Look up user name
+            try:
+                u = await db.users.find_one({"_id": safe_oid(str(r.get("user_id", "")))})
+                name = (u or {}).get("display_name") or (u or {}).get("name") or "Someone"
+                first = name.split()[0] if isinstance(name, str) else "Someone"
+            except Exception:
+                first = "Someone"
+            prize = next((p for p in PRIZES if p["id"] == r.get("prize_id")), None)
+            if prize and prize["kind"] != "none":
+                items.append({
+                    "name": first,
+                    "action": f"won {prize.get('label', 'a reward')}",
+                    "emoji": prize.get("emoji", "🎁"),
+                    "ts": r.get("created_at").isoformat() if isinstance(r.get("created_at"), datetime) else None,
+                })
+    except Exception:
+        pass
+
+    # Seed demo entries if too few (keeps ticker vibrant for new installs)
+    DEMO = [
+        {"name": "Rahul",   "action": "won ₹100 Swiggy voucher", "emoji": "🏆"},
+        {"name": "Ananya",  "action": "unlocked Gold tier",      "emoji": "👑"},
+        {"name": "Priya",   "action": "won ₹50 Cashback",         "emoji": "💸"},
+        {"name": "Arjun",   "action": "hit 500 XP",               "emoji": "⭐"},
+        {"name": "Neha",    "action": "won a mystery reward",     "emoji": "🎁"},
+        {"name": "Vikram",  "action": "referred 3 friends",       "emoji": "🎉"},
+        {"name": "Kavya",   "action": "won ₹200 Amazon voucher", "emoji": "🛍️"},
+        {"name": "Ravi",    "action": "won 2 Free Spins",         "emoji": "⚡"},
+    ]
+    while len(items) < 6:
+        items.append(DEMO[len(items) % len(DEMO)])
+
+    return {"items": items[:12]}
+
+
+@router.get("/rewards/events")
+async def rewards_events(user_id: str = Depends(get_current_user)) -> Dict[str, Any]:
+    """Time-boxed bonus events: Weekend Mega Spin, Double Rewards Hour.
+
+    Returns a list of events with an optional countdown timer in seconds.
+    The frontend renders an EventBanner at the top of the wheel.
+    """
+    now = datetime.now(timezone.utc)
+    wday = now.weekday()  # 0=Mon .. 6=Sun
+    hour = now.hour
+
+    events: List[Dict[str, Any]] = []
+
+    # Weekend Mega Spin — Saturday & Sunday all day (UTC).
+    if wday in (5, 6):
+        ends_at = now.replace(hour=23, minute=59, second=59, microsecond=0)
+        if wday == 5:  # Sat → ends Sun 23:59
+            ends_at = ends_at + timedelta(days=1)
+        events.append({
+            "id": "weekend_mega",
+            "title": "WEEKEND MEGA SPIN",
+            "subtitle": "2× rewards all weekend",
+            "emoji": "🎰",
+            "color": "#7C3AED",
+            "ends_in_seconds": int((ends_at - now).total_seconds()),
+            "cta": "Spin now",
+        })
+
+    # Double Rewards Hour — 20:00–21:00 UTC (= 01:30–02:30 IST which isn't
+    # ideal for peak; we also add a second IST-peak window 14:30–15:30 UTC
+    # which corresponds to 20:00–21:00 IST, India's couch-time).
+    in_double = (14 <= hour < 15) or (20 <= hour < 21)
+    if in_double:
+        # End of the current hour
+        ends_at = now.replace(minute=59, second=59, microsecond=0)
+        events.append({
+            "id": "double_rewards_hour",
+            "title": "DOUBLE REWARDS HOUR",
+            "subtitle": "Every spin pays 2×",
+            "emoji": "⚡",
+            "color": "#F59E0B",
+            "ends_in_seconds": int((ends_at - now).total_seconds()),
+            "cta": "Use the boost",
+        })
+
+    # Mystery Box teaser — always present as an "opportunity" card.
+    events.append({
+        "id": "mystery_box_teaser",
+        "title": "MYSTERY BOX",
+        "subtitle": "Spin for hidden rewards",
+        "emoji": "🎁",
+        "color": "#8B5CF6",
+        "ends_in_seconds": None,
+        "cta": "Try your luck",
+    })
+
+    return {"events": events, "server_time": now.isoformat()}
+
+
+
+
 
 
 

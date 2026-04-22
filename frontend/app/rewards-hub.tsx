@@ -31,12 +31,19 @@ import TierCard from '../components/rewards/TierCard';
 import EnergyBar from '../components/rewards/EnergyBar';
 import SpinWheel, { SpinWheelHandle } from '../components/rewards/SpinWheel';
 import MissionCard from '../components/rewards/MissionCard';
+import MarketplaceSection from '../components/rewards/MarketplaceSection';
+import SocialFeedTicker from '../components/rewards/SocialFeedTicker';
+import EventsBanner from '../components/rewards/EventsBanner';
 import {
   fetchRewardsSummary, spinWheel, claimMission,
+  fetchMarketplace, fetchSocialFeed, fetchEvents,
 } from '../services/rewards';
 
 export default function RewardsHubScreen() {
   const [data, setData] = useState<any>(null);
+  const [market, setMarket] = useState<any>(null);
+  const [feed, setFeed] = useState<any>(null);
+  const [events, setEvents] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [spinning, setSpinning] = useState(false);
@@ -47,8 +54,16 @@ export default function RewardsHubScreen() {
 
   const load = useCallback(async () => {
     try {
-      const d = await fetchRewardsSummary();
+      const [d, m, f, e] = await Promise.all([
+        fetchRewardsSummary(),
+        fetchMarketplace().catch(() => null),
+        fetchSocialFeed().catch(() => null),
+        fetchEvents().catch(() => null),
+      ]);
       setData(d);
+      setMarket(m);
+      setFeed(f);
+      setEvents(e);
     } catch (e: any) {
       Toast.show({ type: 'error', text1: 'Could not load rewards', text2: e?.message || '' });
     } finally {
@@ -167,6 +182,28 @@ export default function RewardsHubScreen() {
           onBack={() => router.back()}
         />
 
+        {/* Live FOMO social feed ticker */}
+        {feed?.items?.length > 0 && (
+          <View style={{ marginTop: 14 }}>
+            <SocialFeedTicker items={feed.items} />
+          </View>
+        )}
+
+        {/* Time-boxed events banner */}
+        {events?.events?.length > 0 && (
+          <View style={{ marginTop: 14 }}>
+            <EventsBanner
+              events={events.events}
+              onPress={(ev) => {
+                if (ev.id === 'mystery_box_teaser' || ev.id === 'weekend_mega' || ev.id === 'double_rewards_hour') {
+                  // Trigger a spin directly from the event card
+                  spinRef.current?.forceSpin();
+                }
+              }}
+            />
+          </View>
+        )}
+
         {/* Tier progression */}
         <View style={s.section}>
           <TierCard tier={tier} />
@@ -236,6 +273,26 @@ export default function RewardsHubScreen() {
             </LinearGradient>
           </TouchableOpacity>
         </View>
+
+        {/* Rewards Marketplace — Trending / Recommended / Premium */}
+        {market && (
+          <View style={{ marginTop: 20 }}>
+            <MarketplaceSection
+              trending={market.trending || []}
+              recommended={market.recommended || []}
+              premium={market.premium || []}
+              isPro={!!market.is_pro}
+              userCoins={coins}
+              onClaim={(r) => {
+                if (coins < r.cost_coins) {
+                  Toast.show({ type: 'info', text1: 'Not enough coins', text2: `Need ₹${r.cost_coins} — earn more by spinning & missions` });
+                  return;
+                }
+                Toast.show({ type: 'success', text1: `Redeeming ${r.brand}`, text2: 'Voucher coming soon (backend endpoint pending)' });
+              }}
+            />
+          </View>
+        )}
 
         {/* Recent wins */}
         {recent_rewards.length > 0 && (

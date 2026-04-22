@@ -91,3 +91,18 @@ export async function claimVoucher(voucher_id: string): Promise<any> {
   const r = await api.post('/rewards/claim-voucher', { voucher_id });
   return r.data;
 }
+
+export async function fetchMarketplace(): Promise<any> {
+  const r = await api.get('/rewards/marketplace');
+  return r.data;
+}
+
+export async function fetchSocialFeed(): Promise<any> {
+  const r = await api.get('/rewards/social-feed');
+  return r.data;
+}
+
+export async function fetchEvents(): Promise<any> {
+  const r = await api.get('/rewards/events');
+  return r.data;
+}
