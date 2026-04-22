@@ -8208,3 +8208,105 @@ agent_communication:
       • Manual QA on Expo Go to validate the full unwrap animation
         with real auth.
 
+
+  - task: "Budget · AI-assisted Create/Edit Smart Sheet redesign"
+    implemented: true
+    working: "NA"
+    file: "/app/backend/routers/budgets.py, /app/frontend/components/budget/BudgetSmartSheet.tsx, /app/frontend/app/(tabs)/budget.tsx"
+    status_history:
+      - working: "NA"
+        agent: "main"
+        comment: |
+          Complete redesign of the New/Edit Budget flow into an AI-
+          assisted, high-speed financial-assistant experience.
+
+          BACKEND — NEW /api/budgets/smart-setup:
+          • Returns per-category: last_month_spend, three_month_avg,
+            AI-recommended (avg × 0.9, floor 500), risk_level vs
+            monthly income, 4 preset amounts snapped around the rec,
+            and the existing_budget prefill (for edit mode).
+          • Also returns user.monthly_income so the UI can compute
+            savings-potential copy without a second round-trip.
+          • Fixed import bug discovered in first run: timezone was
+            missing from `from datetime import …`.
+
+          FRONTEND — new BudgetSmartSheet.tsx:
+          • Header: dynamic "Create Budget" / "Edit Budget" + subtitle
+            "Plan smarter, save better", X close button.
+          • SMART CATEGORY selector: horizontal scroll chips with
+            emoji, last-month spend ("Last mo: ₹11.8K"), and AI
+            badge ("AI ₹10K"). Selected chip elevates with matching
+            category colour glow.
+          • AI RECOMMENDATION BANNER: lavender gradient card showing
+            "AI suggests ₹10,000 · Based on 3-month spending · 10%
+            savings nudge" with tap-to-apply pill.
+          • AMOUNT CARD: amber gradient, huge 40-pt ₹display with
+            inline TextInput, 4 preset chips, and a full-width
+            saffron gradient slider with drag-thumb pan-responder.
+          • IMPACT PREVIEW (live): 3 cells — Per day, Savings (vs
+            last-month spend), Risk pill (Low/Moderate/High with
+            colour-coded dot, derived from amount / monthly-income
+            or amount / last-month-spend fallback).
+          • SMART ROLLOVER: icon + title "Smart Rollover 🔁" + sub
+            "Unused budget carries forward next month", saffron
+            toggle, and dual radio-chips "Reset monthly" /
+            "Carry forward".
+          • PERIOD: minimal Daily/Weekly/Monthly pill row.
+          • BUDGET FOR: Me / Shared / Someone else scope chips.
+          • Dynamic CTA: orange→red→saffron gradient. Text flips:
+            "Create Budget" (new), "Save Changes" (edit no-delta),
+            "Increase Budget" (amount > original × 1.05),
+            "Reduce Budget" (amount < original × 0.95). Glow shadow
+            on active, greyed when disabled.
+          • One-tap AI-set via the recommendation banner pill.
+          • 30-day rollover copy adapts to selected period.
+
+          INTEGRATION:
+          • budget.tsx: imports BudgetSmartSheet, replaces the whole
+            inline GlassSheet form body with <BudgetSmartSheet/>.
+          • handleSave(payload?) refactored to accept an explicit
+            payload so the new sheet can bypass formData state
+            entirely (avoids React batching race when passing data
+            from child → parent).
+          • Fixed a stray </GlassSheet> double-tag that briefly broke
+            the bundle; cleaned up.
+
+          VERIFICATION:
+          • GET /api/budgets/smart-setup → 200 OK, full per-category
+            payload returned (11 categories).
+          • /(tabs)/budget HTTP 200. Bundle clean at 2323+ modules.
+          • Visual screenshot confirms the new sheet renders:
+            saffron header "Create Budget · Plan smarter, save better"
+            → CATEGORY row → BUDGET AMOUNT card (big ₹0, 4 presets,
+            slider ₹0–₹50K) → Smart Rollover card with Reset/Carry
+            radio → Period pills → BUDGET FOR scope chips → Dynamic
+            gradient CTA at bottom.
+          • MintU-AI tab-bar label also visible in the same screenshot.
+
+agent_communication:
+  - agent: "main"
+    message: |
+      ✅ Budget Smart Sheet shipped (Apr 22 2026).
+
+      • New /api/budgets/smart-setup backend endpoint returns
+        per-category spend history, AI recommendation, preset
+        amounts, risk level, and existing-budget prefill — all in
+        one call.
+      • BudgetSmartSheet.tsx replaces the old static form with a
+        full AI-assisted experience: smart category chips with
+        last-month spend + AI badge, lavender AI-recommendation
+        banner, amber amount card with presets + slider, live
+        Impact Preview (daily / savings / risk), Smart Rollover
+        with radio sub-options, minimal period pills, scope chips
+        (Me/Shared/Someone else), and a dynamic gradient CTA that
+        flips between Create/Save/Increase/Reduce.
+      • Visual screenshot verified the new sheet renders flawlessly.
+
+      Next Action Items:
+      • Manual QA on Expo Go to validate the slider pan gesture
+        and the live Impact Preview updates in real-time.
+      • Optional: voice input for amount ("budget fifteen thousand
+        rupees") once speech-to-text is added.
+      • Optional: goal-based budgeting (tie a budget to a savings
+        goal) — would need a new /goals collection.
+

@@ -3,8 +3,8 @@ import os
 import math
 import json as json_mod
 import logging
-from datetime import datetime, timedelta
-from typing import Optional, List
+from datetime import datetime, timedelta, timezone
+from typing import Optional, List, Dict, Any
 from bson import ObjectId
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, field_validator
@@ -116,6 +116,123 @@ async def categorize_description(req: CategorizeRequest, user_id: str = Depends(
     we automatically propose a better-fitting category (or keep 'Other')."""
     cat = await _ai_map_to_category(req.description)
     return {"category": cat, "original_category": "Other", "description": req.description}
+
+
+@router.get("/smart-setup")
+async def smart_budget_setup(user_id: str = Depends(get_current_user)):
+    """Per-category smart setup data for the Budget create/edit UX.
+
+    Returns, for every category:
+      • last_month_spend   — actual spend in the previous calendar month
+      • three_month_avg    — mean monthly spend over the last 3 months
+      • recommended        — AI-suggested budget (3-month avg × 0.9 i.e.
+                              a gentle 10% savings nudge; floor 500)
+      • risk_level         — relative to monthly_income (low / mod / high)
+      • preset_amounts     — quick-chip presets snapped to sensible steps
+                              around the recommended amount
+    Also returns the user's `monthly_income` so the frontend can surface
+    "savings potential" copy without an extra round-trip.
+    """
+    now = datetime.now(timezone.utc)
+    # Previous month window
+    first_of_this = now.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+    last_prev = first_of_this - timedelta(seconds=1)
+    first_prev = last_prev.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+    # 3-month window
+    three_mo_start = (first_of_this - timedelta(days=92)).replace(day=1)
+
+    # Pull user income
+    try:
+        u = await db.users.find_one({"_id": safe_oid(user_id)})
+        income = float((u or {}).get("monthly_income") or (u or {}).get("income") or 0)
+    except Exception:
+        income = 0.0
+
+    # Last-month spending per category
+    last_month_map: Dict[str, float] = {}
+    try:
+        cursor = db.transactions.find({
+            "user_id": user_id,
+            "created_at": {"$gte": first_prev, "$lte": last_prev},
+            "type": {"$in": ["expense", "debit", None]},
+        })
+        async for tx in cursor:
+            cat = tx.get("category") or "Other"
+            last_month_map[cat] = last_month_map.get(cat, 0.0) + float(tx.get("amount", 0) or 0)
+    except Exception:
+        pass
+
+    # 3-month-avg spending per category
+    three_mo_map: Dict[str, float] = {}
+    months_counted = 3
+    try:
+        cursor = db.transactions.find({
+            "user_id": user_id,
+            "created_at": {"$gte": three_mo_start, "$lte": last_prev},
+            "type": {"$in": ["expense", "debit", None]},
+        })
+        async for tx in cursor:
+            cat = tx.get("category") or "Other"
+            three_mo_map[cat] = three_mo_map.get(cat, 0.0) + float(tx.get("amount", 0) or 0)
+    except Exception:
+        pass
+
+    # Existing budgets (so UI can prefill for edit)
+    existing: Dict[str, Dict[str, Any]] = {}
+    try:
+        async for b in db.budgets.find({"user_id": user_id}):
+            existing[b.get("category", "Other")] = {
+                "id": str(b.get("_id")),
+                "amount": float(b.get("amount", 0) or 0),
+                "period": b.get("period", "monthly"),
+                "recurring": b.get("recurring", True),
+            }
+    except Exception:
+        pass
+
+    categories = ["Food", "Transport", "Shopping", "Entertainment", "Bills", "Health", "Travel", "Groceries", "Education", "Other"]
+
+    def _preset_steps(recommended: float) -> List[int]:
+        """Generate 4 quick-pick amounts around the recommended value."""
+        if recommended <= 0:
+            return [1000, 2500, 5000, 10000]
+        # Snap to 500 / 1000 depending on magnitude
+        step = 500 if recommended < 10000 else 1000
+        base = max(step, round(recommended / step) * step)
+        return [int(max(step, base - step)), int(base), int(base + step), int(base + 2 * step)]
+
+    def _risk(rec: float) -> str:
+        if income <= 0:
+            return "moderate"
+        pct = (rec / income) * 100.0
+        if pct < 10:
+            return "low"
+        if pct < 25:
+            return "moderate"
+        return "high"
+
+    result = []
+    for cat in categories:
+        lm = round(last_month_map.get(cat, 0.0))
+        three_total = three_mo_map.get(cat, 0.0)
+        avg = round(three_total / months_counted) if three_total > 0 else lm
+        # Recommendation: 3-mo avg × 0.9 (10% savings nudge), floor 500
+        rec = max(500, int(round(avg * 0.9))) if avg > 0 else 0
+        result.append({
+            "category": cat,
+            "last_month_spend": lm,
+            "three_month_avg": avg,
+            "recommended": rec,
+            "risk_level": _risk(rec) if rec > 0 else "low",
+            "preset_amounts": _preset_steps(rec),
+            "existing_budget": existing.get(cat),
+        })
+
+    return {
+        "monthly_income": income,
+        "categories": result,
+    }
+
 
 
 @router.post("")
