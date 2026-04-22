@@ -265,7 +265,7 @@ export default function HomeScreen() {
         <WeeklyReport weeklyReport={weeklyReport} snapshot={snapshot} user={user} />
 
         {/* 11. LEADERBOARD compact */}
-        <UnifiedLeaderboard compact title={t('leaderboard', lang).toUpperCase()} onPressMore={() => router.push('/(tabs)/rewards' as any)} />
+        <UnifiedLeaderboard compact title={t('leaderboard', lang).toUpperCase()} onPressMore={() => router.push('/leaderboard' as any)} />
 
         {/* 12. EMBEDDED FINANCE — curated credit / insurance / SIP products */}
         <EmbeddedFinanceCard moneyScore={user?.money_score || 0} />

@@ -292,6 +292,7 @@ export default function ProfileScreen() {
         <SettingsList header="Financial">
           <SettingsListItem icon="flag-outline" label="My Goals" onPress={() => router.push('/goals' as any)} />
           <SettingsListItem icon="ribbon-outline" label="Achievements" onPress={() => setAchievementsModalVisible(true)} />
+          <SettingsListItem icon="trophy-outline" label="Leaderboard" onPress={() => router.push('/leaderboard' as any)} />
           <SettingsListItem icon="card-outline" label="Payment methods" onPress={() => setPaymentMethodsVisible(true)} />
         </SettingsList>
 

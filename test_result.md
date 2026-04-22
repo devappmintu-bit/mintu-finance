@@ -9602,3 +9602,45 @@ round26_payment_methods_smart_status_apr22_2026:
                promotes to real persisted doc (method_id returned).
           (T7) Regression: existing endpoints GET/POST/PUT/DELETE
                /user/payment-methods still 200.
+
+agent_communication:
+  - agent: "main"
+    message: |
+      ✅ Leaderboard full-screen + Smart Status complete.
+
+      LEADERBOARD (/app/frontend/app/leaderboard.tsx — NEW, 330 LOC):
+      • Dedicated full-screen page under Stack.Screen name="leaderboard"
+        with slide_from_right animation.
+      • Dark theme canonical palette; scope toggle Friends/Global with
+        haptic; your-rank hero card with #rank + percentile + score /
+        streak / coins / splits stats; podium visualisation for top 3
+        (2 · 1 elevated · 3); full rank list with "You" highlight;
+        pull-to-refresh.
+      • Share CTA in header captures the hero card via
+        react-native-view-shot → shareImageSmart() (viral loop,
+        same pattern as WeeklyWinCard).
+      • Reuses existing backend GET /api/leaderboard/unified?scope=...
+        (no new endpoints). Empty-state copy differs per scope.
+
+      WIRING:
+      • Home "See full leaderboard" CTA now routes to /leaderboard
+        (was /(tabs)/rewards).
+      • Profile → Financial section now has a "Leaderboard" row that
+        pushes to /leaderboard.
+      • Stack registered in /app/frontend/app/_layout.tsx.
+
+      PAYMENT METHODS SMART STATUS (prior leg this session):
+      • Backend tested 41/41 PASS — health object + /verify endpoint.
+      • Frontend wires the status chip + Verify/Fix CTA.
+
+      No new deps. No backend changes for the leaderboard screen.
+
+      Next Action Items:
+      • Backend retest not required for leaderboard (no backend change).
+      • Frontend visual verification (expo_frontend_testing_agent)
+        available on user approval.
+      • Remaining backlog: shareable streak card (similar to weekly
+        win), SWR/React Query migration for list screens, Premium
+        unlock teasers across flows, Real FCM/MSG91/WhatsApp
+        integrations (all blocked on external API keys).
+
