@@ -1,29 +1,27 @@
 /**
- * ProfileScreen — MintU Minimal Profile (v3).
+ * ProfileScreen — MintU Financial Identity + Progress Engine.
  *
- * Redesign goals:
- *   • Flat, calm UI using existing MintU palette (orange-primary only)
- *   • Clear hierarchy: Primary > Secondary > Tertiary
- *   • Merged cards (progress row, single insight, list-style settings)
- *   • Reduced visual noise, generous whitespace, 8pt grid
+ * Top-to-bottom structure:
+ *   1. Hero (ProfileHeroV4)          — Samsung-Health avatar, score ring, predictive insight
+ *   2. Missions Engine               — daily gamified tasks (refresh timer, XP/coin totals)
+ *   3. Progress row                  — streak · badges · coins
+ *   4. Beat Last Week (+ Share)      — viral shareable weekly win
+ *   5. AI Coach 1-tap                — contextual nudge to /ai-coach
+ *   6. Premium funnel                — MintU Pro upsell
+ *   7. Settings (list-style)         — Financial / App / Support / Account
  *
- * Structure (top → bottom):
- *   1. Hero (ProfileHeroV3)              — avatar, name, score, "Level Up"
- *   2. Today (TodayCard)                 — 2-3 tasks + "Complete now"
- *   3. Progress (ProgressInline)         — streak · badges · coins merged row
- *   4. Weekly Challenge (calm)           — tinted, minimal progress
- *   5. Insight (single)                  — one neutral insight + "Fix this"
- *   6. Premium (muted dark)              — 3 benefits + "Try free"
- *   7. Settings (list-style, no cards)   — Financial / App / Support / Account
- *
- * Account actions:
- *   • Logout → LogoutConfirmSheet
- *   • Delete account → navigates to /profile/delete-account
+ * Sheets:
+ *   • ProfilePhotoSheet  — avatar CUD (take / gallery / remove)
+ *   • ShareWeeklyWinModal — react-native-view-shot capture for viral share
+ *   • LogoutConfirmSheet / ScoreBreakdownModal / ScoreBoostModal
+ *   • Inline modals (kept for now): edit-name, language, achievements,
+ *     payment methods, preferences, notifications. Candidates for extraction
+ *     in a follow-up refactor.
  */
-import React, { useState, useEffect, useCallback, useRef } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
-  View, Text, StyleSheet, ScrollView, TouchableOpacity, ActivityIndicator,
-  Modal, FlatList, TextInput, RefreshControl, Platform,
+  View, Text, StyleSheet, ScrollView, TouchableOpacity,
+  Modal, FlatList, TextInput, RefreshControl,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -32,7 +30,7 @@ import { useAuthStore } from '../../store/authStore';
 import { useLangStore } from '../../store/langStore';
 import { t, LANGUAGES } from '../../utils/i18n';
 import api from '../../utils/api';
-import { fetchUpi, fetchAvatar, updateProfile, uploadAvatar, deleteAvatar } from '../../services/user';
+import { fetchAvatar, updateProfile, uploadAvatar, deleteAvatar } from '../../services/user';
 import { COLORS } from '../../utils/theme';
 import { makeStyles } from '../../utils/makeStyles';
 import Toast from 'react-native-toast-message';
