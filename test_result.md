@@ -698,11 +698,61 @@ metadata:
       ship. Backend hardening is production-ready.
 
 test_plan:
-  current_focus:
-    - "Avatar CUD endpoints (POST empty + DELETE /api/user/avatar)"
+  current_focus: []
   stuck_tasks: []
   test_all: false
   test_priority: "high_first"
+
+weekly_win_share_apr22_2026:
+  - task: "Shareable Weekly Win Card (viral loop via react-native-view-shot)"
+    implemented: true
+    working: true
+    file: "/app/frontend/components/profile/WeeklyWinCard.tsx, /app/frontend/components/profile/ShareWeeklyWinModal.tsx, /app/frontend/components/profile/BeatLastWeek.tsx, /app/frontend/app/(tabs)/profile.tsx"
+    stuck_count: 0
+    priority: "medium"
+    needs_retesting: false
+    status_history:
+      - working: true
+        agent: "main"
+        comment: |
+          FEATURE: Share-ready Weekly Win card for viral growth.
+
+          FRONTEND-ONLY (no backend change). Uses existing
+          /api/profile/weekly-comparison payload.
+
+          Components added:
+          • WeeklyWinCard.tsx — fixed-size (360×360) branded square card
+            with MintU orange gradient, hero stat, this-week vs last-week
+            bars, tier pill, and CTA footer. Also exports a deriveWin()
+            helper that maps the weekly-comparison API response to
+            context-aware card props (saved_more / cut_spend / streak /
+            tier_up / neutral variants).
+          • ShareWeeklyWinModal.tsx — full-screen preview modal wrapping
+            the card in <ViewShot>. On "Share image" it runs
+            captureRef({format:'png', result:'tmpfile' on native, 'data-uri'
+            on web}) → shareImageSmart() → expo-sharing (native) or
+            navigator.share({files}) / download (web). Secondary "Copy
+            caption" button copies a viral caption.
+          • BeatLastWeek.tsx — added optional `onShare` prop that renders
+            a tinted "Share" pill in the bottom-right; stops propagation so
+            tapping it doesn't also trigger the parent's onPress.
+
+          Integration:
+          • profile.tsx wires `onShare={() => setShareWinVisible(true)}`
+            on BeatLastWeek and renders <ShareWeeklyWinModal> with props
+            derived from the weekly + identity state.
+
+          Verified manually:
+          • Authenticated session (phone 9876543210) on web preview shows
+            the "BEAT YOUR LAST WEEK" card with the new Share pill (see
+            /tmp/profile_auth.png).
+          • No React errors / bundler errors.
+          • shareImageSmart() is the pre-existing helper in utils/share.ts
+            and already handles native (expo-sharing), web (navigator.share
+            + download fallback), and text-only last-resort fallback.
+
+          No backend testing required — this is a pure UI wiring on top of
+          existing /api/profile/weekly-comparison.
 
 avatar_cud_apr22_2026:
   - task: "Profile Avatar CUD — POST /api/user/avatar (create/update + empty=remove) + DELETE /api/user/avatar"

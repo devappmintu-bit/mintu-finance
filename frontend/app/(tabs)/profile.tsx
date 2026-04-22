@@ -52,6 +52,8 @@ import SmartStatusRow, { type RowStatus } from '../../components/profile/SmartSt
 import LogoutConfirmSheet from '../../components/profile/LogoutConfirmSheet';
 import ScoreBoostModal from '../../components/profile/ScoreBoostModal';
 import ProfilePhotoSheet from '../../components/profile/ProfilePhotoSheet';
+import ShareWeeklyWinModal from '../../components/profile/ShareWeeklyWinModal';
+import { deriveWin } from '../../components/profile/WeeklyWinCard';
 
 // Retained sub-screens (opened only via explicit settings tap)
 import BudgetAchievements from '../../components/budget/BudgetAchievements';
@@ -91,6 +93,7 @@ export default function ProfileScreen() {
   const [logoutSheet, setLogoutSheet] = useState(false);
   const [logoutAnim, setLogoutAnim] = useState(false);
   const [photoSheetVisible, setPhotoSheetVisible] = useState(false);
+  const [shareWinVisible, setShareWinVisible] = useState(false);
 
   // Today tasks are fetched from /api/profile/missions now
   const todayMissions = missionsData?.missions || [];
@@ -273,6 +276,7 @@ export default function ProfileScreen() {
             tone={weekly.tone || 'info'}
             rewardPreview={weekly.reward_preview}
             onPress={() => router.push('/yearly' as any)}
+            onShare={() => setShareWinVisible(true)}
           />
         ) : null}
 
@@ -503,6 +507,25 @@ export default function ProfileScreen() {
         onPicked={handleAvatarPicked}
         onRemoved={handleAvatarRemoved}
       />
+
+      {/* Weekly Win share card — viral loop */}
+      {weekly ? (
+        <ShareWeeklyWinModal
+          visible={shareWinVisible}
+          onClose={() => setShareWinVisible(false)}
+          cardProps={deriveWin({
+            userName: user?.name,
+            score: identity?.money_score ?? user?.money_score,
+            tierLabel: identity?.tier_label
+              ? `${identity?.tier_emoji || ''} ${identity.tier_label}`.trim()
+              : undefined,
+            pctBetter: weekly?.pct_better || 0,
+            thisWeek: weekly?.this_week || null,
+            lastWeek: weekly?.last_week || null,
+            rewardBadge: weekly?.reward_preview?.badge || null,
+          })}
+        />
+      ) : null}
     </SafeAreaView>
   );
 }

@@ -16,6 +16,7 @@ interface Props {
   tone: 'positive' | 'neutral' | 'warn' | 'info';
   rewardPreview: { coins: number; badge?: string | null; tier_boost?: boolean } | null;
   onPress: () => void;
+  onShare?: () => void;
 }
 
 const TONE_COLOR = {
@@ -26,7 +27,7 @@ const TONE_COLOR = {
 } as const;
 
 export default function BeatLastWeek({
-  thisWeek, lastWeek, pctBetter, commentary, tone, rewardPreview, onPress,
+  thisWeek, lastWeek, pctBetter, commentary, tone, rewardPreview, onPress, onShare,
 }: Props) {
   const s = useStyles();
   const color = TONE_COLOR[tone];
@@ -96,6 +97,19 @@ export default function BeatLastWeek({
 
       <View style={s.ctaRow}>
         <Text style={[s.ctaTxt, { color }]}>{pctBetter > 0 && pctBetter < 20 ? 'Almost there →' : 'View full breakdown →'}</Text>
+        {onShare ? (
+          <TouchableOpacity
+            style={[s.sharePill, { borderColor: color + '40' }]}
+            onPress={(e) => { e.stopPropagation?.(); haptic(); onShare(); }}
+            activeOpacity={0.75}
+            hitSlop={6}
+            accessibilityLabel="Share weekly win"
+            testID="beat-last-week-share"
+          >
+            <Ionicons name="share-social" size={13} color={color} />
+            <Text style={[s.shareTxt, { color }]}>Share</Text>
+          </TouchableOpacity>
+        ) : null}
       </View>
     </TouchableOpacity>
   );
@@ -121,6 +135,8 @@ const useStyles = makeStyles((c) => ({
   rewardEmoji: { fontSize: 11 },
   rewardTxt: { fontSize: 11, fontWeight: '700', color: c.text.primary },
 
-  ctaRow: { marginTop: 10, alignSelf: 'flex-end' },
+  ctaRow: { marginTop: 10, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 10 },
   ctaTxt: { fontSize: 12, fontWeight: '800' },
+  sharePill: { flexDirection: 'row', alignItems: 'center', gap: 5, paddingHorizontal: 10, paddingVertical: 6, borderRadius: 999, borderWidth: 1 },
+  shareTxt: { fontSize: 11.5, fontWeight: '800', letterSpacing: -0.1 },
 }));
