@@ -69,16 +69,29 @@ async def update_profile(data: dict, user_id: str = Depends(get_current_user)):
 
 @router.post("/avatar")
 async def upload_avatar(data: dict, user_id: str = Depends(get_current_user)):
-    """Upload profile photo as base64 (<= ~500KB raw / ~700KB base64)."""
+    """Create/Update or Remove profile photo.
+
+    Pass ``avatar`` as a base64 data URI to set, or empty string to remove.
+    Max size ~500KB raw / ~700KB base64.
+    """
     avatar_b64 = data.get("avatar", "") if isinstance(data, dict) else ""
     if not isinstance(avatar_b64, str):
         raise HTTPException(status_code=400, detail="avatar must be a base64 string")
+    # Empty string = remove avatar (idempotent delete)
     if not avatar_b64:
-        raise HTTPException(status_code=400, detail="No avatar data")
+        await db.users.update_one({"_id": ObjectId(user_id)}, {"$unset": {"avatar": ""}})
+        return {"message": "Avatar removed", "avatar": ""}
     if len(avatar_b64) > 700_000:
         raise HTTPException(status_code=400, detail="Image too large. Max 500KB")
     await db.users.update_one({"_id": ObjectId(user_id)}, {"$set": {"avatar": avatar_b64}})
-    return {"message": "Avatar updated!"}
+    return {"message": "Avatar updated!", "avatar": avatar_b64}
+
+
+@router.delete("/avatar")
+async def delete_avatar(user_id: str = Depends(get_current_user)):
+    """Delete the profile photo (idempotent)."""
+    await db.users.update_one({"_id": ObjectId(user_id)}, {"$unset": {"avatar": ""}})
+    return {"message": "Avatar removed", "avatar": ""}
 
 
 @router.get("/avatar")

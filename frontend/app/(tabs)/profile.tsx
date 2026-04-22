@@ -28,12 +28,11 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { router, useFocusEffect } from 'expo-router';
-import * as ImagePicker from 'expo-image-picker';
 import { useAuthStore } from '../../store/authStore';
 import { useLangStore } from '../../store/langStore';
 import { t, LANGUAGES } from '../../utils/i18n';
 import api from '../../utils/api';
-import { fetchUpi, fetchAvatar, updateProfile, uploadAvatar } from '../../services/user';
+import { fetchUpi, fetchAvatar, updateProfile, uploadAvatar, deleteAvatar } from '../../services/user';
 import { COLORS } from '../../utils/theme';
 import { makeStyles } from '../../utils/makeStyles';
 import Toast from 'react-native-toast-message';
@@ -50,10 +49,9 @@ import PremiumConversionFunnel from '../../components/profile/PremiumConversionF
 import ScoreBreakdownModal from '../../components/profile/ScoreBreakdownModal';
 import { SettingsList, SettingsListItem } from '../../components/profile/SettingsList';
 import SmartStatusRow, { type RowStatus } from '../../components/profile/SmartStatusRow';
-import AIOrb from '../../components/profile/AIOrb';
-import AIOrbSheet from '../../components/profile/AIOrbSheet';
 import LogoutConfirmSheet from '../../components/profile/LogoutConfirmSheet';
 import ScoreBoostModal from '../../components/profile/ScoreBoostModal';
+import ProfilePhotoSheet from '../../components/profile/ProfilePhotoSheet';
 
 // Retained sub-screens (opened only via explicit settings tap)
 import BudgetAchievements from '../../components/budget/BudgetAchievements';
@@ -79,7 +77,6 @@ export default function ProfileScreen() {
   const [missionsData, setMissionsData] = useState<{ missions: Mission[]; seconds_to_refresh: number; total_xp: number; total_coins: number } | null>(null);
   const [scoreBreakdownVisible, setScoreBreakdownVisible] = useState(false);
   const [gmailStatus, setGmailStatus] = useState<any>(null);
-  const [aiOrbOpen, setAiOrbOpen] = useState(false);
 
   // Modals / sheets
   const [langModalVisible, setLangModalVisible] = useState(false);
@@ -93,6 +90,7 @@ export default function ProfileScreen() {
   const [scoreBoostVisible, setScoreBoostVisible] = useState(false);
   const [logoutSheet, setLogoutSheet] = useState(false);
   const [logoutAnim, setLogoutAnim] = useState(false);
+  const [photoSheetVisible, setPhotoSheetVisible] = useState(false);
 
   // Today tasks are fetched from /api/profile/missions now
   const todayMissions = missionsData?.missions || [];
@@ -156,20 +154,24 @@ export default function ProfileScreen() {
     } catch { Toast.show({ type: 'error', text1: 'Error' }); }
   };
 
-  const pickAvatar = async () => {
-    const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ['images'], allowsEditing: true, aspect: [1, 1], quality: 0.5, base64: true,
-    });
-    if (!result.canceled && result.assets[0].base64) {
-      const b64 = `data:image/jpeg;base64,${result.assets[0].base64}`;
-      setAvatar(b64);
-      try { await uploadAvatar(b64); Toast.show({ type: 'success', text1: 'Photo updated' }); } catch { /* noop */ }
+  const handleAvatarPicked = async (base64DataUri: string) => {
+    await setAvatar(base64DataUri);
+    try {
+      await uploadAvatar(base64DataUri);
+      Toast.show({ type: 'success', text1: 'Profile photo updated' });
+    } catch {
+      Toast.show({ type: 'error', text1: 'Couldn\'t save photo', text2: 'Try again in a moment.' });
     }
   };
 
-  const removeAvatar = async () => {
+  const handleAvatarRemoved = async () => {
     await setAvatar('');
-    try { await uploadAvatar(''); } catch { /* noop */ }
+    try {
+      await deleteAvatar();
+      Toast.show({ type: 'success', text1: 'Profile photo removed' });
+    } catch {
+      Toast.show({ type: 'info', text1: 'Removed locally' });
+    }
   };
 
   const onMissionPress = (m: Mission) => {
@@ -235,8 +237,7 @@ export default function ProfileScreen() {
           predictiveInsight={breakdown?.predictive_insight}
           nextReward={breakdown?.next_tier ? { label: breakdown.next_tier, at: (identity?.money_score || 0) + (breakdown.points_to_next || 0) } : null}
           onEditName={() => { setEditName(user?.name || ''); setEditNameVisible(true); }}
-          onPickAvatar={pickAvatar}
-          onRemoveAvatar={removeAvatar}
+          onEditAvatar={() => setPhotoSheetVisible(true)}
           onLevelUp={() => setScoreBoostVisible(true)}
           onTapScore={() => setScoreBreakdownVisible(true)}
         />
@@ -494,9 +495,14 @@ export default function ProfileScreen() {
         />
       )}
 
-      {/* Floating AI Orb with pulse + bottom sheet */}
-      <AIOrb onPress={() => setAiOrbOpen(true)} bottomOffset={Platform.OS === 'ios' ? 100 : 86} />
-      <AIOrbSheet visible={aiOrbOpen} onClose={() => setAiOrbOpen(false)} />
+      {/* Profile photo CUD sheet — Samsung Health style */}
+      <ProfilePhotoSheet
+        visible={photoSheetVisible}
+        hasAvatar={!!avatar}
+        onClose={() => setPhotoSheetVisible(false)}
+        onPicked={handleAvatarPicked}
+        onRemoved={handleAvatarRemoved}
+      />
     </SafeAreaView>
   );
 }

@@ -698,10 +698,105 @@ metadata:
       ship. Backend hardening is production-ready.
 
 test_plan:
-  current_focus: []
+  current_focus:
+    - "Avatar CUD endpoints (POST empty + DELETE /api/user/avatar)"
   stuck_tasks: []
   test_all: false
   test_priority: "high_first"
+
+avatar_cud_apr22_2026:
+  - task: "Profile Avatar CUD — POST /api/user/avatar (create/update + empty=remove) + DELETE /api/user/avatar"
+    implemented: true
+    working: true
+    file: "/app/backend/routers/user.py"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+      - working: true
+        agent: "testing"
+        comment: |
+          ✅ ALL 27/27 ASSERTIONS PASS (Apr 22 2026, /app/avatar_cud_test.py
+          against https://mintu-finance.preview.emergentagent.com/api).
+          Auth via phone 9876543210 / OTP 123456 → token from
+          /auth/verify-otp.token. Backend reloaded cleanly after main
+          agent's routers/user.py edit (supervisor log confirms
+          'WatchFiles detected changes in routers/user.py').
+
+          ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+          1. CREATE (3/3 ✅)
+          ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+          POST /user/avatar with a small JPEG data-URI base64 string
+          → 200 {"message":"Avatar updated!","avatar":"<same-b64>"}.
+          GET /user/avatar → 200, returns the identical base64 value.
+
+          ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+          2. UPDATE (3/3 ✅)
+          ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+          POST /user/avatar with a different (PNG) base64 string → 200;
+          response echoes new value; GET reflects new value.
+
+          ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+          3. DELETE via POST-empty — NEW BEHAVIOR (4/4 ✅)
+          ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+          POST /user/avatar with {"avatar":""} → 200
+          {"message":"Avatar removed","avatar":""} (previously 400; now
+          200 as designed). Subsequent GET returns {"avatar":""}.
+
+          ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+          4. DELETE via DELETE — NEW ENDPOINT (6/6 ✅)
+          ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+          After re-creating an avatar, DELETE /user/avatar → 200
+          {"message":"Avatar removed","avatar":""}. GET returns
+          {"avatar":""}. Second DELETE (no avatar present) → still 200
+          (idempotent, verified).
+
+          ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+          5. SIZE GUARD (3/3 ✅)
+          ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+          POST with avatar=700_001 chars → 400 "Image too large. Max
+          500KB". Boundary test at exactly 700_000 chars → 200 (accepted).
+
+          ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+          6. AUTH GUARDS (6/6 ✅)
+          ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+          GET/POST/DELETE with no Authorization header → 422
+          (acceptable per spec — FastAPI missing-header response).
+          GET/POST/DELETE with bad bearer token → 401 "Invalid token".
+
+          All 3 avatar endpoints (GET, POST with create/update/empty,
+          DELETE) are PRODUCTION-READY. No regressions observed.
+      - working: "NA"
+        agent: "main"
+        comment: |
+          Added full CUD semantics to the avatar endpoints for the new
+          Samsung Health–style profile avatar UI.
+
+          Changes:
+          • POST /api/user/avatar with {"avatar": "<base64-data-uri>"} → upserts
+            the avatar (unchanged behaviour for the success path).
+          • POST /api/user/avatar with {"avatar": ""} → now UNSETS the field
+            and returns 200 {"message":"Avatar removed","avatar":""} instead
+            of the old 400 "No avatar data". This makes the POST idempotent
+            and lets the client use it as a simple "save" call even when
+            removing.
+          • NEW: DELETE /api/user/avatar → unsets the avatar field, returns
+            200 {"message":"Avatar removed","avatar":""}. Idempotent.
+          • GET /api/user/avatar — unchanged.
+          • Size guard (700KB base64 → 400 "Image too large") preserved for
+            non-empty payloads.
+
+          Auth: Bearer JWT obtained via POST /api/auth/verify-otp with
+          phone=9876543210 otp=123456 (see /app/memory/test_credentials.md).
+
+          Please verify:
+            1. POST with a small valid base64 string → 200, then GET returns
+               the same value.
+            2. POST with "avatar":"" → 200, subsequent GET returns
+               {"avatar":""}.
+            3. DELETE (idempotent) → 200, GET still {"avatar":""}.
+            4. POST with >700KB string → 400.
+            5. Missing/bad auth → 401/422.
 
 profile_hub_and_goals_apr22_2026:
   - task: "Profile Identity Hub + Score-Boosts + Goals CRUD"

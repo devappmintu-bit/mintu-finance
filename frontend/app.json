@@ -13,7 +13,9 @@
       "bundleIdentifier": "com.mintu.finance",
       "infoPlist": {
         "NSMicrophoneUsageDescription": "Record voice to add expenses hands-free",
-        "NSContactsUsageDescription": "Pick friends to split group expenses"
+        "NSContactsUsageDescription": "Pick friends to split group expenses",
+        "NSCameraUsageDescription": "Take a profile photo for your MintU account",
+        "NSPhotoLibraryUsageDescription": "Choose a profile photo from your library"
       }
     },
     "android": {
@@ -25,7 +27,9 @@
       "edgeToEdgeEnabled": true,
       "permissions": [
         "RECORD_AUDIO",
-        "READ_CONTACTS"
+        "READ_CONTACTS",
+        "CAMERA",
+        "READ_MEDIA_IMAGES"
       ]
     },
     "web": {

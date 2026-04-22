@@ -23,7 +23,6 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import AICoachChat from '../../components/AICoachChat';
-import PremiumTeaserCard from '../../components/premium/PremiumTeaserCard';
 import InsightCard from '../../components/ui/InsightCard';
 import NeonButton from '../../components/ui/NeonButton';
 import GlowPill from '../../components/ui/GlowPill';
@@ -144,21 +143,6 @@ export default function AICoachTab() {
           {loading && <ThinkingDots />}
         </View>
 
-        {/* Premium Teaser — loss framing + top 3 leaks (free users) */}
-        {!loading && (
-          <View style={{ marginTop: SPACING.md }}>
-            <PremiumTeaserCard
-              monthlyLoss={Number(waste?.total_wasted || 0)}
-              topLeaks={(waste?.items || []).slice(0, 3).map((w: any) => ({
-                label: w.merchant || w.title || w.category || 'Subscription leak',
-                amount: Number(w.amount || w.monthly_cost || 0),
-                emoji: w.emoji || '🔁',
-              }))}
-              hiddenInsightsCount={6}
-            />
-          </View>
-        )}
-
         {/* Loading skeleton */}
         {loading && (
           <View style={{ gap: 14, marginTop: SPACING.md }}>
@@ -222,7 +206,7 @@ export default function AICoachTab() {
             )}
 
             {/* Streak — gamification */}
-            {pulse.streak_days && pulse.streak_days > 2 && (
+            {(pulse.streak_days || 0) > 2 && (
               <InsightCard
                 icon="flame"
                 tag="STREAK"

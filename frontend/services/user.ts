@@ -24,6 +24,11 @@ export async function uploadAvatar(base64: string): Promise<any> {
   return r.data;
 }
 
+export async function deleteAvatar(): Promise<any> {
+  const r = await api.delete('/user/avatar');
+  return r.data;
+}
+
 export async function fetchUpi(): Promise<{ upi?: string; has_upi: boolean }> {
   const r = await api.get('/user/upi');
   return r.data;

@@ -1,12 +1,15 @@
 /**
- * ProfileHeroV4 — Living Financial Identity Engine.
+ * ProfileHeroV4 — Living Financial Identity Engine (Samsung Health–style avatar).
  *
- * Upgrades over V3:
- *   • Avatar with status ring (green/orange/red — reflects savings health)
- *   • Score is TAPPABLE → opens ScoreBreakdownModal
- *   • Multi-milestone progress rail with animated dots
- *   • Predictive insight line ("Reach Wealth Builder in 9 days")
- *   • Next-unlock reward preview inline
+ * v5 changes:
+ *   • Avatar is now a large, centered circular portrait (Samsung Health style)
+ *     with a soft status ring and a compact white camera badge.
+ *   • Single tap → opens ProfilePhotoSheet (Take / Gallery / Remove). No long-press.
+ *   • Initials fallback (derived from user.name) replaces the old mintu-logo
+ *     placeholder when no photo is set.
+ *   • Identity (avatar + name + phone) is now vertically stacked and centered
+ *     for a calmer, more premium hero.
+ *   • Score breakdown + milestone rail remain unchanged below the identity.
  */
 import React from 'react';
 import { View, Text, TouchableOpacity, Platform, StyleSheet } from 'react-native';
@@ -22,8 +25,8 @@ interface Props {
   predictiveInsight?: string;
   nextReward?: { label: string; at: number } | null;
   onEditName: () => void;
-  onPickAvatar: () => void;
-  onRemoveAvatar: () => void;
+  /** Opens the unified ProfilePhotoSheet (handles take/gallery/remove). */
+  onEditAvatar: () => void;
   onLevelUp: () => void;
   onTapScore: () => void;
 }
@@ -37,18 +40,25 @@ const MILESTONES = [
 ];
 
 const STATUS_COLOR = {
-  green:  '#10B981',
-  orange: '#F59E0B',
-  red:    '#EF4444',
-  none:   'rgba(255,255,255,0.25)',
+  green:  '#34D399',
+  orange: '#FBBF24',
+  red:    '#F87171',
+  none:   'rgba(255,255,255,0.35)',
 } as const;
+
+function getInitials(name?: string): string {
+  if (!name) return 'U';
+  const parts = name.trim().split(/\s+/).slice(0, 2);
+  return parts.map((p) => p[0]).join('').toUpperCase() || 'U';
+}
 
 export default function ProfileHeroV4({
   user, avatar, statusRing, predictiveInsight, nextReward,
-  onEditName, onPickAvatar, onRemoveAvatar, onLevelUp, onTapScore,
+  onEditName, onEditAvatar, onLevelUp, onTapScore,
 }: Props) {
   const score = user?.money_score || 0;
   const ringColor = STATUS_COLOR[statusRing || 'none'];
+  const initials = getInitials(user?.name);
 
   const haptic = () => { if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {}); };
 
@@ -76,40 +86,47 @@ export default function ProfileHeroV4({
       <View style={s.blob1} />
       <View style={s.blob2} />
 
-      {/* Top row: tier pill + edit button */}
+      {/* Top row: tier pill + edit-name button */}
       <View style={s.topRow}>
         <View style={s.tierPill}>
           <Text style={s.tierEmoji}>{currentTier.emoji}</Text>
           <Text style={s.tierTxt}>{currentTier.label.toUpperCase()}</Text>
         </View>
-        <TouchableOpacity style={s.editBtn} onPress={() => { haptic(); onEditName(); }} hitSlop={8} activeOpacity={0.7}>
+        <TouchableOpacity
+          style={s.editBtn}
+          onPress={() => { haptic(); onEditName(); }}
+          hitSlop={8} activeOpacity={0.7}
+          accessibilityLabel="Edit name"
+        >
           <Ionicons name="create-outline" size={16} color="#fff" />
         </TouchableOpacity>
       </View>
 
-      {/* Identity with status ring */}
+      {/* Identity — Samsung Health style avatar (large, centered, camera badge) */}
       <View style={s.identity}>
         <TouchableOpacity
-          onPress={() => { haptic(); onPickAvatar(); }}
-          onLongPress={avatar ? onRemoveAvatar : undefined}
-          style={[s.avatarRing, { borderColor: ringColor }]}
+          onPress={() => { haptic(); onEditAvatar(); }}
           activeOpacity={0.85}
+          style={[s.avatarShell, { borderColor: ringColor }]}
+          accessibilityLabel="Change profile photo"
+          testID="profile-avatar"
         >
           {avatar ? (
-            <Image source={{ uri: avatar }} style={s.avatar} />
+            <Image source={{ uri: avatar }} style={s.avatarImg} contentFit="cover" />
           ) : (
-            <View style={s.avatarPlace}>
-              <Image source={require('../../assets/images/mintu-logo.png')} style={s.avatar} />
+            <View style={s.avatarInitialsWrap}>
+              <Text style={s.avatarInitials}>{initials}</Text>
             </View>
           )}
-          {statusRing ? (
-            <View style={[s.statusDot, { backgroundColor: STATUS_COLOR[statusRing] }]} />
-          ) : null}
+
+          {/* Camera edit badge — tight bottom-right, Samsung Health style */}
+          <View style={s.cameraBadge}>
+            <Ionicons name="camera" size={14} color="#C14A06" />
+          </View>
         </TouchableOpacity>
-        <View style={{ flex: 1, marginLeft: 12, minWidth: 0 }}>
-          <Text style={s.name} numberOfLines={1}>{user?.name || 'User'}</Text>
-          <Text style={s.phone} numberOfLines={1}>{user?.phone || '—'}</Text>
-        </View>
+
+        <Text style={s.name} numberOfLines={1}>{user?.name || 'User'}</Text>
+        <Text style={s.phone} numberOfLines={1}>{user?.phone || '—'}</Text>
       </View>
 
       {/* Score — tappable */}
@@ -166,6 +183,9 @@ export default function ProfileHeroV4({
   );
 }
 
+const AVATAR_SIZE = 96;
+const AVATAR_INNER = AVATAR_SIZE - 8;
+
 const s = StyleSheet.create({
   card: { borderRadius: 24, padding: 20, overflow: 'hidden', position: 'relative', marginBottom: 16, shadowColor: '#C14A06', shadowOpacity: 0.2, shadowRadius: 18, shadowOffset: { width: 0, height: 8 }, elevation: 6 },
   blob1: { position: 'absolute', top: -40, right: -40, width: 140, height: 140, borderRadius: 70, backgroundColor: 'rgba(255,255,255,0.08)' },
@@ -176,15 +196,37 @@ const s = StyleSheet.create({
   tierTxt: { fontSize: 10, fontWeight: '900', color: '#fff', letterSpacing: 0.8 },
   editBtn: { width: 30, height: 30, borderRadius: 15, backgroundColor: 'rgba(0,0,0,0.18)', alignItems: 'center', justifyContent: 'center' },
 
-  identity: { flexDirection: 'row', alignItems: 'center', marginTop: 14 },
-  avatarRing: { width: 56, height: 56, borderRadius: 28, borderWidth: 3, overflow: 'visible', alignItems: 'center', justifyContent: 'center' },
-  avatar: { width: 46, height: 46, borderRadius: 23 },
-  avatarPlace: { width: 46, height: 46, borderRadius: 23, alignItems: 'center', justifyContent: 'center', backgroundColor: '#fff' },
-  statusDot: { position: 'absolute', bottom: -1, right: -1, width: 14, height: 14, borderRadius: 7, borderWidth: 2, borderColor: '#C14A06' },
-  name: { fontSize: 17, fontWeight: '800', color: '#fff', letterSpacing: -0.3 },
-  phone: { fontSize: 12, fontWeight: '600', color: 'rgba(255,255,255,0.78)', marginTop: 1 },
+  // Samsung Health style identity — centered stack
+  identity: { alignItems: 'center', marginTop: 14 },
+  avatarShell: {
+    width: AVATAR_SIZE, height: AVATAR_SIZE, borderRadius: AVATAR_SIZE / 2,
+    borderWidth: 3,
+    backgroundColor: 'rgba(255,255,255,0.12)',
+    alignItems: 'center', justifyContent: 'center',
+    position: 'relative',
+    // subtle inner glow
+    shadowColor: '#000', shadowOpacity: 0.2, shadowRadius: 10, shadowOffset: { width: 0, height: 4 }, elevation: 4,
+  },
+  avatarImg: { width: AVATAR_INNER, height: AVATAR_INNER, borderRadius: AVATAR_INNER / 2 },
+  avatarInitialsWrap: {
+    width: AVATAR_INNER, height: AVATAR_INNER, borderRadius: AVATAR_INNER / 2,
+    alignItems: 'center', justifyContent: 'center',
+    backgroundColor: '#fff',
+  },
+  avatarInitials: { fontSize: 32, fontWeight: '900', color: '#C14A06', letterSpacing: -0.5 },
+  cameraBadge: {
+    position: 'absolute', right: -2, bottom: -2,
+    width: 30, height: 30, borderRadius: 15,
+    backgroundColor: '#fff',
+    alignItems: 'center', justifyContent: 'center',
+    borderWidth: 2, borderColor: '#C14A06',
+    shadowColor: '#000', shadowOpacity: 0.2, shadowRadius: 4, shadowOffset: { width: 0, height: 2 }, elevation: 3,
+  },
 
-  scoreBlock: { marginTop: 16 },
+  name: { fontSize: 20, fontWeight: '800', color: '#fff', letterSpacing: -0.3, marginTop: 12, textAlign: 'center' },
+  phone: { fontSize: 12.5, fontWeight: '600', color: 'rgba(255,255,255,0.78)', marginTop: 2, textAlign: 'center' },
+
+  scoreBlock: { marginTop: 20 },
   label: { fontSize: 10.5, fontWeight: '800', color: 'rgba(255,255,255,0.75)', letterSpacing: 1, textTransform: 'uppercase' },
   amountRow: { flexDirection: 'row', alignItems: 'baseline', marginTop: 2 },
   amount: { fontSize: 44, fontWeight: '900', color: '#fff', letterSpacing: -1.5 },
@@ -203,6 +245,6 @@ const s = StyleSheet.create({
   rewardEmoji: { fontSize: 12 },
   rewardTxt: { fontSize: 11.5, fontWeight: '600', color: 'rgba(255,255,255,0.88)' },
 
-  cta: { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 16, alignSelf: 'flex-start', backgroundColor: 'rgba(0,0,0,0.22)', paddingVertical: 9, paddingHorizontal: 14, borderRadius: 999 },
+  cta: { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 16, alignSelf: 'center', backgroundColor: 'rgba(0,0,0,0.22)', paddingVertical: 9, paddingHorizontal: 14, borderRadius: 999 },
   ctaTxt: { fontSize: 12.5, fontWeight: '800', color: '#fff', letterSpacing: 0.2 },
 });
