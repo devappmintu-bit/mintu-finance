@@ -1,4 +1,4 @@
-import { Stack } from 'expo-router';
+import { Stack, router } from 'expo-router';
 import React, { useEffect } from 'react';
 import { StatusBar } from 'expo-status-bar';
 import { LogBox, Platform, View } from 'react-native';
@@ -78,6 +78,23 @@ export default function RootLayout() {
     loadFromStorage();
     loadLang();
     loadThemePref();
+  }, []);
+
+  /**
+   * Auth-expired redirect.
+   * When the axios interceptor detects a 401 on a request that *had* a token,
+   * it calls authStore.lock(). We subscribe to that transition and push the
+   * user to /unlock so they can re-authenticate with PIN/biometric.
+   */
+  useEffect(() => {
+    let prev = useAuthStore.getState().locked;
+    const unsub = useAuthStore.subscribe((state) => {
+      if (!prev && state.locked) {
+        try { router.replace('/unlock'); } catch { /* noop */ }
+      }
+      prev = state.locked;
+    });
+    return unsub;
   }, []);
 
   // Keep background dark while fonts are warming up — no jarring flash.

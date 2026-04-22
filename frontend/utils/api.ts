@@ -1,6 +1,7 @@
 import axios from 'axios';
 import Constants from 'expo-constants';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import Toast from 'react-native-toast-message';
 
 const API_URL = Constants.expoConfig?.extra?.EXPO_PUBLIC_BACKEND_URL || process.env.EXPO_PUBLIC_BACKEND_URL || '';
 
@@ -16,6 +17,42 @@ api.interceptors.request.use(async (config) => {
   return config;
 });
 
+/**
+ * Auth-expired handling.
+ *
+ * When the backend rejects a request with 401 while we *had* a token, the
+ * session is truly expired (or revoked). We:
+ *   1. Clear the local token + caches.
+ *   2. Soft-lock the app so `_layout` redirects to /unlock (PIN/biometric).
+ *   3. Show a single throttled toast so parallel failures don't spam.
+ *
+ * Missing-token 401/422 (user never logged in) stays silent — no spam.
+ */
+let lastAuthToastAt = 0;
+let authExpiredHandled = false;
+const notifyAuthExpired = async (hadToken: boolean) => {
+  if (!hadToken) return;                          // never logged in → silent
+  if (authExpiredHandled) return;                 // avoid re-entry within same tick
+  const now = Date.now();
+  if (now - lastAuthToastAt < 10000) return;      // throttle to 1 toast / 10s
+  lastAuthToastAt = now;
+  authExpiredHandled = true;
+  try {
+    await AsyncStorage.removeItem('token');
+    Toast.show({
+      type: 'info',
+      text1: 'Session expired',
+      text2: 'Unlock to continue where you left off.',
+    });
+    // Dynamic import avoids a cycle at module-init time (store imports api).
+    const { useAuthStore } = await import('../store/authStore');
+    await useAuthStore.getState().lock();
+  } catch { /* noop */ } finally {
+    // Allow another toast after the throttle window
+    setTimeout(() => { authExpiredHandled = false; }, 10000);
+  }
+};
+
 // Retry on 429/5xx with exponential backoff + request dedup
 const pendingRequests = new Map<string, Promise<any>>();
 
@@ -24,6 +61,13 @@ api.interceptors.response.use(
   async (error) => {
     const config = error.config;
     const status = error.response?.status;
+
+    // Auth expired — clear token + soft-lock
+    if (status === 401) {
+      const sentToken = !!config?.headers?.Authorization;
+      notifyAuthExpired(sentToken);
+      return Promise.reject(error);
+    }
 
     // Retry on 429 or 5xx (up to 2 times)
     if ((status === 429 || (status >= 500 && status < 600)) && (!config._retryCount || config._retryCount < 2)) {
