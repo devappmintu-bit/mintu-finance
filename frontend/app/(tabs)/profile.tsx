@@ -43,6 +43,8 @@ import InviteEarnStrip from '../../components/profile/InviteEarnStrip';
 import PremiumUpsellInline from '../../components/profile/PremiumUpsellInline';
 import ScoreBoostModal from '../../components/profile/ScoreBoostModal';
 import AccordionSection from '../../components/profile/AccordionSection';
+import { SettingsGroup, SettingsRow } from '../../components/profile/SettingsGroup';
+import DeleteAccountTrigger, { type DeleteAccountTriggerRef } from '../../components/profile/DeleteAccountTrigger';
 import ThemeToggle from '../../components/profile/ThemeToggle';
 import FinancialSnapshot from '../../components/profile/FinancialSnapshot';
 import PaymentMethodsV2 from '../../components/profile/PaymentMethodsV2';
@@ -75,10 +77,15 @@ export default function ProfileScreen() {
   const [rewardsSummary, setRewardsSummary] = useState<any>(null);
   const [identity, setIdentity] = useState<any>(null);
   const [scoreBoostVisible, setScoreBoostVisible] = useState(false);
+  const [achievementsModalVisible, setAchievementsModalVisible] = useState(false);
+  const [paymentMethodsVisible, setPaymentMethodsVisible] = useState(false);
+  const [preferencesVisible, setPreferencesVisible] = useState(false);
+  const [notifsVisible, setNotifsVisible] = useState(false);
   const [logoutAnim, setLogoutAnim] = useState(false);
   const [shareCardVisible, setShareCardVisible] = useState(false);
   const [sharing, setSharing] = useState(false);
   const scoreCardRef = useRef<View>(null);
+  const deleteAccountRef = useRef<DeleteAccountTriggerRef>(null);
 
   const loadData = useCallback(async () => {
     try {
@@ -320,187 +327,200 @@ export default function ProfileScreen() {
           <PremiumUpsellInline isPro={isPro} />
         </View>
 
-        {/* 9. COLLAPSED SETTINGS */}
-        <Text style={s.secTitle}>Settings</Text>
+        {/* 9. SETTINGS — modern grouped cards with unified rows */}
 
-        <AccordionSection
-          icon="ribbon"
-          iconTint="#F59E0B"
-          title="Achievements"
-          subtitle="Budget streaks & milestone badges"
-        >
-          <BudgetAchievements />
-        </AccordionSection>
-
-        <AccordionSection
-          icon="flag"
-          iconTint="#10B981"
-          title="My Goals"
-          subtitle="Savings goals with progress rings"
-        >
-          <TouchableOpacity
-            style={s.inlineRow}
+        <SettingsGroup header="Financial Hub">
+          <SettingsRow
+            icon="flag"
+            iconTint="#10B981"
+            title="My Goals"
+            subtitle="Savings goals with progress rings"
             onPress={() => router.push('/goals' as any)}
-            activeOpacity={0.7}
-          >
-            <View style={[s.inlineIcon, { backgroundColor: '#10B98120' }]}>
-              <Ionicons name="flag" size={16} color="#10B981" />
-            </View>
-            <View style={{ flex: 1 }}>
-              <Text style={s.inlineTitle}>Open Goals Dashboard</Text>
-              <Text style={s.inlineSub}>Create, edit & track savings goals</Text>
-            </View>
-            <Ionicons name="chevron-forward" size={14} color={COLORS.text.muted} />
-          </TouchableOpacity>
-        </AccordionSection>
+          />
+          <SettingsRow
+            icon="ribbon"
+            iconTint="#F59E0B"
+            title="Achievements"
+            subtitle="Budget streaks & milestone badges"
+            onPress={() => setAchievementsModalVisible(true)}
+          />
+          <SettingsRow
+            icon="card"
+            iconTint="#3B82F6"
+            title="Payment Methods"
+            subtitle="UPI · Cards · Wallets · Net Banking"
+            onPress={() => setPaymentMethodsVisible(true)}
+          />
+        </SettingsGroup>
 
-        <AccordionSection
-          icon="card"
-          iconTint="#10B981"
-          title="Payment Methods"
-          subtitle="UPI · Cards · Wallets · Net Banking"
-        >
-          <PaymentMethodsV2 />
-        </AccordionSection>
-
-        <AccordionSection
-          icon="color-palette"
-          iconTint="#8B5CF6"
-          title="Preferences"
-          subtitle="Theme & language"
-        >
-          <ThemeToggle />
-          <TouchableOpacity
-            style={s.inlineRow}
-            onPress={() => setLangModalVisible(true)}
-            activeOpacity={0.7}
-          >
-            <View style={[s.inlineIcon, { backgroundColor: COLORS.accent.primary + '1F' }]}>
-              <Ionicons name="language" size={16} color={COLORS.accent.primary} />
-            </View>
-            <View style={{ flex: 1 }}>
-              <Text style={s.inlineTitle}>{t('language', lang)}</Text>
-              <Text style={[s.inlineSub, { color: COLORS.accent.primary }]}>{currentLang?.nativeName}</Text>
-            </View>
-            <Ionicons name="chevron-forward" size={14} color={COLORS.text.muted} />
-          </TouchableOpacity>
-        </AccordionSection>
-
-        <AccordionSection
-          icon="notifications"
-          iconTint="#F56E1E"
-          title="Notifications"
-          subtitle="Daily nudges & weekly reports"
-        >
-          <NotificationSettings />
-          <TouchableOpacity
-            style={s.inlineRow}
-            onPress={async () => {
-              const { sent, message } = await sendTestPush();
-              Toast.show({ type: sent ? 'success' : 'info', text1: sent ? 'Test push sent!' : 'Push test', text2: message });
-            }}
-            activeOpacity={0.7}
-          >
-            <View style={[s.inlineIcon, { backgroundColor: '#F59E0B1F' }]}>
-              <Ionicons name="send" size={16} color="#F59E0B" />
-            </View>
-            <View style={{ flex: 1 }}>
-              <Text style={s.inlineTitle}>Send test notification</Text>
-              <Text style={s.inlineSub}>Verify push setup on your device</Text>
-            </View>
-            <Ionicons name="chevron-forward" size={14} color={COLORS.text.muted} />
-          </TouchableOpacity>
-        </AccordionSection>
-
-        <AccordionSection
-          icon="link"
-          iconTint="#EA4335"
-          title="Connected Accounts"
-          subtitle="Gmail auto-import · UPI"
-        >
-          <TouchableOpacity
-            style={s.inlineRow}
+        <SettingsGroup header="App">
+          <SettingsRow
+            icon="color-palette"
+            iconTint="#8B5CF6"
+            title="Theme & Language"
+            subtitle={`Auto · ${currentLang?.nativeName}`}
+            onPress={() => setPreferencesVisible(true)}
+          />
+          <SettingsRow
+            icon="notifications"
+            iconTint="#F56E1E"
+            title="Notifications"
+            subtitle="Daily nudges & weekly reports"
+            onPress={() => setNotifsVisible(true)}
+          />
+          <SettingsRow
+            icon="link"
+            iconTint="#EA4335"
+            title="Connected Accounts"
+            subtitle="Gmail auto-import · UPI"
             onPress={() => router.push('/gmail' as any)}
-            activeOpacity={0.7}
-          >
-            <View style={[s.inlineIcon, { backgroundColor: '#EA433518' }]}>
-              <Ionicons name="mail-outline" size={16} color="#EA4335" />
-            </View>
-            <View style={{ flex: 1 }}>
-              <Text style={s.inlineTitle}>Gmail Auto-Import</Text>
-              <Text style={s.inlineSub}>Auto-track bank transactions from inbox</Text>
-            </View>
-            <Ionicons name="chevron-forward" size={14} color={COLORS.text.muted} />
-          </TouchableOpacity>
-        </AccordionSection>
+          />
+        </SettingsGroup>
 
-        <AccordionSection
-          icon="help-circle"
-          iconTint="#0EA5E9"
-          title="Help & About"
-          subtitle="FAQs · feedback · app version"
-        >
-          <TouchableOpacity
-            style={s.inlineRow}
+        <SettingsGroup header="Support">
+          <SettingsRow
+            icon="help-circle"
+            iconTint="#0EA5E9"
+            title={t('help_support', lang)}
+            subtitle="FAQs, bug reports & feedback"
             onPress={() => setHelpVisible(true)}
-            activeOpacity={0.7}
-          >
-            <View style={[s.inlineIcon, { backgroundColor: '#38BDF81F' }]}>
-              <Ionicons name="help-circle-outline" size={16} color="#0EA5E9" />
-            </View>
-            <View style={{ flex: 1 }}>
-              <Text style={s.inlineTitle}>{t('help_support', lang)}</Text>
-              <Text style={s.inlineSub}>FAQs, bug reports & feedback</Text>
-            </View>
-            <Ionicons name="chevron-forward" size={14} color={COLORS.text.muted} />
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={s.inlineRow}
+          />
+          <SettingsRow
+            icon="information-circle"
+            iconTint="#8B5CF6"
+            title="About MintU"
+            subtitle="Features · Why MintU · v1.0.0"
             onPress={() => router.push('/about' as any)}
-            activeOpacity={0.7}
-          >
-            <View style={[s.inlineIcon, { backgroundColor: '#8B5CF61F' }]}>
-              <Ionicons name="information-circle-outline" size={16} color="#8B5CF6" />
-            </View>
-            <View style={{ flex: 1 }}>
-              <Text style={s.inlineTitle}>About MintU</Text>
-              <Text style={s.inlineSub}>Features · Why MintU · v1.0.0</Text>
-            </View>
-            <Ionicons name="chevron-forward" size={14} color={COLORS.text.muted} />
-          </TouchableOpacity>
-        </AccordionSection>
+          />
+        </SettingsGroup>
 
-        {/* Logout */}
-        <TapTile style={s.logoutBtn} onPress={handleLogout} feedback="medium" testID="profile-logout">
-          <Ionicons name="log-out-outline" size={20} color={COLORS.accent.moneyOut} />
-          <Text style={s.logoutText}>{t('logout', lang)}</Text>
-        </TapTile>
+        {/* Account actions — matching UI/UX for logout + delete */}
+        <SettingsGroup header="Account" footer="Deleting is reversible for 30 days. Hard delete wipes all data across 25+ collections.">
+          <SettingsRow
+            icon="log-out-outline"
+            iconTint="#EF4444"
+            title={t('logout', lang)}
+            subtitle="Sign out of this device"
+            danger
+            onPress={handleLogout}
+            testID="profile-logout"
+          />
+          <SettingsRow
+            icon="trash-outline"
+            iconTint="#EF4444"
+            title="Delete account"
+            subtitle="Schedule (30d) or delete immediately"
+            danger
+            onPress={() => deleteAccountRef.current?.open()}
+            testID="profile-delete-account"
+          />
+        </SettingsGroup>
 
-        {/* Danger zone */}
-        <DeleteAccountSection />
-
-        {/* Trust Signals */}
-        <View style={s.trustSignalsRow}>
-          <View style={s.trustSig}>
-            <Text style={s.trustSigEmoji}>🔒</Text>
-            <Text style={s.trustSigText}>Bank-grade{'\n'}encryption</Text>
-          </View>
-          <View style={s.trustSig}>
-            <Text style={s.trustSigEmoji}>🇮🇳</Text>
-            <Text style={s.trustSigText}>Data stored{'\n'}in India</Text>
-          </View>
-          <View style={s.trustSig}>
-            <Text style={s.trustSigEmoji}>✅</Text>
-            <Text style={s.trustSigText}>RBI-aligned{'\n'}practices</Text>
-          </View>
-        </View>
-        <View style={s.trustBox}>
-          <Ionicons name="shield-checkmark" size={14} color="#10B981" />
-          <Text style={s.trustText}>Aligned with RBI data localization guidelines · India servers</Text>
+        {/* Footer: minimal trust badge + version */}
+        <View style={s.trustFooter}>
+          <Ionicons name="shield-checkmark" size={13} color="#10B981" />
+          <Text style={s.trustFooterTxt}>
+            Bank-grade encryption · Data stored in India · RBI-aligned
+          </Text>
         </View>
         <Text style={s.version}>v1.0.0 · Made with ❤️ in India</Text>
         <View style={{ height: 30 }} />
       </ScrollView>
+
+      {/* Headless delete-account trigger — modals live here */}
+      <DeleteAccountTrigger ref={deleteAccountRef} />
+
+      {/* Sub-screen modals launched from SettingsGroup rows */}
+      <Modal visible={achievementsModalVisible} animationType="slide" onRequestClose={() => setAchievementsModalVisible(false)}>
+        <SafeAreaView style={{ flex: 1, backgroundColor: COLORS.bg.primary }}>
+          <View style={s.subHeader}>
+            <TouchableOpacity onPress={() => setAchievementsModalVisible(false)} hitSlop={10}>
+              <Ionicons name="close" size={24} color={COLORS.text.primary} />
+            </TouchableOpacity>
+            <Text style={s.subHeaderTitle}>Achievements</Text>
+            <View style={{ width: 24 }} />
+          </View>
+          <ScrollView contentContainerStyle={{ padding: 16, paddingBottom: 60 }}>
+            <BudgetAchievements />
+          </ScrollView>
+        </SafeAreaView>
+      </Modal>
+
+      <Modal visible={paymentMethodsVisible} animationType="slide" onRequestClose={() => setPaymentMethodsVisible(false)}>
+        <SafeAreaView style={{ flex: 1, backgroundColor: COLORS.bg.primary }}>
+          <View style={s.subHeader}>
+            <TouchableOpacity onPress={() => setPaymentMethodsVisible(false)} hitSlop={10}>
+              <Ionicons name="close" size={24} color={COLORS.text.primary} />
+            </TouchableOpacity>
+            <Text style={s.subHeaderTitle}>Payment Methods</Text>
+            <View style={{ width: 24 }} />
+          </View>
+          <ScrollView contentContainerStyle={{ padding: 16, paddingBottom: 60 }}>
+            <PaymentMethodsV2 />
+          </ScrollView>
+        </SafeAreaView>
+      </Modal>
+
+      <Modal visible={preferencesVisible} animationType="slide" onRequestClose={() => setPreferencesVisible(false)}>
+        <SafeAreaView style={{ flex: 1, backgroundColor: COLORS.bg.primary }}>
+          <View style={s.subHeader}>
+            <TouchableOpacity onPress={() => setPreferencesVisible(false)} hitSlop={10}>
+              <Ionicons name="close" size={24} color={COLORS.text.primary} />
+            </TouchableOpacity>
+            <Text style={s.subHeaderTitle}>Theme & Language</Text>
+            <View style={{ width: 24 }} />
+          </View>
+          <ScrollView contentContainerStyle={{ padding: 16, paddingBottom: 60 }}>
+            <ThemeToggle />
+            <TouchableOpacity
+              style={s.inlineRow}
+              onPress={() => { setPreferencesVisible(false); setTimeout(() => setLangModalVisible(true), 300); }}
+              activeOpacity={0.7}
+            >
+              <View style={[s.inlineIcon, { backgroundColor: COLORS.accent.primary + '1F' }]}>
+                <Ionicons name="language" size={16} color={COLORS.accent.primary} />
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={s.inlineTitle}>{t('language', lang)}</Text>
+                <Text style={[s.inlineSub, { color: COLORS.accent.primary }]}>{currentLang?.nativeName}</Text>
+              </View>
+              <Ionicons name="chevron-forward" size={14} color={COLORS.text.muted} />
+            </TouchableOpacity>
+          </ScrollView>
+        </SafeAreaView>
+      </Modal>
+
+      <Modal visible={notifsVisible} animationType="slide" onRequestClose={() => setNotifsVisible(false)}>
+        <SafeAreaView style={{ flex: 1, backgroundColor: COLORS.bg.primary }}>
+          <View style={s.subHeader}>
+            <TouchableOpacity onPress={() => setNotifsVisible(false)} hitSlop={10}>
+              <Ionicons name="close" size={24} color={COLORS.text.primary} />
+            </TouchableOpacity>
+            <Text style={s.subHeaderTitle}>Notifications</Text>
+            <View style={{ width: 24 }} />
+          </View>
+          <ScrollView contentContainerStyle={{ padding: 16, paddingBottom: 60 }}>
+            <NotificationSettings />
+            <TouchableOpacity
+              style={s.inlineRow}
+              onPress={async () => {
+                const { sent, message } = await sendTestPush();
+                Toast.show({ type: sent ? 'success' : 'info', text1: sent ? 'Test push sent!' : 'Push test', text2: message });
+              }}
+              activeOpacity={0.7}
+            >
+              <View style={[s.inlineIcon, { backgroundColor: '#F59E0B1F' }]}>
+                <Ionicons name="send" size={16} color="#F59E0B" />
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={s.inlineTitle}>Send test notification</Text>
+                <Text style={s.inlineSub}>Verify push setup on your device</Text>
+              </View>
+              <Ionicons name="chevron-forward" size={14} color={COLORS.text.muted} />
+            </TouchableOpacity>
+          </ScrollView>
+        </SafeAreaView>
+      </Modal>
 
       {/* ── Modals ── */}
       <Modal visible={langModalVisible} animationType="slide" transparent>
@@ -687,7 +707,21 @@ const useStyles = makeStyles((c) => ({
 
   logoutBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, backgroundColor: c.accent.moneyOut + '10', borderRadius: 999, paddingVertical: 16, marginTop: 12 },
   logoutText: { fontSize: 16, fontWeight: '600', color: c.accent.moneyOut },
-  version: { textAlign: 'center', fontSize: 11, color: c.text.muted, marginTop: 12 },
+  version: { textAlign: 'center', fontSize: 11, color: c.text.muted, marginTop: 10 },
+
+  // Compact footer (replaces verbose trust signals)
+  trustFooter: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6,
+    marginTop: 10, paddingVertical: 8, paddingHorizontal: 12,
+  },
+  trustFooterTxt: { fontSize: 10.5, fontWeight: '600', color: c.text.muted, letterSpacing: 0.1 },
+
+  // Sub-modal header (used by Achievements / PaymentMethods / Preferences / Notifs modals)
+  subHeader: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
+    padding: 16, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: c.border.subtle,
+  },
+  subHeaderTitle: { fontSize: 17, fontWeight: '900', color: c.text.primary },
 
   trustBox: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, marginTop: 14, paddingVertical: 10, paddingHorizontal: 12, backgroundColor: '#10B98110', borderRadius: 12, borderWidth: 1, borderColor: '#10B98125' },
   trustText: { fontSize: 11, fontWeight: '600', color: '#059669', flex: 0, textAlign: 'center' },

@@ -8662,3 +8662,69 @@ agent_communication:
         to unblock D.
       • Wire EmbeddedFinance tap events to actual partner URLs
         once partner onboarding is complete.
+
+# ─────────────────────────────────────────────────────────────
+# PROFILE SECTION MODERN REVAMP — Unified iOS-style grouped UI
+# Apr 22 2026 · main agent
+# ─────────────────────────────────────────────────────────────
+frontend:
+  - task: "Profile Section Modern Revamp — SettingsGroup/SettingsRow"
+    implemented: true
+    working: true
+    file: "/app/frontend/components/profile/SettingsGroup.tsx"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+      - working: true
+        agent: "main"
+        comment: |
+          Unified the entire Settings footer into iOS-style grouped
+          cards with consistent row typography:
+
+          • New primitives: SettingsGroup (card with header/footer
+            + auto dividers) and SettingsRow (icon bubble, title,
+            subtitle, optional badge, chevron, danger mode).
+          • 4 groups: Financial Hub, App, Support, Account.
+          • Logout and Delete Account now use identical
+            SettingsRow visuals (matching UX per user request).
+            Both red, same icon-bubble, title, sub, chevron.
+          • Headless DeleteAccountTrigger component exposes an
+            `open()` ref method; the visible trigger is now a
+            regular SettingsRow — so styles stay consistent.
+          • Replaced the 7 AccordionSection settings with a mix of
+            SettingsGroups + targeted SafeAreaView sub-modals (for
+            Achievements, Payment Methods, Theme & Language,
+            Notifications). Each sub-modal has consistent header
+            bar.
+          • Retired verbose 3-emoji Trust Signals row; replaced
+            with a single-line compact footer:
+            "🛡 Bank-grade encryption · Data stored in India ·
+            RBI-aligned".
+          • Kept Hero, Progression Strip, Challenges, Insights,
+            Snapshot, Leaderboard, Rewards accordion, Invite &
+            Earn, Premium Upsell, Score Boost modal intact.
+
+          Verified live on /profile: every settings row has
+          identical visual weight; the ACCOUNT group shows Logout
+          and Delete as matching danger rows.
+
+agent_communication:
+  - agent: "main"
+    message: |
+      ✅ Profile section fully revamped to a modern, in-app
+      design style. (Apr 22 2026)
+
+      • Logout + Delete Account share the exact same UI/UX
+        pattern inside a unified "ACCOUNT" SettingsGroup.
+      • Settings use iOS-style grouped cards — clean hierarchy,
+        zero accordion clutter on first paint.
+      • Compact trust footer + minimal version line replace the
+        previous verbose trust signals block.
+      • Hero, Progression, Challenges, Insights, Leaderboard,
+        Rewards, Invite & Earn, Premium Upsell unaffected.
+
+      Next Action Items:
+      • Optional: add swipe-back gesture to sub-modals.
+      • Optional: apply same SettingsGroup primitive to other
+        tabs (Budget, Split) for app-wide consistency.
