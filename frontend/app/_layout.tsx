@@ -22,11 +22,13 @@ import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { BottomSheetModalProvider } from '@gorhom/bottom-sheet';
 import { PortalProvider } from '@gorhom/portal';
 import { COLORS } from '../utils/theme';
+import ErrorBoundary from '../components/ErrorBoundary';
 
 // Silence noisy, non-actionable deprecation warnings from RN core + libs.
 // These warnings are informational for future RN versions and don't affect runtime.
 const NOISY_PATTERNS = [
   '"shadow*" style props are deprecated',
+  '"textShadow*" style props are deprecated',
   'props.pointerEvents is deprecated',
   '[expo-av]',
   '[expo-notifications]',
@@ -92,6 +94,7 @@ export default function RootLayout() {
 
   return (
     <GestureHandlerRootView style={{ flex: 1, backgroundColor: COLORS.bg.primary }}>
+      <ErrorBoundary>
       <PortalProvider>
         <BottomSheetModalProvider>
           {/*
@@ -127,6 +130,7 @@ export default function RootLayout() {
           <ThemeTransitionOverlay />
         </BottomSheetModalProvider>
       </PortalProvider>
+      </ErrorBoundary>
     </GestureHandlerRootView>
   );
 }

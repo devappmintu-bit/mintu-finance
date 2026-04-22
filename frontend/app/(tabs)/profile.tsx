@@ -55,6 +55,7 @@ import { deriveWin } from '../../components/profile/WeeklyWinCard';
 import SubScreenModal from '../../components/profile/SubScreenModal';
 import EditNameSheet from '../../components/profile/EditNameSheet';
 import LanguageSheet from '../../components/profile/LanguageSheet';
+import ProfileSkeleton from '../../components/profile/ProfileSkeleton';
 
 // Retained sub-screens (opened only via explicit settings tap)
 import BudgetAchievements from '../../components/budget/BudgetAchievements';
@@ -98,6 +99,8 @@ export default function ProfileScreen() {
   // Today tasks are fetched from /api/profile/missions now
   const todayMissions = missionsData?.missions || [];
 
+  const [initialLoading, setInitialLoading] = useState(true);
+
   const loadData = useCallback(async () => {
     try {
       const [avatarRes, statsRes, gamiRes, rewardsRes, identityRes, breakdownRes, weeklyRes, missionsRes, gmailRes] = await Promise.all([
@@ -120,7 +123,10 @@ export default function ProfileScreen() {
       if (weeklyRes.data) setWeekly(weeklyRes.data);
       if (missionsRes.data) setMissionsData(missionsRes.data);
       if (gmailRes.data) setGmailStatus(gmailRes.data);
-    } catch { /* noop */ } finally { setRefreshing(false); }
+    } catch { /* noop */ } finally {
+      setRefreshing(false);
+      setInitialLoading(false);
+    }
   }, [setAvatar]);
 
   useEffect(() => { loadData(); }, [loadData]);
@@ -223,6 +229,11 @@ export default function ProfileScreen() {
           <Text style={s.topBarTitle}>Profile</Text>
         </View>
 
+        {/* Initial load skeleton — shown once, never on refresh */}
+        {initialLoading && !identity ? (
+          <ProfileSkeleton />
+        ) : (
+        <>
         {/* 1. HERO — Living Financial Identity */}
         <ProfileHeroV4
           user={user}
@@ -330,6 +341,8 @@ export default function ProfileScreen() {
         </View>
         <Text style={s.version}>v1.0.0</Text>
         <View style={{ height: 40 }} />
+        </>
+        )}
       </ScrollView>
 
       {/* ── Modals / Sheets ── */}
