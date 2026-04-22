@@ -114,73 +114,168 @@ const useStyles = makeStyles((c) => ({
   barHero: { backgroundColor: 'rgba(255,255,255,0.35)' },
   hero: { marginTop: 16, borderRadius: RADIUS.card, padding: 18, overflow: 'hidden' },
   txItem: { flexDirection: 'row', alignItems: 'center', padding: SPACING.md, borderRadius: RADIUS.xl, backgroundColor: c.bg.secondary, marginBottom: SPACING.sm },
+  budgetCard: {
+    marginTop: SPACING.md, padding: SPACING.md,
+    borderRadius: RADIUS.card, backgroundColor: c.bg.secondary,
+    borderWidth: StyleSheet.hairlineWidth, borderColor: c.border.subtle,
+  },
 }));
 
+/**
+ * TransactionsSkeleton — 5 pill-shaped day groups + filter chips.
+ * Mirrors the real transactions list layout with category icon + title+subtitle + amount.
+ */
 export const TransactionsSkeleton = () => {
   const sk = useStyles();
   return (
   <View style={sk.container}>
     <View style={sk.row}>
       <View style={{ flex: 1 }}>
-        <Skeleton width={140} height={28} />
-        <Skeleton width={80} height={14} style={{ marginTop: 6 }} />
+        <Skeleton width={60} height={10} />
+        <Skeleton width={160} height={24} style={{ marginTop: 6 }} />
       </View>
-      <Skeleton width={44} height={44} borderRadius={22} />
+      <Skeleton width={36} height={36} borderRadius={18} />
     </View>
-    <Skeleton height={52} borderRadius={999} style={{ marginTop: 16 }} />
-    <Skeleton height={80} borderRadius={RADIUS.card} style={{ marginTop: 16 }} />
-    {[1, 2, 3, 4, 5].map(i => (
-      <View key={i} style={[sk.row, { marginTop: 10, gap: 12 }]}>
-        <Skeleton width={44} height={44} borderRadius={16} />
-        <View style={{ flex: 1 }}>
-          <Skeleton width={'70%' as any} height={16} />
-          <Skeleton width={'40%' as any} height={12} style={{ marginTop: 6 }} />
+
+    {/* Filter chips row */}
+    <View style={[sk.row, { marginTop: 14, gap: 8 }]}>
+      <Skeleton width={72} height={32} borderRadius={999} />
+      <Skeleton width={88} height={32} borderRadius={999} />
+      <Skeleton width={64} height={32} borderRadius={999} />
+      <Skeleton width={80} height={32} borderRadius={999} />
+    </View>
+
+    {/* Summary card (week total) */}
+    <Skeleton height={90} borderRadius={RADIUS.card} style={{ marginTop: 14 }} />
+
+    {/* Day header + 3 rows */}
+    <Skeleton width={90} height={12} style={{ marginTop: 18 }} />
+    {[1, 2, 3].map(i => (
+      <View key={i} style={sk.txItem}>
+        <Skeleton width={40} height={40} borderRadius={20} />
+        <View style={{ flex: 1, marginLeft: 12 }}>
+          <Skeleton width={'70%' as any} height={14} />
+          <Skeleton width={'40%' as any} height={10} style={{ marginTop: 6 }} />
         </View>
-        <Skeleton width={60} height={18} />
+        <Skeleton width={70} height={16} />
+      </View>
+    ))}
+
+    {/* Second day header + 2 rows */}
+    <Skeleton width={90} height={12} style={{ marginTop: 12 }} />
+    {[1, 2].map(i => (
+      <View key={i} style={sk.txItem}>
+        <Skeleton width={40} height={40} borderRadius={20} />
+        <View style={{ flex: 1, marginLeft: 12 }}>
+          <Skeleton width={'60%' as any} height={14} />
+          <Skeleton width={'30%' as any} height={10} style={{ marginTop: 6 }} />
+        </View>
+        <Skeleton width={70} height={16} />
       </View>
     ))}
   </View>
   );
 };
 
+/**
+ * BudgetSkeleton — header + month scroller + 3 category budget cards with progress rings.
+ */
 export const BudgetSkeleton = () => {
   const sk = useStyles();
   return (
   <View style={sk.container}>
     <View style={sk.row}>
       <View style={{ flex: 1 }}>
-        <Skeleton width={120} height={28} />
-        <Skeleton width={60} height={14} style={{ marginTop: 6 }} />
+        <Skeleton width={60} height={10} />
+        <Skeleton width={120} height={22} style={{ marginTop: 6 }} />
       </View>
-      <Skeleton width={44} height={44} borderRadius={22} />
+      <Skeleton width={36} height={36} borderRadius={18} />
     </View>
+
+    {/* Month scroller chips */}
+    <View style={[sk.row, { marginTop: 14, gap: 8 }]}>
+      {[1,2,3,4,5].map(i => (
+        <Skeleton key={i} width={56} height={32} borderRadius={999} />
+      ))}
+    </View>
+
+    {/* Overall gradient budget hero */}
+    <LinearGradient
+      colors={['#F56E1E', '#C14A06']}
+      start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}
+      style={sk.hero}
+    >
+      <Skeleton width={100} height={10} onHero />
+      <View style={{ height: 8 }} />
+      <Skeleton width={180} height={36} borderRadius={6} onHero />
+      <View style={{ height: 10 }} />
+      <Skeleton height={10} borderRadius={5} onHero />
+    </LinearGradient>
+
+    {/* 3 category budget cards */}
     {[1, 2, 3].map(i => (
-      <View key={i} style={{ marginTop: 16 }}>
-        <Skeleton height={160} borderRadius={RADIUS.card} />
+      <View key={i} style={sk.budgetCard}>
+        <View style={sk.row}>
+          <Skeleton width={40} height={40} borderRadius={12} />
+          <View style={{ flex: 1, marginLeft: 12 }}>
+            <Skeleton width={'55%' as any} height={14} />
+            <Skeleton width={'35%' as any} height={10} style={{ marginTop: 6 }} />
+          </View>
+          <Skeleton width={60} height={18} />
+        </View>
+        <Skeleton height={8} borderRadius={4} style={{ marginTop: 14 }} />
       </View>
     ))}
   </View>
   );
 };
 
+/**
+ * SplitSkeleton — header + net balance card + tabs + group rows.
+ */
 export const SplitSkeleton = () => {
   const sk = useStyles();
   return (
   <View style={sk.container}>
     <View style={sk.row}>
-      <Skeleton width={60} height={28} />
+      <Skeleton width={70} height={24} />
       <View style={{ flex: 1 }} />
-      <Skeleton width={70} height={32} borderRadius={20} />
-      <Skeleton width={44} height={44} borderRadius={22} />
+      <Skeleton width={68} height={30} borderRadius={999} />
+      <View style={{ width: 8 }} />
+      <Skeleton width={36} height={36} borderRadius={18} />
     </View>
-    <Skeleton height={90} borderRadius={20} style={{ marginTop: 16 }} />
-    <Skeleton width={60} height={16} style={{ marginTop: 20 }} />
-    {[1, 2, 3].map(i => (
-      <View key={i} style={[sk.row, { marginTop: 10, gap: 12 }]}>
+
+    {/* Net balance hero (orange gradient) */}
+    <LinearGradient
+      colors={['#F56E1E', '#C14A06']}
+      start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}
+      style={sk.hero}
+    >
+      <Skeleton width={90} height={10} onHero />
+      <View style={{ height: 6 }} />
+      <Skeleton width={160} height={30} borderRadius={6} onHero />
+      <View style={{ height: 10 }} />
+      <View style={sk.row}>
+        <Skeleton width={72} height={28} borderRadius={999} onHero />
+        <View style={{ width: 8 }} />
+        <Skeleton width={72} height={28} borderRadius={999} onHero />
+      </View>
+    </LinearGradient>
+
+    {/* Tabs */}
+    <View style={[sk.row, { marginTop: 14, gap: 10 }]}>
+      <Skeleton width={80} height={14} />
+      <Skeleton width={80} height={14} />
+      <Skeleton width={80} height={14} />
+    </View>
+
+    {/* Group / expense rows */}
+    {[1, 2, 3, 4].map(i => (
+      <View key={i} style={sk.txItem}>
         <Skeleton width={44} height={44} borderRadius={14} />
-        <View style={{ flex: 1 }}>
-          <Skeleton width={'60%' as any} height={16} />
-          <Skeleton width={'30%' as any} height={12} style={{ marginTop: 4 }} />
+        <View style={{ flex: 1, marginLeft: 12 }}>
+          <Skeleton width={'55%' as any} height={14} />
+          <Skeleton width={'35%' as any} height={10} style={{ marginTop: 6 }} />
         </View>
         <Skeleton width={30} height={30} borderRadius={15} />
       </View>
