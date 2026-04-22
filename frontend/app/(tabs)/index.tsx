@@ -16,17 +16,16 @@
  */
 import React, { useState, useEffect, useCallback } from 'react';
 import {
-  View, Text, ScrollView, RefreshControl, InteractionManager, Alert,
+  View, Text, ScrollView, RefreshControl, InteractionManager,
 } from 'react-native';
 import { Image } from 'expo-image';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
-import * as ImagePicker from 'expo-image-picker';
 import { useAuthStore } from '../../store/authStore';
 import { useLangStore } from '../../store/langStore';
 import { t } from '../../utils/i18n';
 import api from '../../utils/api';
-import { fetchCurrentUser, fetchAvatar, uploadAvatar } from '../../services/user';
+import { fetchCurrentUser, fetchAvatar } from '../../services/user';
 import { awardCoins } from '../../services/premium';
 import { fetchStatsOverview, fetchTransactions } from '../../services/transactions';
 import { COLORS, RADIUS, SPACING, shadowStyle } from '../../utils/theme';
@@ -162,21 +161,6 @@ export default function HomeScreen() {
   useFocusEffect(
     useCallback(() => { fetchNews(true); }, [fetchNews])
   );
-
-  const pickAvatar = async () => {
-    const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ['images'],
-      allowsEditing: true,
-      aspect: [1, 1],
-      quality: 0.5,
-      base64: true,
-    });
-    if (!result.canceled && result.assets[0].base64) {
-      const b64 = `data:image/jpeg;base64,${result.assets[0].base64}`;
-      setAvatar(b64);
-      try { await uploadAvatar(b64); } catch (e) { Alert.alert('Error', 'Could not upload photo'); }
-    }
-  };
 
   if (loading) return (
     <SafeAreaView style={styles.container}>
