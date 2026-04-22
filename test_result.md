@@ -9419,3 +9419,33 @@ agent_communication:
       • Extend SmartStatusRow to Payment Methods (once API
         exposes last_sync timestamps).
       • Apply AIOrb across all tabs (global FAB in _layout).
+
+
+agent_communication:
+  - agent: "main"
+    message: |
+      ✅ Premium Flow Brutal UX pass — CLOSED.
+
+      Changes:
+      • components/premium/styles.ts already swept (prior session) to
+        use canonical dark tokens (bg.secondary/elevated, text.primary,
+        border.subtle, accent.primary/moneyIn/moneyOut). Verified visually
+        via screenshot across Plans / Tax (locked) / Invest (locked) /
+        School (locked) — all fully legible on dark bg.
+      • app/premium.tsx: fixed low-contrast header subtitle
+        "You could have saved ₹X last month" — was hard-coded #C14A06
+        (dim burnt orange), now uses COLORS.accent.primaryLight (#FF8C42
+        saffron highlight) for clean readability on #14141C.
+      • Chips row overflow: wrapped the 4 chips (Plans/Tax/Invest/School)
+        in a horizontal ScrollView so the "School" chip is reachable on
+        narrow devices without truncation. Added `chipsRowWrap` +
+        `chipsRowContent` styles to properly separate the outer surface
+        (bg + borderBottom) from the inner horizontal layout.
+
+      No backend changes. No new deps.
+
+      Next Action Items:
+      • Payment Methods: smart status indicators (Last sync / Error / Fix now) — P1.
+      • Real Push Notifications (FCM/APNs) — P2, needs keys.
+      • Real SMS OTP (MSG91/Twilio) — P2, needs keys.
+      • WhatsApp expense bot — P2, needs keys.

@@ -46,10 +46,10 @@ export default function PremiumHub() {
         <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
           <Ionicons name="chevron-back" size={22} color={COLORS.text.primary} />
         </TouchableOpacity>
-        <View style={{ alignItems: 'center' }}>
+        <View style={{ flex: 1, alignItems: 'center' }}>
           <Text style={styles.headerTitle}>Start saving today</Text>
           {savings > 500 && (
-            <Text style={{ fontSize: 10.5, fontWeight: '800', color: '#C14A06', letterSpacing: 0.5, marginTop: 1 }}>
+            <Text style={{ fontSize: 10.5, fontWeight: '800', color: COLORS.accent.primaryLight, letterSpacing: 0.5, marginTop: 1 }}>
               You could have saved ₹{savings.toLocaleString('en-IN')} last month
             </Text>
           )}
@@ -57,12 +57,17 @@ export default function PremiumHub() {
         <View style={{ width: 32 }} />
       </View>
 
-      <View style={styles.chipsRow}>
+      <ScrollView
+        horizontal
+        showsHorizontalScrollIndicator={false}
+        style={styles.chipsRowWrap}
+        contentContainerStyle={styles.chipsRowContent}
+      >
         <Chip emoji="💎" label="Plans" active={tab === 'plans'} onPress={() => setTab('plans')} />
         <Chip emoji="🧾" label="Tax" active={tab === 'tax'} onPress={() => setTab('tax')} locked={taxLocked} />
         <Chip emoji="💰" label="Invest" active={tab === 'invest'} onPress={() => setTab('invest')} locked={invLocked} />
         <Chip emoji="🎓" label="School" active={tab === 'school'} onPress={() => setTab('school')} locked={schoolLocked} />
-      </View>
+      </ScrollView>
 
       <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
         {tab === 'plans' && <PlansView potentialSavings={savings} />}

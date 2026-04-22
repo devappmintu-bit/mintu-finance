@@ -10,6 +10,9 @@ export const premiumStyles = StyleSheet.create({
   backBtn: { padding: 6 },
   headerTitle: { flex: 1, fontSize: 17, fontWeight: '800', color: COLORS.text.primary, textAlign: 'center' },
   chipsRow: { flexDirection: 'row', gap: 8, paddingHorizontal: 14, paddingVertical: 12, backgroundColor: COLORS.bg.secondary, borderBottomWidth: 1, borderBottomColor: COLORS.border.subtle },
+  // Horizontal-scrollable variant: container handles bg/border, content handles padding/gap
+  chipsRowWrap: { backgroundColor: COLORS.bg.secondary, borderBottomWidth: 1, borderBottomColor: COLORS.border.subtle, flexGrow: 0 },
+  chipsRowContent: { flexDirection: 'row', gap: 8, paddingHorizontal: 14, paddingVertical: 12, alignItems: 'center' },
   chip: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 14, paddingVertical: 8, borderRadius: 999, backgroundColor: COLORS.bg.elevated, borderWidth: 1, borderColor: COLORS.border.subtle },
   chipActive: { backgroundColor: COLORS.accent.primary + '15', borderColor: COLORS.accent.primary },
   chipEmoji: { fontSize: 14 },
