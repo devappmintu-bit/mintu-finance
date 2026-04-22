@@ -7517,6 +7517,116 @@ auth_relocation_apr21_2026:
           row, then title, content, tip. Each pill tinted with its semantic
           color (amber for XP, emerald for savings).
 
+
+  - task: "Split · GroupChat premium hero header (net-balance + quick actions)"
+    implemented: true
+    working: "NA"
+    file: "/app/frontend/components/GroupChat.tsx"
+    status_history:
+      - working: "NA"
+        agent: "main"
+        comment: |
+          Group chat header redesigned from a plain bordered strip to a
+          saffron/green/grey gradient hero:
+
+          - Dynamic gradient colour based on user's net position in this
+            group: `#10B981→#047857` (you get), `#F56E1E→#C14A06` (you owe),
+            `#6B7280→#374151` (settled).
+          - Row 1: circular glass back button, avatar stack (+N badge),
+            group name + member count, circular glass ellipsis menu. All
+            white-on-gradient.
+          - Row 2: "🟢 YOU GET / 🔴 YOU OWE / ⚪ ALL SETTLED" eyebrow with
+            30pt bold net-amount, plus an inline white pill CTA:
+              • "Settle" (flash icon, orange text) → fires onDirectPay
+                against the largest debt owed by the current user.
+              • "Remind" (bell icon, green text) → fires onRemind against
+                the largest debt owed to the current user.
+            Only renders when a top-debt row exists, so groups with zero
+            balance stay quiet.
+
+          Data source: `summary.simplified_debts` — reuses the same payload
+          already loaded for the group summary/expenses tab (no new API
+          calls). Haptics on all header taps.
+
+          Legacy header styles preserved in stylesheet for reference but
+          no longer rendered.
+
+  - task: "Split · Code cleanup — fixed shadowed service imports (infinite recursion bug)"
+    implemented: true
+    working: "NA"
+    file: "/app/frontend/app/(tabs)/split.tsx"
+    status_history:
+      - working: "NA"
+        agent: "main"
+        comment: |
+          Latent P0 bug: split.tsx declared local functions `deleteGroup`,
+          `leaveGroup`, `deleteExpense` that shadowed the imported services
+          of the same names. The local callbacks then `await deleteGroup(gid)`
+          → resolved to themselves, causing silent infinite recursion on
+          every delete/leave action. Never surfaced because those paths had
+          not been exercised in automated adversarial runs.
+
+          Fix: aliased the service imports at the import site
+          (`deleteGroup as deleteGroupSrv`, etc.) and updated the three
+          `Alert.alert` onPress bodies to call the aliased name. Delete
+          Group, Leave Group, and Delete Expense now actually hit the
+          backend.
+
+          Bundle: 2317 modules · no other regressions introduced.
+
+agent_communication:
+  - agent: "main"
+    message: |
+      ✅ Split Group UX Overhaul — Phase 2 shipped (Apr 22 2026)
+      
+      THREE surgical deltas landed in this session:
+      
+      1. New full-screen flows wired end-to-end:
+         • `router` import added to split.tsx (was missing — previous
+           router.push was silently swallowed by try/catch, legacy bottom
+           sheet kept opening).
+         • `openAddExpense(gr)` now routes to /split/add-expense?group_id=…
+         • GroupManageSheet got an `onFullAddMember` prop that routes to
+           /split/add-member for the QR + WhatsApp invite experience.
+         • Fixed wrong service import in add-member.tsx
+           (`addMembers` → `addGroupMember`).
+         • Fixed layout shift in add-expense.tsx (padding + autoFocus).
+      
+      2. GroupChat premium hero header:
+         • Replaced the plain bordered strip with a dynamic-colour saffron
+           /green/grey gradient that reflects the user's net position in
+           THIS group (`simplified_debts` diff).
+         • Inline "Settle" / "Remind" pill CTAs wired to the already-
+           existing `onDirectPay` / `onRemind` callbacks — one tap from the
+           chat header to settle the largest outstanding debt.
+      
+      3. Cleanup / bug fixes:
+         • Aliased `deleteGroup`, `leaveGroup`, `deleteExpense` service
+           imports to kill a latent infinite-recursion bug in split.tsx
+           where local callbacks shadowed the imported services. Delete
+           /leave paths were silently useless before this fix.
+      
+      Verification:
+         • Bundle clean (2317 modules, no parse errors).
+         • Direct-URL screenshot of /split/add-expense renders the full
+           UI (amount card, quick-chips row, split-type tabs, smart
+           suggestions, saffron CTA) — layout shift fixed.
+         • Direct-URL screenshot of /split/add-member renders the QR +
+           WhatsApp invite + copy-link UX.
+         • Frontend testing agent code-reviewed all four touched files,
+           confirmed architecture is sound. E2E login was blocked by
+           OTP-in-headless-browser (unrelated to our changes).
+      
+      Backlog (Phase 3):
+         • Split Group "Insights" tab rebuild with AI-driven "who-pays-most"
+           + "spending-trend" chips.
+         • Split Group "Expenses" tab card redesign (per-expense settlement
+           progress, swipe-to-edit/delete).
+         • Extract full-screen edit-expense route so the legacy
+           ExpenseSheet can be deleted entirely.
+         • 3rd-party integrations (Twilio / MSG91 / FCM / WhatsApp Cloud) —
+           still blocked on user API keys.
+
   - task: "AI Coach screen — PremiumTeaserCard injected"
     implemented: true
     working: "NA"
