@@ -41,12 +41,13 @@ import { shareSmart } from '../../utils/share';
 import HelpSupport from '../../components/HelpSupport';
 
 // New minimal profile components
-import ProfileHeroV3 from '../../components/profile/ProfileHeroV3';
-import TodayCard, { type TodayTask } from '../../components/profile/TodayCard';
+import ProfileHeroV4 from '../../components/profile/ProfileHeroV4';
+import MissionsEngine, { type Mission } from '../../components/profile/MissionsEngine';
 import ProgressInline from '../../components/profile/ProgressInline';
-import WeeklyChallengeCalm from '../../components/profile/WeeklyChallengeCalm';
-import InsightMinimal from '../../components/profile/InsightMinimal';
-import PremiumCalmCard from '../../components/profile/PremiumCalmCard';
+import BeatLastWeek from '../../components/profile/BeatLastWeek';
+import AICoachOneTap from '../../components/profile/AICoachOneTap';
+import PremiumConversionFunnel from '../../components/profile/PremiumConversionFunnel';
+import ScoreBreakdownModal from '../../components/profile/ScoreBreakdownModal';
 import { SettingsList, SettingsListItem } from '../../components/profile/SettingsList';
 import LogoutConfirmSheet from '../../components/profile/LogoutConfirmSheet';
 import ScoreBoostModal from '../../components/profile/ScoreBoostModal';
@@ -70,6 +71,10 @@ export default function ProfileScreen() {
   const [gamiStatus, setGamiStatus] = useState<any>(null);
   const [rewardsSummary, setRewardsSummary] = useState<any>(null);
   const [identity, setIdentity] = useState<any>(null);
+  const [breakdown, setBreakdown] = useState<any>(null);
+  const [weekly, setWeekly] = useState<any>(null);
+  const [missionsData, setMissionsData] = useState<{ missions: Mission[]; seconds_to_refresh: number; total_xp: number; total_coins: number } | null>(null);
+  const [scoreBreakdownVisible, setScoreBreakdownVisible] = useState(false);
 
   // Modals / sheets
   const [langModalVisible, setLangModalVisible] = useState(false);
@@ -84,27 +89,29 @@ export default function ProfileScreen() {
   const [logoutSheet, setLogoutSheet] = useState(false);
   const [logoutAnim, setLogoutAnim] = useState(false);
 
-  // Today tasks — client-local completion
-  const [todayTasks, setTodayTasks] = useState<TodayTask[]>([
-    { id: 'log-expense', icon: 'add-circle-outline', title: "Add today's expense", hint: 'Keeps streak alive' },
-    { id: 'save-today', icon: 'wallet-outline', title: 'Save ₹100 today', hint: '+2 score' },
-    { id: 'streak', icon: 'flame-outline', title: 'Maintain your streak' },
-  ]);
+  // Today tasks are fetched from /api/profile/missions now
+  const todayMissions = missionsData?.missions || [];
 
   const loadData = useCallback(async () => {
     try {
-      const [avatarRes, statsRes, gamiRes, rewardsRes, identityRes] = await Promise.all([
+      const [avatarRes, statsRes, gamiRes, rewardsRes, identityRes, breakdownRes, weeklyRes, missionsRes] = await Promise.all([
         fetchAvatar().then(data => ({ data })).catch(() => ({ data: {} })),
         api.get('/analytics/summary').catch(() => ({ data: null })),
         api.get('/gamification/status').catch(() => ({ data: null })),
         api.get('/rewards/summary').catch(() => ({ data: null })),
         api.get('/profile/identity').catch(() => ({ data: null })),
+        api.get('/profile/score-breakdown').catch(() => ({ data: null })),
+        api.get('/profile/weekly-comparison').catch(() => ({ data: null })),
+        api.get('/profile/missions').catch(() => ({ data: null })),
       ]);
       if (avatarRes.data?.avatar) setAvatar(avatarRes.data.avatar);
       if (statsRes.data) setStats(statsRes.data);
       if (gamiRes.data) setGamiStatus(gamiRes.data);
       if (rewardsRes.data) setRewardsSummary(rewardsRes.data);
       if (identityRes.data) setIdentity(identityRes.data);
+      if (breakdownRes.data) setBreakdown(breakdownRes.data);
+      if (weeklyRes.data) setWeekly(weeklyRes.data);
+      if (missionsRes.data) setMissionsData(missionsRes.data);
     } catch { /* noop */ } finally { setRefreshing(false); }
   }, [setAvatar]);
 
@@ -158,17 +165,14 @@ export default function ProfileScreen() {
     try { await uploadAvatar(''); } catch { /* noop */ }
   };
 
-  const onTaskComplete = (taskId: string) => {
-    setTodayTasks(prev => prev.map(t => t.id === taskId ? { ...t, done: !t.done } : t));
-    // Deep-link when appropriate
-    if (taskId === 'log-expense') {
-      try { router.push('/(tabs)/transactions' as any); } catch {}
-    }
+  const onMissionPress = (m: Mission) => {
+    try { router.push(m.route as any); } catch { /* noop */ }
   };
 
-  const onCompleteAll = () => {
-    const next = todayTasks.find(t => !t.done);
-    if (next) onTaskComplete(next.id);
+  const onEarnAll = () => {
+    // Navigate to first incomplete mission
+    const next = todayMissions.find(m => !m.done);
+    if (next) { try { router.push(next.route as any); } catch {} }
   };
 
   const currentLang = LANGUAGES.find(l => l.code === lang);
@@ -197,18 +201,31 @@ export default function ProfileScreen() {
           <Text style={s.topBarTitle}>Profile</Text>
         </View>
 
-        {/* 1. HERO */}
-        <ProfileHeroV3
+        {/* 1. HERO — Living Financial Identity */}
+        <ProfileHeroV4
           user={user}
           avatar={avatar}
+          statusRing={breakdown?.status_ring}
+          predictiveInsight={breakdown?.predictive_insight}
+          nextReward={breakdown?.next_tier ? { label: breakdown.next_tier, at: (identity?.money_score || 0) + (breakdown.points_to_next || 0) } : null}
           onEditName={() => { setEditName(user?.name || ''); setEditNameVisible(true); }}
           onPickAvatar={pickAvatar}
           onRemoveAvatar={removeAvatar}
           onLevelUp={() => setScoreBoostVisible(true)}
+          onTapScore={() => setScoreBreakdownVisible(true)}
         />
 
-        {/* 2. TODAY */}
-        <TodayCard tasks={todayTasks} onComplete={onTaskComplete} onCompleteAll={onCompleteAll} />
+        {/* 2. MISSIONS ENGINE */}
+        {missionsData ? (
+          <MissionsEngine
+            missions={todayMissions}
+            secondsToRefresh={missionsData.seconds_to_refresh || 0}
+            totalXp={missionsData.total_xp || 0}
+            totalCoins={missionsData.total_coins || 0}
+            onMissionPress={onMissionPress}
+            onEarnAll={onEarnAll}
+          />
+        ) : null}
 
         {/* 3. PROGRESS merged */}
         <ProgressInline
@@ -219,17 +236,24 @@ export default function ProfileScreen() {
           onPressViewProgress={() => router.push('/(tabs)/rewards' as any)}
         />
 
-        {/* 4. WEEKLY CHALLENGE */}
-        <WeeklyChallengeCalm
-          challenge={gamiStatus?.weekly_challenge}
-          onContinue={() => router.push('/(tabs)/rewards' as any)}
-        />
+        {/* 4. BEAT YOUR LAST WEEK */}
+        {weekly ? (
+          <BeatLastWeek
+            thisWeek={weekly.this_week}
+            lastWeek={weekly.last_week}
+            pctBetter={weekly.pct_better || 0}
+            commentary={weekly.commentary || ''}
+            tone={weekly.tone || 'info'}
+            rewardPreview={weekly.reward_preview}
+            onPress={() => router.push('/yearly' as any)}
+          />
+        ) : null}
 
-        {/* 5. INSIGHT (single) */}
-        <InsightMinimal stats={realStats} score={identity?.money_score || user?.money_score || 0} />
+        {/* 5. AI COACH — 1-tap contextual */}
+        <AICoachOneTap stats={realStats} score={identity?.money_score || user?.money_score || 0} />
 
-        {/* 6. PREMIUM (muted) */}
-        <PremiumCalmCard isPro={isPro} />
+        {/* 6. PREMIUM conversion funnel */}
+        <PremiumConversionFunnel isPro={isPro} />
 
         {/* 7. SETTINGS (list-style, no card blocks) */}
         <SettingsList header="Financial">
@@ -285,6 +309,12 @@ export default function ProfileScreen() {
         visible={logoutSheet}
         onCancel={() => setLogoutSheet(false)}
         onConfirm={handleLogout}
+      />
+
+      <ScoreBreakdownModal
+        visible={scoreBreakdownVisible}
+        onClose={() => setScoreBreakdownVisible(false)}
+        fallbackScore={identity?.money_score || user?.money_score || 0}
       />
 
       <ScoreBoostModal

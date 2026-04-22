@@ -654,6 +654,7 @@ from routers import (  # noqa: E402
     split_insights as split_insights_router,
     goals as goals_router,
     profile_identity as profile_identity_router,
+    profile_engine as profile_engine_router,
 )
 
 for r in (
@@ -665,7 +666,7 @@ for r in (
     ab_router, share_router, privacy_router,
     budgets_ext_router, alerts_router, upi_router, insights_ext_router, gmail_oauth_router,
     home_bundle_router, rewards_router, split_insights_router, goals_router,
-    profile_identity_router,
+    profile_identity_router, profile_engine_router,
 ):
     api_router.include_router(r.router)
 

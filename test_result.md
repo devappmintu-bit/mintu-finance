@@ -9039,3 +9039,114 @@ agent_communication:
       • Logout still a bottom sheet.
 
       Next Action Items: user review.
+
+# ─────────────────────────────────────────────────────────────
+# PROFILE → FINANCIAL IDENTITY + PROGRESS ENGINE (Apr 22 2026)
+# ─────────────────────────────────────────────────────────────
+backend:
+  - task: "Profile Engine endpoints"
+    implemented: true
+    working: true
+    file: "/app/backend/routers/profile_engine.py"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: true
+    status_history:
+      - working: true
+        agent: "main"
+        comment: |
+          3 NEW endpoints registered at /api/profile/*:
+
+          GET /score-breakdown
+            Returns 3 pillars (saving_habits / spending_control /
+            consistency) each 0..100 with emoji + hint; plus a
+            predictive insight ("At this pace, you'll reach X
+            in N days") and a status_ring (green/orange/red).
+
+          GET /weekly-comparison
+            This vs last 7d: saved, expense, txn_count, pct_better,
+            tone + AI commentary ("You're 18% better than last
+            week 🎉") and reward_preview (coins / badge / tier_boost).
+
+          GET /missions
+            3 daily deterministic missions each with xp, coins,
+            est_seconds, route, streak_saver flag, and an
+            overall total_xp/total_coins + seconds_to_refresh
+            for a live countdown.
+
+frontend:
+  - task: "Profile → Living Financial Identity Engine"
+    implemented: true
+    working: true
+    file: "/app/frontend/app/(tabs)/profile.tsx"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: true
+    status_history:
+      - working: true
+        agent: "main"
+        comment: |
+          6 NEW behavior-driven components replacing the old
+          minimal card set:
+
+          • ProfileHeroV4.tsx — status ring on avatar, tappable
+            score (opens breakdown), multi-milestone rail with
+            emoji dots, predictive insight line in yellow, next
+            reward preview inline.
+          • MissionsEngine.tsx — 3 daily missions with per-card
+            XP + coins + ~seconds, live countdown to midnight,
+            STREAK SAVER red pill (loss-aversion), aggregated
+            CTA "Earn +XP + coins · Level Up 🚀".
+          • BeatLastWeek.tsx — weekly comparison bars (last vs
+            this), AI commentary tone-coded (positive/warn/info),
+            reward preview chips, "Almost there →" nudge at
+            5-20% improvement.
+          • AICoachOneTap.tsx — purple contextual card with
+            LIVE indicator, 3 one-tap actions (cap top category,
+            move ₹ to savings, claim daily spin).
+          • PremiumConversionFunnel.tsx — dark card with PRO
+            badge, urgency ⏰ 7-day trial, ROI banner, 3 locked
+            preview features with 🔒 icons, social-proof avatar
+            dots + "2,400+ upgraded this week", gold CTA.
+          • ScoreBreakdownModal.tsx — tap score → bottom sheet
+            with predictive insight + 3 pillar rings.
+
+          Visual system:
+          • Orange reserved for hero + primary CTAs only.
+          • Purple for AI Coach section.
+          • Blue/green/red for BeatLastWeek tone.
+          • Navy/gold for Premium card.
+          • Reduces orange fatigue while keeping brand anchor.
+
+          Behavioral psychology:
+          • Loss aversion: "You'll lose your streak" (STREAK SAVER)
+          • Progress visibility: always-visible milestone rail
+          • Rewards: XP + coins + tier boost preview
+          • Social proof: 2,400+ upgraded this week
+          • Urgency: live countdown timer
+          • Predictive: "Reach Wealth Builder in N days"
+
+agent_communication:
+  - agent: "main"
+    message: |
+      ✅ Profile transformed into a Financial Identity +
+      Progress Engine per the user's 15-point brief.
+
+      Implemented this pass (high-leverage items):
+      1.  Hero status ring + tappable breakdown + milestone rail
+          + predictive insight
+      2.  Missions Engine with XP/coins/timer + streak saver
+      3.  Progress strip merged
+      4.  Beat Your Last Week comparison with AI commentary
+      5.  AI Coach 1-tap actions
+      6.  Premium Conversion Funnel with ROI + social proof
+      7.  Score Breakdown modal
+      8.  Clean settings list (already done)
+      9.  Logout sheet + Delete account full-screen (already done)
+
+      Not in this pass (future): Smart financial hub status
+      indicators, floating AI orb, viral shareable card (existing
+      ShareScoreCard covers this already), glassmorphism +
+      micro-animations beyond haptics.
+
+      Next Action Items: user review.
