@@ -33,6 +33,7 @@ import Toast from 'react-native-toast-message';
 import {
   fetchGroupSummary, addGroupMember, fetchSplitGroups, fetchSplitBalances,
 } from '../../services/split';
+import { usePhoneContacts } from '../../hooks/usePhoneContacts';
 import { makeStyles } from '../../utils/makeStyles';
 import { COLORS, SPACING } from '../../utils/theme';
 
@@ -219,6 +220,7 @@ export default function AddMemberScreen() {
   const [submitting, setSubmitting] = useState(false);
   const [inviteExpanded, setInviteExpanded] = useState(false);
   const [phoneInput, setPhoneInput] = useState('');
+  const phoneContacts = usePhoneContacts();
   const chipsFade = useRef(new Animated.Value(0)).current;
 
   // Animate chip rail appearance
@@ -266,18 +268,35 @@ export default function AddMemberScreen() {
       if (!q) return true;
       return c.name.toLowerCase().includes(q) || c.phone.includes(q);
     };
+
+    // Build phone-contact entries (deduped against existing pool by phone)
+    const poolByPhone = new Map(pool.map(c => [c.phone, c]));
+    const memberPhones = new Set<string>(
+      (group?.members || []).map((m: any) => normalizePhone(m.phone || '')).filter(Boolean)
+    );
+    const phoneBook: Contact[] = phoneContacts.contacts
+      .filter(pc => !poolByPhone.has(pc.phone)) // not already in suggestion pool
+      .map(pc => ({
+        phone: pc.phone,
+        name: pc.name,
+        onMintU: false,
+        alreadyInGroup: memberPhones.has(pc.phone),
+      }));
+
     const filtered = pool.filter(match);
     const suggested = filtered.filter(c => (c.score || 0) >= 2).slice(0, 8);
     const suggestedPhones = new Set(suggested.map(c => c.phone));
     const friends = filtered.filter(c => c.onMintU && !suggestedPhones.has(c.phone));
     const others = filtered.filter(c => !c.onMintU && !suggestedPhones.has(c.phone));
+    const phoneFiltered = phoneBook.filter(match);
 
     const result: Section[] = [];
-    if (suggested.length) result.push({ title: 'Suggested', icon: 'star', data: suggested });
-    if (friends.length)   result.push({ title: 'Friends on MintU', icon: 'people', data: friends });
-    if (others.length)    result.push({ title: 'Other contacts', icon: 'person-outline', data: others });
+    if (suggested.length)     result.push({ title: 'Suggested',         icon: 'star',            data: suggested });
+    if (friends.length)       result.push({ title: 'Friends on MintU',  icon: 'people',          data: friends });
+    if (phoneFiltered.length) result.push({ title: 'Phone contacts',    icon: 'phone-portrait',  data: phoneFiltered });
+    if (others.length)        result.push({ title: 'Other contacts',    icon: 'person-outline',  data: others });
     return result;
-  }, [pool, debSearch]);
+  }, [pool, debSearch, phoneContacts.contacts, group?.members]);
 
   // ─── Actions ─────────────────────────────
   const toggleContact = useCallback((c: Contact) => {
@@ -504,6 +523,43 @@ export default function AddMemberScreen() {
                   </TouchableOpacity>
                 </View>
               ) : null}
+
+              {/* Phone-contacts permission-gate card (native only) */}
+              {Platform.OS !== 'web' && phoneContacts.permission !== 'granted' ? (
+                <TouchableOpacity
+                  onPress={async () => {
+                    if (phoneContacts.permission === 'denied') {
+                      Linking.openSettings?.();
+                      return;
+                    }
+                    await phoneContacts.load();
+                  }}
+                  style={s.contactsPrompt}
+                  activeOpacity={0.85}
+                  testID="am-contacts-prompt"
+                >
+                  <View style={s.contactsIcon}>
+                    <Ionicons name="phone-portrait-outline" size={18} color={COLORS.accent.primary} />
+                  </View>
+                  <View style={{ flex: 1 }}>
+                    <Text style={s.contactsTitle}>
+                      {phoneContacts.permission === 'denied' ? 'Enable contacts in Settings' : 'Browse your phone contacts'}
+                    </Text>
+                    <Text style={s.contactsSub} numberOfLines={1}>
+                      {phoneContacts.loading
+                        ? 'Loading contacts…'
+                        : phoneContacts.permission === 'denied'
+                          ? 'We couldn\'t access your contacts. Enable access to pick friends faster.'
+                          : 'Pick friends without typing their number.'}
+                    </Text>
+                  </View>
+                  {phoneContacts.loading ? (
+                    <ActivityIndicator color={COLORS.accent.primary} />
+                  ) : (
+                    <Ionicons name="chevron-forward" size={16} color={COLORS.text.muted} />
+                  )}
+                </TouchableOpacity>
+              ) : null}
             </View>
           }
           ListEmptyComponent={
@@ -622,6 +678,22 @@ const useStyles = makeStyles((c) => ({
   altBtn: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingVertical: 12, paddingHorizontal: 14, borderRadius: 12, backgroundColor: c.bg.secondary, borderWidth: 1, borderColor: c.border.subtle },
   altTxt: { fontSize: 13, fontWeight: '800', color: c.text.primary },
   altSub: { flex: 1, fontSize: 11, fontWeight: '600', color: c.text.muted, textAlign: 'right' },
+
+  // Phone contacts permission prompt
+  contactsPrompt: {
+    flexDirection: 'row', alignItems: 'center', gap: 12,
+    marginHorizontal: SPACING.md, marginTop: 10,
+    padding: 14, borderRadius: 14,
+    backgroundColor: c.bg.secondary,
+    borderWidth: 1, borderColor: c.accent.primary + '33',
+  },
+  contactsIcon: {
+    width: 36, height: 36, borderRadius: 18,
+    backgroundColor: c.accent.primary + '1A',
+    alignItems: 'center', justifyContent: 'center',
+  },
+  contactsTitle: { fontSize: 13.5, fontWeight: '800', color: c.text.primary, letterSpacing: -0.2 },
+  contactsSub: { fontSize: 11.5, fontWeight: '500', color: c.text.muted, marginTop: 2 },
 
   sectionHdr: {
     flexDirection: 'row', alignItems: 'center', gap: 6,
