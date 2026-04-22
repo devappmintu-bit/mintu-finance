@@ -46,21 +46,138 @@ router = APIRouter(tags=["rewards"])
 
 
 # ══════════════════════════════════════════════════════════════════
-# SPIN WHEEL CONFIG
+# SPIN WHEEL CONFIG — Gamification v2 (Wave 1)
+#
+# Rules:
+#   • 3 FREE spins per day (reset at UTC midnight).
+#   • After the 3 free spins are consumed, each additional spin
+#     costs SPIN_COST_COINS (10).
+#   • Daily cap is high (20) to avoid abuse but let power-users grind.
 # ══════════════════════════════════════════════════════════════════
 SPIN_COST_COINS = 10
-MAX_SPINS_PER_DAY = 3
+FREE_SPINS_PER_DAY = 3
+MAX_SPINS_PER_DAY = 20
 
+# New segment set per spec: ₹10 / ₹50 cashback, ₹100 voucher (rare),
+# Free Spin token, +20 Coins, Mystery Reward, Better Luck (rare low).
 PRIZES = [
-    {"id": "coins_small",    "label": "+5 Coins",       "weight": 50, "kind": "coins",   "amount": 5,   "emoji": "🪙", "color": "#F59E0B"},
-    {"id": "coins_medium",   "label": "+15 Coins",      "weight": 20, "kind": "coins",   "amount": 15,  "emoji": "🪙", "color": "#F56E1E"},
-    {"id": "coins_large",    "label": "+50 Coins",      "weight": 8,  "kind": "coins",   "amount": 50,  "emoji": "💰", "color": "#E65100"},
-    {"id": "coins_jackpot",  "label": "JACKPOT 200",    "weight": 2,  "kind": "coins",   "amount": 200, "emoji": "🎰", "color": "#C14A06"},
-    {"id": "voucher_swiggy", "label": "₹50 Swiggy",     "weight": 7,  "kind": "voucher", "merchant": "Swiggy", "value": 50, "emoji": "🍔", "color": "#FC8019"},
-    {"id": "voucher_zomato", "label": "₹50 Zomato",     "weight": 7,  "kind": "voucher", "merchant": "Zomato", "value": 50, "emoji": "🍕", "color": "#E23744"},
-    {"id": "voucher_amazon", "label": "10% Amazon",     "weight": 5,  "kind": "voucher", "merchant": "Amazon", "value": 10, "emoji": "🛍️", "color": "#FF9900"},
-    {"id": "try_again",      "label": "Try Again",      "weight": 1,  "kind": "none",    "emoji": "🔄", "color": "#9CA3AF"},
+    {"id": "cashback_10",   "label": "₹10 Cashback",      "weight": 24, "kind": "cashback",  "amount": 10,  "emoji": "💸", "color": "#F59E0B", "rarity": "common"},
+    {"id": "coins_20",      "label": "+20 Coins",         "weight": 22, "kind": "coins",     "amount": 20,  "emoji": "🪙", "color": "#F56E1E", "rarity": "common"},
+    {"id": "free_spin",     "label": "FREE SPIN",         "weight": 14, "kind": "free_spin", "amount": 1,   "emoji": "⚡", "color": "#8B5CF6", "rarity": "uncommon"},
+    {"id": "cashback_50",   "label": "₹50 Cashback",      "weight": 12, "kind": "cashback",  "amount": 50,  "emoji": "💰", "color": "#EA580C", "rarity": "rare"},
+    {"id": "mystery",       "label": "Mystery ?",         "weight": 10, "kind": "mystery",                    "emoji": "🎁", "color": "#7C3AED", "rarity": "rare"},
+    {"id": "coins_50",      "label": "+50 Coins",         "weight": 10, "kind": "coins",     "amount": 50,  "emoji": "💎", "color": "#10B981", "rarity": "rare"},
+    {"id": "voucher_100",   "label": "₹100 Voucher",      "weight": 5,  "kind": "voucher",   "merchant": "Swiggy", "value": 100, "emoji": "🏆", "color": "#F59E0B", "rarity": "epic"},
+    {"id": "try_again",     "label": "Better Luck",       "weight": 3,  "kind": "none",                       "emoji": "💨", "color": "#9CA3AF", "rarity": "common"},
 ]
+
+# Mystery box — resolved server-side at spin time into one of these.
+MYSTERY_POOL = [
+    {"kind": "coins", "amount": 100, "label": "+100 Coins Mystery", "emoji": "🪙"},
+    {"kind": "cashback", "amount": 25, "label": "₹25 Mystery Cashback", "emoji": "💸"},
+    {"kind": "voucher", "merchant": "Amazon", "value": 50, "label": "₹50 Amazon Mystery", "emoji": "🛍️"},
+    {"kind": "free_spin", "amount": 2, "label": "2 Free Spins Mystery", "emoji": "⚡"},
+]
+
+# Tier thresholds — XP = lifetime coins earned.
+TIERS = [
+    {"id": "bronze",   "name": "Bronze",   "min_xp": 0,     "color": "#CD7F32", "perks": ["3 free spins/day", "Basic rewards"]},
+    {"id": "silver",   "name": "Silver",   "min_xp": 101,   "color": "#9CA3AF", "perks": ["5 free spins/day", "+10% spin luck"]},
+    {"id": "gold",     "name": "Gold",     "min_xp": 501,   "color": "#F59E0B", "perks": ["7 free spins/day", "Premium rewards", "+20% spin luck"]},
+    {"id": "platinum", "name": "Platinum", "min_xp": 2001,  "color": "#8B5CF6", "perks": ["10 free spins/day", "Exclusive vouchers", "+30% spin luck"]},
+]
+
+
+def _tier_for_xp(xp: int) -> Dict[str, Any]:
+    cur = TIERS[0]
+    nxt = None
+    for i, t in enumerate(TIERS):
+        if xp >= t["min_xp"]:
+            cur = t
+            nxt = TIERS[i + 1] if i + 1 < len(TIERS) else None
+    return {
+        **cur,
+        "xp": xp,
+        "next_tier": nxt,
+        "xp_to_next": max(0, (nxt["min_xp"] - xp)) if nxt else 0,
+        "progress_pct": 100.0 if not nxt else round(
+            ((xp - cur["min_xp"]) / max(1, (nxt["min_xp"] - cur["min_xp"]))) * 100, 1
+        ),
+    }
+
+
+def _free_spins_for_tier(tier_id: str) -> int:
+    return {"bronze": 3, "silver": 5, "gold": 7, "platinum": 10}.get(tier_id, 3)
+
+
+# ══════════════════════════════════════════════════════════════════
+# DAILY MISSIONS (Wave 1)
+# ══════════════════════════════════════════════════════════════════
+DAILY_MISSIONS = [
+    {"id": "open_app",     "title": "Open the app",          "emoji": "👋", "target": 1, "reward_coins": 2,  "reward_xp": 5},
+    {"id": "add_expense",  "title": "Log 3 expenses today",  "emoji": "💳", "target": 3, "reward_coins": 5,  "reward_xp": 15},
+    {"id": "refer_friend", "title": "Refer a friend",        "emoji": "🎁", "target": 1, "reward_coins": 20, "reward_xp": 50},
+]
+
+
+async def _mission_progress(user_id: str, mission_id: str) -> int:
+    day_start = datetime.now(timezone.utc).replace(hour=0, minute=0, second=0, microsecond=0)
+    if mission_id == "open_app":
+        # Always 1 — hitting /rewards/summary today is proof of opening.
+        return 1
+    if mission_id == "add_expense":
+        try:
+            return await db.transactions.count_documents({
+                "user_id": user_id,
+                "created_at": {"$gte": day_start},
+            })
+        except Exception:
+            return 0
+    if mission_id == "refer_friend":
+        try:
+            return await db.referrals.count_documents({
+                "referrer_user_id": user_id,
+                "created_at": {"$gte": day_start},
+                "status": {"$in": ["completed", "success", "verified"]},
+            })
+        except Exception:
+            return 0
+    return 0
+
+
+async def _mission_claimed(user_id: str, mission_id: str) -> bool:
+    key = f"{_today_key()}:{mission_id}"
+    doc = await db.mission_claims.find_one({"user_id": user_id, "key": key})
+    return bool(doc)
+
+
+async def _build_missions(user_id: str) -> List[Dict[str, Any]]:
+    out = []
+    for m in DAILY_MISSIONS:
+        prog = await _mission_progress(user_id, m["id"])
+        claimed = await _mission_claimed(user_id, m["id"])
+        out.append({
+            **m,
+            "progress": min(prog, m["target"]),
+            "progress_pct": min(100, round((prog / m["target"]) * 100)) if m["target"] else 0,
+            "completed": prog >= m["target"],
+            "claimed": claimed,
+        })
+    return out
+
+
+async def _get_lifetime_xp(user_id: str) -> int:
+    # XP = total POSITIVE coin ledger entries (spend doesn't count)
+    try:
+        pipeline = [
+            {"$match": {"user_id": user_id, "amount": {"$gt": 0}}},
+            {"$group": {"_id": None, "total": {"$sum": "$amount"}}},
+        ]
+        cur = db.coin_ledger.aggregate(pipeline)
+        rows = await cur.to_list(1)
+        return int(rows[0]["total"]) if rows else 0
+    except Exception:
+        return 0
 
 
 def _today_key() -> str:
@@ -95,13 +212,26 @@ async def _add_user_coins(user_id: str, delta: int, reason: str) -> int:
 
 @router.get("/rewards/summary")
 async def rewards_summary(user_id: str = Depends(get_current_user)) -> Dict[str, Any]:
-    """Coin balance + today's spin count + recent rewards history."""
+    """Coin balance + spin state + tier + missions + recent rewards history."""
     coins = await _get_user_coins(user_id)
+    xp = await _get_lifetime_xp(user_id)
+    tier = _tier_for_xp(xp)
+    free_spins_allowance = _free_spins_for_tier(tier["id"])
 
     spins_today = await db.reward_spins.count_documents({
         "user_id": user_id,
         "date_key": _today_key(),
     })
+
+    free_spins_left = max(0, free_spins_allowance - spins_today)
+    paid_spins_available = max(0, MAX_SPINS_PER_DAY - spins_today) - free_spins_left
+    can_spin_with_free = free_spins_left > 0
+    can_spin_with_coins = (not can_spin_with_free) and (coins >= SPIN_COST_COINS) and spins_today < MAX_SPINS_PER_DAY
+
+    # Progress bar: if user is short, show how many coins to next spin
+    coins_to_next_spin = 0 if (can_spin_with_free or coins >= SPIN_COST_COINS) else (SPIN_COST_COINS - coins)
+
+    missions = await _build_missions(user_id)
 
     recent = await db.rewards_wallet.find({"user_id": user_id})\
         .sort("created_at", -1)\
@@ -111,14 +241,24 @@ async def rewards_summary(user_id: str = Depends(get_current_user)) -> Dict[str,
         r["_id"] = str(r["_id"])
         if isinstance(r.get("created_at"), datetime):
             r["created_at"] = r["created_at"].isoformat()
+        if isinstance(r.get("expires_at"), datetime):
+            r["expires_at"] = r["expires_at"].isoformat()
 
     return {
         "coins": coins,
+        "xp": xp,
+        "tier": tier,
         "spins_today": spins_today,
-        "spins_left": max(0, MAX_SPINS_PER_DAY - spins_today),
+        "free_spins_allowance": free_spins_allowance,
+        "free_spins_left": free_spins_left,
+        "paid_spins_available": paid_spins_available,
+        "can_spin_with_free": can_spin_with_free,
+        "can_spin_with_coins": can_spin_with_coins,
+        "coins_to_next_spin": coins_to_next_spin,
         "spin_cost": SPIN_COST_COINS,
         "max_spins_per_day": MAX_SPINS_PER_DAY,
         "prizes": PRIZES,
+        "missions": missions,
         "recent_rewards": recent,
     }
 
@@ -137,39 +277,62 @@ def _weighted_pick() -> Dict[str, Any]:
 
 @router.post("/rewards/spin")
 async def rewards_spin(user_id: str = Depends(get_current_user)) -> Dict[str, Any]:
-    """Spend SPIN_COST_COINS and award a random prize."""
+    """Spin logic v2 — free spins first, then coin-paid spins.
+
+    Enforcement order:
+      1. Daily cap (MAX_SPINS_PER_DAY).
+      2. If user has free spins left (tier allowance > today's spins), use one.
+      3. Otherwise, require SPIN_COST_COINS and debit.
+    """
     coins = await _get_user_coins(user_id)
-    if coins < SPIN_COST_COINS:
-        raise HTTPException(status_code=400, detail=f"Need {SPIN_COST_COINS} coins to spin")
+    xp = await _get_lifetime_xp(user_id)
+    tier = _tier_for_xp(xp)
+    free_allowance = _free_spins_for_tier(tier["id"])
 
     spins_today = await db.reward_spins.count_documents({
         "user_id": user_id,
         "date_key": _today_key(),
     })
+
     if spins_today >= MAX_SPINS_PER_DAY:
         raise HTTPException(status_code=429, detail=f"Daily spin limit reached ({MAX_SPINS_PER_DAY})")
 
-    # Debit first (atomic)
-    await _add_user_coins(user_id, -SPIN_COST_COINS, "spin_wheel_cost")
+    free_spins_left = max(0, free_allowance - spins_today)
+    used_free = free_spins_left > 0
+
+    if not used_free:
+        if coins < SPIN_COST_COINS:
+            raise HTTPException(status_code=400, detail=f"Need {SPIN_COST_COINS} coins to spin (out of free spins)")
+        await _add_user_coins(user_id, -SPIN_COST_COINS, "spin_wheel_cost")
 
     # Pick prize
     prize = _weighted_pick()
 
+    # Resolve mystery server-side into a deterministic random outcome
+    resolved_prize = dict(prize)
+    if prize["kind"] == "mystery":
+        resolved = random.choice(MYSTERY_POOL)
+        resolved_prize.update(resolved)
+        resolved_prize["mystery_revealed"] = True
+
     # Award the prize
     new_balance = await _get_user_coins(user_id)
-    if prize["kind"] == "coins":
-        new_balance = await _add_user_coins(user_id, int(prize["amount"]), f"spin_wheel:{prize['id']}")
+    if resolved_prize["kind"] == "coins":
+        new_balance = await _add_user_coins(user_id, int(resolved_prize["amount"]), f"spin_wheel:{prize['id']}")
+    elif resolved_prize["kind"] == "cashback":
+        # Credit cashback as coins at 1:1 (₹1 = 1 coin) + log a separate cashback entry
+        new_balance = await _add_user_coins(user_id, int(resolved_prize["amount"]), f"spin_cashback:{prize['id']}")
 
-    # Save to wallet if voucher
+    # Save to wallet if voucher / cashback / free-spin / mystery-voucher
     wallet_entry = None
-    if prize["kind"] == "voucher":
+    if resolved_prize["kind"] in ("voucher",) or (prize["kind"] == "mystery" and resolved_prize.get("kind") == "voucher"):
         wallet_entry = {
             "user_id": user_id,
             "type": "voucher",
-            "merchant": prize["merchant"],
-            "value": prize["value"],
-            "emoji": prize["emoji"],
-            "label": prize["label"],
+            "merchant": resolved_prize.get("merchant", "Swiggy"),
+            "value": resolved_prize.get("value", 0),
+            "emoji": resolved_prize.get("emoji", "🎁"),
+            "label": resolved_prize.get("label", prize["label"]),
             "source": "spin_wheel",
             "created_at": datetime.now(timezone.utc),
             "expires_at": datetime.now(timezone.utc) + timedelta(days=30),
@@ -179,21 +342,109 @@ async def rewards_spin(user_id: str = Depends(get_current_user)) -> Dict[str, An
         wallet_entry["_id"] = str(ins.inserted_id)
         wallet_entry["created_at"] = wallet_entry["created_at"].isoformat()
         wallet_entry["expires_at"] = wallet_entry["expires_at"].isoformat()
+    elif resolved_prize["kind"] == "cashback":
+        # Lightweight wallet entry for cashback (so user can see it in history)
+        wallet_entry = {
+            "user_id": user_id,
+            "type": "cashback",
+            "value": int(resolved_prize["amount"]),
+            "emoji": resolved_prize.get("emoji", "💸"),
+            "label": resolved_prize.get("label", prize["label"]),
+            "source": "spin_wheel",
+            "created_at": datetime.now(timezone.utc),
+        }
+        ins = await db.rewards_wallet.insert_one(wallet_entry)
+        wallet_entry["_id"] = str(ins.inserted_id)
+        wallet_entry["created_at"] = wallet_entry["created_at"].isoformat()
 
-    # Record spin
+    # Record spin (free spins don't count toward the paid quota but DO count toward the daily cap)
     await db.reward_spins.insert_one({
         "user_id": user_id,
         "date_key": _today_key(),
         "prize_id": prize["id"],
+        "used_free": used_free,
         "created_at": datetime.now(timezone.utc),
     })
 
+    # Recompute post-spin state
+    new_xp = await _get_lifetime_xp(user_id)
+    new_tier = _tier_for_xp(new_xp)
+    new_free_allowance = _free_spins_for_tier(new_tier["id"])
+    new_spins_today = spins_today + 1
+    new_free_left = max(0, new_free_allowance - new_spins_today)
+
     return {
         "prize": prize,
+        "resolved_prize": resolved_prize,
         "coins": new_balance,
+        "xp": new_xp,
+        "tier": new_tier,
+        "used_free": used_free,
         "wallet_entry": wallet_entry,
-        "spins_left": max(0, MAX_SPINS_PER_DAY - spins_today - 1),
+        "free_spins_left": new_free_left,
+        "spins_left": max(0, MAX_SPINS_PER_DAY - new_spins_today),
     }
+
+
+# ══════════════════════════════════════════════════════════════════
+# MISSIONS + TIER ENDPOINTS (Wave 1)
+# ══════════════════════════════════════════════════════════════════
+
+@router.get("/rewards/missions")
+async def rewards_missions(user_id: str = Depends(get_current_user)) -> Dict[str, Any]:
+    """Today's missions with live progress + claimed state."""
+    return {"missions": await _build_missions(user_id), "date_key": _today_key()}
+
+
+class ClaimMissionBody(BaseModel):
+    mission_id: str
+
+
+@router.post("/rewards/missions/claim")
+async def rewards_claim_mission(body: ClaimMissionBody, user_id: str = Depends(get_current_user)) -> Dict[str, Any]:
+    """Claim reward for a completed mission (idempotent per day)."""
+    mission = next((m for m in DAILY_MISSIONS if m["id"] == body.mission_id), None)
+    if not mission:
+        raise HTTPException(status_code=404, detail="Mission not found")
+
+    prog = await _mission_progress(user_id, body.mission_id)
+    if prog < mission["target"]:
+        raise HTTPException(status_code=400, detail="Mission not yet completed")
+
+    if await _mission_claimed(user_id, body.mission_id):
+        raise HTTPException(status_code=409, detail="Already claimed today")
+
+    key = f"{_today_key()}:{body.mission_id}"
+    await db.mission_claims.insert_one({
+        "user_id": user_id,
+        "key": key,
+        "mission_id": body.mission_id,
+        "date_key": _today_key(),
+        "created_at": datetime.now(timezone.utc),
+    })
+
+    new_balance = await _add_user_coins(user_id, int(mission["reward_coins"]), f"mission_claim:{body.mission_id}")
+    new_xp = await _get_lifetime_xp(user_id)
+    new_tier = _tier_for_xp(new_xp)
+
+    return {
+        "mission_id": body.mission_id,
+        "coins_awarded": mission["reward_coins"],
+        "xp_awarded": mission["reward_xp"],
+        "coins": new_balance,
+        "xp": new_xp,
+        "tier": new_tier,
+    }
+
+
+@router.get("/rewards/tier")
+async def rewards_tier(user_id: str = Depends(get_current_user)) -> Dict[str, Any]:
+    """Tier/XP standalone endpoint for widgets that don't need full summary."""
+    xp = await _get_lifetime_xp(user_id)
+    return {"xp": xp, "tier": _tier_for_xp(xp), "all_tiers": TIERS}
+
+
+
 
 
 # ══════════════════════════════════════════════════════════════════

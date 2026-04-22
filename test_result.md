@@ -7784,3 +7784,109 @@ agent_communication:
          • Optional: swipe-to-edit-delete on the ExpensesTab rows
            already works via SwipeableRow.
 
+
+  - task: "Rewards Hub · Gamification v2 — Wave 1 (Core Dopamine Loop)"
+    implemented: true
+    working: "NA"
+    file: "/app/backend/routers/rewards.py, /app/frontend/app/rewards-hub.tsx, /app/frontend/components/rewards/*.tsx, /app/frontend/services/rewards.ts"
+    status_history:
+      - working: "NA"
+        agent: "main"
+        comment: |
+          Complete redesign of the Rewards system per spec:
+
+          BACKEND (additive, backward-compatible):
+          • New PRIZES set: ₹10/₹50 cashback, ₹100 voucher (epic),
+            Free Spin, +20/+50 Coins, Mystery, Better Luck.
+          • Free-spin-first rule: 3/day (Bronze), 5 (Silver), 7 (Gold),
+            10 (Platinum). After free spins exhausted, 10 coins/spin.
+          • Tier/XP system: XP = lifetime positive coin_ledger entries.
+            Thresholds 0 / 101 / 501 / 2001 for Bronze→Platinum.
+          • Mystery box resolved server-side into one of 4 outcomes
+            (+100 coins / ₹25 cashback / ₹50 Amazon / 2 free spins).
+          • Cashback credited as coins (1:1) + wallet entry for history.
+          • New endpoints:
+              GET  /api/rewards/missions             (live daily missions)
+              POST /api/rewards/missions/claim       (idempotent claim)
+              GET  /api/rewards/tier                 (standalone tier/XP)
+          • Updated /api/rewards/summary to include:
+              coins, xp, tier, free_spins_left, coins_to_next_spin,
+              can_spin_with_free, can_spin_with_coins, missions[].
+
+          FRONTEND (new):
+          • components/rewards/SpinWheel.tsx — Premium SVG wheel with
+            gradient pie slices, tick-haptic listener, deceleration
+            curve (Easing.out(cubic)), outer pulsing glow, pointer,
+            and a pulsing saffron CTA "Spin & Win Rewards".
+          • components/rewards/EnergyBar.tsx — 3-state progress bar:
+            "X free spins left", "Ready to spin (10 coins)", or
+            "Earn N more coins" with helper text.
+          • components/rewards/TierCard.tsx — Bronze→Platinum badge
+            card with XP bar, next-tier teaser, perks chips.
+          • components/rewards/MissionCard.tsx — mission row with
+            progress bar, reward chips (🪙+5 / ⭐+15 XP), pulsing
+            "Claim" gradient button when completed, muted when claimed.
+          • components/rewards/RewardsHero.tsx — saffron gradient hero
+            with coin counter (bounce animation), free spins stat,
+            tier mini-pill, blob decorations.
+          • app/rewards-hub.tsx — complete rewrite using the above,
+            plus Pro upsell card (₹49+ soft paywall with "2x rewards"
+            framing), Recent Wins horizontal strip, confetti on win.
+
+          VERIFICATION:
+          • Bundle: 2320 modules, clean compile, zero parse errors.
+          • Route /rewards-hub returns HTTP 200.
+          • Live API tests (test token):
+              GET  /api/rewards/summary   → 200 (coins=112, Silver,
+                                                 5 free spins, 30.2%
+                                                 to Gold, 8 prizes).
+              GET  /api/rewards/missions  → 200 (3 missions, open_app
+                                                 already completed).
+              GET  /api/rewards/tier      → 200 (all 4 tiers exposed).
+              POST /api/rewards/spin      → 200 (won +50 coins rare,
+                                                 balance 112→162,
+                                                 XP 222→272).
+              POST /api/rewards/missions/claim {open_app}
+                                         → 200 (+2 coins, +5 XP).
+
+          Backwards compat: /rewards/vouchers, /rewards/claim-voucher,
+          /rewards/wallet unchanged. AsyncStorage/auth flows untouched.
+
+          DEFERRED (Wave 2+):
+          • Rewards Marketplace (Trending / Recommended / Premium locked)
+          • Personalization engine (category-driven recommendations)
+          • Live social feed / FOMO ticker
+          • Mystery Box screen / Weekend Mega Spin / Double Rewards Hour
+
+agent_communication:
+  - agent: "main"
+    message: |
+      ✅ Rewards Gamification Wave 1 shipped (Apr 22 2026).
+
+      WHAT'S NEW:
+      • Premium SVG spin wheel with tick haptics, deceleration, and
+        pulsing "Spin & Win Rewards" CTA.
+      • 3 free spins/day (scales with tier), then 10 coins/spin.
+      • Progress bar: "Earn N more coins to spin" when short.
+      • Bronze → Silver → Gold → Platinum progression with XP bar.
+      • 3 daily missions (open_app / add_expense / refer_friend) with
+        live progress + idempotent claim + pulsing green "Claim"
+        button when ready.
+      • MintU Pro upsell card (₹49+) with "2x rewards, 10 free spins/day"
+        value prop — routes to existing /premium flow.
+      • Recent wins horizontal strip.
+      • Full haptics, confetti on win, toast on claim, refresh-to-sync.
+
+      BACKEND is backward compatible (old /rewards/summary consumers
+      continue to work; new fields are additive).
+
+      NEXT ACTION ITEMS (Wave 2):
+      1. Rewards Marketplace (Trending / Recommended / Premium locked).
+      2. Personalization: show Swiggy/Zomato to food users, MMT to
+         travel users, Amazon/Flipkart to shopping users.
+      3. Live social feed / FOMO ticker.
+      4. Mystery Box dedicated screen + Weekend Mega Spin +
+         Double Rewards Hour events.
+      5. Manual QA on Expo Go — login with 9876543210 / OTP 123456,
+         tap Coins chip in Home header → opens new Rewards Hub.
+

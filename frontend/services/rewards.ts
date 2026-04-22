@@ -51,3 +51,43 @@ export async function fetchFriendsLeaderboard(): Promise<any> {
   const r = await api.get('/leaderboard/friends');
   return r.data;
 }
+
+
+// ═══════════════════════════════════════════════════════════════
+// Rewards Hub v2 (Gamification — Wave 1)
+// ═══════════════════════════════════════════════════════════════
+
+export async function fetchRewardsSummary(): Promise<any> {
+  const r = await api.get('/rewards/summary');
+  return r.data;
+}
+
+export async function spinWheel(): Promise<any> {
+  const r = await api.post('/rewards/spin');
+  return r.data;
+}
+
+export async function fetchMissions(): Promise<any> {
+  const r = await api.get('/rewards/missions');
+  return r.data;
+}
+
+export async function claimMission(mission_id: string): Promise<any> {
+  const r = await api.post('/rewards/missions/claim', { mission_id });
+  return r.data;
+}
+
+export async function fetchTier(): Promise<any> {
+  const r = await api.get('/rewards/tier');
+  return r.data;
+}
+
+export async function fetchRewardsVouchers(category: string = 'food'): Promise<any> {
+  const r = await api.get(`/rewards/vouchers?category=${encodeURIComponent(category)}`);
+  return r.data;
+}
+
+export async function claimVoucher(voucher_id: string): Promise<any> {
+  const r = await api.post('/rewards/claim-voucher', { voucher_id });
+  return r.data;
+}
