@@ -26,7 +26,7 @@ const TONE_COLOR = {
   info:     '#3B82F6',
 } as const;
 
-export default function BeatLastWeek({
+function BeatLastWeekBase({
   thisWeek, lastWeek, pctBetter, commentary, tone, rewardPreview, onPress, onShare,
 }: Props) {
   const s = useStyles();
@@ -114,6 +114,26 @@ export default function BeatLastWeek({
     </TouchableOpacity>
   );
 }
+
+/**
+ * Memoized — only re-renders when the weekly data actually changes.
+ * Callbacks (onPress, onShare) are typically fresh each parent render,
+ * so we skip comparing them (parent wrappers stabilize them if needed).
+ */
+function beatEqual(a: Props, b: Props): boolean {
+  if (a.pctBetter !== b.pctBetter) return false;
+  if (a.tone !== b.tone) return false;
+  if (a.commentary !== b.commentary) return false;
+  const aT = a.thisWeek, bT = b.thisWeek;
+  if ((aT?.expense || 0) !== (bT?.expense || 0)) return false;
+  if ((aT?.saved || 0) !== (bT?.saved || 0)) return false;
+  const aL = a.lastWeek, bL = b.lastWeek;
+  if ((aL?.expense || 0) !== (bL?.expense || 0)) return false;
+  return true;
+}
+
+const BeatLastWeek = React.memo(BeatLastWeekBase, beatEqual);
+export default BeatLastWeek;
 
 const useStyles = makeStyles((c) => ({
   card: { backgroundColor: c.bg.secondary, borderRadius: 18, padding: 16, borderWidth: 1, borderColor: c.border.subtle, marginBottom: 14 },

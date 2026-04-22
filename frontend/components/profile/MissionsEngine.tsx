@@ -45,7 +45,7 @@ interface Props {
   onEarnAll: () => void;
 }
 
-export default function MissionsEngine({
+function MissionsEngineBase({
   missions, secondsToRefresh, totalXp, totalCoins, onMissionPress, onEarnAll,
 }: Props) {
   const s = useStyles();
@@ -127,6 +127,26 @@ export default function MissionsEngine({
     </View>
   );
 }
+
+/**
+ * Memoized export — re-renders only when missions list, XP/coins totals or
+ * the refresh countdown tick change. The callbacks are stable-by-reference
+ * from the parent, so we skip comparing them. This prevents ~10 unnecessary
+ * re-renders per minute on the Profile tab.
+ */
+function missionsPropsEqual(a: Props, b: Props): boolean {
+  if (a.totalXp !== b.totalXp || a.totalCoins !== b.totalCoins) return false;
+  if (Math.abs((a.secondsToRefresh || 0) - (b.secondsToRefresh || 0)) > 0) return false;
+  if (a.missions.length !== b.missions.length) return false;
+  for (let i = 0; i < a.missions.length; i++) {
+    const x = a.missions[i]; const y = b.missions[i];
+    if (x.id !== y.id || x.done !== y.done || x.streak_saver !== y.streak_saver) return false;
+  }
+  return true;
+}
+
+const MissionsEngine = React.memo(MissionsEngineBase, missionsPropsEqual);
+export default MissionsEngine;
 
 const useStyles = makeStyles((c) => ({
   card: { backgroundColor: c.bg.secondary, borderRadius: 20, padding: 18, borderWidth: 1, borderColor: c.border.subtle, marginBottom: 14 },
