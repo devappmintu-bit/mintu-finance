@@ -1,20 +1,21 @@
 /**
- * ProfileHeroV3 — minimal, calm hero for the redesigned Profile.
+ * ProfileHeroV3 — signature saffron-gradient hero, matched with
+ * BalanceHero / Budget / Transactions heroes (brand continuity).
  *
- * Design goals:
- *   • Flat card, subtle border, NO heavy gradient
- *   • Large Money Score as the focal point
- *   • Clean progress bar toward next tier
- *   • Single primary CTA: "Level Up"
- *
- * REMOVED from v2: Top X%, coins, streak, delta pill, dual CTAs.
+ * Design notes:
+ *   • Uses the exact same LinearGradient(#F56E1E → #C14A06) and
+ *     decorative blobs used across the app's other tab heroes.
+ *   • Clean hierarchy: avatar+name, tier pill, big Money Score,
+ *     progress bar to next tier, single "Level Up" CTA chip.
+ *   • No Top X%, delta, coins or extra CTAs — kept minimal as per
+ *     the v3 brief.
  */
 import React from 'react';
-import { View, Text, TouchableOpacity, Platform } from 'react-native';
+import { View, Text, TouchableOpacity, Platform, StyleSheet } from 'react-native';
 import { Image } from 'expo-image';
+import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
-import { makeStyles } from '../../utils/makeStyles';
 
 interface Props {
   user: any;
@@ -25,13 +26,13 @@ interface Props {
   onLevelUp: () => void;
 }
 
-type Tier = { label: string; next: string; min: number; max: number };
+type Tier = { label: string; next: string; emoji: string; min: number; max: number };
 
 const TIERS: Tier[] = [
-  { label: 'Just Starting', next: 'Growing Saver', min: 0, max: 40 },
-  { label: 'Growing Saver', next: 'Smart Spender', min: 40, max: 60 },
-  { label: 'Smart Spender', next: 'Elite Saver', min: 60, max: 80 },
-  { label: 'Elite Saver', next: 'Wealth Master', min: 80, max: 100 },
+  { label: 'Just Starting', next: 'Growing Saver', emoji: '🌱', min: 0, max: 40 },
+  { label: 'Growing Saver', next: 'Smart Spender', emoji: '⚡', min: 40, max: 60 },
+  { label: 'Smart Spender', next: 'Elite Saver', emoji: '💪', min: 60, max: 80 },
+  { label: 'Elite Saver', next: 'Wealth Master', emoji: '🏆', min: 80, max: 100 },
 ];
 
 function tierFor(score: number): Tier {
@@ -41,7 +42,6 @@ function tierFor(score: number): Tier {
 export default function ProfileHeroV3({
   user, avatar, onEditName, onPickAvatar, onRemoveAvatar, onLevelUp,
 }: Props) {
-  const s = useStyles();
   const score = user?.money_score || 0;
   const tier = tierFor(score);
   const pct = Math.min(100, Math.max(0, ((score - tier.min) / (tier.max - tier.min)) * 100));
@@ -50,9 +50,27 @@ export default function ProfileHeroV3({
   const haptic = () => { if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {}); };
 
   return (
-    <View style={s.card}>
-      {/* Avatar + Name row */}
-      <View style={s.headerRow}>
+    <LinearGradient
+      colors={['#F56E1E', '#C14A06']}
+      start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}
+      style={s.card}
+    >
+      <View style={s.blob1} />
+      <View style={s.blob2} />
+
+      {/* Top row: tier pill (left) + edit button (right) */}
+      <View style={s.topRow}>
+        <View style={s.tierPill}>
+          <Text style={s.tierEmoji}>{tier.emoji}</Text>
+          <Text style={s.tierTxt}>{tier.label.toUpperCase()}</Text>
+        </View>
+        <TouchableOpacity style={s.editBtn} onPress={() => { haptic(); onEditName(); }} hitSlop={8} activeOpacity={0.7}>
+          <Ionicons name="create-outline" size={16} color="#fff" />
+        </TouchableOpacity>
+      </View>
+
+      {/* Identity: avatar + name */}
+      <View style={s.identity}>
         <TouchableOpacity
           onPress={() => { haptic(); onPickAvatar(); }}
           onLongPress={avatar ? onRemoveAvatar : undefined}
@@ -67,82 +85,84 @@ export default function ProfileHeroV3({
             </View>
           )}
         </TouchableOpacity>
-
-        <View style={{ flex: 1, marginLeft: 14, minWidth: 0 }}>
+        <View style={{ flex: 1, marginLeft: 12, minWidth: 0 }}>
           <Text style={s.name} numberOfLines={1}>{user?.name || 'User'}</Text>
           <Text style={s.phone} numberOfLines={1}>{user?.phone || '—'}</Text>
         </View>
-
-        <TouchableOpacity style={s.editBtn} onPress={() => { haptic(); onEditName(); }} hitSlop={8}>
-          <Ionicons name="create-outline" size={18} color={'#9CA3AF'} />
-        </TouchableOpacity>
       </View>
 
-      {/* Score block — focal point */}
-      <View style={s.scoreBlock}>
-        <View style={s.scoreRow}>
-          <Text style={s.scoreValue}>{score}</Text>
-          <Text style={s.scoreOf}>/ 100</Text>
-        </View>
-        <Text style={s.scoreLabel}>Money Score · {tier.label}</Text>
-
-        {/* Progress bar */}
-        <View style={s.progressBar}>
-          <View style={[s.progressFill, { width: `${pct}%` }]} />
-        </View>
-
-        <Text style={s.nextTier}>
-          {pointsToNext > 0
-            ? `${pointsToNext} points to ${tier.next}`
-            : `Top tier reached — keep it up`}
-        </Text>
+      {/* Score block */}
+      <Text style={s.label}>MONEY SCORE</Text>
+      <View style={s.amountRow}>
+        <Text style={s.amount}>{score}</Text>
+        <Text style={s.amountOf}>/ 100</Text>
       </View>
 
-      {/* Single primary CTA */}
-      <TouchableOpacity style={s.cta} onPress={() => { haptic(); onLevelUp(); }} activeOpacity={0.88} testID="profile-level-up">
-        <Text style={s.ctaText}>Level Up</Text>
-        <Ionicons name="arrow-forward" size={16} color="#fff" />
+      {/* Progress bar */}
+      <View style={s.progressBar}>
+        <View style={[s.progressFill, { width: `${pct}%` }]} />
+      </View>
+
+      <Text style={s.sub} numberOfLines={1}>
+        {pointsToNext > 0
+          ? `${pointsToNext} points to ${tier.next}`
+          : 'Top tier reached — keep it up'}
+      </Text>
+
+      {/* Level Up CTA chip */}
+      <TouchableOpacity
+        style={s.cta}
+        onPress={() => { haptic(); onLevelUp(); }}
+        activeOpacity={0.85}
+        testID="profile-level-up"
+      >
+        <Ionicons name="rocket" size={14} color="#fff" />
+        <Text style={s.ctaTxt}>Level up</Text>
       </TouchableOpacity>
-    </View>
+    </LinearGradient>
   );
 }
 
-const useStyles = makeStyles((c) => ({
+const s = StyleSheet.create({
   card: {
-    backgroundColor: c.bg.secondary,
-    borderRadius: 20,
+    borderRadius: 24,
     padding: 20,
-    borderWidth: 1,
-    borderColor: c.border.subtle,
+    overflow: 'hidden',
+    position: 'relative',
     marginBottom: 16,
+    shadowColor: '#C14A06', shadowOpacity: 0.2, shadowRadius: 18, shadowOffset: { width: 0, height: 8 }, elevation: 6,
   },
-  headerRow: { flexDirection: 'row', alignItems: 'center' },
-  avatarWrap: { width: 48, height: 48, borderRadius: 24, overflow: 'hidden', backgroundColor: c.bg.primary },
+  blob1: { position: 'absolute', top: -40, right: -40, width: 140, height: 140, borderRadius: 70, backgroundColor: 'rgba(255,255,255,0.08)' },
+  blob2: { position: 'absolute', bottom: -50, left: -50, width: 160, height: 160, borderRadius: 80, backgroundColor: 'rgba(0,0,0,0.08)' },
+
+  topRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  tierPill: { flexDirection: 'row', alignItems: 'center', gap: 5, backgroundColor: 'rgba(255,255,255,0.18)', paddingHorizontal: 10, paddingVertical: 4, borderRadius: 999 },
+  tierEmoji: { fontSize: 12 },
+  tierTxt: { fontSize: 10, fontWeight: '900', color: '#fff', letterSpacing: 0.8 },
+  editBtn: { width: 30, height: 30, borderRadius: 15, backgroundColor: 'rgba(0,0,0,0.18)', alignItems: 'center', justifyContent: 'center' },
+
+  identity: { flexDirection: 'row', alignItems: 'center', marginTop: 14 },
+  avatarWrap: { width: 52, height: 52, borderRadius: 26, overflow: 'hidden', backgroundColor: 'rgba(255,255,255,0.25)', padding: 2 },
   avatar: { width: 48, height: 48, borderRadius: 24 },
-  avatarPlace: { width: 48, height: 48, borderRadius: 24, alignItems: 'center', justifyContent: 'center', backgroundColor: c.bg.primary },
-  name: { fontSize: 17, fontWeight: '700', color: c.text.primary, letterSpacing: -0.2 },
-  phone: { fontSize: 12.5, fontWeight: '500', color: c.text.muted, marginTop: 2 },
-  editBtn: { width: 36, height: 36, borderRadius: 18, alignItems: 'center', justifyContent: 'center' },
+  avatarPlace: { width: 48, height: 48, borderRadius: 24, alignItems: 'center', justifyContent: 'center', backgroundColor: '#fff' },
+  name: { fontSize: 17, fontWeight: '800', color: '#fff', letterSpacing: -0.3 },
+  phone: { fontSize: 12, fontWeight: '600', color: 'rgba(255,255,255,0.78)', marginTop: 1 },
 
-  // Score block
-  scoreBlock: { marginTop: 20, alignItems: 'center' },
-  scoreRow: { flexDirection: 'row', alignItems: 'baseline' },
-  scoreValue: { fontSize: 56, fontWeight: '800', color: c.text.primary, letterSpacing: -2 },
-  scoreOf: { fontSize: 18, fontWeight: '600', color: c.text.muted, marginLeft: 4 },
-  scoreLabel: { fontSize: 12.5, fontWeight: '600', color: c.text.secondary, marginTop: 2, letterSpacing: 0.2 },
+  label: { fontSize: 11, fontWeight: '800', color: 'rgba(255,255,255,0.8)', letterSpacing: 1, marginTop: 16, textTransform: 'uppercase' },
+  amountRow: { flexDirection: 'row', alignItems: 'baseline', marginTop: 2 },
+  amount: { fontSize: 44, fontWeight: '900', color: '#fff', letterSpacing: -1.5 },
+  amountOf: { fontSize: 16, fontWeight: '700', color: 'rgba(255,255,255,0.7)', marginLeft: 6 },
 
-  // Progress bar
-  progressBar: { width: '100%', height: 6, borderRadius: 3, backgroundColor: c.bg.primary, marginTop: 16, overflow: 'hidden' },
-  progressFill: { height: '100%', backgroundColor: c.accent.primary, borderRadius: 3 },
-  nextTier: { fontSize: 11.5, fontWeight: '600', color: c.text.muted, marginTop: 8 },
+  progressBar: { height: 6, borderRadius: 3, backgroundColor: 'rgba(0,0,0,0.28)', overflow: 'hidden', marginTop: 10 },
+  progressFill: { height: '100%', backgroundColor: '#fff', borderRadius: 3 },
+  sub: { fontSize: 12.5, fontWeight: '600', color: 'rgba(255,255,255,0.88)', marginTop: 8 },
 
-  // CTA
   cta: {
-    flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6,
-    backgroundColor: c.accent.primary,
-    paddingVertical: 13,
-    borderRadius: 12,
-    marginTop: 18,
+    flexDirection: 'row', alignItems: 'center', gap: 6,
+    marginTop: 14, alignSelf: 'flex-start',
+    backgroundColor: 'rgba(0,0,0,0.22)',
+    paddingVertical: 9, paddingHorizontal: 14,
+    borderRadius: 999,
   },
-  ctaText: { fontSize: 14.5, fontWeight: '700', color: '#fff', letterSpacing: -0.1 },
-}));
+  ctaTxt: { fontSize: 12.5, fontWeight: '800', color: '#fff', letterSpacing: 0.2 },
+});

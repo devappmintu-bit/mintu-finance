@@ -8987,3 +8987,55 @@ agent_communication:
       • All calm, flat, high-clarity.
 
       Next Action Items: user review & feedback.
+
+# ─────────────────────────────────────────────────────────────
+# PROFILE HERO — brand continuity pass (Apr 22 2026)
+# ─────────────────────────────────────────────────────────────
+frontend:
+  - task: "Profile Hero brand continuity"
+    implemented: true
+    working: true
+    file: "/app/frontend/components/profile/ProfileHeroV3.tsx"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+      - working: true
+        agent: "main"
+        comment: |
+          Restored the signature saffron LinearGradient
+          (#F56E1E → #C14A06) for the Profile hero so it matches
+          BalanceHero / Budget / Transactions tabs (visual brand
+          continuity).
+
+          Retained v3 minimalism below the hero: Today card,
+          ProgressInline, WeeklyChallengeCalm, InsightMinimal,
+          PremiumCalmCard, SettingsList — all still flat, calm
+          cards with the orange accent used sparingly.
+
+          Hero structure:
+          • Tier pill (🌱 JUST STARTING / ⚡ GROWING SAVER /
+            💪 SMART SPENDER / 🏆 ELITE SAVER) top-left
+          • Pencil edit button top-right
+          • Avatar + name + phone row
+          • MONEY SCORE uppercase label
+          • Big 44px score + /100
+          • White progress bar on dark track
+          • "N points to <next tier>" helper text
+          • "🚀 Level up" CTA chip (opens ScoreBoostModal)
+
+          Verified on /profile — hero matches other tab heroes
+          pixel-for-pixel in gradient, padding, blobs, chip CTA.
+
+agent_communication:
+  - agent: "main"
+    message: |
+      ✅ Profile hero aligned with app-wide brand hero style.
+      • Saffron gradient restored (matches Home/Budget/Tx)
+      • Kept minimal/flat body sections (Today, Progress merged,
+        calm Challenge, single Insight, muted Premium, list
+        Settings).
+      • Delete Account still a separate full-screen route.
+      • Logout still a bottom sheet.
+
+      Next Action Items: user review.
