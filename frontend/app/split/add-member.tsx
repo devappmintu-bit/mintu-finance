@@ -20,7 +20,7 @@ import * as Haptics from 'expo-haptics';
 import * as Clipboard from 'expo-clipboard';
 import QRCode from 'react-native-qrcode-svg';
 import Toast from 'react-native-toast-message';
-import { fetchGroupSummary, addMembers } from '../../services/split';
+import { fetchGroupSummary, addGroupMember } from '../../services/split';
 import { makeStyles } from '../../utils/makeStyles';
 import { COLORS, SPACING } from '../../utils/theme';
 
@@ -77,7 +77,7 @@ export default function AddMemberScreen() {
     setSubmitting(true);
     try {
       for (const c of selected) {
-        await addMembers(group.id, c.phone);
+        await addGroupMember(group.id, c.phone);
       }
       if (Platform.OS !== 'web') Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
       Toast.show({ type: 'success', text1: `${selected.length} added to ${group.name}` });

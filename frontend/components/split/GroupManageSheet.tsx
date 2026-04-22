@@ -37,9 +37,10 @@ type Props = {
   onRemoveMember: (memberId: string) => void;
   onDelete: () => void;
   onLeave: () => void;
+  onFullAddMember?: () => void; // If provided, "Add member" routes to full-screen flow
 };
 
-export default function GroupManageSheet({ visible, onClose, manage, currentUserId, onRename, onAddMember, onRemoveMember, onDelete, onLeave }: Props) {
+export default function GroupManageSheet({ visible, onClose, manage, currentUserId, onRename, onAddMember, onRemoveMember, onDelete, onLeave, onFullAddMember }: Props) {
   const s = useStyles();
   const [addPhoneVal, setAddPhoneVal] = useState('');
   const [renameVal, setRenameVal] = useState('');
@@ -146,9 +147,9 @@ export default function GroupManageSheet({ visible, onClose, manage, currentUser
               <ActionRow
                 icon="person-add-outline"
                 label="Add member"
-                onPress={() => setShowAddMember(!showAddMember)}
+                onPress={() => { if (onFullAddMember) { onFullAddMember(); } else { setShowAddMember(!showAddMember); } }}
               />
-              {showAddMember && (
+              {showAddMember && !onFullAddMember && (
                 <View style={s.inlineRow}>
                   <TextInput style={s.input} placeholder="10-digit phone number" placeholderTextColor={C.text4} value={addPhoneVal} onChangeText={setAddPhoneVal} keyboardType="phone-pad" maxLength={10} autoFocus />
                   <TouchableOpacity onPress={handleAddMember}>

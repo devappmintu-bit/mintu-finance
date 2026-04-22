@@ -203,7 +203,6 @@ export default function AddExpenseScreen() {
               placeholder="0"
               placeholderTextColor="#D1D5DB"
               style={s.amountInput}
-              autoFocus
               testID="ae-amount"
             />
           </View>
@@ -387,7 +386,7 @@ const useStyles = makeStyles((c) => ({
   iconBtn: { width: 36, height: 36, borderRadius: 18, alignItems: 'center', justifyContent: 'center', backgroundColor: c.bg.secondary },
   title: { fontSize: 16, fontWeight: '900', color: c.text.primary, letterSpacing: -0.2 },
   groupName: { fontSize: 11, fontWeight: '700', color: c.text.muted, marginTop: 1 },
-  scroll: { padding: SPACING.lg, paddingBottom: 100, gap: 10 },
+  scroll: { paddingHorizontal: SPACING.lg, paddingTop: SPACING.lg, paddingBottom: 100, gap: 10 },
 
   amountCard: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingVertical: 20, paddingHorizontal: 18, borderRadius: 20, backgroundColor: '#FFF7ED', borderWidth: 1, borderColor: '#FED7AA' },
   rupee: { fontSize: 42, fontWeight: '900', color: '#C14A06' },
@@ -395,7 +394,7 @@ const useStyles = makeStyles((c) => ({
 
   label: { fontSize: 10, fontWeight: '900', color: c.text.muted, letterSpacing: 1.2, marginTop: 6 },
   descInput: { fontSize: 15, fontWeight: '700', color: c.text.primary, backgroundColor: c.bg.secondary, borderRadius: 12, paddingVertical: 12, paddingHorizontal: 14, borderWidth: 1, borderColor: c.border.subtle },
-  suggRow: { marginHorizontal: -SPACING.lg, paddingHorizontal: SPACING.lg },
+  suggRow: { },
   suggChip: { flexDirection: 'row', alignItems: 'center', gap: 5, paddingHorizontal: 10, paddingVertical: 6, borderRadius: 999, backgroundColor: c.bg.secondary, borderWidth: 1, borderColor: c.border.subtle },
   suggEmoji: { fontSize: 13 },
   suggTxt: { fontSize: 11.5, fontWeight: '800', color: c.text.secondary },

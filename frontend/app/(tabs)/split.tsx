@@ -6,13 +6,15 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
+import { router } from 'expo-router';
 import Toast from 'react-native-toast-message';
 import api from '../../utils/api';
 import {
   fetchSplitGroups, createSplitGroup, fetchGroupSummary, fetchGroupManage,
   fetchSplitBalances, fetchSplitActivity, fetchReminders, dismissReminder as dismissReminderSrv,
-  updateGroupName, addGroupMember, removeGroupMember, leaveGroup, deleteGroup,
-  createExpense, updateExpense, deleteExpense,
+  updateGroupName, addGroupMember, removeGroupMember,
+  leaveGroup as leaveGroupSrv, deleteGroup as deleteGroupSrv,
+  createExpense, updateExpense, deleteExpense as deleteExpenseSrv,
   fetchSettlementLeaderboard, fetchPayIntent, settleWithRewards,
   partialSettle as partialSettleSrv, markPaidOffline as markPaidOfflineSrv,
   createSplitRazorpayOrder, sendPaymentReminder,
@@ -177,7 +179,7 @@ export default function SplitScreen() {
       { text: 'Cancel', style: 'cancel' },
       { text: 'Delete', style: 'destructive', onPress: async () => {
         try {
-          await deleteGroup(gid);
+          await deleteGroupSrv(gid);
           Toast.show({ type: 'success', text1: 'Deleted!', text2: `${gname} removed` });
         } catch (e: any) {
           Toast.show({ type: 'error', text1: 'Error', text2: e?.response?.data?.detail || 'Could not delete' });
@@ -220,7 +222,7 @@ export default function SplitScreen() {
     Alert.alert('Leave?', 'Are you sure you want to leave?', [
       { text: 'Cancel', style: 'cancel' },
       { text: 'Leave', style: 'destructive', onPress: async () => {
-        try { await leaveGroup(gid); Toast.show({ type: 'success', text1: 'Left Group' }); } catch (e: any) { Toast.show({ type: 'error', text1: 'Error', text2: e?.response?.data?.detail || 'Could not leave' }); }
+        try { await leaveGroupSrv(gid); Toast.show({ type: 'success', text1: 'Left Group' }); } catch (e: any) { Toast.show({ type: 'error', text1: 'Error', text2: e?.response?.data?.detail || 'Could not leave' }); }
         close(); setTimeout(() => fetchData(), 300);
       }},
     ]);
@@ -228,10 +230,14 @@ export default function SplitScreen() {
 
   // EXPENSE CRUD
   const openAddExpense = (gr: any) => {
-    // Delta: route to new full-screen flow instead of bottom-sheet modal
-    try { router.push({ pathname: '/split/add-expense', params: { group_id: gr.id } } as any); } catch {
-      setSelectedGroup(gr); setEditingExpense(null); setModal('expense');
-    }
+    // Route to new full-screen flow (replaces legacy bottom-sheet modal)
+    setSelectedGroup(gr);
+    router.push({ pathname: '/split/add-expense', params: { group_id: gr.id } } as any);
+  };
+  const openAddMember = (gr: any) => {
+    // Route to new full-screen add-member flow with QR + WhatsApp invite
+    setSelectedGroup(gr);
+    router.push({ pathname: '/split/add-member', params: { group_id: gr.id } } as any);
   };
   const openEditExpense = (exp: any) => { setEditingExpense(exp); setModal('expense'); };
   const submitExpense = async (payload: { description: string; amount: number; split_type: string; splits: Record<string, number>; expense_id?: string }) => {
@@ -259,7 +265,7 @@ export default function SplitScreen() {
       { text: 'Cancel', style: 'cancel' },
       { text: 'Delete', style: 'destructive', onPress: async () => {
         try {
-          await deleteExpense(exp.id);
+          await deleteExpenseSrv(exp.id);
           Toast.show({ type: 'success', text1: 'Deleted ✅' });
           if (selectedGroup) openSummary(selectedGroup);
           fetchData();
@@ -598,6 +604,7 @@ export default function SplitScreen() {
           onRemoveMember={removeMember}
           onDelete={deleteGroup}
           onLeave={leaveGroup}
+          onFullAddMember={() => { const gid = selectedGroup?.id; close(); if (gid) setTimeout(() => router.push({ pathname: '/split/add-member', params: { group_id: gid } } as any), 180); }}
         />
       )}
       {modal === 'pay' && (

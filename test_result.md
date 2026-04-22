@@ -7460,3 +7460,59 @@ auth_relocation_apr21_2026:
           Bundle clean: 2272 modules · backend untouched · all existing
           flows preserved.
 
+
+
+  - task: "Split · Full-screen Add Expense + Add Member flows wired"
+    implemented: true
+    working: "NA"
+    file: "/app/frontend/app/(tabs)/split.tsx, /app/frontend/app/split/add-expense.tsx, /app/frontend/app/split/add-member.tsx, /app/frontend/components/split/GroupManageSheet.tsx"
+    status_history:
+      - working: "NA"
+        agent: "main"
+        comment: |
+          Delta applied to wire the new Splitwise-killer full-screen flows:
+
+          1. `(tabs)/split.tsx`
+             • Added missing `import { router } from 'expo-router'` — previous
+               attempt silently fell back to legacy bottom-sheet.
+             • Aliased shadowed service imports to remove infinite-recursion
+               bug: `deleteGroup → deleteGroupSrv`, `leaveGroup → leaveGroupSrv`,
+               `deleteExpense → deleteExpenseSrv` (local callbacks had the
+               same name as the imported service, which was unreachable).
+             • `openAddExpense(gr)` now deterministically routes to
+               `/split/add-expense?group_id=<id>` (no more try/catch fallback).
+             • New `openAddMember(gr)` helper to route to `/split/add-member`.
+             • GroupManageSheet: new `onFullAddMember` prop wired — clicking
+               "Add member" now closes the sheet and routes to the full-screen
+               QR+WhatsApp invite flow.
+
+          2. `app/split/add-expense.tsx`
+             • Scroll container padding normalised (paddingHorizontal +
+               paddingTop instead of compound `padding`) to fix web layout
+               shift.
+             • Removed `autoFocus` on amount input (KeyboardAvoidingView
+               interaction was causing a brief width recalc on web).
+             • Removed negative horizontal margin on the suggestion chip row
+               (was pulling the whole scroll subtree left).
+
+          3. `app/split/add-member.tsx`
+             • Fixed wrong service import: `addMembers` did not exist —
+               replaced with `addGroupMember(groupId, phone)`.
+
+          4. `components/split/GroupManageSheet.tsx`
+             • New optional `onFullAddMember` prop. When provided, the
+               "Add member" row skips the inline form and fires the callback
+               (→ router.push to the full-screen flow). Inline form kept as
+               backwards-compatible fallback.
+
+          Verification:
+             • Route `/split/add-expense?group_id=<id>` responds 200 and
+               renders the full UI (amount card, who-paid chips, split-type
+               tabs, live-preview card, saffron CTA).
+             • Route `/split/add-member?group_id=<id>` responds 200 and
+               renders WhatsApp invite, copy-link, and QR code (verified
+               via direct-URL screenshot).
+             • Group manage "Add member" now opens the new full-screen QR flow.
+
+          Next step: Auto-generated chat card on expense create + group
+          header net-balance redesign (Split Group Overhaul, Phase 2).
