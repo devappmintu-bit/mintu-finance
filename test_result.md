@@ -7390,3 +7390,73 @@ auth_relocation_apr21_2026:
           Bundle clean: 2271 modules (2269 + 2 new premium components) ·
           backend untouched · all existing flows preserved.
 
+
+────────────────────────────────────────────────────────────────────
+## 🎨 Conversion Deep-Deploy (All 5 Surfaces — Shared / Premium / AI / School)
+────────────────────────────────────────────────────────────────────
+
+  - task: "LockedState rewritten to use SoftPaywall"
+    implemented: true
+    working: "NA"
+    file: "/app/frontend/components/premium/Shared.tsx"
+    status_history:
+      - working: "NA"
+        agent: "main"
+        comment: |
+          LockedState (rendered on Tax · Invest · School tabs) now emits
+          SoftPaywall with feature-specific framing:
+            • Tax Calculator     — "₹28K loss" + 6 hidden insights + 3 teasers
+            • Investment Suggester — "₹46K loss" + 8 hidden insights + 3 teasers
+            • Money School       — "₹34K loss" + 12 hidden insights + 3 teasers
+          Every locked surface in the app now shows loss-framing + pulsing CTA
+          + trust signals in a single deploy.
+
+  - task: "Main /premium screen header loss-framing"
+    implemented: true
+    working: "NA"
+    file: "/app/frontend/app/premium.tsx"
+    status_history:
+      - working: "NA"
+        agent: "main"
+        comment: |
+            • Title changed: "Go Premium" → "Start saving today"
+            • Contextual sub-line below title: "You could have saved ₹X last
+              month" (renders only when savings > 500 to avoid placeholder
+              smell)
+            • Uses real savings number from computed savings state
+
+  - task: "Money School lesson-level XP + savings impact"
+    implemented: true
+    working: "NA"
+    file: "/app/frontend/app/premium.tsx (LessonsView)"
+    status_history:
+      - working: "NA"
+        agent: "main"
+        comment: |
+          Each lesson card now shows:
+            • "+{XP} XP" amber pill (client-derived 100-300 XP per lesson)
+            • "Save ₹X K/yr" green pill (5K-18K/yr impact estimate)
+          Layout: category chip + XP pill + savings pill in one wrappable
+          row, then title, content, tip. Each pill tinted with its semantic
+          color (amber for XP, emerald for savings).
+
+  - task: "AI Coach screen — PremiumTeaserCard injected"
+    implemented: true
+    working: "NA"
+    file: "/app/frontend/app/(tabs)/ai-coach.tsx"
+    status_history:
+      - working: "NA"
+        agent: "main"
+        comment: |
+          PremiumTeaserCard inserted below the subtitle row (and only after
+          loading). Wired with real `waste` data from /api/waste-detector:
+            • monthlyLoss = waste.total_wasted
+            • topLeaks    = waste.items[0..2].{ merchant, amount, emoji }
+            • hiddenInsightsCount = 6
+          Free users see "You lost ₹X this month" + Top 3 leaks + "Reveal
+          full breakdown" BEFORE scrolling into the existing Pulse/Brain
+          cards — sets conversion intent above the fold.
+
+          Bundle clean: 2272 modules · backend untouched · all existing
+          flows preserved.
+

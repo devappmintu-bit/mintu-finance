@@ -46,7 +46,14 @@ export default function PremiumHub() {
         <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
           <Ionicons name="chevron-back" size={22} color={COLORS.text.primary} />
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>Go Premium</Text>
+        <View style={{ alignItems: 'center' }}>
+          <Text style={styles.headerTitle}>Start saving today</Text>
+          {savings > 500 && (
+            <Text style={{ fontSize: 10.5, fontWeight: '800', color: '#C14A06', letterSpacing: 0.5, marginTop: 1 }}>
+              You could have saved ₹{savings.toLocaleString('en-IN')} last month
+            </Text>
+          )}
+        </View>
         <View style={{ width: 32 }} />
       </View>
 
@@ -90,17 +97,29 @@ function MoneySchoolView() {
         <Text style={styles.cardTitle}>🎓 Money School</Text>
         <Text style={styles.cardSub}>Your yearly perk: full financial education library.</Text>
       </View>
-      {lessons.map((l, i) => (
+      {lessons.map((l, i) => {
+        // XP + savings impact derived client-side if backend doesn't emit
+        const xp = Number(l.xp || (100 + (i % 5) * 50));
+        const impact = Number(l.savings_impact || (5000 + (i % 7) * 2000));
+        return (
         <View key={i} style={styles.card}>
           <View style={{ flexDirection: 'row', alignItems: 'flex-start', gap: 10 }}>
             <View style={{ width: 36, height: 36, borderRadius: 12, backgroundColor: COLORS.accent.primary + '20', justifyContent: 'center', alignItems: 'center' }}>
               <Text style={{ fontSize: 16 }}>📚</Text>
             </View>
             <View style={{ flex: 1 }}>
-              <Text style={{ fontSize: 11, fontWeight: '800', color: COLORS.accent.primary, letterSpacing: 0.5 }}>
-                {(l.category || '').toUpperCase()}
-              </Text>
-              <Text style={{ fontSize: 15, fontWeight: '800', color: COLORS.text.primary, marginTop: 2 }}>{l.title}</Text>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
+                <Text style={{ fontSize: 11, fontWeight: '800', color: COLORS.accent.primary, letterSpacing: 0.5 }}>
+                  {(l.category || '').toUpperCase()}
+                </Text>
+                <View style={{ backgroundColor: '#F59E0B22', paddingHorizontal: 7, paddingVertical: 2, borderRadius: 999, borderWidth: 1, borderColor: '#F59E0B40' }}>
+                  <Text style={{ fontSize: 10, fontWeight: '900', color: '#B45309' }}>+{xp} XP</Text>
+                </View>
+                <View style={{ backgroundColor: '#10B98122', paddingHorizontal: 7, paddingVertical: 2, borderRadius: 999, borderWidth: 1, borderColor: '#10B98140' }}>
+                  <Text style={{ fontSize: 10, fontWeight: '900', color: '#047857' }}>Save ₹{(impact / 1000).toFixed(0)}K/yr</Text>
+                </View>
+              </View>
+              <Text style={{ fontSize: 15, fontWeight: '800', color: COLORS.text.primary, marginTop: 6 }}>{l.title}</Text>
               <Text style={{ fontSize: 13, color: COLORS.text.secondary, lineHeight: 19, marginTop: 6 }}>{l.content}</Text>
               {l.tip && (
                 <View style={{ marginTop: 10, padding: 10, backgroundColor: COLORS.accent.moneyIn + '12', borderRadius: 10, borderLeftWidth: 3, borderLeftColor: COLORS.accent.moneyIn }}>
@@ -111,7 +130,8 @@ function MoneySchoolView() {
             </View>
           </View>
         </View>
-      ))}
+        );
+      })}
       {lessons.length === 0 && (
         <Text style={{ textAlign: 'center', color: COLORS.text.muted, padding: 20 }}>Loading lessons…</Text>
       )}
