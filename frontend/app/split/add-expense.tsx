@@ -20,7 +20,7 @@ import { router, useLocalSearchParams } from 'expo-router';
 import * as Haptics from 'expo-haptics';
 import Toast from 'react-native-toast-message';
 import { useAuthStore } from '../../store/authStore';
-import { fetchGroupSummary, createExpense } from '../../services/split';
+import { fetchGroupSummary, createExpense, updateExpense } from '../../services/split';
 import Confetti from '../../components/Confetti';
 import { makeStyles } from '../../utils/makeStyles';
 import { COLORS, SPACING } from '../../utils/theme';
@@ -41,12 +41,14 @@ const fmt = (n: number) => `₹${Math.round(n).toLocaleString('en-IN')}`;
 
 export default function AddExpenseScreen() {
   const s = useStyles();
-  const params = useLocalSearchParams<{ group_id?: string }>();
+  const params = useLocalSearchParams<{ group_id?: string; expense_id?: string }>();
   const { user } = useAuthStore();
 
+  const isEditMode = !!params.expense_id;
   const [group, setGroup] = useState<any>(null);
   const [members, setMembers] = useState<Member[]>([]);
   const [loading, setLoading] = useState(true);
+  const [editingExpenseId, setEditingExpenseId] = useState<string | null>(null);
 
   const [amount, setAmount] = useState('');
   const [desc, setDesc] = useState('');
@@ -59,7 +61,7 @@ export default function AddExpenseScreen() {
   const [submitting, setSubmitting] = useState(false);
   const [showConfetti, setShowConfetti] = useState(false);
 
-  // Load group & members
+  // Load group & members (+ populate form if editing)
   useEffect(() => {
     (async () => {
       if (!params.group_id) { router.back(); return; }
@@ -68,16 +70,40 @@ export default function AddExpenseScreen() {
         setGroup(data);
         const mem: Member[] = (data?.members || []).map((m: any) => ({ id: m.user_id || m.id, name: m.name || 'User', phone: m.phone }));
         setMembers(mem);
+
         // Default: current user is payer; everyone participates
         const myId = user?.id || mem[0]?.id || '';
         setPayerId(myId);
         setParticipants(new Set(mem.map(m => m.id)));
+
+        // Edit mode: hydrate form from recent_expenses
+        if (isEditMode && params.expense_id) {
+          const exp = (data?.recent_expenses || []).find((e: any) => (e.id || e._id) === params.expense_id);
+          if (exp) {
+            setEditingExpenseId(String(params.expense_id));
+            setAmount(String(exp.amount ?? ''));
+            setDesc(String(exp.description || ''));
+            setPayerId(String(exp.paid_by || exp.paid_by_id || myId));
+            if (exp.splits && typeof exp.splits === 'object') {
+              const keys = Object.keys(exp.splits);
+              setParticipants(new Set(keys));
+              if (exp.split_type === 'exact') {
+                const es: Record<string, string> = {};
+                keys.forEach(k => { es[k] = String(exp.splits[k]); });
+                setExactSplits(es);
+              }
+            }
+            setSplitType((exp.split_type as SplitType) || 'equal');
+          } else {
+            Toast.show({ type: 'error', text1: 'Expense not found' });
+          }
+        }
       } catch (e) {
         Toast.show({ type: 'error', text1: 'Could not load group' });
         router.back();
       } finally { setLoading(false); }
     })();
-  }, [params.group_id]);
+  }, [params.group_id, params.expense_id]);
 
   const amountNum = Number(amount) || 0;
 
@@ -154,18 +180,27 @@ export default function AddExpenseScreen() {
     if (!canSubmit || !group) return;
     setSubmitting(true);
     try {
-      await createExpense({
-        group_id: group.id,
-        paid_by: payerId,
-        description: desc.trim(),
-        amount: amountNum,
-        split_type: splitType,
-        splits: splitsMap,
-      });
+      if (editingExpenseId) {
+        await updateExpense(editingExpenseId, {
+          description: desc.trim(),
+          amount: amountNum,
+          split_type: splitType,
+          splits: splitsMap,
+        });
+      } else {
+        await createExpense({
+          group_id: group.id,
+          paid_by: payerId,
+          description: desc.trim(),
+          amount: amountNum,
+          split_type: splitType,
+          splits: splitsMap,
+        });
+      }
       if (Platform.OS !== 'web') Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
       setShowConfetti(true);
       setTimeout(() => {
-        Toast.show({ type: 'success', text1: 'Expense added successfully' });
+        Toast.show({ type: 'success', text1: editingExpenseId ? 'Expense updated' : 'Expense added successfully' });
         router.back();
       }, 800);
     } catch (e: any) {
@@ -184,7 +219,7 @@ export default function AddExpenseScreen() {
           <Ionicons name="close" size={22} color={COLORS.text.primary} />
         </TouchableOpacity>
         <View style={{ alignItems: 'center' }}>
-          <Text style={s.title}>New expense</Text>
+          <Text style={s.title}>{editingExpenseId ? 'Edit expense' : 'New expense'}</Text>
           <Text style={s.groupName} numberOfLines={1}>{group?.name}</Text>
         </View>
         <View style={{ width: 36 }} />
@@ -368,7 +403,7 @@ export default function AddExpenseScreen() {
                 <>
                   <Ionicons name="checkmark-circle" size={18} color="#fff" />
                   <Text style={s.ctaTxt}>
-                    {amountNum > 0 ? `Split ${fmt(amountNum)}${desc ? ` for ${desc}` : ''}` : 'Enter amount'}
+                    {amountNum > 0 ? `${editingExpenseId ? 'Update' : 'Split'} ${fmt(amountNum)}${desc ? ` for ${desc}` : ''}` : 'Enter amount'}
                   </Text>
                 </>
               )}

@@ -50,22 +50,71 @@ export default function SplitInsightsHero() {
 
   if (loading) return null;
 
+  const [featured, ...rest] = cards;
+
   return (
     <View style={s.wrap}>
       <View style={s.headerRow}>
         <Ionicons name="sparkles" size={13} color={COLORS.accent.primary} />
         <Text style={s.heading}>SPLIT INSIGHTS</Text>
       </View>
-      <ScrollView
-        horizontal
-        showsHorizontalScrollIndicator={false}
-        snapToInterval={192}
-        decelerationRate="fast"
-        contentContainerStyle={{ gap: 10, paddingHorizontal: 16 }}
-      >
-        {cards.map((c, i) => <AnimatedCard key={c.id} card={c} index={i} />)}
-      </ScrollView>
+
+      {/* Featured — full-width hero card */}
+      {featured && <FeaturedCard card={featured} />}
+
+      {/* Rest — horizontal strip */}
+      {rest.length > 0 && (
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          snapToInterval={192}
+          decelerationRate="fast"
+          contentContainerStyle={{ gap: 10, paddingHorizontal: 16, paddingTop: 10 }}
+        >
+          {rest.map((c, i) => <AnimatedCard key={c.id} card={c} index={i} />)}
+        </ScrollView>
+      )}
     </View>
+  );
+}
+
+function FeaturedCard({ card }: { card: InsightCard }) {
+  const s = useStyles();
+  const scale = useRef(new Animated.Value(0.95)).current;
+  const opacity = useRef(new Animated.Value(0)).current;
+
+  useEffect(() => {
+    Animated.parallel([
+      Animated.timing(scale, { toValue: 1, duration: 500, easing: Easing.out(Easing.back(1.2)), useNativeDriver: true }),
+      Animated.timing(opacity, { toValue: 1, duration: 400, useNativeDriver: true }),
+    ]).start();
+  }, [scale, opacity]);
+
+  const press = () => { try { Haptics.selectionAsync(); } catch {} };
+
+  return (
+    <Animated.View style={[s.featWrap, { transform: [{ scale }], opacity }]}>
+      <TouchableOpacity activeOpacity={0.92} onPress={press} testID={`insight-featured-${card.id}`}>
+        <LinearGradient
+          colors={[card.color, card.color + 'CC']}
+          start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}
+          style={s.featCard}
+        >
+          <View style={s.featBlob} />
+          <View style={s.featHeaderRow}>
+            <View style={s.featEmojiPill}>
+              <Text style={s.featEmoji}>{card.emoji}</Text>
+            </View>
+            <View style={s.featPill}>
+              <Ionicons name="flash" size={10} color="#fff" />
+              <Text style={s.featPillTxt}>FEATURED</Text>
+            </View>
+          </View>
+          <Text style={s.featTitle} numberOfLines={1}>{card.title}</Text>
+          <Text style={s.featSubtitle} numberOfLines={3}>{card.subtitle}</Text>
+        </LinearGradient>
+      </TouchableOpacity>
+    </Animated.View>
   );
 }
 
@@ -146,6 +195,21 @@ const useStyles = makeStyles((c) => ({
     fontSize: 10.5, fontWeight: '900',
     color: c.text.muted, letterSpacing: 1.3,
   },
+  // Featured hero card (full-width)
+  featWrap: { paddingHorizontal: 16, marginBottom: 4 },
+  featCard: {
+    borderRadius: 22, padding: 16, gap: 8, overflow: 'hidden', position: 'relative',
+    shadowColor: '#000', shadowOpacity: 0.15, shadowRadius: 12, shadowOffset: { width: 0, height: 6 }, elevation: 4,
+  },
+  featBlob: { position: 'absolute', top: -40, right: -40, width: 130, height: 130, borderRadius: 65, backgroundColor: 'rgba(255,255,255,0.12)' },
+  featHeaderRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  featEmojiPill: { width: 42, height: 42, borderRadius: 14, backgroundColor: 'rgba(255,255,255,0.26)', alignItems: 'center', justifyContent: 'center' },
+  featEmoji: { fontSize: 22 },
+  featPill: { flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: 8, paddingVertical: 4, borderRadius: 999, backgroundColor: 'rgba(0,0,0,0.22)' },
+  featPillTxt: { fontSize: 9, fontWeight: '900', letterSpacing: 1, color: '#fff' },
+  featTitle: { fontSize: 19, fontWeight: '900', color: '#fff', letterSpacing: -0.4, marginTop: 4 },
+  featSubtitle: { fontSize: 12.5, fontWeight: '600', color: 'rgba(255,255,255,0.92)', lineHeight: 17 },
+  // Compact cards
   card: {
     width: 182,
     borderRadius: 18,

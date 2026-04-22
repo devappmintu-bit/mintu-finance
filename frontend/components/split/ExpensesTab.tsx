@@ -183,6 +183,11 @@ export default function ExpensesTab({ summary, currentUserId, onAddExpense, onEd
             const ic = catIcon(e.description || e.category);
             const yourShare = Number(e.your_share ?? e.split_amount ?? 0);
             const iPaid = e.paid_by_id === currentUserId;
+            // Settlement progress (falls back gracefully when payload is missing)
+            const totalShares = Number(e.split_count || (e.splits ? Object.keys(e.splits).length : 0));
+            const paidCount = Number(e.paid_count != null ? e.paid_count : 1);
+            const pct = totalShares > 0 ? Math.min(100, (paidCount / totalShares) * 100) : 100;
+            const isFullyPaid = totalShares > 0 && paidCount >= totalShares;
             const row = (
               <View style={s.expCard}>
                 <View style={[s.expIcon, { backgroundColor: ic.color + '1A' }]}>
@@ -198,6 +203,16 @@ export default function ExpensesTab({ summary, currentUserId, onAddExpense, onEd
                     </View>
                     <Text style={s.expDate}>{fmtDate(e.created_at || e.date)}</Text>
                   </View>
+                  {totalShares > 0 && (
+                    <View style={s.progWrap}>
+                      <View style={s.progTrack}>
+                        <View style={[s.progFill, { width: `${pct}%`, backgroundColor: isFullyPaid ? '#10B981' : '#F56E1E' }]} />
+                      </View>
+                      <Text style={[s.progLbl, isFullyPaid && { color: '#065F46' }]}>
+                        {isFullyPaid ? '✓ Settled' : `${paidCount}/${totalShares} paid`}
+                      </Text>
+                    </View>
+                  )}
                 </View>
                 <View style={{ alignItems: 'flex-end' }}>
                   <Text style={s.expAmt}>₹{Number(e.amount).toFixed(0)}</Text>
@@ -284,6 +299,10 @@ const useStyles = makeStyles((c) => ({
   expDate: { fontSize: 10.5, color: '#9CA3AF', fontWeight: '600' },
   expAmt: { fontSize: 15, fontWeight: '800', color: '#111' },
   expShare: { fontSize: 10.5, color: '#6B7280', marginTop: 2, fontWeight: '600' },
+  progWrap: { flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 6 },
+  progTrack: { flex: 1, height: 3, backgroundColor: '#E5E7EB', borderRadius: 2, overflow: 'hidden' },
+  progFill: { height: '100%', borderRadius: 2 },
+  progLbl: { fontSize: 9.5, fontWeight: '800', color: '#C14A06', letterSpacing: 0.2 },
 
   empty: { alignItems: 'center', paddingVertical: 36 },
   emptyTitle: { fontSize: 15, fontWeight: '800', color: '#111', marginTop: 10 },

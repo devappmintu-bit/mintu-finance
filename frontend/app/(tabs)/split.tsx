@@ -35,7 +35,6 @@ import SplitInsightsHero from '../../components/split/SplitInsightsHero';
 import RemindersBanner from '../../components/split/RemindersBanner';
 import CreateGroupSheet from '../../components/split/CreateGroupSheet';
 import ContactPickerSheet from '../../components/split/ContactPickerSheet';
-import ExpenseSheet from '../../components/split/ExpenseSheet';
 import GroupSummarySheet from '../../components/split/GroupSummarySheet';
 import GroupManageSheet from '../../components/split/GroupManageSheet';
 import PaySheet from '../../components/split/PaySheet';
@@ -239,7 +238,12 @@ export default function SplitScreen() {
     setSelectedGroup(gr);
     router.push({ pathname: '/split/add-member', params: { group_id: gr.id } } as any);
   };
-  const openEditExpense = (exp: any) => { setEditingExpense(exp); setModal('expense'); };
+  const openEditExpense = (exp: any) => {
+    // Route to full-screen edit mode (replaces legacy ExpenseSheet)
+    const gid = selectedGroup?.id || exp?.group_id;
+    if (!gid) return;
+    router.push({ pathname: '/split/add-expense', params: { group_id: gid, expense_id: exp.id || exp._id } } as any);
+  };
   const submitExpense = async (payload: { description: string; amount: number; split_type: string; splits: Record<string, number>; expense_id?: string }) => {
     if (!selectedGroup) return;
     try {
@@ -580,7 +584,6 @@ export default function SplitScreen() {
           </View>
         </Modal>
       )}
-      {modal === 'expense' && <ExpenseSheet visible={true} onClose={close} group={selectedGroup} currentUserId={user?.id} editing={editingExpense} onSubmit={submitExpense} />}
       {modal === 'summary' && (
         <GroupSummarySheet
           visible={true}
