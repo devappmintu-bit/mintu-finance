@@ -652,6 +652,7 @@ from routers import (  # noqa: E402
     home_bundle as home_bundle_router,
     rewards as rewards_router,
     split_insights as split_insights_router,
+    goals as goals_router,
 )
 
 for r in (
@@ -662,7 +663,7 @@ for r in (
     sms_router, premium_router, premium_reports_router, premium_subscriptions_router,
     ab_router, share_router, privacy_router,
     budgets_ext_router, alerts_router, upi_router, insights_ext_router, gmail_oauth_router,
-    home_bundle_router, rewards_router, split_insights_router,
+    home_bundle_router, rewards_router, split_insights_router, goals_router,
 ):
     api_router.include_router(r.router)
 

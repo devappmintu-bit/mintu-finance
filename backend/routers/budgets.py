@@ -32,6 +32,7 @@ class BudgetCreate(BaseModel):
     period: str = "monthly"  # "daily" | "weekly" | "monthly"
     recurring: bool = True  # NEW — rolls over each period by default
     description: Optional[str] = None  # NEW — free-text; used for AI categorisation when category=="Other"
+    goal_id: Optional[str] = None  # NEW — link this budget to a savings goal
 
     @field_validator("amount", "limit")
     @classmethod
@@ -258,11 +259,12 @@ async def create_budget(budget: BudgetCreate, user_id: str = Depends(get_current
             "period": budget.period,
             "recurring": budget.recurring,
             "description": budget.description,
+            "goal_id": budget.goal_id,
             "spent": existing.get("spent", 0),
             "created_at": existing.get("created_at", now),
         }
 
-    doc = {"category": budget.category, "amount": amount, "period": budget.period, "recurring": budget.recurring, "description": budget.description, "user_id": user_id, "spent": 0, "created_at": now}
+    doc = {"category": budget.category, "amount": amount, "period": budget.period, "recurring": budget.recurring, "description": budget.description, "goal_id": budget.goal_id, "user_id": user_id, "spent": 0, "created_at": now}
     result = await db.budgets.insert_one(doc)
     return {
         "id": str(result.inserted_id),

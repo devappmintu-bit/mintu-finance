@@ -171,21 +171,19 @@ export default function SplitScreen() {
     }
   };
 
-  const deleteGroup = () => {
+  const deleteGroup = async () => {
+    // NOTE: GroupManageSheet already confirms via its own confirmThen()
+    // helper (native Alert / web window.confirm). A second prompt here
+    // caused the action to silently fail on web.
     if (!selectedGroup?.id) return;
     const gid = selectedGroup.id; const gname = selectedGroup.name || 'this group';
-    Alert.alert('Delete Group', `Delete "${gname}"? This cannot be undone.`, [
-      { text: 'Cancel', style: 'cancel' },
-      { text: 'Delete', style: 'destructive', onPress: async () => {
-        try {
-          await deleteGroupSrv(gid);
-          Toast.show({ type: 'success', text1: 'Deleted!', text2: `${gname} removed` });
-        } catch (e: any) {
-          Toast.show({ type: 'error', text1: 'Error', text2: e?.response?.data?.detail || 'Could not delete' });
-        }
-        close(); setTimeout(() => fetchData(), 300);
-      }},
-    ]);
+    try {
+      await deleteGroupSrv(gid);
+      Toast.show({ type: 'success', text1: 'Deleted!', text2: `${gname} removed` });
+    } catch (e: any) {
+      Toast.show({ type: 'error', text1: 'Error', text2: e?.response?.data?.detail || 'Could not delete' });
+    }
+    close(); setTimeout(() => fetchData(), 300);
   };
 
   const renameGroup = async (newName: string) => {
@@ -215,16 +213,17 @@ export default function SplitScreen() {
     openManage(selectedGroup); setTimeout(() => fetchData(), 300);
   };
 
-  const leaveGroup = () => {
+  const leaveGroup = async () => {
+    // NOTE: GroupManageSheet already confirms — no double-prompt here.
     if (!selectedGroup?.id) return;
     const gid = selectedGroup.id;
-    Alert.alert('Leave?', 'Are you sure you want to leave?', [
-      { text: 'Cancel', style: 'cancel' },
-      { text: 'Leave', style: 'destructive', onPress: async () => {
-        try { await leaveGroupSrv(gid); Toast.show({ type: 'success', text1: 'Left Group' }); } catch (e: any) { Toast.show({ type: 'error', text1: 'Error', text2: e?.response?.data?.detail || 'Could not leave' }); }
-        close(); setTimeout(() => fetchData(), 300);
-      }},
-    ]);
+    try {
+      await leaveGroupSrv(gid);
+      Toast.show({ type: 'success', text1: 'Left Group' });
+    } catch (e: any) {
+      Toast.show({ type: 'error', text1: 'Error', text2: e?.response?.data?.detail || 'Could not leave' });
+    }
+    close(); setTimeout(() => fetchData(), 300);
   };
 
   // EXPENSE CRUD

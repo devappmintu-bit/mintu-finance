@@ -120,10 +120,6 @@ export default function GroupManageSheet({ visible, onClose, manage, currentUser
                 <Text style={s.statVal}>{stats.yourShare}</Text>
                 <Text style={s.statLbl}>Your share</Text>
               </View>
-              <View style={s.statCard}>
-                <Text style={s.statVal} numberOfLines={1}>{stats.topMember}</Text>
-                <Text style={s.statLbl}>Most active</Text>
-              </View>
             </View>
 
             {/* SECTION 3 — ACTIONS */}

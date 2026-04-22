@@ -8310,3 +8310,104 @@ agent_communication:
       • Optional: goal-based budgeting (tie a budget to a savings
         goal) — would need a new /goals collection.
 
+
+  - task: "Budget · Goal-linked budgeting + Split delete/leave fix + Remove Most-Active card"
+    implemented: true
+    working: "NA"
+    file: "/app/backend/routers/goals.py, /app/backend/routers/budgets.py, /app/backend/server.py, /app/frontend/services/goals.ts, /app/frontend/components/budget/BudgetSmartSheet.tsx, /app/frontend/app/(tabs)/budget.tsx, /app/frontend/app/(tabs)/split.tsx, /app/frontend/components/split/GroupManageSheet.tsx"
+    status_history:
+      - working: "NA"
+        agent: "main"
+        comment: |
+          Three parallel deltas landed in a single session:
+
+          1. GOAL-LINKED BUDGETING (Wave 5 / item 3)
+          -------------------------------------------
+          BACKEND:
+          • New /app/backend/routers/goals.py with CRUD:
+              GET /goals               · POST /goals
+              PATCH /goals/{id}        · DELETE /goals/{id}
+            — Goal doc stores {name, target_amount, saved_amount,
+              target_date, color, emoji, linked_budget_id}; deleting
+              a goal unlinks any budget that references it.
+          • Registered the router in server.py (imported &
+            include_router).
+          • BudgetCreate model now accepts `goal_id: Optional[str]`
+            and the create/update paths persist it on the budget doc.
+
+          FRONTEND:
+          • /app/frontend/services/goals.ts — fetchGoals / createGoal
+            / updateGoal / deleteGoal wrappers.
+          • BudgetSmartSheet.tsx now has a SAVINGS GOAL section:
+              – Loads user goals in parallel with /budgets/smart-setup
+              – "No goal" chip + one chip per existing goal (with
+                emoji, name, and "X% · ₹A/T" progress sub-label)
+              – Dashed "+ New goal" chip opens an inline form (name +
+                ₹target) that POSTs to /goals and auto-selects the
+                new goal.
+              – goal_id is included in the submit payload and flows
+                through handleSave() → /budgets create/update.
+
+          Live API verification:
+            POST /api/goals {name, target_amount} → 200 OK (goal
+            created, id returned).
+            GET  /api/goals                       → 200 OK.
+
+          2. SPLIT · DELETE / LEAVE GROUP FIX
+          ------------------------------------
+          Root cause: GroupManageSheet's own `confirmThen` helper
+          already prompts the user (native Alert / web window.confirm)
+          before firing onDelete / onLeave. The split.tsx callbacks
+          then ran a SECOND Alert.alert, which on web is a no-op —
+          the final onPress that actually called the API never fired,
+          so delete/leave silently did nothing on web.
+
+          Fix: removed the redundant Alert.alert wrapper from both
+          `deleteGroup` and `leaveGroup` in split.tsx — they now call
+          deleteGroupSrv / leaveGroupSrv directly (the Manage sheet
+          has already confirmed). Native double-prompt is also gone.
+
+          3. REMOVED "MOST ACTIVE" CARD
+          ------------------------------
+          Dropped the third stat card ("Most active") from the
+          GroupManageSheet quick-stats row. The remaining row is
+          Total spent · Your share — cleaner and fits without wrapping.
+
+          VERIFICATION:
+          • /(tabs)/budget HTTP 200 · /(tabs)/split HTTP 200.
+          • Bundle clean.
+          • Screenshot of the open Budget Smart Sheet shows all
+            sections incl. the new SAVINGS GOAL row with "No goal"
+            and "+ New goal" chips.
+
+agent_communication:
+  - agent: "main"
+    message: |
+      ✅ Triple delta shipped (Apr 22 2026).
+
+      1. GOAL-LINKED BUDGETING — full stack:
+         • New /api/goals CRUD router, registered in server.py.
+         • BudgetCreate model now carries goal_id; persisted on
+           every create/update.
+         • BudgetSmartSheet has a new SAVINGS GOAL section with
+           progress-chip selector + inline "New goal" form.
+
+      2. SPLIT DELETE/LEAVE FIX — P0 bug squashed:
+         • Removed the redundant second Alert.alert that was
+           silently swallowing the action on web (GroupManageSheet
+           already confirms). Delete Group + Leave Group now work
+           on both web and native without a double-prompt.
+
+      3. MOST ACTIVE CARD — removed from group manage sheet as
+         requested.
+
+      Bundle clean, /budget and /split both HTTP 200. Live traffic
+      continued throughout the session — no regressions reported.
+
+      Next Action Items:
+      • Manual QA on Expo Go: create a goal, link it to a budget,
+        verify progress propagates; test Delete Group + Leave Group.
+      • Optional polish: add a dedicated /goals screen listing all
+        goals with progress rings, delete/edit actions, and the
+        linked-budget badge.
+

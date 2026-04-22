@@ -33,6 +33,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import * as Haptics from 'expo-haptics';
 import api from '../../utils/api';
+import { fetchGoals, createGoal, Goal } from '../../services/goals';
 
 const CATEGORY_META: Record<string, { icon: string; color: string; emoji: string }> = {
   Food:           { icon: 'fast-food',       color: '#F56E1E', emoji: '🍔' },
@@ -66,6 +67,7 @@ type Props = {
     period: 'daily' | 'weekly' | 'monthly';
     recurring: boolean;
     description?: string;
+    goal_id?: string | null;
   } | null;
   onSubmit: (payload: {
     category: string;
@@ -74,6 +76,7 @@ type Props = {
     recurring: boolean;
     description?: string;
     scope?: 'me' | 'shared' | 'other';
+    goal_id?: string | null;
   }) => Promise<void> | void;
   onClose: () => void;
   submitting?: boolean;
@@ -101,6 +104,12 @@ export default function BudgetSmartSheet({ editing, onSubmit, onClose, submittin
   const [recurring, setRecurring] = useState<boolean>(editing?.recurring ?? true);
   const [description, setDescription] = useState<string>(editing?.description || '');
   const [scope, setScope] = useState<'me' | 'shared' | 'other'>('me');
+  const [goals, setGoals] = useState<Goal[]>([]);
+  const [goalId, setGoalId] = useState<string | null>(editing?.goal_id || null);
+  const [showNewGoal, setShowNewGoal] = useState<boolean>(false);
+  const [newGoalName, setNewGoalName] = useState<string>('');
+  const [newGoalTarget, setNewGoalTarget] = useState<string>('');
+  const [creatingGoal, setCreatingGoal] = useState<boolean>(false);
 
   const amount = useMemo(() => parseFloat(amountStr) || 0, [amountStr]);
   const originalAmount = editing?.amount || 0;
@@ -122,6 +131,13 @@ export default function BudgetSmartSheet({ editing, onSubmit, onClose, submittin
       } finally {
         setLoading(false);
       }
+    })();
+    // Load goals in parallel (optional — errors are non-blocking)
+    (async () => {
+      try {
+        const g = await fetchGoals();
+        setGoals(g.goals || []);
+      } catch { /* no-op */ }
     })();
   }, []);
 
@@ -202,7 +218,27 @@ export default function BudgetSmartSheet({ editing, onSubmit, onClose, submittin
       recurring,
       description: description.trim() || undefined,
       scope,
+      goal_id: goalId,
     });
+  };
+
+  const createInlineGoal = async () => {
+    if (!newGoalName.trim() || parseFloat(newGoalTarget) <= 0) return;
+    try {
+      setCreatingGoal(true);
+      const res = await createGoal({
+        name: newGoalName.trim(),
+        target_amount: parseFloat(newGoalTarget),
+        emoji: '🎯',
+        color: '#F56E1E',
+      });
+      setGoals(prev => [res.goal, ...prev]);
+      setGoalId(res.goal.id);
+      setShowNewGoal(false);
+      setNewGoalName('');
+      setNewGoalTarget('');
+    } catch { /* silently fail — user can retry */ }
+    finally { setCreatingGoal(false); }
   };
 
   return (
@@ -448,6 +484,79 @@ export default function BudgetSmartSheet({ editing, onSubmit, onClose, submittin
             </View>
           )}
 
+          {/* 8.5 SAVINGS GOAL LINK (optional) */}
+          <Text style={s.label}>SAVINGS GOAL (OPTIONAL)</Text>
+          <View style={s.goalRow}>
+            <TouchableOpacity
+              style={[s.goalChip, !goalId && s.goalChipOn]}
+              onPress={() => { try { Haptics.selectionAsync(); } catch {} setGoalId(null); }}
+              testID="goal-none"
+            >
+              <Ionicons name="close-circle-outline" size={13} color={!goalId ? '#111827' : '#9CA3AF'} />
+              <Text style={[s.goalTxt, !goalId && { color: '#111827', fontWeight: '800' }]}>No goal</Text>
+            </TouchableOpacity>
+            {goals.map((g) => {
+              const on = goalId === g.id;
+              const pct = g.target_amount > 0 ? Math.min(100, Math.round((g.saved_amount / g.target_amount) * 100)) : 0;
+              return (
+                <TouchableOpacity
+                  key={g.id}
+                  style={[s.goalChip, on && { borderColor: g.color || '#F56E1E', backgroundColor: (g.color || '#F56E1E') + '14' }]}
+                  onPress={() => { try { Haptics.selectionAsync(); } catch {} setGoalId(g.id); }}
+                  testID={`goal-${g.id}`}
+                >
+                  <Text style={{ fontSize: 14 }}>{g.emoji || '🎯'}</Text>
+                  <View>
+                    <Text style={[s.goalTxt, on && { color: g.color || '#F56E1E', fontWeight: '900' }]} numberOfLines={1}>{g.name}</Text>
+                    <Text style={s.goalProg}>{pct}% · ₹{fmtCompact(g.saved_amount)}/{fmtCompact(g.target_amount)}</Text>
+                  </View>
+                </TouchableOpacity>
+              );
+            })}
+            <TouchableOpacity
+              style={[s.goalChip, s.goalChipAdd]}
+              onPress={() => { try { Haptics.selectionAsync(); } catch {} setShowNewGoal(v => !v); }}
+              testID="goal-add"
+            >
+              <Ionicons name="add-circle" size={14} color="#F56E1E" />
+              <Text style={[s.goalTxt, { color: '#F56E1E', fontWeight: '900' }]}>New goal</Text>
+            </TouchableOpacity>
+          </View>
+
+          {showNewGoal && (
+            <View style={s.goalForm}>
+              <View style={s.goalFormRow}>
+                <TextInput
+                  placeholder="Goal name (e.g. Trip to Goa)"
+                  placeholderTextColor="#9CA3AF"
+                  value={newGoalName}
+                  onChangeText={setNewGoalName}
+                  style={[s.goalFormInput, { flex: 2 }]}
+                />
+                <View style={s.goalTargetWrap}>
+                  <Text style={s.goalRupee}>₹</Text>
+                  <TextInput
+                    placeholder="Target"
+                    placeholderTextColor="#9CA3AF"
+                    value={newGoalTarget}
+                    onChangeText={(v) => setNewGoalTarget(v.replace(/[^0-9]/g, ''))}
+                    keyboardType="numeric"
+                    style={[s.goalFormInput, { paddingLeft: 2 }]}
+                  />
+                </View>
+              </View>
+              <TouchableOpacity
+                onPress={createInlineGoal}
+                disabled={creatingGoal || !newGoalName.trim() || parseFloat(newGoalTarget) <= 0}
+                style={[s.goalFormCta, (creatingGoal || !newGoalName.trim() || parseFloat(newGoalTarget) <= 0) && { opacity: 0.6 }]}
+                testID="goal-create"
+              >
+                <Ionicons name="add-circle" size={14} color="#fff" />
+                <Text style={s.goalFormCtaTxt}>{creatingGoal ? 'Creating…' : 'Create & link'}</Text>
+              </TouchableOpacity>
+            </View>
+          )}
+
           {/* 9. Dynamic CTA */}
           <TouchableOpacity
             onPress={handleSubmit}
@@ -562,6 +671,21 @@ const s = StyleSheet.create({
   otherDesc: { marginTop: 14, backgroundColor: '#F5F3FF', borderRadius: 14, padding: 12, borderWidth: 1, borderColor: '#DDD6FE' },
   otherLbl: { fontSize: 11, fontWeight: '800', color: '#7C3AED', letterSpacing: 0.3 },
   descInput: { minHeight: 44, fontSize: 13, color: '#111827', padding: 0 },
+
+  // Goal
+  goalRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
+  goalChip: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 10, paddingVertical: 7, borderRadius: 14, backgroundColor: '#F9FAFB', borderWidth: 1, borderColor: '#E5E7EB' },
+  goalChipOn: { backgroundColor: '#F3F4F6', borderColor: '#111827' },
+  goalChipAdd: { backgroundColor: '#FEF3C7', borderColor: '#F59E0B', borderStyle: 'dashed' },
+  goalTxt: { fontSize: 11.5, color: '#6B7280', fontWeight: '700' },
+  goalProg: { fontSize: 9.5, color: '#9CA3AF', fontWeight: '700', marginTop: 1 },
+  goalForm: { marginTop: 10, padding: 12, backgroundColor: '#FFFBEB', borderRadius: 14, borderWidth: 1, borderColor: '#FDE68A', gap: 10 },
+  goalFormRow: { flexDirection: 'row', gap: 8 },
+  goalFormInput: { flex: 1, fontSize: 13, color: '#111827', paddingHorizontal: 10, paddingVertical: 9, backgroundColor: '#fff', borderRadius: 10, borderWidth: 1, borderColor: '#FDE68A' },
+  goalTargetWrap: { flex: 1, flexDirection: 'row', alignItems: 'center', paddingLeft: 10, backgroundColor: '#fff', borderRadius: 10, borderWidth: 1, borderColor: '#FDE68A' },
+  goalRupee: { fontSize: 13, fontWeight: '900', color: '#92400E' },
+  goalFormCta: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, backgroundColor: '#F56E1E', paddingVertical: 10, borderRadius: 12 },
+  goalFormCtaTxt: { fontSize: 12.5, fontWeight: '900', color: '#fff', letterSpacing: 0.3 },
 
   // CTA
   cta: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 10, paddingVertical: 15, borderRadius: 999 },
