@@ -37,6 +37,23 @@ type Method = {
   is_default?: boolean;
   virtual?: boolean;
   created_at?: string;
+  health?: {
+    status: 'healthy' | 'stale' | 'unused' | 'error';
+    tone: 'success' | 'warning' | 'danger' | 'neutral';
+    label: string;
+    last_used_at?: string | null;
+    last_sync_at?: string | null;
+    action?: 'verify' | 'retry' | null;
+    action_label?: string | null;
+  };
+};
+
+// Color map for status tone — uses canonical theme state palette
+const TONE_COLOR: Record<NonNullable<Method['health']>['tone'], { fg: string; bg: string; border: string }> = {
+  success: { fg: '#10B981', bg: 'rgba(16,185,129,0.12)', border: 'rgba(16,185,129,0.35)' },
+  warning: { fg: '#D97706', bg: 'rgba(245,158,11,0.14)', border: 'rgba(245,158,11,0.4)' },
+  danger:  { fg: '#DC2626', bg: 'rgba(220,38,38,0.12)', border: 'rgba(220,38,38,0.4)' },
+  neutral: { fg: '#6B7280', bg: 'rgba(107,114,128,0.12)', border: 'rgba(107,114,128,0.35)' },
 };
 
 const TYPE_META: Record<Method['type'], { icon: string; color: string; label: string }> = {
@@ -78,6 +95,21 @@ export default function PaymentMethodsV2() {
       Toast.show({ type: 'success', text1: 'Default updated' });
       load();
     } catch { Toast.show({ type: 'error', text1: 'Couldn\'t update default' }); }
+  };
+
+  const [verifying, setVerifying] = useState<string | null>(null);
+  const verifyMethod = async (m: Method) => {
+    if (verifying) return;
+    setVerifying(m.id);
+    try {
+      await api.post(`/user/payment-methods/${m.id}/verify`);
+      Toast.show({ type: 'success', text1: '✓ Verified', text2: `${m.label || 'Method'} is healthy` });
+      await load();
+    } catch (e: any) {
+      Toast.show({ type: 'error', text1: 'Could not verify', text2: e?.response?.data?.detail || 'Try again' });
+    } finally {
+      setVerifying(null);
+    }
   };
 
   const remove = (m: Method) => {
@@ -125,29 +157,68 @@ export default function PaymentMethodsV2() {
             <View style={{ gap: 8 }}>
               {methods.map((m) => {
                 const meta = TYPE_META[m.type] || TYPE_META.upi;
+                const health = m.health;
+                const tone = health ? TONE_COLOR[health.tone] : null;
+                const isVerifying = verifying === m.id;
                 return (
                   <View key={m.id} style={[s.row, m.is_default && s.rowDefault]}>
-                    <View style={[s.rowIcon, { backgroundColor: meta.color + '1E' }]}>
-                      <Ionicons name={meta.icon as any} size={18} color={meta.color} />
-                    </View>
-                    <View style={{ flex: 1 }}>
-                      <Text style={s.rowLabel} numberOfLines={1}>{m.label || meta.label}</Text>
-                      <Text style={s.rowSub} numberOfLines={1}>{describe(m)}</Text>
-                    </View>
-                    {m.is_default ? (
-                      <View style={s.defaultPill}>
-                        <Ionicons name="checkmark-circle" size={11} color="#fff" />
-                        <Text style={s.defaultPillT}>Default</Text>
+                    <View style={s.rowMain}>
+                      <View style={[s.rowIcon, { backgroundColor: meta.color + '1E' }]}>
+                        <Ionicons name={meta.icon as any} size={18} color={meta.color} />
                       </View>
-                    ) : (
-                      <TouchableOpacity style={s.setDefaultBtn} onPress={() => setDefault(m.id)} testID={`pm-default-${m.id}`}>
-                        <Text style={s.setDefaultT}>Set default</Text>
-                      </TouchableOpacity>
-                    )}
-                    {!m.virtual && (
-                      <TouchableOpacity onPress={() => remove(m)} style={s.delBtn} testID={`pm-delete-${m.id}`}>
-                        <Ionicons name="trash-outline" size={15} color={COLORS.state.danger} />
-                      </TouchableOpacity>
+                      <View style={{ flex: 1 }}>
+                        <Text style={s.rowLabel} numberOfLines={1}>{m.label || meta.label}</Text>
+                        <Text style={s.rowSub} numberOfLines={1}>{describe(m)}</Text>
+                      </View>
+                      {m.is_default ? (
+                        <View style={s.defaultPill}>
+                          <Ionicons name="checkmark-circle" size={11} color="#fff" />
+                          <Text style={s.defaultPillT}>Default</Text>
+                        </View>
+                      ) : (
+                        <TouchableOpacity style={s.setDefaultBtn} onPress={() => setDefault(m.id)} testID={`pm-default-${m.id}`}>
+                          <Text style={s.setDefaultT}>Set default</Text>
+                        </TouchableOpacity>
+                      )}
+                      {!m.virtual && (
+                        <TouchableOpacity onPress={() => remove(m)} style={s.delBtn} testID={`pm-delete-${m.id}`}>
+                          <Ionicons name="trash-outline" size={15} color={COLORS.state.danger} />
+                        </TouchableOpacity>
+                      )}
+                    </View>
+
+                    {/* Smart Status row — Round 26 */}
+                    {health && tone && (
+                      <View style={s.healthRow}>
+                        <View style={[s.healthChip, { backgroundColor: tone.bg, borderColor: tone.border }]}>
+                          <View style={[s.healthDot, { backgroundColor: tone.fg }]} />
+                          <Text style={[s.healthLabel, { color: tone.fg }]} numberOfLines={1}>{health.label}</Text>
+                        </View>
+                        {health.action && health.action_label && (
+                          <TouchableOpacity
+                            style={[s.healthCta, health.action === 'retry' && s.healthCtaDanger]}
+                            onPress={() => verifyMethod(m)}
+                            disabled={isVerifying}
+                            activeOpacity={0.8}
+                            testID={`pm-verify-${m.id}`}
+                          >
+                            {isVerifying ? (
+                              <ActivityIndicator size="small" color={health.action === 'retry' ? '#fff' : COLORS.accent.primary} />
+                            ) : (
+                              <>
+                                <Ionicons
+                                  name={health.action === 'retry' ? 'alert-circle' : 'shield-checkmark'}
+                                  size={12}
+                                  color={health.action === 'retry' ? '#fff' : COLORS.accent.primary}
+                                />
+                                <Text style={[s.healthCtaT, health.action === 'retry' && { color: '#fff' }]}>
+                                  {health.action_label}
+                                </Text>
+                              </>
+                            )}
+                          </TouchableOpacity>
+                        )}
+                      </View>
                     )}
                   </View>
                 );
@@ -400,7 +471,8 @@ const useSStyles = makeStyles((c) => ({
   empty: { alignItems: 'center', paddingVertical: 16 },
   emptyT: { fontSize: 13, fontWeight: '800', color: c.text.primary, marginTop: 8 },
   emptyS: { fontSize: 11.5, color: c.text.secondary, textAlign: 'center', marginTop: 4, lineHeight: 16 },
-  row: { flexDirection: 'row', alignItems: 'center', gap: 10, padding: 12, borderRadius: 14, backgroundColor: c.bg.primary, borderWidth: 1, borderColor: c.border.subtle },
+  row: { flexDirection: 'column', gap: 8, padding: 12, borderRadius: 14, backgroundColor: c.bg.primary, borderWidth: 1, borderColor: c.border.subtle },
+  rowMain: { flexDirection: 'row', alignItems: 'center', gap: 10 },
   rowDefault: { borderColor: c.accent.primary + '60', backgroundColor: '#FFF7ED' },
   rowIcon: { width: 34, height: 34, borderRadius: 10, alignItems: 'center', justifyContent: 'center' },
   rowLabel: { fontSize: 13.5, fontWeight: '800', color: c.text.primary },
@@ -410,6 +482,14 @@ const useSStyles = makeStyles((c) => ({
   setDefaultBtn: { paddingHorizontal: 8, paddingVertical: 5, borderRadius: 8, backgroundColor: c.accent.primary + '15' },
   setDefaultT: { fontSize: 10.5, fontWeight: '800', color: c.accent.primary },
   delBtn: { padding: 6 },
+  // Smart Status row (Round 26)
+  healthRow: { flexDirection: 'row', alignItems: 'center', gap: 8, flexWrap: 'wrap' },
+  healthChip: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 10, paddingVertical: 5, borderRadius: 999, borderWidth: 1, flexShrink: 1, maxWidth: '100%' },
+  healthDot: { width: 6, height: 6, borderRadius: 3 },
+  healthLabel: { fontSize: 10.5, fontWeight: '800', letterSpacing: 0.1, flexShrink: 1 },
+  healthCta: { flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: 10, paddingVertical: 5, borderRadius: 999, backgroundColor: c.accent.primary + '15', borderWidth: 1, borderColor: c.accent.primary + '50', minHeight: 26 },
+  healthCtaDanger: { backgroundColor: '#DC2626', borderColor: '#DC2626' },
+  healthCtaT: { fontSize: 10.5, fontWeight: '800', color: c.accent.primary, letterSpacing: 0.1 },
   addBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, backgroundColor: c.accent.primary, paddingVertical: 12, borderRadius: 12, marginTop: 6 },
   addBtnT: { color: '#fff', fontWeight: '800', fontSize: 13, letterSpacing: 0.2 },
 }));

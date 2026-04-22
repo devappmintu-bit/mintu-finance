@@ -228,6 +228,82 @@ async def list_payment_methods(user_id: str = Depends(get_current_user)):
             "virtual": True,
         })
 
+    # ── Smart Status layer (Round 26) ─────────────────────────────────
+    # Compute usage-health for each method so UI can show "Active · used
+    # 3d ago", "Stale · 60d+", "Never used · Verify now" etc. All fields
+    # optional — client falls back gracefully if absent.
+    from datetime import datetime as _dt
+    now = _dt.utcnow()
+
+    def _parse(ts):
+        if not ts:
+            return None
+        try:
+            s = ts if isinstance(ts, str) else ts.isoformat()
+            return _dt.fromisoformat(s.replace("Z", "").split("+")[0])
+        except Exception:
+            return None
+
+    def _days(ts):
+        d = _parse(ts)
+        if not d:
+            return None
+        return max(0, (now - d).days)
+
+    def _compute_health(m: dict) -> dict:
+        last_used = m.get("last_used_at")
+        last_sync = m.get("last_sync_at") or m.get("created_at")
+        last_err = m.get("last_error")  # {"ts": ISO, "reason": "..."}
+        days_since_used = _days(last_used)
+        days_since_sync = _days(last_sync)
+        # Error wins over everything
+        if last_err and last_err.get("ts") and _days(last_err.get("ts")) is not None and _days(last_err.get("ts")) <= 7:
+            return {
+                "status": "error",
+                "tone": "danger",
+                "label": f"Last charge failed · {last_err.get('reason', 'Unknown')}",
+                "last_used_at": last_used, "last_sync_at": last_sync,
+                "action": "retry", "action_label": "Fix now",
+            }
+        # Never used
+        if days_since_used is None:
+            return {
+                "status": "unused",
+                "tone": "neutral",
+                "label": "Never used · tap to verify",
+                "last_used_at": None, "last_sync_at": last_sync,
+                "action": "verify", "action_label": "Verify now",
+            }
+        # Fresh
+        if days_since_used <= 30:
+            return {
+                "status": "healthy",
+                "tone": "success",
+                "label": f"Active · used {days_since_used}d ago" if days_since_used > 0 else "Active · used today",
+                "last_used_at": last_used, "last_sync_at": last_sync,
+                "action": None, "action_label": None,
+            }
+        # Getting cold
+        if days_since_used <= 90:
+            return {
+                "status": "stale",
+                "tone": "warning",
+                "label": f"Not used in {days_since_used}d",
+                "last_used_at": last_used, "last_sync_at": last_sync,
+                "action": "verify", "action_label": "Verify",
+            }
+        # Cold
+        return {
+            "status": "stale",
+            "tone": "warning",
+            "label": f"Stale · {days_since_used}d since last use",
+            "last_used_at": last_used, "last_sync_at": last_sync,
+            "action": "verify", "action_label": "Verify",
+        }
+
+    for m in methods:
+        m["health"] = _compute_health(m)
+
     return {"methods": methods, "count": len(methods), "default": next((m for m in methods if m.get("is_default")), None)}
 
 
@@ -303,6 +379,50 @@ async def delete_payment_method(pm_id: str, user_id: str = Depends(get_current_u
     if res.modified_count == 0:
         raise HTTPException(status_code=404, detail="Method not found")
     return {"ok": True, "deleted_id": pm_id}
+
+
+@router.post("/payment-methods/{pm_id}/verify")
+async def verify_payment_method(pm_id: str, user_id: str = Depends(get_current_user)):
+    """Mock-verify a payment method — stamps last_sync_at and last_used_at
+    to move the method into "healthy" status. Real integrations would ping
+    the PSP (Razorpay/BBPS) to validate the UPI/card/bank handle; here we
+    simulate that verification so the Smart Status layer has freshness
+    signal. Handles legacy virtual methods by promoting them to real docs.
+    """
+    user = await db.users.find_one({"_id": ObjectId(user_id)}, {"payment_methods": 1, "upi_id": 1}) or {}
+    methods = user.get("payment_methods") or []
+    now_iso = datetime_utcnow_iso()
+
+    # Promote legacy_upi virtual method → real persisted doc
+    if pm_id == "legacy_upi" and user.get("upi_id") and not any(m.get("id") == "legacy_upi" for m in methods):
+        doc = {
+            "id": _mk_pm_id(),
+            "type": "upi",
+            "upi_id": user["upi_id"],
+            "label": "Primary UPI",
+            "is_default": not any(m.get("is_default") for m in methods),
+            "created_at": now_iso,
+            "last_sync_at": now_iso,
+            "last_used_at": now_iso,
+        }
+        await db.users.update_one(
+            {"_id": ObjectId(user_id)},
+            {"$push": {"payment_methods": doc}},
+        )
+        return {"ok": True, "status": "healthy", "verified_at": now_iso, "method_id": doc["id"]}
+
+    if not any(m.get("id") == pm_id for m in methods):
+        raise HTTPException(status_code=404, detail="Method not found")
+
+    await db.users.update_one(
+        {"_id": ObjectId(user_id), "payment_methods.id": pm_id},
+        {"$set": {
+            "payment_methods.$.last_sync_at": now_iso,
+            "payment_methods.$.last_used_at": now_iso,
+            "payment_methods.$.last_error": None,
+        }},
+    )
+    return {"ok": True, "status": "healthy", "verified_at": now_iso, "method_id": pm_id}
 
 
 def _default_label(doc: dict) -> str:
