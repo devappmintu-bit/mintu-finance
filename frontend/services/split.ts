@@ -93,6 +93,16 @@ export async function addGroupMember(groupId: string, phone: string): Promise<an
   return r.data;
 }
 
+export async function previewGroupForJoin(groupId: string): Promise<any> {
+  const r = await api.get(`/split/groups/${groupId}/preview`);
+  return r.data;
+}
+
+export async function joinGroup(groupId: string): Promise<any> {
+  const r = await api.post(`/split/groups/${groupId}/join`);
+  return r.data;
+}
+
 export async function removeGroupMember(groupId: string, memberId: string): Promise<void> {
   await api.delete(`/split/groups/${groupId}/members/${memberId}`);
 }

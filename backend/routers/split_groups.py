@@ -306,3 +306,83 @@ async def send_group_message(group_id: str, data: dict, user_id: str = Depends(g
     return {"message": "Left group"}
 
 
+
+
+
+@api_router.get("/split/groups/{group_id}/preview")
+async def preview_group_for_join(group_id: str, user_id: str = Depends(get_current_user)):
+    """Lightweight preview for the invite-link join screen.
+
+    Any authenticated user can call this — returns just the info needed to
+    render the "Join [group name] · N members" card. Also reports whether
+    the caller is already a member (so the UI can show "Open group" instead
+    of "Join").
+    """
+    if not ObjectId.is_valid(group_id):
+        raise HTTPException(status_code=400, detail="Invalid group_id")
+    group = await db.split_groups.find_one({"_id": ObjectId(group_id)})
+    if not group:
+        raise HTTPException(status_code=404, detail="Group not found")
+
+    creator = None
+    if group.get("created_by"):
+        cu = await db.users.find_one({"_id": ObjectId(group["created_by"])}) if ObjectId.is_valid(group.get("created_by", "")) else None
+        if cu:
+            creator = {"name": cu.get("name", "A friend"), "avatar": cu.get("avatar")}
+
+    members = group.get("members") or []
+    already_member = any(m.get("user_id") == user_id for m in members)
+
+    return {
+        "id": str(group["_id"]),
+        "name": group.get("name", "MintU Group"),
+        "emoji": group.get("emoji", "👥"),
+        "member_count": len(members),
+        "creator": creator,
+        "already_member": already_member,
+        # Return only first 6 member names/avatars for the preview avatar stack
+        "member_preview": [
+            {"name": m.get("name", "Member"), "avatar": m.get("avatar")}
+            for m in members[:6]
+        ],
+    }
+
+
+@api_router.post("/split/groups/{group_id}/join")
+async def self_join_group(group_id: str, user_id: str = Depends(get_current_user)):
+    """Self-join endpoint for the invite deeplink.
+
+    Adds the *current authenticated user* to the group. Idempotent — calling
+    it twice is safe (returns `already_member: True`). Also cleans up any
+    matching `pending_invites` entry (created when someone invited this
+    phone before the user signed up).
+    """
+    if not ObjectId.is_valid(group_id):
+        raise HTTPException(status_code=400, detail="Invalid group_id")
+    group = await db.split_groups.find_one({"_id": ObjectId(group_id)})
+    if not group:
+        raise HTTPException(status_code=404, detail="Group not found")
+
+    # Already a member? Idempotent success.
+    if any(m.get("user_id") == user_id for m in group.get("members") or []):
+        return {"ok": True, "already_member": True, "group_id": group_id}
+
+    user = await db.users.find_one({"_id": ObjectId(user_id)}) if ObjectId.is_valid(user_id) else None
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+    phone = user.get("phone", "")
+    new_member = {
+        "user_id": user_id,
+        "name": user.get("name", "Member"),
+        "phone": phone,
+        "avatar": user.get("avatar"),
+    }
+    await db.split_groups.update_one(
+        {"_id": ObjectId(group_id)},
+        {
+            "$push": {"members": new_member},
+            # Remove any matching pending invite by phone (best-effort)
+            "$pull": {"pending_invites": {"phone": phone}},
+        },
+    )
+    return {"ok": True, "already_member": False, "group_id": group_id, "name": group.get("name")}

@@ -698,10 +698,69 @@ metadata:
       ship. Backend hardening is production-ready.
 
 test_plan:
-  current_focus: []
+  current_focus:
+    - "Split invite-link Preview + Self-Join endpoints (split_join_apr22_2026)"
   stuck_tasks: []
   test_all: false
   test_priority: "high_first"
+
+split_join_apr22_2026:
+  - task: "Split invite-link Preview + Self-Join endpoints"
+    implemented: true
+    working: true
+    file: "/app/backend/routers/split_groups.py"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+      - working: true
+        agent: "testing"
+        comment: |
+          ✅ ALL 39/39 ASSERTIONS PASS (Apr 22 2026, /app/split_join_apr22_2026_test.py against
+          https://mintu-finance.preview.emergentagent.com/api). Auth via phone 9876543210
+          (user A) and 9999888877 (user B, Rahul Sharma) / OTP 123456 — tokens from
+          /auth/verify-otp.token.
+
+          ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+          GET /api/split/groups/{group_id}/preview  (18/18 ✅)
+          ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+          • As user A (member of group 69e005ed0bda38ad4b6eb54b "Round25B Renamed")
+            → 200 with full payload: {id, name, emoji:"👥", member_count:2,
+            creator:{name, avatar}, already_member:true,
+            member_preview:[{name,avatar},… ≤6 items]}. All types correct
+            (member_count int, already_member bool, member_preview list).
+          • As user B (non-member, after cleanup of pre-existing membership)
+            → 200 with already_member:false, member_count:1.
+          • After B joins, subsequent GET /preview from B → already_member:true. ✅
+          • Invalid ObjectId `bad` → 400 {"detail":"Invalid group_id"} ✅
+          • Valid-but-missing ObjectId `000000000000000000000000`
+            → 404 {"detail":"Group not found"} ✅
+          • No Authorization header → 422 (FastAPI required-header; spec accepts 401/422) ✅
+          • Bad bearer token → 401 "Invalid token" ✅
+
+          ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+          POST /api/split/groups/{group_id}/join  (16/16 ✅)
+          ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+          • User A (already a member) → 200 {ok:true, already_member:true,
+            group_id:<id>} (idempotent short-circuit). No duplicate push to
+            members array. ✅
+          • User B (non-member, 1st call) → 200 {ok:true, already_member:false,
+            group_id:<id>, name:"Round25B Renamed"}. ✅
+          • User B added to group.members — verified via GET /manage (members
+            array contains user_id==B). ✅
+          • User B (2nd call, same endpoint) → 200 {ok:true, already_member:true,
+            group_id:<id>} — IDEMPOTENT as required. ✅
+          • Invalid ObjectId `bad` → 400 {"detail":"Invalid group_id"} ✅
+          • Valid-but-missing ObjectId `000000000000000000000000`
+            → 404 {"detail":"Group not found"} ✅
+          • No Authorization header → 422 ✅ (spec accepts 401/422)
+          • Bad bearer token → 401 "Invalid token" ✅
+
+          pending_invites cleanup: the $pull on matching phone runs atomically
+          inside the same update — verified by code review; no regression on
+          group.members in the update_one call.
+
+          Both endpoints are PRODUCTION-READY. No critical issues.
 
 weekly_win_share_apr22_2026:
   - task: "Shareable Weekly Win Card (viral loop via react-native-view-shot)"

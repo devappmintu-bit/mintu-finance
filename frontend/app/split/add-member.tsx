@@ -253,7 +253,7 @@ export default function AddMemberScreen() {
     })();
   }, [params.group_id]);
 
-  // Invite link (stable per group)
+  // Invite link (stable per group) — lands on /join/[id] deeplink handler
   const inviteLink = useMemo(
     () => (group?.id ? `https://mintu.app/join/${group.id}` : 'https://mintu.app'),
     [group?.id]
