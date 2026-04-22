@@ -21,7 +21,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import {
   View, Text, StyleSheet, ScrollView, TouchableOpacity,
-  Modal, FlatList, TextInput, RefreshControl,
+  Modal, RefreshControl,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -30,7 +30,7 @@ import { useAuthStore } from '../../store/authStore';
 import { useLangStore } from '../../store/langStore';
 import { t, LANGUAGES } from '../../utils/i18n';
 import api from '../../utils/api';
-import { fetchAvatar, updateProfile, uploadAvatar, deleteAvatar } from '../../services/user';
+import { fetchAvatar, uploadAvatar, deleteAvatar } from '../../services/user';
 import { COLORS } from '../../utils/theme';
 import { makeStyles } from '../../utils/makeStyles';
 import Toast from 'react-native-toast-message';
@@ -52,6 +52,9 @@ import ScoreBoostModal from '../../components/profile/ScoreBoostModal';
 import ProfilePhotoSheet from '../../components/profile/ProfilePhotoSheet';
 import ShareWeeklyWinModal from '../../components/profile/ShareWeeklyWinModal';
 import { deriveWin } from '../../components/profile/WeeklyWinCard';
+import SubScreenModal from '../../components/profile/SubScreenModal';
+import EditNameSheet from '../../components/profile/EditNameSheet';
+import LanguageSheet from '../../components/profile/LanguageSheet';
 
 // Retained sub-screens (opened only via explicit settings tap)
 import BudgetAchievements from '../../components/budget/BudgetAchievements';
@@ -82,7 +85,6 @@ export default function ProfileScreen() {
   const [langModalVisible, setLangModalVisible] = useState(false);
   const [helpVisible, setHelpVisible] = useState(false);
   const [editNameVisible, setEditNameVisible] = useState(false);
-  const [editName, setEditName] = useState('');
   const [achievementsModalVisible, setAchievementsModalVisible] = useState(false);
   const [paymentMethodsVisible, setPaymentMethodsVisible] = useState(false);
   const [preferencesVisible, setPreferencesVisible] = useState(false);
@@ -144,15 +146,6 @@ export default function ProfileScreen() {
     setLogoutSheet(false);
     setLogoutAnim(true);
     await logout();
-  };
-
-  const updateName = async () => {
-    if (!editName.trim()) return;
-    try {
-      await updateProfile({ name: editName.trim() });
-      Toast.show({ type: 'success', text1: 'Name updated' });
-      setEditNameVisible(false);
-    } catch { Toast.show({ type: 'error', text1: 'Error' }); }
   };
 
   const handleAvatarPicked = async (base64DataUri: string) => {
@@ -237,7 +230,7 @@ export default function ProfileScreen() {
           statusRing={breakdown?.status_ring}
           predictiveInsight={breakdown?.predictive_insight}
           nextReward={breakdown?.next_tier ? { label: breakdown.next_tier, at: (identity?.money_score || 0) + (breakdown.points_to_next || 0) } : null}
-          onEditName={() => { setEditName(user?.name || ''); setEditNameVisible(true); }}
+          onEditName={() => setEditNameVisible(true)}
           onEditAvatar={() => setPhotoSheetVisible(true)}
           onLevelUp={() => setScoreBoostVisible(true)}
           onTapScore={() => setScoreBreakdownVisible(true)}
@@ -359,136 +352,73 @@ export default function ProfileScreen() {
         currentScore={identity?.money_score || user?.money_score || 0}
       />
 
-      {/* Edit Name sheet */}
-      <Modal visible={editNameVisible} animationType="fade" transparent>
-        <View style={s.mBg}>
-          <View style={[s.sheet, { maxHeight: 260 }]}>
-            <View style={s.handle} />
-            <Text style={s.sheetTitle}>Edit name</Text>
-            <TextInput
-              style={s.editInput}
-              value={editName}
-              onChangeText={setEditName}
-              placeholder="Your name"
-              placeholderTextColor={COLORS.text.muted}
-              autoFocus
-            />
-            <TouchableOpacity style={s.saveBtn} onPress={updateName}>
-              <Text style={s.saveBtnT}>Save</Text>
-            </TouchableOpacity>
-            <TouchableOpacity onPress={() => setEditNameVisible(false)} style={{ paddingVertical: 10, alignItems: 'center' }}>
-              <Text style={{ color: COLORS.text.muted, fontWeight: '600' }}>Cancel</Text>
-            </TouchableOpacity>
-          </View>
-        </View>
-      </Modal>
+      {/* Edit name — extracted component */}
+      <EditNameSheet
+        visible={editNameVisible}
+        currentName={user?.name || ''}
+        onClose={() => setEditNameVisible(false)}
+      />
 
-      {/* Language sheet */}
-      <Modal visible={langModalVisible} animationType="slide" transparent>
-        <View style={s.mBg}>
-          <View style={s.sheet}>
-            <View style={s.handle} />
-            <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
-              <Text style={s.sheetTitle}>{t('language', lang)}</Text>
-              <TouchableOpacity onPress={() => setLangModalVisible(false)}>
-                <Ionicons name="close" size={22} color={COLORS.text.primary} />
-              </TouchableOpacity>
-            </View>
-            <FlatList data={LANGUAGES} keyExtractor={i => i.code} renderItem={({ item }) => (
-              <TouchableOpacity style={[s.langOpt, lang === item.code && s.langOn]} onPress={() => { setLang(item.code); setLangModalVisible(false); }}>
-                <View>
-                  <Text style={s.langNative}>{item.nativeName}</Text>
-                  <Text style={s.langEn}>{item.name}</Text>
-                </View>
-                {lang === item.code && <Ionicons name="checkmark-circle" size={22} color={COLORS.accent.primary} />}
-              </TouchableOpacity>
-            )} />
-          </View>
-        </View>
-      </Modal>
+      {/* Language — extracted bottom sheet */}
+      <LanguageSheet
+        visible={langModalVisible}
+        onClose={() => setLangModalVisible(false)}
+      />
 
       <Modal visible={helpVisible} animationType="slide"><HelpSupport onClose={() => setHelpVisible(false)} /></Modal>
 
-      {/* Sub-screens launched from settings list */}
-      <Modal visible={achievementsModalVisible} animationType="slide" onRequestClose={() => setAchievementsModalVisible(false)}>
-        <SafeAreaView style={{ flex: 1, backgroundColor: COLORS.bg.primary }}>
-          <View style={s.subHeader}>
-            <TouchableOpacity onPress={() => setAchievementsModalVisible(false)} hitSlop={10}>
-              <Ionicons name="close" size={24} color={COLORS.text.primary} />
-            </TouchableOpacity>
-            <Text style={s.subHeaderTitle}>Achievements</Text>
-            <View style={{ width: 24 }} />
-          </View>
-          <ScrollView contentContainerStyle={{ padding: 16, paddingBottom: 60 }}>
-            <BudgetAchievements />
-          </ScrollView>
-        </SafeAreaView>
-      </Modal>
+      {/* Sub-screens launched from settings list — all use shared SubScreenModal */}
+      <SubScreenModal
+        visible={achievementsModalVisible}
+        title="Achievements"
+        onClose={() => setAchievementsModalVisible(false)}
+      >
+        <BudgetAchievements />
+      </SubScreenModal>
 
-      <Modal visible={paymentMethodsVisible} animationType="slide" onRequestClose={() => setPaymentMethodsVisible(false)}>
-        <SafeAreaView style={{ flex: 1, backgroundColor: COLORS.bg.primary }}>
-          <View style={s.subHeader}>
-            <TouchableOpacity onPress={() => setPaymentMethodsVisible(false)} hitSlop={10}>
-              <Ionicons name="close" size={24} color={COLORS.text.primary} />
-            </TouchableOpacity>
-            <Text style={s.subHeaderTitle}>Payment methods</Text>
-            <View style={{ width: 24 }} />
-          </View>
-          <ScrollView contentContainerStyle={{ padding: 16, paddingBottom: 60 }}>
-            <PaymentMethodsV2 />
-          </ScrollView>
-        </SafeAreaView>
-      </Modal>
+      <SubScreenModal
+        visible={paymentMethodsVisible}
+        title="Payment methods"
+        onClose={() => setPaymentMethodsVisible(false)}
+      >
+        <PaymentMethodsV2 />
+      </SubScreenModal>
 
-      <Modal visible={preferencesVisible} animationType="slide" onRequestClose={() => setPreferencesVisible(false)}>
-        <SafeAreaView style={{ flex: 1, backgroundColor: COLORS.bg.primary }}>
-          <View style={s.subHeader}>
-            <TouchableOpacity onPress={() => setPreferencesVisible(false)} hitSlop={10}>
-              <Ionicons name="close" size={24} color={COLORS.text.primary} />
-            </TouchableOpacity>
-            <Text style={s.subHeaderTitle}>Theme & language</Text>
-            <View style={{ width: 24 }} />
-          </View>
-          <ScrollView contentContainerStyle={{ padding: 16, paddingBottom: 60 }}>
-            <ThemeToggle />
-            <View style={{ height: 16 }} />
-            <SettingsList header="Language">
-              <SettingsListItem
-                icon="language-outline"
-                label={t('language', lang)}
-                value={currentLang?.nativeName}
-                onPress={() => { setPreferencesVisible(false); setTimeout(() => setLangModalVisible(true), 300); }}
-              />
-            </SettingsList>
-          </ScrollView>
-        </SafeAreaView>
-      </Modal>
+      <SubScreenModal
+        visible={preferencesVisible}
+        title="Theme & language"
+        onClose={() => setPreferencesVisible(false)}
+      >
+        <ThemeToggle />
+        <View style={{ height: 16 }} />
+        <SettingsList header="Language">
+          <SettingsListItem
+            icon="language-outline"
+            label={t('language', lang)}
+            value={currentLang?.nativeName}
+            onPress={() => { setPreferencesVisible(false); setTimeout(() => setLangModalVisible(true), 300); }}
+          />
+        </SettingsList>
+      </SubScreenModal>
 
-      <Modal visible={notifsVisible} animationType="slide" onRequestClose={() => setNotifsVisible(false)}>
-        <SafeAreaView style={{ flex: 1, backgroundColor: COLORS.bg.primary }}>
-          <View style={s.subHeader}>
-            <TouchableOpacity onPress={() => setNotifsVisible(false)} hitSlop={10}>
-              <Ionicons name="close" size={24} color={COLORS.text.primary} />
-            </TouchableOpacity>
-            <Text style={s.subHeaderTitle}>Notifications</Text>
-            <View style={{ width: 24 }} />
-          </View>
-          <ScrollView contentContainerStyle={{ padding: 16, paddingBottom: 60 }}>
-            <NotificationSettings />
-            <View style={{ height: 8 }} />
-            <SettingsList header="Debug">
-              <SettingsListItem
-                icon="send-outline"
-                label="Send test notification"
-                onPress={async () => {
-                  const { sent, message } = await sendTestPush();
-                  Toast.show({ type: sent ? 'success' : 'info', text1: sent ? 'Test push sent' : 'Push test', text2: message });
-                }}
-              />
-            </SettingsList>
-          </ScrollView>
-        </SafeAreaView>
-      </Modal>
+      <SubScreenModal
+        visible={notifsVisible}
+        title="Notifications"
+        onClose={() => setNotifsVisible(false)}
+      >
+        <NotificationSettings />
+        <View style={{ height: 8 }} />
+        <SettingsList header="Debug">
+          <SettingsListItem
+            icon="send-outline"
+            label="Send test notification"
+            onPress={async () => {
+              const { sent, message } = await sendTestPush();
+              Toast.show({ type: sent ? 'success' : 'info', text1: sent ? 'Test push sent' : 'Push test', text2: message });
+            }}
+          />
+        </SettingsList>
+      </SubScreenModal>
 
       {logoutAnim && (
         <AuthTransitionOverlay
@@ -538,24 +468,4 @@ const useStyles = makeStyles((c) => ({
   footer: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, marginTop: 4, paddingVertical: 6 },
   footerTxt: { fontSize: 11, fontWeight: '500', color: c.text.muted },
   version: { textAlign: 'center', fontSize: 10.5, color: c.text.muted, marginTop: 4, fontWeight: '500' },
-
-  // Sub-modal header
-  subHeader: {
-    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
-    padding: 16, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: c.border.subtle,
-  },
-  subHeaderTitle: { fontSize: 17, fontWeight: '700', color: c.text.primary },
-
-  // Legacy sheet styles (edit name / language)
-  mBg: { flex: 1, justifyContent: 'flex-end', backgroundColor: 'rgba(0,0,0,0.5)' },
-  sheet: { backgroundColor: c.bg.secondary, borderTopLeftRadius: 24, borderTopRightRadius: 24, padding: 20, maxHeight: '85%' },
-  handle: { width: 40, height: 4, borderRadius: 2, backgroundColor: c.border.subtle, alignSelf: 'center', marginBottom: 14 },
-  sheetTitle: { fontSize: 18, fontWeight: '700', color: c.text.primary },
-  editInput: { backgroundColor: c.bg.primary, borderRadius: 12, paddingHorizontal: 14, paddingVertical: 12, fontSize: 15, color: c.text.primary, borderWidth: 1, borderColor: c.border.subtle, marginTop: 14, marginBottom: 14 },
-  saveBtn: { backgroundColor: c.accent.primary, borderRadius: 12, paddingVertical: 13, alignItems: 'center' },
-  saveBtnT: { fontSize: 14.5, fontWeight: '700', color: '#fff' },
-  langOpt: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingVertical: 12, paddingHorizontal: 12, borderRadius: 10, marginBottom: 2 },
-  langOn: { backgroundColor: c.accent.primary + '10' },
-  langNative: { fontSize: 15, fontWeight: '600', color: c.text.primary },
-  langEn: { fontSize: 11, color: c.text.muted, marginTop: 1 },
 }));
