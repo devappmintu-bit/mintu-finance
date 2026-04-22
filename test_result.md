@@ -9150,3 +9150,68 @@ agent_communication:
       micro-animations beyond haptics.
 
       Next Action Items: user review.
+
+# ─────────────────────────────────────────────────────────────
+# SMART STATUS ROWS + FLOATING AI ORB (Apr 22 2026)
+# ─────────────────────────────────────────────────────────────
+frontend:
+  - task: "Smart Financial Hub status indicators"
+    implemented: true
+    working: true
+    file: "/app/frontend/components/profile/SmartStatusRow.tsx"
+    stuck_count: 0
+    priority: "medium"
+    needs_retesting: false
+    status_history:
+      - working: true
+        agent: "main"
+        comment: |
+          New SmartStatusRow component replaces the plain
+          "Connected accounts" SettingsListItem for Gmail.
+          • 5 statuses mapped to color + dot: ok (green),
+            warn (amber), error (red + "Fix now" pill),
+            syncing (blue), idle (grey).
+          • Live computed text: "Synced Nm ago" / "Synced Nh
+            ago" / "Last sync Nd ago" / "Sync failed · fix
+            auth" / "Not connected · tap to set up".
+          • Pulls from existing /api/gmail/status.
+
+  - task: "Floating AI Orb + Assistant Sheet"
+    implemented: true
+    working: true
+    file: "/app/frontend/components/profile/AIOrb.tsx"
+    stuck_count: 0
+    priority: "medium"
+    needs_retesting: false
+    status_history:
+      - working: true
+        agent: "main"
+        comment: |
+          • AIOrb.tsx — purple gradient FAB with pulse ring
+            Animated.loop (scale 0.95→1.6, opacity 0.6→0)
+            above the tab bar (bottom: 86/100 per platform).
+          • AIOrbSheet.tsx — bottom sheet with:
+              - Weekly summary card (spent/saved/txns + AI
+                commentary) from /profile/weekly-comparison
+              - 3 quick-action chips: Ask / Voice / Plan
+                (deep-link to /(tabs)/ai with ?q= query)
+              - 2 smart suggestions from /profile/score-boosts
+              - "Open full AI chat" CTA
+          • Verified: orb visible bottom-right with pulse;
+            sheet opens on tap and shows all sections.
+
+agent_communication:
+  - agent: "main"
+    message: |
+      ✅ Future work wave complete.
+
+      • Smart Gmail status row with live sync indicator.
+      • Floating AI Orb with pulse animation + full sheet.
+      • Profile now has a persistent AI entry point without
+        leaving the tab — reduces friction for the core
+        differentiator.
+
+      Next Action Items:
+      • Extend SmartStatusRow to Payment Methods (once API
+        exposes last_sync timestamps).
+      • Apply AIOrb across all tabs (global FAB in _layout).

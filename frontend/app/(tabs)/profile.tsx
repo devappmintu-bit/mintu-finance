@@ -49,6 +49,9 @@ import AICoachOneTap from '../../components/profile/AICoachOneTap';
 import PremiumConversionFunnel from '../../components/profile/PremiumConversionFunnel';
 import ScoreBreakdownModal from '../../components/profile/ScoreBreakdownModal';
 import { SettingsList, SettingsListItem } from '../../components/profile/SettingsList';
+import SmartStatusRow, { type RowStatus } from '../../components/profile/SmartStatusRow';
+import AIOrb from '../../components/profile/AIOrb';
+import AIOrbSheet from '../../components/profile/AIOrbSheet';
 import LogoutConfirmSheet from '../../components/profile/LogoutConfirmSheet';
 import ScoreBoostModal from '../../components/profile/ScoreBoostModal';
 
@@ -75,6 +78,8 @@ export default function ProfileScreen() {
   const [weekly, setWeekly] = useState<any>(null);
   const [missionsData, setMissionsData] = useState<{ missions: Mission[]; seconds_to_refresh: number; total_xp: number; total_coins: number } | null>(null);
   const [scoreBreakdownVisible, setScoreBreakdownVisible] = useState(false);
+  const [gmailStatus, setGmailStatus] = useState<any>(null);
+  const [aiOrbOpen, setAiOrbOpen] = useState(false);
 
   // Modals / sheets
   const [langModalVisible, setLangModalVisible] = useState(false);
@@ -94,7 +99,7 @@ export default function ProfileScreen() {
 
   const loadData = useCallback(async () => {
     try {
-      const [avatarRes, statsRes, gamiRes, rewardsRes, identityRes, breakdownRes, weeklyRes, missionsRes] = await Promise.all([
+      const [avatarRes, statsRes, gamiRes, rewardsRes, identityRes, breakdownRes, weeklyRes, missionsRes, gmailRes] = await Promise.all([
         fetchAvatar().then(data => ({ data })).catch(() => ({ data: {} })),
         api.get('/analytics/summary').catch(() => ({ data: null })),
         api.get('/gamification/status').catch(() => ({ data: null })),
@@ -103,6 +108,7 @@ export default function ProfileScreen() {
         api.get('/profile/score-breakdown').catch(() => ({ data: null })),
         api.get('/profile/weekly-comparison').catch(() => ({ data: null })),
         api.get('/profile/missions').catch(() => ({ data: null })),
+        api.get('/gmail/status').catch(() => ({ data: null })),
       ]);
       if (avatarRes.data?.avatar) setAvatar(avatarRes.data.avatar);
       if (statsRes.data) setStats(statsRes.data);
@@ -112,6 +118,7 @@ export default function ProfileScreen() {
       if (breakdownRes.data) setBreakdown(breakdownRes.data);
       if (weeklyRes.data) setWeekly(weeklyRes.data);
       if (missionsRes.data) setMissionsData(missionsRes.data);
+      if (gmailRes.data) setGmailStatus(gmailRes.data);
     } catch { /* noop */ } finally { setRefreshing(false); }
   }, [setAvatar]);
 
@@ -182,6 +189,25 @@ export default function ProfileScreen() {
   const badgesTotal = identity?.badges_total ?? 12;
   const coinsBalance = identity?.coins_balance ?? rewardsSummary?.coins_balance ?? 0;
   const isPro = !!(identity?.is_premium || (user as any)?.is_premium);
+
+  // Derive Gmail status for SmartStatusRow
+  const gmailRow = React.useMemo(() => {
+    if (!gmailStatus || !gmailStatus.connected) {
+      return { status: 'idle' as RowStatus, text: 'Not connected · tap to set up' };
+    }
+    const last = gmailStatus.last_synced_at || gmailStatus.last_sync;
+    const hasError = gmailStatus.error || gmailStatus.status === 'error';
+    if (hasError) return { status: 'error' as RowStatus, text: 'Sync failed · fix auth' };
+    if (!last) return { status: 'syncing' as RowStatus, text: 'First sync in progress' };
+    try {
+      const diffMin = Math.round((Date.now() - new Date(last).getTime()) / 60000);
+      if (diffMin < 60) return { status: 'ok' as RowStatus, text: `Synced ${diffMin || '<1'}m ago` };
+      if (diffMin < 1440) return { status: 'ok' as RowStatus, text: `Synced ${Math.round(diffMin / 60)}h ago` };
+      return { status: 'warn' as RowStatus, text: `Last sync ${Math.round(diffMin / 1440)}d ago` };
+    } catch {
+      return { status: 'ok' as RowStatus, text: 'Connected' };
+    }
+  }, [gmailStatus]);
 
   return (
     <SafeAreaView style={s.bg}>
@@ -270,7 +296,14 @@ export default function ProfileScreen() {
             onPress={() => setPreferencesVisible(true)}
           />
           <SettingsListItem icon="notifications-outline" label="Notifications" onPress={() => setNotifsVisible(true)} />
-          <SettingsListItem icon="link-outline" label="Connected accounts" onPress={() => router.push('/gmail' as any)} />
+          <SmartStatusRow
+            icon="logo-google"
+            label="Gmail auto-import"
+            status={gmailRow.status}
+            statusText={gmailRow.text}
+            onPress={() => router.push('/gmail' as any)}
+            onFixNow={() => router.push('/gmail' as any)}
+          />
         </SettingsList>
 
         <SettingsList header="Support">
@@ -460,6 +493,10 @@ export default function ProfileScreen() {
           onDone={() => { setLogoutAnim(false); router.replace('/unlock'); }}
         />
       )}
+
+      {/* Floating AI Orb with pulse + bottom sheet */}
+      <AIOrb onPress={() => setAiOrbOpen(true)} bottomOffset={Platform.OS === 'ios' ? 100 : 86} />
+      <AIOrbSheet visible={aiOrbOpen} onClose={() => setAiOrbOpen(false)} />
     </SafeAreaView>
   );
 }
