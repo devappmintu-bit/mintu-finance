@@ -48,6 +48,7 @@ import QuickActionBar from '../../components/home/QuickActionBar';
 import TodayChips from '../../components/home/TodayChips';
 import ActionableAlertCard from '../../components/home/ActionableAlertCard';
 import FinancialBrainCard from '../../components/home/FinancialBrainCard';
+import EmbeddedFinanceCard from '../../components/home/EmbeddedFinanceCard';
 import Confetti from '../../components/Confetti';
 
 export default function HomeScreen() {
@@ -282,7 +283,10 @@ export default function HomeScreen() {
         {/* 11. LEADERBOARD compact */}
         <UnifiedLeaderboard compact title={t('leaderboard', lang).toUpperCase()} onPressMore={() => router.push('/(tabs)/rewards' as any)} />
 
-        {/* 12. NEWS */}
+        {/* 12. EMBEDDED FINANCE — curated credit / insurance / SIP products */}
+        <EmbeddedFinanceCard moneyScore={user?.money_score || 0} />
+
+        {/* 13. NEWS */}
         <NewsCarousel news={news} newsUpdatedAt={newsUpdatedAt} newsLoading={newsLoading} onRefresh={() => fetchNews(true)} />
 
         {/* 13. FINANCIAL SUPERPOWERS — Premium upsell, end-of-feed so users

@@ -22,6 +22,7 @@ interface Props {
   streak?: number;
   coins?: number;
   monthlyDelta?: number; // +/- delta on money score vs last month
+  topPercent?: number;   // server-computed percentile (overrides heuristic)
   onEditName: () => void;
   onPickAvatar: () => void;
   onRemoveAvatar: () => void;
@@ -48,14 +49,14 @@ const percentileFor = (score: number) => {
 };
 
 export default function ProfileHeroV2({
-  user, avatar, streak = 0, coins = 0, monthlyDelta = 0,
+  user, avatar, streak = 0, coins = 0, monthlyDelta = 0, topPercent,
   onEditName, onPickAvatar, onRemoveAvatar,
   onShareScore, onImproveScore,
 }: Props) {
   const s = useStyles();
   const score = user?.money_score || 0;
   const tier = tierFor(score);
-  const topPct = useMemo(() => percentileFor(score), [score]);
+  const topPct = useMemo(() => (typeof topPercent === 'number' ? topPercent : percentileFor(score)), [score, topPercent]);
   const deltaPositive = monthlyDelta >= 0;
 
   const haptic = () => { if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {}); };

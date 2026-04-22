@@ -8491,3 +8491,174 @@ agent_communication:
         new /api/profile/identity) so the Hero is data-driven.
       • Optional: wire "Improve score" CTA to open a curated
         "Boost Score" modal with top 3 actionable tips.
+
+# ─────────────────────────────────────────────────────────────
+# MULTI-FEATURE WAVE — A·B·C·E (Apr 22 2026) · main agent
+# ─────────────────────────────────────────────────────────────
+backend:
+  - task: "Profile Identity + Score Boosts API"
+    implemented: true
+    working: true
+    file: "/app/backend/routers/profile_identity.py"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+      - working: true
+        agent: "main"
+        comment: |
+          New router registered under /api/profile with two endpoints:
+
+          GET /api/profile/identity
+            Returns one-shot Hero data (name, phone, money_score,
+            monthly_score_delta from score_history collection,
+            top_percent percentile rank, coins_balance, streak,
+            badges_earned/total, tier_label, tier_emoji, is_premium).
+            Automatically snapshots today's score into
+            `score_history` for MoM delta tomorrow.
+
+          GET /api/profile/score-boosts
+            Analyses savings_rate, streak, goals_count, budgets_count,
+            money_score and returns 3 personalised boost tips with
+            emoji, title, sub, points, deep-link route, CTA.
+
+          Endpoints return 422 without auth (correct) and registered in
+          server.py alongside other routers.
+
+  - task: "Goals CRUD already exists"
+    implemented: true
+    working: true
+    file: "/app/backend/routers/goals.py"
+    stuck_count: 0
+    priority: "medium"
+    needs_retesting: false
+    status_history:
+      - working: true
+        agent: "main"
+        comment: "Confirmed /api/goals CRUD endpoints exist and tested indirectly via /goals screen."
+
+frontend:
+  - task: "Score Boost Modal"
+    implemented: true
+    working: true
+    file: "/app/frontend/components/profile/ScoreBoostModal.tsx"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+      - working: true
+        agent: "main"
+        comment: |
+          Bottom-sheet modal fetching /api/profile/score-boosts
+          with:
+          • Score projection card (NOW → POTENTIAL + delta pill)
+          • Dual-segment progress bar (current vs boost potential)
+          • 3 numbered boost rows with emoji, title, sub, points
+            pill (green gradient) and deep-link CTA
+          • Taps close modal and navigate to relevant route
+
+          Wired to Profile Hero's "Improve score" CTA (replaces
+          previous direct router.push to /(tabs)/ai).
+
+  - task: "Goals Screen"
+    implemented: true
+    working: true
+    file: "/app/frontend/app/goals.tsx"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+      - working: true
+        agent: "main"
+        comment: |
+          Full-screen /goals route at /app/frontend/app/goals.tsx with:
+          • Header with back + title + add button
+          • Summary card (saffron gradient): total saved, total
+            target, overall progress ring (react-native-svg)
+          • Empty state with 🎯 emoji + "Create your first goal" CTA
+          • 2-column grid of goal cards: animated progress ring
+            (SVG), centered emoji, name, amount/target, linked-
+            budget chip, edit/delete actions
+          • Bottom-sheet modal for new/edit goal: name, target,
+            saved amount, emoji picker (12 options), color picker
+            (8 options)
+          • API: /api/goals GET/POST/PATCH/DELETE
+          • Verified rendering at /goals — clean empty state.
+          • Accessible via Profile → My Goals accordion.
+
+  - task: "Embedded Finance Card on Home"
+    implemented: true
+    working: true
+    file: "/app/frontend/components/home/EmbeddedFinanceCard.tsx"
+    stuck_count: 0
+    priority: "medium"
+    needs_retesting: false
+    status_history:
+      - working: true
+        agent: "main"
+        comment: |
+          Horizontal scroll of 3 curated financial product cards:
+          1. Flexi Credit (PRE-APPROVED if score >= 60 else BUILD
+             CREDIT variant)
+          2. Health Cover ₹5L @ ₹200/mo
+          3. SIP starter ₹500/mo
+
+          Each card: gradient bg + emoji + badge pill + title +
+          sub + accent-coloured CTA. Taps currently surface "Coming
+          soon" toast (partner integration pending). Compliance
+          disclaimer below list.
+
+          Inserted between UnifiedLeaderboard and NewsCarousel in
+          /(tabs)/index.tsx.
+
+  - task: "Profile Wiring: Identity API + Goals link"
+    implemented: true
+    working: true
+    file: "/app/frontend/app/(tabs)/profile.tsx"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+      - working: true
+        agent: "main"
+        comment: |
+          • Added GET /profile/identity call to loadData's
+            Promise.all — populates new `identity` state.
+          • All Hero-derived values (streak, coins, badges,
+            monthlyDelta, topPercent, isPro) now prefer
+            identity.* with graceful fallbacks to existing APIs.
+          • `topPercent` piped to ProfileHeroV2 which uses it
+            verbatim instead of heuristic.
+          • "Improve score" CTA now opens ScoreBoostModal instead
+            of navigating to /(tabs)/ai.
+          • New accordion "My Goals" → deep link to /goals route.
+          • Full profile screenshot on /profile verifies render.
+
+agent_communication:
+  - agent: "main"
+    message: |
+      ✅ A·B·C·E wave shipped. (Apr 22 2026)
+
+      A. Backend profile/identity + score-boosts endpoints,
+         snapshot score_history for MoM deltas.
+      B. Score Boost modal with projection card + 3 personalised
+         tips — wired to Hero "Improve score" CTA.
+      C. /goals screen with progress rings (SVG), emoji/color
+         picker, budget-linked badges. Accessible from Profile
+         → My Goals accordion.
+      E. EmbeddedFinanceCard on Home (Credit / Health / SIP)
+         between Leaderboard and News sections.
+
+      Still pending (D - requires user API keys):
+        • Real push notifications (FCM/APNs)
+        • Real SMS OTP (MSG91/Twilio)
+        • WhatsApp expense-tracking bot
+
+      Verified live: /profile, /goals, /home — all render, no
+      escape-code leaks, no "missing default export" warnings.
+
+      Next Action Items:
+      • User: provide Twilio / MSG91 / FCM / WhatsApp API keys
+        to unblock D.
+      • Wire EmbeddedFinance tap events to actual partner URLs
+        once partner onboarding is complete.

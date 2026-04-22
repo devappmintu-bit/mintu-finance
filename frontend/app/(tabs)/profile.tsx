@@ -41,6 +41,7 @@ import InsightsCard from '../../components/profile/InsightsCard';
 import CompactLeaderboard from '../../components/profile/CompactLeaderboard';
 import InviteEarnStrip from '../../components/profile/InviteEarnStrip';
 import PremiumUpsellInline from '../../components/profile/PremiumUpsellInline';
+import ScoreBoostModal from '../../components/profile/ScoreBoostModal';
 import AccordionSection from '../../components/profile/AccordionSection';
 import ThemeToggle from '../../components/profile/ThemeToggle';
 import FinancialSnapshot from '../../components/profile/FinancialSnapshot';
@@ -72,6 +73,8 @@ export default function ProfileScreen() {
   const [stats, setStats] = useState<any>(null);
   const [gamiStatus, setGamiStatus] = useState<any>(null);
   const [rewardsSummary, setRewardsSummary] = useState<any>(null);
+  const [identity, setIdentity] = useState<any>(null);
+  const [scoreBoostVisible, setScoreBoostVisible] = useState(false);
   const [logoutAnim, setLogoutAnim] = useState(false);
   const [shareCardVisible, setShareCardVisible] = useState(false);
   const [sharing, setSharing] = useState(false);
@@ -79,7 +82,7 @@ export default function ProfileScreen() {
 
   const loadData = useCallback(async () => {
     try {
-      const [upiRes, avatarRes, refRes, statsRes, gamiRes, rewardsRes] = await Promise.all([
+      const [upiRes, avatarRes, refRes, statsRes, gamiRes, rewardsRes, identityRes] = await Promise.all([
         fetchUpi().then(data => ({ data })).catch(() => ({ data: {} })),
         fetchAvatar().then(data => ({ data })).catch(() => ({ data: {} })),
         api.get('/referral/enhanced-status').catch(() =>
@@ -88,6 +91,7 @@ export default function ProfileScreen() {
         api.get('/analytics/summary').catch(() => ({ data: null })),
         api.get('/gamification/status').catch(() => ({ data: null })),
         api.get('/rewards/summary').catch(() => ({ data: null })),
+        api.get('/profile/identity').catch(() => ({ data: null })),
       ]);
       setUpiId(upiRes.data?.upi_id || '');
       if (avatarRes.data?.avatar) setAvatar(avatarRes.data.avatar);
@@ -95,6 +99,7 @@ export default function ProfileScreen() {
       if (statsRes.data) setStats(statsRes.data);
       if (gamiRes.data) setGamiStatus(gamiRes.data);
       if (rewardsRes.data) setRewardsSummary(rewardsRes.data);
+      if (identityRes.data) setIdentity(identityRes.data);
     } catch { /* noop */ } finally { setLoading(false); setRefreshing(false); }
   }, [setAvatar]);
 
@@ -225,12 +230,13 @@ export default function ProfileScreen() {
     score >= 40 ? 'Growing Saver' : 'Just Starting';
   const tierEmoji = score >= 80 ? '🏆' : score >= 60 ? '💪' : score >= 40 ? '⚡' : '🌱';
 
-  const streak = gamiStatus?.streak || 0;
-  const badgesEarned = gamiStatus?.badges_earned?.length || 0;
-  const badgesTotal = (badgesEarned + (gamiStatus?.badges_available?.length || 0)) || 12;
-  const coinsBalance = rewardsSummary?.coins_balance ?? (user as any)?.coins_balance ?? 0;
-  const monthlyDelta = (user as any)?.monthly_score_delta ?? (gamiStatus as any)?.monthly_delta ?? 0;
-  const isPro = !!((user as any)?.is_premium || (user as any)?.is_pro);
+  const streak = identity?.streak ?? gamiStatus?.streak ?? 0;
+  const badgesEarned = identity?.badges_earned ?? gamiStatus?.badges_earned?.length ?? 0;
+  const badgesTotal = identity?.badges_total ?? ((badgesEarned + (gamiStatus?.badges_available?.length || 0)) || 12);
+  const coinsBalance = identity?.coins_balance ?? rewardsSummary?.coins_balance ?? (user as any)?.coins_balance ?? 0;
+  const monthlyDelta = identity?.monthly_score_delta ?? (user as any)?.monthly_score_delta ?? (gamiStatus as any)?.monthly_delta ?? 0;
+  const topPercent = identity?.top_percent;
+  const isPro = !!(identity?.is_premium || (user as any)?.is_premium || (user as any)?.is_pro);
 
   return (
     <SafeAreaView style={s.bg}>
@@ -251,11 +257,12 @@ export default function ProfileScreen() {
           streak={streak}
           coins={coinsBalance}
           monthlyDelta={Number(monthlyDelta) || 0}
+          topPercent={topPercent}
           onEditName={() => { setEditName(user?.name || ''); setEditNameVisible(true); }}
           onPickAvatar={pickAvatar}
           onRemoveAvatar={removeAvatar}
           onShareScore={openShareScoreCard}
-          onImproveScore={() => router.push('/(tabs)/ai' as any)}
+          onImproveScore={() => setScoreBoostVisible(true)}
         />
 
         {/* 2. PROGRESSION STRIP */}
@@ -323,6 +330,28 @@ export default function ProfileScreen() {
           subtitle="Budget streaks & milestone badges"
         >
           <BudgetAchievements />
+        </AccordionSection>
+
+        <AccordionSection
+          icon="flag"
+          iconTint="#10B981"
+          title="My Goals"
+          subtitle="Savings goals with progress rings"
+        >
+          <TouchableOpacity
+            style={s.inlineRow}
+            onPress={() => router.push('/goals' as any)}
+            activeOpacity={0.7}
+          >
+            <View style={[s.inlineIcon, { backgroundColor: '#10B98120' }]}>
+              <Ionicons name="flag" size={16} color="#10B981" />
+            </View>
+            <View style={{ flex: 1 }}>
+              <Text style={s.inlineTitle}>Open Goals Dashboard</Text>
+              <Text style={s.inlineSub}>Create, edit & track savings goals</Text>
+            </View>
+            <Ionicons name="chevron-forward" size={14} color={COLORS.text.muted} />
+          </TouchableOpacity>
         </AccordionSection>
 
         <AccordionSection
@@ -621,6 +650,13 @@ export default function ProfileScreen() {
           </ScrollView>
         </View>
       </Modal>
+
+      {/* Score Boost Modal */}
+      <ScoreBoostModal
+        visible={scoreBoostVisible}
+        onClose={() => setScoreBoostVisible(false)}
+        currentScore={score}
+      />
 
       {logoutAnim && (
         <AuthTransitionOverlay
