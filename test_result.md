@@ -8116,3 +8116,95 @@ agent_communication:
       • Optional: notify users when Weekend Mega / Double Rewards
         Hour starts via push (requires FCM keys).
 
+
+  - task: "Rewards Hub · Wave 4 — Mystery Box full-screen experience"
+    implemented: true
+    working: "NA"
+    file: "/app/frontend/app/mystery-box.tsx, /app/frontend/app/rewards-hub.tsx"
+    status_history:
+      - working: "NA"
+        agent: "main"
+        comment: |
+          Dedicated Mystery Box full-screen with 3-stage unwrap ritual:
+
+          STAGE 1 · IDLE
+            • Purple gradient background (#4C1D95 → #8B5CF6).
+            • Top header: close × · "✨ MYSTERY BOX / What will you get?"
+              · live coin balance pill.
+            • Center: animated golden gift box (body + darker lid +
+              red vertical ribbon + red horizontal ribbon + 🎀 bow),
+              breathing pulse loop (1.0 → 1.06, 1.1 s each way).
+            • Footer hint: "✨ N free boxes today" OR "💎 Costs 10
+              coins" OR "🚫 Out of spins" based on backend summary.
+            • CTA: saffron "Tap to Unwrap" (disabled-grey if out of
+              spins).
+
+          STAGE 2 · OPENING
+            • Triggered by tap: heavy haptic + backend /rewards/spin
+              fires in parallel with a 12-step shake animation
+              (±25 → 0 px, 60 ms each ~0.9 s total).
+            • After shake completes + API resolves, box scales up
+              (1.0 → 1.35, back-ease) while fading out (opacity 0)
+              over ~260 ms.
+            • "Opening…" hint below.
+
+          STAGE 3 · REVEALED
+            • 4 rotating semi-transparent rays (8 s loop behind card).
+            • White reward card bursts in (scale 0 → 1 back-ease,
+              opacity 0 → 1), showing:
+                – 64pt emoji
+                – 20pt title (e.g. "+50 Coins", "₹100 Voucher")
+                – 2× EVENT BONUS pill if backend multiplier fired
+                – Contextual sub-copy ("Added to your balance" /
+                  "30-day voucher in your wallet" / etc.)
+            • Success haptic + confetti burst (2.2 s).
+            • Dual CTA: green "Collect & Continue" (→ router.back)
+              and ghost "Open another box" (reset + loop) when more
+              spins remain.
+
+          WIRING:
+          • EventsBanner → when the always-present "mystery_box_teaser"
+            card is tapped, now navigates to /mystery-box (instead of
+            firing spinRef.forceSpin() in place).
+          • Every Mystery Box unwrap calls the real /api/rewards/spin
+            endpoint — no separate backend needed. Server's 2× event
+            multiplier applies automatically during Weekend Mega and
+            Double Rewards Hour, and the UI shows the multiplier pill.
+
+          VERIFICATION:
+          • /mystery-box HTTP 200 · bundle clean at 2323 modules.
+          • Screenshot test (unauthenticated fallback): golden gift
+            box with red ribbon + bow renders perfectly on purple
+            gradient, CTA greyed to "Out of Spins" (expected — no
+            auth token).
+
+          DEFERRED (blocked on user API keys):
+          • Push notifications when Weekend Mega Spin / Double Rewards
+            Hour starts — requires FCM/APNs keys the user hasn't
+            provided yet.
+
+agent_communication:
+  - agent: "main"
+    message: |
+      ✅ Wave 4 — Mystery Box shipped (Apr 22 2026).
+
+      • New /mystery-box full-screen route with 3-stage unwrap ritual
+        (idle pulse → shake + spin API → box explode + reward burst).
+      • Rotating rays behind reward card, confetti on reveal, success
+        haptic, 2× EVENT BONUS pill when server multiplier fires.
+      • "Collect & Continue" / "Open another box" dual CTA loop.
+      • EventsBanner now routes the mystery_box_teaser card to this
+        screen instead of triggering the wheel in place.
+      • Reuses the real /api/rewards/spin — every box is a genuine
+        spin, so the 2× multiplier and coin/XP accounting are all
+        server-authoritative.
+
+      Bundle clean at 2323 modules. Screenshot verified the idle
+      state renders flawlessly on mobile viewport.
+
+      Next Action Items:
+      • Push notifications for Weekend Mega / Double Rewards Hour
+        start — BLOCKED on FCM/APNs keys (need user to provide).
+      • Manual QA on Expo Go to validate the full unwrap animation
+        with real auth.
+

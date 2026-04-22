@@ -196,7 +196,9 @@ export default function RewardsHubScreen() {
             <EventsBanner
               events={events.events}
               onPress={(ev) => {
-                if (ev.id === 'mystery_box_teaser' || ev.id === 'weekend_mega' || ev.id === 'double_rewards_hour') {
+                if (ev.id === 'mystery_box_teaser') {
+                  router.push('/mystery-box' as any);
+                } else if (ev.id === 'weekend_mega' || ev.id === 'double_rewards_hour') {
                   // Trigger a spin directly from the event card
                   spinRef.current?.forceSpin();
                 }
