@@ -7,11 +7,26 @@
  *   💎 Premium (Pro-locked)   — masked cards with unlock CTA
  */
 import React from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Image } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import * as Haptics from 'expo-haptics';
+
+// Clearbit free brand logo API — falls back gracefully to emoji if image
+// fails to load (e.g. offline, rate-limited, or unknown domain).
+const BRAND_LOGOS: Record<string, string> = {
+  Swiggy:       'https://logo.clearbit.com/swiggy.com',
+  Zomato:       'https://logo.clearbit.com/zomato.com',
+  Amazon:       'https://logo.clearbit.com/amazon.in',
+  Flipkart:     'https://logo.clearbit.com/flipkart.com',
+  Myntra:       'https://logo.clearbit.com/myntra.com',
+  MakeMyTrip:   'https://logo.clearbit.com/makemytrip.com',
+  Ola:          'https://logo.clearbit.com/olacabs.com',
+  BookMyShow:   'https://logo.clearbit.com/bookmyshow.com',
+  'Prime Video':'https://logo.clearbit.com/primevideo.com',
+  Airtel:       'https://logo.clearbit.com/airtel.in',
+};
 
 type Reward = {
   id: string;
@@ -113,6 +128,8 @@ function RewardCard({ reward, userCoins, onClaim, testID }: { reward: Reward; us
   const canAfford = userCoins >= reward.cost_coins;
   const locked = reward.locked;
   const urgency = reward.urgency && URGENCY_COPY[reward.urgency];
+  const logo = BRAND_LOGOS[reward.brand];
+  const [imgError, setImgError] = React.useState(false);
 
   return (
     <TouchableOpacity
@@ -125,13 +142,24 @@ function RewardCard({ reward, userCoins, onClaim, testID }: { reward: Reward; us
       testID={testID}
     >
       <View style={[s.card, locked && s.cardLocked]}>
-        {/* Coloured top band */}
+        {/* Coloured top band with real brand logo (or emoji fallback) */}
         <LinearGradient
           colors={[reward.color, shade(reward.color, -0.2)]}
           start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}
           style={s.cardBand}
         >
-          <Text style={s.cardEmoji}>{reward.emoji}</Text>
+          {logo && !imgError ? (
+            <View style={s.logoFrame}>
+              <Image
+                source={{ uri: logo }}
+                style={s.logoImg}
+                resizeMode="contain"
+                onError={() => setImgError(true)}
+              />
+            </View>
+          ) : (
+            <Text style={s.cardEmoji}>{reward.emoji}</Text>
+          )}
           {urgency && (
             <View style={[s.urgencyPill, { backgroundColor: urgency.color }]}>
               <Text style={s.urgencyTxt}>{urgency.txt}</Text>
@@ -183,6 +211,8 @@ const s = StyleSheet.create({
   cardLocked: { opacity: 0.9 },
   cardBand: { height: 68, alignItems: 'center', justifyContent: 'center', position: 'relative' },
   cardEmoji: { fontSize: 34 },
+  logoFrame: { width: 54, height: 42, backgroundColor: '#fff', borderRadius: 10, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 6, paddingVertical: 4 },
+  logoImg: { width: '100%', height: '100%' },
   urgencyPill: { position: 'absolute', top: 6, right: 6, paddingHorizontal: 6, paddingVertical: 2, borderRadius: 999 },
   urgencyTxt: { fontSize: 8.5, fontWeight: '900', color: '#fff', letterSpacing: 0.5 },
   lockOverlay: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.3)', alignItems: 'center', justifyContent: 'center' },

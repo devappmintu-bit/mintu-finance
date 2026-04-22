@@ -273,8 +273,7 @@ export default function HomeScreen() {
         {/* 8. DAILY QUEST — habit loop */}
         <DailyQuestCard coinsStatus={coinsStatus} />
 
-        {/* 9. PREMIUM + MONEY SCHOOL — compact grouping */}
-        <PremiumHomeCard />
+        {/* 9. MONEY SCHOOL */}
         <MoneySchoolCard />
 
         {/* 10. WEEKLY REPORT */}
@@ -285,6 +284,10 @@ export default function HomeScreen() {
 
         {/* 12. NEWS */}
         <NewsCarousel news={news} newsUpdatedAt={newsUpdatedAt} newsLoading={newsLoading} onRefresh={() => fetchNews(true)} />
+
+        {/* 13. FINANCIAL SUPERPOWERS — Premium upsell, end-of-feed so users
+               reach it after consuming all other value. */}
+        <PremiumHomeCard />
 
         <View style={{ height: 40 }} />
       </ScrollView>

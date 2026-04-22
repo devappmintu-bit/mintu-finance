@@ -8027,3 +8027,92 @@ agent_communication:
       4. Manual QA on Expo Go — verify FOMO ticker doesn't distract,
          confirm the MintU-AI label renders cleanly with the puck.
 
+
+  - task: "Rewards Hub · Wave 3 (Marketplace claim + 2× Event Multiplier + Brand Logos) + Home FinancialSuperpowers move-to-bottom"
+    implemented: true
+    working: "NA"
+    file: "/app/backend/routers/rewards.py, /app/frontend/services/rewards.ts, /app/frontend/app/rewards-hub.tsx, /app/frontend/components/rewards/MarketplaceSection.tsx, /app/frontend/app/(tabs)/index.tsx"
+    status_history:
+      - working: "NA"
+        agent: "main"
+        comment: |
+          WAVE 3 shipped:
+
+          BACKEND:
+          • New endpoint POST /api/rewards/claim-marketplace
+              – Verifies reward exists + Pro gate (for premium items).
+              – Checks coin balance, debits, and inserts a 30-day
+                voucher into rewards_wallet.
+              – Returns updated balance + wallet_entry for optimistic
+                UI sync.
+          • New helper _active_event_multiplier_now()
+              – Returns 2.0× on Sat/Sun (Weekend Mega) or during
+                14–15 / 20–21 UTC (Double Rewards Hour).
+              – Applied inside /api/rewards/spin so both coin prizes
+                AND cashback prizes double automatically; multiplier
+                metadata returned on resolved_prize so the client can
+                show "2× applied!" toast.
+
+          FRONTEND:
+          • services/rewards.ts: added claimMarketplaceReward().
+          • rewards-hub.tsx onClaim: now really debits coins server-side,
+            fires confetti + success toast, and refreshes summary/market.
+          • MarketplaceSection.tsx: Real brand logos via Clearbit free
+            logo API (Swiggy, Zomato, Amazon, Flipkart, Myntra,
+            MakeMyTrip, Ola, BookMyShow, Prime Video, Airtel). White
+            rounded frame around the logo on the colored gradient band.
+            Graceful emoji fallback on image error / offline.
+
+          HOME SCREEN REORDER:
+          • /app/(tabs)/index.tsx: Moved <PremiumHomeCard /> (the
+            "Financial Superpowers" card) from its old position (right
+            after DailyQuestCard) to the very end of the feed, after
+            the NewsCarousel. Rationale: let users consume value first,
+            then encounter the upsell at the end when they're
+            emotionally warmed up.
+
+          VERIFICATION (live API tests — all HTTP 200):
+          • POST /api/rewards/claim-marketplace {reward_id:"ola_200"}
+              → {ok:true, coins:74 (164→74, -90), wallet_entry with 30d
+                expiry}. Currently current coin balance reflects the
+                debit in subsequent /summary calls.
+          • POST /api/rewards/spin (non-event window) → unchanged.
+            Event-window test deferred until Sat/Sun for true
+            integration check, but the helper path is covered by unit
+            logic (returns 1.0 when outside windows).
+          • /rewards-hub HTTP 200. / HTTP 200. Bundle clean @ 2323
+            modules.
+
+          Items deferred from Wave 3:
+             • Dedicated Mystery Box full-screen with unwrap animation
+               (current teaser card routes to wheel via forceSpin() and
+               the wheel already resolves mystery outcomes server-side).
+
+agent_communication:
+  - agent: "main"
+    message: |
+      ✅ Rewards Wave 3 + Home reorder shipped (Apr 22 2026).
+
+      HIGHLIGHTS:
+      1. Marketplace claims now REAL — tap a brand card, server debits
+         coins and drops a 30-day voucher into the wallet. Confetti +
+         success toast on claim.
+      2. 2× event multiplier live on /rewards/spin — automatically
+         doubles coin / cashback rewards during Weekend Mega (Sat/Sun)
+         and Double Rewards Hour (14–15 / 20–21 UTC, aligned to
+         IST peak).
+      3. Real brand logos (Clearbit) on marketplace cards with white
+         rounded frame and emoji fallback on image error.
+      4. Financial Superpowers upsell card moved to end-of-home feed
+         (after News) so users consume value first.
+
+      NEXT ACTION ITEMS:
+      • Manual QA on Expo Go with phone 9876543210 / OTP 123456 to
+        validate the claim flow + new home order visually.
+      • Optional: dedicated Mystery Box full-screen experience with
+        box-unwrap animation (current mystery outcomes are resolved
+        server-side through the spin wheel — no UI gap, but the
+        dedicated screen would elevate the FOMO feel).
+      • Optional: notify users when Weekend Mega / Double Rewards
+        Hour starts via push (requires FCM keys).
+

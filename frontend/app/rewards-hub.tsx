@@ -37,6 +37,7 @@ import EventsBanner from '../components/rewards/EventsBanner';
 import {
   fetchRewardsSummary, spinWheel, claimMission,
   fetchMarketplace, fetchSocialFeed, fetchEvents,
+  claimMarketplaceReward,
 } from '../services/rewards';
 
 export default function RewardsHubScreen() {
@@ -283,12 +284,23 @@ export default function RewardsHubScreen() {
               premium={market.premium || []}
               isPro={!!market.is_pro}
               userCoins={coins}
-              onClaim={(r) => {
+              onClaim={async (r) => {
+                if (r.locked) { router.push('/premium' as any); return; }
                 if (coins < r.cost_coins) {
-                  Toast.show({ type: 'info', text1: 'Not enough coins', text2: `Need ₹${r.cost_coins} — earn more by spinning & missions` });
+                  Toast.show({ type: 'info', text1: 'Not enough coins', text2: `Need ${r.cost_coins - coins} more — earn via spins & missions` });
                   return;
                 }
-                Toast.show({ type: 'success', text1: `Redeeming ${r.brand}`, text2: 'Voucher coming soon (backend endpoint pending)' });
+                try {
+                  const res = await claimMarketplaceReward(r.id);
+                  if (Platform.OS !== 'web') Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
+                  setConfetti(true);
+                  setTimeout(() => setConfetti(false), 1800);
+                  Toast.show({ type: 'success', text1: `${r.brand} voucher added`, text2: `${r.discount} · valid 30 days` });
+                  // Refresh balance & marketplace
+                  load();
+                } catch (e: any) {
+                  Toast.show({ type: 'error', text1: 'Claim failed', text2: e?.response?.data?.detail || 'Try again' });
+                }
               }}
             />
           </View>

@@ -106,3 +106,9 @@ export async function fetchEvents(): Promise<any> {
   const r = await api.get('/rewards/events');
   return r.data;
 }
+
+export async function claimMarketplaceReward(reward_id: string): Promise<any> {
+  const r = await api.post('/rewards/claim-marketplace', { reward_id });
+  return r.data;
+}
+

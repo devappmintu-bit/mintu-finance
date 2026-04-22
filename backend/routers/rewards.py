@@ -315,13 +315,22 @@ async def rewards_spin(user_id: str = Depends(get_current_user)) -> Dict[str, An
         resolved_prize.update(resolved)
         resolved_prize["mystery_revealed"] = True
 
+    # Apply event multiplier (Weekend Mega / Double Rewards Hour)
+    event_mult = _active_event_multiplier_now()
+    multiplier_applied = event_mult > 1.0
+    if multiplier_applied and resolved_prize.get("amount"):
+        resolved_prize["amount"] = int(round(resolved_prize["amount"] * event_mult))
+        resolved_prize["multiplier_applied"] = event_mult
+    if multiplier_applied and resolved_prize.get("value"):
+        resolved_prize["value"] = int(round(resolved_prize["value"] * event_mult))
+
     # Award the prize
     new_balance = await _get_user_coins(user_id)
     if resolved_prize["kind"] == "coins":
-        new_balance = await _add_user_coins(user_id, int(resolved_prize["amount"]), f"spin_wheel:{prize['id']}")
+        new_balance = await _add_user_coins(user_id, int(resolved_prize["amount"]), f"spin_wheel:{prize['id']}{'_x2' if multiplier_applied else ''}")
     elif resolved_prize["kind"] == "cashback":
         # Credit cashback as coins at 1:1 (₹1 = 1 coin) + log a separate cashback entry
-        new_balance = await _add_user_coins(user_id, int(resolved_prize["amount"]), f"spin_cashback:{prize['id']}")
+        new_balance = await _add_user_coins(user_id, int(resolved_prize["amount"]), f"spin_cashback:{prize['id']}{'_x2' if multiplier_applied else ''}")
 
     # Save to wallet if voucher / cashback / free-spin / mystery-voucher
     wallet_entry = None
@@ -467,6 +476,86 @@ BRAND_CATALOG = [
     # Recharge
     {"id": "airtel_50",    "brand": "Airtel",     "category": "recharge",     "discount": "₹50 off",     "min_order": "₹199",   "emoji": "📱", "color": "#E60000", "cost_coins": 45,  "popularity": 870,  "premium": False, "urgency": None},
 ]
+
+
+# ══════════════════════════════════════════════════════════════════
+# WAVE 3 — Marketplace claim + event multiplier helpers
+# ══════════════════════════════════════════════════════════════════
+
+
+def _active_event_multiplier_now() -> float:
+    """Returns spin-reward multiplier for current UTC time.
+
+    Weekend Mega Spin (Sat/Sun)  → 2.0×
+    Double Rewards Hour (14–15 or 20–21 UTC) → 2.0×
+    Stacking is capped at 2.0 to avoid runaway payouts.
+    """
+    now = datetime.now(timezone.utc)
+    wday = now.weekday()
+    hour = now.hour
+    mult = 1.0
+    if wday in (5, 6):
+        mult = max(mult, 2.0)
+    if (14 <= hour < 15) or (20 <= hour < 21):
+        mult = max(mult, 2.0)
+    return mult
+
+
+class ClaimMarketplaceBody(BaseModel):
+    reward_id: str
+
+
+@router.post("/rewards/claim-marketplace")
+async def rewards_claim_marketplace(body: ClaimMarketplaceBody, user_id: str = Depends(get_current_user)) -> Dict[str, Any]:
+    """Redeem a marketplace reward for coins.
+
+    Flow:
+      1. Verify reward exists.
+      2. If premium, verify user has Pro plan.
+      3. Verify user has enough coins.
+      4. Debit coins.
+      5. Insert rewards_wallet entry (type=voucher, 30-day expiry).
+    """
+    reward = next((r for r in BRAND_CATALOG if r["id"] == body.reward_id), None)
+    if not reward:
+        raise HTTPException(status_code=404, detail="Reward not found")
+
+    # Pro check
+    if reward.get("premium"):
+        u = await db.users.find_one({"_id": safe_oid(user_id)})
+        plan = (u or {}).get("premium_plan") or (u or {}).get("plan")
+        if plan not in ("monthly", "yearly", "family", "pro"):
+            raise HTTPException(status_code=403, detail="Upgrade to MintU Pro to unlock this reward")
+
+    coins = await _get_user_coins(user_id)
+    cost = int(reward["cost_coins"])
+    if coins < cost:
+        raise HTTPException(status_code=400, detail=f"Need {cost - coins} more coins")
+
+    new_balance = await _add_user_coins(user_id, -cost, f"marketplace_claim:{body.reward_id}")
+
+    wallet_entry = {
+        "user_id": user_id,
+        "type": "voucher",
+        "merchant": reward["brand"],
+        "category": reward["category"],
+        "value": 0,
+        "discount": reward["discount"],
+        "min_order": reward.get("min_order", ""),
+        "emoji": reward["emoji"],
+        "label": f"{reward['brand']} · {reward['discount']}",
+        "source": "marketplace",
+        "reward_id": body.reward_id,
+        "created_at": datetime.now(timezone.utc),
+        "expires_at": datetime.now(timezone.utc) + timedelta(days=30),
+        "claimed": False,
+    }
+    ins = await db.rewards_wallet.insert_one(wallet_entry)
+    wallet_entry["_id"] = str(ins.inserted_id)
+    wallet_entry["created_at"] = wallet_entry["created_at"].isoformat()
+    wallet_entry["expires_at"] = wallet_entry["expires_at"].isoformat()
+
+    return {"ok": True, "reward": reward, "coins": new_balance, "wallet_entry": wallet_entry}
 
 
 async def _top_user_categories(user_id: str) -> List[str]:
