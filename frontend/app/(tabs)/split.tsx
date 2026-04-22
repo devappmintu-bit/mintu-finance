@@ -227,7 +227,12 @@ export default function SplitScreen() {
   };
 
   // EXPENSE CRUD
-  const openAddExpense = (gr: any) => { setSelectedGroup(gr); setEditingExpense(null); setModal('expense'); };
+  const openAddExpense = (gr: any) => {
+    // Delta: route to new full-screen flow instead of bottom-sheet modal
+    try { router.push({ pathname: '/split/add-expense', params: { group_id: gr.id } } as any); } catch {
+      setSelectedGroup(gr); setEditingExpense(null); setModal('expense');
+    }
+  };
   const openEditExpense = (exp: any) => { setEditingExpense(exp); setModal('expense'); };
   const submitExpense = async (payload: { description: string; amount: number; split_type: string; splits: Record<string, number>; expense_id?: string }) => {
     if (!selectedGroup) return;
@@ -454,6 +459,7 @@ export default function SplitScreen() {
           coins={coins}
           groupCount={groups.length}
           onAddGroup={() => setModal('create')}
+          onSettleUp={() => setModal('settle' as any)}
         />
 
         <RemindersBanner received={reminders.received} onDismiss={dismissReminder} />

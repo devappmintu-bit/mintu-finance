@@ -14,6 +14,7 @@ type Props = {
   coins: number;
   groupCount: number;
   onAddGroup?: () => void;
+  onSettleUp?: () => void;
 };
 
 const fmt = (n: number) => {
@@ -24,20 +25,29 @@ const fmt = (n: number) => {
   return `₹${v.toLocaleString('en-IN')}`;
 };
 
-function SplitHero({ balances, coins, groupCount, onAddGroup }: Props) {
+function SplitHero({ balances, coins, groupCount, onAddGroup, onSettleUp }: Props) {
   const s = useStyles();
 
-  const { owed, owe, net, positive } = useMemo(() => {
+  const { owed, owe, net, state } = useMemo(() => {
     const owed = Number(balances?.total_owed_to_you || 0);
     const owe = Number(balances?.total_you_owe || 0);
     const net = owed - owe;
-    return { owed, owe, net, positive: net >= 0 };
+    let state: 'get' | 'owe' | 'settled' = 'settled';
+    if (Math.abs(net) > 0.5) state = net > 0 ? 'get' : 'owe';
+    return { owed, owe, net, state };
   }, [balances]);
+
+  // Dynamic gradient colors by state
+  const gradient: [string, string] = state === 'get'
+    ? ['#10B981', '#047857']          // green — you get
+    : state === 'owe'
+      ? ['#F56E1E', '#C14A06']        // saffron — you owe
+      : ['#6B7280', '#374151'];       // grey — settled
 
   const haptic = () => { if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium).catch(() => {}); };
 
   return (
-    <LinearGradient colors={['#F56E1E', '#C14A06']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={s.card}>
+    <LinearGradient colors={gradient} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={s.card}>
       <View style={s.blob1} />
       <View style={s.blob2} />
 
@@ -51,21 +61,34 @@ function SplitHero({ balances, coins, groupCount, onAddGroup }: Props) {
           <Text style={s.coinTxt}>{coins}</Text>
         </View>
         <TouchableOpacity style={s.addBtn} onPress={() => { haptic(); onAddGroup?.(); }} activeOpacity={0.85} testID="split-hero-add">
-          <Ionicons name="add" size={20} color="#C14A06" />
+          <Ionicons name="add" size={20} color={state === 'get' ? '#047857' : state === 'owe' ? '#C14A06' : '#374151'} />
         </TouchableOpacity>
       </View>
 
-      <Text style={s.eyebrow}>{positive ? 'NET BALANCE' : 'YOU OWE NET'}</Text>
+      <Text style={s.eyebrow}>
+        {state === 'get' ? '🟢 YOU GET' : state === 'owe' ? '🔴 YOU OWE' : '⚪ ALL SETTLED'}
+      </Text>
       <Text style={s.amount} numberOfLines={1}>
-        {positive ? '+' : '−'}{fmt(net)}
+        {state === 'settled' ? '₹0' : `${state === 'get' ? '+' : '−'}${fmt(net)}`}
       </Text>
       <Text style={s.sub} numberOfLines={2}>
-        {owed === 0 && owe === 0
-          ? 'No splits yet — create a group to start tracking shared expenses'
-          : positive
-            ? `You're net owed ${fmt(net)} — tap friends to collect 💸`
-            : `You owe ${fmt(net)} net — settle up to hit zero`}
+        {state === 'get'
+          ? `${fmt(net)} to collect · tap friends to remind 💸`
+          : state === 'owe'
+            ? `Tap Settle Up to clear ${fmt(Math.abs(net))} now`
+            : owed === 0 && owe === 0
+              ? 'No splits yet — create a group to start'
+              : '🎉 You’re all squared up'}
       </Text>
+
+      {/* Settle CTA — only when owing */}
+      {state === 'owe' && (
+        <TouchableOpacity style={s.settleBtn} onPress={() => { haptic(); onSettleUp?.(); }} activeOpacity={0.88} testID="split-hero-settle">
+          <Ionicons name="flash" size={14} color="#C14A06" />
+          <Text style={s.settleTxt}>Settle now</Text>
+          <Ionicons name="arrow-forward" size={13} color="#C14A06" />
+        </TouchableOpacity>
+      )}
 
       <View style={s.statsRow}>
         <View style={s.statBlock}>
@@ -107,6 +130,8 @@ const useStyles = makeStyles(() => ({
   eyebrow: { fontSize: 10, fontWeight: '900', letterSpacing: 1.1, color: 'rgba(255,255,255,0.82)' },
   amount: { fontSize: 40, fontWeight: '900', color: '#fff', letterSpacing: -1.5, marginTop: 2 },
   sub: { fontSize: 12.5, fontWeight: '600', color: 'rgba(255,255,255,0.85)', marginTop: 6, lineHeight: 17 },
+  settleBtn: { alignSelf: 'flex-start', flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 12, paddingVertical: 8, borderRadius: 999, backgroundColor: '#FFFFFF', marginTop: 10 },
+  settleTxt: { fontSize: 12, fontWeight: '900', color: '#C14A06', letterSpacing: -0.1 },
   statsRow: { flexDirection: 'row', alignItems: 'center', marginTop: 14, backgroundColor: 'rgba(0,0,0,0.22)', borderRadius: 14, paddingVertical: 12 },
   statBlock: { flex: 1, alignItems: 'center', gap: 3 },
   statLabel: { fontSize: 9.5, fontWeight: '900', letterSpacing: 0.9, color: 'rgba(255,255,255,0.7)' },
