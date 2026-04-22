@@ -1,10 +1,12 @@
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import {
   View, Text, StyleSheet, TouchableOpacity, TextInput,
   KeyboardAvoidingView, Platform, Modal, ScrollView,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
+import { LinearGradient } from 'expo-linear-gradient';
+import * as Haptics from 'expo-haptics';
 import api from '../utils/api';
 import { useAuthStore } from '../store/authStore';
 import { useLangStore } from '../store/langStore';
@@ -16,6 +18,14 @@ import ExpenseMessage from './split/ExpenseMessage';
 import ExpensesTab from './split/ExpensesTab';
 import Toast from 'react-native-toast-message';
 import { FlashList } from '@shopify/flash-list';
+
+// Format currency for display (₹1.2K, ₹12K, ₹1.2L)
+const fmtCompact = (n: number) => {
+  const v = Math.round(Math.abs(n));
+  if (v >= 100000) return `₹${(v / 100000).toFixed(1)}L`;
+  if (v >= 1000) return `₹${(v / 1000).toFixed(1)}K`;
+  return `₹${v.toLocaleString('en-IN')}`;
+};
 
 interface Props {
   group: any;
@@ -136,28 +146,99 @@ export default function GroupChat({ group, onClose, onAddExpense, onManage, onEd
   const memberCount = group.members?.length || summary?.member_count || 0;
   const groupInitials = (group.members || []).slice(0, 3);
 
+  // === Net position from summary.simplified_debts (You get / You owe / Settled) ===
+  const { netAmount, netState } = useMemo(() => {
+    const me = user?.id;
+    if (!me || !summary?.simplified_debts) return { netAmount: 0, netState: 'settled' as 'get' | 'owe' | 'settled' };
+    let owe = 0, get = 0;
+    (summary.simplified_debts || []).forEach((d: any) => {
+      if (d.from_id === me) owe += Number(d.amount || 0);
+      else if (d.to_id === me) get += Number(d.amount || 0);
+    });
+    const n = get - owe;
+    let st: 'get' | 'owe' | 'settled' = 'settled';
+    if (Math.abs(n) > 0.5) st = n > 0 ? 'get' : 'owe';
+    return { netAmount: n, netState: st };
+  }, [summary, user?.id]);
+
+  // Top debt row (for quick-settle CTA in header)
+  const topDebtToMe = useMemo(() => {
+    const me = user?.id;
+    if (!me || !summary?.simplified_debts) return null;
+    const mine = (summary.simplified_debts || []).filter((d: any) => d.from_id === me || d.to_id === me);
+    mine.sort((a: any, b: any) => Number(b.amount || 0) - Number(a.amount || 0));
+    return mine[0] || null;
+  }, [summary, user?.id]);
+
+  const heroGradient: [string, string] =
+    netState === 'get' ? ['#10B981', '#047857']
+    : netState === 'owe' ? ['#F56E1E', '#C14A06']
+    : ['#6B7280', '#374151'];
+
+  const haptic = () => { if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {}); };
+
   return (
     <SafeAreaView style={s.container}>
-      {/* Header */}
-      <View style={s.header}>
-        <TouchableOpacity onPress={onClose} hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}>
-          <Ionicons name="arrow-back" size={24} color={COLORS.text.primary} />
-        </TouchableOpacity>
-        <View style={s.headerAvatars}>
-          {groupInitials.slice(0, 3).map((m: any, i: number) => (
-            <View key={i} style={[s.headerAv, { marginLeft: i > 0 ? -8 : 0, backgroundColor: MEMBER_COLORS[i % 8] + '20', zIndex: 3 - i }]}>
-              <Text style={[s.headerAvT, { color: MEMBER_COLORS[i % 8] }]}>{(m.name || '?')[0]}</Text>
-            </View>
-          ))}
+      {/* === PREMIUM HEADER — saffron hero with net-balance + quick actions === */}
+      <LinearGradient colors={heroGradient} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={s.heroHeader}>
+        <View style={s.heroTopRow}>
+          <TouchableOpacity onPress={() => { haptic(); onClose(); }} hitSlop={14} style={s.heroBackBtn} testID="gc-back">
+            <Ionicons name="arrow-back" size={20} color="#fff" />
+          </TouchableOpacity>
+          <View style={s.heroAvatars}>
+            {groupInitials.slice(0, 3).map((m: any, i: number) => (
+              <View key={i} style={[s.heroAv, { marginLeft: i > 0 ? -10 : 0, zIndex: 3 - i }]}>
+                <Text style={s.heroAvT}>{(m.name || '?')[0]?.toUpperCase()}</Text>
+              </View>
+            ))}
+            {memberCount > 3 && (
+              <View style={[s.heroAv, { marginLeft: -10, backgroundColor: 'rgba(0,0,0,0.2)' }]}>
+                <Text style={s.heroAvT}>+{memberCount - 3}</Text>
+              </View>
+            )}
+          </View>
+          <View style={{ flex: 1 }}>
+            <Text style={s.heroName} numberOfLines={1}>{group.name}</Text>
+            <Text style={s.heroSub}>{memberCount} member{memberCount === 1 ? '' : 's'}</Text>
+          </View>
+          <TouchableOpacity onPress={() => { haptic(); onManage(group); }} hitSlop={14} style={s.heroMoreBtn} testID="gc-manage">
+            <Ionicons name="ellipsis-vertical" size={18} color="#fff" />
+          </TouchableOpacity>
         </View>
-        <View style={{ flex: 1 }}>
-          <Text style={s.headerName} numberOfLines={1}>{group.name}</Text>
-          <Text style={s.headerSub}>{memberCount} members</Text>
+
+        <View style={s.netRow}>
+          <View style={{ flex: 1 }}>
+            <Text style={s.netEyebrow}>
+              {netState === 'get' ? '🟢 YOU GET' : netState === 'owe' ? '🔴 YOU OWE' : '⚪ ALL SETTLED'}
+            </Text>
+            <Text style={s.netAmount} numberOfLines={1}>
+              {netState === 'settled' ? '₹0' : `${netState === 'get' ? '+' : '−'}${fmtCompact(Math.abs(netAmount))}`}
+            </Text>
+          </View>
+          {netState === 'owe' && topDebtToMe && onDirectPay && (
+            <TouchableOpacity
+              onPress={() => { haptic(); onDirectPay(topDebtToMe, group); }}
+              activeOpacity={0.88}
+              style={s.settleChip}
+              testID="gc-settle"
+            >
+              <Ionicons name="flash" size={13} color="#C14A06" />
+              <Text style={s.settleChipTxt}>Settle</Text>
+            </TouchableOpacity>
+          )}
+          {netState === 'get' && topDebtToMe && onRemind && (
+            <TouchableOpacity
+              onPress={() => { haptic(); onRemind(topDebtToMe, group); }}
+              activeOpacity={0.88}
+              style={s.settleChip}
+              testID="gc-remind"
+            >
+              <Ionicons name="notifications" size={13} color="#047857" />
+              <Text style={[s.settleChipTxt, { color: '#047857' }]}>Remind</Text>
+            </TouchableOpacity>
+          )}
         </View>
-        <TouchableOpacity onPress={() => onManage(group)} hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}>
-          <Ionicons name="ellipsis-vertical" size={20} color={COLORS.text.muted} />
-        </TouchableOpacity>
-      </View>
+      </LinearGradient>
 
       {/* Tabs */}
       <View style={s.tabs}>
@@ -245,7 +326,31 @@ export default function GroupChat({ group, onClose, onAddExpense, onManage, onEd
 
 const useStyles = makeStyles((c) => ({
   container: { flex: 1, backgroundColor: c.bg.primary },
-  // Header
+  // === Premium Hero Header ===
+  heroHeader: {
+    paddingTop: 4,
+    paddingBottom: 14,
+    paddingHorizontal: 14,
+    borderBottomLeftRadius: 22,
+    borderBottomRightRadius: 22,
+    gap: 12,
+    shadowColor: '#000', shadowOpacity: 0.15, shadowRadius: 10, shadowOffset: { width: 0, height: 4 }, elevation: 4,
+  },
+  heroTopRow: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 4 },
+  heroBackBtn: { width: 34, height: 34, borderRadius: 17, backgroundColor: 'rgba(255,255,255,0.2)', justifyContent: 'center', alignItems: 'center' },
+  heroMoreBtn: { width: 34, height: 34, borderRadius: 17, backgroundColor: 'rgba(255,255,255,0.2)', justifyContent: 'center', alignItems: 'center' },
+  heroAvatars: { flexDirection: 'row' },
+  heroAv: { width: 30, height: 30, borderRadius: 15, backgroundColor: 'rgba(255,255,255,0.28)', borderWidth: 2, borderColor: 'rgba(255,255,255,0.4)', justifyContent: 'center', alignItems: 'center' },
+  heroAvT: { fontSize: 12, fontWeight: '900', color: '#fff' },
+  heroName: { fontSize: 16, fontWeight: '900', color: '#fff', letterSpacing: -0.2 },
+  heroSub: { fontSize: 11, color: 'rgba(255,255,255,0.82)', fontWeight: '700', marginTop: 1 },
+  netRow: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingHorizontal: 4, paddingTop: 2 },
+  netEyebrow: { fontSize: 9.5, fontWeight: '900', letterSpacing: 1.1, color: 'rgba(255,255,255,0.85)' },
+  netAmount: { fontSize: 30, fontWeight: '900', color: '#fff', letterSpacing: -1, marginTop: 2 },
+  settleChip: { flexDirection: 'row', alignItems: 'center', gap: 5, paddingHorizontal: 12, paddingVertical: 8, borderRadius: 999, backgroundColor: '#fff' },
+  settleChipTxt: { fontSize: 12, fontWeight: '900', color: '#C14A06', letterSpacing: -0.1 },
+
+  // Legacy header (kept for reference)
   header: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingHorizontal: 16, paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: c.border.subtle },
   headerAvatars: { flexDirection: 'row' },
   headerAv: { width: 32, height: 32, borderRadius: 16, justifyContent: 'center', alignItems: 'center', borderWidth: 2, borderColor: c.bg.primary },
