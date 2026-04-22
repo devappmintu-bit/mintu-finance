@@ -1,7 +1,21 @@
+/**
+ * ProfileScreen — MintU "Financial Identity Hub" (Gamified 9-part layout)
+ *
+ * Structure (top → bottom):
+ *   1. Hero Card                    (ProfileHeroV2 — Top X%, Money Score, streak, coins)
+ *   2. Progression Strip            (streak / badges / challenges chips)
+ *   3. Challenges                   (WeeklyChallenge — active weekly mission)
+ *   4. Insights Card                (AI-coded insight chips)
+ *   5. Compact Leaderboard          (top 3 + view all)
+ *   6. Rewards & Badges Preview     (AccordionSection wrapping RewardsHub + BadgesSection)
+ *   7. Invite & Earn                (InviteEarnStrip)
+ *   8. Premium Upsell               (PremiumUpsellInline)
+ *   9. Collapsed Settings           (AccordionSections + logout + danger zone)
+ */
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import {
   View, Text, StyleSheet, ScrollView, TouchableOpacity, Alert, ActivityIndicator,
-  Modal, FlatList, TextInput, Image, RefreshControl, Platform,
+  Modal, FlatList, TextInput, RefreshControl, Platform,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -12,7 +26,7 @@ import { useLangStore } from '../../store/langStore';
 import { t, LANGUAGES } from '../../utils/i18n';
 import api from '../../utils/api';
 import { fetchUpi, fetchAvatar, updateProfile, uploadAvatar } from '../../services/user';
-import { COLORS, shadowStyle } from '../../utils/theme';
+import { COLORS } from '../../utils/theme';
 import { makeStyles } from '../../utils/makeStyles';
 import Toast from 'react-native-toast-message';
 import { shareSmart, copyToClipboard, shareImageSmart } from '../../utils/share';
@@ -21,9 +35,13 @@ import AboutMintU from '../../components/AboutMintU';
 import ShareScoreCard from '../../components/profile/ShareScoreCard';
 import BadgesSection from '../../components/profile/BadgesSection';
 import WeeklyChallenge from '../../components/profile/WeeklyChallenge';
-import ProfileHero from '../../components/profile/ProfileHero';
+import ProfileHeroV2 from '../../components/profile/ProfileHeroV2';
+import ProgressionStrip from '../../components/profile/ProgressionStrip';
+import InsightsCard from '../../components/profile/InsightsCard';
+import CompactLeaderboard from '../../components/profile/CompactLeaderboard';
+import InviteEarnStrip from '../../components/profile/InviteEarnStrip';
+import PremiumUpsellInline from '../../components/profile/PremiumUpsellInline';
 import AccordionSection from '../../components/profile/AccordionSection';
-import WeeklyReport from '../../components/home/WeeklyReport';
 import ThemeToggle from '../../components/profile/ThemeToggle';
 import FinancialSnapshot from '../../components/profile/FinancialSnapshot';
 import PaymentMethodsV2 from '../../components/profile/PaymentMethodsV2';
@@ -53,7 +71,7 @@ export default function ProfileScreen() {
   const [refExpanded, setRefExpanded] = useState(false);
   const [stats, setStats] = useState<any>(null);
   const [gamiStatus, setGamiStatus] = useState<any>(null);
-  const [gamiExpanded, setGamiExpanded] = useState(false);
+  const [rewardsSummary, setRewardsSummary] = useState<any>(null);
   const [logoutAnim, setLogoutAnim] = useState(false);
   const [shareCardVisible, setShareCardVisible] = useState(false);
   const [sharing, setSharing] = useState(false);
@@ -61,16 +79,22 @@ export default function ProfileScreen() {
 
   const loadData = useCallback(async () => {
     try {
-      const [upiRes, avatarRes, refRes, statsRes] = await Promise.all([
+      const [upiRes, avatarRes, refRes, statsRes, gamiRes, rewardsRes] = await Promise.all([
         fetchUpi().then(data => ({ data })).catch(() => ({ data: {} })),
         fetchAvatar().then(data => ({ data })).catch(() => ({ data: {} })),
-        api.get('/referral/enhanced-status').catch(() => ({ data: null })),
+        api.get('/referral/enhanced-status').catch(() =>
+          api.get('/referral/my-code').catch(() => ({ data: null }))
+        ),
         api.get('/analytics/summary').catch(() => ({ data: null })),
+        api.get('/gamification/status').catch(() => ({ data: null })),
+        api.get('/rewards/summary').catch(() => ({ data: null })),
       ]);
       setUpiId(upiRes.data?.upi_id || '');
       if (avatarRes.data?.avatar) setAvatar(avatarRes.data.avatar);
       if (refRes.data) setReferral(refRes.data);
       if (statsRes.data) setStats(statsRes.data);
+      if (gamiRes.data) setGamiStatus(gamiRes.data);
+      if (rewardsRes.data) setRewardsSummary(rewardsRes.data);
     } catch { /* noop */ } finally { setLoading(false); setRefreshing(false); }
   }, [setAvatar]);
 
@@ -91,17 +115,10 @@ export default function ProfileScreen() {
   }, [stats]);
 
   useEffect(() => { loadData(); }, [loadData]);
+  useFocusEffect(React.useCallback(() => { loadData(); }, [loadData]));
 
-  // Auto-refresh on tab focus (e.g., user returns from Premium / Yearly dashboard)
-  useFocusEffect(
-    React.useCallback(() => { loadData(); }, [loadData])
-  );
-
-  // ── Handlers ─────────────────────────────────────────────────────────
-  // Cross-platform confirm: Alert.alert works on native; use window.confirm on web.
   const confirmThen = (title: string, msg: string, onYes: () => void) => {
     if (Platform.OS === 'web') {
-      // eslint-disable-next-line no-alert
       if (typeof window !== 'undefined' && window.confirm(`${title}\n\n${msg}`)) onYes();
       return;
     }
@@ -114,11 +131,7 @@ export default function ProfileScreen() {
   const handleLogout = () => confirmThen(
     t('logout', lang),
     t('logout_confirm', lang),
-    async () => {
-      setLogoutAnim(true);
-      await logout();
-      // Overlay animates for ~900ms then calls onDone which routes to /unlock
-    },
+    async () => { setLogoutAnim(true); await logout(); },
   );
 
   const updateName = async () => {
@@ -160,7 +173,7 @@ export default function ProfileScreen() {
   };
 
   const shareGeneric = async () => {
-    const text = referral?.share_text || '';
+    const text = referral?.share_text || `Join me on MintU and we both earn ₹50! ${referral?.referral_code ? `Code: ${referral.referral_code}` : ''}`;
     await shareSmart({ message: text, title: 'MintU' });
   };
 
@@ -170,12 +183,8 @@ export default function ProfileScreen() {
     if (sharing) return;
     setSharing(true);
     try {
-      // Capture at 3.2× pixel density — produces ~1088×1792 output from the
-      // 340pt natural card, giving Instagram-story-perfect sharp PNGs with
-      // zero compression artefacts on high-DPI screens.
       const uri = await captureRef(scoreCardRef, {
-        format: 'png',
-        quality: 1,
+        format: 'png', quality: 1,
         result: Platform.OS === 'web' ? 'data-uri' : 'tmpfile',
         ...(Platform.OS !== 'web' ? { pixelRatio: 3.2 } : {}),
       } as any);
@@ -189,9 +198,7 @@ export default function ProfileScreen() {
         message: `🚀 My MintU Money Score is ${score}/100! Try it: https://mintu.app`,
         title: 'My MintU Score',
       });
-    } finally {
-      setSharing(false);
-    }
+    } finally { setSharing(false); }
   };
 
   const handleShareAsText = async () => {
@@ -218,6 +225,13 @@ export default function ProfileScreen() {
     score >= 40 ? 'Growing Saver' : 'Just Starting';
   const tierEmoji = score >= 80 ? '🏆' : score >= 60 ? '💪' : score >= 40 ? '⚡' : '🌱';
 
+  const streak = gamiStatus?.streak || 0;
+  const badgesEarned = gamiStatus?.badges_earned?.length || 0;
+  const badgesTotal = (badgesEarned + (gamiStatus?.badges_available?.length || 0)) || 12;
+  const coinsBalance = rewardsSummary?.coins_balance ?? (user as any)?.coins_balance ?? 0;
+  const monthlyDelta = (user as any)?.monthly_score_delta ?? (gamiStatus as any)?.monthly_delta ?? 0;
+  const isPro = !!((user as any)?.is_premium || (user as any)?.is_pro);
+
   return (
     <SafeAreaView style={s.bg}>
       <ScrollView
@@ -230,46 +244,77 @@ export default function ProfileScreen() {
           />
         }
       >
-        <ProfileHero
+        {/* 1. HERO CARD — Financial Identity */}
+        <ProfileHeroV2
           user={user}
           avatar={avatar}
-          referralCount={referral?.referral_count || 0}
+          streak={streak}
+          coins={coinsBalance}
+          monthlyDelta={Number(monthlyDelta) || 0}
           onEditName={() => { setEditName(user?.name || ''); setEditNameVisible(true); }}
           onPickAvatar={pickAvatar}
           onRemoveAvatar={removeAvatar}
-          onOpenReferrals={() => setRefExpanded(true)}
-          onOpenYearly={() => router.push('/yearly' as any)}
           onShareScore={openShareScoreCard}
+          onImproveScore={() => router.push('/(tabs)/ai' as any)}
         />
 
-        {/* Weekly Challenge + Badges */}
-        <View style={s.gamiCard}>
-          <TouchableOpacity style={s.gamiHeader} onPress={() => setGamiExpanded(!gamiExpanded)} activeOpacity={0.7}>
-            <View style={s.gamiIconBox}><Ionicons name="trophy" size={20} color={COLORS.accent.primary} /></View>
-            <View style={{ flex: 1 }}>
-              <Text style={s.gamiTitle}>Challenges & Achievements</Text>
-              <Text style={s.gamiSub}>
-                {gamiStatus?.streak || 0}-day streak · {gamiStatus?.badges_earned?.length || 0} badges earned
-              </Text>
-            </View>
-            <Ionicons name={gamiExpanded ? 'chevron-up' : 'chevron-down'} size={18} color={COLORS.text.muted} />
-          </TouchableOpacity>
-          {gamiExpanded && (
-            <View style={s.gamiBody}>
-              <WeeklyChallenge challenge={gamiStatus?.weekly_challenge} streak={gamiStatus?.streak || 0} />
-              <BadgesSection onStatusLoaded={setGamiStatus} />
-            </View>
-          )}
-          {!gamiExpanded && (
-            <View style={{ height: 0, overflow: 'hidden', opacity: 0 }} pointerEvents="none">
-              <BadgesSection onStatusLoaded={setGamiStatus} />
-            </View>
-          )}
+        {/* 2. PROGRESSION STRIP */}
+        <View style={s.stripWrap}>
+          <ProgressionStrip
+            streak={streak}
+            streakTarget={Math.max(30, Math.ceil((streak + 7) / 10) * 10)}
+            badgesEarned={badgesEarned}
+            badgesTotal={badgesTotal}
+            activeChallenges={gamiStatus?.weekly_challenge ? 1 : 0}
+            challengeTitle={gamiStatus?.weekly_challenge?.title}
+            onStreakPress={() => router.push('/(tabs)/rewards' as any)}
+            onBadgesPress={() => router.push('/(tabs)/rewards' as any)}
+            onChallengesPress={() => router.push('/(tabs)/rewards' as any)}
+          />
         </View>
 
+        {/* 3. CHALLENGES */}
+        <WeeklyChallenge challenge={gamiStatus?.weekly_challenge} streak={streak} />
+
+        {/* 4. INSIGHTS CARD */}
+        <InsightsCard stats={realStats} score={score} />
+
+        {/* Financial Snapshot — quick reference */}
         <FinancialSnapshot stats={realStats} />
 
-        {/* ─────────── Collapsible modules (Delta 2 — reduce cognitive load) ─────────── */}
+        {/* 5. COMPACT LEADERBOARD */}
+        <View style={{ marginBottom: 14 }}>
+          <CompactLeaderboard />
+        </View>
+
+        {/* 6. REWARDS & BADGES PREVIEW (collapsed) */}
+        <AccordionSection
+          icon="gift"
+          iconTint="#EC4899"
+          title="Rewards & Badges"
+          subtitle={`${badgesEarned} earned · ${coinsBalance.toLocaleString('en-IN')} coins`}
+          badgeCount={badgesEarned}
+        >
+          <BadgesSection onStatusLoaded={setGamiStatus} />
+          <View style={{ height: 10 }} />
+          <RewardsHub />
+        </AccordionSection>
+
+        {/* 7. INVITE & EARN */}
+        <InviteEarnStrip
+          referralCount={referral?.referral_count || 0}
+          referralCode={referral?.referral_code}
+          onShare={shareGeneric}
+          onOpenDashboard={() => setRefExpanded(true)}
+        />
+
+        {/* 8. PREMIUM UPSELL */}
+        <View style={{ marginBottom: 16 }}>
+          <PremiumUpsellInline isPro={isPro} />
+        </View>
+
+        {/* 9. COLLAPSED SETTINGS */}
+        <Text style={s.secTitle}>Settings</Text>
 
         <AccordionSection
           icon="ribbon"
@@ -279,27 +324,6 @@ export default function ProfileScreen() {
         >
           <BudgetAchievements />
         </AccordionSection>
-
-        <AccordionSection
-          icon="gift"
-          iconTint="#EC4899"
-          title="Rewards"
-          subtitle="Coins, trophies & perks earned across MintU"
-        >
-          <RewardsHub />
-        </AccordionSection>
-
-        <AccordionSection
-          icon="analytics"
-          iconTint="#3B82F6"
-          title="Insights"
-          subtitle="Weekly reports & spending intelligence"
-        >
-          <WeeklyReport weeklyReport={null} snapshot={null} user={user} />
-        </AccordionSection>
-
-        {/* ─────────── Grouped Settings ─────────── */}
-        <Text style={s.secTitle}>Settings</Text>
 
         <AccordionSection
           icon="card"
@@ -317,6 +341,20 @@ export default function ProfileScreen() {
           subtitle="Theme & language"
         >
           <ThemeToggle />
+          <TouchableOpacity
+            style={s.inlineRow}
+            onPress={() => setLangModalVisible(true)}
+            activeOpacity={0.7}
+          >
+            <View style={[s.inlineIcon, { backgroundColor: COLORS.accent.primary + '1F' }]}>
+              <Ionicons name="language" size={16} color={COLORS.accent.primary} />
+            </View>
+            <View style={{ flex: 1 }}>
+              <Text style={s.inlineTitle}>{t('language', lang)}</Text>
+              <Text style={[s.inlineSub, { color: COLORS.accent.primary }]}>{currentLang?.nativeName}</Text>
+            </View>
+            <Ionicons name="chevron-forward" size={14} color={COLORS.text.muted} />
+          </TouchableOpacity>
         </AccordionSection>
 
         <AccordionSection
@@ -326,103 +364,90 @@ export default function ProfileScreen() {
           subtitle="Daily nudges & weekly reports"
         >
           <NotificationSettings />
-        </AccordionSection>
-
-        <ReferralDashboard
-          referral={referral}
-          expanded={refExpanded}
-          onToggle={() => setRefExpanded(!refExpanded)}
-          onCopyCode={copyCode}
-          onShareWhatsApp={shareWhatsApp}
-          onShareGeneric={shareGeneric}
-          onShareScoreCard={openShareScoreCard}
-        />
-
-        {/* Legacy settings menu list */}
-        <View style={s.settingsCard}>
-          <TapTile style={s.settingsRow} onPress={() => router.push('/gmail' as any)} testID="profile-menu-gmail">
-            <View style={s.settingsRowInner}>
-              <View style={[s.settingsIconChip, { backgroundColor: '#EA433518' }]}>
-                <Ionicons name="mail-outline" size={18} color="#EA4335" />
-              </View>
-              <View style={s.settingsRowBody}>
-                <Text style={s.settingsRowTitle}>Gmail Auto-Import</Text>
-                <Text style={s.settingsRowSub}>Auto-track bank transactions from your inbox</Text>
-              </View>
-              <Ionicons name="chevron-forward" size={16} color={COLORS.text.muted} />
-            </View>
-          </TapTile>
-          <View style={s.settingsDivider} />
-
-          <TapTile style={s.settingsRow} onPress={() => setLangModalVisible(true)} testID="profile-menu-lang">
-            <View style={s.settingsRowInner}>
-              <View style={[s.settingsIconChip, { backgroundColor: COLORS.accent.primary + '1F' }]}>
-                <Ionicons name="language" size={18} color={COLORS.accent.primary} />
-              </View>
-              <View style={s.settingsRowBody}>
-                <Text style={s.settingsRowTitle}>{t('language', lang)}</Text>
-                <Text style={[s.settingsRowSub, { color: COLORS.accent.primary, fontWeight: '700' }]}>{currentLang?.nativeName}</Text>
-              </View>
-              <Ionicons name="chevron-forward" size={16} color={COLORS.text.muted} />
-            </View>
-          </TapTile>
-          <View style={s.settingsDivider} />
-
-          <TapTile
-            style={s.settingsRow}
+          <TouchableOpacity
+            style={s.inlineRow}
             onPress={async () => {
               const { sent, message } = await sendTestPush();
               Toast.show({ type: sent ? 'success' : 'info', text1: sent ? 'Test push sent!' : 'Push test', text2: message });
             }}
-            testID="profile-menu-push"
+            activeOpacity={0.7}
           >
-            <View style={s.settingsRowInner}>
-              <View style={[s.settingsIconChip, { backgroundColor: '#F59E0B1F' }]}>
-                <Ionicons name="notifications-outline" size={18} color="#F59E0B" />
-              </View>
-              <View style={s.settingsRowBody}>
-                <Text style={s.settingsRowTitle}>{t('notifications', lang)}</Text>
-                <Text style={s.settingsRowSub}>Tap to send a test notification</Text>
-              </View>
-              <Ionicons name="chevron-forward" size={16} color={COLORS.text.muted} />
+            <View style={[s.inlineIcon, { backgroundColor: '#F59E0B1F' }]}>
+              <Ionicons name="send" size={16} color="#F59E0B" />
             </View>
-          </TapTile>
-          <View style={s.settingsDivider} />
-
-          <TapTile style={s.settingsRow} onPress={() => setHelpVisible(true)} testID="profile-menu-help">
-            <View style={s.settingsRowInner}>
-              <View style={[s.settingsIconChip, { backgroundColor: '#38BDF81F' }]}>
-                <Ionicons name="help-circle-outline" size={18} color="#0EA5E9" />
-              </View>
-              <View style={s.settingsRowBody}>
-                <Text style={s.settingsRowTitle}>{t('help_support', lang)}</Text>
-                <Text style={s.settingsRowSub}>FAQs, bug reports & feedback</Text>
-              </View>
-              <Ionicons name="chevron-forward" size={16} color={COLORS.text.muted} />
+            <View style={{ flex: 1 }}>
+              <Text style={s.inlineTitle}>Send test notification</Text>
+              <Text style={s.inlineSub}>Verify push setup on your device</Text>
             </View>
-          </TapTile>
-          <View style={s.settingsDivider} />
+            <Ionicons name="chevron-forward" size={14} color={COLORS.text.muted} />
+          </TouchableOpacity>
+        </AccordionSection>
 
-          <TapTile style={s.settingsRow} onPress={() => router.push('/about' as any)} testID="profile-menu-about">
-            <View style={s.settingsRowInner}>
-              <View style={[s.settingsIconChip, { backgroundColor: '#8B5CF61F' }]}>
-                <Ionicons name="information-circle-outline" size={18} color="#8B5CF6" />
-              </View>
-              <View style={s.settingsRowBody}>
-                <Text style={s.settingsRowTitle}>About MintU</Text>
-                <Text style={s.settingsRowSub}>Features · Why MintU · v1.0.0</Text>
-              </View>
-              <Ionicons name="chevron-forward" size={16} color={COLORS.text.muted} />
+        <AccordionSection
+          icon="link"
+          iconTint="#EA4335"
+          title="Connected Accounts"
+          subtitle="Gmail auto-import · UPI"
+        >
+          <TouchableOpacity
+            style={s.inlineRow}
+            onPress={() => router.push('/gmail' as any)}
+            activeOpacity={0.7}
+          >
+            <View style={[s.inlineIcon, { backgroundColor: '#EA433518' }]}>
+              <Ionicons name="mail-outline" size={16} color="#EA4335" />
             </View>
-          </TapTile>
-        </View>
+            <View style={{ flex: 1 }}>
+              <Text style={s.inlineTitle}>Gmail Auto-Import</Text>
+              <Text style={s.inlineSub}>Auto-track bank transactions from inbox</Text>
+            </View>
+            <Ionicons name="chevron-forward" size={14} color={COLORS.text.muted} />
+          </TouchableOpacity>
+        </AccordionSection>
 
+        <AccordionSection
+          icon="help-circle"
+          iconTint="#0EA5E9"
+          title="Help & About"
+          subtitle="FAQs · feedback · app version"
+        >
+          <TouchableOpacity
+            style={s.inlineRow}
+            onPress={() => setHelpVisible(true)}
+            activeOpacity={0.7}
+          >
+            <View style={[s.inlineIcon, { backgroundColor: '#38BDF81F' }]}>
+              <Ionicons name="help-circle-outline" size={16} color="#0EA5E9" />
+            </View>
+            <View style={{ flex: 1 }}>
+              <Text style={s.inlineTitle}>{t('help_support', lang)}</Text>
+              <Text style={s.inlineSub}>FAQs, bug reports & feedback</Text>
+            </View>
+            <Ionicons name="chevron-forward" size={14} color={COLORS.text.muted} />
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={s.inlineRow}
+            onPress={() => router.push('/about' as any)}
+            activeOpacity={0.7}
+          >
+            <View style={[s.inlineIcon, { backgroundColor: '#8B5CF61F' }]}>
+              <Ionicons name="information-circle-outline" size={16} color="#8B5CF6" />
+            </View>
+            <View style={{ flex: 1 }}>
+              <Text style={s.inlineTitle}>About MintU</Text>
+              <Text style={s.inlineSub}>Features · Why MintU · v1.0.0</Text>
+            </View>
+            <Ionicons name="chevron-forward" size={14} color={COLORS.text.muted} />
+          </TouchableOpacity>
+        </AccordionSection>
+
+        {/* Logout */}
         <TapTile style={s.logoutBtn} onPress={handleLogout} feedback="medium" testID="profile-logout">
           <Ionicons name="log-out-outline" size={20} color={COLORS.accent.moneyOut} />
           <Text style={s.logoutText}>{t('logout', lang)}</Text>
         </TapTile>
 
-        {/* Danger zone — delete account (soft or hard) */}
+        {/* Danger zone */}
         <DeleteAccountSection />
 
         {/* Trust Signals */}
@@ -444,15 +469,11 @@ export default function ProfileScreen() {
           <Ionicons name="shield-checkmark" size={14} color="#10B981" />
           <Text style={s.trustText}>Aligned with RBI data localization guidelines · India servers</Text>
         </View>
-        <View style={s.transparencyBox}>
-          <Ionicons name="information-circle-outline" size={13} color="#475569" />
-          <Text style={s.transparencyText}>MintU does not auto-sync bank data. Updates happen on refresh.</Text>
-        </View>
         <Text style={s.version}>v1.0.0 · Made with ❤️ in India</Text>
         <View style={{ height: 30 }} />
       </ScrollView>
 
-      {/* ── Modals ──────────────────────────────────────────────────── */}
+      {/* ── Modals ── */}
       <Modal visible={langModalVisible} animationType="slide" transparent>
         <View style={s.mBg}>
           <View style={s.sheet}>
@@ -502,6 +523,30 @@ export default function ProfileScreen() {
       <Modal visible={helpVisible} animationType="slide"><HelpSupport onClose={() => setHelpVisible(false)} /></Modal>
       <Modal visible={aboutVisible} animationType="slide"><AboutMintU onClose={() => setAboutVisible(false)} /></Modal>
 
+      {/* Referral dashboard modal */}
+      <Modal visible={refExpanded} animationType="slide" onRequestClose={() => setRefExpanded(false)}>
+        <SafeAreaView style={{ flex: 1, backgroundColor: COLORS.bg.primary }}>
+          <View style={s.referralHeader}>
+            <TouchableOpacity onPress={() => setRefExpanded(false)} hitSlop={10}>
+              <Ionicons name="close" size={24} color={COLORS.text.primary} />
+            </TouchableOpacity>
+            <Text style={s.referralHeaderTitle}>Invite & Earn</Text>
+            <View style={{ width: 24 }} />
+          </View>
+          <ScrollView contentContainerStyle={{ padding: 16, paddingBottom: 40 }}>
+            <ReferralDashboard
+              referral={referral}
+              expanded={true}
+              onToggle={() => {}}
+              onCopyCode={copyCode}
+              onShareWhatsApp={shareWhatsApp}
+              onShareGeneric={shareGeneric}
+              onShareScoreCard={openShareScoreCard}
+            />
+          </ScrollView>
+        </SafeAreaView>
+      </Modal>
+
       {/* Share Score Card Image Preview */}
       <Modal
         visible={shareCardVisible}
@@ -534,11 +579,11 @@ export default function ProfileScreen() {
                   score,
                   tier,
                   tierEmoji,
-                  streak: gamiStatus?.streak || 0,
+                  streak,
                   savingsRate: realStats?.savingsRate || 0,
-                  coins: (user as any)?.coins_balance || (gamiStatus?.total_badges || 0) * 10,
+                  coins: coinsBalance || badgesEarned * 10,
                   referralCode: referral?.referral_code,
-                  monthlyDelta: (user as any)?.monthly_score_delta ?? (gamiStatus as any)?.monthly_delta ?? 0,
+                  monthlyDelta: Number(monthlyDelta) || 0,
                 }}
               />
             </ViewShot>
@@ -577,7 +622,6 @@ export default function ProfileScreen() {
         </View>
       </Modal>
 
-      {/* Animated logout transition — "Securing your session…" with lock pulse */}
       {logoutAnim && (
         <AuthTransitionOverlay
           variant="locking"
@@ -591,63 +635,31 @@ export default function ProfileScreen() {
 const useStyles = makeStyles((c) => ({
   bg: { flex: 1, backgroundColor: c.bg.primary },
   scroll: { padding: 16, paddingBottom: 140 },
-  // Gamification combined card (kept inline — small and tightly coupled)
-  gamiCard: { backgroundColor: 'rgba(255,255,255,0.96)', borderRadius: 20, padding: 14, marginBottom: 14, borderWidth: 1, borderColor: c.border.card },
-  gamiHeader: { flexDirection: 'row', alignItems: 'center', gap: 12 },
-  gamiIconBox: { width: 44, height: 44, borderRadius: 14, backgroundColor: c.accent.primary + '15', justifyContent: 'center', alignItems: 'center' },
-  gamiTitle: { fontSize: 16, fontWeight: '800', color: c.text.primary },
-  gamiSub: { fontSize: 12, color: c.text.muted, marginTop: 2 },
-  gamiBody: { marginTop: 12 },
-  // Settings
-  secTitle: { fontSize: 14, fontWeight: '700', color: c.text.muted, marginTop: 8, marginBottom: 8 },
-  menuItem: { flexDirection: 'row', alignItems: 'center', backgroundColor: 'rgba(255,255,255,0.92)', borderRadius: 14, padding: 14, marginBottom: 6, borderWidth: 1, borderColor: 'rgba(238,221,204,0.5)' },
-  menuText: { flex: 1, fontSize: 15, fontWeight: '500', color: c.text.primary },
-  menuHint: { fontSize: 10, color: c.text.muted, marginRight: 6, fontWeight: '600' },
+  stripWrap: { marginHorizontal: -16, marginBottom: 14 },
 
-  // Unified Settings card — grouped rows with dividers, consistent icon chips
-  settingsCard: {
-    backgroundColor: c.bg.secondary,
-    borderRadius: 18,
-    borderWidth: 1,
-    borderColor: c.border.subtle,
-    overflow: 'hidden',
-    marginBottom: 8,
+  secTitle: { fontSize: 13, fontWeight: '800', color: c.text.muted, marginTop: 6, marginBottom: 8, letterSpacing: 0.4, textTransform: 'uppercase' },
+
+  inlineRow: {
+    flexDirection: 'row', alignItems: 'center', gap: 12,
+    paddingVertical: 12, paddingHorizontal: 2,
+    borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: c.border.subtle,
+    marginTop: 6,
   },
-  settingsRow: {
-    backgroundColor: 'transparent',
-  },
-  settingsRowInner: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingVertical: 14,
-    paddingHorizontal: 14,
-    gap: 12,
-  },
-  settingsIconChip: {
-    width: 38, height: 38, borderRadius: 12,
-    alignItems: 'center', justifyContent: 'center',
-  },
-  settingsRowBody: { flex: 1 },
-  settingsRowTitle: { fontSize: 14.5, fontWeight: '700', color: c.text.primary, letterSpacing: -0.1 },
-  settingsRowSub: { fontSize: 11.5, color: c.text.muted, marginTop: 2, lineHeight: 15 },
-  settingsDivider: {
-    height: StyleSheet.hairlineWidth,
-    backgroundColor: c.border.subtle,
-    marginLeft: 64, // start past the icon chip
-  },
-  logoutBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, backgroundColor: c.accent.moneyOut + '10', borderRadius: 999, paddingVertical: 16, marginTop: 16 },
+  inlineIcon: { width: 32, height: 32, borderRadius: 10, alignItems: 'center', justifyContent: 'center' },
+  inlineTitle: { fontSize: 13.5, fontWeight: '700', color: c.text.primary },
+  inlineSub: { fontSize: 11, color: c.text.muted, marginTop: 2, fontWeight: '600' },
+
+  logoutBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, backgroundColor: c.accent.moneyOut + '10', borderRadius: 999, paddingVertical: 16, marginTop: 12 },
   logoutText: { fontSize: 16, fontWeight: '600', color: c.accent.moneyOut },
   version: { textAlign: 'center', fontSize: 11, color: c.text.muted, marginTop: 12 },
-  // Trust
+
   trustBox: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, marginTop: 14, paddingVertical: 10, paddingHorizontal: 12, backgroundColor: '#10B98110', borderRadius: 12, borderWidth: 1, borderColor: '#10B98125' },
   trustText: { fontSize: 11, fontWeight: '600', color: '#059669', flex: 0, textAlign: 'center' },
   trustSignalsRow: { flexDirection: 'row', gap: 8, marginTop: 16 },
   trustSig: { flex: 1, alignItems: 'center', gap: 6, paddingVertical: 14, paddingHorizontal: 6, backgroundColor: 'rgba(26,26,36,0.85)', borderRadius: 14, borderWidth: 1, borderColor: 'rgba(255,255,255,0.08)' },
   trustSigEmoji: { fontSize: 22 },
   trustSigText: { fontSize: 10.5, fontWeight: '700', color: c.text.secondary, textAlign: 'center', lineHeight: 13 },
-  transparencyBox: { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 10, paddingVertical: 8, paddingHorizontal: 12, backgroundColor: '#F1F5F9', borderRadius: 10 },
-  transparencyText: { flex: 1, fontSize: 10.5, color: '#475569', fontWeight: '600', lineHeight: 14 },
-  // Modals
+
   mBg: { flex: 1, justifyContent: 'flex-end', backgroundColor: 'rgba(0,0,0,0.5)' },
   sheet: { backgroundColor: c.bg.elevated, borderTopLeftRadius: 28, borderTopRightRadius: 28, padding: 24, maxHeight: '85%', borderTopWidth: 1, borderColor: 'rgba(255,255,255,0.08)' },
   handle: { width: 40, height: 4, borderRadius: 2, backgroundColor: c.text.muted, alignSelf: 'center', marginBottom: 16, opacity: 0.3 },
@@ -659,7 +671,10 @@ const useStyles = makeStyles((c) => ({
   langOn: { backgroundColor: c.accent.primary + '10' },
   langNative: { fontSize: 16, fontWeight: '600', color: c.text.primary },
   langEn: { fontSize: 11, color: c.text.muted, marginTop: 1 },
-  // Share score card modal
+
+  referralHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', padding: 16, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: c.border.subtle },
+  referralHeaderTitle: { fontSize: 17, fontWeight: '900', color: c.text.primary },
+
   shareBg: { flex: 1, backgroundColor: 'rgba(0,0,0,0.85)' },
   shareScroll: { flexGrow: 1, justifyContent: 'center', alignItems: 'center', paddingVertical: 40, paddingHorizontal: 20 },
   shareClose: { position: 'absolute', top: 20, right: 20, width: 40, height: 40, borderRadius: 20, backgroundColor: 'rgba(255,255,255,0.15)', justifyContent: 'center', alignItems: 'center', zIndex: 10 },

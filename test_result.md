@@ -8411,3 +8411,83 @@ agent_communication:
         goals with progress rings, delete/edit actions, and the
         linked-budget badge.
 
+
+# ─────────────────────────────────────────────────────────────
+# PROFILE TAB REDESIGN — "Financial Identity Hub" (Gamified 9-part)
+# Apr 22 2026 · main agent
+# ─────────────────────────────────────────────────────────────
+frontend:
+  - task: "Profile Tab — Financial Identity Hub redesign"
+    implemented: true
+    working: true
+    file: "/app/frontend/app/(tabs)/profile.tsx"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+      - working: true
+        agent: "main"
+        comment: |
+          Redesigned Profile Tab into a 9-part gamified "Financial
+          Identity Hub":
+
+          1. Hero Card (ProfileHeroV2) — Top X% rank pill, avatar,
+             Money Score with delta, streak/coins stat chips,
+             "Share flex" + "Improve score" CTAs.
+          2. Progression Strip — STREAK / BADGES / CHALLENGES cards
+             (horizontal scroll).
+          3. Weekly Challenge — active mission with progress.
+          4. Insights Card — AI-coded insight chips (savings rate,
+             top category, score tier).
+          5. Financial Snapshot (kept for context).
+          6. Compact Leaderboard — top 3 + View all.
+          7. Rewards & Badges accordion — houses BadgesSection and
+             full RewardsHub (lazy-rendered).
+          8. Invite & Earn strip — compact, ₹50/referral, share CTA,
+             taps into full Referral dashboard modal.
+          9. Premium Upsell — contextual paywall, 7-day free trial.
+
+          Collapsible Settings: Achievements · Payment Methods ·
+          Preferences (theme + language) · Notifications · Connected
+          Accounts · Help & About — each as AccordionSection with
+          lazy children for fast mount.
+
+          New components:
+          • components/profile/ProfileHeroV2.tsx
+          • components/profile/InsightsCard.tsx
+          • components/profile/InviteEarnStrip.tsx
+          • components/profile/ProgressionStrip.tsx (existing)
+          • components/profile/CompactLeaderboard.tsx (existing)
+          • components/profile/PremiumUpsellInline.tsx (existing)
+
+          Verification: Web screenshot on /profile renders the full
+          gamified layout correctly — all sections visible, no
+          literal unicode escapes, tabs bar intact, scroll OK.
+
+agent_communication:
+  - agent: "main"
+    message: |
+      ✅ PROFILE TAB GAMIFICATION COMPLETE — "Financial Identity
+      Hub" shipped.
+
+      Key wins:
+      • Top X% rank visible at first glance (dopamine-coded).
+      • Money Score now gets a dedicated block with delta arrow and
+        motivating helper copy ("Crushing it 🔥" / "On the rise
+        📈" / "Let's level up ⚡").
+      • 3 stat chips: Streak · Coins (extendable to Savings Rate).
+      • Two CTAs: "Share flex" → ShareScoreCard modal, "Improve
+        score" → /(tabs)/ai.
+      • Settings collapsed into 6 AccordionSections (achievements,
+        payments, preferences, notifications, connected accounts,
+        help & about) — vertical space cut by ~40 %.
+      • Invite & Earn now a compact strip with earnings display.
+
+      Bundle clean. /profile web screenshot verifies layout.
+
+      Next Action Items:
+      • Backend enhancement: add `coins_balance` + `top_percent` +
+        `monthly_score_delta` fields to /api/rewards/summary (or a
+        new /api/profile/identity) so the Hero is data-driven.
+      • Optional: wire "Improve score" CTA to open a curated
+        "Boost Score" modal with top 3 actionable tips.
