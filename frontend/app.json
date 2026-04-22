@@ -11,6 +11,7 @@
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.mintu.finance",
+      "associatedDomains": ["applinks:mintu.app", "applinks:www.mintu.app"],
       "infoPlist": {
         "NSMicrophoneUsageDescription": "Record voice to add expenses hands-free",
         "NSContactsUsageDescription": "Pick friends to split group expenses",
@@ -30,6 +31,18 @@
         "READ_CONTACTS",
         "CAMERA",
         "READ_MEDIA_IMAGES"
+      ],
+      "intentFilters": [
+        {
+          "action": "VIEW",
+          "autoVerify": true,
+          "data": [
+            { "scheme": "https", "host": "mintu.app", "pathPrefix": "/join" },
+            { "scheme": "https", "host": "www.mintu.app", "pathPrefix": "/join" },
+            { "scheme": "mintu", "host": "join" }
+          ],
+          "category": ["BROWSABLE", "DEFAULT"]
+        }
       ]
     },
     "web": {
