@@ -8918,3 +8918,72 @@ agent_communication:
          • FCM Server Key / Expo Access Token (push)
          • MSG91 Auth Key OR Twilio SID+Token+Number (SMS OTP)
          • WhatsApp Cloud API Phone ID + permanent token (bot)
+
+# ─────────────────────────────────────────────────────────────
+# PROFILE MINIMAL REDESIGN V3 — Calm, Flat, High-clarity
+# Apr 22 2026 · main agent
+# ─────────────────────────────────────────────────────────────
+frontend:
+  - task: "Profile Minimal Redesign v3"
+    implemented: true
+    working: true
+    file: "/app/frontend/app/(tabs)/profile.tsx"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+      - working: true
+        agent: "main"
+        comment: |
+          Fully rewrote Profile per user's "modern, minimal,
+          high-clarity" brief while preserving existing orange-
+          primary MintU palette.
+
+          NEW minimal components (all use makeStyles theme):
+          • ProfileHeroV3.tsx — flat card, large 56px score,
+            tier label, progress bar, single "Level Up" CTA
+            (replaces saffron gradient hero).
+          • TodayCard.tsx — 2-3 tasks (Add expense / Save ₹ /
+            Maintain streak) with "Complete now" CTA.
+          • ProgressInline.tsx — SINGLE merged row for streak •
+            badges • coins with hairline dividers (replaces
+            3-card ProgressionStrip).
+          • WeeklyChallengeCalm.tsx — tinted 6% orange bg,
+            subtle progress, small "Continue" link.
+          • InsightMinimal.tsx — ONE context-picked insight
+            (savings rate / top category / score tier) with
+            "Fix this" pill CTA.
+          • PremiumCalmCard.tsx — dark card, 3 benefits max,
+            single "Try free" CTA, muted.
+          • SettingsList.tsx — list-based (not card-based)
+            with icon + label + chevron, uppercase section
+            header, hairline dividers.
+          • LogoutConfirmSheet.tsx — clean bottom sheet
+            replacing Alert.alert.
+          • /profile/delete-account.tsx — NEW full-screen:
+            serious red hero icon, data-deletion list,
+            30-day recovery note, radio options (schedule
+            vs hard), PIN confirmation field, cancel link.
+
+          Typography limited to 3 levels (score 56px, titles
+          15-17px, support 11-12px). Icons outline-style
+          consistently. 8pt vertical rhythm. No gradients
+          except dark premium card.
+
+          Verified on /profile + /profile/delete-account:
+          all sections render; logout sheet opens; delete
+          screen shows full list + options.
+
+agent_communication:
+  - agent: "main"
+    message: |
+      ✅ Profile minimal redesign v3 shipped.
+      • 7 new components, 1 new full-screen route.
+      • Settings migrated from card-based to list-based.
+      • Logout → bottom sheet confirmation.
+      • Delete account → dedicated full-screen with data
+        deletion info, 30-day recovery note, PIN field.
+      • Existing orange primary preserved; no new colors.
+      • All calm, flat, high-clarity.
+
+      Next Action Items: user review & feedback.
