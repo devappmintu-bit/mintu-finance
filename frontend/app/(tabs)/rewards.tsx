@@ -6,12 +6,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import api from '../../utils/api';
-import {
-  fetchReferralCode, fetchGamificationStatus, fetchPaywallTrigger,
-  fetchShareScoreCard, fetchPaywallGroup, fetchSavingsLeaderboard,
-  fetchFriendsLeaderboard, fetchReferralStatus, trackAbEvent,
-} from '../../services/rewards';
-import { fetchPremiumStatus } from '../../services/premium';
+import { trackAbEvent } from '../../services/rewards';
 import { useLangStore } from '../../store/langStore';
 import { useAuthStore } from '../../store/authStore';
 import { COLORS, RADIUS, SPACING } from '../../utils/theme';
@@ -19,6 +14,7 @@ import { makeStyles } from '../../utils/makeStyles';
 import Skeleton from '../../components/ui/Skeleton';
 import ScoreCard from '../../components/ScoreCard';
 import { t } from '../../utils/i18n';
+import useSwr from '../../hooks/useSwr';
 
 // Push notification handler + registration now live in /hooks/usePushNotifications.ts
 // (set up once globally in app/_layout.tsx).
@@ -27,47 +23,34 @@ export default function RewardsScreen() {
   const s = useStyles();
   const { lang } = useLangStore();
   const { user } = useAuthStore();
-  const [referral, setReferral] = useState<any>(null);
-  const [gamification, setGamification] = useState<any>(null);
-  const [premium, setPremium] = useState<any>(null);
-  const [paywall, setPaywall] = useState<any>(null);
-  const [scoreCardData, setScoreCardData] = useState<any>(null);
-  const [abGroup, setAbGroup] = useState<any>(null);
-  const [leaderboard, setLeaderboard] = useState<any>(null);
-  const [friendComparison, setFriendComparison] = useState<any>(null);
-  const [enhancedRef, setEnhancedRef] = useState<any>(null);
-  const [loading, setLoading] = useState(true);
+
+  // ── SWR data layer (Round 26) ───────────────────────────────────────
+  // 9 parallel endpoints migrated to declarative useSwr hooks. All share
+  // a 30s default TTL so returning to the tab serves cache instantly.
+  const gate = { paused: !user?.id };
+  const { data: referral, refetch: refRef } = useSwr<any>('/referral/my-code', { ttlMs: 60_000, ...gate });
+  const { data: enhancedRef, refetch: refEnhRef } = useSwr<any>('/referral/enhanced-status', { ttlMs: 60_000, ...gate });
+  const { data: gamification, refetch: refGame } = useSwr<any>('/gamification/status', { ttlMs: 30_000, ...gate });
+  const { data: premium } = useSwr<any>('/premium/status', { ttlMs: 60_000, ...gate });
+  const { data: paywall } = useSwr<any>('/premium/paywall-trigger', { ttlMs: 60_000, ...gate });
+  const { data: scoreCardData } = useSwr<any>('/share/score-card', { ttlMs: 60_000, ...gate });
+  const { data: abGroup } = useSwr<any>('/ab/paywall-group', { ttlMs: 60_000, ...gate });
+  const { data: leaderboard, refetch: refLb } = useSwr<any>('/leaderboard/savings', { ttlMs: 30_000, ...gate });
+  const { data: friendComparison, refetch: refFriends } = useSwr<any>('/leaderboard/friends', { ttlMs: 30_000, ...gate });
+
+  // Loading gate — skeleton stays until the three must-have cards resolve.
+  const loading = referral == null && gamification == null && premium == null;
   const [refreshing, setRefreshing] = useState(false);
 
   const fetchData = async () => {
     try {
-      const [refRes, gameRes, premRes, payRes, cardRes, abRes, lbRes, friendRes, enhRefRes] = await Promise.all([
-        fetchReferralCode().then(data => ({ data })),
-        fetchGamificationStatus().then(data => ({ data })),
-        fetchPremiumStatus().then(data => ({ data })),
-        fetchPaywallTrigger().then(data => ({ data })),
-        fetchShareScoreCard().then(data => ({ data })),
-        fetchPaywallGroup().then(data => ({ data })),
-        fetchSavingsLeaderboard().then(data => ({ data })),
-        fetchFriendsLeaderboard().then(data => ({ data })),
-        fetchReferralStatus().then(data => ({ data })),
-      ]);
-      setReferral(refRes.data);
-      setGamification(gameRes.data);
-      setPremium(premRes.data);
-      setPaywall(payRes.data);
-      setScoreCardData(cardRes.data);
-      setAbGroup(abRes.data);
-      setLeaderboard(lbRes.data);
-      setFriendComparison(friendRes.data);
-      setEnhancedRef(enhRefRes.data);
-    } catch (e) { console.error(e); }
-    finally { setLoading(false); setRefreshing(false); }
+      await Promise.all([refRef(), refEnhRef(), refGame(), refLb(), refFriends()]);
+    } finally { setRefreshing(false); }
   };
 
-  useEffect(() => {
-    fetchData();
-  }, []);
+  // SWR auto-fetches on mount; the manual useEffect is redundant now.
+  // Keeping `fetchData` available for pull-to-refresh / post-mutation
+  // revalidations below.
 
   // Push notification registration moved to global hook in app/_layout.tsx
   // See hooks/usePushNotifications.ts — registers once globally with idempotency.

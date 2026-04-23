@@ -9846,3 +9846,46 @@ agent_communication:
       • Backlog unchanged — remaining P2 integrations (FCM/MSG91/
         WhatsApp) blocked on external API keys.
 
+
+agent_communication:
+  - agent: "main"
+    message: |
+      ✅ useSwr migration extended to Budget + Rewards.
+
+      BUDGET (/app/frontend/app/(tabs)/budget.tsx):
+      • Bridge-pattern migration — same low-risk approach as Split.
+      • Replaced Promise.all(fetchLiveBudgets, fetchBudgetSuggestions)
+        with two useSwr hooks (/budgets/live ttl 20s,
+        /budgets/smart-suggest ttl 60s).
+      • Effects normalize + propagate the response into existing
+        `budgets` / `suggestions` state so every optimistic setBudgets
+        site (create, edit, delete, auto-apply) keeps working verbatim.
+      • `fetchAll()` simplified to Promise.all(refetchLive, refetchSug).
+      • `setLoading(false)` now flips the instant SWR first response
+        arrives — removes the dead-mount skeleton delay.
+
+      REWARDS (/app/frontend/app/(tabs)/rewards.tsx):
+      • Full migration — 9 parallel service fetches → 9 declarative
+        useSwr hooks:
+          /referral/my-code, /referral/enhanced-status,
+          /gamification/status, /premium/status,
+          /premium/paywall-trigger, /share/score-card,
+          /ab/paywall-group, /leaderboard/savings,
+          /leaderboard/friends.
+      • All hooks `paused: !user?.id` so they skip fetching for unauth.
+      • Loading gate derives from core must-have data (referral +
+        gamification + premium). `fetchData()` retained as
+        Promise.all of the 5 refetch callbacks for pull-to-refresh.
+      • Cleaned up unused imports (fetchReferralCode et al).
+
+      VERIFIED: Both screens render skeletons for unauth and backend
+      logs show 200 responses on all migrated endpoints under auth.
+      No backend changes.
+
+      Next Action Items:
+      • useSwr migration now covers: Leaderboard, Transactions, Split,
+        Budget, Rewards. Home tab still uses /home/bundle (single
+        endpoint — already fast, skip).
+      • Remaining backlog: real FCM/MSG91/WhatsApp (P2, blocked on
+        keys).
+

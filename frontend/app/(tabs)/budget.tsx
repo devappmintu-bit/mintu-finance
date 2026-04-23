@@ -29,6 +29,7 @@ import SheetHeader from '../../components/ui/SheetHeader';
 import PrimaryButton from '../../components/ui/PrimaryButton';
 import GlassSheet, { GlassSheetHandle } from '../../components/ui/GlassSheet';
 import PremiumUnlockTeaser from '../../components/premium/PremiumUnlockTeaser';
+import useSwr from '../../hooks/useSwr';
 import { useLangStore } from '../../store/langStore';
 import { t } from '../../utils/i18n';
 import Toast from 'react-native-toast-message';
@@ -62,24 +63,33 @@ export default function BudgetScreen() {
   const [sharing, setSharing] = useState(false);
   const shareRef = useRef<View>(null);
 
+  // ── SWR data layer (Round 26) ───────────────────────────────────────
+  // Bridge pattern — useSwr drives focus/cache semantics, pushes data
+  // into existing local state so every optimistic setBudgets/…
+  // site below (add, edit, delete, smart-apply) keeps working verbatim.
+  const { data: swrLive, refetch: refetchLive } = useSwr<any>('/budgets/live', { ttlMs: 20_000 });
+  const { data: swrSug, refetch: refetchSug } = useSwr<any>('/budgets/smart-suggest', { ttlMs: 60_000 });
+  useEffect(() => {
+    if (swrLive == null) return;
+    const raw = (swrLive as any).budgets || swrLive || [];
+    const normalized = (raw as any[]).map((b: any) => ({
+      ...b,
+      amount: b.amount ?? b.budget ?? 0,
+      spent: b.spent ?? 0,
+    }));
+    setBudgets(normalized);
+    setLoading(false);
+  }, [swrLive]);
+  useEffect(() => { if (swrSug) setSuggestions(swrSug); }, [swrSug]);
+
   const fetchAll = useCallback(async () => {
     try {
-      // Prefer /budgets/live (includes spent/status); fall back gracefully.
-      const [budgets, sugg] = await Promise.all([
-        fetchLiveBudgets().catch(() => fetchBudgetsSrv()),
-        fetchBudgetSuggestions().catch(() => null),
-      ]);
-      const raw = (budgets as any).budgets || budgets || [];
-      const normalized = (raw as any[]).map((b: any) => ({
-        ...b,
-        amount: b.amount ?? b.budget ?? 0,
-        spent: b.spent ?? 0,
-      }));
-      setBudgets(normalized);
-      if (sugg) setSuggestions(sugg);
+      // SWR refetch handles both endpoints; local state hydrated via the
+      // effects above.
+      await Promise.all([refetchLive(), refetchSug()]);
     } catch (e) { console.error(e); }
-    finally { setLoading(false); setRefreshing(false); }
-  }, []);
+    finally { setRefreshing(false); }
+  }, [refetchLive, refetchSug]);
 
   useEffect(() => { fetchAll(); }, []);
   // Budget achievements moved to Profile tab — keep onRefresh simple now
