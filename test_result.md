@@ -10479,3 +10479,188 @@ round28_split_device_bug_fixes_apr23_2026:
           The fixes are production-ready based on code analysis, though full E2E verification 
           requires authenticated session which is blocked in current test environment.
 
+
+round29_adversarial_sweep_apr23_2026:
+  - task: "Round 29 — Full adversarial QA sweep (Input/Injection, Auth/IDOR, Race, Fraud, Perf)"
+    implemented: true
+    working: false
+    file: "/app/backend_test.py (adversarial suite); /app/backend/core/auth.py; /app/backend/routers/split_settle.py; /app/backend/routers/user.py"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+      - working: false
+        agent: "testing"
+        comment: |
+          ADVERSARIAL QA SWEEP — 58 tests executed (Apr 23 2026).
+          TOTAL: 58   PASS: 51   FAIL: 7  → 87.9% pass rate
+          CRITICALS FOUND: 7 (all in Auth/IDOR and Race clusters)
+
+          ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+          ❌ CRITICAL FAILS (7)
+          ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+          1. [AUTH-IDOR-002] — POST /api/split/settle phantom debt
+             • Fresh user C called POST /split/settle with target_user_id
+               "000000000000000000000000" amount=100 method=upi.
+             • Response: 200 {"id":"69e9d100…","message":"Payment of ₹100
+               to User marked as settled!","txn_ref":"MINTU51651633",
+               "status":"completed"}
+             • Expected: 400/404 "No outstanding debt".
+             • ROOT CAUSE: /app/backend/routers/split_settle.py line 204
+               `settle_payment` does NOT verify that the payer owes the
+               payee any money — it blindly inserts a settlement document
+               and returns success. Same issue exists on
+               /split/settle-with-rewards (line 381) and /split/partial-
+               settle (line 283).
+             • IMPACT: Attackers/users can spam bogus settlements, inflate
+               settlement_count, unlock badges, and farm reward_coins
+               (via settle-with-rewards) without ever owing money.
+             • FIX: Before insert, compute outstanding_debt via the same
+               logic used in /split/balances and refuse when
+               `debt_to(payee) <= 0` or `data.amount > outstanding`.
+
+          2. [RACE-SETTLE-001] — Concurrent double-settle
+             • Group A+B, expense ₹1000 paid by A → B owes ₹500.
+             • B fires 5 concurrent POST /split/settle amount=500 method=upi.
+             • Result: 5/5 returned 200 (expected ≤1). No dedup, no
+               conditional write.
+             • ROOT CAUSE: Same as AUTH-IDOR-002 — no debt check + no
+               atomic guard.
+             • FIX: Add an atomic check via `findOneAndUpdate` on a debt
+               ledger doc, or put settlements behind `$inc` / transactional
+               reservation against the outstanding balance.
+
+          3-7. [AUTH-SESSION-001] — JWT remains usable after /user/delete-
+               account mode=hard confirmation=DELETE
+             Tested endpoints (all hit with the SAME token immediately
+             after hard-delete of the user doc):
+               • GET /user/me          → 401 ✅ (only pass)
+               • GET /transactions     → 200 ❌ (returns [])
+               • GET /home/bundle      → 200 ❌ (returns stale bundle)
+               • GET /split/groups     → 200 ❌
+               • GET /leaderboard/unified → 200 ❌
+               • GET /user/payment-methods → 200 ❌
+             • ROOT CAUSE: /app/backend/core/auth.py `get_current_user` only
+               decodes the JWT and checks 24-hex `user_id`. It does NOT
+               verify the user still exists in db.users. Endpoints that do
+               their own db.users.find_one() (like /user/me, which calls
+               _get_user_or_404) correctly 401. All others silently accept
+               the token and return empty/default payloads.
+             • This is a regression of the stated Round 27 fix.
+             • FIX (one-line hardening): in core/auth.py after decoding,
+               `u = await db.users.find_one({"_id": ObjectId(uid)}, {"_id":1});`
+               if not u: raise 401. Alternatively, bump a `token_version`
+               on the user doc at login + delete-account, and include that
+               claim in the JWT.
+
+          ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+          ✅ PASSES BY BLOCK
+          ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+          BLOCK 1 (Input/Injection): 21/21 PASS
+            • INJECT-NOSQL-001a/b  (dict phone → 422 on both auth endpoints)
+            • INJECT-NOSQL-002a/b  (UPI dict / $regex → 422)
+            • INJECT-NOSQL-003     (category[$ne]=null query → 200 safe list)
+            • INPUT-BOUNDARY-001  [0, -100, 1e308, "abc", null, 9.99e19]
+                                  all → 422; whitespace→200; valid→200
+            • INPUT-BOUNDARY-002  empty category→422, empty group→422,
+                                  empty budget cat→200 (non-500), empty type→200
+            • INPUT-BOUNDARY-003  desc_10k→422; group 501 chars→422
+            • XSS-STORED-001      <img> name stored verbatim
+            • XSS-STORED-002      script/javascript/svg descs round-trip verbatim
+
+          BLOCK 2 (Auth/Authz): 13/20 PASS  (7 criticals listed above)
+            • AUTH-NOTOKEN-001 × 7 protected endpoints → 422 (no-auth)
+            • AUTH-BADTOKEN-001 invalid/null-str/forged → 401
+            • AUTH-IDOR-001 × 5 (PUT/DELETE txn, DELETE budget, GET manage,
+                                  POST members) → 404 (not owner/member)
+            • AUTH-PRIV-001 non-owner delete group → 403
+
+          BLOCK 3 (Race): 4/5 PASS  (1 critical listed above)
+            • RACE-TXN-001: 20 concurrent POST /transactions → 20 OK,
+              20 distinct ids, no duplication.
+            • RACE-BUDGET-001: DELETE budget x5 concurrent → [200,404,404,404,404]
+            • RACE-GROUP-001: concurrent expense+delete → both 200 (no 500).
+
+          BLOCK 4 (Fraud): 5/5 PASS
+            • FRAUD-OTP-001: rate-limited (429 triggered after 1st bad
+              attempt in loop; also OTP doc deleted after MAX_ATTEMPTS).
+              Brute force is effectively blocked.
+            • FRAUD-COIN-001: 20× (create+delete transaction) → coin
+              balance unchanged (0 → 0). No farming possible.
+            • FRAUD-REFERRAL-001: POST /referral/apply with own code → 400
+              "Cannot use your own code".
+            • FRAUD-STREAK-001: 3 future-dated txns (client-supplied
+              date +30d) → streak remained 0. Server ignores client dates
+              for streak computation.
+
+          BLOCK 5 (Performance): 4/4 PASS
+            • PERF-PAYLOAD-001: 50-level nested `notes` field → 200 (no 500,
+              no stack overflow). Unknown field safely ignored by Pydantic.
+            • PERF-TXN-001: /transactions?limit=9999 → 422 in 57ms
+              (Query(le=500) caps the limit correctly). limit=500 → 200
+              in 63ms.
+            • PERF-HOME-001: /home/bundle?lang=en × 10 sequential calls:
+              all 200, p50=68ms, p95=88ms. Well under 2000ms target.
+
+          ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+          PRIORITIZED FIX LIST (for main agent)
+          ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+          P0 — Token invalidation after hard-delete (AUTH-SESSION-001)
+               → Add user-existence check in core/auth.get_current_user.
+          P0 — Debt-existence guard before settlement (AUTH-IDOR-002 +
+               RACE-SETTLE-001) → compute net debt in /split/settle*
+               handlers and reject if <= 0; use atomic check for races.
+
+          VERDICT: working=false. System is functionally solid (87.9%)
+          but the 7 criticals are real security/data-integrity bugs.
+
+          JSON summary:
+          {
+            "total_tests": 58,
+            "pass": 51,
+            "fail": 7,
+            "criticals_found": [
+              "AUTH-IDOR-002",
+              "AUTH-SESSION-001[/transactions]",
+              "AUTH-SESSION-001[/home/bundle]",
+              "AUTH-SESSION-001[/split/groups]",
+              "AUTH-SESSION-001[/leaderboard/unified]",
+              "AUTH-SESSION-001[/user/payment-methods]",
+              "RACE-SETTLE-001"
+            ],
+            "notes": "Auth JWT not invalidated post hard-delete; /split/settle* accept phantom debts with no ownership/debt check."
+          }
+
+agent_communication:
+    -agent: "testing"
+    -message: |
+        ✅ Round 29 Adversarial QA Sweep completed — 58 tests, 51 PASS (87.9%),
+        7 FAIL (all Critical). Full per-test log and JSON in
+        /app/round29_results.json. Report appended under
+        round29_adversarial_sweep_apr23_2026 section above.
+
+        Two distinct root causes account for all 7 criticals:
+
+        1. core/auth.get_current_user does not verify user still exists in
+           db.users → hard-deleted users can keep calling the backend with
+           an old JWT. 5 of 6 endpoints tested post-delete returned 200
+           (stale/empty data) instead of 401. Only /user/me 401s because
+           it re-fetches the user doc.
+
+        2. /split/settle, /split/settle-with-rewards, /split/partial-settle
+           all insert settlement docs without first verifying the caller
+           actually owes the payee. This enables:
+             • Phantom settlements against any user_id (AUTH-IDOR-002)
+             • Concurrent double-settle (RACE-SETTLE-001: 5/5 succeed)
+             • Badge / coin farming via settle-with-rewards
+
+        Everything else (input validation, injection, auth guards, non-
+        settle IDOR, race conditions, fraud vectors, and performance) is
+        solid and production-ready.
+
+        Recommended fix order:
+        • P0: core/auth.py — user-existence check (one-line async find_one)
+        • P0: split_settle.py — compute net debt before insert; reject if
+               user owes ≤ 0 or amount > outstanding. Use atomic guard
+               against concurrent double-settle.

@@ -1,257 +1,545 @@
-"""Backend tests for MintU: Profile Identity Hub + Goals CRUD.
-
-Covers:
-  1. GET  /api/profile/identity
-  2. GET  /api/profile/score-boosts
-  3. GET/POST/PATCH/DELETE /api/goals
-  4. Auth guard (no-auth → 401/422)
-
-Run: python /app/backend_test.py
 """
-from __future__ import annotations
+Round 29 Adversarial QA Sweep — MintU Backend (Apr 23 2026)
 
-import sys
-import uuid
-from typing import Any, List, Optional, Tuple
+Exercises input validation / injection, auth & IDOR, race conditions, fraud
+vectors and performance. Fresh users created per test with phones 90XXX
+prefix. Canonical user 9876543210 never touched.
+"""
+import time
+import json
+import asyncio
+import random
+import traceback
+from typing import Any, Optional
 
-import requests
+import httpx
+
 
 BASE = "https://mintu-finance.preview.emergentagent.com/api"
-PHONE = "9876543210"
 OTP = "123456"
-TIMEOUT = 30
-
-GREEN = "\033[92m"
-RED = "\033[91m"
-YEL = "\033[93m"
-RST = "\033[0m"
 
 
-results: List[Tuple[str, bool, str]] = []
-
-
-def record(name: str, ok: bool, detail: str = "") -> bool:
-    results.append((name, ok, detail))
-    mark = f"{GREEN}PASS{RST}" if ok else f"{RED}FAIL{RST}"
-    print(f"  [{mark}] {name}" + (f"  — {detail}" if detail else ""))
-    return ok
-
-
-def _req(method: str, path: str, *, token: Optional[str] = None, json_body: Any = None) -> Tuple[int, Any]:
-    headers = {"Content-Type": "application/json"}
-    if token:
-        headers["Authorization"] = f"Bearer {token}"
-    url = f"{BASE}{path}"
+def load_backend_url() -> str:
     try:
-        resp = requests.request(method, url, headers=headers, json=json_body, timeout=TIMEOUT)
-    except Exception as e:
-        return 0, {"error": str(e)}
-    try:
-        body = resp.json()
+        with open("/app/frontend/.env") as f:
+            for line in f:
+                if line.startswith("EXPO_PUBLIC_BACKEND_URL="):
+                    return line.split("=", 1)[1].strip().rstrip("/") + "/api"
     except Exception:
-        body = {"_raw": resp.text[:400]}
-    return resp.status_code, body
+        pass
+    return BASE
 
 
-def login() -> Optional[str]:
-    print(f"\n{YEL}── AUTH ───────────────────────────────────────────────{RST}")
-    sc, body = _req("POST", "/auth/send-otp", json_body={"phone": PHONE})
-    record("send-otp → 200", sc == 200, f"status={sc}")
-    sc, body = _req("POST", "/auth/verify-otp", json_body={"phone": PHONE, "otp": OTP})
-    token = None
-    if isinstance(body, dict):
-        token = (body.get("token")
-                 or body.get("access_token")
-                 or (body.get("data") or {}).get("token")
-                 or (body.get("data") or {}).get("access_token"))
-    record("verify-otp → 200 + token", sc == 200 and bool(token),
-           f"status={sc}, keys={list(body.keys()) if isinstance(body, dict) else 'n/a'}")
-    return token
+BASE = load_backend_url()
+print(f"\n[ENV] Testing against: {BASE}\n")
+
+results = []
+criticals_found = []
 
 
-def test_profile_identity(token: str) -> None:
-    print(f"\n{YEL}── GET /api/profile/identity ──────────────────────────{RST}")
-    sc, body = _req("GET", "/profile/identity", token=token)
-    record("identity → 200", sc == 200, f"status={sc}")
-    if sc != 200 or not isinstance(body, dict):
-        record("identity body missing", False, f"body={body}")
-        return
-
-    required_fields = {
-        "user_id": str,
-        "name": str,
-        "phone": str,
-        "money_score": int,
-        "monthly_score_delta": int,
-        "top_percent": int,
-        "coins_balance": int,
-        "streak": int,
-        "badges_earned": int,
-        "badges_total": int,
-        "tier_label": str,
-        "tier_emoji": str,
-        "is_premium": bool,
-    }
-    for k, typ in required_fields.items():
-        present = k in body
-        type_ok = present and isinstance(body[k], typ)
-        record(f"identity.{k} present + type {typ.__name__}", present and type_ok,
-               f"value={body.get(k)!r}")
-    avatar_ok = body.get("avatar") is None or isinstance(body.get("avatar"), str)
-    record("identity.avatar None|str", avatar_ok,
-           f"value_type={type(body.get('avatar')).__name__}")
-
-    ms = body.get("money_score", -1)
-    record("identity.money_score in 0..100", 0 <= ms <= 100, f"money_score={ms}")
-    tp = body.get("top_percent", 0)
-    record("identity.top_percent in sensible range", 1 <= tp <= 100, f"top_percent={tp}")
-    record("identity.badges_total > 0", body.get("badges_total", 0) > 0,
-           f"badges_total={body.get('badges_total')}")
+def record(test_id: str, severity: str, passed: bool, details: str = ""):
+    status = "PASS" if passed else "FAIL"
+    tag = "[PASS]" if passed else "[FAIL]"
+    print(f"  {tag} [{test_id}] {status} ({severity}) -- {details}")
+    results.append((test_id, severity, passed, details))
+    if (not passed) and severity.lower() == "critical":
+        criticals_found.append(test_id)
 
 
-def test_score_boosts(token: str) -> None:
-    print(f"\n{YEL}── GET /api/profile/score-boosts ──────────────────────{RST}")
-    sc, body = _req("GET", "/profile/score-boosts", token=token)
-    record("score-boosts → 200", sc == 200, f"status={sc}")
-    if sc != 200 or not isinstance(body, dict):
-        return
-    boosts = body.get("boosts")
-    record("boosts is list", isinstance(boosts, list), f"type={type(boosts).__name__}")
-    if isinstance(boosts, list):
-        record("boosts length == 3", len(boosts) == 3, f"len={len(boosts)}")
-        required = {"id", "emoji", "title", "sub", "points", "route", "cta"}
-        for i, b in enumerate(boosts):
-            missing = required - set((b or {}).keys())
-            record(f"boost[{i}] has all required keys", not missing,
-                   f"missing={missing}, id={(b or {}).get('id')}")
-            if isinstance(b, dict):
-                record(f"boost[{i}].points is int", isinstance(b.get("points"), int),
-                       f"points={b.get('points')!r}")
-    record("score-boosts.current_score is int",
-           isinstance(body.get("current_score"), int),
-           f"current_score={body.get('current_score')!r}")
-    record("score-boosts.max_potential is int",
-           isinstance(body.get("max_potential"), int),
-           f"max_potential={body.get('max_potential')!r}")
+def gen_phone(prefix: str = "90") -> str:
+    remain = 10 - len(prefix)
+    if remain < 1:
+        raise ValueError("prefix too long")
+    return prefix + "".join(random.choices("0123456789", k=remain))
 
 
-def test_goals_crud(token: str) -> None:
-    print(f"\n{YEL}── GOALS CRUD ────────────────────────────────────────{RST}")
-
-    sc, body = _req("GET", "/goals", token=token)
-    record("GET /goals → 200", sc == 200, f"status={sc}")
-    baseline_goals = (body or {}).get("goals", []) if sc == 200 else []
-    record("GET /goals returns list", isinstance(baseline_goals, list),
-           f"count_before={len(baseline_goals)}")
-
-    unique_name = f"Goa Trip {uuid.uuid4().hex[:6]}"
-    payload = {
-        "name": unique_name,
-        "target_amount": 50000.0,
-        "saved_amount": 12000.0,
-        "emoji": "🏖️",
-        "color": "#4CAF50",
-    }
-    sc, body = _req("POST", "/goals", token=token, json_body=payload)
-    record("POST /goals → 200", sc == 200, f"status={sc}")
-    goal_id = None
-    if sc == 200 and isinstance(body, dict):
-        goal = body.get("goal") or {}
-        goal_id = goal.get("id")
-        record("POST /goals returns goal.id", bool(goal_id), f"id={goal_id}")
-        record("POST persists name", goal.get("name") == unique_name,
-               f"name={goal.get('name')}")
-        record("POST persists target_amount",
-               abs(float(goal.get("target_amount", 0)) - 50000.0) < 0.01,
-               f"target={goal.get('target_amount')}")
-        record("POST persists saved_amount",
-               abs(float(goal.get("saved_amount", 0)) - 12000.0) < 0.01,
-               f"saved={goal.get('saved_amount')}")
-        record("POST persists emoji/color",
-               goal.get("emoji") == "🏖️" and goal.get("color") == "#4CAF50",
-               f"emoji={goal.get('emoji')}, color={goal.get('color')}")
-
-    if not goal_id:
-        record("CRUD blocked: goal_id missing", False, "cannot proceed")
-        return
-
-    sc, body = _req("GET", "/goals", token=token)
-    found = False
-    if sc == 200 and isinstance(body, dict):
-        found = any(g.get("id") == goal_id for g in body.get("goals", []))
-    record("GET /goals includes new goal after create", found, f"goal_id={goal_id}")
-
-    patch_payload = {"saved_amount": 20000.0, "name": unique_name + " Updated"}
-    sc, body = _req("PATCH", f"/goals/{goal_id}", token=token, json_body=patch_payload)
-    record("PATCH /goals/{id} → 200", sc == 200, f"status={sc}")
-    if sc == 200 and isinstance(body, dict):
-        g = body.get("goal") or {}
-        record("PATCH persists updated saved_amount",
-               abs(float(g.get("saved_amount", 0)) - 20000.0) < 0.01,
-               f"saved={g.get('saved_amount')}")
-        record("PATCH persists updated name",
-               g.get("name") == unique_name + " Updated",
-               f"name={g.get('name')}")
-
-    sc, body = _req("DELETE", f"/goals/{goal_id}", token=token)
-    record("DELETE /goals/{id} → 200", sc == 200, f"status={sc}")
-
-    sc, body = _req("GET", "/goals", token=token)
-    still_there = False
-    if sc == 200 and isinstance(body, dict):
-        still_there = any(g.get("id") == goal_id for g in body.get("goals", []))
-    record("GET /goals excludes deleted goal", not still_there,
-           f"still_there={still_there}")
-
-    sc, body = _req("DELETE", f"/goals/{goal_id}", token=token)
-    record("DELETE already-deleted → 404", sc == 404, f"status={sc}")
-
-    sc, body = _req("DELETE", "/goals/not-a-valid-id", token=token)
-    record("DELETE bad id → 404", sc == 404, f"status={sc}")
+async def signup_fresh(client: httpx.AsyncClient, phone: Optional[str] = None, name: str = "Adv Tester") -> dict:
+    phone = phone or gen_phone()
+    r = await client.post(f"{BASE}/auth/send-otp", json={"phone": phone})
+    if r.status_code == 429:
+        await asyncio.sleep(35)
+        r = await client.post(f"{BASE}/auth/send-otp", json={"phone": phone})
+    assert r.status_code == 200, f"send-otp failed: {r.status_code} {r.text[:200]}"
+    r = await client.post(f"{BASE}/auth/verify-otp", json={"phone": phone, "otp": OTP, "name": name})
+    assert r.status_code == 200, f"verify-otp failed: {r.status_code} {r.text[:200]}"
+    data = r.json()
+    return {"token": data["token"], "user_id": data["user"]["id"], "phone": phone, "name": data["user"]["name"]}
 
 
-def test_auth_guards() -> None:
-    print(f"\n{YEL}── AUTH GUARDS (no token) ────────────────────────────{RST}")
-    for path, method in [
-        ("/profile/identity", "GET"),
-        ("/profile/score-boosts", "GET"),
-        ("/goals", "GET"),
-        ("/goals", "POST"),
-    ]:
-        sc, body = _req(method, path, json_body={} if method == "POST" else None)
-        record(f"{method} {path} no-auth → 401/422", sc in (401, 422), f"status={sc}")
-
-    sc, body = _req("GET", "/profile/identity", token="definitely.not.a.valid.token")
-    record("GET /profile/identity bad-token → 401", sc == 401, f"status={sc}")
+async def auth_headers(token: str) -> dict:
+    return {"Authorization": f"Bearer {token}"}
 
 
-def main():
-    print(f"{YEL}MintU Profile Hub + Goals CRUD Tests{RST}")
-    print(f"Base: {BASE}\n")
-    token = login()
-    if not token:
-        print(f"{RED}Cannot proceed without token{RST}")
-        _summary()
-        sys.exit(1)
-    test_profile_identity(token)
-    test_score_boosts(token)
-    test_goals_crud(token)
-    test_auth_guards()
-    _summary()
+async def block1_injection(client: httpx.AsyncClient):
+    print("\n=== BLOCK 1 - INPUT VALIDATION & INJECTION ===")
+
+    r = await client.post(f"{BASE}/auth/send-otp", json={"phone": {"$ne": None}})
+    record("INJECT-NOSQL-001a", "Critical", r.status_code in (400, 422),
+           f"send-otp dict phone -> {r.status_code}")
+
+    r = await client.post(f"{BASE}/auth/verify-otp", json={"phone": {"$ne": None}, "otp": "123456"})
+    record("INJECT-NOSQL-001b", "Critical", r.status_code in (400, 422),
+           f"verify-otp dict phone -> {r.status_code}")
+
+    fresh = await signup_fresh(client)
+    h = await auth_headers(fresh["token"])
+
+    r = await client.post(f"{BASE}/user/payment-methods",
+                          json={"type": "upi", "upi_id": {"$ne": None}}, headers=h)
+    record("INJECT-NOSQL-002a", "Critical", r.status_code in (400, 422),
+           f"upi dict -> {r.status_code}")
+
+    r = await client.post(f"{BASE}/user/payment-methods",
+                          json={"type": "upi", "upi_id": {"$regex": ".*"}}, headers=h)
+    record("INJECT-NOSQL-002b", "Critical", r.status_code in (400, 422),
+           f"upi regex -> {r.status_code}")
+
+    r = await client.get(f"{BASE}/transactions?category[$ne]=null", headers=h)
+    body = None
+    try:
+        body = r.json()
+    except Exception:
+        pass
+    record("INJECT-NOSQL-003", "Critical", r.status_code == 200 and isinstance(body, list),
+           f"GET /transactions?category[$ne]=null -> {r.status_code}, type={type(body).__name__}")
+
+    bad_amounts = [0, -100, 1e308, "abc", None, 9.999999999e19]
+    for amt in bad_amounts:
+        body = {"amount": amt, "category": "Food", "type": "debit", "description": "edge test"}
+        try:
+            r = await client.post(f"{BASE}/transactions", json=body, headers=h)
+        except Exception as e:
+            record(f"INPUT-BOUNDARY-001[{amt!r}]", "High", False, f"conn exc: {e}")
+            continue
+        ok = r.status_code in (400, 422)
+        record(f"INPUT-BOUNDARY-001[{amt!r}]", "High", ok,
+               f"amount={amt!r} -> {r.status_code}")
+
+    r = await client.post(f"{BASE}/transactions",
+                          json={"amount": "  50  ", "category": "Food", "type": "debit", "description": "ws"},
+                          headers=h)
+    record("INPUT-BOUNDARY-001[whitespace]", "Medium", r.status_code != 500,
+           f"amount=' 50 ' -> {r.status_code}")
+
+    r = await client.post(f"{BASE}/transactions",
+                          json={"amount": 123.45, "category": "Food", "type": "debit", "description": "valid"},
+                          headers=h)
+    record("INPUT-BOUNDARY-001[valid]", "High", r.status_code == 200, f"valid txn -> {r.status_code}")
+
+    r = await client.post(f"{BASE}/transactions",
+                          json={"amount": 100, "category": "", "type": "debit", "description": "x"},
+                          headers=h)
+    record("INPUT-BOUNDARY-002[category='']", "High", r.status_code in (400, 422),
+           f"empty category -> {r.status_code}")
+
+    r = await client.post(f"{BASE}/transactions",
+                          json={"amount": 100, "category": "Food", "type": "", "description": "x"},
+                          headers=h)
+    record("INPUT-BOUNDARY-002[type='']", "Medium", r.status_code != 500,
+           f"empty type -> {r.status_code}")
+
+    r = await client.post(f"{BASE}/split/groups", json={"name": "", "members": ["9999888877"]}, headers=h)
+    record("INPUT-BOUNDARY-002[group_name='']", "Medium",
+           r.status_code != 500,
+           f"empty group name -> {r.status_code}")
+
+    r = await client.post(f"{BASE}/budgets",
+                          json={"category": "", "amount": 500, "period": "monthly"}, headers=h)
+    record("INPUT-BOUNDARY-002[budget_cat='']", "Medium", r.status_code != 500,
+           f"empty budget category -> {r.status_code}")
+
+    big = "A" * 10001
+    r = await client.post(f"{BASE}/transactions",
+                          json={"amount": 100, "category": "Food", "type": "debit", "description": big},
+                          headers=h)
+    record("INPUT-BOUNDARY-003[desc_10k]", "High", r.status_code in (200, 400, 422) and r.status_code != 500,
+           f"desc=10001 chars -> {r.status_code}")
+
+    r = await client.post(f"{BASE}/split/groups",
+                          json={"name": "A" * 501, "members": ["9999888877"]}, headers=h)
+    record("INPUT-BOUNDARY-003[group_name_501]", "Medium", r.status_code != 500,
+           f"group name=501 chars -> {r.status_code}")
+
+    xss = "<img src=x onerror=alert(1)>"
+    r = await client.post(f"{BASE}/split/groups",
+                          json={"name": xss, "members": ["9999888877"]}, headers=h)
+    stored_ok = False
+    if r.status_code == 200:
+        r2 = await client.get(f"{BASE}/split/groups", headers=h)
+        if r2.status_code == 200:
+            groups = r2.json()
+            stored_ok = any(g.get("name") == xss for g in groups)
+    record("XSS-STORED-001", "Medium", stored_ok, f"group={r.status_code}, stored_verbatim={stored_ok}")
+
+    payloads = ["<script>alert(1)</script>", "javascript:void(0)", "\"><svg/onload=1>"]
+    all_ok = True
+    for p in payloads:
+        r = await client.post(f"{BASE}/transactions",
+                              json={"amount": 10, "category": "Food", "type": "debit", "description": p},
+                              headers=h)
+        if r.status_code != 200:
+            all_ok = False
+            continue
+        txid = r.json().get("id")
+        r2 = await client.get(f"{BASE}/transactions", headers=h)
+        if r2.status_code != 200:
+            all_ok = False
+            continue
+        found = any(t.get("id") == txid and t.get("description") == p for t in r2.json())
+        if not found:
+            all_ok = False
+    record("XSS-STORED-002", "Medium", all_ok, "descs roundtripped verbatim")
 
 
-def _summary():
-    passed = sum(1 for _, ok, _ in results if ok)
+async def block2_auth(client: httpx.AsyncClient):
+    print("\n=== BLOCK 2 - AUTH & AUTHORIZATION ===")
+
+    protected = [
+        "/user/me", "/transactions", "/split/groups", "/budgets",
+        "/leaderboard/unified", "/home/bundle", "/user/payment-methods",
+    ]
+    for path in protected:
+        r = await client.get(f"{BASE}{path}")
+        ok = r.status_code in (401, 422)
+        record(f"AUTH-NOTOKEN-001[{path}]", "Critical", ok, f"{path} no-auth -> {r.status_code}")
+
+    for tok, label in [("invalid.token.here", "invalid"), ("null", "null-str")]:
+        r = await client.get(f"{BASE}/user/me", headers={"Authorization": f"Bearer {tok}"})
+        ok = r.status_code in (401, 422)
+        record(f"AUTH-BADTOKEN-001[{label}]", "Critical", ok, f"Bearer {label!r} -> {r.status_code}")
+
+    forged = (
+        "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9."
+        "eyJ1c2VyX2lkIjoiNjAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwIiwiZXhwIjoyMzAwMDAwMDAwfQ."
+        "tamperedsignature"
+    )
+    r = await client.get(f"{BASE}/user/me", headers={"Authorization": f"Bearer {forged}"})
+    record("AUTH-BADTOKEN-001[forged]", "Critical", r.status_code == 401,
+           f"forged JWT -> {r.status_code}")
+
+    A = await signup_fresh(client, phone=gen_phone("9011"), name="Alice A")
+    B = await signup_fresh(client, phone=gen_phone("9011"), name="Bob B")
+    hA = await auth_headers(A["token"])
+    hB = await auth_headers(B["token"])
+
+    rtx = await client.post(f"{BASE}/transactions",
+                            json={"amount": 250, "category": "Food", "type": "debit", "description": "A tx"},
+                            headers=hA)
+    tx_A = rtx.json().get("id") if rtx.status_code == 200 else None
+    rbg = await client.post(f"{BASE}/budgets",
+                            json={"category": "Food", "amount": 5000, "period": "monthly"}, headers=hA)
+    bg_A = rbg.json().get("id") if rbg.status_code == 200 else None
+    rgrp = await client.post(f"{BASE}/split/groups",
+                             json={"name": "AliceOnly", "members": ["9999888877"]}, headers=hA)
+    grp_A = rgrp.json().get("id") if rgrp.status_code == 200 else None
+
+    if tx_A:
+        r = await client.put(f"{BASE}/transactions/{tx_A}", json={"amount": 1}, headers=hB)
+        record("AUTH-IDOR-001[PUT tx_A as B]", "Critical", r.status_code in (403, 404),
+               f"PUT -> {r.status_code}")
+        r = await client.delete(f"{BASE}/transactions/{tx_A}", headers=hB)
+        record("AUTH-IDOR-001[DELETE tx_A as B]", "Critical", r.status_code in (403, 404),
+               f"DELETE -> {r.status_code}")
+    if bg_A:
+        r = await client.delete(f"{BASE}/budgets/{bg_A}", headers=hB)
+        record("AUTH-IDOR-001[DELETE bg_A as B]", "Critical", r.status_code in (403, 404),
+               f"DELETE bg -> {r.status_code}")
+    if grp_A:
+        r = await client.get(f"{BASE}/split/groups/{grp_A}/manage", headers=hB)
+        record("AUTH-IDOR-001[GET manage as B]", "Critical", r.status_code in (403, 404),
+               f"manage -> {r.status_code}")
+        r = await client.post(f"{BASE}/split/groups/{grp_A}/members",
+                              json={"phones": ["9999999999"]}, headers=hB)
+        record("AUTH-IDOR-001[POST members as B]", "Critical", r.status_code in (403, 404),
+               f"add members by non-member -> {r.status_code}")
+
+    C = await signup_fresh(client, phone=gen_phone("9011"), name="Carol C")
+    hC = await auth_headers(C["token"])
+    r = await client.post(f"{BASE}/split/settle",
+                          json={"target_user_id": "000000000000000000000000", "amount": 100, "method": "upi"},
+                          headers=hC)
+    passed = r.status_code in (400, 404)
+    record("AUTH-IDOR-002", "Critical", passed,
+           f"settle phantom debt -> {r.status_code} {r.text[:140]}")
+
+    rgrp2 = await client.post(f"{BASE}/split/groups",
+                              json={"name": "Priv Test", "members": [B["phone"]]}, headers=hA)
+    if rgrp2.status_code == 200:
+        grp2 = rgrp2.json()["id"]
+        r = await client.delete(f"{BASE}/split/groups/{grp2}", headers=hB)
+        record("AUTH-PRIV-001", "Critical", r.status_code == 403, f"B deletes A's group -> {r.status_code}")
+    else:
+        record("AUTH-PRIV-001[precond]", "Critical", False,
+               f"setup failed: {rgrp2.status_code} {rgrp2.text[:100]}")
+
+    D = await signup_fresh(client, phone=gen_phone("9011"), name="Dave D")
+    hD = await auth_headers(D["token"])
+    r = await client.post(f"{BASE}/user/delete-account",
+                          json={"mode": "hard", "confirmation": "DELETE"}, headers=hD)
+    if r.status_code != 200:
+        record("AUTH-SESSION-001[precond]", "Critical", False,
+               f"delete-account failed: {r.status_code} {r.text[:200]}")
+    else:
+        paths_after = ["/user/me", "/transactions", "/home/bundle",
+                       "/split/groups", "/leaderboard/unified", "/user/payment-methods"]
+        for p in paths_after:
+            r2 = await client.get(f"{BASE}{p}", headers=hD)
+            ok = r2.status_code == 401
+            record(f"AUTH-SESSION-001[{p}]", "Critical", ok,
+                   f"post-delete {p} -> {r2.status_code}")
+
+
+async def block3_race(client: httpx.AsyncClient):
+    print("\n=== BLOCK 3 - RACE CONDITIONS ===")
+
+    U = await signup_fresh(client)
+    h = await auth_headers(U["token"])
+
+    async def _one_txn():
+        return await client.post(f"{BASE}/transactions",
+                                 json={"amount": 500, "category": "Food", "type": "debit", "description": "race"},
+                                 headers=h)
+
+    responses = await asyncio.gather(*[_one_txn() for _ in range(20)], return_exceptions=True)
+    ids = set()
+    success = 0
+    errors = 0
+    for r in responses:
+        if isinstance(r, Exception):
+            errors += 1
+            continue
+        if r.status_code == 200:
+            success += 1
+            try:
+                ids.add(r.json().get("id"))
+            except Exception:
+                pass
+    record("RACE-TXN-001[all_succeed]", "High", success >= 18,
+           f"20 concurrent -> {success} OK, {errors} errs")
+    record("RACE-TXN-001[distinct_ids]", "High", len(ids) == success,
+           f"distinct ids {len(ids)} vs success {success}")
+
+    A = await signup_fresh(client, phone=gen_phone("9012"))
+    B = await signup_fresh(client, phone=gen_phone("9012"))
+    hA = await auth_headers(A["token"])
+    hB = await auth_headers(B["token"])
+    rgrp = await client.post(f"{BASE}/split/groups",
+                             json={"name": "Race Test", "members": [B["phone"]]}, headers=hA)
+    if rgrp.status_code == 200:
+        grp = rgrp.json()["id"]
+        rexp = await client.post(f"{BASE}/split/expenses",
+                                 json={"group_id": grp, "amount": 1000, "description": "dinner",
+                                       "paid_by": A["user_id"],
+                                       "splits": {A["user_id"]: 500, B["user_id"]: 500}}, headers=hA)
+
+        async def _settle():
+            return await client.post(f"{BASE}/split/settle",
+                                     json={"target_user_id": A["user_id"], "amount": 500, "method": "upi", "group_id": grp},
+                                     headers=hB)
+        res = await asyncio.gather(*[_settle() for _ in range(5)], return_exceptions=True)
+        ok_count = sum(1 for r in res if not isinstance(r, Exception) and r.status_code == 200)
+        passed = ok_count <= 1
+        record("RACE-SETTLE-001", "Critical", passed,
+               f"concurrent /split/settle -> {ok_count}/5 succeeded (expected <=1, exp_create={rexp.status_code})")
+    else:
+        record("RACE-SETTLE-001[precond]", "Critical", False, f"group create {rgrp.status_code}")
+
+    U2 = await signup_fresh(client, phone=gen_phone("9013"))
+    h2 = await auth_headers(U2["token"])
+    rb = await client.post(f"{BASE}/budgets", json={"category": "Food", "amount": 1000, "period": "monthly"}, headers=h2)
+    bid = rb.json().get("id") if rb.status_code == 200 else None
+    if bid:
+        async def _del():
+            return await client.delete(f"{BASE}/budgets/{bid}", headers=h2)
+        res = await asyncio.gather(*[_del() for _ in range(5)], return_exceptions=True)
+        codes = [getattr(r, "status_code", 500) for r in res]
+        ok_count = sum(1 for c in codes if c == 200)
+        nf_count = sum(1 for c in codes if c == 404)
+        no_500 = all(c != 500 for c in codes)
+        passed = ok_count == 1 and nf_count == 4 and no_500
+        record("RACE-BUDGET-001", "High", passed, f"delete x5 -> codes={codes}")
+    else:
+        record("RACE-BUDGET-001[precond]", "High", False, f"budget create failed {rb.status_code}")
+
+    A = await signup_fresh(client, phone=gen_phone("9014"))
+    B = await signup_fresh(client, phone=gen_phone("9014"))
+    hA = await auth_headers(A["token"])
+    hB = await auth_headers(B["token"])
+    rgrp = await client.post(f"{BASE}/split/groups",
+                             json={"name": "RG Test", "members": [B["phone"]]}, headers=hA)
+    if rgrp.status_code == 200:
+        grp = rgrp.json()["id"]
+
+        async def _add_expense():
+            return await client.post(f"{BASE}/split/expenses",
+                                     json={"group_id": grp, "amount": 300, "description": "conflict",
+                                           "paid_by": B["user_id"],
+                                           "splits": {A["user_id"]: 150, B["user_id"]: 150}}, headers=hB)
+
+        async def _del_group():
+            return await client.delete(f"{BASE}/split/groups/{grp}", headers=hA)
+
+        res = await asyncio.gather(_add_expense(), _del_group(), return_exceptions=True)
+        codes = [getattr(r, "status_code", 500) for r in res]
+        no_500 = all(c != 500 for c in codes)
+        record("RACE-GROUP-001", "High", no_500, f"concurrent expense+delete -> codes={codes}")
+    else:
+        record("RACE-GROUP-001[precond]", "High", False, f"group {rgrp.status_code}")
+
+
+async def block4_fraud(client: httpx.AsyncClient):
+    print("\n=== BLOCK 4 - ABUSE / FRAUD ===")
+
+    phone = gen_phone("9022")
+    await client.post(f"{BASE}/auth/send-otp", json={"phone": phone})
+    codes = []
+    for _ in range(20):
+        random_otp = "".join(random.choices("0123456789", k=6))
+        rr = await client.post(f"{BASE}/auth/verify-otp", json={"phone": phone, "otp": random_otp, "name": "Brute"})
+        codes.append(rr.status_code)
+    rate_limited = any(c == 429 for c in codes)
+    defence_exists = rate_limited or (codes.count(400) >= 17)
+    record("FRAUD-OTP-001[rate_limit_429]", "High", rate_limited,
+           f"codes[:5]={codes[:5]}, any_429={rate_limited}")
+    record("FRAUD-OTP-001[defence_exists]", "Critical", defence_exists,
+           f"defence present={defence_exists} (400-locked after attempts)")
+
+    U = await signup_fresh(client)
+    h = await auth_headers(U["token"])
+    r = await client.get(f"{BASE}/coins/status", headers=h)
+    coins_start = 0
+    if r.status_code == 200:
+        j = r.json()
+        coins_start = int(j.get("coins", j.get("balance", j.get("coins_balance", 0))) or 0)
+    for _ in range(20):
+        rc = await client.post(f"{BASE}/transactions",
+                               json={"amount": 100, "category": "Food", "type": "debit", "description": "farm"},
+                               headers=h)
+        if rc.status_code == 200:
+            tx_id = rc.json().get("id")
+            await client.delete(f"{BASE}/transactions/{tx_id}", headers=h)
+    r = await client.get(f"{BASE}/coins/status", headers=h)
+    coins_end = 0
+    if r.status_code == 200:
+        j = r.json()
+        coins_end = int(j.get("coins", j.get("balance", j.get("coins_balance", 0))) or 0)
+    delta = coins_end - coins_start
+    passed = delta <= 5
+    record("FRAUD-COIN-001", "High", passed,
+           f"coins {coins_start}->{coins_end} (d={delta}) after 20x add+delete")
+
+    R = await signup_fresh(client, phone=gen_phone("9023"))
+    h = await auth_headers(R["token"])
+    rc = await client.get(f"{BASE}/referral/my-code", headers=h)
+    my_code = ""
+    if rc.status_code == 200:
+        j = rc.json()
+        my_code = j.get("code") or j.get("referral_code") or ""
+    if my_code:
+        r = await client.post(f"{BASE}/referral/apply", json={"code": my_code}, headers=h)
+        passed = r.status_code in (400, 403, 404, 409)
+        record("FRAUD-REFERRAL-001", "High", passed,
+               f"self-referral {my_code} -> {r.status_code} {r.text[:140]}")
+    else:
+        record("FRAUD-REFERRAL-001", "High", False, f"no code ({rc.status_code})")
+
+    U = await signup_fresh(client, phone=gen_phone("9024"))
+    h = await auth_headers(U["token"])
+    from datetime import datetime, timedelta, timezone
+    future = (datetime.now(timezone.utc) + timedelta(days=30)).isoformat()
+    for _ in range(3):
+        await client.post(f"{BASE}/transactions",
+                          json={"amount": 50, "category": "Food", "type": "debit",
+                                "description": "future", "date": future}, headers=h)
+    r = await client.get(f"{BASE}/gamification/status", headers=h)
+    streak = 0
+    if r.status_code == 200:
+        j = r.json()
+        streak = int(j.get("streak_days", j.get("streak", 0)) or 0)
+    passed = streak <= 1
+    record("FRAUD-STREAK-001", "High", passed,
+           f"streak={streak} after 3 future-dated txns")
+
+
+async def block5_perf(client: httpx.AsyncClient):
+    print("\n=== BLOCK 5 - PERFORMANCE / SIZE ===")
+
+    U = await signup_fresh(client, phone=gen_phone("9031"))
+    h = await auth_headers(U["token"])
+
+    nested: Any = "leaf"
+    for _ in range(50):
+        nested = {"n": nested}
+    r = await client.post(f"{BASE}/transactions",
+                          json={"amount": 100, "category": "Food", "type": "debit",
+                                "description": "deep", "notes": nested}, headers=h)
+    record("PERF-PAYLOAD-001", "High", r.status_code != 500, f"50-deep nested -> {r.status_code}")
+
+    async def _mk(n):
+        return await client.post(f"{BASE}/transactions",
+                                 json={"amount": 10 + n, "category": "Food", "type": "debit",
+                                       "description": f"seed-{n}"}, headers=h)
+    await asyncio.gather(*[_mk(i) for i in range(30)])
+
+    t0 = time.monotonic()
+    r = await client.get(f"{BASE}/transactions?limit=9999", headers=h)
+    dur = time.monotonic() - t0
+    record("PERF-TXN-001[limit_9999_cap]", "High", r.status_code in (200, 422) and dur < 3.0,
+           f"limit=9999 -> {r.status_code} in {dur*1000:.0f}ms")
+
+    t0 = time.monotonic()
+    r = await client.get(f"{BASE}/transactions?limit=500", headers=h)
+    dur2 = time.monotonic() - t0
+    record("PERF-TXN-001[limit_500]", "High", r.status_code == 200 and dur2 < 3.0,
+           f"limit=500 -> {r.status_code} in {dur2*1000:.0f}ms")
+
+    latencies = []
+    for _ in range(10):
+        t0 = time.monotonic()
+        r = await client.get(f"{BASE}/home/bundle?lang=en", headers=h)
+        d = (time.monotonic() - t0) * 1000
+        latencies.append((r.status_code, d))
+    ok = all(s == 200 for s, _ in latencies)
+    ms = sorted([d for _, d in latencies])
+    p50 = ms[len(ms) // 2]
+    p95 = ms[int(len(ms) * 0.95) - 1] if len(ms) >= 2 else ms[-1]
+    record("PERF-HOME-001", "High", ok and p95 < 2000,
+           f"/home/bundle x10 all200={ok} p50={p50:.0f}ms p95={p95:.0f}ms")
+
+
+async def main():
+    limits = httpx.Limits(max_connections=50, max_keepalive_connections=20)
+    timeout = httpx.Timeout(30.0, connect=15.0)
+    async with httpx.AsyncClient(limits=limits, timeout=timeout) as client:
+        for name, fn in [("block1", block1_injection), ("block2", block2_auth),
+                         ("block3", block3_race), ("block4", block4_fraud),
+                         ("block5", block5_perf)]:
+            try:
+                await fn(client)
+            except Exception as e:
+                print(f"{name} fatal: {e}")
+                traceback.print_exc()
+
     total = len(results)
-    print(f"\n{YEL}════════════════════════════════════════════════════════{RST}")
-    print(f"  TOTAL: {passed}/{total} PASS")
-    fails = [(n, d) for n, ok, d in results if not ok]
-    if fails:
-        print(f"\n{RED}Failures:{RST}")
-        for n, d in fails:
-            print(f"  - {n}  — {d}")
-    print(f"{YEL}════════════════════════════════════════════════════════{RST}")
+    passed = sum(1 for _, _, ok, _ in results if ok)
+    failed = total - passed
+    print("\n" + "=" * 60)
+    print(f"TOTAL: {total}   PASS: {passed}   FAIL: {failed}")
+    print(f"CRITICALS FOUND: {criticals_found}")
+    print("=" * 60)
+
+    summary = {
+        "total_tests": total,
+        "pass": passed,
+        "fail": failed,
+        "criticals_found": criticals_found,
+        "failures": [{"id": tid, "severity": sev, "detail": det}
+                     for tid, sev, ok, det in results if not ok],
+    }
+    with open("/app/round29_results.json", "w") as f:
+        json.dump(summary, f, indent=2)
+    print(json.dumps({k: summary[k] for k in ("total_tests", "pass", "fail", "criticals_found")}, indent=2))
 
 
 if __name__ == "__main__":
-    main()
+    asyncio.run(main())

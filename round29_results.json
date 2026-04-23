@@ -1,0 +1,51 @@
+{
+  "total_tests": 58,
+  "pass": 51,
+  "fail": 7,
+  "criticals_found": [
+    "AUTH-IDOR-002",
+    "AUTH-SESSION-001[/transactions]",
+    "AUTH-SESSION-001[/home/bundle]",
+    "AUTH-SESSION-001[/split/groups]",
+    "AUTH-SESSION-001[/leaderboard/unified]",
+    "AUTH-SESSION-001[/user/payment-methods]",
+    "RACE-SETTLE-001"
+  ],
+  "failures": [
+    {
+      "id": "AUTH-IDOR-002",
+      "severity": "Critical",
+      "detail": "settle phantom debt -> 200 {\"id\":\"69e9d100fc252519407ce68d\",\"message\":\"Payment of \u20b9100 to User marked as settled!\",\"txn_ref\":\"MINTU51651633\",\"status\":\"completed\"}"
+    },
+    {
+      "id": "AUTH-SESSION-001[/transactions]",
+      "severity": "Critical",
+      "detail": "post-delete /transactions -> 200"
+    },
+    {
+      "id": "AUTH-SESSION-001[/home/bundle]",
+      "severity": "Critical",
+      "detail": "post-delete /home/bundle -> 200"
+    },
+    {
+      "id": "AUTH-SESSION-001[/split/groups]",
+      "severity": "Critical",
+      "detail": "post-delete /split/groups -> 200"
+    },
+    {
+      "id": "AUTH-SESSION-001[/leaderboard/unified]",
+      "severity": "Critical",
+      "detail": "post-delete /leaderboard/unified -> 200"
+    },
+    {
+      "id": "AUTH-SESSION-001[/user/payment-methods]",
+      "severity": "Critical",
+      "detail": "post-delete /user/payment-methods -> 200"
+    },
+    {
+      "id": "RACE-SETTLE-001",
+      "severity": "Critical",
+      "detail": "concurrent /split/settle -> 5/5 succeeded (expected <=1, exp_create=200)"
+    }
+  ]
+}
