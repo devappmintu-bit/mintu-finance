@@ -118,7 +118,9 @@ async def test_f2_over_amount_rejected():
         a = await register(client)
         b = await register(client)
         # Build a real debt of ₹300 (A owes B) via a group expense
-        grp = (await client.post(f"{API}/split/groups", json={"name": "test-grp", "member_phones": [b["phone"]]}, headers=bearer(a["token"]))).json()
+        gr = await client.post(f"{API}/split/groups", json={"name": "test-grp", "members": [b["phone"]]}, headers=bearer(a["token"]))
+        assert gr.status_code == 200, f"create group failed: {gr.status_code} {gr.text}"
+        grp = gr.json()
         exp = await client.post(
             f"{API}/split/expenses",
             json={"group_id": grp["id"], "paid_by": b["user_id"], "description": "dinner", "amount": 600, "split_type": "equal", "splits": {a["user_id"]: 300, b["user_id"]: 300}},
@@ -140,7 +142,7 @@ async def test_f2_double_settle_race():
     async with httpx.AsyncClient(timeout=30) as client:
         a = await register(client)
         b = await register(client)
-        grp = (await client.post(f"{API}/split/groups", json={"name": "race-grp", "member_phones": [b["phone"]]}, headers=bearer(a["token"]))).json()
+        grp = (await client.post(f"{API}/split/groups", json={"name": "race-grp", "members": [b["phone"]]}, headers=bearer(a["token"]))).json()
         await client.post(
             f"{API}/split/expenses",
             json={"group_id": grp["id"], "paid_by": b["user_id"], "description": "race", "amount": 600, "split_type": "equal", "splits": {a["user_id"]: 300, b["user_id"]: 300}},

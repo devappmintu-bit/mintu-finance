@@ -10947,3 +10947,54 @@ agent_communication:
 
         Task flipped working=true, needs_retesting=false. Main agent
         can summarise and ship Round 29c.
+
+# ══════════════════════════════════════════════════════════════════════
+#  Round 29d — Adversarial Regression Pytest Suite (Apr 23 2026)
+# ══════════════════════════════════════════════════════════════════════
+backend:
+  - task: "Adversarial regression pytest suite (F1–F5) locking in Round 29 security fixes"
+    implemented: true
+    working: true
+    file: "/app/backend/tests/test_adversarial.py"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+      - working: true
+        agent: "main"
+        comment: |
+          Finalised /app/backend/tests/test_adversarial.py + tests/conftest.py.
+          14/14 tests pass in 51s against live backend at localhost:8001.
+
+          F1 Dead-token 401: hard-deleted user's token is rejected by every
+               protected route (user/me, transactions, home/bundle, split/groups,
+               leaderboard, payment-methods, budgets, split/balances,
+               gamification/status, rewards/marketplace).
+          F1 regression: live users still 200 on user/me and /transactions.
+          F2 Phantom settle: /split/settle with no debt returns 400 "No outstanding debt".
+          F2 Over amount: settle amount > outstanding+₹0.50 returns 400 "exceeds outstanding".
+          F2 Double-settle race: 5 concurrent settles of same ₹300 debt → exactly 1 success (atomic guard holds).
+          F3 Non-string phone rejection: {$ne: null}, None, int, list, alphanumeric all 4xx.
+          F3 Verify-otp dict rejection on phone AND otp fields.
+          F4 OTP brute-force: IP + phone level 429 triggered during fleet of wrong guesses.
+          F5 Coin dedupe: same dedupe_key → first 200 awarded>0, second 200 awarded=0 reason=already_awarded.
+          F5 Back-compat: /coins/award without dedupe_key still 200.
+
+          Fixes made in this round:
+            • Corrected split group creation payload in F2 tests (members, not
+              member_phones — matches SplitGroupCreate schema).
+            • Added tests/conftest.py autouse fixture that clears rate_limits
+              and otp_audit collections before every test so F4 brute-force
+              attempts don't poison F5 OTP registrations via IP-level 429.
+            • conftest loads backend/.env for real MONGO_URL / DB_NAME.
+
+          Run: `cd /app/backend && pytest tests/test_adversarial.py -v`
+          Stable across back-to-back runs (verified twice).
+
+agent_communication:
+    -agent: "main"
+    -message: |
+        Round 29d complete — adversarial regression pytest suite is green.
+        14/14 tests passing, locks in Round 29 IDOR / race-condition /
+        OTP brute-force / coin-dedupe security fixes.
+        No production code changes; only tests + conftest added.
