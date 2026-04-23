@@ -11510,3 +11510,51 @@ agent_communication:
         APIs healthy, SMS endpoint fix confirmed working.
 
         **RECOMMENDATION**: Changes are production-ready. Main agent can summarize and ship.
+# ══════════════════════════════════════════════════════════════════════
+#  Round 30b — Sequence Close-Out (Apr 23 2026, late evening)
+# ══════════════════════════════════════════════════════════════════════
+#
+# H0 → H1 → H2 → H4 shipped. H3 intentionally deferred — reasoning:
+#
+#   • Theme-without-remount requires migrating 14 legacy screens still
+#     using `StyleSheet.create({...COLORS...})` at module load. The
+#     `key={resolvedTheme}` on the root Stack is what currently keeps
+#     them in sync after a theme toggle. Removing the key without
+#     migrating them first would leave them stuck on the previous
+#     palette. 14 files × risk of visual regressions = not worth it
+#     for the sole UX gain of preserving scroll position through a
+#     rare user action. Deferred with files listed below.
+#
+#   • server.py split — 770 LOC pure refactor for code-health alone.
+#     Not user-visible. Lifespan hooks, middleware, AI helpers and
+#     password helpers all depend on one another via circular imports
+#     that are currently broken by lazy imports. Untangling them
+#     risks silent auth regressions. Defer.
+#
+#   • Home tab useSwr migration — /home/bundle is already a single
+#     batched endpoint (the 5 parallel `api.get`s were only a fallback
+#     branch). Real perf win ≈ 0. Defer.
+#
+# Legacy screens still using module-level COLORS + StyleSheet.create:
+#   app/_layout.tsx, app/leaderboard.tsx, app/rewards-hub.tsx,
+#   components/ErrorBoundary.tsx, components/ToastConfig.tsx,
+#   components/premium/PremiumUnlockTeaser.tsx, components/premium/styles.ts,
+#   components/profile/SubScreenModal.tsx, .../ProfilePhotoSheet.tsx,
+#   .../EditNameSheet.tsx, .../ShareWeeklyWinModal.tsx,
+#   .../ProfileSkeleton.tsx, .../DeleteAccountTrigger.tsx,
+#   .../LanguageSheet.tsx
+#
+# FINAL STATUS
+# ─────────────
+# ✅ H0 Security plug — 3 IDORs closed, settle race locked, landmine deleted
+# ✅ H1 Data integrity — delete-account cascade, soft-delete real enforce,
+#     reminder auto-dismiss on all settle paths, /sms/parse contract fixed
+# ✅ H2 Perf (partial) — /split/balances N+1 fixed, GroupChat poll backoff
+# ✅ H4 Error handling — network-down global toast (throttled, retry-gated)
+# 🟡 H2 Home useSwr — deferred (bundle already 1 call)
+# 🟡 H3 Theme remount — deferred (14-file migration risk)
+# 🟡 H3 server.py split — deferred (high regression risk, no user benefit)
+#
+# REGRESSION SUITE: 22/22 pytest adversarial tests green, back-to-back stable.
+# BACKEND TESTING AGENT: zero regressions, production-ready.
+# FRONTEND: bundling clean, no console errors, all tabs render.
