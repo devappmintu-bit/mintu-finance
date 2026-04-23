@@ -7,7 +7,7 @@ import Toast from 'react-native-toast-message';
 import { COLORS } from '../../utils/theme';
 import { useActivePlan, PLAN_META } from '../../utils/premium';
 import type { Plan } from '../../utils/premium';
-import { premiumStyles as styles, fmtINR } from './styles';
+import { usePremiumStyles, fmtINR } from './styles';
 import api from '../../utils/api';
 
 // Frontend plan-key → backend subscription-tier ("lite"|"pro"|"elite")
@@ -16,6 +16,7 @@ const PLAN_TO_TIER: Record<Plan, 'lite' | 'pro' | 'elite' | null> = {
 };
 
 export default function PlansView({ potentialSavings }: { potentialSavings: number }) {
+  const styles = usePremiumStyles();
   const [plan, setPlan] = useActivePlan();
 
   // UPI AutoPay flow — creates a Razorpay subscription and opens the hosted

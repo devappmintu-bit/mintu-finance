@@ -1,13 +1,14 @@
 /**
  * EditNameSheet — centered fade modal to edit user's display name.
- * Extracted from profile.tsx (Round 2A refactor).
+ * Round 30b: migrated to makeStyles.
  */
 import React, { useState, useEffect } from 'react';
 import {
-  View, Text, Modal, TouchableOpacity, TextInput, StyleSheet, Platform, KeyboardAvoidingView,
+  View, Text, Modal, TouchableOpacity, TextInput, Platform, KeyboardAvoidingView,
 } from 'react-native';
 import Toast from 'react-native-toast-message';
-import { COLORS } from '../../utils/theme';
+import { useAppColors } from '../../utils/theme';
+import { makeStyles } from '../../utils/makeStyles';
 import { updateProfile } from '../../services/user';
 import { useAuthStore } from '../../store/authStore';
 
@@ -15,7 +16,6 @@ interface Props {
   visible: boolean;
   currentName: string;
   onClose: () => void;
-  /** Called after a successful rename so the parent can refresh identity. */
   onSaved?: (name: string) => void;
 }
 
@@ -24,6 +24,8 @@ export default function EditNameSheet({ visible, currentName, onClose, onSaved }
   const [saving, setSaving] = useState(false);
   const user = useAuthStore(st => st.user);
   const setUser = useAuthStore(st => st.setUser);
+  const c = useAppColors();
+  const s = useStyles();
 
   useEffect(() => { if (visible) setValue(currentName || ''); }, [visible, currentName]);
 
@@ -55,7 +57,7 @@ export default function EditNameSheet({ visible, currentName, onClose, onSaved }
             value={value}
             onChangeText={setValue}
             placeholder="Your name"
-            placeholderTextColor={COLORS.text.muted}
+            placeholderTextColor={c.text.muted}
             autoFocus
             maxLength={40}
             returnKeyType="done"
@@ -74,18 +76,18 @@ export default function EditNameSheet({ visible, currentName, onClose, onSaved }
   );
 }
 
-const s = StyleSheet.create({
+const useStyles = makeStyles((c) => ({
   bg: { flex: 1, backgroundColor: 'rgba(0,0,0,0.45)', justifyContent: 'center', paddingHorizontal: 20 },
-  sheet: { backgroundColor: COLORS.bg.secondary, borderRadius: 20, padding: 20 },
-  handle: { width: 40, height: 4, borderRadius: 2, backgroundColor: COLORS.border.subtle, alignSelf: 'center', marginBottom: 12 },
-  title: { fontSize: 18, fontWeight: '800', color: COLORS.text.primary, marginBottom: 12, letterSpacing: -0.3 },
+  sheet: { backgroundColor: c.bg.secondary, borderRadius: 20, padding: 20 },
+  handle: { width: 40, height: 4, borderRadius: 2, backgroundColor: c.border.subtle, alignSelf: 'center', marginBottom: 12 },
+  title: { fontSize: 18, fontWeight: '800', color: c.text.primary, marginBottom: 12, letterSpacing: -0.3 },
   input: {
-    borderWidth: 1, borderColor: COLORS.border.subtle, borderRadius: 12,
+    borderWidth: 1, borderColor: c.border.subtle, borderRadius: 12,
     paddingHorizontal: 14, paddingVertical: 12, fontSize: 16, fontWeight: '600',
-    color: COLORS.text.primary, backgroundColor: COLORS.bg.primary,
+    color: c.text.primary, backgroundColor: c.bg.primary,
   },
-  saveBtn: { backgroundColor: COLORS.accent.primary, paddingVertical: 13, borderRadius: 12, alignItems: 'center', marginTop: 14 },
+  saveBtn: { backgroundColor: c.accent.primary, paddingVertical: 13, borderRadius: 12, alignItems: 'center', marginTop: 14 },
   saveTxt: { color: '#fff', fontSize: 15, fontWeight: '800', letterSpacing: -0.2 },
   cancel: { paddingVertical: 10, alignItems: 'center', marginTop: 4 },
-  cancelTxt: { color: COLORS.text.muted, fontSize: 14, fontWeight: '600' },
-});
+  cancelTxt: { color: c.text.muted, fontSize: 14, fontWeight: '600' },
+}));

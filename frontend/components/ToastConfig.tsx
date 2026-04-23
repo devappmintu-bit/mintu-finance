@@ -1,21 +1,14 @@
 /**
  * Toast config — iOS-17 "Dynamic Island"-inspired pill toasts.
- *
- * Improvements over v1:
- *   • Theme-aware (dark / light / AMOLED adaptive) via COLORS.state.*
- *   • Adds `warning` and `neutral` variants (previously fell back to info)
- *   • Haptic feedback on success/error (native only, silent on web)
- *   • Rounded pill shape + generous padding = premium feel
- *   • Bigger icon (22px) + colored icon backdrop chip
- *   • Optional `props.action` for a tap-through CTA ("Undo", "View", etc.)
- *   • Respects safe bottom inset — won't clip on notched phones
- *   • Fully accessible: live-region text, icon hidden from AT
+ * Round 30b: migrated to makeStyles + useAppColors so theme toggles
+ * propagate without parent Stack remount.
  */
 import React, { useEffect } from 'react';
-import { View, Text, StyleSheet, Platform, TouchableOpacity } from 'react-native';
+import { View, Text, Platform, TouchableOpacity } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
-import { COLORS, RADIUS, SPACING, shadowStyle } from '../utils/theme';
+import { useAppColors, RADIUS, SPACING, shadowStyle, COLORS } from '../utils/theme';
+import { makeStyles } from '../utils/makeStyles';
 
 export type ToastVariant = 'success' | 'error' | 'warning' | 'info' | 'neutral';
 
@@ -35,24 +28,26 @@ const ICON: Record<ToastVariant, keyof typeof Ionicons.glyphMap> = {
 };
 
 /** Pick per-variant colors from the theme (adaptive). */
-const themeFor = (v: ToastVariant) => {
+const themeFor = (v: ToastVariant, c: typeof COLORS) => {
   switch (v) {
     case 'success':
-      return { accent: COLORS.state.success, bgChip: COLORS.state.successBg, border: COLORS.state.successBorder };
+      return { accent: c.state.success, bgChip: c.state.successBg, border: c.state.successBorder };
     case 'error':
-      return { accent: COLORS.state.danger,  bgChip: COLORS.state.dangerBg,  border: COLORS.state.dangerBorder };
+      return { accent: c.state.danger,  bgChip: c.state.dangerBg,  border: c.state.dangerBorder };
     case 'warning':
-      return { accent: COLORS.state.warning, bgChip: COLORS.state.warningBg, border: COLORS.state.warningBorder };
+      return { accent: c.state.warning, bgChip: c.state.warningBg, border: c.state.warningBorder };
     case 'info':
-      return { accent: COLORS.accent.primary, bgChip: COLORS.accent.primary + '1A', border: COLORS.accent.primary + '33' };
+      return { accent: c.accent.primary, bgChip: c.accent.primary + '1A', border: c.accent.primary + '33' };
     case 'neutral':
     default:
-      return { accent: COLORS.text.muted, bgChip: COLORS.bg.card, border: COLORS.border.subtle };
+      return { accent: c.text.muted, bgChip: c.bg.card, border: c.border.subtle };
   }
 };
 
 const ToastBase: React.FC<BaseProps> = ({ variant, text1, text2, action }) => {
-  const t = themeFor(variant);
+  const c = useAppColors();
+  const styles = useStyles();
+  const t = themeFor(variant, c);
 
   useEffect(() => {
     if (Platform.OS === 'web') return;
@@ -63,15 +58,15 @@ const ToastBase: React.FC<BaseProps> = ({ variant, text1, text2, action }) => {
 
   return (
     <View
-      style={[styles.toast, { backgroundColor: COLORS.bg.secondary, borderColor: t.border }]}
+      style={[styles.toast, { backgroundColor: c.bg.secondary, borderColor: t.border }]}
       accessibilityLiveRegion="polite"
     >
       <View style={[styles.iconChip, { backgroundColor: t.bgChip }]} accessibilityElementsHidden>
         <Ionicons name={ICON[variant]} size={20} color={t.accent} />
       </View>
       <View style={styles.textWrap}>
-        {text1 ? <Text style={[styles.title, { color: COLORS.text.primary }]} numberOfLines={1}>{text1}</Text> : null}
-        {text2 ? <Text style={[styles.message, { color: COLORS.text.muted }]} numberOfLines={2}>{text2}</Text> : null}
+        {text1 ? <Text style={[styles.title, { color: c.text.primary }]} numberOfLines={1}>{text1}</Text> : null}
+        {text2 ? <Text style={[styles.message, { color: c.text.muted }]} numberOfLines={2}>{text2}</Text> : null}
       </View>
       {action ? (
         <TouchableOpacity onPress={action.onPress} hitSlop={8} activeOpacity={0.7}>
@@ -94,7 +89,7 @@ export const toastConfig = {
   neutral: (p: any) => <ToastBase variant="neutral" text1={p.text1} text2={p.text2} action={p.props?.action || null} />,
 };
 
-const styles = StyleSheet.create({
+const useStyles = makeStyles(() => ({
   toast: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -115,4 +110,4 @@ const styles = StyleSheet.create({
   title:   { fontSize: 14.5, fontWeight: '800', letterSpacing: -0.2 },
   message: { fontSize: 12.5, fontWeight: '500', marginTop: 2, lineHeight: 17 },
   action:  { fontSize: 13, fontWeight: '800', paddingHorizontal: 6, paddingVertical: 4, letterSpacing: -0.1 },
-});
+}));

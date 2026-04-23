@@ -22,7 +22,8 @@ import * as Haptics from 'expo-haptics';
 import Toast from 'react-native-toast-message';
 import WeeklyWinCard, { type WeeklyWinCardProps } from './WeeklyWinCard';
 import { shareImageSmart, copyToClipboard } from '../../utils/share';
-import { COLORS } from '../../utils/theme';
+import { useAppColors } from '../../utils/theme';
+import { makeStyles } from '../../utils/makeStyles';
 
 interface Props {
   visible: boolean;
@@ -37,6 +38,8 @@ const DEFAULT_CAPTION = 'Tracking every rupee with MintU — join me: https://mi
 export default function ShareWeeklyWinModal({ visible, onClose, cardProps, caption }: Props) {
   const shotRef = useRef<ViewShot>(null);
   const [sharing, setSharing] = useState(false);
+  const c = useAppColors();
+  const s = useStyles();
 
   const haptic = () => { if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {}); };
 
@@ -75,7 +78,7 @@ export default function ShareWeeklyWinModal({ visible, onClose, cardProps, capti
         {/* Header */}
         <View style={s.header}>
           <TouchableOpacity onPress={onClose} hitSlop={10} accessibilityLabel="Close">
-            <Ionicons name="close" size={26} color={COLORS.text.primary} />
+            <Ionicons name="close" size={26} color={c.text.primary} />
           </TouchableOpacity>
           <Text style={s.hTitle}>Share your win</Text>
           <View style={{ width: 26 }} />
@@ -111,7 +114,7 @@ export default function ShareWeeklyWinModal({ visible, onClose, cardProps, capti
           </TouchableOpacity>
 
           <TouchableOpacity style={s.secondary} onPress={onCopy} activeOpacity={0.8}>
-            <Ionicons name="copy-outline" size={16} color={COLORS.text.primary} />
+            <Ionicons name="copy-outline" size={16} color={c.text.primary} />
             <Text style={s.secondaryTxt}>Copy caption</Text>
           </TouchableOpacity>
 
@@ -130,43 +133,43 @@ function defaultCaption(p: WeeklyWinCardProps): string {
   return `${base} ${p.tagline}\n\nTracked on MintU · https://mintu.app`;
 }
 
-const s = StyleSheet.create({
-  bg: { flex: 1, backgroundColor: COLORS.bg.primary },
+const useStyles = makeStyles((c) => ({
+  bg: { flex: 1, backgroundColor: c.bg.primary },
   header: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
     paddingHorizontal: 16, paddingVertical: 12,
-    borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: COLORS.border.subtle,
+    borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: c.border.subtle,
   },
-  hTitle: { fontSize: 17, fontWeight: '800', color: COLORS.text.primary, letterSpacing: -0.3 },
+  hTitle: { fontSize: 17, fontWeight: '800', color: c.text.primary, letterSpacing: -0.3 },
 
   scroll: { padding: 20, paddingBottom: 40 },
-  eyebrow: { fontSize: 10.5, fontWeight: '900', color: COLORS.text.muted, letterSpacing: 1.2 },
-  subtitle: { fontSize: 14, fontWeight: '600', color: COLORS.text.primary, marginTop: 4, marginBottom: 16 },
+  eyebrow: { fontSize: 10.5, fontWeight: '900', color: c.text.muted, letterSpacing: 1.2 },
+  subtitle: { fontSize: 14, fontWeight: '600', color: c.text.primary, marginTop: 4, marginBottom: 16 },
 
   cardHost: { alignItems: 'center', marginBottom: 18 },
   shotBox: { borderRadius: 28, overflow: 'hidden' },
 
   captionBox: {
-    backgroundColor: COLORS.bg.secondary, borderRadius: 14,
-    padding: 14, borderWidth: StyleSheet.hairlineWidth, borderColor: COLORS.border.subtle,
+    backgroundColor: c.bg.secondary, borderRadius: 14,
+    padding: 14, borderWidth: StyleSheet.hairlineWidth, borderColor: c.border.subtle,
     marginBottom: 18,
   },
-  capLabel: { fontSize: 10, fontWeight: '900', color: COLORS.text.muted, letterSpacing: 1, marginBottom: 6 },
-  capTxt: { fontSize: 13, fontWeight: '600', color: COLORS.text.primary, lineHeight: 19 },
+  capLabel: { fontSize: 10, fontWeight: '900', color: c.text.muted, letterSpacing: 1, marginBottom: 6 },
+  capTxt: { fontSize: 13, fontWeight: '600', color: c.text.primary, lineHeight: 19 },
 
   primary: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8,
-    backgroundColor: COLORS.accent.primary, paddingVertical: 15, borderRadius: 14,
-    shadowColor: COLORS.accent.primary, shadowOpacity: 0.25, shadowRadius: 12, shadowOffset: { width: 0, height: 6 }, elevation: 4,
+    backgroundColor: c.accent.primary, paddingVertical: 15, borderRadius: 14,
+    shadowColor: c.accent.primary, shadowOpacity: 0.25, shadowRadius: 12, shadowOffset: { width: 0, height: 6 }, elevation: 4,
   },
   primaryTxt: { fontSize: 15, fontWeight: '800', color: '#fff', letterSpacing: -0.2 },
 
   secondary: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6,
     marginTop: 10, paddingVertical: 13, borderRadius: 14,
-    borderWidth: 1, borderColor: COLORS.border.subtle,
+    borderWidth: 1, borderColor: c.border.subtle,
   },
-  secondaryTxt: { fontSize: 13.5, fontWeight: '700', color: COLORS.text.primary },
+  secondaryTxt: { fontSize: 13.5, fontWeight: '700', color: c.text.primary },
 
-  hint: { fontSize: 12, fontWeight: '500', color: COLORS.text.muted, marginTop: 16, textAlign: 'center', lineHeight: 17 },
-});
+  hint: { fontSize: 12, fontWeight: '500', color: c.text.muted, marginTop: 16, textAlign: 'center', lineHeight: 17 },
+}));

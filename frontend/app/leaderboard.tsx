@@ -17,7 +17,8 @@ import { router } from 'expo-router';
 import ViewShot, { captureRef } from 'react-native-view-shot';
 import * as Haptics from 'expo-haptics';
 import Toast from 'react-native-toast-message';
-import { COLORS } from '../utils/theme';
+import { useAppColors } from '../utils/theme';
+import { makeStyles } from '../utils/makeStyles';
 import { shareImageSmart } from '../utils/share';
 import PremiumUnlockTeaser from '../components/premium/PremiumUnlockTeaser';
 import useSwr from '../hooks/useSwr';
@@ -52,6 +53,8 @@ export default function LeaderboardScreen() {
   const [refreshing, setRefreshing] = useState(false);
   const [sharing, setSharing] = useState(false);
   const shareRef = useRef<ViewShot>(null);
+  const c = useAppColors();
+  const s = useStyles();
 
   // ── SWR data layer (Round 26+) ─────────────────────────────────────
   // `useSwr` serves cached data instantly, revalidates in background,
@@ -103,7 +106,7 @@ export default function LeaderboardScreen() {
       {/* Header */}
       <View style={styles.header}>
         <TouchableOpacity onPress={() => router.back()} style={styles.iconBtn}>
-          <Ionicons name="chevron-back" size={22} color={COLORS.text.primary} />
+          <Ionicons name="chevron-back" size={22} color={c.text.primary} />
         </TouchableOpacity>
         <View style={{ flex: 1, alignItems: 'center' }}>
           <Text style={styles.title}>Leaderboard</Text>
@@ -115,29 +118,29 @@ export default function LeaderboardScreen() {
           disabled={!data?.you || sharing}
           testID="lb-share-btn"
         >
-          {sharing ? <ActivityIndicator size="small" color={COLORS.accent.primary} /> : <Ionicons name="share-social" size={20} color={COLORS.accent.primary} />}
+          {sharing ? <ActivityIndicator size="small" color={c.accent.primary} /> : <Ionicons name="share-social" size={20} color={c.accent.primary} />}
         </TouchableOpacity>
       </View>
 
       {/* Scope toggle */}
       <View style={styles.toggleRow}>
         <TouchableOpacity style={[styles.tog, scope === 'contacts' && styles.togActive]} onPress={() => switchScope('contacts')} activeOpacity={0.85} testID="lb-scope-contacts">
-          <Ionicons name="people" size={14} color={scope === 'contacts' ? '#fff' : COLORS.text.muted} />
+          <Ionicons name="people" size={14} color={scope === 'contacts' ? '#fff' : c.text.muted} />
           <Text style={[styles.togText, scope === 'contacts' && styles.togTextActive]}>Friends</Text>
         </TouchableOpacity>
         <TouchableOpacity style={[styles.tog, scope === 'global' && styles.togActive]} onPress={() => switchScope('global')} activeOpacity={0.85} testID="lb-scope-global">
-          <Ionicons name="globe" size={14} color={scope === 'global' ? '#fff' : COLORS.text.muted} />
+          <Ionicons name="globe" size={14} color={scope === 'global' ? '#fff' : c.text.muted} />
           <Text style={[styles.togText, scope === 'global' && styles.togTextActive]}>Global</Text>
         </TouchableOpacity>
       </View>
 
       {isLoading ? (
         <View style={styles.loadingWrap}>
-          <ActivityIndicator size="large" color={COLORS.accent.primary} />
+          <ActivityIndicator size="large" color={c.accent.primary} />
         </View>
       ) : !data || data.total === 0 ? (
         <View style={styles.emptyWrap}>
-          <Ionicons name="trophy-outline" size={64} color={COLORS.text.muted} />
+          <Ionicons name="trophy-outline" size={64} color={c.text.muted} />
           <Text style={styles.emptyT}>No one on the board yet</Text>
           <Text style={styles.emptyS}>
             {scope === 'contacts' ? 'Invite friends to Split groups — their scores will appear here.' : 'Be the first mover in your cohort.'}
@@ -146,7 +149,7 @@ export default function LeaderboardScreen() {
       ) : (
         <ScrollView
           contentContainerStyle={{ paddingBottom: 40 }}
-          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={COLORS.accent.primary} />}
+          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={c.accent.primary} />}
         >
           {/* Your Rank Hero Card — wrapped in ViewShot for sharing */}
           {data.you && (
@@ -176,12 +179,12 @@ export default function LeaderboardScreen() {
                   </View>
                   <View style={styles.heroStatDivider} />
                   <View style={styles.heroStat}>
-                    <Text style={[styles.heroStatN, { color: COLORS.accent.moneyIn }]}>🪙 {data.you.coins}</Text>
+                    <Text style={[styles.heroStatN, { color: c.accent.moneyIn }]}>🪙 {data.you.coins}</Text>
                     <Text style={styles.heroStatL}>Coins</Text>
                   </View>
                   <View style={styles.heroStatDivider} />
                   <View style={styles.heroStat}>
-                    <Text style={[styles.heroStatN, { color: COLORS.accent.primaryLight }]}>🤝 {data.you.settlements}</Text>
+                    <Text style={[styles.heroStatN, { color: c.accent.primaryLight }]}>🤝 {data.you.settlements}</Text>
                     <Text style={styles.heroStatL}>Splits</Text>
                   </View>
                 </View>
@@ -206,7 +209,7 @@ export default function LeaderboardScreen() {
                       <View style={[styles.podiumAvatar, isFirst && styles.podiumAvatarFirst]}>
                         <Text style={styles.podiumAvatarT}>{(e.name || '?').charAt(0).toUpperCase()}</Text>
                       </View>
-                      <Text style={[styles.podiumName, e.is_me && { color: COLORS.accent.primary }]} numberOfLines={1}>
+                      <Text style={[styles.podiumName, e.is_me && { color: c.accent.primary }]} numberOfLines={1}>
                         {e.is_me ? 'You' : e.name}
                       </Text>
                       <Text style={styles.podiumScore}>{e.score}</Text>
@@ -226,12 +229,12 @@ export default function LeaderboardScreen() {
               <Text style={styles.sectionTitle}>FULL RANKINGS</Text>
               {rest.map((e) => (
                 <View key={e.id} style={[styles.row, e.is_me && styles.rowMe]}>
-                  <Text style={[styles.rowRank, e.is_me && { color: COLORS.accent.primary }]}>#{e.rank}</Text>
+                  <Text style={[styles.rowRank, e.is_me && { color: c.accent.primary }]}>#{e.rank}</Text>
                   <View style={styles.rowAvatar}>
                     <Text style={styles.rowAvatarT}>{(e.name || '?').charAt(0).toUpperCase()}</Text>
                   </View>
                   <View style={{ flex: 1 }}>
-                    <Text style={[styles.rowName, e.is_me && { color: COLORS.accent.primary, fontWeight: '800' }]} numberOfLines={1}>
+                    <Text style={[styles.rowName, e.is_me && { color: c.accent.primary, fontWeight: '800' }]} numberOfLines={1}>
                       {e.is_me ? 'You' : e.name}
                     </Text>
                     <Text style={styles.rowMeta} numberOfLines={1}>
@@ -253,65 +256,65 @@ export default function LeaderboardScreen() {
   );
 }
 
-const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: COLORS.bg.primary },
+const useStyles = makeStyles((c) => ({
+  container: { flex: 1, backgroundColor: c.bg.primary },
   header: {
     flexDirection: 'row', alignItems: 'center', paddingHorizontal: 12, paddingVertical: 10,
-    backgroundColor: COLORS.bg.secondary, borderBottomWidth: 1, borderBottomColor: COLORS.border.subtle,
+    backgroundColor: c.bg.secondary, borderBottomWidth: 1, borderBottomColor: c.border.subtle,
   },
   iconBtn: { width: 36, height: 36, borderRadius: 18, justifyContent: 'center', alignItems: 'center' },
-  title: { fontSize: 17, fontWeight: '900', color: COLORS.text.primary, letterSpacing: -0.3 },
-  subtitle: { fontSize: 11, color: COLORS.text.muted, marginTop: 2, maxWidth: 260 },
+  title: { fontSize: 17, fontWeight: '900', color: c.text.primary, letterSpacing: -0.3 },
+  subtitle: { fontSize: 11, color: c.text.muted, marginTop: 2, maxWidth: 260 },
 
   toggleRow: {
-    flexDirection: 'row', gap: 8, padding: 12, backgroundColor: COLORS.bg.secondary,
-    borderBottomWidth: 1, borderBottomColor: COLORS.border.subtle,
+    flexDirection: 'row', gap: 8, padding: 12, backgroundColor: c.bg.secondary,
+    borderBottomWidth: 1, borderBottomColor: c.border.subtle,
   },
   tog: {
     flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6,
-    paddingVertical: 10, borderRadius: 999, backgroundColor: COLORS.bg.elevated,
-    borderWidth: 1, borderColor: COLORS.border.subtle,
+    paddingVertical: 10, borderRadius: 999, backgroundColor: c.bg.elevated,
+    borderWidth: 1, borderColor: c.border.subtle,
   },
-  togActive: { backgroundColor: COLORS.accent.primary, borderColor: COLORS.accent.primary },
-  togText: { fontSize: 13, fontWeight: '800', color: COLORS.text.muted },
+  togActive: { backgroundColor: c.accent.primary, borderColor: c.accent.primary },
+  togText: { fontSize: 13, fontWeight: '800', color: c.text.muted },
   togTextActive: { color: '#fff' },
 
   loadingWrap: { flex: 1, justifyContent: 'center', alignItems: 'center' },
   emptyWrap: { flex: 1, justifyContent: 'center', alignItems: 'center', padding: 32, gap: 8 },
-  emptyT: { fontSize: 17, fontWeight: '800', color: COLORS.text.primary, marginTop: 12 },
-  emptyS: { fontSize: 13, color: COLORS.text.secondary, textAlign: 'center', lineHeight: 19, maxWidth: 280 },
+  emptyT: { fontSize: 17, fontWeight: '800', color: c.text.primary, marginTop: 12 },
+  emptyS: { fontSize: 13, color: c.text.secondary, textAlign: 'center', lineHeight: 19, maxWidth: 280 },
 
   // ── Hero Your Rank card (also the share capture target) ────────────
   shareContainer: { margin: 16, borderRadius: 20, overflow: 'hidden' },
   heroCard: {
-    padding: 20, borderRadius: 20, backgroundColor: COLORS.bg.secondary,
-    borderWidth: 1.5, borderColor: COLORS.accent.primary + '40',
+    padding: 20, borderRadius: 20, backgroundColor: c.bg.secondary,
+    borderWidth: 1.5, borderColor: c.accent.primary + '40',
     // Soft orange glow via box-shadow fallback (Android shadow props safe)
   },
   heroLabel: {
-    fontSize: 10, fontWeight: '900', color: COLORS.accent.primary, letterSpacing: 1.8,
+    fontSize: 10, fontWeight: '900', color: c.accent.primary, letterSpacing: 1.8,
     marginBottom: 10,
   },
   heroMainRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 16 },
-  heroRank: { fontSize: 64, fontWeight: '900', color: COLORS.text.primary, letterSpacing: -3, lineHeight: 68 },
-  heroPercentile: { fontSize: 16, fontWeight: '800', color: COLORS.accent.primary },
-  heroScope: { fontSize: 12, fontWeight: '700', color: COLORS.text.muted, marginTop: 2 },
+  heroRank: { fontSize: 64, fontWeight: '900', color: c.text.primary, letterSpacing: -3, lineHeight: 68 },
+  heroPercentile: { fontSize: 16, fontWeight: '800', color: c.accent.primary },
+  heroScope: { fontSize: 12, fontWeight: '700', color: c.text.muted, marginTop: 2 },
   heroStatsRow: {
-    flexDirection: 'row', backgroundColor: COLORS.bg.elevated, borderRadius: 14, padding: 12,
-    borderWidth: 1, borderColor: COLORS.border.subtle, alignItems: 'center',
+    flexDirection: 'row', backgroundColor: c.bg.elevated, borderRadius: 14, padding: 12,
+    borderWidth: 1, borderColor: c.border.subtle, alignItems: 'center',
   },
   heroStat: { flex: 1, alignItems: 'center' },
-  heroStatN: { fontSize: 16, fontWeight: '900', color: COLORS.text.primary },
-  heroStatL: { fontSize: 9.5, fontWeight: '800', color: COLORS.text.muted, marginTop: 3, letterSpacing: 0.4 },
-  heroStatDivider: { width: 1, height: 28, backgroundColor: COLORS.border.subtle },
+  heroStatN: { fontSize: 16, fontWeight: '900', color: c.text.primary },
+  heroStatL: { fontSize: 9.5, fontWeight: '800', color: c.text.muted, marginTop: 3, letterSpacing: 0.4 },
+  heroStatDivider: { width: 1, height: 28, backgroundColor: c.border.subtle },
   heroBrand: {
-    fontSize: 10, fontWeight: '800', color: COLORS.text.muted, textAlign: 'center',
+    fontSize: 10, fontWeight: '800', color: c.text.muted, textAlign: 'center',
     letterSpacing: 0.6, marginTop: 14,
   },
 
   // ── Podium ─────────────────────────────────────────────────────────
   sectionTitle: {
-    fontSize: 11, fontWeight: '900', color: COLORS.text.muted, letterSpacing: 1.5,
+    fontSize: 11, fontWeight: '900', color: c.text.muted, letterSpacing: 1.5,
     marginLeft: 18, marginTop: 18, marginBottom: 10,
   },
   podiumWrap: { marginTop: 4 },
@@ -321,7 +324,7 @@ const styles = StyleSheet.create({
   },
   podiumItem: {
     flex: 1, alignItems: 'center', padding: 10, marginHorizontal: 4, borderRadius: 14,
-    backgroundColor: COLORS.bg.secondary, borderWidth: 1, borderColor: COLORS.border.subtle,
+    backgroundColor: c.bg.secondary, borderWidth: 1, borderColor: c.border.subtle,
     gap: 4, minHeight: 130,
   },
   podiumItemFirst: {
@@ -330,32 +333,32 @@ const styles = StyleSheet.create({
   },
   podiumMedal: { fontSize: 28 },
   podiumAvatar: {
-    width: 44, height: 44, borderRadius: 22, backgroundColor: COLORS.accent.primary + '24',
+    width: 44, height: 44, borderRadius: 22, backgroundColor: c.accent.primary + '24',
     justifyContent: 'center', alignItems: 'center', marginTop: 2,
   },
   podiumAvatarFirst: { backgroundColor: '#FFD54F40', borderWidth: 1.5, borderColor: '#FFD54F' },
-  podiumAvatarT: { fontSize: 18, fontWeight: '900', color: COLORS.text.primary },
-  podiumName: { fontSize: 12, fontWeight: '800', color: COLORS.text.primary, marginTop: 4, maxWidth: 90 },
-  podiumScore: { fontSize: 15, fontWeight: '900', color: COLORS.accent.primary, marginTop: 2 },
+  podiumAvatarT: { fontSize: 18, fontWeight: '900', color: c.text.primary },
+  podiumName: { fontSize: 12, fontWeight: '800', color: c.text.primary, marginTop: 4, maxWidth: 90 },
+  podiumScore: { fontSize: 15, fontWeight: '900', color: c.accent.primary, marginTop: 2 },
 
   // ── List ───────────────────────────────────────────────────────────
   listWrap: { marginHorizontal: 16, gap: 6, marginBottom: 12 },
   row: {
     flexDirection: 'row', alignItems: 'center', gap: 10, padding: 12, borderRadius: 14,
-    backgroundColor: COLORS.bg.secondary, borderWidth: 1, borderColor: COLORS.border.subtle,
+    backgroundColor: c.bg.secondary, borderWidth: 1, borderColor: c.border.subtle,
   },
-  rowMe: { borderColor: COLORS.accent.primary + '66', backgroundColor: COLORS.accent.primary + '12' },
-  rowRank: { fontSize: 13, fontWeight: '900', color: COLORS.text.muted, minWidth: 32 },
+  rowMe: { borderColor: c.accent.primary + '66', backgroundColor: c.accent.primary + '12' },
+  rowRank: { fontSize: 13, fontWeight: '900', color: c.text.muted, minWidth: 32 },
   rowAvatar: {
-    width: 34, height: 34, borderRadius: 17, backgroundColor: COLORS.accent.primary + '22',
+    width: 34, height: 34, borderRadius: 17, backgroundColor: c.accent.primary + '22',
     justifyContent: 'center', alignItems: 'center',
   },
-  rowAvatarT: { fontSize: 13, fontWeight: '900', color: COLORS.text.primary },
-  rowName: { fontSize: 13.5, fontWeight: '700', color: COLORS.text.primary },
-  rowMeta: { fontSize: 10.5, color: COLORS.text.muted, marginTop: 2, fontWeight: '600' },
-  rowScore: { fontSize: 16, fontWeight: '900', color: COLORS.accent.primary, minWidth: 42, textAlign: 'right' },
+  rowAvatarT: { fontSize: 13, fontWeight: '900', color: c.text.primary },
+  rowName: { fontSize: 13.5, fontWeight: '700', color: c.text.primary },
+  rowMeta: { fontSize: 10.5, color: c.text.muted, marginTop: 2, fontWeight: '600' },
+  rowScore: { fontSize: 16, fontWeight: '900', color: c.accent.primary, minWidth: 42, textAlign: 'right' },
 
   footerNote: {
-    fontSize: 11, color: COLORS.text.muted, textAlign: 'center', marginTop: 20, fontWeight: '600',
+    fontSize: 11, color: c.text.muted, textAlign: 'center', marginTop: 20, fontWeight: '600',
   },
-});
+}));

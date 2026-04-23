@@ -20,7 +20,8 @@ import Toast from 'react-native-toast-message';
 import { router } from 'expo-router';
 import api from '../../utils/api';
 import { useAuthStore } from '../../store/authStore';
-import { COLORS } from '../../utils/theme';
+import { useAppColors } from '../../utils/theme';
+import { makeStyles } from '../../utils/makeStyles';
 
 type Mode = 'soft' | 'hard';
 
@@ -34,6 +35,8 @@ const DeleteAccountTrigger = forwardRef<DeleteAccountTriggerRef>((_props, ref) =
   const [confirmation, setConfirmation] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const { logout } = useAuthStore();
+  const c = useAppColors();
+  const s = useStyles();
 
   useImperativeHandle(ref, () => ({
     open: () => setSheetOpen(true),
@@ -166,14 +169,14 @@ const DeleteAccountTrigger = forwardRef<DeleteAccountTriggerRef>((_props, ref) =
                 value={confirmation}
                 onChangeText={setConfirmation}
                 placeholder="DELETE"
-                placeholderTextColor={COLORS.text.muted}
+                placeholderTextColor={c.text.muted}
                 autoCapitalize="characters"
                 style={[s.input, s.dangerInput, confirmation === 'DELETE' && s.dangerInputValid]}
                 testID="del-hard-confirm"
               />
               <View style={s.actions}>
                 <TouchableOpacity style={[s.btn, s.btnGhost]} onPress={() => setModalMode(null)} activeOpacity={0.85}>
-                  <Text style={[s.btnT, { color: COLORS.text.primary }]}>Keep my account</Text>
+                  <Text style={[s.btnT, { color: c.text.primary }]}>Keep my account</Text>
                 </TouchableOpacity>
                 <TouchableOpacity
                   style={[s.btn, s.btnDanger, confirmation !== 'DELETE' && { opacity: 0.4 }]}
@@ -196,7 +199,7 @@ const DeleteAccountTrigger = forwardRef<DeleteAccountTriggerRef>((_props, ref) =
 DeleteAccountTrigger.displayName = 'DeleteAccountTrigger';
 export default DeleteAccountTrigger;
 
-const s = StyleSheet.create({
+const useStyles = makeStyles((c) => ({
   backdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.55)', justifyContent: 'flex-end' },
   sheet: { backgroundColor: '#fff', borderTopLeftRadius: 24, borderTopRightRadius: 24, padding: 20, paddingBottom: 28 },
   grip: { width: 40, height: 4, borderRadius: 2, backgroundColor: '#E5E7EB', alignSelf: 'center', marginBottom: 12 },
@@ -235,4 +238,4 @@ const s = StyleSheet.create({
   typeHintBold: { fontWeight: '900', color: '#EF4444', letterSpacing: 1 },
   dangerInput: { borderColor: '#FCA5A5', borderWidth: 1.5, fontWeight: '900', letterSpacing: 3, fontSize: 16, textAlign: 'center' },
   dangerInputValid: { borderColor: '#EF4444', backgroundColor: '#FEE2E2' },
-});
+}));

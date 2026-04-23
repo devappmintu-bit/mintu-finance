@@ -21,7 +21,7 @@ import {
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { BottomSheetModalProvider } from '@gorhom/bottom-sheet';
 import { PortalProvider } from '@gorhom/portal';
-import { COLORS } from '../utils/theme';
+import { useAppColors } from '../utils/theme';
 import ErrorBoundary from '../components/ErrorBoundary';
 
 // Silence noisy, non-actionable deprecation warnings from RN core + libs.
@@ -56,7 +56,7 @@ export default function RootLayout() {
   const loadLang = useLangStore((state) => state.loadLang);
   const loadThemePref = useThemePref((state) => state.loadFromStorage);
   const resolvedTheme = useThemePref((state) => state.resolved);
-  const themeReady    = useThemePref((state) => state.ready);
+  const c = useAppColors();
 
   // Load Inter font family — premium-feeling, bundled via @expo-google-fonts/inter
   const [fontsLoaded] = useFonts({
@@ -106,25 +106,25 @@ export default function RootLayout() {
     return () => clearTimeout(t);
   }, []);
   if (!fontsLoaded && !fontsTimeout) {
-    return <View style={{ flex: 1, backgroundColor: COLORS.bg.primary }} />;
+    return <View style={{ flex: 1, backgroundColor: c.bg.primary }} />;
   }
 
   return (
-    <GestureHandlerRootView style={{ flex: 1, backgroundColor: COLORS.bg.primary }}>
+    <GestureHandlerRootView style={{ flex: 1, backgroundColor: c.bg.primary }}>
       <ErrorBoundary>
       <PortalProvider>
         <BottomSheetModalProvider>
           {/*
-            Theme engine remount key — when the resolved theme flips
-            (light ↔ dark), React unmounts + remounts the Stack subtree so
-            every screen's StyleSheet.create re-runs against the freshly
-            mutated COLORS proxy. This is what actually makes 60+ screens
-            re-theme without per-screen code changes.
+            Round 30b: the previous Stack `key={resolvedTheme}` hard-remount
+            is GONE. All 14 previously-legacy screens have been migrated to
+            useAppColors + makeStyles, so they re-read theme tokens
+            reactively — no unmount required. Benefit: theme toggle now
+            preserves scroll position, in-flight network state, and keyboard
+            focus across the entire app.
           */}
           <StatusBar style={resolvedTheme === 'light' ? 'dark' : 'light'} />
           <Stack
-            key={themeReady ? resolvedTheme : 'boot'}
-            screenOptions={{ headerShown: false, animation: 'fade', contentStyle: { backgroundColor: COLORS.bg.primary } }}
+            screenOptions={{ headerShown: false, animation: 'fade', contentStyle: { backgroundColor: c.bg.primary } }}
           >
             <Stack.Screen name="index" />
             <Stack.Screen name="onboarding" />

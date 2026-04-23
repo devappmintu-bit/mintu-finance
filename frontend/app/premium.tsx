@@ -15,7 +15,7 @@ import api from '../utils/api';
 import { COLORS } from '../utils/theme';
 import { useActivePlan, FEATURES, canAccess, PLAN_META } from '../utils/premium';
 import type { Plan } from '../utils/premium';
-import { premiumStyles as styles } from '../components/premium/styles';
+import { usePremiumStyles } from '../components/premium/styles';
 import { Chip, LockedState } from '../components/premium/Shared';
 import PlansView from '../components/premium/PlansView';
 import TaxCalculator from '../components/premium/TaxCalculator';
@@ -24,6 +24,7 @@ import InvestmentSuggester from '../components/premium/InvestmentSuggester';
 type Tab = 'plans' | 'tax' | 'invest' | 'school';
 
 export default function PremiumHub() {
+  const styles = usePremiumStyles();
   const [tab, setTab] = useState<Tab>('plans');
   const [plan] = useActivePlan();
   const [savings, setSavings] = useState(1275);

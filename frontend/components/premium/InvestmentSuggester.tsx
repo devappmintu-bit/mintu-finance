@@ -7,10 +7,11 @@ import Toast from 'react-native-toast-message';
 import api from '../../utils/api';
 import { COLORS } from '../../utils/theme';
 import { useActivePlan, FEATURES, canAccess } from '../../utils/premium';
-import { premiumStyles as styles, fmtINR } from './styles';
+import { usePremiumStyles, fmtINR } from './styles';
 import { LockedState } from './Shared';
 
 export default function InvestmentSuggester() {
+  const styles = usePremiumStyles();
   const [plan] = useActivePlan();
   const locked = !canAccess(FEATURES.INVESTMENT_SUGGESTER, plan);
   const [risk, setRisk] = useState<'conservative' | 'moderate' | 'aggressive'>('moderate');

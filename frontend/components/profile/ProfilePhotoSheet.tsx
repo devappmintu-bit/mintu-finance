@@ -1,14 +1,6 @@
 /**
  * ProfilePhotoSheet — Samsung Health–style action sheet for profile avatar CUD.
- *
- * Options:
- *   • Take Photo         — opens device camera (expo-image-picker)
- *   • Choose from Gallery — opens device library
- *   • Remove Photo       — visible only when an avatar exists
- *   • Cancel
- *
- * Self-contained: handles all permission prompts and base64 extraction,
- * returns results via the `onPicked` / `onRemoved` callbacks.
+ * Round 30b: migrated to makeStyles + useAppColors.
  */
 import React from 'react';
 import {
@@ -17,7 +9,8 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
 import * as Haptics from 'expo-haptics';
-import { COLORS } from '../../utils/theme';
+import { useAppColors } from '../../utils/theme';
+import { makeStyles } from '../../utils/makeStyles';
 
 interface Props {
   visible: boolean;
@@ -28,6 +21,8 @@ interface Props {
 }
 
 export default function ProfilePhotoSheet({ visible, hasAvatar, onClose, onPicked, onRemoved }: Props) {
+  const c = useAppColors();
+  const s = useStyles();
   const haptic = () => { if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {}); };
 
   const handleCamera = async () => {
@@ -46,7 +41,7 @@ export default function ProfilePhotoSheet({ visible, hasAvatar, onClose, onPicke
         onPicked(`data:image/jpeg;base64,${result.assets[0].base64}`);
         onClose();
       }
-    } catch (e) {
+    } catch {
       Alert.alert('Camera error', 'Could not open camera. Please try again.');
     }
   };
@@ -66,7 +61,7 @@ export default function ProfilePhotoSheet({ visible, hasAvatar, onClose, onPicke
         onPicked(`data:image/jpeg;base64,${result.assets[0].base64}`);
         onClose();
       }
-    } catch (e) {
+    } catch {
       Alert.alert('Photo error', 'Could not open photo library. Please try again.');
     }
   };
@@ -100,13 +95,17 @@ export default function ProfilePhotoSheet({ visible, hasAvatar, onClose, onPicke
               icon="camera-outline"
               label="Take Photo"
               onPress={handleCamera}
-              accent={COLORS.accent.primary}
+              accent={c.accent.primary}
+              mutedColor={c.text.muted}
+              styles={s}
             />
             <Action
               icon="images-outline"
               label="Choose from Gallery"
               onPress={handleLibrary}
               accent="#6366F1"
+              mutedColor={c.text.muted}
+              styles={s}
             />
             {hasAvatar ? (
               <Action
@@ -114,6 +113,8 @@ export default function ProfilePhotoSheet({ visible, hasAvatar, onClose, onPicke
                 label="Remove Photo"
                 onPress={handleRemove}
                 accent="#EF4444"
+                mutedColor={c.text.muted}
+                styles={s}
                 destructive
               />
             ) : null}
@@ -129,44 +130,52 @@ export default function ProfilePhotoSheet({ visible, hasAvatar, onClose, onPicke
 }
 
 function Action({
-  icon, label, onPress, accent, destructive,
-}: { icon: keyof typeof Ionicons.glyphMap; label: string; onPress: () => void; accent: string; destructive?: boolean }) {
+  icon, label, onPress, accent, destructive, mutedColor, styles,
+}: {
+  icon: keyof typeof Ionicons.glyphMap;
+  label: string;
+  onPress: () => void;
+  accent: string;
+  destructive?: boolean;
+  mutedColor: string;
+  styles: ReturnType<typeof useStyles>;
+}) {
   return (
-    <TouchableOpacity style={s.action} onPress={onPress} activeOpacity={0.7}>
-      <View style={[s.iconWrap, { backgroundColor: accent + '1A', borderColor: accent + '33' }]}>
+    <TouchableOpacity style={styles.action} onPress={onPress} activeOpacity={0.7}>
+      <View style={[styles.iconWrap, { backgroundColor: accent + '1A', borderColor: accent + '33' }]}>
         <Ionicons name={icon} size={22} color={accent} />
       </View>
-      <Text style={[s.actionTxt, destructive && { color: accent }]} numberOfLines={1}>{label}</Text>
-      <Ionicons name="chevron-forward" size={18} color={COLORS.text.muted} />
+      <Text style={[styles.actionTxt, destructive && { color: accent }]} numberOfLines={1}>{label}</Text>
+      <Ionicons name="chevron-forward" size={18} color={mutedColor} />
     </TouchableOpacity>
   );
 }
 
-const s = StyleSheet.create({
+const useStyles = makeStyles((c) => ({
   backdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.55)', justifyContent: 'flex-end' },
   sheet: {
-    backgroundColor: COLORS.bg.secondary,
+    backgroundColor: c.bg.secondary,
     borderTopLeftRadius: 28, borderTopRightRadius: 28,
     paddingHorizontal: 20, paddingTop: 10, paddingBottom: Platform.OS === 'ios' ? 32 : 20,
   },
-  handle: { width: 40, height: 4, borderRadius: 2, backgroundColor: COLORS.border.subtle, alignSelf: 'center', marginBottom: 14 },
-  title: { fontSize: 20, fontWeight: '800', color: COLORS.text.primary, letterSpacing: -0.4 },
-  subtitle: { fontSize: 13, fontWeight: '500', color: COLORS.text.muted, marginTop: 2, marginBottom: 18 },
+  handle: { width: 40, height: 4, borderRadius: 2, backgroundColor: c.border.subtle, alignSelf: 'center', marginBottom: 14 },
+  title: { fontSize: 20, fontWeight: '800', color: c.text.primary, letterSpacing: -0.4 },
+  subtitle: { fontSize: 13, fontWeight: '500', color: c.text.muted, marginTop: 2, marginBottom: 18 },
 
   grid: { gap: 10 },
   action: {
     flexDirection: 'row', alignItems: 'center', gap: 14,
-    backgroundColor: COLORS.bg.primary,
+    backgroundColor: c.bg.primary,
     borderRadius: 16, paddingVertical: 14, paddingHorizontal: 14,
-    borderWidth: StyleSheet.hairlineWidth, borderColor: COLORS.border.subtle,
+    borderWidth: StyleSheet.hairlineWidth, borderColor: c.border.subtle,
   },
   iconWrap: {
     width: 42, height: 42, borderRadius: 21,
     alignItems: 'center', justifyContent: 'center',
     borderWidth: 1,
   },
-  actionTxt: { flex: 1, fontSize: 15.5, fontWeight: '700', color: COLORS.text.primary, letterSpacing: -0.2 },
+  actionTxt: { flex: 1, fontSize: 15.5, fontWeight: '700', color: c.text.primary, letterSpacing: -0.2 },
 
   cancel: { marginTop: 14, paddingVertical: 14, alignItems: 'center', borderRadius: 14 },
-  cancelTxt: { fontSize: 15, fontWeight: '700', color: COLORS.text.muted },
-});
+  cancelTxt: { fontSize: 15, fontWeight: '700', color: c.text.muted },
+}));

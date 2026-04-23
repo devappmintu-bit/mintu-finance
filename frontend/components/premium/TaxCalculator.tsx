@@ -7,10 +7,11 @@ import Toast from 'react-native-toast-message';
 import api from '../../utils/api';
 import { COLORS } from '../../utils/theme';
 import { useActivePlan, FEATURES, canAccess } from '../../utils/premium';
-import { premiumStyles as styles, fmtINR } from './styles';
+import { usePremiumStyles, fmtINR } from './styles';
 import { LockedState } from './Shared';
 
 export default function TaxCalculator() {
+  const styles = usePremiumStyles();
   const [plan] = useActivePlan();
   const locked = !canAccess(FEATURES.TAX_CALCULATOR, plan);
   const [income, setIncome] = useState('1200000');

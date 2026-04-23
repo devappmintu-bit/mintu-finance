@@ -24,7 +24,8 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { router } from 'expo-router';
 import * as Haptics from 'expo-haptics';
 import Toast from 'react-native-toast-message';
-import { COLORS } from '../utils/theme';
+import { useAppColors } from '../utils/theme';
+import { makeStyles } from '../utils/makeStyles';
 import Confetti from '../components/Confetti';
 import RewardsHero from '../components/rewards/RewardsHero';
 import TierCard from '../components/rewards/TierCard';
@@ -52,6 +53,8 @@ export default function RewardsHubScreen() {
   const [confetti, setConfetti] = useState(false);
   const [lastWin, setLastWin] = useState<any>(null);
   const spinRef = useRef<SpinWheelHandle>(null);
+  const c = useAppColors();
+  const s = useStyles();
 
   const load = useCallback(async () => {
     try {
@@ -141,7 +144,7 @@ export default function RewardsHubScreen() {
   if (loading) {
     return (
       <SafeAreaView style={[s.container, { alignItems: 'center', justifyContent: 'center' }]}>
-        <ActivityIndicator color={COLORS.accent.primary} size="large" />
+        <ActivityIndicator color={c.accent.primary} size="large" />
       </SafeAreaView>
     );
   }
@@ -172,7 +175,7 @@ export default function RewardsHubScreen() {
       <Confetti trigger={confetti} />
       <ScrollView
         contentContainerStyle={s.scroll}
-        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={COLORS.accent.primary} />}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={c.accent.primary} />}
         showsVerticalScrollIndicator={false}
       >
         <RewardsHero
@@ -344,7 +347,7 @@ function hoursToMidnight() {
   return Math.max(1, Math.round((midnight.getTime() - now.getTime()) / (1000 * 60 * 60)));
 }
 
-const s = StyleSheet.create({
+const useStyles = makeStyles((c) => ({
   container: { flex: 1, backgroundColor: '#FFFBF5' },
   scroll: { paddingBottom: 40 },
   section: { paddingHorizontal: 16, marginTop: 16 },
@@ -367,4 +370,4 @@ const s = StyleSheet.create({
   winLbl: { fontSize: 11, fontWeight: '800', color: '#374151', textAlign: 'center' },
   winBadge: { position: 'absolute', top: 6, right: 6, paddingHorizontal: 6, paddingVertical: 2, borderRadius: 999, backgroundColor: '#10B981' },
   winBadgeTxt: { fontSize: 8, fontWeight: '900', color: '#fff', letterSpacing: 0.4 },
-});
+}));
