@@ -42,6 +42,7 @@ import RemindSheet from '../../components/split/RemindSheet';
 import RewardModal from '../../components/split/RewardModal';
 import EmptyState from '../../components/ui/EmptyState';
 import useSwr from '../../hooks/useSwr';
+import PremiumUnlockTeaser from '../../components/premium/PremiumUnlockTeaser';
 
 export default function SplitScreen() {
   const s = useStyles();
@@ -493,6 +494,8 @@ export default function SplitScreen() {
 
         {/* AI-powered insights carousel — makes the tab lively & addictive */}
         <SplitInsightsHero />
+        {/* Premium teaser — surfaces group spending insights for non-Pro (auto-hides for Pro) */}
+        {groups.length > 0 && <PremiumUnlockTeaser context="split_insights" />}
 
         <SettleUpCard
           rows={settleRows}

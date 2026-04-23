@@ -33,6 +33,7 @@ import { COLORS } from '../utils/theme';
 import { makeStyles } from '../utils/makeStyles';
 import { FlashList } from '@shopify/flash-list';
 import { fetchPremiumStatus } from '../services/premium';
+import PremiumUnlockTeaser from './premium/PremiumUnlockTeaser';
 
 type ChatMsg = { role: 'user' | 'ai'; text: string; loading?: boolean; agent?: string; agentEmoji?: string; ts?: number; isFallback?: boolean };
 
@@ -310,6 +311,8 @@ export default function AICoachChat({ onClose }: { onClose?: () => void }) {
         {/* Empty-state big chip grid */}
         {showBigChips && (
           <ScrollView style={{ maxHeight: 260 }} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
+            {/* Unlimited-chats teaser — auto-hides for Pro users */}
+            <PremiumUnlockTeaser context="ai_unlimited" />
             <Text style={s.chipSection}>📊 ANALYZE MY MONEY</Text>
             <View style={s.chipsWrap}>
               {PERSONAL_CHIPS.map((c, i) => (

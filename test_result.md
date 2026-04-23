@@ -9813,3 +9813,36 @@ agent_communication:
       • When FCM/MSG91/WhatsApp keys provided → graduate P2
         integrations from mocked to real.
 
+
+agent_communication:
+  - agent: "main"
+    message: |
+      ✅ PremiumUnlockTeaser extended — 3 new placements.
+
+      • BUDGET (/app/frontend/app/(tabs)/budget.tsx):
+        Inserted `context="budget_forecast"` teaser after BudgetSummaryDonut
+        in the ListHeaderComponent. Shows 🔮 "90-day spending forecast"
+        with PRO badge. Visually verified via screenshot — crisp
+        rendering on dark theme.
+
+      • AI COACH (/app/frontend/components/AICoachChat.tsx):
+        Inserted `context="ai_unlimited"` teaser at the top of the
+        empty-state big-chip grid (before ANALYZE MY MONEY section).
+        Shows ♾️ "Unlimited AI chats" with PRO badge — auto-hides when
+        user is already Pro.
+
+      • SPLIT (/app/frontend/app/(tabs)/split.tsx):
+        Inserted `context="split_insights"` teaser immediately after
+        SplitInsightsHero but only when `groups.length > 0` (no empty-
+        state noise). Shows 🔍 "Group spending insights" with PRO
+        badge.
+
+      All three placements reuse the existing PremiumUnlockTeaser
+      component. Auto-hides for Pro users via useActivePlan(). No new
+      API calls, no backend changes, no new deps.
+
+      Next Action Items:
+      • Ready for any further feature requests from user.
+      • Backlog unchanged — remaining P2 integrations (FCM/MSG91/
+        WhatsApp) blocked on external API keys.
+

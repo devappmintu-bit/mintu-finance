@@ -28,6 +28,7 @@ import EmptyState from '../../components/ui/EmptyState';
 import SheetHeader from '../../components/ui/SheetHeader';
 import PrimaryButton from '../../components/ui/PrimaryButton';
 import GlassSheet, { GlassSheetHandle } from '../../components/ui/GlassSheet';
+import PremiumUnlockTeaser from '../../components/premium/PremiumUnlockTeaser';
 import { useLangStore } from '../../store/langStore';
 import { t } from '../../utils/i18n';
 import Toast from 'react-native-toast-message';
@@ -273,7 +274,8 @@ export default function BudgetScreen() {
             {/* Donut chart + legend — primary summary per design ask.
                 "Budget Health" + "Watching" cards were removed. */}
             <BudgetSummaryDonut budgets={budgets} />
-            {/* Summary row removed — totals now in BudgetHero */}
+            {/* Premium forecast teaser — non-intrusive for free users, auto-hides for Pro */}
+            <PremiumUnlockTeaser context="budget_forecast" />
             {/* AI Suggestions */}
             {suggestions?.suggestions?.length > 0 && (
               <View style={s.suggestCard}>
