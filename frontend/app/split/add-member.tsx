@@ -59,10 +59,33 @@ const SEARCH_DEBOUNCE_MS = 280;
 
 const normalizePhone = (p?: string) => (p || '').replace(/\D/g, '').slice(-10);
 
+/** Display-friendly initials. Handles:
+ *   - real names ("Rahul Kumar" → "RK")
+ *   - phone-only contacts ("+91 8787949794" → "87")  (last 2 digits)
+ *   - empty / unknown ("?")
+ * Avoids the ancient bug where "+91 8787..." produced "+8" initials.
+ */
 const getInitials = (name?: string) => {
   if (!name) return '?';
-  const parts = name.trim().split(/\s+/).slice(0, 2);
-  return parts.map(p => p[0]).join('').toUpperCase() || '?';
+  // Strip anything that's not a letter. If what's left is empty, the input
+  // was phone-only — fall back to last 2 digits of the phone.
+  const letters = name.trim().split(/\s+/)
+    .map(p => (p.match(/[A-Za-z\u00C0-\u024F]/) || [''])[0])
+    .filter(Boolean)
+    .slice(0, 2)
+    .join('')
+    .toUpperCase();
+  if (letters) return letters;
+  const digits = (name.match(/\d/g) || []).join('');
+  return digits.slice(-2) || '?';
+};
+
+/** Short display label for a contact when only a phone is known. */
+const displayLabel = (c: { name?: string; phone?: string }) => {
+  const n = (c.name || '').trim();
+  if (n && n !== c.phone) return n;
+  const digits = normalizePhone(c.phone);
+  return digits ? `+91 ${digits.slice(0, 5)} ${digits.slice(5)}` : (c.phone || 'Unknown');
 };
 
 /**
@@ -397,7 +420,9 @@ export default function AddMemberScreen() {
         </TouchableOpacity>
         <View style={{ alignItems: 'center', flex: 1 }}>
           <Text style={s.title}>Add members</Text>
-          <Text style={s.groupName} numberOfLines={1}>to {group?.name}</Text>
+          {group?.name ? (
+            <Text style={s.groupName} numberOfLines={1}>to {group.name}</Text>
+          ) : null}
         </View>
         <View style={{ width: 36 }} />
       </View>
@@ -438,7 +463,7 @@ export default function AddMemberScreen() {
                   <View style={s.chipAvatar}>
                     <Text style={s.chipInitials}>{getInitials(item.name)}</Text>
                   </View>
-                  <Text style={s.chipTxt} numberOfLines={1}>{item.name}</Text>
+                  <Text style={s.chipTxt} numberOfLines={1}>{displayLabel(item)}</Text>
                   <TouchableOpacity onPress={() => toggleContact(item)} hitSlop={6} accessibilityLabel={`Remove ${item.name}`}>
                     <Ionicons name="close" size={14} color={COLORS.accent.primary} />
                   </TouchableOpacity>

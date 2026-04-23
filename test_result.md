@@ -10244,3 +10244,87 @@ agent_communication:
       implementation are production-ready. Visual verification confirms 
       compliance with design requirements.
 
+
+agent_communication:
+  - agent: "main"
+    message: |
+      ✅ Split E2E — Round 28: Real-device bug sweep.
+      (User shared 5 device screenshots showing 4 concrete bugs not
+      caught by my earlier code-review audit.)
+
+      BUGS FIXED:
+
+      1) AVATAR INITIALS "+8" / "+91" for phone-only contacts
+         Root cause: getInitials("+91 8787949794") → split on whitespace,
+         take first char of each word → ["+", "8"] → "+8".
+         Fix: new getInitials() strips non-letter chars first; falls
+         back to LAST TWO DIGITS of phone when no name letters exist.
+         Also fixed in:
+         - add-member chip display (now uses displayLabel() which
+           shows "+91 87879 49794" instead of raw string)
+         - ContactPickerSheet avatar stack (line 270 bug — c.name[0]
+           returned "+" for phone-only. Now uses same letter-first /
+           last-digit fallback logic.)
+
+      2) "Add members to ___" header empty tail when group name missing
+         Before: always rendered `to {group?.name}` → if group still
+         loading, showed trailing empty "to" line.
+         Fix: conditionally render only when group?.name is truthy.
+
+      3) Permanently disabled "Split" CTA in groups with 1 member
+         User created a solo group "Hostel (1 member)" then tapped Add
+         Expense → form loaded but CTA was always disabled (0 split
+         members). Now the add-expense screen detects members.length < 2
+         and renders a friendly empty state: 🙋 "Add members to split
+         with · {group.name} only has you right now" + primary CTA
+         "Add members" (routes to /split/add-member?group_id=…).
+         GroupChat's ExpensesTab empty state also now branches on
+         member count: solo groups get the "Just you in this group"
+         nudge instead of the generic "No expenses yet" copy.
+
+      4) 404 polling LOOP on deleted/left groups (biggest perf bug)
+         Backend logs showed endless 404 hits for
+         /api/split/groups/<id>/messages|summary|manage after a group
+         was deleted — two client tabs × 3 endpoints × every 5s.
+         Root cause: loadMessages / loadSummary in GroupChat had
+         `catch {}` so errors silently vanished and intervals kept
+         firing. Also, openSummary/openManage in (tabs)/split.tsx had
+         the same silent-catch anti-pattern.
+         Fix:
+         - GroupChat now has a `goneRef` flag; once ANY request 404s
+           it flips the flag (halts further polls), closes the sheet
+           via onClose(), and toasts "Group no longer available".
+         - openSummary / openManage now detect 404, purge the group
+           from local groups state, reset modal/selectedGroup/chatGroup,
+           and toast the user.
+
+      FILES TOUCHED:
+      - /app/frontend/app/split/add-member.tsx
+        (getInitials v2, normalizePhone, displayLabel helper, chip uses
+         displayLabel, conditional "to" render)
+      - /app/frontend/app/split/add-expense.tsx
+        (members.length < 2 empty-state with "Add members" CTA)
+      - /app/frontend/components/GroupChat.tsx
+        (goneRef on loadMessages+loadSummary; 404 halts polling + closes)
+      - /app/frontend/components/split/ContactPickerSheet.tsx
+        (avatar initial computation; last-digit fallback for phones)
+      - /app/frontend/components/split/ExpensesTab.tsx
+        (empty-state branches on member count)
+      - /app/frontend/app/(tabs)/split.tsx
+        (openSummary + openManage 404-aware purge)
+
+      VERIFICATION:
+      - Backend logs after restart: NO MORE 404 loops on the deleted
+        group id 69e98c6c99ec4fe1aed46e6f. Traffic now only hits the
+        LIVE group 69e9af17b9a2f0c867010710 with 200s.
+      - Rename + delete + manage flows confirmed working in logs
+        (200 on PUT /name and subsequent GET /manage).
+
+      NO BACKEND CHANGES. No new deps.
+
+      Next Action Items:
+      • Frontend visual re-verification (expo_frontend_testing_agent)
+        for: phone-only contact avatar, solo-group add-expense empty
+        state, deleted-group 404 auto-close — on user approval.
+      • Backlog: FCM / MSG91 / WhatsApp P2 integrations (keys needed).
+

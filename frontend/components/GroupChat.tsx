@@ -49,25 +49,42 @@ export default function GroupChat({ group, onClose, onAddExpense, onManage, onEd
   const [summary, setSummary] = useState<any>(null);
   const flatRef = useRef<FlashList<any>>(null);
 
+  // When true, further polls halt — the group is gone (deleted / user
+  // removed). Prevents the 404-spam loops we were seeing in backend logs.
+  const goneRef = useRef(false);
+
   const loadMessages = useCallback(async () => {
+    if (goneRef.current) return;
     try {
       const res = await api.get(`/split/groups/${group.id}/messages`);
       setMessages(res.data || []);
-    } catch { }
-  }, [group.id]);
+    } catch (e: any) {
+      if (e?.response?.status === 404) {
+        goneRef.current = true;
+        Toast.show({ type: 'info', text1: 'Group no longer available' });
+        try { onClose(); } catch {}
+      }
+    }
+  }, [group.id, onClose]);
 
   const loadSummary = useCallback(async () => {
+    if (goneRef.current) return;
     try {
       const res = await api.get(`/split/groups/${group.id}/summary`);
       setSummary(res.data);
-    } catch { }
-  }, [group.id]);
+    } catch (e: any) {
+      if (e?.response?.status === 404) {
+        goneRef.current = true;
+        try { onClose(); } catch {}
+      }
+    }
+  }, [group.id, onClose]);
 
-  useEffect(() => { loadMessages(); loadSummary(); }, []);
+  useEffect(() => { goneRef.current = false; loadMessages(); loadSummary(); }, [group.id]);
 
-  // Poll for new messages every 5s
+  // Poll for new messages every 5s — short-circuits once group is gone
   useEffect(() => {
-    const interval = setInterval(loadMessages, 5000);
+    const interval = setInterval(() => { if (!goneRef.current) loadMessages(); }, 5000);
     return () => clearInterval(interval);
   }, [loadMessages]);
 

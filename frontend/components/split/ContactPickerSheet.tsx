@@ -265,11 +265,19 @@ export default function ContactPickerSheet({ visible, onClose, onCreate }: Props
                   <Text style={{ fontSize: 40 }}>{previewAvatar}</Text>
                 </LinearGradient>
                 <View style={s.avatarStack}>
-                  {selected.slice(0, 6).map((c, i) => (
-                    <View key={c.id} style={[s.sAv, { backgroundColor: MEMBER_COLORS[i % MEMBER_COLORS.length] + '20', marginLeft: i === 0 ? 0 : -12, zIndex: 6 - i }]}>
-                      <Text style={[s.sAvT, { color: MEMBER_COLORS[i % MEMBER_COLORS.length] }]}>{c.name[0].toUpperCase()}</Text>
-                    </View>
-                  ))}
+                  {selected.slice(0, 6).map((c, i) => {
+                    // Extract the first letter; fall back to last digit of the
+                    // phone for phone-only contacts (previously rendered "+").
+                    const n = (c.name || '').trim();
+                    const firstLetter = (n.match(/[A-Za-z\u00C0-\u024F]/) || [''])[0];
+                    const lastDigit = ((n.match(/\d/g) || []).slice(-1)[0]) || '?';
+                    const ch = (firstLetter || lastDigit).toUpperCase();
+                    return (
+                      <View key={c.id} style={[s.sAv, { backgroundColor: MEMBER_COLORS[i % MEMBER_COLORS.length] + '20', marginLeft: i === 0 ? 0 : -12, zIndex: 6 - i }]}>
+                        <Text style={[s.sAvT, { color: MEMBER_COLORS[i % MEMBER_COLORS.length] }]}>{ch}</Text>
+                      </View>
+                    );
+                  })}
                   {selected.length > 6 && (
                     <View style={[s.sAv, { backgroundColor: COLORS.bg.secondary, marginLeft: -12 }]}>
                       <Text style={[s.sAvT, { color: C.text3 }]}>+{selected.length - 6}</Text>

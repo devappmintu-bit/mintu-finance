@@ -310,11 +310,27 @@ export default function SplitScreen() {
   // SUMMARY & MANAGE
   const openSummary = async (gr: any) => {
     try { const d = await fetchGroupSummary(gr.id); setGroupSummary(d); setSelectedGroup(gr); setModal('summary'); }
-    catch { Toast.show({ type: 'error', text1: 'Error', text2: 'Could not load' }); }
+    catch (e: any) {
+      if (e?.response?.status === 404) {
+        setGroups((prev) => prev.filter((g) => g.id !== gr.id));
+        setModal(''); setSelectedGroup(null); setChatGroup(null);
+        Toast.show({ type: 'info', text1: 'Group no longer available' });
+      } else {
+        Toast.show({ type: 'error', text1: 'Error', text2: 'Could not load' });
+      }
+    }
   };
   const openManage = async (gr: any) => {
     try { const d = await fetchGroupManage(gr.id); setGroupManage(d); setSelectedGroup(gr); setModal('manage'); }
-    catch { Toast.show({ type: 'error', text1: 'Error', text2: 'Could not load' }); }
+    catch (e: any) {
+      if (e?.response?.status === 404) {
+        setGroups((prev) => prev.filter((g) => g.id !== gr.id));
+        setModal(''); setSelectedGroup(null); setChatGroup(null);
+        Toast.show({ type: 'info', text1: 'Group no longer available' });
+      } else {
+        Toast.show({ type: 'error', text1: 'Error', text2: 'Could not load' });
+      }
+    }
   };
 
   // PAYMENTS

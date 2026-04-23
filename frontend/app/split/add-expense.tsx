@@ -211,6 +211,49 @@ export default function AddExpenseScreen() {
 
   if (loading) return <SafeAreaView style={s.container}><ActivityIndicator style={{ flex: 1 }} color={COLORS.accent.primary} /></SafeAreaView>;
 
+  // ── Empty-state: group has 0 or 1 member (creator only) ─────────────
+  // Rendering the form would leave the user with a permanently-disabled
+  // "Split" button (nothing to divide among). Route them to Add Members
+  // first with a friendly nudge.
+  if (members.length < 2) {
+    return (
+      <SafeAreaView style={s.container}>
+        <View style={s.header}>
+          <TouchableOpacity onPress={() => router.back()} style={s.closeBtn} testID="add-expense-close">
+            <Ionicons name="close" size={22} color={COLORS.text.primary} />
+          </TouchableOpacity>
+          <Text style={s.title}>New expense</Text>
+          <View style={{ width: 36 }} />
+        </View>
+        <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', padding: 24, gap: 12 }}>
+          <View style={{ width: 72, height: 72, borderRadius: 36, backgroundColor: COLORS.accent.primary + '22', alignItems: 'center', justifyContent: 'center' }}>
+            <Ionicons name="people" size={36} color={COLORS.accent.primary} />
+          </View>
+          <Text style={{ fontSize: 18, fontWeight: '800', color: COLORS.text.primary, textAlign: 'center' }}>
+            Add members to split with
+          </Text>
+          <Text style={{ fontSize: 13, color: COLORS.text.secondary, textAlign: 'center', lineHeight: 19, maxWidth: 300 }}>
+            {group?.name ? `"${group.name}"` : 'This group'} only has you right now. Invite at least one friend so MintU can split the expense between you.
+          </Text>
+          <TouchableOpacity
+            style={{ marginTop: 10, flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: COLORS.accent.primary, paddingVertical: 14, paddingHorizontal: 24, borderRadius: 999 }}
+            onPress={() => {
+              if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
+              router.replace({ pathname: '/split/add-member', params: { group_id: String(params.group_id) } } as any);
+            }}
+            testID="add-expense-goto-members"
+          >
+            <Ionicons name="person-add" size={16} color="#fff" />
+            <Text style={{ fontSize: 15, fontWeight: '800', color: '#fff' }}>Add members</Text>
+          </TouchableOpacity>
+          <TouchableOpacity onPress={() => router.back()} style={{ marginTop: 4 }}>
+            <Text style={{ fontSize: 13, fontWeight: '600', color: COLORS.text.muted }}>Cancel</Text>
+          </TouchableOpacity>
+        </View>
+      </SafeAreaView>
+    );
+  }
+
   return (
     <SafeAreaView style={s.container}>
       <Confetti trigger={showConfetti} onDone={() => setShowConfetti(false)} />

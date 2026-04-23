@@ -246,9 +246,22 @@ export default function ExpensesTab({ summary, currentUserId, onAddExpense, onEd
       {/* Empty state */}
       {!summary?.simplified_debts?.length && !orderedExpenses.length && (
         <View style={s.empty}>
-          <Text style={{ fontSize: 34 }}>🧾</Text>
-          <Text style={s.emptyTitle}>No expenses yet</Text>
-          <Text style={s.emptySub}>Add your first shared expense and MintU will split it evenly.</Text>
+          {(summary?.members?.length || 0) <= 1 ? (
+            <>
+              <Text style={{ fontSize: 40 }}>🙋</Text>
+              <Text style={s.emptyTitle}>Just you in this group</Text>
+              <Text style={s.emptySub}>
+                Add at least one friend so MintU can split expenses between you.
+                Tap the 👥 icon above, or use "Add expense" and we'll walk you through it.
+              </Text>
+            </>
+          ) : (
+            <>
+              <Text style={{ fontSize: 34 }}>🧾</Text>
+              <Text style={s.emptyTitle}>No expenses yet</Text>
+              <Text style={s.emptySub}>Add your first shared expense and MintU will split it evenly.</Text>
+            </>
+          )}
         </View>
       )}
     </ScrollView>
