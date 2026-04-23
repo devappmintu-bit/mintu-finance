@@ -109,50 +109,73 @@ async def get_split_groups(user_id: str = Depends(get_current_user)):
 
 @api_router.post("/split/groups/{group_id}/members")
 async def add_members_to_group(group_id: str, data: dict, user_id: str = Depends(get_current_user)):
+    """Add new members to an existing split group.
+
+    Hardened (Round 30): No longer auto-creates placeholder user docs for
+    unregistered phones — that created a spam vector (any caller could
+    flood the users collection by adding random phones). Instead we now
+    mirror the contract of POST /split/groups: registered phones become
+    real members, unregistered phones go into `pending_invites` and
+    auto-convert to members when that phone signs up later.
+    """
     if not ObjectId.is_valid(group_id):
         raise HTTPException(status_code=400, detail="Invalid group_id")
-    """Add new members to an existing split group — auto-creates users if not registered"""
     phones = data.get("phones", [])
     if not phones:
         raise HTTPException(status_code=400, detail="Provide phone numbers to add")
-    
+
     group = await db.split_groups.find_one({"_id": ObjectId(group_id), "members.user_id": user_id})
     if not group:
         raise HTTPException(status_code=404, detail="Group not found")
-    
-    existing_phones = {m.get("phone", "") for m in group["members"]}
-    added = []
-    
+
+    existing_phones = {m.get("phone", "") for m in group.get("members", [])}
+    existing_invites = {pi.get("phone", "") for pi in (group.get("pending_invites") or [])}
+    added: list = []
+    invited: list = []
+
     for phone in phones:
         p = phone.strip().replace("+91", "").replace(" ", "")[-10:]
         if len(p) != 10 or not p.isdigit():
             continue
-        if p in existing_phones:
+        if p in existing_phones or p in existing_invites:
             continue
-            
+
         member = await db.users.find_one({"phone": p})
-        if not member:
-            # Create placeholder user for unregistered phone
-            result = await db.users.insert_one({
+        if member:
+            new_member = {
+                "user_id": str(member["_id"]),
+                "name": member.get("name", f"+91 {p}"),
                 "phone": p,
-                "name": f"User {p[-4:]}",
-                "money_score": 50,
-                "streak_days": 0,
-                "created_at": datetime.utcnow(),
-                "reward_coins": 0,
-                "settlement_count": 0,
-            })
-            member = {"_id": result.inserted_id, "name": f"User {p[-4:]}", "phone": p}
-        
-        new_member = {"user_id": str(member["_id"]), "name": member.get("name", f"User {p[-4:]}"), "phone": p}
-        await db.split_groups.update_one({"_id": ObjectId(group_id)}, {"$push": {"members": new_member}})
-        existing_phones.add(p)
-        added.append(new_member["name"])
-    
-    if not added:
-        return {"added": [], "message": "No new members to add (already in group or invalid numbers)"}
-    
-    return {"added": added, "message": f"Added {len(added)} member(s): {', '.join(added)}"}
+            }
+            await db.split_groups.update_one(
+                {"_id": ObjectId(group_id)},
+                {"$push": {"members": new_member}},
+            )
+            existing_phones.add(p)
+            added.append(new_member["name"])
+        else:
+            # Not a registered user yet — queue as pending invite, do NOT
+            # auto-create a placeholder user doc (spam vector closed).
+            await db.split_groups.update_one(
+                {"_id": ObjectId(group_id)},
+                {"$push": {"pending_invites": {"phone": p, "invited_at": datetime.utcnow()}}},
+            )
+            existing_invites.add(p)
+            invited.append(f"+91 {p}")
+
+    if not added and not invited:
+        return {
+            "added": [],
+            "invited": [],
+            "message": "No new members to add (already in group or invalid numbers)",
+        }
+
+    parts = []
+    if added:
+        parts.append(f"Added {len(added)} member(s): {', '.join(added)}")
+    if invited:
+        parts.append(f"Invited {len(invited)} pending: {', '.join(invited)}")
+    return {"added": added, "invited": invited, "message": " · ".join(parts)}
 
 
 

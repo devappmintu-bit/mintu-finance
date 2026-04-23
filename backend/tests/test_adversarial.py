@@ -226,3 +226,139 @@ async def test_f5_coin_no_dedupe_backcompat():
         h = bearer(u["token"])
         r = await client.post(f"{API}/coins/award", json={"action": "open_app_daily"}, headers=h)
         assert r.status_code == 200
+
+
+# ─── F6 — Split expense IDOR (edit/delete must be member + creator/payer/admin) ─
+@pytest.mark.asyncio
+async def test_f6_expense_idor_outsider_blocked():
+    """A logged-in user who is NOT in the group cannot delete/edit an expense
+    by ObjectId enumeration. Must 404 (not leak info, not mutate)."""
+    async with httpx.AsyncClient(timeout=30) as client:
+        a = await register(client)
+        b = await register(client)
+        outsider = await register(client)
+        # A and B create a group and B adds an expense paid by B (owed by both)
+        gr = await client.post(
+            f"{API}/split/groups",
+            json={"name": "idor-grp", "members": [b["phone"]]},
+            headers=bearer(a["token"]),
+        )
+        assert gr.status_code == 200
+        group = gr.json()
+        exp = await client.post(
+            f"{API}/split/expenses",
+            json={
+                "group_id": group["id"], "paid_by": b["user_id"],
+                "description": "lunch", "amount": 400, "split_type": "equal",
+                "splits": {a["user_id"]: 200, b["user_id"]: 200},
+            },
+            headers=bearer(b["token"]),
+        )
+        assert exp.status_code == 200
+        eid = exp.json()["id"]
+
+        # Outsider tries to DELETE — must 404 (no leak) and not actually delete
+        r = await client.delete(f"{API}/split/expenses/{eid}", headers=bearer(outsider["token"]))
+        assert r.status_code in (403, 404), f"Outsider DELETE should be 403/404, got {r.status_code}"
+        # Outsider tries to PUT — must 404/403
+        r = await client.put(
+            f"{API}/split/expenses/{eid}",
+            json={"amount": 99999, "description": "hijacked"},
+            headers=bearer(outsider["token"]),
+        )
+        assert r.status_code in (403, 404), f"Outsider PUT should be 403/404, got {r.status_code}"
+        # Expense must still exist and be unchanged
+        fetch = await client.get(f"{API}/split/groups/{group['id']}/expenses", headers=bearer(a["token"]))
+        assert fetch.status_code == 200
+        expenses = fetch.json().get("expenses", [])
+        still = next((e for e in expenses if e.get("id") == eid), None)
+        assert still is not None, "Expense was deleted by outsider — IDOR exploit!"
+        assert still.get("amount") == 400, f"Expense amount mutated by outsider: {still.get('amount')}"
+        assert still.get("description") == "lunch"
+
+
+@pytest.mark.asyncio
+async def test_f6_expense_non_creator_member_blocked():
+    """Even a group MEMBER can't edit/delete an expense they didn't create or pay.
+    Only creator, payer, or group admin should succeed."""
+    async with httpx.AsyncClient(timeout=30) as client:
+        a = await register(client)  # group admin
+        b = await register(client)  # regular member
+        c = await register(client)  # another regular member (3-person group)
+        # a creates group with b and c
+        gr = await client.post(
+            f"{API}/split/groups",
+            json={"name": "3p-grp", "members": [b["phone"], c["phone"]]},
+            headers=bearer(a["token"]),
+        )
+        assert gr.status_code == 200
+        group = gr.json()
+        # b adds an expense (b is payer + creator)
+        exp = await client.post(
+            f"{API}/split/expenses",
+            json={
+                "group_id": group["id"], "paid_by": b["user_id"],
+                "description": "b's bill", "amount": 300, "split_type": "equal",
+                "splits": {a["user_id"]: 100, b["user_id"]: 100, c["user_id"]: 100},
+            },
+            headers=bearer(b["token"]),
+        )
+        assert exp.status_code == 200
+        eid = exp.json()["id"]
+        # c (a regular member, not creator/payer/admin) tries to delete
+        r = await client.delete(f"{API}/split/expenses/{eid}", headers=bearer(c["token"]))
+        assert r.status_code == 403, f"Non-creator member DELETE should be 403, got {r.status_code}"
+        # admin (a) CAN delete
+        r = await client.delete(f"{API}/split/expenses/{eid}", headers=bearer(a["token"]))
+        assert r.status_code == 200, f"Group admin DELETE should succeed, got {r.status_code}"
+
+
+# ─── F7 — Razorpay verify-settle idempotency ─────────────────────────
+@pytest.mark.asyncio
+async def test_f7_razorpay_verify_rejects_bad_signature():
+    """Direct POST with fake signature must 400 (signature verification layer).
+    This is the outer gate that also protects the inner idempotency check."""
+    async with httpx.AsyncClient(timeout=15) as client:
+        r = await client.post(
+            f"{API}/split/verify-settle-payment",
+            json={"order_id": "order_fake", "payment_id": "pay_fake", "signature": "bad"},
+        )
+        # Either 400 (signature failed) or 404 (order not found), both reject the replay
+        assert r.status_code in (400, 404), f"Expected rejection, got {r.status_code}: {r.text}"
+
+
+# ─── F8 — Group members endpoint no longer auto-creates users ────────
+@pytest.mark.asyncio
+async def test_f8_add_members_pending_invite_not_autocreate():
+    """POST /split/groups/{id}/members for an unregistered phone should queue a
+    pending invite, NOT create a placeholder user doc with `User XXXX` name.
+    Prevents users-table spam vector."""
+    async with httpx.AsyncClient(timeout=30) as client:
+        a = await register(client)
+        b = await register(client)
+        unregistered_phone = fresh_phone()  # brand-new, not in users
+        gr = await client.post(
+            f"{API}/split/groups",
+            json={"name": "invite-grp", "members": [b["phone"]]},
+            headers=bearer(a["token"]),
+        )
+        assert gr.status_code == 200
+        group = gr.json()
+        # Try to add unregistered phone via members endpoint
+        r = await client.post(
+            f"{API}/split/groups/{group['id']}/members",
+            json={"phones": [unregistered_phone]},
+            headers=bearer(a["token"]),
+        )
+        assert r.status_code == 200, f"add-members should succeed, got {r.status_code}"
+        body = r.json()
+        # Either `invited` is populated or `added` is empty with an invite queued
+        assert "invited" in body or body.get("added") == [], \
+            f"Response must expose invited list or empty added, got {body}"
+        # Critical: phone must NOT have become a registered user. Sign up with that
+        # phone should say is_new_user=True (would be False if we auto-created).
+        send = await client.post(f"{API}/auth/send-otp", json={"phone": unregistered_phone})
+        assert send.status_code == 200
+        assert send.json().get("is_new_user") is True, \
+            "Phone was auto-created as a user — spam vector still open!"
+

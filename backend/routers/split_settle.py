@@ -6,11 +6,13 @@ on the same FastAPI APIRouter instance — no endpoint paths change.
 """
 import logging
 import uuid as uuid_lib
+from contextlib import asynccontextmanager
 from datetime import datetime, timedelta
 from urllib.parse import quote, quote_plus
 from typing import List, Optional, Dict, Any
 from bson import ObjectId
 from fastapi import Depends, HTTPException
+from pymongo.errors import DuplicateKeyError
 
 from core import db, get_current_user
 from core.upi import mask_upi_id
@@ -19,6 +21,38 @@ from routers.split_common import (
     SplitGroupCreate, SplitExpenseCreate, SettlePayment,
     SETTLEMENT_REWARDS, SETTLEMENT_BADGES,
 )
+
+
+# ─── Debt-pair advisory lock (Round 30 race fix) ──────────────────────
+# MongoDB-native mutex: inserting a doc with the pair's `_id` succeeds
+# for the first caller; concurrent inserts DuplicateKeyError → we 429.
+# The lock doc auto-expires via TTL index (see server.py startup) so a
+# crashed request can't block the pair forever.
+def _settle_lock_key(user_id: str, target_user_id: str, group_id: Optional[str]) -> str:
+    pair = ":".join(sorted([user_id or "", target_user_id or ""]))
+    return f"settle:{pair}:{group_id or '*'}"
+
+
+@asynccontextmanager
+async def _settle_lock(user_id: str, target_user_id: str, group_id: Optional[str]):
+    """Acquire a short-lived advisory lock for this (payer, payee, group) tuple.
+
+    Prevents TOCTOU races between `compute_outstanding_debt` and
+    `settlements.insert_one` under concurrent settle attempts. First
+    caller wins; others get HTTP 429.
+    """
+    key = _settle_lock_key(user_id, target_user_id, group_id)
+    try:
+        await db.settle_locks.insert_one({"_id": key, "at": datetime.utcnow()})
+    except DuplicateKeyError:
+        raise HTTPException(status_code=429, detail="Another settlement is in progress, please retry")
+    try:
+        yield
+    finally:
+        try:
+            await db.settle_locks.delete_one({"_id": key})
+        except Exception:
+            pass
 
 
 # ============== COIN REDEMPTION FOR SPLIT PAYMENTS ==============
@@ -265,26 +299,27 @@ async def settle_payment(data: SettlePayment, user_id: str = Depends(get_current
         raise HTTPException(status_code=400, detail="Invalid target_user_id")
     if data.amount is None or data.amount <= 0:
         raise HTTPException(status_code=400, detail="Amount must be positive")
-    outstanding = await compute_outstanding_debt(user_id, data.target_user_id, data.group_id)
-    if outstanding <= 0:
-        raise HTTPException(status_code=400, detail="No outstanding debt to settle")
-    if data.amount > outstanding + 0.5:  # allow ₹0.50 rounding slack
-        raise HTTPException(status_code=400, detail=f"Amount exceeds outstanding ₹{outstanding:.2f}")
+    async with _settle_lock(user_id, data.target_user_id, data.group_id):
+        outstanding = await compute_outstanding_debt(user_id, data.target_user_id, data.group_id)
+        if outstanding <= 0:
+            raise HTTPException(status_code=400, detail="No outstanding debt to settle")
+        if data.amount > outstanding + 0.5:  # allow ₹0.50 rounding slack
+            raise HTTPException(status_code=400, detail=f"Amount exceeds outstanding ₹{outstanding:.2f}")
 
-    settlement = {
-        "payer_id": user_id,
-        "payee_id": data.target_user_id,
-        "amount": data.amount,
-        "method": data.method,
-        "txn_ref": data.txn_ref or f"MINTU{uuid_lib.uuid4().hex[:8].upper()}",
-        "group_id": data.group_id,
-        "status": "completed",
-        "settled_at": datetime.utcnow(),
-        "created_at": datetime.utcnow()
-    }
-    
-    result = await db.settlements.insert_one(settlement)
-    settlement["id"] = str(result.inserted_id)
+        settlement = {
+            "payer_id": user_id,
+            "payee_id": data.target_user_id,
+            "amount": data.amount,
+            "method": data.method,
+            "txn_ref": data.txn_ref or f"MINTU{uuid_lib.uuid4().hex[:8].upper()}",
+            "group_id": data.group_id,
+            "status": "completed",
+            "settled_at": datetime.utcnow(),
+            "created_at": datetime.utcnow()
+        }
+
+        result = await db.settlements.insert_one(settlement)
+        settlement["id"] = str(result.inserted_id)
     
     # Get names safely
     payer_name = "You"
@@ -365,32 +400,33 @@ async def partial_settle(data: dict, user_id: str = Depends(get_current_user)):
         raise HTTPException(status_code=400, detail="target_user_id and positive amount required")
     if not ObjectId.is_valid(target_user_id):
         raise HTTPException(status_code=400, detail="Invalid target_user_id")
-    # Phantom-settle + double-settle guard (Round 29)
-    outstanding = await compute_outstanding_debt(user_id, target_user_id, group_id)
-    if outstanding <= 0:
-        raise HTTPException(status_code=400, detail="No outstanding debt to settle")
-    if amount > outstanding + 0.5:
-        raise HTTPException(status_code=400, detail=f"Amount exceeds outstanding ₹{outstanding:.2f}")
+    async with _settle_lock(user_id, target_user_id, group_id):
+        # Phantom-settle + double-settle guard (Round 29, locked Round 30)
+        outstanding = await compute_outstanding_debt(user_id, target_user_id, group_id)
+        if outstanding <= 0:
+            raise HTTPException(status_code=400, detail="No outstanding debt to settle")
+        if amount > outstanding + 0.5:
+            raise HTTPException(status_code=400, detail=f"Amount exceeds outstanding ₹{outstanding:.2f}")
 
-    redemption = await _apply_split_coin_redemption(user_id, amount, coins_to_use)
+        redemption = await _apply_split_coin_redemption(user_id, amount, coins_to_use)
 
-    settlement = {
-        "payer_id": user_id,
-        "payee_id": target_user_id,
-        "amount": amount,
-        "cash_paid": redemption["effective_amount"],
-        "coin_discount": redemption["discount"],
-        "coins_applied": redemption["coins_applied"],
-        "method": method,
-        "txn_ref": f"PART-{uuid_lib.uuid4().hex[:8].upper()}",
-        "group_id": group_id,
-        "note": note,
-        "is_partial": True,
-        "status": "completed",
-        "settled_at": datetime.utcnow(),
-        "created_at": datetime.utcnow(),
-    }
-    result = await db.settlements.insert_one(settlement)
+        settlement = {
+            "payer_id": user_id,
+            "payee_id": target_user_id,
+            "amount": amount,
+            "cash_paid": redemption["effective_amount"],
+            "coin_discount": redemption["discount"],
+            "coins_applied": redemption["coins_applied"],
+            "method": method,
+            "txn_ref": f"PART-{uuid_lib.uuid4().hex[:8].upper()}",
+            "group_id": group_id,
+            "note": note,
+            "is_partial": True,
+            "status": "completed",
+            "settled_at": datetime.utcnow(),
+            "created_at": datetime.utcnow(),
+        }
+        result = await db.settlements.insert_one(settlement)
 
     # Coin reward proportional to amount (max 5 coins for partial)
     coins_earned = min(5, max(1, int(amount / 500)))
@@ -460,40 +496,41 @@ async def settle_with_rewards(data: SettlePayment, user_id: str = Depends(get_cu
         raise HTTPException(status_code=400, detail="Invalid target_user_id")
     if data.amount is None or data.amount <= 0:
         raise HTTPException(status_code=400, detail="Amount must be positive")
-    # Phantom-settle + double-settle guard (Round 29)
-    outstanding = await compute_outstanding_debt(user_id, data.target_user_id, data.group_id)
-    if outstanding <= 0:
-        raise HTTPException(status_code=400, detail="No outstanding debt to settle")
-    if data.amount > outstanding + 0.5:
-        raise HTTPException(status_code=400, detail=f"Amount exceeds outstanding ₹{outstanding:.2f}")
+    async with _settle_lock(user_id, data.target_user_id, data.group_id):
+        # Phantom-settle + double-settle guard (Round 29, locked Round 30)
+        outstanding = await compute_outstanding_debt(user_id, data.target_user_id, data.group_id)
+        if outstanding <= 0:
+            raise HTTPException(status_code=400, detail="No outstanding debt to settle")
+        if data.amount > outstanding + 0.5:
+            raise HTTPException(status_code=400, detail=f"Amount exceeds outstanding ₹{outstanding:.2f}")
 
-    # Calculate reward tier
-    reward = SETTLEMENT_REWARDS["on_time"]
-    for tier_key, tier in SETTLEMENT_REWARDS.items():
-        reward = tier
-        break  # Give best available reward for now
+        # Calculate reward tier
+        reward = SETTLEMENT_REWARDS["on_time"]
+        for tier_key, tier in SETTLEMENT_REWARDS.items():
+            reward = tier
+            break  # Give best available reward for now
 
-    # Apply coin redemption first (deducts from balance). Debt still cleared fully.
-    redemption = await _apply_split_coin_redemption(user_id, data.amount, int(data.coins_to_use or 0))
+        # Apply coin redemption first (deducts from balance). Debt still cleared fully.
+        redemption = await _apply_split_coin_redemption(user_id, data.amount, int(data.coins_to_use or 0))
 
-    settlement = {
-        "payer_id": user_id,
-        "payee_id": data.target_user_id,
-        "amount": data.amount,
-        "cash_paid": redemption["effective_amount"],
-        "coin_discount": redemption["discount"],
-        "coins_applied": redemption["coins_applied"],
-        "method": data.method,
-        "txn_ref": data.txn_ref or f"MINTU{uuid_lib.uuid4().hex[:8].upper()}",
-        "group_id": data.group_id,
-        "status": "completed",
-        "coins_earned": reward["coins"],
-        "reward_label": reward["label"],
-        "settled_at": datetime.utcnow(),
-        "created_at": datetime.utcnow()
-    }
+        settlement = {
+            "payer_id": user_id,
+            "payee_id": data.target_user_id,
+            "amount": data.amount,
+            "cash_paid": redemption["effective_amount"],
+            "coin_discount": redemption["discount"],
+            "coins_applied": redemption["coins_applied"],
+            "method": data.method,
+            "txn_ref": data.txn_ref or f"MINTU{uuid_lib.uuid4().hex[:8].upper()}",
+            "group_id": data.group_id,
+            "status": "completed",
+            "coins_earned": reward["coins"],
+            "reward_label": reward["label"],
+            "settled_at": datetime.utcnow(),
+            "created_at": datetime.utcnow()
+        }
 
-    result = await db.settlements.insert_one(settlement)
+        result = await db.settlements.insert_one(settlement)
 
     # Update user's reward coins
     await db.users.update_one(
@@ -769,34 +806,35 @@ async def mark_paid_offline(data: dict, user_id: str = Depends(get_current_user)
         raise HTTPException(status_code=400, detail="target_user_id and positive amount required")
     if not ObjectId.is_valid(target_user_id):
         raise HTTPException(status_code=400, detail="Invalid target_user_id")
-    # Phantom-settle + double-settle guard (Round 29)
-    outstanding = await compute_outstanding_debt(user_id, target_user_id, group_id)
-    if outstanding <= 0:
-        raise HTTPException(status_code=400, detail="No outstanding debt to settle")
-    if amount > outstanding + 0.5:
-        raise HTTPException(status_code=400, detail=f"Amount exceeds outstanding ₹{outstanding:.2f}")
+    async with _settle_lock(user_id, target_user_id, group_id):
+        # Phantom-settle + double-settle guard (Round 29, locked Round 30)
+        outstanding = await compute_outstanding_debt(user_id, target_user_id, group_id)
+        if outstanding <= 0:
+            raise HTTPException(status_code=400, detail="No outstanding debt to settle")
+        if amount > outstanding + 0.5:
+            raise HTTPException(status_code=400, detail=f"Amount exceeds outstanding ₹{outstanding:.2f}")
 
-    # Apply coin redemption (deducts coins from balance). Still settle the FULL
-    # debt amount — coins cover a discount on the actual cash outflow.
-    redemption = await _apply_split_coin_redemption(user_id, amount, coins_to_use)
+        # Apply coin redemption (deducts coins from balance). Still settle the FULL
+        # debt amount — coins cover a discount on the actual cash outflow.
+        redemption = await _apply_split_coin_redemption(user_id, amount, coins_to_use)
 
-    settlement = {
-        "payer_id": user_id,
-        "payee_id": target_user_id,
-        "amount": amount,
-        "cash_paid": redemption["effective_amount"],
-        "coin_discount": redemption["discount"],
-        "coins_applied": redemption["coins_applied"],
-        "method": method,
-        "txn_ref": f"OFFLINE-{uuid_lib.uuid4().hex[:8].upper()}",
-        "group_id": group_id,
-        "note": note,
-        "status": "completed",
-        "is_offline": True,
-        "settled_at": datetime.utcnow(),
-        "created_at": datetime.utcnow(),
-    }
-    result = await db.settlements.insert_one(settlement)
+        settlement = {
+            "payer_id": user_id,
+            "payee_id": target_user_id,
+            "amount": amount,
+            "cash_paid": redemption["effective_amount"],
+            "coin_discount": redemption["discount"],
+            "coins_applied": redemption["coins_applied"],
+            "method": method,
+            "txn_ref": f"OFFLINE-{uuid_lib.uuid4().hex[:8].upper()}",
+            "group_id": group_id,
+            "note": note,
+            "status": "completed",
+            "is_offline": True,
+            "settled_at": datetime.utcnow(),
+            "created_at": datetime.utcnow(),
+        }
+        result = await db.settlements.insert_one(settlement)
 
     # Award smaller coin reward for offline settlements (1 coin, honor system)
     try:

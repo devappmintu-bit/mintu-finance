@@ -235,9 +235,31 @@ async def group_expense_summary(group_id: str, user_id: str = Depends(get_curren
 
 @api_router.delete("/split/expenses/{expense_id}")
 async def delete_expense(expense_id: str, user_id: str = Depends(get_current_user)):
+    """Delete a split expense.
+
+    Hardened (Round 30 IDOR fix):
+      • Must be a member of the group the expense belongs to.
+      • Must be either the creator of the expense, the payer, OR the group admin
+        (group.created_by). Prevents any random MintU user from deleting
+        expenses in groups they don't belong to simply by guessing the ObjectId.
+    """
     if not ObjectId.is_valid(expense_id):
         raise HTTPException(status_code=400, detail="Invalid expense_id")
-    """Delete a split expense"""
+    existing = await db.split_expenses.find_one({"_id": ObjectId(expense_id)})
+    if not existing:
+        raise HTTPException(status_code=404, detail="Expense not found")
+    group = await db.split_groups.find_one({
+        "_id": ObjectId(existing["group_id"]),
+        "members.user_id": user_id,
+    }) if ObjectId.is_valid(str(existing.get("group_id") or "")) else None
+    if not group:
+        # Caller is not a group member — treat as not-found to avoid enumeration.
+        raise HTTPException(status_code=404, detail="Expense not found")
+    is_creator = existing.get("created_by") == user_id
+    is_payer = existing.get("paid_by") == user_id
+    is_admin = group.get("created_by") == user_id
+    if not (is_creator or is_payer or is_admin):
+        raise HTTPException(status_code=403, detail="Only the expense creator, payer, or group admin can delete this expense")
     await db.split_expenses.delete_one({"_id": ObjectId(expense_id)})
     return {"message": "Expense deleted"}
 
@@ -245,12 +267,28 @@ async def delete_expense(expense_id: str, user_id: str = Depends(get_current_use
 
 @api_router.put("/split/expenses/{expense_id}")
 async def edit_expense(expense_id: str, data: dict, user_id: str = Depends(get_current_user)):
+    """Edit a split expense — full support for amount/splits/split_type/description/category.
+
+    Hardened (Round 30 IDOR fix):
+      • Caller must be a group member.
+      • Caller must be either the expense creator, the payer, OR the group admin.
+    """
     if not ObjectId.is_valid(expense_id):
         raise HTTPException(status_code=400, detail="Invalid expense_id")
-    """Edit a split expense — full support for amount/splits/split_type/description/category."""
     existing = await db.split_expenses.find_one({"_id": ObjectId(expense_id)})
     if not existing:
         raise HTTPException(status_code=404, detail="Expense not found")
+    group = await db.split_groups.find_one({
+        "_id": ObjectId(existing["group_id"]),
+        "members.user_id": user_id,
+    }) if ObjectId.is_valid(str(existing.get("group_id") or "")) else None
+    if not group:
+        raise HTTPException(status_code=404, detail="Expense not found")
+    is_creator = existing.get("created_by") == user_id
+    is_payer = existing.get("paid_by") == user_id
+    is_admin = group.get("created_by") == user_id
+    if not (is_creator or is_payer or is_admin):
+        raise HTTPException(status_code=403, detail="Only the expense creator, payer, or group admin can edit this expense")
 
     updates: Dict = {}
     if "description" in data: updates["description"] = data["description"]

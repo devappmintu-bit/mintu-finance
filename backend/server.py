@@ -346,22 +346,13 @@ def create_token(user_id: str) -> str:
 
 
 async def get_current_user(authorization: str = Header(...)) -> str:
-    """Hardened: rejects tokens with missing/invalid `user_id` → 401, never 500."""
-    try:
-        if not isinstance(authorization, str) or not authorization.startswith("Bearer "):
-            raise HTTPException(status_code=401, detail="Invalid authorization format")
-        token = authorization.replace("Bearer ", "").strip()
-        if not token:
-            raise HTTPException(status_code=401, detail="Missing token")
-        payload = jwt.decode(token, JWT_SECRET, algorithms=[JWT_ALGORITHM])
-        uid = payload.get("user_id")
-        if not isinstance(uid, str) or not re.match(r"^[0-9a-fA-F]{24}$", uid):
-            raise HTTPException(status_code=401, detail="Invalid token payload")
-        return uid
-    except jwt.ExpiredSignatureError:
-        raise HTTPException(status_code=401, detail="Token expired")
-    except jwt.InvalidTokenError:
-        raise HTTPException(status_code=401, detail="Invalid token")
+    """Back-compat shim — delegates to the single hardened implementation in
+    core/auth.py. Previously this file had a duplicate that skipped the
+    dead-token DB check (Round 29 landmine). Keeping only the delegation
+    so any residual `from server import get_current_user` call site
+    still gets the correct, hardened behaviour."""
+    from core.auth import get_current_user as _gcu
+    return await _gcu(authorization)
 
 
 # ══════════════════════════════════════════════════════════════════════
@@ -731,6 +722,22 @@ async def on_startup():
         # Rate limits + OTPs (TTL auto-cleanup)
         await db.rate_limits.create_index("key")
         await db.rate_limits.create_index("window", expireAfterSeconds=120)
+        # Settle-lock TTL — advisory lock auto-releases after 10s so a
+        # crashed or stuck settle request can't permanently block the pair.
+        await db.settle_locks.create_index("at", expireAfterSeconds=10)
+        # Coin ledger dedupe — enforce idempotency of (user, action, dedupe_key)
+        # at the DB layer so concurrent award calls can't race past the find.
+        await db.coin_ledger.create_index(
+            [("user_id", 1), ("action", 1), ("dedupe_key", 1)],
+            unique=True,
+            partialFilterExpression={"dedupe_key": {"$exists": True, "$type": "string"}},
+        )
+        # Razorpay settle idempotency — one settlement per order_id.
+        await db.settlements.create_index(
+            "razorpay_order_id",
+            unique=True,
+            partialFilterExpression={"razorpay_order_id": {"$exists": True, "$type": "string"}},
+        )
         await db.otps.create_index("phone")
         await db.otps.create_index("expires_at", expireAfterSeconds=0)
 

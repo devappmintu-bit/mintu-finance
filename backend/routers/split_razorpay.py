@@ -262,8 +262,15 @@ async def split_verify_settle_payment(payment_data: dict):
 
     No bearer token — called server-to-server from the hosted checkout page.
     User identity is resolved from the saved order record.
+
+    Hardened (Round 30):
+      • Idempotent — replaying the same (order_id, payment_id) returns the
+        existing settlement instead of inserting a duplicate.
+      • Debt-guarded — re-checks compute_outstanding_debt before inserting
+        so a stale/out-of-band Razorpay callback can't over-credit.
     """
     from routers.premium_common import razorpay_client as _rz
+    from routers.split_settle import compute_outstanding_debt  # lazy — avoid cycle
     order_id = payment_data.get("order_id", "")
     payment_id = payment_data.get("payment_id", "")
     signature = payment_data.get("signature", "")
@@ -282,11 +289,32 @@ async def split_verify_settle_payment(payment_data: dict):
     if not order:
         raise HTTPException(status_code=404, detail="Order not found")
 
+    # Idempotency — if we've already recorded a settlement for this razorpay
+    # order, return the existing one instead of inserting a duplicate.
+    prior = await db.settlements.find_one({"razorpay_order_id": order_id})
+    if prior:
+        return {
+            "id": str(prior["_id"]),
+            "message": "Payment already recorded ✅",
+            "amount": prior.get("amount"),
+            "txn_ref": prior.get("txn_ref"),
+            "status": prior.get("status", "completed"),
+            "idempotent": True,
+        }
+
     user_id = str(order.get("user_id", ""))
     target_user_id = str(order.get("target_user_id", ""))
     amount = float(order.get("amount", 0))
     group_id = order.get("group_id")
     coins_to_use = int(order.get("coins_to_use", 0) or 0)
+
+    # Debt re-check — refuse to record if there's nothing left to settle
+    # (e.g. user paid via another method between order creation and webhook).
+    outstanding = await compute_outstanding_debt(user_id, target_user_id, group_id)
+    if outstanding <= 0:
+        raise HTTPException(status_code=400, detail="No outstanding debt to settle")
+    if amount > outstanding + 0.5:
+        raise HTTPException(status_code=400, detail=f"Amount exceeds outstanding ₹{outstanding:.2f}")
 
     # Now apply coin redemption (mutates balance) and record settlement.
     redemption = await _apply_split_coin_redemption(user_id, amount, coins_to_use)
