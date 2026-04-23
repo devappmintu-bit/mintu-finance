@@ -770,6 +770,38 @@ async def on_startup():
     except Exception as e:
         logger.warning(f"Could not start Gmail worker: {e}")
 
+    # Soft-delete hard-purge worker — one-shot sweep on startup + hourly loop.
+    # Purges any user whose `scheduled_purge_at` has lapsed (30d after soft-delete).
+    import asyncio as _asyncio
+
+    async def _soft_delete_purge_loop():
+        while True:
+            try:
+                now = datetime.utcnow()
+                expired = await db.users.find(
+                    {"deleted_at": {"$exists": True},
+                     "scheduled_purge_at": {"$lte": now}},
+                    {"_id": 1},
+                ).to_list(500)
+                for u in expired:
+                    try:
+                        # Delegate to /user/delete-account hard path.
+                        # We call the helper directly so we don't have to
+                        # manufacture a fake Request/auth context.
+                        from routers.user import _hard_purge_user  # type: ignore
+                        await _hard_purge_user(str(u["_id"]))
+                    except Exception as ee:
+                        logger.warning(f"Soft-delete purge failed for {u['_id']}: {ee}")
+            except Exception as e:
+                logger.warning(f"Soft-delete worker iteration failed: {e}")
+            await _asyncio.sleep(3600)  # 1 hour
+
+    try:
+        _asyncio.create_task(_soft_delete_purge_loop())
+        logger.info("🧹 Soft-delete purge worker started (hourly)")
+    except Exception as e:
+        logger.warning(f"Could not start soft-delete worker: {e}")
+
 
 @app.on_event("shutdown")
 async def on_shutdown():

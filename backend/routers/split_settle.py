@@ -55,6 +55,22 @@ async def _settle_lock(user_id: str, target_user_id: str, group_id: Optional[str
             pass
 
 
+async def dismiss_reminders_after_settle(payer_id: str, payee_id: str) -> int:
+    """Auto-dismiss any pending reminders that the payee sent to the payer
+    for this debt. Called from every settle path (UPI, offline, rewards,
+    Razorpay) so a successful payment always clears stale reminder banners.
+    Returns the count of reminders dismissed.
+    """
+    try:
+        r = await db.split_reminders.update_many(
+            {"recipient_id": payer_id, "sender_id": payee_id, "status": "pending"},
+            {"$set": {"status": "settled", "dismissed_at": datetime.utcnow()}},
+        )
+        return int(r.modified_count or 0)
+    except Exception:
+        return 0
+
+
 # ============== COIN REDEMPTION FOR SPLIT PAYMENTS ==============
 # Rate is shared with premium coin redemption so the UX feels consistent.
 COINS_PER_RUPEE = 10           # 10 coins = ₹1
@@ -144,25 +160,33 @@ async def get_overall_balances(user_id: str = Depends(get_current_user)):
     CRITICAL: subtracts completed settlements (including partial + offline) so the
     balance reflects what's actually owed after payments. Mirrors the logic used in
     /split/groups/{id}/summary so both endpoints stay in sync.
+
+    Round 30 perf fix: N+1 eliminated. Previously did 1 query per group for
+    expenses → 20 groups = 20 round-trips. Now collects all group_ids and
+    issues a single $in query. O(2) DB round-trips regardless of group count.
     """
     groups = await db.split_groups.find({"members.user_id": user_id}).to_list(50)
+    group_ids = [str(g["_id"]) for g in groups]
     # Aggregate by the OTHER user's id (stable key across name changes)
     # Positive balance = they owe me; Negative = I owe them.
     by_uid: Dict[str, float] = {}
     uid_to_name: Dict[str, str] = {}
-
     for g in groups:
-        expenses = await db.split_expenses.find({"group_id": str(g["_id"])}).to_list(500)
-        name_map = {m["user_id"]: m["name"] for m in g["members"]}
-        uid_to_name.update(name_map)
-        for exp in expenses:
-            payer = exp["paid_by"]
-            for uid, amt in exp.get("splits", {}).items():
-                if uid == payer: continue
-                if payer == user_id:
-                    by_uid[uid] = by_uid.get(uid, 0) + amt
-                elif uid == user_id:
-                    by_uid[payer] = by_uid.get(payer, 0) - amt
+        uid_to_name.update({m["user_id"]: m["name"] for m in g.get("members", [])})
+
+    # SINGLE round-trip for all expenses across all the user's groups.
+    all_expenses = await db.split_expenses.find(
+        {"group_id": {"$in": group_ids}}
+    ).to_list(5000) if group_ids else []
+    for exp in all_expenses:
+        payer = exp["paid_by"]
+        for uid, amt in (exp.get("splits") or {}).items():
+            if uid == payer:
+                continue
+            if payer == user_id:
+                by_uid[uid] = by_uid.get(uid, 0) + amt
+            elif uid == user_id:
+                by_uid[payer] = by_uid.get(payer, 0) - amt
 
     # Apply settlements (including partial + offline) — reduces the outstanding debt.
     # payer_id is the person who paid; payee_id is the receiver.
@@ -320,7 +344,10 @@ async def settle_payment(data: SettlePayment, user_id: str = Depends(get_current
 
         result = await db.settlements.insert_one(settlement)
         settlement["id"] = str(result.inserted_id)
-    
+
+    # Auto-dismiss any pending reminders the payee had sent to the payer.
+    await dismiss_reminders_after_settle(user_id, data.target_user_id)
+
     # Get names safely
     payer_name = "You"
     payee_name = "User"
@@ -428,6 +455,10 @@ async def partial_settle(data: dict, user_id: str = Depends(get_current_user)):
         }
         result = await db.settlements.insert_one(settlement)
 
+    # Auto-dismiss any pending reminders for this debt (Round 30 — mirrors
+    # mark-paid-offline behaviour so payments via any channel clear the banner).
+    await dismiss_reminders_after_settle(user_id, target_user_id)
+
     # Coin reward proportional to amount (max 5 coins for partial)
     coins_earned = min(5, max(1, int(amount / 500)))
     try:
@@ -531,6 +562,9 @@ async def settle_with_rewards(data: SettlePayment, user_id: str = Depends(get_cu
         }
 
         result = await db.settlements.insert_one(settlement)
+
+    # Auto-dismiss any pending reminders for this debt (Round 30)
+    await dismiss_reminders_after_settle(user_id, data.target_user_id)
 
     # Update user's reward coins
     await db.users.update_one(

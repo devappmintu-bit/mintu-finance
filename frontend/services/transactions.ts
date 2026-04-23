@@ -29,7 +29,10 @@ export async function deleteTransaction(id: string): Promise<void> {
 }
 
 export async function parseSmsTransaction(text: string): Promise<Transaction | null> {
-  const r = await api.post('/sms/parse', { text });
+  // Backend route lives under /api/transactions/parse-sms and expects
+  // the raw text under the `sms_text` key. Earlier the frontend was
+  // calling /api/sms/parse which never existed (Round 30 fix).
+  const r = await api.post('/transactions/parse-sms', { sms_text: text });
   return r.data as Transaction;
 }
 

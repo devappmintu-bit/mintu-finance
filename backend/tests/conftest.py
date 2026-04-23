@@ -32,6 +32,17 @@ async def _reset_rate_limits():
             await client[db_name].otp_audit.delete_many({})
         except Exception:
             pass
+        # Clear active OTP cooldown window (30s-per-phone guard in auth.py).
+        # Tests re-send OTP to the same phone quickly during restore flows.
+        try:
+            await client[db_name].otps.delete_many({})
+        except Exception:
+            pass
+        # Reset the per-pair settle advisory locks so race-test runs are clean
+        try:
+            await client[db_name].settle_locks.delete_many({})
+        except Exception:
+            pass
         client.close()
     except Exception:
         # Tests should still run even if cleanup fails — they will simply

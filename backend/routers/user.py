@@ -465,37 +465,57 @@ async def delete_account(data: dict, user_id: str = Depends(get_current_user)):
     if mode == "hard" and confirmation != "DELETE":
         raise HTTPException(status_code=400, detail="Type DELETE to confirm hard deletion")
 
-    from datetime import datetime as _dt
+    from datetime import datetime as _dt, timedelta as _td
 
     if mode == "soft":
+        purge_at = _dt.utcnow() + _td(days=30)
         await db.users.update_one(
             {"_id": ObjectId(user_id)},
             {"$set": {
                 "deleted_at":  _dt.utcnow(),
                 "deleted_mode": "soft",
-                "scheduled_purge_at": _dt.utcnow().replace(microsecond=0),
+                "scheduled_purge_at": purge_at,
             }},
         )
-        return {"ok": True, "mode": "soft", "message": "Account scheduled for deletion in 30 days. Log in to restore."}
+        return {
+            "ok": True,
+            "mode": "soft",
+            "scheduled_purge_at": purge_at.isoformat(),
+            "message": "Account scheduled for deletion in 30 days. Log in to restore.",
+        }
 
-    # HARD delete — cascade across collections. Use a known list so we don't
-    # miss anything. Each collection is pulled by user_id (string) or owner-id
-    # depending on its schema convention.
-    from bson import ObjectId as _OID  # local alias (avoid confusion with module-level)
+    # HARD delete — cascade across collections. Use a known list matching the
+    # real collections in use (Round 30 sync with live schema).
+    result = await _hard_purge_user(user_id)
+    return {"ok": True, "mode": "hard", **result}
+
+
+async def _hard_purge_user(user_id: str) -> dict:
+    """Cascade-delete all documents belonging to `user_id` across every
+    owned collection. Called by:
+      • /user/delete-account mode=hard (immediate, user-initiated)
+      • the startup soft-delete worker (after 30-day grace lapses)
+    Returns a summary dict with the number of deleted documents.
+    """
+    from bson import ObjectId as _OID
+    # Collections where docs are owned by `user_id` (string uid).
     targets_by_uid_string = [
         "transactions", "budgets", "budget_alerts",
-        "coin_ledger", "reward_spins", "rewards_wallet",
-        "achievements", "user_achievements",
-        "gamification_status", "weekly_challenges",
-        "notifications", "push_tokens",
-        "gmail_connections", "gmail_sync_state",
-        "referrals", "referral_events",
-        "money_school_progress", "money_school_completions",
-        "ai_chat_sessions", "ai_coach_messages",
-        "premium_status", "premium_transactions",
-        "sessions", "otp_codes",
+        "cash_entries", "recurring_expenses",
+        "goals", "score_history",
+        "coin_ledger", "coins_wallet", "rewards_wallet",
+        "reward_spins", "mission_claims", "user_badges",
+        "agent_memory", "ab_events",
+        "referrals",
+        "sent_notifications",
+        "gmail_tokens",
+        "subscriptions", "payment_orders",
+        "school_progress",
+        "audit_logs",
     ]
-    targets_by_member_id = ["splits", "split_groups", "split_expenses", "split_settlements"]
+    # Collections owned by phone (OTP/audit are phone-keyed)
+    user_doc = await db.users.find_one({"_id": ObjectId(user_id)}, {"phone": 1})
+    user_phone = (user_doc or {}).get("phone")
 
     total_deleted = 0
     for col in targets_by_uid_string:
@@ -504,26 +524,86 @@ async def delete_account(data: dict, user_id: str = Depends(get_current_user)):
             total_deleted += r.deleted_count
         except Exception:
             pass
+    # Phone-keyed collections
+    if user_phone:
+        for col in ("otps", "otp_audit"):
+            try:
+                r = await db[col].delete_many({"phone": user_phone})
+                total_deleted += r.deleted_count
+            except Exception:
+                pass
 
-    # Split — user could be creator OR a member (embedded array)
-    for col in targets_by_member_id:
-        try:
-            r = await db[col].delete_many({"$or": [
-                {"user_id": user_id},
-                {"created_by": user_id},
-                {"owner_id": user_id},
-            ]})
+    # Settlements — user can be payer OR payee; wipe both sides so orphaned
+    # debts don't haunt the other party's balance summary.
+    try:
+        r = await db.settlements.delete_many({
+            "$or": [{"payer_id": user_id}, {"payee_id": user_id}],
+        })
+        total_deleted += r.deleted_count
+    except Exception:
+        pass
+
+    # Reminders — user can be sender OR recipient
+    try:
+        r = await db.split_reminders.delete_many({
+            "$or": [{"sender_id": user_id}, {"recipient_id": user_id}],
+        })
+        total_deleted += r.deleted_count
+    except Exception:
+        pass
+
+    # Split messages — authored by the user. Keep system messages (sender_id=None)
+    # for historical context in groups that still exist.
+    try:
+        r = await db.split_messages.delete_many({"sender_id": user_id})
+        total_deleted += r.deleted_count
+    except Exception:
+        pass
+
+    # Split groups — delete groups the user created (cascade expenses in those
+    # groups), and REMOVE the user from `members` of any other groups they were
+    # in. CRITICAL: members is an array of dicts `{user_id, name, phone}` so
+    # the correct $pull filter is `{members: {user_id: uid}}`, NOT `{members: uid}`
+    # (the latter only matches when members is an array of strings → silent noop
+    # for the current schema, which was the Round 29 delete-account bug).
+    try:
+        # 1) Groups this user created → drop them AND their expenses/messages.
+        created_groups = await db.split_groups.find(
+            {"created_by": user_id}, {"_id": 1},
+        ).to_list(200)
+        created_ids = [str(g["_id"]) for g in created_groups]
+        if created_ids:
+            r = await db.split_groups.delete_many({"created_by": user_id})
             total_deleted += r.deleted_count
-            # Remove user from member lists in remaining docs
-            await db[col].update_many(
-                {"members": user_id},
-                {"$pull": {"members": user_id}},
+            for gid in created_ids:
+                try:
+                    r2 = await db.split_expenses.delete_many({"group_id": gid})
+                    total_deleted += r2.deleted_count
+                    r3 = await db.split_messages.delete_many({"group_id": gid})
+                    total_deleted += r3.deleted_count
+                except Exception:
+                    pass
+        # 2) Groups the user is a member of (but did NOT create) → pull them out.
+        await db.split_groups.update_many(
+            {"members.user_id": user_id},
+            {"$pull": {"members": {"user_id": user_id}}},
+        )
+        # 3) Pending invites under the user's phone
+        if user_phone:
+            await db.split_groups.update_many(
+                {"pending_invites.phone": user_phone},
+                {"$pull": {"pending_invites": {"phone": user_phone}}},
             )
-        except Exception:
-            pass
+    except Exception:
+        pass
+
+    # Expenses where the user is the payer but in a group that survives —
+    # leave them (other members' balance math still needs them). Only purge
+    # expenses in groups that no longer exist.
+    # (Handled implicitly via step (1) above for groups the user created.)
 
     # Finally, purge the user document itself
     await db.users.delete_one({"_id": ObjectId(user_id)})
 
-    return {"ok": True, "mode": "hard", "deleted_documents": total_deleted, "message": "Account and all associated data wiped."}
+    return {"deleted_documents": total_deleted, "message": "Account and all associated data wiped."}
 

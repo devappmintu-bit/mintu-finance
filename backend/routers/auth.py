@@ -197,6 +197,14 @@ async def verify_otp(request: OTPVerifyRequest):
 
     user = await db.users.find_one({"phone": phone})
     if user:
+        # If this user soft-deleted their account within the 30-day window,
+        # logging in with a fresh OTP restores it. Clear deletion flags so
+        # the dead-token guard in core/auth.py lets them back in.
+        if user.get("deleted_at"):
+            await db.users.update_one(
+                {"_id": user["_id"]},
+                {"$unset": {"deleted_at": "", "deleted_mode": "", "scheduled_purge_at": ""}},
+            )
         user_id = str(user["_id"])
         token = _create_token(user_id)
         return {

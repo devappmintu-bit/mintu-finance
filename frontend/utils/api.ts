@@ -64,6 +64,25 @@ const notifyAuthExpired = async (hadToken: boolean) => {
 // Retry on 429/5xx with exponential backoff + request dedup
 const pendingRequests = new Map<string, Promise<any>>();
 
+// Network-down global toast. Throttled so parallel failures don't spam.
+// Only fires on true network failures (no response received) AFTER retries
+// are exhausted. 4xx/5xx with a response body are left to the caller, and
+// 401 is handled by notifyAuthExpired above.
+let lastNetworkToastAt = 0;
+const notifyNetworkDown = () => {
+  const now = Date.now();
+  if (now - lastNetworkToastAt < 15000) return;   // one toast / 15s max
+  lastNetworkToastAt = now;
+  try {
+    Toast.show({
+      type: 'error',
+      text1: 'You’re offline',
+      text2: 'Check your connection and try again.',
+      position: 'bottom',
+    });
+  } catch { /* noop */ }
+};
+
 api.interceptors.response.use(
   (response) => response,
   async (error) => {
@@ -83,6 +102,17 @@ api.interceptors.response.use(
       const delay = config._retryCount * 1200;
       await new Promise(r => setTimeout(r, delay));
       return api(config);
+    }
+
+    // Network-down (no response) — retry twice, then toast.
+    if (!error.response && (!config?._netRetry || config._netRetry < 2)) {
+      config._netRetry = (config._netRetry || 0) + 1;
+      await new Promise(r => setTimeout(r, config._netRetry * 800));
+      return api(config);
+    }
+    if (!error.response) {
+      // Retries exhausted — user is genuinely offline. Single throttled toast.
+      notifyNetworkDown();
     }
     return Promise.reject(error);
   }

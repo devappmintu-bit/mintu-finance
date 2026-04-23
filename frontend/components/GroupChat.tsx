@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react'
 import {
   View, Text, StyleSheet, TouchableOpacity, TextInput,
   KeyboardAvoidingView, Platform, Modal, ScrollView,
+  AppState, AppStateStatus,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -82,10 +83,42 @@ export default function GroupChat({ group, onClose, onAddExpense, onManage, onEd
 
   useEffect(() => { goneRef.current = false; loadMessages(); loadSummary(); }, [group.id]);
 
-  // Poll for new messages every 5s — short-circuits once group is gone
+  // Adaptive polling: 8s when foreground+active, pauses when app goes to
+  // background, resumes (with immediate refresh) on foreground. Previously
+  // fired every 5s unconditionally — 1 req / 5s / user × chats open is a
+  // lot of baseline traffic for no benefit when the user isn't looking.
   useEffect(() => {
-    const interval = setInterval(() => { if (!goneRef.current) loadMessages(); }, 5000);
-    return () => clearInterval(interval);
+    let interval: ReturnType<typeof setInterval> | null = null;
+    let appStateSub: { remove: () => void } | null = null;
+
+    const FG_INTERVAL = 8000;   // ~2× slower than before while focused
+    const BG_INTERVAL = 60000;  // 1 min when backgrounded (last-resort safety)
+
+    const start = (ms: number) => {
+      if (interval) clearInterval(interval);
+      interval = setInterval(() => {
+        if (!goneRef.current) loadMessages();
+      }, ms);
+    };
+
+    // Start with foreground cadence
+    start(FG_INTERVAL);
+
+    const handle = (nextState: AppStateStatus) => {
+      if (nextState === 'active') {
+        // Returning to foreground — immediate refresh + fast cadence
+        if (!goneRef.current) loadMessages();
+        start(FG_INTERVAL);
+      } else if (nextState === 'background' || nextState === 'inactive') {
+        start(BG_INTERVAL);
+      }
+    };
+    appStateSub = AppState.addEventListener('change', handle);
+
+    return () => {
+      if (interval) clearInterval(interval);
+      if (appStateSub) appStateSub.remove();
+    };
   }, [loadMessages]);
 
   const sendMessage = async (content: string, type = 'text') => {

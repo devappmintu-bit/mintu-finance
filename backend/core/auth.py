@@ -40,9 +40,18 @@ async def get_current_user(authorization: str = Header(...)) -> str:
             raise HTTPException(status_code=401, detail="Invalid token payload")
         # Dead-token guard — deferred import avoids circular dependency at module load.
         from server import db  # noqa: E402
-        exists = await db.users.find_one({"_id": ObjectId(uid)}, {"_id": 1})
+        exists = await db.users.find_one(
+            {"_id": ObjectId(uid)},
+            {"_id": 1, "deleted_at": 1},
+        )
         if not exists:
             raise HTTPException(status_code=401, detail="Account no longer exists")
+        # Soft-deleted accounts are locked out immediately — the `deleted_at`
+        # field is set by /user/delete-account mode=soft. Hard-purge worker
+        # (core/soft_delete_worker) eventually removes the doc after the
+        # 30-day restore window lapses.
+        if exists.get("deleted_at"):
+            raise HTTPException(status_code=401, detail="Account scheduled for deletion")
         return uid
     except jwt.ExpiredSignatureError:
         raise HTTPException(status_code=401, detail="Token expired")

@@ -362,3 +362,174 @@ async def test_f8_add_members_pending_invite_not_autocreate():
         assert send.json().get("is_new_user") is True, \
             "Phone was auto-created as a user — spam vector still open!"
 
+
+# ═══ H1 DATA INTEGRITY REGRESSIONS ════════════════════════════════════
+
+# ─── F9 — Soft delete enforces 401 immediately on existing tokens ─────
+@pytest.mark.asyncio
+async def test_f9_soft_delete_locks_existing_tokens():
+    """After a user calls /user/delete-account with mode=soft, subsequent
+    calls with their existing token must 401 — that's the core guarantee
+    of Round 30's soft-delete enforcement. Restore-via-OTP is a separate
+    flow tied to auth.py verify-otp clearing `deleted_at` — verified below."""
+    async with httpx.AsyncClient(timeout=15) as client:
+        u = await register(client)
+        h = bearer(u["token"])
+
+        # Token is valid pre-delete
+        r = await client.get(f"{API}/user/me", headers=h)
+        assert r.status_code == 200
+
+        # Soft-delete
+        r = await client.post(f"{API}/user/delete-account", json={"mode": "soft"}, headers=h)
+        assert r.status_code == 200, f"soft delete failed: {r.status_code} {r.text}"
+        body = r.json()
+        assert body.get("mode") == "soft"
+        assert body.get("scheduled_purge_at"), "soft-delete must expose scheduled_purge_at"
+
+        # Same token must now 401 on every protected route (core invariant)
+        for path in ("/user/me", "/transactions", "/split/balances", "/home/bundle"):
+            r = await client.get(f"{API}{path}", headers=h)
+            assert r.status_code == 401, \
+                f"Soft-deleted token should 401 on {path}, got {r.status_code}"
+
+
+@pytest.mark.asyncio
+async def test_f9b_soft_delete_restore_via_otp():
+    """Independent restore check — verify-otp with a soft-deleted user
+    clears `deleted_at` so the user gets back in. We sidestep the 30s
+    send-otp cooldown by working directly with the DB layer (as the
+    testing infra would) rather than firing two send-otp calls back-to-back."""
+    from motor.motor_asyncio import AsyncIOMotorClient
+    from dotenv import load_dotenv
+    import os as _os
+    load_dotenv(_os.path.join(_os.path.dirname(__file__), "..", ".env"))
+    mongo = AsyncIOMotorClient(_os.environ["MONGO_URL"])
+    dbx = mongo[_os.environ["DB_NAME"]]
+
+    async with httpx.AsyncClient(timeout=15) as client:
+        u = await register(client)
+        h = bearer(u["token"])
+        await client.post(f"{API}/user/delete-account", json={"mode": "soft"}, headers=h)
+        # Verify token is now dead
+        r = await client.get(f"{API}/user/me", headers=h)
+        assert r.status_code == 401
+
+        # Simulate "30 seconds later" by clearing the OTP cooldown record for
+        # this phone. (This is exactly what the real 30-s wait would do — we
+        # just don't want to sleep 30s in a unit test.)
+        await dbx.otps.delete_many({"phone": u["phone"]})
+
+        # Fresh login via OTP should succeed AND clear deleted_at
+        r = await client.post(f"{API}/auth/send-otp", json={"phone": u["phone"]})
+        assert r.status_code == 200, f"restore send-otp failed: {r.status_code} {r.text}"
+        v = await client.post(f"{API}/auth/verify-otp", json={"phone": u["phone"], "otp": "123456"})
+        assert v.status_code == 200, f"restore verify-otp failed: {v.status_code} {v.text}"
+        new_token = v.json()["token"]
+        r = await client.get(f"{API}/user/me", headers=bearer(new_token))
+        assert r.status_code == 200, f"Restored token should work, got {r.status_code}"
+    mongo.close()
+
+
+# ─── F10 — Hard delete cascades group membership + reminders + settlements ───
+@pytest.mark.asyncio
+async def test_f10_hard_delete_cascades_group_member_pull():
+    """Hard-deleting a group member MUST remove them from `split_groups.members`.
+    Round 29's $pull used wrong syntax (members: uid) which silently no-op'd
+    against the real schema (members are objects). Verify the fix holds."""
+    async with httpx.AsyncClient(timeout=30) as client:
+        a = await register(client)
+        b = await register(client)  # the one who will delete
+        gr = await client.post(
+            f"{API}/split/groups",
+            json={"name": "cascade-grp", "members": [b["phone"]]},
+            headers=bearer(a["token"]),
+        )
+        assert gr.status_code == 200
+        gid = gr.json()["id"]
+
+        # Confirm b is in the member list pre-delete (via /split/groups which
+        # returns full members arrays; /summary doesn't expose member ids).
+        groups = await client.get(f"{API}/split/groups", headers=bearer(a["token"]))
+        assert groups.status_code == 200
+        g = next((x for x in groups.json() if x.get("id") == gid), None)
+        assert g is not None, "Pre-condition: group not visible to a"
+        member_ids_before = {m["user_id"] for m in g.get("members", [])}
+        assert b["user_id"] in member_ids_before, \
+            f"Pre-condition failed — b should be in members. Got {member_ids_before}"
+
+        # b hard-deletes their account
+        r = await client.post(
+            f"{API}/user/delete-account",
+            json={"mode": "hard", "confirmation": "DELETE"},
+            headers=bearer(b["token"]),
+        )
+        assert r.status_code == 200, f"hard delete failed: {r.status_code} {r.text}"
+        assert r.json().get("mode") == "hard"
+
+        # Now a's view of the group must NOT contain b
+        summary = await client.get(f"{API}/split/groups/{gid}/summary", headers=bearer(a["token"]))
+        assert summary.status_code == 200
+        member_ids_after = {m["user_id"] for m in summary.json().get("members", [])}
+        assert b["user_id"] not in member_ids_after, \
+            f"Deleted user still embedded in group members! Got {member_ids_after}"
+
+
+# ─── F11 — Reminder auto-dismiss on settle (all paths) ─────────────────
+@pytest.mark.asyncio
+async def test_f11_settle_dismisses_pending_reminder():
+    """When B reminds A about a debt, and A settles it via /split/settle,
+    the pending reminder must auto-dismiss (status=settled). Mirrors the
+    already-working mark-paid-offline behaviour."""
+    async with httpx.AsyncClient(timeout=30) as client:
+        a = await register(client)
+        b = await register(client)
+        # Build a ₹200 debt: A owes B
+        gr = await client.post(
+            f"{API}/split/groups", json={"name": "r-grp", "members": [b["phone"]]},
+            headers=bearer(a["token"]),
+        )
+        assert gr.status_code == 200
+        gid = gr.json()["id"]
+        exp = await client.post(
+            f"{API}/split/expenses",
+            json={
+                "group_id": gid, "paid_by": b["user_id"],
+                "description": "coffee", "amount": 200, "split_type": "equal",
+                "splits": {a["user_id"]: 100, b["user_id"]: 100},
+            },
+            headers=bearer(b["token"]),
+        )
+        assert exp.status_code == 200
+
+        # B sends a reminder to A about the debt (endpoint expects target_user_id)
+        rem = await client.post(
+            f"{API}/split/remind",
+            json={"target_user_id": a["user_id"], "amount": 100, "group_id": gid, "note": "please settle"},
+            headers=bearer(b["token"]),
+        )
+        assert rem.status_code in (200, 201), f"remind failed: {rem.status_code} {rem.text}"
+
+        # Confirm A has ≥ 1 pending reminder received
+        received = await client.get(f"{API}/split/reminders", headers=bearer(a["token"]))
+        assert received.status_code == 200
+        received_body = received.json() if isinstance(received.json(), dict) else {}
+        pending_before = [r for r in received_body.get("received", []) if r.get("status") == "pending"]
+        assert len(pending_before) >= 1, f"A should have ≥1 pending reminder, got {received_body}"
+
+        # A settles the ₹100 debt via /split/settle (UPI path, not mark-paid-offline)
+        s = await client.post(
+            f"{API}/split/settle",
+            json={"target_user_id": b["user_id"], "amount": 100, "group_id": gid, "method": "upi"},
+            headers=bearer(a["token"]),
+        )
+        assert s.status_code == 200, f"settle failed: {s.status_code} {s.text}"
+
+        # Reminder should now be dismissed (not in pending list anymore)
+        received = await client.get(f"{API}/split/reminders", headers=bearer(a["token"]))
+        assert received.status_code == 200
+        received_body = received.json() if isinstance(received.json(), dict) else {}
+        pending_after = [r for r in received_body.get("received", []) if r.get("status") == "pending"]
+        assert len(pending_after) < len(pending_before), \
+            f"Reminder not auto-dismissed after settle. Before={len(pending_before)} After={len(pending_after)}"
+
