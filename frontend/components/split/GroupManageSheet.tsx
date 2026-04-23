@@ -101,7 +101,7 @@ export default function GroupManageSheet({ visible, onClose, manage, currentUser
                   </View>
                 ))}
                 {members.length > 5 && (
-                  <View style={[s.av, { marginLeft: -14, backgroundColor: '#F3F4F6' }]}>
+                  <View style={[s.av, { marginLeft: -14, backgroundColor: C.glass }]}>
                     <Text style={[s.avInit, { color: C.text3 }]}>+{members.length - 5}</Text>
                   </View>
                 )}
@@ -188,7 +188,7 @@ export default function GroupManageSheet({ visible, onClose, manage, currentUser
 
             {/* SECTION 5 — DANGER */}
             <Text style={[s.sectionTitle, { color: C.red }]}>Danger Zone</Text>
-            <View style={[s.actionGroup, { borderColor: '#FEE2E2', backgroundColor: '#FEF2F2' }]}>
+            <View style={[s.actionGroup, { borderColor: C.red + '40', backgroundColor: C.redDim }]}>
               <ActionRow icon="exit-outline" label="Leave group" danger onPress={handleLeave} />
               <ActionRow icon="trash-outline" label="Delete group (admins only)" danger onPress={handleDelete} />
             </View>
@@ -205,7 +205,7 @@ function ActionRow({ icon, label, onPress, danger }: { icon: string; label: stri
   const color = danger ? C.red : C.text1;
   return (
     <TouchableOpacity style={s.actionRow} onPress={onPress} activeOpacity={0.7}>
-      <View style={[s.actIcon, { backgroundColor: danger ? '#FEE2E2' : C.accent + '15' }]}>
+      <View style={[s.actIcon, { backgroundColor: danger ? C.redDim : C.accent + '15' }]}>
         <Ionicons name={icon as any} size={18} color={danger ? C.red : C.accent} />
       </View>
       <Text style={[s.actLabel, { color }]}>{label}</Text>
@@ -234,7 +234,7 @@ const useStyles = makeStyles((c) => ({
   statLbl: { fontSize: 10, color: C.text3, marginTop: 4, letterSpacing: 0.3 },
 
   sectionTitle: { fontSize: 12, fontWeight: '700', color: C.text3, marginBottom: 8, marginTop: 14, letterSpacing: 0.5 },
-  actionGroup: { backgroundColor: '#FFFFFF', borderRadius: 16, borderWidth: 1, borderColor: C.border, overflow: 'hidden' },
+  actionGroup: { backgroundColor: C.card, borderRadius: 16, borderWidth: 1, borderColor: C.border, overflow: 'hidden' },
 
   actionRow: { flexDirection: 'row', alignItems: 'center', gap: 14, paddingVertical: 12, paddingHorizontal: 14, borderBottomWidth: 1, borderBottomColor: C.border },
   actIcon: { width: 34, height: 34, borderRadius: 17, alignItems: 'center', justifyContent: 'center' },

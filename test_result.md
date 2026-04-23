@@ -10116,3 +10116,72 @@ round27_delete_account_e2e_fix_apr23_2026:
           visual design. The screen correctly implements the serious tone 
           and comprehensive data deletion warnings as specified.
 
+
+agent_communication:
+  - agent: "main"
+    message: |
+      ✅ Split tab — Full Brutal UX audit pass complete.
+
+      AUDIT FINDINGS → FIXES (7 total):
+
+      1) LIGHT-THEME HANGOVER on dark canvas (biggest issue)
+         • split.tsx styles had rgba(255,255,255,0.92) cards → swapped
+           to C.card + C.cardBorder tokens.
+         • ExpensesTab.tsx used #fff cards, #111 text, #9CA3AF labels,
+           #C14A06 hard-orange. Full swap to C.card/C.text1/C.text3/
+           C.accent/C.border tokens so the whole group-detail inner
+           view follows the live theme.
+         • GroupManageSheet's actionGroup and danger zone swapped from
+           #FFFFFF/#FEF2F2 to C.card and C.redDim.
+
+      2) STALE SETTLE-UP ROWS after mutations
+         settleRowsCacheKey was keyed only on group IDs + member count,
+         so adding/editing/deleting an expense, settling via rewards,
+         partial settle, or marking paid offline → SAME cache key →
+         NO recompute → OLD debts still rendered. Fixed by explicitly
+         invalidating (settleRowsCacheKey.current = '') inside all 6
+         mutation call sites (submit expense, delete expense, settle
+         reward, partial settle, mark paid offline, settle). fetchData
+         now always recomputes fresh debts after any money change.
+
+      3) SILENT RENAME ERRORS
+         renameGroup previously had `catch {}` → user saw no feedback
+         on failure. Now shows error toast + optimistic rename with
+         rollback on failure (snappier UX).
+
+      4) STALE PAY STATE ON CLOSE
+         close() didn't clear payTarget → next pay open could briefly
+         flash the previous target. Added setPayTarget(null).
+
+      5) DEAD CODE PURGED
+         Removed /app/frontend/components/split/ExpenseSheet.tsx
+         (206 LOC, unused — replaced by /app/frontend/app/split/
+         add-expense.tsx full-screen flow).
+
+      6) NOT-BLOCKING — observational:
+         • Phase-2 fetchData Promise.all still works.
+         • fetchSettleRows properly resets settleRows on empty groups.
+
+      VERIFIED: Screenshot of /split on dark theme shows clean hero card
+      with gradient, legible "Split Insights" and "Groups" sections,
+      proper dark surface treatment everywhere. Orange Splitwise-style
+      balance breakdown (₹0 / ₹0 / ₹0) renders correctly.
+
+      FILES TOUCHED:
+      - /app/frontend/app/(tabs)/split.tsx
+        (styles dark-theme, invalidation × 6, rename optimistic+toast,
+         close clears payTarget)
+      - /app/frontend/components/split/ExpensesTab.tsx
+        (styles dark-theme; uses C tokens now)
+      - /app/frontend/components/split/GroupManageSheet.tsx
+        (actionGroup bg, danger bg, chip bg)
+      - DELETED /app/frontend/components/split/ExpenseSheet.tsx
+
+      NO BACKEND CHANGES. No new deps.
+
+      Next Action Items:
+      • Frontend visual verification (expo_frontend_testing_agent)
+        for Split end-to-end (create group → add expense → settle →
+        rename → leave/delete) on user approval.
+      • Backlog: FCM/MSG91/WhatsApp P2 integrations (keys needed).
+

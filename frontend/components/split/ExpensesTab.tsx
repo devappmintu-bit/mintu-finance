@@ -11,7 +11,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { COLORS } from '../../utils/theme';
 import { makeStyles } from '../../utils/makeStyles';
-import { MEMBER_COLORS } from './theme';
+import { MEMBER_COLORS, C } from './theme';
 import SwipeableRow from '../SwipeableRow';
 import { useLangStore } from '../../store/langStore';
 import { t } from '../../utils/i18n';
@@ -270,41 +270,41 @@ const useStyles = makeStyles((c) => ({
 
   // Quick actions
   quickRow: { flexDirection: 'row', gap: 10, marginTop: 14 },
-  quickBtn: { flex: 1, alignItems: 'center', gap: 6, backgroundColor: '#fff', padding: 12, borderRadius: 14, borderWidth: 1, borderColor: '#F3F4F6' },
+  quickBtn: { flex: 1, alignItems: 'center', gap: 6, backgroundColor: C.card, padding: 12, borderRadius: 14, borderWidth: 1, borderColor: C.cardBorder },
   quickIcon: { width: 38, height: 38, borderRadius: 19, alignItems: 'center', justifyContent: 'center' },
   quickIconSaff: { width: 38, height: 38, borderRadius: 19, alignItems: 'center', justifyContent: 'center' },
-  quickTxt: { fontSize: 11, fontWeight: '700', color: '#111' },
+  quickTxt: { fontSize: 11, fontWeight: '700', color: C.text1 },
 
   // Section
-  sectHead: { fontSize: 11, fontWeight: '800', color: '#9CA3AF', textTransform: 'uppercase', letterSpacing: 0.6, marginBottom: 10, marginLeft: 4 },
+  sectHead: { fontSize: 11, fontWeight: '800', color: C.text3, textTransform: 'uppercase', letterSpacing: 0.6, marginBottom: 10, marginLeft: 4 },
 
   // Debt tile
-  debtCard: { flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: '#fff', borderRadius: 14, padding: 12, marginBottom: 8, borderWidth: 1, borderColor: '#F3F4F6' },
+  debtCard: { flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: C.card, borderRadius: 14, padding: 12, marginBottom: 8, borderWidth: 1, borderColor: C.cardBorder },
   avatarLarge: { width: 42, height: 42, borderRadius: 21, alignItems: 'center', justifyContent: 'center', borderWidth: 1.5 },
   avatarTxt: { fontSize: 16, fontWeight: '800' },
-  debtTitle: { fontSize: 14, fontWeight: '700', color: '#111' },
-  debtSub: { fontSize: 18, fontWeight: '800', color: '#C14A06', marginTop: 2 },
+  debtTitle: { fontSize: 14, fontWeight: '700', color: C.text1 },
+  debtSub: { fontSize: 18, fontWeight: '800', color: C.accent, marginTop: 2 },
   payBtn: { borderRadius: 999, overflow: 'hidden' },
   payBtnGrad: { flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: 14, paddingVertical: 8 },
   payBtnTxt: { color: '#fff', fontSize: 13, fontWeight: '800' },
-  bellOnly: { width: 38, height: 38, borderRadius: 19, backgroundColor: '#F59E0B', alignItems: 'center', justifyContent: 'center' },
+  bellOnly: { width: 38, height: 38, borderRadius: 19, backgroundColor: C.gold, alignItems: 'center', justifyContent: 'center' },
 
   // Expense card
-  expCard: { flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: '#fff', borderRadius: 14, padding: 12, marginBottom: 8, borderWidth: 1, borderColor: '#F3F4F6' },
+  expCard: { flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: C.card, borderRadius: 14, padding: 12, marginBottom: 8, borderWidth: 1, borderColor: C.cardBorder },
   expIcon: { width: 40, height: 40, borderRadius: 12, alignItems: 'center', justifyContent: 'center' },
-  expDesc: { fontSize: 14, fontWeight: '700', color: '#111' },
+  expDesc: { fontSize: 14, fontWeight: '700', color: C.text1 },
   expMetaRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 4 },
   paidByChip: { paddingHorizontal: 8, paddingVertical: 2, borderRadius: 999 },
   paidByTxt: { fontSize: 10.5, fontWeight: '700' },
-  expDate: { fontSize: 10.5, color: '#9CA3AF', fontWeight: '600' },
-  expAmt: { fontSize: 15, fontWeight: '800', color: '#111' },
-  expShare: { fontSize: 10.5, color: '#6B7280', marginTop: 2, fontWeight: '600' },
+  expDate: { fontSize: 10.5, color: C.text3, fontWeight: '600' },
+  expAmt: { fontSize: 15, fontWeight: '800', color: C.text1 },
+  expShare: { fontSize: 10.5, color: C.text2, marginTop: 2, fontWeight: '600' },
   progWrap: { flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 6 },
-  progTrack: { flex: 1, height: 3, backgroundColor: '#E5E7EB', borderRadius: 2, overflow: 'hidden' },
+  progTrack: { flex: 1, height: 3, backgroundColor: C.border, borderRadius: 2, overflow: 'hidden' },
   progFill: { height: '100%', borderRadius: 2 },
-  progLbl: { fontSize: 9.5, fontWeight: '800', color: '#C14A06', letterSpacing: 0.2 },
+  progLbl: { fontSize: 9.5, fontWeight: '800', color: C.accent, letterSpacing: 0.2 },
 
   empty: { alignItems: 'center', paddingVertical: 36 },
-  emptyTitle: { fontSize: 15, fontWeight: '800', color: '#111', marginTop: 10 },
-  emptySub: { fontSize: 12, color: '#6B7280', marginTop: 4, textAlign: 'center', maxWidth: 260 },
+  emptyTitle: { fontSize: 15, fontWeight: '800', color: C.text1, marginTop: 10 },
+  emptySub: { fontSize: 12, color: C.text2, marginTop: 4, textAlign: 'center', maxWidth: 260 },
 }));

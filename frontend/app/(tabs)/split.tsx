@@ -144,7 +144,7 @@ export default function SplitScreen() {
   }, [fetchSettleRows, refetchGroupsSwr, refetchBalancesSwr, groups]);
 
   useEffect(() => { fetchData(); }, []);
-  const close = () => { setModal(''); setRemindTarget(null); setEditingExpense(null); };
+  const close = () => { setModal(''); setRemindTarget(null); setEditingExpense(null); setPayTarget(null); };
 
   // GROUP CRUD
   const createGroup = async (name: string, phones: string[], emoji?: string) => {
@@ -207,11 +207,18 @@ export default function SplitScreen() {
 
   const renameGroup = async (newName: string) => {
     if (!newName.trim() || !selectedGroup?.id) return;
+    // Optimistic — update the list and open manage sheet immediately.
+    const prevGroups = groups;
+    setGroups((prev) => prev.map((g) => (g.id === selectedGroup.id ? { ...g, name: newName.trim() } : g)));
     try {
       await updateGroupName(selectedGroup.id, newName);
-      openManage(selectedGroup); fetchData();
       Toast.show({ type: 'success', text1: 'Renamed!' });
-    } catch {}
+      openManage(selectedGroup); fetchData();
+    } catch (e: any) {
+      // Roll back the optimistic update and surface the error.
+      setGroups(prevGroups);
+      Toast.show({ type: 'error', text1: 'Rename failed', text2: e?.response?.data?.detail || 'Try again' });
+    }
   };
 
   const addMember = async (phone: string) => {
@@ -271,13 +278,16 @@ export default function SplitScreen() {
           split_type: payload.split_type, splits: payload.splits,
         });
         close();
+        settleRowsCacheKey.current = ''; // invalidate — debts may have shifted
         // Refresh summary if user was viewing it
         if (groupSummary) openSummary(selectedGroup);
         fetchData();
         Toast.show({ type: 'success', text1: 'Updated!', text2: `₹${payload.amount.toFixed(0)} re-split` });
       } else {
         await createExpense({ group_id: selectedGroup.id, paid_by: user?.id, ...payload });
-        close(); fetchData();
+        close();
+        settleRowsCacheKey.current = ''; // invalidate — new debts appear
+        fetchData();
         Toast.show({ type: 'success', text1: 'Added!', text2: `₹${payload.amount} split among ${Object.keys(payload.splits).length} people` });
       }
     } catch (e: any) { Toast.show({ type: 'error', text1: 'Error', text2: e.response?.data?.detail || 'Failed' }); }
@@ -288,6 +298,7 @@ export default function SplitScreen() {
       { text: 'Delete', style: 'destructive', onPress: async () => {
         try {
           await deleteExpenseSrv(exp.id);
+          settleRowsCacheKey.current = ''; // invalidate — remove this debt share
           Toast.show({ type: 'success', text1: 'Deleted ✅' });
           if (selectedGroup) openSummary(selectedGroup);
           fetchData();
@@ -355,6 +366,7 @@ export default function SplitScreen() {
         group_id: t.group_id,
         coins_to_use: Number(t.coins_to_use || 0),
       }) };
+      settleRowsCacheKey.current = ''; // invalidate — debt cleared
       setLastReward(r.data.reward); setModal('reward'); fetchData();
     } catch { Toast.show({ type: 'error', text1: 'Error', text2: 'Could not settle' }); }
   };
@@ -371,6 +383,7 @@ export default function SplitScreen() {
         coins_to_use: Number(coinsToUse || 0),
       }) };
       close();
+      settleRowsCacheKey.current = ''; // invalidate — partial shrinks the debt
       const coinSuffix = r.data.coins_applied > 0 ? ` · 🪙${r.data.coins_applied}` : '';
       Toast.show({ type: 'success', text1: `Partial ₹${partialAmt.toFixed(0)} paid to ${to_name}${coinSuffix}`, text2: `+${r.data.coins_earned} 🪙 earned` });
       fetchData();
@@ -429,6 +442,7 @@ export default function SplitScreen() {
         { text: 'Yes', onPress: async () => {
           try {
             const r = { data: await markPaidOfflineSrv({ target_user_id: row.to_id, amount: row.amount, group_id: row.group_id, method }) };
+            settleRowsCacheKey.current = ''; // invalidate — debt cleared
             Toast.show({ type: 'success', text1: 'Marked as paid ✅', text2: r.data.message });
             fetchData();
           } catch (e: any) {
@@ -693,12 +707,12 @@ const useStyles = makeStyles((c) => ({
   title: { fontSize: 28, fontWeight: '800', color: C.text1, letterSpacing: -0.5 },
   headerR: { flexDirection: 'row', alignItems: 'center', gap: 10 },
   coinPill: { paddingHorizontal: 14, paddingVertical: 6, borderRadius: 20, backgroundColor: C.goldDim, borderWidth: 1, borderColor: 'rgba(255,179,0,0.2)' },
-  coinText: { fontSize: 14, fontWeight: '700', color: '#92400E' },
+  coinText: { fontSize: 14, fontWeight: '700', color: C.gold },
   addBtn: { width: 44, height: 44, borderRadius: 22, justifyContent: 'center', alignItems: 'center', ...SHADOW.md },
   balCard: {
-    backgroundColor: 'rgba(255,255,255,0.92)',
+    backgroundColor: C.card,
     borderRadius: 24, padding: 22, marginBottom: 16,
-    borderWidth: 1, borderColor: 'rgba(255,255,255,0.7)',
+    borderWidth: 1, borderColor: C.cardBorder,
     ...SHADOW.lg,
   },
   balRow: { flexDirection: 'row', alignItems: 'center' },
@@ -708,18 +722,18 @@ const useStyles = makeStyles((c) => ({
   balD: { width: 1, height: 40, backgroundColor: C.border },
   section: { fontSize: 16, fontWeight: '700', color: C.text1, marginBottom: 12 },
   emptyCard: {
-    backgroundColor: 'rgba(255,255,255,0.8)',
+    backgroundColor: C.card,
     borderRadius: 24, padding: 40, alignItems: 'center',
-    borderWidth: 1, borderColor: 'rgba(255,255,255,0.6)', gap: 8,
+    borderWidth: 1, borderColor: C.cardBorder, gap: 8,
     ...SHADOW.sm,
   },
   emptyTitle: { fontSize: 16, fontWeight: '700', color: C.text3 },
   emptyText: { fontSize: 13, color: C.text4 },
   groupCard: {
     flexDirection: 'row', alignItems: 'center',
-    backgroundColor: 'rgba(255,255,255,0.9)',
+    backgroundColor: C.card,
     borderRadius: 20, padding: 14, marginBottom: 10,
-    borderWidth: 1, borderColor: 'rgba(255,255,255,0.65)',
+    borderWidth: 1, borderColor: C.cardBorder,
     ...SHADOW.sm,
   },
   groupAv: { width: 44, height: 44, borderRadius: 14, justifyContent: 'center', alignItems: 'center', marginRight: 12 },
