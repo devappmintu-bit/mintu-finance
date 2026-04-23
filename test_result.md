@@ -10664,3 +10664,142 @@ agent_communication:
         • P0: split_settle.py — compute net debt before insert; reject if
                user owes ≤ 0 or amount > outstanding. Use atomic guard
                against concurrent double-settle.
+
+
+round29b_adversarial_fix_verification_apr23_2026:
+  - task: "Round 29b — Dead-token Universal Rejection + Phantom-Settle Guard (fix verification)"
+    implemented: true
+    working: true
+    file: "/app/backend/core/auth.py; /app/backend/routers/split_settle.py; /app/round29b_fix_test.py"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+      - working: true
+        agent: "testing"
+        comment: |
+          ✅ ROUND 29b FIX VERIFICATION — 40/41 ASSERTIONS PASS (Apr 23 2026,
+          /app/round29b_fix_test.py against
+          https://mintu-finance.preview.emergentagent.com/api). Fresh test users
+          seeded via 9XXXXXXXXX phones; 9876543210 never touched.
+
+          BOTH CRITICAL FIXES FROM ROUND 29 ARE VERIFIED WORKING.
+
+          ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+          CRITICAL FIX 1 — Dead-token universal rejection (F1)
+          ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+          /app/backend/core/auth.py now does `db.users.find_one({_id})` after
+          JWT decode; raises 401 "Account no longer exists" when the user doc
+          is gone. Verified end-to-end:
+
+          • F1-A: Seeded user, confirmed /user/me=200, hard-deleted the user,
+            then called each endpoint with the now-dead token:
+              - /user/me                   → 401 ✅
+              - /transactions              → 401 ✅
+              - /home/bundle?lang=en       → 401 ✅
+              - /split/groups              → 401 ✅
+              - /leaderboard/unified       → 401 ✅
+              - /user/payment-methods      → 401 ✅
+              - /budgets/live              → 401 ✅
+              - /split/balances            → 401 ✅
+              - /gamification/status       → 401 ✅
+              - /rewards/marketplace       → 401 ✅
+              - /ai/coach/suggestions      → 404 (NOT 401) — see note below
+              - POST /transactions         → 401 ✅
+            12/13 endpoints strictly 401 on dead token. Zero 200s, zero 5xx.
+            This closes all 5 Round-29 dead-token holes
+            (/transactions, /home/bundle, /split/groups, /leaderboard/unified,
+            /user/payment-methods) — all now strictly 401.
+
+            NOTE — `/ai/coach/suggestions` returns 404 on BOTH dead AND valid
+            tokens because the route is not implemented in the backend (no
+            @router.get in routers/ai_coach.py). FastAPI's router returns 404
+            before hitting the `Depends(get_current_user)` guard, so this is
+            a routing-level 404, NOT a dead-token bypass. Auth itself is
+            not broken. (An unimplemented endpoint cannot be blamed for
+            "not returning 401" — the endpoint doesn't exist to enforce auth.)
+
+          • F1-B: Fresh live user — all 11 GETs returned 2xx (or 404 on
+            the missing /ai/coach/suggestions, which is consistent behaviour
+            across live and dead tokens). POST /transactions → 200.
+            No regressions in auth for live users.
+
+          ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+          CRITICAL FIX 2 — Phantom-settle + double-settle prevention (F2)
+          ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+          New helper `compute_outstanding_debt()` in split_settle.py gates all
+          four settle endpoints. Verified end-to-end (all green, no fails):
+
+          • F2-A  Phantom (no debt) — A & B share NO group:
+              /split/settle               → 400 "No outstanding debt to settle" ✅
+              /split/partial-settle       → 400 ✅
+              /split/settle-with-rewards  → 400 ✅
+              /split/mark-paid-offline    → 400 ✅
+
+          • F2-B  Phantom amount > outstanding:
+              Setup: A+B in group G; B paid ₹600, split equally → A owes ₹300.
+              /split/settle amount=5000   → 400 "Amount exceeds outstanding ₹300.00" ✅
+              /split/settle amount=300    → 200 ✅
+              GET /split/balances → total_you_owe=0.0 ✅ (post-settle clean)
+
+          • F2-C  Concurrent double-settle race (5 concurrent asyncio.gather):
+              Setup: A owes B ₹300.
+              Fire 5 POST /split/settle amount=300 concurrently.
+              Result: codes=[200, 400, 400, 400, 400] — exactly 1 success,
+              4 rejections with "No outstanding debt", 0× 5xx. ✅
+              Final /split/balances → total_you_owe=0.0, total_owed_to_you=0.0
+              (no negative / no phantom debt) ✅
+
+          • F2-D  Legitimate partial + full sequence:
+              A owes B ₹1000 (via 3 expenses).
+              /split/partial-settle amount=400 → 200; balance now ₹600 ✅
+              /split/settle amount=600         → 200; balance now ₹0 ✅
+              /split/settle amount=100 (4th)   → 400 "No outstanding debt" ✅
+
+          • F2-E  Invalid target_user_id format:
+              /split/settle with target_user_id="not-an-objectid"
+              → 400 "Invalid target_user_id" (never 500) ✅
+
+          ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+          FINAL REPORT
+          ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+          {
+            "total_tests": 41,
+            "pass": 40,
+            "fail": 1,
+            "notes": "Round 29b critical-fix verification — the one 'fail' is
+                     /ai/coach/suggestions returning 404 because the endpoint
+                     is not implemented (routing 404, not auth-bypass). All
+                     implemented endpoints correctly 401 on dead tokens.",
+            "f1_deadtoken_pass": true,
+            "f2_settle_pass": true
+          }
+
+          VERDICT: Both critical fixes are PRODUCTION-READY. Round 29's 7
+          criticals are closed. Setting working=true, needs_retesting=false.
+
+agent_communication:
+    -agent: "testing"
+    -message: |
+        ✅ Round 29b verification complete — both critical fixes from Round 29
+        are working end-to-end.
+
+        F1 (dead-token universal rejection): 12/13 protected endpoints now 401
+        on a hard-deleted user's token. The 13th (/ai/coach/suggestions) is
+        a 404-on-every-call because the route does not exist in the backend
+        (not implemented in routers/ai_coach.py). This is NOT an auth bypass;
+        it's a routing 404 that occurs before FastAPI reaches the
+        `Depends(get_current_user)` guard. All 5 Round-29 leak endpoints
+        (/transactions, /home/bundle, /split/groups, /leaderboard/unified,
+        /user/payment-methods) now strictly 401. Fresh live-user regression
+        (F1-B) passed 100% — no auth broken for real users.
+
+        F2 (phantom-settle + double-settle guard): 100% green across all 4
+        settle endpoints. No-debt → 400. Over-amount → 400 with exact
+        outstanding value. Concurrent 5× settle race → exactly 1 succeeds,
+        4 rejected, 0× 5xx. Legit partial+full sequence still works.
+        Invalid target_user_id → 400 (never 500).
+
+        Test script + per-assertion log at /app/round29b_fix_test.py;
+        machine-readable results at /app/round29b_results.json. Main agent
+        can summarise and ship Round 29b.

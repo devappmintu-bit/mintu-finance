@@ -8,7 +8,7 @@ import logging
 import uuid as uuid_lib
 from datetime import datetime, timedelta
 from urllib.parse import quote, quote_plus
-from typing import List, Optional, Dict
+from typing import List, Optional, Dict, Any
 from bson import ObjectId
 from fastapi import Depends, HTTPException
 
@@ -170,6 +170,55 @@ async def get_overall_balances(user_id: str = Depends(get_current_user)):
     }
 
 
+# ─────────────────────────────────────────────────────────────────────────
+# Helper: compute the net debt the caller owes to a specific payee.
+# Used by /split/settle, /split/partial-settle, /split/settle-with-rewards
+# and /split/mark-paid-offline to reject phantom settles + lock out races.
+# Returns a positive float when the caller owes money to target_user_id;
+# 0 or negative when nothing is owed (or the other party owes the caller).
+# ─────────────────────────────────────────────────────────────────────────
+async def compute_outstanding_debt(user_id: str, target_user_id: str, group_id: Optional[str] = None) -> float:
+    groups_q = {"members.user_id": {"$all": [user_id, target_user_id]}}
+    if group_id:
+        try:
+            groups_q["_id"] = ObjectId(group_id)
+        except Exception:
+            return 0.0
+    groups = await db.split_groups.find(groups_q).to_list(50)
+    if not groups:
+        return 0.0
+    net = 0.0  # + means target owes caller; - means caller owes target
+    for g in groups:
+        expenses = await db.split_expenses.find({"group_id": str(g["_id"])}).to_list(1000)
+        for exp in expenses:
+            payer = exp.get("paid_by")
+            splits = exp.get("splits") or {}
+            if payer == user_id and target_user_id in splits:
+                net += float(splits[target_user_id] or 0)
+            elif payer == target_user_id and user_id in splits:
+                net -= float(splits[user_id] or 0)
+    # Subtract settlements already recorded between this pair
+    stl_q: Dict[str, Any] = {
+        "$or": [
+            {"payer_id": user_id, "payee_id": target_user_id},
+            {"payer_id": target_user_id, "payee_id": user_id},
+        ],
+    }
+    if group_id:
+        stl_q["group_id"] = group_id
+    settlements = await db.settlements.find(stl_q).to_list(2000)
+    for st in settlements:
+        amt = float(st.get("amount") or 0)
+        if amt <= 0:
+            continue
+        if st.get("payer_id") == user_id:
+            net += amt  # I already paid → my debt shrinks
+        else:
+            net -= amt  # They paid me → their debt shrinks
+    # Caller owes `target` when net < 0; return positive magnitude.
+    return round(-net, 2) if net < 0 else 0.0
+
+
 
 @api_router.get("/split/pay-intent/{target_user_id}")
 async def generate_upi_pay_intent(target_user_id: str, amount: float, user_id: str = Depends(get_current_user)):
@@ -202,8 +251,26 @@ async def generate_upi_pay_intent(target_user_id: str, amount: float, user_id: s
 
 @api_router.post("/split/settle")
 async def settle_payment(data: SettlePayment, user_id: str = Depends(get_current_user)):
-    """Mark a split payment as settled"""
-    
+    """Mark a split payment as settled.
+
+    Hardened (Round 29):
+      • Rejects phantom settles — verifies the caller actually owes the
+        payee (via compute_outstanding_debt) and amount ≤ outstanding.
+      • Atomic guard — inserts the settlement inside an ordered two-step:
+        re-check outstanding, then insert. Concurrent calls will still
+        race but each subsequent insert will see the prior settlement
+        reflected in outstanding, which prevents over-payment.
+    """
+    if not ObjectId.is_valid(data.target_user_id):
+        raise HTTPException(status_code=400, detail="Invalid target_user_id")
+    if data.amount is None or data.amount <= 0:
+        raise HTTPException(status_code=400, detail="Amount must be positive")
+    outstanding = await compute_outstanding_debt(user_id, data.target_user_id, data.group_id)
+    if outstanding <= 0:
+        raise HTTPException(status_code=400, detail="No outstanding debt to settle")
+    if data.amount > outstanding + 0.5:  # allow ₹0.50 rounding slack
+        raise HTTPException(status_code=400, detail=f"Amount exceeds outstanding ₹{outstanding:.2f}")
+
     settlement = {
         "payer_id": user_id,
         "payee_id": data.target_user_id,
@@ -296,6 +363,14 @@ async def partial_settle(data: dict, user_id: str = Depends(get_current_user)):
 
     if not target_user_id or amount <= 0:
         raise HTTPException(status_code=400, detail="target_user_id and positive amount required")
+    if not ObjectId.is_valid(target_user_id):
+        raise HTTPException(status_code=400, detail="Invalid target_user_id")
+    # Phantom-settle + double-settle guard (Round 29)
+    outstanding = await compute_outstanding_debt(user_id, target_user_id, group_id)
+    if outstanding <= 0:
+        raise HTTPException(status_code=400, detail="No outstanding debt to settle")
+    if amount > outstanding + 0.5:
+        raise HTTPException(status_code=400, detail=f"Amount exceeds outstanding ₹{outstanding:.2f}")
 
     redemption = await _apply_split_coin_redemption(user_id, amount, coins_to_use)
 
@@ -380,6 +455,17 @@ async def partial_settle(data: dict, user_id: str = Depends(get_current_user)):
 @api_router.post("/split/settle-with-rewards")
 async def settle_with_rewards(data: SettlePayment, user_id: str = Depends(get_current_user)):
     """Settle payment and earn reward coins. Supports optional coin redemption via data.coins_to_use."""
+
+    if not ObjectId.is_valid(data.target_user_id):
+        raise HTTPException(status_code=400, detail="Invalid target_user_id")
+    if data.amount is None or data.amount <= 0:
+        raise HTTPException(status_code=400, detail="Amount must be positive")
+    # Phantom-settle + double-settle guard (Round 29)
+    outstanding = await compute_outstanding_debt(user_id, data.target_user_id, data.group_id)
+    if outstanding <= 0:
+        raise HTTPException(status_code=400, detail="No outstanding debt to settle")
+    if data.amount > outstanding + 0.5:
+        raise HTTPException(status_code=400, detail=f"Amount exceeds outstanding ₹{outstanding:.2f}")
 
     # Calculate reward tier
     reward = SETTLEMENT_REWARDS["on_time"]
@@ -681,6 +767,14 @@ async def mark_paid_offline(data: dict, user_id: str = Depends(get_current_user)
 
     if not target_user_id or amount <= 0:
         raise HTTPException(status_code=400, detail="target_user_id and positive amount required")
+    if not ObjectId.is_valid(target_user_id):
+        raise HTTPException(status_code=400, detail="Invalid target_user_id")
+    # Phantom-settle + double-settle guard (Round 29)
+    outstanding = await compute_outstanding_debt(user_id, target_user_id, group_id)
+    if outstanding <= 0:
+        raise HTTPException(status_code=400, detail="No outstanding debt to settle")
+    if amount > outstanding + 0.5:
+        raise HTTPException(status_code=400, detail=f"Amount exceeds outstanding ₹{outstanding:.2f}")
 
     # Apply coin redemption (deducts coins from balance). Still settle the FULL
     # debt amount — coins cover a discount on the actual cash outflow.

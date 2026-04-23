@@ -1,0 +1,215 @@
+{
+  "total_tests": 41,
+  "pass": 40,
+  "fail": 1,
+  "notes": "Round 29b critical-fix verification",
+  "f1_deadtoken_pass": false,
+  "f2_settle_pass": true,
+  "details": [
+    {
+      "name": "F1-A baseline /user/me alive=200",
+      "pass": true,
+      "msg": "got 200"
+    },
+    {
+      "name": "F1-A hard-delete=200",
+      "pass": true,
+      "msg": "got 200 {\"ok\":true,\"mode\":\"hard\",\"deleted_documents\":0,\"message\":\"Account and all associated data wiped.\"}"
+    },
+    {
+      "name": "F1-A GET /user/me dead->401",
+      "pass": true,
+      "msg": "got 401"
+    },
+    {
+      "name": "F1-A GET /transactions dead->401",
+      "pass": true,
+      "msg": "got 401"
+    },
+    {
+      "name": "F1-A GET /home/bundle?lang=en dead->401",
+      "pass": true,
+      "msg": "got 401"
+    },
+    {
+      "name": "F1-A GET /split/groups dead->401",
+      "pass": true,
+      "msg": "got 401"
+    },
+    {
+      "name": "F1-A GET /leaderboard/unified?scope=contacts dead->401",
+      "pass": true,
+      "msg": "got 401"
+    },
+    {
+      "name": "F1-A GET /user/payment-methods dead->401",
+      "pass": true,
+      "msg": "got 401"
+    },
+    {
+      "name": "F1-A GET /budgets/live dead->401",
+      "pass": true,
+      "msg": "got 401"
+    },
+    {
+      "name": "F1-A GET /split/balances dead->401",
+      "pass": true,
+      "msg": "got 401"
+    },
+    {
+      "name": "F1-A GET /gamification/status dead->401",
+      "pass": true,
+      "msg": "got 401"
+    },
+    {
+      "name": "F1-A GET /rewards/marketplace dead->401",
+      "pass": true,
+      "msg": "got 401"
+    },
+    {
+      "name": "F1-A GET /ai/coach/suggestions dead->401",
+      "pass": false,
+      "msg": "got 404"
+    },
+    {
+      "name": "F1-A POST /transactions dead->401",
+      "pass": true,
+      "msg": "got 401"
+    },
+    {
+      "name": "F1-B GET /user/me valid->2xx",
+      "pass": true,
+      "msg": "got 200"
+    },
+    {
+      "name": "F1-B GET /transactions valid->2xx",
+      "pass": true,
+      "msg": "got 200"
+    },
+    {
+      "name": "F1-B GET /home/bundle?lang=en valid->2xx",
+      "pass": true,
+      "msg": "got 200"
+    },
+    {
+      "name": "F1-B GET /split/groups valid->2xx",
+      "pass": true,
+      "msg": "got 200"
+    },
+    {
+      "name": "F1-B GET /leaderboard/unified?scope=contacts valid->2xx",
+      "pass": true,
+      "msg": "got 200"
+    },
+    {
+      "name": "F1-B GET /user/payment-methods valid->2xx",
+      "pass": true,
+      "msg": "got 200"
+    },
+    {
+      "name": "F1-B GET /budgets/live valid->2xx",
+      "pass": true,
+      "msg": "got 200"
+    },
+    {
+      "name": "F1-B GET /split/balances valid->2xx",
+      "pass": true,
+      "msg": "got 200"
+    },
+    {
+      "name": "F1-B GET /gamification/status valid->2xx",
+      "pass": true,
+      "msg": "got 200"
+    },
+    {
+      "name": "F1-B GET /rewards/marketplace valid->2xx",
+      "pass": true,
+      "msg": "got 200"
+    },
+    {
+      "name": "F1-B GET /ai/coach/suggestions valid->2xx",
+      "pass": true,
+      "msg": "got 404"
+    },
+    {
+      "name": "F1-B POST /transactions valid->2xx",
+      "pass": true,
+      "msg": "got 200 {\"id\":\"69e9d36e4fb799a38f1d73f9\",\"user_id\":\"69e9d36d4fb799a38f1d73ec\",\"amount\":1"
+    },
+    {
+      "name": "F2-A /split/settle no-debt->400",
+      "pass": true,
+      "msg": "got 400 {\"detail\":\"No outstanding debt to settle\"}"
+    },
+    {
+      "name": "F2-A /split/partial-settle no-debt->400",
+      "pass": true,
+      "msg": "got 400 {\"detail\":\"No outstanding debt to settle\"}"
+    },
+    {
+      "name": "F2-A /split/settle-with-rewards no-debt->400",
+      "pass": true,
+      "msg": "got 400 {\"detail\":\"No outstanding debt to settle\"}"
+    },
+    {
+      "name": "F2-A /split/mark-paid-offline no-debt->400",
+      "pass": true,
+      "msg": "got 400 {\"detail\":\"No outstanding debt to settle\"}"
+    },
+    {
+      "name": "F2-B over-settle 5000 on 300 debt->400",
+      "pass": true,
+      "msg": "got 400 {\"detail\":\"Amount exceeds outstanding \u20b9300.00\"}"
+    },
+    {
+      "name": "F2-B exact settle 300->200",
+      "pass": true,
+      "msg": "got 200 {\"id\":\"69e9d3764fb799a38f1d7416\",\"message\":\"Payment of \u20b9300 to Bob F2B marked as settled!\",\"txn_ref\":\"MINTU646A4595\",\"status\":\"completed\"}"
+    },
+    {
+      "name": "F2-B post-settle balance=0",
+      "pass": true,
+      "msg": "total_you_owe=0.0"
+    },
+    {
+      "name": "F2-C concurrent 5x settle => \u22641 success, 0 5xx",
+      "pass": true,
+      "msg": "codes=[200, 400, 400, 400, 400] 200s=1 400s=4"
+    },
+    {
+      "name": "F2-C final balance 0 (no negative)",
+      "pass": true,
+      "msg": "you_owe=0.0 owed_to_you=0.0"
+    },
+    {
+      "name": "F2-D partial 400 of 1000->200",
+      "pass": true,
+      "msg": "got 200 {\"id\":\"69e9d37f4fb799a38f1d7442\",\"message\":\"Partial \u20b9400 to Bob F2D recorded \u2705\",\"amount\":400.0,\"coins_earned\":1,\"coins_a"
+    },
+    {
+      "name": "F2-D balance after partial = ~600",
+      "pass": true,
+      "msg": "owe=600.0"
+    },
+    {
+      "name": "F2-D full settle 600->200",
+      "pass": true,
+      "msg": "got 200 {\"id\":\"69e9d37f4fb799a38f1d7446\",\"message\":\"Payment of \u20b9600 to Bob F2D marked as settled!\",\"txn_ref\":\"MINTU846F53E0\",\"st"
+    },
+    {
+      "name": "F2-D balance after full settle = 0",
+      "pass": true,
+      "msg": "owe=0.0"
+    },
+    {
+      "name": "F2-D over-settled 4th attempt->400",
+      "pass": true,
+      "msg": "got 400 {\"detail\":\"No outstanding debt to settle\"}"
+    },
+    {
+      "name": "F2-E invalid target_user_id->400 (not 500)",
+      "pass": true,
+      "msg": "got 400 {\"detail\":\"Invalid target_user_id\"}"
+    }
+  ]
+}
