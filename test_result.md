@@ -9765,3 +9765,51 @@ agent_communication:
         unlock teasers across flows, Real FCM/MSG91/WhatsApp
         integrations (all blocked on external API keys).
 
+
+agent_communication:
+  - agent: "main"
+    message: |
+      ✅ useSwr migration extended to Transactions + Split.
+
+      TRANSACTIONS (/app/frontend/app/(tabs)/transactions.tsx):
+      • Replaced manual Promise.all 3-endpoint fetchAll() with three
+        useSwr hooks:
+          - /transactions (ttl 15s, hot path)
+          - /waste-detector (ttl 60s, non-blocking)
+          - /stats/overview (ttl 60s, non-blocking)
+      • Dropped legacy useState for transactions/waste/stats/loading
+        /refreshing.
+      • Optimistic edit + delete now use SWR mutate() with rollback on
+        error. Post-mutation revalidation via refetchTxns().
+      • fetchTransactions() retained as a thin wrapper (Promise.all of
+        refetchTxns + refetchWaste) so existing callers (SMS parse,
+        cash entry, notification parse) keep working unchanged.
+      • Removed now-unused `setRefreshing` / `refreshing` state.
+
+      SPLIT (/app/frontend/app/(tabs)/split.tsx):
+      • Bridge-pattern migration — lowest risk for a 700-LOC screen
+        with many optimistic mutation sites.
+      • Added two useSwr hooks (/split/groups, /split/balances) gated
+        on user.id. Effects propagate fresh data into existing local
+        state so every setGroups/setBalances optimistic path (group
+        create, leave, delete, expense add/edit/remove) keeps
+        working verbatim.
+      • fetchData() simplified — Phase 1 is now just a refetch of the
+        two SWR hooks; Phase 2 (leaderboard / reminders / settleRows)
+        preserved inside InteractionManager.runAfterInteractions.
+      • Skeleton flips to data as soon as SWR groups arrive (no longer
+        blocks on Phase 2 data — fixes occasional long-skeleton edge
+        case).
+
+      VERIFIED: Both screens render cleanly on fresh session; hero
+      cards, empty states, insights, and bottom nav all intact. No
+      backend changes.
+
+      Next Action Items:
+      • Monitor for any regression in mutation flows (user to confirm
+        add/delete/edit still feel instant).
+      • Remaining backlog items: more Premium teaser placements
+        across Budget forecast & AI Coach header.
+      • When FCM/MSG91/WhatsApp keys provided → graduate P2
+        integrations from mocked to real.
+

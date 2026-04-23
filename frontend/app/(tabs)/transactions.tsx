@@ -29,6 +29,7 @@ import { PieChart } from 'react-native-gifted-charts';
 import SmartInsightsStrip from '../../components/transactions/SmartInsightsStrip';
 import TransactionFilterSheet, { DEFAULT_FILTER, TxnFilter, applyFilterToList, filterActiveCount } from '../../components/transactions/TransactionFilterSheet';
 import TransactionsHero from '../../components/transactions/TransactionsHero';
+import useSwr from '../../hooks/useSwr';
 
 // Pure, memoized row — prevents re-renders on unrelated parent state changes (e.g. modals).
 // Per UX spec: Transactions get DELETE-only swipe (no edit gesture).
@@ -74,8 +75,18 @@ export default function TransactionsScreen() {
   const styles = useStyles();
   const { lang } = useLangStore();
   const params = useLocalSearchParams<{ openAdd?: string; openSmsScan?: string; type?: string }>();
-  const [transactions, setTransactions] = useState<any[]>([]);
-  const [loading, setLoading] = useState(true);
+
+  // ── SWR data layer (Round 26) ───────────────────────────────────────
+  // Primary list — hot path, 15s TTL for quick revalidation on focus.
+  const { data: txnData, isLoading: txnLoading, refetch: refetchTxns, mutate: mutateTxns } =
+    useSwr<any[]>('/transactions', { ttlMs: 15_000 });
+  // Secondary insights — 60s TTL, non-blocking. These fail open to null.
+  const { data: waste, refetch: refetchWaste } = useSwr<any>('/waste-detector', { ttlMs: 60_000 });
+  const { data: stats } = useSwr<any>('/stats/overview', { ttlMs: 60_000 });
+
+  const transactions = txnData || [];
+  const loading = txnLoading && (txnData == null);
+
   const [modalVisible, setModalVisible] = useState(false);
   const [smsModalVisible, setSmsModalVisible] = useState(false);
   const [smsText, setSmsText] = useState('');
@@ -87,17 +98,10 @@ export default function TransactionsScreen() {
   const [notifText, setNotifText] = useState('');
   const [notifLoading, setNotifLoading] = useState(false);
   const [notifExpanded, setNotifExpanded] = useState(false);
-  // Insights data
-  const [waste, setWaste] = useState<any>(null);
-  const [stats, setStats] = useState<any>(null);
-  const [refreshing, setRefreshing] = useState(false);
   // Filter state
   const [filterVisible, setFilterVisible] = useState(false);
   const [filter, setFilter] = useState<TxnFilter>(DEFAULT_FILTER);
 
-  useEffect(() => { fetchAll(); }, []);
-
-  // Auto-open add/SMS modals when arriving via AI Coach CTAs (e.g. /transactions?openAdd=1&type=credit)
   useEffect(() => {
     if (params.openAdd === '1') {
       setFormData(prev => ({
@@ -114,30 +118,19 @@ export default function TransactionsScreen() {
     }
   }, [params.openAdd, params.openSmsScan, params.type]);
 
-  const fetchAll = async () => {
-    try {
-      const [txnRes, wasteRes, statsRes] = await Promise.all([
-        api.get('/transactions'),
-        api.get('/waste-detector').catch(() => ({ data: null })),
-        api.get('/stats/overview').catch(() => ({ data: null })),
-      ]);
-      setTransactions(txnRes.data);
-      if (wasteRes.data) setWaste(wasteRes.data);
-      if (statsRes.data) setStats(statsRes.data);
-    } catch (e) { console.error(e); }
-    finally { setLoading(false); setRefreshing(false); }
-  };
-
-  const fetchTransactions = fetchAll;
+  // Unified refetch helper for mutations (replaces legacy fetchAll/fetchTransactions).
+  const fetchTransactions = useCallback(async () => {
+    await Promise.all([refetchTxns(), refetchWaste()]);
+  }, [refetchTxns, refetchWaste]);
 
   const handleAdd = async () => {
     if (!formData.amount || !formData.description) { Alert.alert(t('error', lang), t('fill_all_fields', lang)); return; }
     const isEdit = !!editingTxn;
     try {
       if (isEdit) {
-        // Optimistic update
+        // Optimistic update via SWR mutate
         const patched = { ...editingTxn, amount: parseFloat(formData.amount), category: formData.category, description: formData.description, type: formData.type };
-        setTransactions(prev => prev.map(tx => tx.id === editingTxn.id ? patched : tx));
+        mutateTxns((prev) => (prev || []).map((tx: any) => (tx.id === editingTxn.id ? patched : tx)));
         await updateTransaction(editingTxn.id, { amount: parseFloat(formData.amount), category: formData.category, description: formData.description, type: formData.type as any });
         Toast.show({ type: 'success', text1: t('txn_updated', lang) });
       } else {
@@ -209,16 +202,16 @@ export default function TransactionsScreen() {
     Alert.alert(t('delete', lang), t('remove_transaction', lang), [
       { text: t('cancel', lang), style: 'cancel' },
       { text: t('delete', lang), style: 'destructive', onPress: async () => {
-        // Optimistic remove — instantly update UI
+        // Optimistic remove via SWR mutate
         const prev = transactions;
-        setTransactions(curr => curr.filter(tx => tx.id !== id));
+        mutateTxns((curr) => (curr || []).filter((tx: any) => tx.id !== id));
         try {
           await deleteTransaction(id);
           Toast.show({ type: 'success', text1: t('txn_deleted', lang) });
-          fetchTransactions();
+          refetchTxns();
         } catch {
           // Rollback if the server rejects
-          setTransactions(prev);
+          mutateTxns(prev);
           Toast.show({ type: 'error', text1: t('error', lang) });
         }
       } },

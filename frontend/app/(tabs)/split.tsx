@@ -41,6 +41,7 @@ import PaySheet from '../../components/split/PaySheet';
 import RemindSheet from '../../components/split/RemindSheet';
 import RewardModal from '../../components/split/RewardModal';
 import EmptyState from '../../components/ui/EmptyState';
+import useSwr from '../../hooks/useSwr';
 
 export default function SplitScreen() {
   const s = useStyles();
@@ -64,6 +65,21 @@ export default function SplitScreen() {
   const [remindTarget, setRemindTarget] = useState<DebtRow | null>(null);
   const [editingExpense, setEditingExpense] = useState<any>(null);
   const settleRowsCacheKey = React.useRef<string>('');
+
+  // ── SWR data layer (Round 26) ───────────────────────────────────────
+  // Bridge pattern: SWR hooks drive the initial load + focus refresh,
+  // but push fresh data into existing local state so all the optimistic
+  // setGroups(...)/setBalances(...) mutation sites below keep working
+  // unchanged. This is the lowest-risk migration for a 700-LOC screen.
+  const { data: swrGroups, refetch: refetchGroupsSwr } = useSwr<any[]>('/split/groups', { ttlMs: 20_000, paused: !user?.id });
+  const { data: swrBalances, refetch: refetchBalancesSwr } = useSwr<any>('/split/balances', { ttlMs: 20_000, paused: !user?.id });
+  useEffect(() => { if (Array.isArray(swrGroups)) setGroups(swrGroups); }, [swrGroups]);
+  useEffect(() => { if (swrBalances != null) setBalances(swrBalances); }, [swrBalances]);
+  // Flip the skeleton as soon as SWR gives us either signal — no need to
+  // wait for Phase 2 data (it loads deferred after interactions).
+  useEffect(() => {
+    if (swrGroups !== null && swrGroups !== undefined) setLoading(false);
+  }, [swrGroups]);
 
   // Flatten simplified_debts across all groups for main-screen Settle Up list.
   // Cache by groups signature so we don't redundantly fetch N summaries on every data refresh.
@@ -100,12 +116,13 @@ export default function SplitScreen() {
 
   const fetchData = useCallback(async () => {
     try {
-      // Phase 1 — critical: groups + balances (block render)
-      const [gR, bR] = await Promise.all([
-        fetchSplitGroups().then(data => ({ data })),
-        fetchSplitBalances().then(data => ({ data })),
+      // Phase 1 — critical groups + balances are now handled by useSwr
+      // (above). Trigger a fresh background revalidation so pull-to-refresh
+      // still requests the latest server state.
+      const [gR] = await Promise.all([
+        refetchGroupsSwr(),
+        refetchBalancesSwr(),
       ]);
-      setGroups(gR.data); setBalances(bR.data);
       setLoading(false);
 
       // Phase 2 — deferred: leaderboard + reminders + heavy settleRows recompute
@@ -117,12 +134,13 @@ export default function SplitScreen() {
           ]);
           if (lR.data) setSettleLB(lR.data);
           if (rR.data) setReminders({ received: rR.data.received || [], sent: rR.data.sent || [] });
-          fetchSettleRows(gR.data);
+          // Use the freshest snapshot from swrGroups (set by the useEffect bridge above).
+          fetchSettleRows(groups);
         } catch (e) { console.error('split phase2', e); }
         finally { setRefreshing(false); }
       });
     } catch (e) { console.error(e); setLoading(false); setRefreshing(false); }
-  }, [fetchSettleRows]);
+  }, [fetchSettleRows, refetchGroupsSwr, refetchBalancesSwr, groups]);
 
   useEffect(() => { fetchData(); }, []);
   const close = () => { setModal(''); setRemindTarget(null); setEditingExpense(null); };
