@@ -256,7 +256,7 @@ export default function HomeScreen() {
         )}
 
         {/* 8. DAILY QUEST — habit loop */}
-        <DailyQuestCard coinsStatus={coinsStatus} />
+        <DailyQuestCard coinsStatus={coinsStatus} userName={user?.name} />
 
         {/* 9. MONEY SCHOOL */}
         <MoneySchoolCard />

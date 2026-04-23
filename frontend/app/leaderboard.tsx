@@ -17,9 +17,10 @@ import { router } from 'expo-router';
 import ViewShot, { captureRef } from 'react-native-view-shot';
 import * as Haptics from 'expo-haptics';
 import Toast from 'react-native-toast-message';
-import api from '../utils/api';
 import { COLORS } from '../utils/theme';
 import { shareImageSmart } from '../utils/share';
+import PremiumUnlockTeaser from '../components/premium/PremiumUnlockTeaser';
+import useSwr from '../hooks/useSwr';
 
 type Scope = 'contacts' | 'global';
 
@@ -48,30 +49,21 @@ type LBData = {
 
 export default function LeaderboardScreen() {
   const [scope, setScope] = useState<Scope>('contacts');
-  const [data, setData] = useState<LBData | null>(null);
-  const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [sharing, setSharing] = useState(false);
   const shareRef = useRef<ViewShot>(null);
 
-  const load = useCallback(async (nextScope: Scope = scope, isRefresh = false) => {
-    if (!isRefresh) setLoading(true);
-    try {
-      const r = await api.get(`/leaderboard/unified?scope=${nextScope}`);
-      setData(r.data);
-    } catch {
-      setData(null);
-    } finally {
-      setLoading(false);
-      setRefreshing(false);
-    }
-  }, [scope]);
+  // ── SWR data layer (Round 26+) ─────────────────────────────────────
+  // `useSwr` serves cached data instantly, revalidates in background,
+  // re-fetches on focus, and gives us a declarative refetch() hook.
+  const { data, isLoading, refetch } = useSwr<LBData>(
+    `/leaderboard/unified?scope=${scope}`,
+    { ttlMs: 15_000 }
+  );
 
-  useEffect(() => { load(scope); }, [scope, load]);
-
-  const onRefresh = () => {
+  const onRefresh = async () => {
     setRefreshing(true);
-    load(scope, true);
+    try { await refetch(); } finally { setRefreshing(false); }
   };
 
   const haptic = () => {
@@ -139,7 +131,7 @@ export default function LeaderboardScreen() {
         </TouchableOpacity>
       </View>
 
-      {loading ? (
+      {isLoading ? (
         <View style={styles.loadingWrap}>
           <ActivityIndicator size="large" color={COLORS.accent.primary} />
         </View>
@@ -224,6 +216,9 @@ export default function LeaderboardScreen() {
               </View>
             </View>
           )}
+
+          {/* Premium unlock teaser — only for non-Pro users, context-aware */}
+          <PremiumUnlockTeaser context={scope === 'global' ? 'leaderboard_global' : 'streak_boost'} />
 
           {/* Rest of the list */}
           {rest.length > 0 && (

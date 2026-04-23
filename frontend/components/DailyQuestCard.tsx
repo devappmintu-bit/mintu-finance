@@ -7,7 +7,7 @@
  *   • Progress ring on completion
  *   • Haptic feedback on quest tap
  */
-import React, { memo, useMemo } from 'react';
+import React, { memo, useMemo, useState } from 'react';
 import { View, Text, TouchableOpacity, Platform } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -15,6 +15,7 @@ import { router } from 'expo-router';
 import * as Haptics from 'expo-haptics';
 import { COLORS, shadowStyle } from '../utils/theme';
 import { makeStyles } from '../utils/makeStyles';
+import ShareWeeklyWinModal from './profile/ShareWeeklyWinModal';
 
 const ACTION_ICONS: Record<string, { icon: string; route?: string }> = {
   add_transaction: { icon: 'add-circle', route: '/transactions?openAdd=1' },
@@ -30,6 +31,7 @@ const ACTION_ICONS: Record<string, { icon: string; route?: string }> = {
 type Props = {
   coinsStatus: any;
   onAction?: () => void;
+  userName?: string;
 };
 
 /** XP formula: streak × 10 + (total coins earned) + (badges × 25) */
@@ -48,8 +50,9 @@ function streakMilestone(days: number) {
   return null;
 }
 
-function DailyQuestCard({ coinsStatus, onAction }: Props) {
+function DailyQuestCard({ coinsStatus, onAction, userName }: Props) {
   const s = useStyles();
+  const [shareVisible, setShareVisible] = useState(false);
 
   const data = useMemo(() => {
     if (!coinsStatus) return null;
@@ -100,10 +103,17 @@ function DailyQuestCard({ coinsStatus, onAction }: Props) {
             {data.totalToday > 0 && <Text style={s.todayGain}>  +{data.totalToday} 🪙</Text>}
           </Text>
         </View>
-        <View style={[s.streakPill, data.milestone && { backgroundColor: (data.milestone.color || '#FEE2E2') + '22', borderColor: data.milestone.color }]}>
+        <TouchableOpacity
+          style={[s.streakPill, data.milestone && { backgroundColor: (data.milestone.color || '#FEE2E2') + '22', borderColor: data.milestone.color }]}
+          onPress={() => { if (data.streak >= 3) { haptic(); setShareVisible(true); } }}
+          disabled={data.streak < 3}
+          activeOpacity={0.7}
+          testID="streak-pill"
+        >
           <Text style={s.streakEmoji}>{data.milestone?.emoji || '🔥'}</Text>
           <Text style={[s.streakNum, data.milestone && { color: data.milestone.color }]}>{data.streak}d</Text>
-        </View>
+          {data.streak >= 3 && <Ionicons name="share-social" size={10} color={data.milestone?.color || '#B91C1C'} style={{ marginLeft: 2 }} />}
+        </TouchableOpacity>
       </View>
 
       {/* XP bar */}
@@ -154,6 +164,23 @@ function DailyQuestCard({ coinsStatus, onAction }: Props) {
           </Text>
         </View>
       )}
+
+      {/* Shareable streak card modal */}
+      <ShareWeeklyWinModal
+        visible={shareVisible}
+        onClose={() => setShareVisible(false)}
+        cardProps={{
+          userName,
+          kind: 'streak',
+          heroValue: `${data.streak}`,
+          heroLabel: 'DAYS ON FIRE',
+          tagline: data.milestone
+            ? `${data.milestone.label} streak unlocked · Can you beat me?`
+            : `${Math.max(1, 7 - data.streak)} days to Bronze — let's go!`,
+          tier: data.milestone ? `${data.milestone.emoji} ${data.milestone.label}` : `Lv ${data.level}`,
+        }}
+        caption={`🔥 I'm on a ${data.streak}-day MintU streak${data.milestone ? ` (${data.milestone.label})` : ''}. Join me: https://mintu.app`}
+      />
     </View>
   );
 }
