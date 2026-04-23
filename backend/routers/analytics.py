@@ -294,13 +294,28 @@ COIN_RULES = {
 
 @router.post("/coins/award")
 async def award_coins(data: dict, user_id: str = Depends(get_current_user)):
-    """Award coins for a user action, capped daily to prevent abuse."""
+    """Award coins for a user action, capped daily to prevent abuse.
+
+    Hardened (Round 29b): optional `dedupe_key` (e.g. transaction_id) lets
+    the client mark the award as idempotent — calling twice with the same
+    key awards coins once. Closes the "farm coins by add+delete+add"
+    micro-abuse under the daily cap.
+    """
     action = data.get("action", "")
     if action not in COIN_RULES:
         return {"awarded": 0, "reason": "invalid_action", "balance": 0}
 
     rule = COIN_RULES[action]
     today_start = datetime.utcnow().replace(hour=0, minute=0, second=0, microsecond=0)
+
+    dedupe_key = (data.get("dedupe_key") or "").strip()
+    if dedupe_key:
+        already = await db.coin_ledger.find_one({
+            "user_id": user_id, "action": action, "dedupe_key": dedupe_key,
+        })
+        if already:
+            user = await db.users.find_one({"_id": ObjectId(user_id)}) or {}
+            return {"awarded": 0, "reason": "already_awarded", "balance": user.get("coins", 0)}
 
     # Check daily cap
     today_awarded = 0
@@ -317,7 +332,10 @@ async def award_coins(data: dict, user_id: str = Depends(get_current_user)):
         return {"awarded": 0, "reason": "daily_cap_reached", "balance": user.get("coins", 0), "daily_cap": rule["daily_cap"], "daily_awarded": today_awarded}
 
     # Persist ledger + increment user.coins
-    await db.coin_ledger.insert_one({"user_id": user_id, "action": action, "amount": to_award, "at": datetime.utcnow()})
+    ledger_doc = {"user_id": user_id, "action": action, "amount": to_award, "at": datetime.utcnow()}
+    if dedupe_key:
+        ledger_doc["dedupe_key"] = dedupe_key
+    await db.coin_ledger.insert_one(ledger_doc)
     await db.users.update_one({"_id": ObjectId(user_id)}, {"$inc": {"coins": to_award}})
 
     user = await db.users.find_one({"_id": ObjectId(user_id)}) or {}

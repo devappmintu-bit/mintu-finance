@@ -10803,3 +10803,147 @@ agent_communication:
         Test script + per-assertion log at /app/round29b_fix_test.py;
         machine-readable results at /app/round29b_results.json. Main agent
         can summarise and ship Round 29b.
+
+round29c_adversarial_final_apr23_2026:
+  - task: "Round 29c — Non-critical Round 29 fixes verification (Phone type validation / OTP phone-level rate limit / Coin dedupe_key)"
+    implemented: true
+    working: true
+    file: "/app/backend/schemas.py; /app/backend/routers/auth.py; /app/backend/routers/analytics.py; /app/round29c_test.py"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+      - working: true
+        agent: "testing"
+        comment: |
+          ✅ ROUND 29c FINAL VERIFICATION — 19/19 ASSERTIONS PASS (100%,
+          Apr 23 2026, /app/round29c_test.py against
+          https://mintu-finance.preview.emergentagent.com/api). Fresh
+          9XXXXXXXXX phones only for seeding users; canonical
+          9876543210 exercised ONLY for the literal happy-path
+          /auth/send-otp regression (test V1.6) — no data mutation.
+
+          ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+          V1 — Phone type validation (NoSQL injection via phone field)
+          (8/8 ✅)
+          ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+          schemas.py._validate_phone (mode="before") rejects every
+          non-string attack surface — Pydantic v2 field_validator fires
+          before the handler's own `(request.phone or "").strip()` even
+          gets a chance to error. ASCII-digit-only + prefix 6-9 regex
+          blocks malformed strings too.
+            • V1.1 send-otp body {"phone":{"$ne":null}}  → 422 ✅
+            • V1.2 send-otp body {"phone":null}           → 422 ✅
+            • V1.3 send-otp body {"phone":9876543210}     → 422 ✅
+                    (bare int rejected by "phone must be a string")
+            • V1.4 send-otp body {"phone":["9876543210"]} → 422 ✅
+            • V1.5 send-otp body {"phone":"98765abcdef"} → 422 ✅
+                    (regex reject on non-digit chars)
+            • V1.6 send-otp body {"phone":"9876543210"}   → 200 ✅
+                    (happy-path regression; `{message:"OTP sent
+                    successfully", is_new_user:false, mock_mode:true,
+                    expires_in:300}`). No 9876 data was mutated.
+            • V1.7 verify-otp {"phone":{"$ne":null}, "otp":"123456"}
+                                                          → 422 ✅
+            • V1.8 verify-otp {"phone":"9876543210",
+                               "otp":{"$ne":null}}        → 422 ✅
+                    (OTPVerifyRequest._vo also rejects non-str /
+                    non-digit otp via isinstance + isdigit + 4-8 len).
+
+          ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+          V2 — Phone-level OTP rate limit (brute-force protection)
+          (5/5 ✅)
+          ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+          auth.py lines 169-176: counts `db.otp_audit` failure docs
+          for the phone in the last hour; 15+ → 429 "Too many failed
+          attempts. Try again in 1 hour." Verified end-to-end on
+          fresh phone 9022234811:
+            • V2.1 send-otp fresh phone → 200 ✅
+            • Burned 5 OTP cycles (each cycle: 3 wrong-OTP verifies
+              audit-logged, 4th returns "Too many attempts" and
+              deletes the otp doc; then send-otp again immediately
+              works because the 30s-cooldown check no longer sees any
+              otp doc for this phone).
+            • V2.2 accumulated ≥15 failed verify attempts →
+              `total_fails=15 after 5 cycles` ✅
+            • V2.3 one more verify-otp with wrong code → 429
+              "Too many failed attempts. Try again in 1 hour." ✅
+              (The phone-level guard fires BEFORE the attempts-count
+              guard because the audit-count check is evaluated first.)
+            • V2.4a regression: fresh phone2 9022276681 send-otp → 200 ✅
+            • V2.4b regression: fresh phone2 verify-otp correct 123456
+              → 200, JWT returned, new user created with name
+              "Round29c Tester" ✅
+              (Per-phone audit count does NOT leak across phones.)
+
+          ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+          V3 — Coin farm dedupe via dedupe_key (6/6 ✅)
+          ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+          analytics.py award_coins Round-29b hardening: optional
+          `dedupe_key` checked against `db.coin_ledger` for the
+          (user_id, action, dedupe_key) tuple; match → returns
+          {"awarded":0,"reason":"already_awarded"}. Verified on fresh
+          phone 9033362482:
+            • V3.setup fresh user seeded, JWT obtained ✅
+            • V3.1 POST /coins/award {action:add_transaction,
+              dedupe_key:"txn_abc_123"} →
+              `{awarded:5, reason:"ok", balance:5, daily_cap:50,
+                daily_awarded:5}` ✅
+            • V3.2 repeat SAME body →
+              `{awarded:0, reason:"already_awarded", balance:5}` ✅
+            • V3.2b repeat did NOT grow balance (5 == 5) ✅
+            • V3.3 DIFFERENT dedupe_key "txn_def_456" →
+              `{awarded:5, reason:"ok", balance:10, daily_cap:50,
+                daily_awarded:10}` ✅ (under daily cap)
+            • V3.4 NO dedupe_key legacy body → `{awarded:5,
+              reason:"ok", balance:15, daily_awarded:15}` ✅
+              Backward-compat preserved: pre-existing clients that
+              don't send dedupe_key still get coins awarded under the
+              daily cap.
+
+          ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+          FINAL REPORT
+          ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+          {
+            "total_tests": 19,
+            "pass": 19,
+            "fail": 0,
+            "pct": 100.0,
+            "v1_phone_type_validation": true,
+            "v2_phone_level_rate_limit": true,
+            "v3_coin_dedupe": true
+          }
+
+          VERDICT: All three Round-29 non-critical fixes are
+          PRODUCTION-READY. 100% pass rate (well above the 90%
+          threshold to flip working=true). No regressions. No infra
+          throttling encountered during the run. Test script at
+          /app/round29c_test.py.
+
+agent_communication:
+    -agent: "testing"
+    -message: |
+        ✅ Round 29c verification complete — 19/19 assertions pass (100%).
+        All three non-critical Round-29 fixes are verified working
+        end-to-end with no regressions.
+
+        V1 (Phone type validation): OTPSendRequest/OTPVerifyRequest
+        reject dict/list/int/null/non-digit-string phones with 422 via
+        the `_validate_phone` field_validator (mode=before). Canonical
+        happy-path phone "9876543210" still returns 200.
+
+        V2 (Phone-level rate limit): Burning 15 wrong-OTP attempts
+        across 5 send-otp cycles on fresh phone 9022234811 trips the
+        audit-count guard; the 16th attempt returns 429 "Too many
+        failed attempts. Try again in 1 hour." A different fresh
+        phone 9022276681 is unaffected — guard does NOT leak
+        cross-phone.
+
+        V3 (Coin dedupe): /coins/award with a dedupe_key awards once,
+        repeats return `{awarded:0, reason:"already_awarded"}` without
+        balance growth. Different key → awards again under daily cap.
+        Legacy call (no dedupe_key) still works → backward-compat
+        preserved.
+
+        Task flipped working=true, needs_retesting=false. Main agent
+        can summarise and ship Round 29c.

@@ -7,8 +7,22 @@ via `from schemas import *`.
 """
 from datetime import datetime
 from typing import Dict, List, Optional
+import re
 
-from pydantic import BaseModel
+from pydantic import BaseModel, field_validator
+
+# ── Indian phone regex — accepts "+91XXXXXXXXXX", "91XXXXXXXXXX", or
+# bare 10-digit "9XXXXXXXXX". Hard-rejects dict/list/other types that
+# tried to slip NoSQL operators like {"$ne": null} past Pydantic.
+_PHONE_RE = re.compile(r"^(\+?91)?[6-9]\d{9}$")
+
+def _validate_phone(v):
+    if not isinstance(v, str):
+        raise ValueError("phone must be a string")
+    cleaned = v.replace(" ", "").replace("-", "")
+    if not _PHONE_RE.match(cleaned):
+        raise ValueError("phone must be a valid Indian mobile number")
+    return cleaned
 
 # Re-export BudgetCreate from its router so existing back-compat imports keep working
 from routers.budgets import BudgetCreate  # noqa: F401
@@ -36,11 +50,28 @@ class UserResponse(BaseModel):
 class OTPSendRequest(BaseModel):
     phone: str
 
+    @field_validator("phone", mode="before")
+    @classmethod
+    def _v(cls, v):
+        return _validate_phone(v)
+
 
 class OTPVerifyRequest(BaseModel):
     phone: str
     otp: str
     name: Optional[str] = None  # Required for new users
+
+    @field_validator("phone", mode="before")
+    @classmethod
+    def _vp(cls, v):
+        return _validate_phone(v)
+
+    @field_validator("otp", mode="before")
+    @classmethod
+    def _vo(cls, v):
+        if not isinstance(v, str) or not v.isdigit() or not (4 <= len(v) <= 8):
+            raise ValueError("otp must be a 4-8 digit string")
+        return v
 
 
 # ─── Transactions ──────────────────────────────────────────────────────────

@@ -162,6 +162,19 @@ async def verify_otp(request: OTPVerifyRequest):
     if not otp_record:
         raise HTTPException(status_code=400, detail="OTP expired or not found. Please request a new one.")
 
+    # Phone-level rate limit — protects against rotating-OTP brute force
+    # (attacker requests new OTP after each 5-attempt cap). Count all
+    # wrong-OTP attempts against this phone in the last hour; lock if too
+    # many. Resets when the user successfully verifies OR 1 hour passes.
+    hour_ago = datetime.utcnow() - timedelta(hours=1)
+    fail_count = await db.otp_audit.count_documents({
+        "phone": phone,
+        "success": False,
+        "created_at": {"$gte": hour_ago},
+    })
+    if fail_count >= 15:
+        raise HTTPException(status_code=429, detail="Too many failed attempts. Try again in 1 hour.")
+
     if otp_record["attempts"] >= MAX_OTP_ATTEMPTS:
         await db.otps.delete_one({"_id": otp_record["_id"]})
         raise HTTPException(status_code=400, detail="Too many attempts. Please request a new OTP.")
@@ -169,9 +182,17 @@ async def verify_otp(request: OTPVerifyRequest):
     await db.otps.update_one({"_id": otp_record["_id"]}, {"$inc": {"attempts": 1}})
 
     if not _verify_password(otp, otp_record["otp_hash"]):
+        # Log failed attempt for phone-level tracking
+        await db.otp_audit.insert_one({
+            "phone": phone,
+            "success": False,
+            "created_at": datetime.utcnow(),
+        })
         remaining = MAX_OTP_ATTEMPTS - otp_record["attempts"] - 1
         raise HTTPException(status_code=400, detail=f"Invalid OTP. {remaining} attempts remaining.")
 
+    # Success — clear audit noise for this phone so future legit logins are unimpeded
+    await db.otp_audit.delete_many({"phone": phone})
     await db.otps.update_one({"_id": otp_record["_id"]}, {"$set": {"verified": True}})
 
     user = await db.users.find_one({"phone": phone})
