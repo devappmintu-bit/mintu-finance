@@ -33,6 +33,14 @@ let authExpiredHandled = false;
 const notifyAuthExpired = async (hadToken: boolean) => {
   if (!hadToken) return;                          // never logged in → silent
   if (authExpiredHandled) return;                 // avoid re-entry within same tick
+  // If the store has already been cleared (e.g., user just deleted their
+  // account or hit "Log out"), do NOT re-lock — it would race with the
+  // explicit navigation to /auth and hijack the user into /unlock.
+  try {
+    const { useAuthStore } = await import('../store/authStore');
+    const st = useAuthStore.getState();
+    if (!st.token && !st.user) return;
+  } catch { /* noop */ }
   const now = Date.now();
   if (now - lastAuthToastAt < 10000) return;      // throttle to 1 toast / 10s
   lastAuthToastAt = now;

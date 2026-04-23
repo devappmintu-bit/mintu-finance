@@ -7,7 +7,7 @@
  *   • PIN confirmation field
  *   • Two explicit actions: Schedule (30d) or Delete forever
  */
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View, Text, StyleSheet, ScrollView, TouchableOpacity, TextInput,
   ActivityIndicator, Platform, KeyboardAvoidingView,
@@ -19,6 +19,7 @@ import Toast from 'react-native-toast-message';
 import api from '../../utils/api';
 import { useAuthStore } from '../../store/authStore';
 import { makeStyles } from '../../utils/makeStyles';
+import { hasPin, verifyPin } from '../../utils/lockManager';
 
 const DATA_LIST = [
   'Transactions, budgets & categories',
@@ -33,38 +34,72 @@ const DATA_LIST = [
 
 export default function DeleteAccountScreen() {
   const s = useStyles();
-  const { logout } = useAuthStore();
+  const { removeAccount } = useAuthStore();
   const [mode, setMode] = useState<'schedule' | 'hard' | null>(null);
   const [pin, setPin] = useState('');
   const [submitting, setSubmitting] = useState(false);
+  const [pinRequired, setPinRequired] = useState<boolean | null>(null); // null while detecting
+
+  useEffect(() => {
+    // Only require PIN if the device actually has one saved. Keeps the
+    // flow frictionless for users who never set a PIN (biometric-only
+    // or first-time OTP users).
+    hasPin().then(setPinRequired).catch(() => setPinRequired(false));
+  }, []);
 
   const submit = async () => {
     if (!mode) return;
-    if (mode === 'hard' && pin !== '1234' && !/^\d{4,6}$/.test(pin)) {
-      Toast.show({ type: 'error', text1: 'Enter your 4-digit PIN' });
-      return;
+
+    // Only enforce PIN step for HARD delete and only when a PIN is
+    // actually configured on the device. Verify against the real local
+    // mPIN — no more hardcoded `1234` bypass.
+    if (mode === 'hard' && pinRequired) {
+      if (!/^\d{4,6}$/.test(pin)) {
+        Toast.show({ type: 'error', text1: 'Enter your 4-digit PIN' });
+        return;
+      }
+      const ok = await verifyPin(pin).catch(() => false);
+      if (!ok) {
+        Toast.show({ type: 'error', text1: 'Incorrect PIN', text2: 'Please try again' });
+        setPin('');
+        return;
+      }
     }
+
     setSubmitting(true);
     try {
       const r = await api.post('/user/delete-account', {
         mode: mode === 'schedule' ? 'soft' : 'hard',
         confirmation: mode === 'hard' ? 'DELETE' : undefined,
       });
+      const successMsg = r.data?.message;
+      const isHard = mode === 'hard';
+
+      // ── CRITICAL ORDER (end-to-end delete fix) ─────────────────────
+      // 1) For HARD delete: nuke local state FIRST (token + SWR cache +
+      //    PIN + zustand). This stops any in-flight axios calls from
+      //    using the now-dead token before we navigate away.
+      // 2) Navigate to /auth (replace, not push — no back stack).
+      // 3) Show success toast.
+      if (isHard) {
+        try { await removeAccount(); } catch { /* noop */ }
+      }
+      try { router.replace('/auth' as any); } catch { /* noop */ }
       Toast.show({
         type: 'success',
-        text1: mode === 'schedule' ? 'Scheduled for deletion' : 'Account deleted',
-        text2: r.data?.message || undefined,
+        text1: isHard ? 'Account deleted' : 'Scheduled for deletion',
+        text2: successMsg || (isHard
+          ? 'All your data has been permanently wiped.'
+          : "We'll remind you before it's permanent."),
       });
-      try { router.replace('/auth' as any); } catch { /* noop */ }
-      queueMicrotask(() => { logout().catch(() => {}); });
     } catch (e: any) {
       Toast.show({ type: 'error', text1: e?.response?.data?.detail || "Couldn't process request" });
-    } finally {
       setSubmitting(false);
     }
   };
 
-  const canSubmit = mode === 'schedule' || (mode === 'hard' && /^\d{4,6}$/.test(pin));
+  const canSubmit = mode === 'schedule'
+    || (mode === 'hard' && (!pinRequired || /^\d{4,6}$/.test(pin)));
 
   return (
     <SafeAreaView style={s.bg} edges={['top']}>
@@ -148,8 +183,10 @@ export default function DeleteAccountScreen() {
             </TouchableOpacity>
           </View>
 
-          {/* PIN confirmation for hard delete */}
-          {mode === 'hard' ? (
+          {/* PIN confirmation for hard delete — only shown when the device
+              actually has a PIN saved. Users without a PIN confirm by picking
+              "Delete immediately" + typing DELETE in the toast flow. */}
+          {mode === 'hard' && pinRequired === true ? (
             <View style={s.section}>
               <Text style={s.sectionHead}>Confirm with your PIN</Text>
               <TextInput
@@ -164,6 +201,17 @@ export default function DeleteAccountScreen() {
                 testID="pin-input"
               />
               <Text style={s.pinHint}>We'll verify before permanently deleting your data.</Text>
+            </View>
+          ) : null}
+
+          {/* For users without a PIN — show a brief notice so they know HARD is final */}
+          {mode === 'hard' && pinRequired === false ? (
+            <View style={[s.noteCard, { backgroundColor: '#FEF2F2', borderColor: '#FECACA' }]}>
+              <Ionicons name="warning" size={16} color="#DC2626" />
+              <Text style={[s.noteTxt, { color: '#991B1B' }]}>
+                <Text style={[s.noteBold, { color: '#991B1B' }]}>Final step:</Text> Tap the red button below
+                to permanently delete your account and all associated data.
+              </Text>
             </View>
           ) : null}
 

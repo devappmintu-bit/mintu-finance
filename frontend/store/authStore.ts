@@ -66,6 +66,10 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     await AsyncStorage.removeItem(AVATAR_KEY);
     await AsyncStorage.removeItem(LOCKED_KEY);
     try { const { clearPin } = await import('../utils/lockManager'); await clearPin(); } catch {}
+    // Wipe the SWR cache so cached data from the previous session
+    // doesn't leak into a new login. Fixes the "deleted user's data
+    // still visible" bug.
+    try { const { clearSwrCache } = await import('../utils/swrGet'); await clearSwrCache(); } catch {}
     set({ user: null, token: null, avatar: '', locked: false });
   },
   loadFromStorage: async () => {

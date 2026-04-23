@@ -16,7 +16,11 @@ class BiometricToggle(BaseModel):
 async def _get_user_or_404(user_id: str, projection: dict | None = None) -> dict:
     user = await db.users.find_one({"_id": ObjectId(user_id)}, projection) if projection else await db.users.find_one({"_id": ObjectId(user_id)})
     if not user:
-        raise HTTPException(status_code=404, detail="User not found")
+        # Return 401 (not 404) when the user doc is gone — signals the
+        # "dead-token" / "account deleted" case to the frontend interceptor
+        # which then triggers an auth-expired flow (token clear + re-login)
+        # instead of stranding the UI on a 404 screen.
+        raise HTTPException(status_code=401, detail="Account no longer exists")
     return user
 
 

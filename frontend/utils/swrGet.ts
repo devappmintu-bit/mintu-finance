@@ -88,3 +88,16 @@ export async function invalidate(prefix: string) {
     if (toRemove.length) await AsyncStorage.multiRemove(toRemove);
   } catch {}
 }
+
+/** Nuke the entire SWR cache — in-memory + AsyncStorage. Used by the
+ *  account-deletion flow so stale data from the previous session never
+ *  leaks into a new login. */
+export async function clearSwrCache(): Promise<void> {
+  MEM.clear();
+  try {
+    const keys = await AsyncStorage.getAllKeys();
+    const toRemove = keys.filter((k) => k.startsWith(PREFIX));
+    if (toRemove.length) await AsyncStorage.multiRemove(toRemove);
+  } catch {}
+}
+
