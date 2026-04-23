@@ -19,9 +19,16 @@ export async function verifyPremiumPayment(payload: { order_id: string; payment_
   return r.data;
 }
 
-export async function awardCoins(action: string, amount: number = 1): Promise<any> {
-  // Backend contract: {action: string} — looked up in COIN_RULES for the coin value
-  const r = await api.post('/coins/award', { action, amount });
+export async function awardCoins(action: string, amount: number = 1, dedupeKey?: string): Promise<any> {
+  // Backend contract: {action: string, dedupe_key?: string}
+  //  • `action` is looked up in COIN_RULES for the coin value + daily cap.
+  //  • `dedupe_key` (optional) makes the award idempotent — calling twice
+  //    with the same key awards coins once. Pass the resource ID (e.g.
+  //    transaction_id, expense_id) whose creation earned the coin.
+  //    Closes the Round 29c "farm coins by add+delete+add" micro-abuse.
+  const body: any = { action, amount };
+  if (dedupeKey) body.dedupe_key = dedupeKey;
+  const r = await api.post('/coins/award', body);
   return r.data;
 }
 
