@@ -61,6 +61,41 @@ def _streak_reward_for(day: int) -> int:
     return 2
 
 
+# Weekly/monthly bonus jackpots — awarded ON TOP of the daily reward on
+# milestone days. Ledger-idempotent via unique keys `streak_week_bonus::
+# {user_id}::{UTC_date}` and `streak_month_bonus::{user_id}::{UTC_date}`.
+_WEEKLY_BONUS_COINS = 50    # hits on day 7, 14, 21, 28 …
+_MONTHLY_BONUS_COINS = 200  # hits on day 30, 60, 90 …
+
+
+async def _award_milestone_bonuses(user_id: str, day: int, today: str) -> int:
+    """Award weekly + monthly bonuses if the new streak day hits the multiples.
+    Returns total bonus coins awarded (0 if none)."""
+    from core.ledger import award_coins
+    bonus_total = 0
+    if day > 0 and day % 7 == 0:
+        r = await award_coins(
+            user_id=user_id,
+            amount=_WEEKLY_BONUS_COINS,
+            source="streak_weekly_bonus",
+            idempotency_key=f"streak_week_bonus::{user_id}::{today}",
+            txn_type="bonus",
+        )
+        if r["created"]:
+            bonus_total += _WEEKLY_BONUS_COINS
+    if day > 0 and day % 30 == 0:
+        r = await award_coins(
+            user_id=user_id,
+            amount=_MONTHLY_BONUS_COINS,
+            source="streak_monthly_bonus",
+            idempotency_key=f"streak_month_bonus::{user_id}::{today}",
+            txn_type="bonus",
+        )
+        if r["created"]:
+            bonus_total += _MONTHLY_BONUS_COINS
+    return bonus_total
+
+
 async def check_in(user_id: str) -> Dict[str, Any]:
     """Perform the daily check-in.
 
