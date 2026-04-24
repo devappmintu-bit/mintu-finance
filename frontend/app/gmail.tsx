@@ -29,7 +29,22 @@ const BANKS = [
   { name: 'IndusInd',     emoji: '🏦', color: '#A6192E' },
 ];
 
-const RETURN_URL = (process.env.EXPO_PUBLIC_BACKEND_URL as string) + '/gmail-connected';
+// Gmail OAuth return URL.
+//
+// Must match the origin the user is currently browsing from so the
+// OAuth redirect lands back in the right app shell after the auth
+// provider closes its popup / webview.
+//
+//   • Web: use window.location.origin — works across preview URL,
+//     custom domains, and deployed production URL alike.
+//   • Native (iOS/Android): window is undefined; fall back to the
+//     EXPO_PUBLIC_BACKEND_URL env var (which on native always points
+//     at the same host that serves the app shell).
+const RETURN_URL = (
+  typeof window !== 'undefined' && (window as any)?.location?.origin
+    ? (window as any).location.origin
+    : (process.env.EXPO_PUBLIC_BACKEND_URL as string || '')
+) + '/gmail-connected';
 
 export default function GmailConnectScreen() {
   const s = useStyles();
