@@ -43,6 +43,13 @@ export default function AuthScreen() {
   const handleSendOTP = async () => {
     const cleanPhone = phone.replace(/\D/g, '');
     if (cleanPhone.length !== 10) { Alert.alert(t('error', lang), 'Enter valid 10-digit number'); return; }
+    // Round 33 audit fix — Indian mobile numbers must start with 6/7/8/9 per TRAI.
+    // Prevents doomed OTP requests to landline / malformed numbers from burning
+    // SMS quota and leaving the user waiting on a response that can never arrive.
+    if (!/^[6-9]/.test(cleanPhone)) {
+      Alert.alert(t('error', lang), 'Indian mobile numbers start with 6, 7, 8, or 9');
+      return;
+    }
     setLoading(true);
     try {
       const res = { data: await sendOtp(cleanPhone) };
