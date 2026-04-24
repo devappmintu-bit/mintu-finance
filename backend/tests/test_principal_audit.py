@@ -57,11 +57,13 @@ def _auth(tok: str) -> dict:
     ("/api/user/delete-account", "POST", {}),
 ])
 async def test_audit_unauth_blocked(path, method, body):
-    """Every mutation must require auth — no token = 401/403."""
+    """Every mutation must require auth — no token = 401/403 (never 422 after the
+    auth-header-is-optional fix — Round 30h principal audit)."""
     async with httpx.AsyncClient(base_url=BASE_URL, timeout=10) as c:
         r = await c.request(method, path, json=body)
-        # 401 ideal; 403/422 acceptable (dependency validation); NEVER 200 or 5xx
-        assert r.status_code in (401, 403, 422), \
+        # 401 ideal; 403 acceptable; 422 would indicate the header is
+        # still marked Header(...) required somewhere — that's a regression.
+        assert r.status_code in (401, 403), \
             f"{method} {path} unauth → {r.status_code}: {r.text[:200]}"
 
 

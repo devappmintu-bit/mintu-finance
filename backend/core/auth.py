@@ -16,10 +16,15 @@ JWT_EXPIRATION_DAYS = 30
 _HEX24 = re.compile(r"^[0-9a-fA-F]{24}$")
 
 
-async def get_current_user(authorization: str = Header(...)) -> str:
+async def get_current_user(authorization: str = Header(None)) -> str:
     """FastAPI dependency — returns the user_id from the Bearer JWT.
 
     Hardened:
+      • Missing Authorization header → 401 (NOT 422). We mark the header
+        Optional and raise manually; FastAPI's default ``Header(...)``
+        required-dep behaviour would surface a 422 with body
+        ``{"detail":[{"loc":[...],"msg":"field required"}]}`` which is
+        confusing for downstream clients and breaks auth-error handling.
       • Rejects tokens where `user_id` is missing, non-string, empty, or
         not a valid 24-char hex ObjectId → 401.
       • **Verifies the user doc still exists in MongoDB** — this closes
@@ -28,6 +33,8 @@ async def get_current_user(authorization: str = Header(...)) -> str:
         /home/bundle, /split/*, /leaderboard/*, /user/payment-methods
         (only /user/me was safe because it did its own DB lookup).
     """
+    if not authorization:
+        raise HTTPException(status_code=401, detail="Missing authorization header")
     try:
         if not isinstance(authorization, str) or not authorization.startswith("Bearer "):
             raise HTTPException(status_code=401, detail="Invalid authorization format")

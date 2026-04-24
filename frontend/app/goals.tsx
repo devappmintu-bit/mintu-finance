@@ -105,16 +105,48 @@ export default function GoalsScreen() {
   };
 
   const onSave = async () => {
-    if (!name.trim() || !target || Number(target) <= 0) {
-      Toast.show({ type: 'error', text1: 'Name and target required' });
+    // Field-specific validation so the toast message is actionable instead
+    // of the generic "Name and target required" that fired even when only
+    // one field was wrong (e.g. a negative amount with a valid name).
+    const trimmedName = name.trim();
+    const numericTarget = Number(target);
+    const numericSaved = Number(saved) || 0;
+
+    if (!trimmedName) {
+      Toast.show({ type: 'error', text1: 'Goal name is required' });
       return;
     }
+    if (trimmedName.length > 100) {
+      Toast.show({ type: 'error', text1: 'Name is too long (max 100)' });
+      return;
+    }
+    if (!target) {
+      Toast.show({ type: 'error', text1: 'Target amount is required' });
+      return;
+    }
+    if (!Number.isFinite(numericTarget) || numericTarget <= 0) {
+      Toast.show({ type: 'error', text1: 'Target must be a positive number' });
+      return;
+    }
+    if (numericTarget > 100000000) {
+      Toast.show({ type: 'error', text1: 'Target too large (max ₹10 crore)' });
+      return;
+    }
+    if (numericSaved < 0) {
+      Toast.show({ type: 'error', text1: 'Saved amount cannot be negative' });
+      return;
+    }
+    if (numericSaved > numericTarget) {
+      Toast.show({ type: 'error', text1: 'Already saved cannot exceed target' });
+      return;
+    }
+
     setSaving(true);
     try {
       const payload = {
-        name: name.trim(),
-        target_amount: Number(target),
-        saved_amount: Number(saved) || 0,
+        name: trimmedName,
+        target_amount: numericTarget,
+        saved_amount: numericSaved,
         emoji, color,
       };
       if (editingGoal) {
@@ -126,8 +158,16 @@ export default function GoalsScreen() {
       }
       setFormVisible(false);
       loadGoals();
-    } catch (e) {
-      Toast.show({ type: 'error', text1: 'Could not save goal' });
+    } catch (e: any) {
+      // Surface the server-side validation message when possible so the
+      // user knows what to change instead of a generic "could not save".
+      const detail = e?.response?.data?.detail;
+      const msg = Array.isArray(detail) ? detail[0]?.msg : detail;
+      Toast.show({
+        type: 'error',
+        text1: msg ? 'Invalid goal' : 'Could not save goal',
+        text2: typeof msg === 'string' ? msg.slice(0, 90) : undefined,
+      });
     } finally {
       setSaving(false);
     }

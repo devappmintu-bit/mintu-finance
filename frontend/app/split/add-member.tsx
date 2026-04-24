@@ -258,7 +258,17 @@ export default function AddMemberScreen() {
   // Load group + suggestion pool
   useEffect(() => {
     (async () => {
-      if (!params.group_id) { router.back(); return; }
+      if (!params.group_id) {
+        // Graceful recovery: deep-links without group_id land on a blank
+        // screen because router.back() has nowhere to go on cold nav.
+        Toast.show({
+          type: 'error',
+          text1: 'No group selected',
+          text2: 'Open a group first, then add members.',
+        });
+        router.replace('/split');
+        return;
+      }
       try {
         const data = await fetchGroupSummary(String(params.group_id));
         setGroup(data);

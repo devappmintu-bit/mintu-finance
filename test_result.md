@@ -1188,6 +1188,55 @@ profile_hub_and_goals_apr22_2026:
 agent_communication:
     -agent: "main"
     -message: |
+        🔴 PRINCIPAL-ENGINEER FRONTEND AUDIT (Round 30h) — 5 REAL BUGS DISCOVERED + FIXED:
+
+        🐞 BUGS FOUND (all via real browser automation, not static analysis):
+
+        P0 — AUTH INFRASTRUCTURE BUG (affects 160+ endpoints globally):
+          • get_current_user used `Header(...)` required-dep which made FastAPI return
+            422 "field required" instead of 401 "Missing authorization" on absent headers.
+            Backend logs were full of GET /api/goals → 422, GET /api/transactions → 422,
+            etc. Fix: changed to `Header(None)` + manual raise of 401. Tightened
+            principal audit assertion from `in (401,403,422)` to `in (401,403)`.
+
+        P1 — DEAD-END UX (two screens):
+          • /split/add-expense without ?group_id=... silently called router.back() and
+            left user on a blank spinner (router.back has nowhere to go on deep-link /
+            cold navigation).
+          • /split/add-member — same pattern.
+          Fix: both now show an error toast and router.replace('/split') to the group list
+          screen. Verified: navigating to /split/add-expense without group_id now
+          redirects cleanly to /split within 3 seconds.
+
+        P1 — MISLEADING ERROR COPY:
+          • goals form onSave showed "Name and target required" even when only the
+            amount was invalid (e.g. -100 with a valid name). Fix: replaced with
+            field-specific validation (9 distinct error messages covering empty/huge/
+            negative/non-finite/cross-field). Also now surfaces server-side pydantic
+            detail when available so 400/422 errors get actionable copy.
+
+        P2 — PERFORMANCE (LLM blocking UI):
+          • GET /api/money-school/daily took 2386-4500ms per call (uncached LLM per
+            hit). Fix: added cache_get/cache_set with 6-hour TTL keyed by (user, lang,
+            day_index). Cold=2386ms, warm=50ms (47x speed-up verified).
+
+        🔧 VERIFIED AFTER FIXES:
+          • 54/54 tests still pass (test_adversarial.py 24 + test_principal_audit.py 30)
+          • GET /api/goals without auth → 401 with {"detail":"Missing authorization header"}
+          • GET /api/money-school/daily warm cache → 50ms
+          • /split/add-expense deep-link recovers gracefully to /split screen
+          • Goals form rejects -100/empty name with specific toast copy
+          • Zero regressions in other endpoints (spot-checked 29)
+
+        📊 Summary scorecard:
+          Backend adversarial suite:  24/24 ✅
+          Backend principal audit:    30/30 ✅ (1 skip = schema guard)
+          Frontend bugs found+fixed:  5 (1 P0, 2 P1, 1 P1, 1 P2)
+          Global effect of P0 fix:    401 on ALL 160+ protected routes when auth missing
+                                       (was 422 previously, broke auth error handling)
+
+    -agent: "main"
+    -message: |
         🔴 PRINCIPAL-ENGINEER AUDIT — 6 REAL PRODUCTION BUGS DISCOVERED + FIXED:
 
         📋 AUDIT METHODOLOGY: Wrote /app/backend/tests/test_principal_audit.py — 31 adversarial

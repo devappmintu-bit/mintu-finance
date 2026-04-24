@@ -48,11 +48,23 @@ async def get_money_school_lessons():
 
 @api_router.get("/money-school/daily")
 async def get_daily_lesson(user_id: str = Depends(get_current_user), lang: str = "en"):
-    """Get today's lesson + AI-personalized tip based on user's spending"""
+    """Get today's lesson + AI-personalized tip based on user's spending.
+
+    Caches the personalized tip per-user for 6 hours so the 4.5-second LLM
+    round-trip doesn't block the UI on every dashboard load. The tip is
+    tied to today's rotating lesson + spending trend, so stale-within-day
+    is fine.
+    """
     # Rotate daily lesson based on date
     day_index = date.today().toordinal() % len(MONEY_SCHOOL_LESSONS)
     lesson = MONEY_SCHOOL_LESSONS[day_index]
-    
+
+    # Per-user cache key — stable for 6 hours so we don't LLM on every screen mount.
+    cache_key = f"school_daily:{user_id}:{lang}:{day_index}"
+    cached = cache_get(cache_key)
+    if cached:
+        return cached
+
     # Get user's spending context for AI personalization
     try:
         thirty_days_ago = datetime.utcnow() - timedelta(days=30)
@@ -62,27 +74,30 @@ async def get_daily_lesson(user_id: str = Depends(get_current_user), lang: str =
         for t in txns:
             top_cat[t["category"]] = top_cat.get(t["category"], 0) + t["amount"]
         top_category = max(top_cat, key=top_cat.get) if top_cat else "Food"
-        
+
         lang_instr = get_lang_instruction(lang)
         chat = LlmChat(
             api_key=os.environ['EMERGENT_LLM_KEY'],
             session_id=f"school_{user_id}_{datetime.utcnow().timestamp()}",
             system_message="You are MintU's financial literacy buddy. Give ONE short personalized tip (1-2 sentences) connecting the lesson topic to user's actual spending. Be warm and specific with numbers. Use ₹." + lang_instr
         ).with_model("openai", "gpt-5.2")
-        
+
         msg = f"Lesson: {lesson['title']}. User spent ₹{total_spent:.0f} this month, top category: {top_category}."
         response = await chat.send_message(UserMessage(text=msg))
         personal_tip = response.strip()
     except Exception as e:
         logging.error(f"Money school AI error: {e}")
         personal_tip = lesson["tip"]
-    
-    return {
+
+    result = {
         "lesson": lesson,
         "personal_tip": personal_tip,
         "lesson_number": day_index + 1,
         "total_lessons": len(MONEY_SCHOOL_LESSONS)
     }
+    # 6h TTL — survives the user's whole day + overlap, without blocking on day rollover.
+    cache_set(cache_key, result, ttl_seconds=6 * 3600)
+    return result
 
 # ── dynamic / cards / complete / personalized ──────────────────────────────
 @api_router.get("/money-school/dynamic")

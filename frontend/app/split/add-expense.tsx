@@ -64,7 +64,18 @@ export default function AddExpenseScreen() {
   // Load group & members (+ populate form if editing)
   useEffect(() => {
     (async () => {
-      if (!params.group_id) { router.back(); return; }
+      if (!params.group_id) {
+        // Graceful recovery when deep-linked without a group_id.
+        // Without this, the screen renders as a blank scaffold because
+        // router.back() has nowhere to go on a cold navigation.
+        Toast.show({
+          type: 'error',
+          text1: 'No group selected',
+          text2: 'Open a group first, then add an expense.',
+        });
+        router.replace('/split');
+        return;
+      }
       try {
         const data = await fetchGroupSummary(String(params.group_id));
         setGroup(data);
