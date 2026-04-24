@@ -53,8 +53,11 @@ async def _ensure_indexes(db) -> None:
         # Settle-lock TTL — advisory lock auto-releases after 10s so a
         # crashed or stuck settle request can't permanently block the pair.
         await db.settle_locks.create_index("at", expireAfterSeconds=10)
-        # Coin ledger dedupe — enforce idempotency of (user, action, dedupe_key)
-        # at the DB layer so concurrent award calls can't race past the find.
+        # (DEPRECATED Round 31b) Legacy coin_ledger index kept for read-back
+        # of historic entries only. All new writes route through
+        # `core.ledger` → `ledger_transactions`. The collection will be
+        # renamed to `coin_ledger_archived_v1` by the startup migration
+        # below once drained — see `_archive_legacy_coin_ledger`.
         await db.coin_ledger.create_index(
             [("user_id", 1), ("action", 1), ("dedupe_key", 1)],
             unique=True,
@@ -104,6 +107,56 @@ async def _ensure_indexes(db) -> None:
         logger.info("✅ MongoDB indexes created for 1.46B-scale performance")
     except Exception as e:
         logger.warning(f"Index creation warning: {e}")
+
+
+async def _archive_legacy_coin_ledger(db) -> None:
+    """Round 31b migration — rename `coin_ledger` to `coin_ledger_archived_v1`.
+
+    All coin writes have migrated to `ledger_transactions` (via
+    `core.ledger`). This migration runs once on startup:
+
+    • If `coin_ledger_archived_v1` ALREADY exists → the archive was
+      performed on a prior boot. Nothing to do.
+    • If `coin_ledger` is non-empty → rename it atomically. Downstream
+      reads that still reference `coin_ledger` (none exist at this
+      commit) would silently read an empty collection, which is the
+      desired behaviour (legacy data preserved, new reads clean).
+    • If `coin_ledger` is empty → delete it outright.
+
+    Safe re-entrant: check-existence before any rename to make reboots
+    idempotent.
+    """
+    try:
+        existing = await db.list_collection_names()
+        if "coin_ledger_archived_v1" in existing:
+            # Already migrated on a prior boot — nothing to do.
+            return
+        if "coin_ledger" not in existing:
+            # Never existed — nothing to migrate.
+            return
+
+        count = await db.coin_ledger.estimated_document_count()
+        if count == 0:
+            await db.coin_ledger.drop()
+            logger.info("🗃️  Legacy coin_ledger was empty — dropped")
+            return
+
+        # Rename in-place. MongoDB's renameCollection requires admin DB on
+        # a single mongod; we use the admin command indirectly via the
+        # motor client's `command()` on the parent db.
+        client = db.client
+        await client.admin.command({
+            "renameCollection": f"{db.name}.coin_ledger",
+            "to": f"{db.name}.coin_ledger_archived_v1",
+            "dropTarget": False,
+        })
+        logger.info(
+            f"🗃️  Archived legacy coin_ledger → coin_ledger_archived_v1 "
+            f"({count} rows preserved; no further writes expected)"
+        )
+    except Exception as e:
+        # Archival failure must NEVER block app startup.
+        logger.warning(f"coin_ledger archival skipped: {e}")
 
 
 async def _start_background_workers(db) -> None:
@@ -223,6 +276,7 @@ def register_lifecycle(app, db, client) -> None:
     @app.on_event("startup")
     async def _on_startup():  # noqa: D401
         await _ensure_indexes(db)
+        await _archive_legacy_coin_ledger(db)
         await _start_background_workers(db)
 
     @app.on_event("shutdown")

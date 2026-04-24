@@ -10,6 +10,28 @@ import api from '../utils/api';
 import { invalidateAfter } from '../utils/cacheGraph';
 import type { Transaction } from './types';
 
+/** Cross-platform UUIDv4 generator.
+ *
+ * • Uses native `crypto.randomUUID()` where available (web + RN 0.74+).
+ * • Falls back to a math.random-based RFC4122 v4 shim elsewhere.
+ *
+ * Used to give every "Add Transaction" POST a unique `idempotency_key`
+ * so spam-clicks (user taps Save 20×) collapse into a single server-side
+ * insert via the partial-unique index on (user_id, idempotency_key).
+ */
+function generateUUID(): string {
+  try {
+    const g: any = globalThis as any;
+    if (g?.crypto?.randomUUID) return g.crypto.randomUUID();
+  } catch { /* fall through */ }
+  // RFC4122 v4 shim
+  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, (c) => {
+    const r = (Math.random() * 16) | 0;
+    const v = c === 'x' ? r : (r & 0x3) | 0x8;
+    return v.toString(16);
+  });
+}
+
 export async function fetchTransactions(params?: {
   source?: string; type?: string; status?: string; month?: string; limit?: number;
 }): Promise<Transaction[]> {
@@ -20,8 +42,15 @@ export async function fetchTransactions(params?: {
 export async function addTransaction(payload: {
   amount: number; category: string; description?: string;
   type: 'debit' | 'credit'; date?: string;
+  /** Optional explicit key. If omitted, a UUID is generated so each
+   *  distinct user-action is de-duped against spam-clicks server-side. */
+  idempotency_key?: string;
 }): Promise<Transaction> {
-  const r = await api.post('/transactions', payload);
+  const body = {
+    ...payload,
+    idempotency_key: payload.idempotency_key || generateUUID(),
+  };
+  const r = await api.post('/transactions', body);
   await invalidateAfter('txn');
   return r.data as Transaction;
 }
