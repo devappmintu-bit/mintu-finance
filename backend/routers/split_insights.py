@@ -83,24 +83,12 @@ async def split_insights(user_id: str = Depends(get_current_user)) -> Dict[str, 
         pass
 
     # --- 4) Top debtor (who owes me the most) + top creditor (whom I owe the most)
-    #     Compute across all groups via embedded expenses — balances endpoint does this live.
+    #     Currently inert — `split_balances_cache` has no writers (Round 30 audit).
+    #     TODO: implement by re-using compute_outstanding_debt() across known pairs,
+    #     or by reading live /split/balances in-process. Kept as None so the downstream
+    #     cards render zero rather than crashing.
     top_debtor = None
     top_creditor = None
-    try:
-        balances = await db.split_balances_cache.find_one({"user_id": user_id}) or {}
-        by_user = balances.get("by_user") or {}
-        debtors = [(uid, info) for uid, info in by_user.items() if info.get("net", 0) > 0]
-        creditors = [(uid, info) for uid, info in by_user.items() if info.get("net", 0) < 0]
-        if debtors:
-            debtors.sort(key=lambda x: -x[1].get("net", 0))
-            top = debtors[0]
-            top_debtor = {"user_id": top[0], "name": top[1].get("name", "Friend"), "amount": top[1].get("net", 0)}
-        if creditors:
-            creditors.sort(key=lambda x: x[1].get("net", 0))
-            top = creditors[0]
-            top_creditor = {"user_id": top[0], "name": top[1].get("name", "Friend"), "amount": abs(top[1].get("net", 0))}
-    except Exception:
-        pass
 
     # --- 5) Settlement streak — consecutive days with at least one settlement in last 30 days
     streak = 0
