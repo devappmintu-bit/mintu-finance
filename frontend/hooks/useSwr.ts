@@ -13,7 +13,7 @@
  */
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useFocusEffect } from 'expo-router';
-import { swrGet } from '../utils/swrGet';
+import { swrGet, subscribeInvalidation } from '../utils/swrGet';
 
 type Options = {
   ttlMs?: number;
@@ -83,6 +83,18 @@ export default function useSwr<T = any>(url: string | null, opts: Options = {}):
       if (refetchOnFocus && url && !paused) load();
     }, [refetchOnFocus, url, paused, load])
   );
+
+  // Subscribe to invalidation events (Round 30d — data graph sync).
+  // When a mutation elsewhere in the app fires `invalidateAfter('txn')`,
+  // every live useSwr hook whose URL matches a graphed cache prefix
+  // auto-refetches → real-time UI sync without manual refreshes.
+  useEffect(() => {
+    if (!url || paused) return;
+    const unsub = subscribeInvalidation(url, () => {
+      if (mountedRef.current) load();
+    });
+    return unsub;
+  }, [url, paused, load]);
 
   const mutate = useCallback((updater: T | ((prev: T | null) => T)) => {
     setData((prev) => (typeof updater === 'function' ? (updater as any)(prev) : updater));

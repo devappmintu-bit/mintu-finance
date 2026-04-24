@@ -1,7 +1,11 @@
 /**
  * services/split.ts — Split/group/settlement domain API wrappers.
+ *
+ * Every write fires the appropriate `invalidateAfter(...)` so dependent
+ * caches across the app refetch immediately. See DATA_GRAPH.md §4.
  */
 import api from '../utils/api';
+import { invalidateAfter, invalidateAll } from '../utils/cacheGraph';
 import type { SplitGroup, SplitBalance, RazorpayOrder } from './types';
 
 // ── Groups ─────────────────────────────────────────────────────────────
@@ -12,6 +16,7 @@ export async function fetchSplitGroups(): Promise<SplitGroup[]> {
 
 export async function createSplitGroup(payload: { name: string; members: Array<{ phone: string; name?: string }> }): Promise<SplitGroup> {
   const r = await api.post('/split/groups', payload);
+  await invalidateAfter('split.group');
   return r.data as SplitGroup;
 }
 
@@ -42,6 +47,7 @@ export async function settlePayment(payload: {
   group_id?: string; coins_to_use?: number; txn_ref?: string;
 }): Promise<any> {
   const r = await api.post('/split/settle', payload);
+  await invalidateAfter('split.settle');
   return r.data;
 }
 
@@ -50,6 +56,7 @@ export async function partialSettle(payload: {
   group_id?: string; coins_to_use?: number;
 }): Promise<any> {
   const r = await api.post('/split/partial-settle', payload);
+  await invalidateAfter('split.settle');
   return r.data;
 }
 
@@ -64,6 +71,7 @@ export async function createSplitRazorpayOrder(payload: {
 // ── Reminders ─────────────────────────────────────────────────────────
 export async function sendPaymentReminder(payload: { target_user_id: string; amount: number; group_id?: string }): Promise<any> {
   const r = await api.post('/split/remind', payload);
+  await invalidateAfter('split.reminder');
   return r.data;
 }
 
@@ -74,6 +82,7 @@ export async function fetchReminders(): Promise<any[]> {
 
 export async function dismissReminder(reminderId: string): Promise<void> {
   await api.post(`/split/reminders/${reminderId}/dismiss`);
+  await invalidateAfter('split.reminder');
 }
 
 export async function coinRedeemPreview(amount: number, coinsToUse: number): Promise<any> {
@@ -85,11 +94,13 @@ export async function coinRedeemPreview(amount: number, coinsToUse: number): Pro
 // ── Group management ─────────────────────────────────────────────────────
 export async function updateGroupName(groupId: string, name: string): Promise<any> {
   const r = await api.put(`/split/groups/${groupId}/name`, { name });
+  await invalidateAfter('split.group');
   return r.data;
 }
 
 export async function addGroupMember(groupId: string, phone: string): Promise<any> {
   const r = await api.post(`/split/groups/${groupId}/members`, { phones: [phone] });
+  await invalidateAfter('split.member');
   return r.data;
 }
 
@@ -100,34 +111,41 @@ export async function previewGroupForJoin(groupId: string): Promise<any> {
 
 export async function joinGroup(groupId: string): Promise<any> {
   const r = await api.post(`/split/groups/${groupId}/join`);
+  await invalidateAfter('split.member');
   return r.data;
 }
 
 export async function removeGroupMember(groupId: string, memberId: string): Promise<void> {
   await api.delete(`/split/groups/${groupId}/members/${memberId}`);
+  await invalidateAfter('split.member');
 }
 
 export async function leaveGroup(groupId: string): Promise<void> {
   await api.delete(`/split/groups/${groupId}/leave`);
+  await invalidateAfter('split.group');
 }
 
 export async function deleteGroup(groupId: string): Promise<void> {
   await api.delete(`/split/groups/${groupId}`);
+  await invalidateAfter('split.group');
 }
 
 // ── Expenses ─────────────────────────────────────────────────────────────
 export async function createExpense(payload: any): Promise<any> {
   const r = await api.post('/split/expenses', payload);
+  await invalidateAfter('split.expense');
   return r.data;
 }
 
 export async function updateExpense(expenseId: string, payload: any): Promise<any> {
   const r = await api.put(`/split/expenses/${expenseId}`, payload);
+  await invalidateAfter('split.expense');
   return r.data;
 }
 
 export async function deleteExpense(expenseId: string): Promise<void> {
   await api.delete(`/split/expenses/${expenseId}`);
+  await invalidateAfter('split.expense');
 }
 
 // ── Rewards, UPI intents, offline payments ──────────────────────────────
@@ -143,6 +161,8 @@ export async function fetchPayIntent(targetUserId: string, amount: number): Prom
 
 export async function settleWithRewards(payload: any): Promise<any> {
   const r = await api.post('/split/settle-with-rewards', payload);
+  // settle-with-rewards touches BOTH debt state AND coin balance.
+  await invalidateAll(['split.settle', 'coin.reward']);
   return r.data;
 }
 
@@ -150,5 +170,6 @@ export async function markPaidOffline(payload: {
   target_user_id: string; amount: number; group_id?: string; method: string;
 }): Promise<any> {
   const r = await api.post('/split/mark-paid-offline', payload);
+  await invalidateAfter('split.settle');
   return r.data;
 }

@@ -87,6 +87,42 @@ export async function invalidate(prefix: string) {
     const toRemove = keys.filter((k) => k.startsWith(PREFIX + prefix));
     if (toRemove.length) await AsyncStorage.multiRemove(toRemove);
   } catch {}
+  // Notify any mounted useSwr hooks whose URL matches this prefix so they
+  // refetch immediately — this is what turns a passive cache into a
+  // reactive data graph. Subscribers are keyed by URL prefix.
+  fireInvalidation(prefix);
+}
+
+// ─── Pub/Sub for invalidation events ──────────────────────────────────
+// Mounted useSwr hooks subscribe to URL prefixes. When `invalidate(p)`
+// is called, every subscriber whose prefix overlaps with `p` fires a
+// refetch. Enables real-time UI updates across tabs on any mutation.
+
+type InvalidationListener = () => void;
+const subscribers = new Map<string, Set<InvalidationListener>>();
+
+export function subscribeInvalidation(prefix: string, listener: InvalidationListener): () => void {
+  if (!subscribers.has(prefix)) subscribers.set(prefix, new Set());
+  subscribers.get(prefix)!.add(listener);
+  return () => {
+    const set = subscribers.get(prefix);
+    if (set) {
+      set.delete(listener);
+      if (set.size === 0) subscribers.delete(prefix);
+    }
+  };
+}
+
+function fireInvalidation(firedPrefix: string) {
+  // Notify listeners whose prefix is a prefix of the fired one OR vice versa.
+  // Example: firing `/split/balances` wakes a hook subscribed to `/split/`.
+  for (const [subPrefix, listeners] of subscribers) {
+    if (firedPrefix.startsWith(subPrefix) || subPrefix.startsWith(firedPrefix)) {
+      for (const fn of listeners) {
+        try { fn(); } catch { /* swallow — bad listener shouldn't kill others */ }
+      }
+    }
+  }
 }
 
 /** Nuke the entire SWR cache — in-memory + AsyncStorage. Used by the
