@@ -1188,6 +1188,41 @@ profile_hub_and_goals_apr22_2026:
 agent_communication:
     -agent: "main"
     -message: |
+        🎨 FRONTEND POLISH PASS (Round 30h continued):
+
+        ✨ 1. NEW COMPONENT: FullScreenLoader (/app/frontend/components/FullScreenLoader.tsx)
+           • Branded breathing-orb loader with MintU orange (scale + opacity pulse).
+           • Optional delayed (+400ms) fade-in tagline — no flash on fast loads.
+           • Theme-reactive (useAppColors) — adapts to light/dark/AMOLED automatically.
+           • Replaces the bare ActivityIndicator "only-a-spinner" loading state that
+             scattered across 50+ screens (painful UX identified in Round 30h frontend
+             audit).
+
+        ✨ 2. APPLIED TO 4 HOTSPOT SCREENS:
+           • /split/add-expense — tagline "Loading group…"
+           • /split/add-member — tagline "Loading members…"
+           • /goals — tagline "Loading your goals…"
+           • /money-school — tagline "Building today's lesson…"
+
+        ✨ 3. HAPTIC FEEDBACK CONSISTENCY — Goals form:
+           • Validation warn → `Haptics.NotificationFeedbackType.Warning` (single bump)
+           • Press Save (valid inputs) → `Haptics.ImpactFeedbackStyle.Light`
+           • Create success → `Haptics.NotificationFeedbackType.Success` (pop pattern)
+           • Update success → same
+           • Server error → `Haptics.NotificationFeedbackType.Error`
+           All wrapped in `.catch(() => {})` so web platform doesn't choke.
+
+        ✅ VERIFIED:
+           • 54/54 backend tests still green (test_adversarial + test_principal_audit)
+           • /split/add-expense deep-link → redirects cleanly to /split with FullScreenLoader
+             in between (screenshot captures show polished loader mid-transition)
+           • /goals renders real empty state within ~1s
+           • /money-school renders preview-mode paywall cleanly
+           • Metro bundled clean — no module-resolution errors
+           • FullScreenLoader is theme-reactive (dark mode tested via useAppColors hook)
+
+    -agent: "main"
+    -message: |
         🔴 PRINCIPAL-ENGINEER FRONTEND AUDIT (Round 30h) — 5 REAL BUGS DISCOVERED + FIXED:
 
         🐞 BUGS FOUND (all via real browser automation, not static analysis):

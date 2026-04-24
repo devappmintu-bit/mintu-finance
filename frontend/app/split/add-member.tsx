@@ -36,6 +36,7 @@ import {
 import { usePhoneContacts } from '../../hooks/usePhoneContacts';
 import { makeStyles } from '../../utils/makeStyles';
 import { COLORS, SPACING } from '../../utils/theme';
+import FullScreenLoader from '../../components/FullScreenLoader';
 
 // ───────────────────────────── Types ─────────────────────────────
 
@@ -443,11 +444,7 @@ export default function AddMemberScreen() {
     } catch { /* noop */ }
   };
 
-  if (loading) return (
-    <SafeAreaView style={s.container}>
-      <ActivityIndicator style={{ flex: 1 }} color={COLORS.accent.primary} />
-    </SafeAreaView>
-  );
+  if (loading) return <FullScreenLoader tagline="Loading members…" />;
 
   const totalShown = sections.reduce((n, x) => n + x.data.length, 0);
   const noResults = !loading && pool.length > 0 && totalShown === 0;

@@ -22,6 +22,7 @@ import Toast from 'react-native-toast-message';
 import { useAuthStore } from '../../store/authStore';
 import { fetchGroupSummary, createExpense, updateExpense } from '../../services/split';
 import Confetti from '../../components/Confetti';
+import FullScreenLoader from '../../components/FullScreenLoader';
 import { makeStyles } from '../../utils/makeStyles';
 import { COLORS, SPACING } from '../../utils/theme';
 
@@ -220,7 +221,7 @@ export default function AddExpenseScreen() {
     }
   };
 
-  if (loading) return <SafeAreaView style={s.container}><ActivityIndicator style={{ flex: 1 }} color={COLORS.accent.primary} /></SafeAreaView>;
+  if (loading) return <FullScreenLoader tagline="Loading group…" />;
 
   // ── Empty-state: group has 0 or 1 member (creator only) ─────────────
   // Rendering the form would leave the user with a permanently-disabled

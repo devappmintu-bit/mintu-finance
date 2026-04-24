@@ -18,6 +18,7 @@ import * as Haptics from 'expo-haptics';
 import Svg, { Circle } from 'react-native-svg';
 import Toast from 'react-native-toast-message';
 import api from '../utils/api';
+import FullScreenLoader from '../components/FullScreenLoader';
 
 type Goal = {
   id: string;
@@ -112,35 +113,22 @@ export default function GoalsScreen() {
     const numericTarget = Number(target);
     const numericSaved = Number(saved) || 0;
 
-    if (!trimmedName) {
-      Toast.show({ type: 'error', text1: 'Goal name is required' });
-      return;
-    }
-    if (trimmedName.length > 100) {
-      Toast.show({ type: 'error', text1: 'Name is too long (max 100)' });
-      return;
-    }
-    if (!target) {
-      Toast.show({ type: 'error', text1: 'Target amount is required' });
-      return;
-    }
-    if (!Number.isFinite(numericTarget) || numericTarget <= 0) {
-      Toast.show({ type: 'error', text1: 'Target must be a positive number' });
-      return;
-    }
-    if (numericTarget > 100000000) {
-      Toast.show({ type: 'error', text1: 'Target too large (max ₹10 crore)' });
-      return;
-    }
-    if (numericSaved < 0) {
-      Toast.show({ type: 'error', text1: 'Saved amount cannot be negative' });
-      return;
-    }
-    if (numericSaved > numericTarget) {
-      Toast.show({ type: 'error', text1: 'Already saved cannot exceed target' });
-      return;
-    }
+    // Validation failure → light warning buzz to confirm "I saw you, but…"
+    const bail = (msg: string) => {
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning).catch(() => {});
+      Toast.show({ type: 'error', text1: msg });
+    };
 
+    if (!trimmedName) return bail('Goal name is required');
+    if (trimmedName.length > 100) return bail('Name is too long (max 100)');
+    if (!target) return bail('Target amount is required');
+    if (!Number.isFinite(numericTarget) || numericTarget <= 0) return bail('Target must be a positive number');
+    if (numericTarget > 100000000) return bail('Target too large (max ₹10 crore)');
+    if (numericSaved < 0) return bail('Saved amount cannot be negative');
+    if (numericSaved > numericTarget) return bail('Already saved cannot exceed target');
+
+    // Good inputs → confirm button press with a soft tap
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
     setSaving(true);
     try {
       const payload = {
@@ -151,9 +139,11 @@ export default function GoalsScreen() {
       };
       if (editingGoal) {
         await api.patch(`/goals/${editingGoal.id}`, payload);
+        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
         Toast.show({ type: 'success', text1: 'Goal updated!' });
       } else {
         await api.post('/goals', payload);
+        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
         Toast.show({ type: 'success', text1: 'Goal created 🎉' });
       }
       setFormVisible(false);
@@ -163,6 +153,7 @@ export default function GoalsScreen() {
       // user knows what to change instead of a generic "could not save".
       const detail = e?.response?.data?.detail;
       const msg = Array.isArray(detail) ? detail[0]?.msg : detail;
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error).catch(() => {});
       Toast.show({
         type: 'error',
         text1: msg ? 'Invalid goal' : 'Could not save goal',
@@ -198,13 +189,7 @@ export default function GoalsScreen() {
   const overallPct = totalTarget > 0 ? (totalSaved / totalTarget) * 100 : 0;
 
   if (loading) {
-    return (
-      <SafeAreaView style={s.bg}>
-        <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
-          <ActivityIndicator color="#F56E1E" size="large" />
-        </View>
-      </SafeAreaView>
-    );
+    return <FullScreenLoader tagline="Loading your goals…" />;
   }
 
   return (

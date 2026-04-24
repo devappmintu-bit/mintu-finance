@@ -22,6 +22,7 @@ import api from '../utils/api';
 import { fetchPremiumStatus } from '../services/premium';
 import { COLORS } from '../utils/theme';
 import { makeStyles } from '../utils/makeStyles';
+import FullScreenLoader from '../components/FullScreenLoader';
 
 type Card = { id?: string; type?: string; emoji?: string; title?: string; body?: string; xp?: number; color?: string; completed?: boolean };
 type Progress = {
@@ -81,14 +82,7 @@ export default function MoneySchoolScreen() {
     } catch { /* noop */ }
   };
 
-  if (loading) return (
-    <SafeAreaView style={s.bg} edges={['top']}>
-      <TopBar />
-      <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
-        <ActivityIndicator color={COLORS.accent.primary} />
-      </View>
-    </SafeAreaView>
-  );
+  if (loading) return <FullScreenLoader tagline="Building today's lesson…" />;
 
   return (
     <SafeAreaView style={s.bg} edges={['top']}>
