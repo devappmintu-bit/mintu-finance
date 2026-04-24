@@ -543,8 +543,14 @@ async def rewards_claim_marketplace(body: ClaimMarketplaceBody, user_id: str = D
       1. Verify reward exists.
       2. If premium, verify user has Pro plan.
       3. Verify user has enough coins.
-      4. Debit coins.
+      4. Debit coins (idempotent via ledger).
       5. Insert rewards_wallet entry (type=voucher, 30-day expiry).
+
+    Round 34 paranoid fix: the coin debit was already ledger-idempotent via
+    ``(marketplace_claim:{reward_id}, user_id)`` key, but the wallet_entry
+    insert was NOT gated. So a spam-click could result in ONE debit and TWO
+    voucher rows. We now detect a ledger-dedup response and return the
+    existing wallet entry instead of creating another.
     """
     reward = next((r for r in BRAND_CATALOG if r["id"] == body.reward_id), None)
     if not reward:
@@ -557,12 +563,47 @@ async def rewards_claim_marketplace(body: ClaimMarketplaceBody, user_id: str = D
         if plan not in ("monthly", "yearly", "family", "pro"):
             raise HTTPException(status_code=403, detail="Upgrade to MintU Pro to unlock this reward")
 
-    coins = await _get_user_coins(user_id)
     cost = int(reward["cost_coins"])
-    if coins < cost:
-        raise HTTPException(status_code=400, detail=f"Need {cost - coins} more coins")
 
-    new_balance = await _add_user_coins(user_id, -cost, f"marketplace_claim:{body.reward_id}")
+    # Pre-check balance for a friendly error BEFORE we try the atomic spend.
+    # The atomic spend will also refuse, but the error UX is worse.
+    current_coins = await _get_user_coins(user_id)
+    if current_coins < cost:
+        raise HTTPException(status_code=400, detail=f"Need {cost - current_coins} more coins")
+
+    # Call the ledger directly so we can inspect the "duplicate" signal.
+    from core import ledger as ledger_service
+    idem_key = f"rewards::marketplace_claim:{body.reward_id}::{user_id}"
+    try:
+        res = await ledger_service.spend_coins(
+            user_id=user_id, amount=cost,
+            source=f"rewards:marketplace_claim:{body.reward_id}",
+            idempotency_key=idem_key,
+        )
+    except ValueError:
+        raise HTTPException(status_code=400, detail="Insufficient coins")
+
+    new_balance = int(res.get("balance", 0))
+
+    # If the ledger deduped (spam-click / retry), DON'T insert another wallet
+    # row — fetch the existing one and return it. This closes the
+    # one-debit/two-vouchers TOCTOU gap.
+    if res.get("reason") == "duplicate" or res.get("created") is False:
+        if res.get("reason") == "insufficient_funds":
+            raise HTTPException(status_code=400, detail="Insufficient coins")
+        existing = await db.rewards_wallet.find_one({
+            "user_id": user_id,
+            "source": "marketplace",
+            "reward_id": body.reward_id,
+        }, sort=[("created_at", -1)])
+        if existing:
+            existing["_id"] = str(existing["_id"])
+            for k in ("created_at", "expires_at"):
+                if k in existing and hasattr(existing[k], "isoformat"):
+                    existing[k] = existing[k].isoformat()
+            return {"ok": True, "reward": reward, "coins": new_balance, "wallet_entry": existing, "deduped": True}
+        # No existing entry found — this shouldn't happen, but fall through
+        # to create one as a last-resort safety net.
 
     wallet_entry = {
         "user_id": user_id,

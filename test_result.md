@@ -13828,3 +13828,24 @@ agent_communication:
 
         Running backend tests next to verify zero regressions on the 95-assertion paranoid
         suite.
+    -agent: "main"
+    -message: |
+        ✅ ROUND 34 BACKEND REGRESSION CHECK + CLAIM-IDEMPOTENCY HARDENING DONE
+
+        **Backend Paranoid Suite**: 29 passed, 2 skipped, 0 failed (59s). Full green.
+        **Round-34 Smoke Suite** (from testing agent): 8/8 pass.
+
+        **Additional Backend Fix applied this round**:
+        • `/api/rewards/claim-marketplace` had a latent TOCTOU: ledger debit was
+          idempotent via `(marketplace_claim:{reward_id}, user_id)` key, but the
+          `rewards_wallet` insert was NOT gated. A spam-click could land a single
+          debit with DOUBLE voucher rows.
+          Fix: the endpoint now calls `ledger_service.spend_coins` directly (not
+          the `_add_user_coins` helper) so it can inspect `res["reason"]`. If the
+          debit returns `reason="duplicate"` / `created=False`, the endpoint
+          short-circuits and returns the most recent existing wallet_entry with
+          `deduped: true` flag, instead of inserting another voucher row.
+        • Frontend Q6 guard (in-flight Set-state) remains as defence-in-depth.
+
+        **Status**: No backend regressions. Marketplace claim is now end-to-end
+        safe against double-redeem. Ready for user to validate frontend changes.
