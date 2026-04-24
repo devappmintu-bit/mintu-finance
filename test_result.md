@@ -1188,6 +1188,36 @@ profile_hub_and_goals_apr22_2026:
 agent_communication:
     -agent: "main"
     -message: |
+        🎨 FRONTEND POLISH — ROUND 2 (Round 30h cont'd):
+
+        ✨ 1. FULLSCREENLOADER COVERAGE EXTENDED — Last bare-spinner screen wired:
+           • /premium-hub — tagline "Loading your premium perks…" (was bare orange
+             ActivityIndicator)
+           After this pass, ALL main screens either use FullScreenLoader, HomeSkeleton,
+           BudgetSkeleton, TransactionsSkeleton, SplitSkeleton, or Skeleton.Box grid.
+           Zero bare "only-a-spinner" loading states remain in the app.
+
+        ✨ 2. GOAL MILESTONE CELEBRATION — /goals now detects progress crossings:
+           • 50% crossing → light haptic + info toast "Halfway on {goal} 🎯"
+           • 75% crossing → medium haptic + info toast "Almost there on {goal}! {pct}% done 🔥"
+           • 100% crossing → success haptic + CONFETTI burst + celebration toast
+             "🎉 Goal reached: {goal}! You saved ₹{amount}"
+           Implementation: diff incoming goals against previous snapshot inside loadGoals().
+           Only one celebration fires per refresh (no toast pile-up). Confetti dismisses
+           itself via onDone callback. Best-effort — wrapped in try/catch so a diff failure
+           never breaks the refresh.
+
+           Backend smoke tested end-to-end: created goal at 40%, patched to 60%, 80%,
+           100% → all 200, clean delete.
+
+        ✅ VERIFIED:
+           • /goals renders with new Confetti mounted in render tree (hidden until trigger)
+           • /premium-hub renders the locked preview with all 6 premium-tool cards cleanly
+           • Metro bundle clean after restart
+           • 54/54 backend tests still green (test_adversarial 24 + principal audit 30)
+
+    -agent: "main"
+    -message: |
         🎨 FRONTEND POLISH PASS (Round 30h continued):
 
         ✨ 1. NEW COMPONENT: FullScreenLoader (/app/frontend/components/FullScreenLoader.tsx)

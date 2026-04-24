@@ -19,6 +19,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { router } from 'expo-router';
 import api from '../utils/api';
+import FullScreenLoader from '../components/FullScreenLoader';
 import { fetchPremiumStatus } from '../services/premium';
 import { makeStyles } from '../utils/makeStyles';
 
@@ -65,13 +66,7 @@ export default function PremiumHubScreen() {
     { id: 'support', title: 'Priority Support', desc: 'Skip the queue · email & in-app chat.', icon: 'shield-checkmark', tint: '#14B8A6', action: () => router.push('/support' as any) },
   ];
 
-  if (loading) return (
-    <SafeAreaView style={s.bg} edges={['top']}>
-      <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
-        <ActivityIndicator color="#F56E1E" />
-      </View>
-    </SafeAreaView>
-  );
+  if (loading) return <FullScreenLoader tagline="Loading your premium perks…" />;
 
   return (
     <SafeAreaView style={s.bg} edges={['top']}>

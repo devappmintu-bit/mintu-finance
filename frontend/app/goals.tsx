@@ -19,6 +19,7 @@ import Svg, { Circle } from 'react-native-svg';
 import Toast from 'react-native-toast-message';
 import api from '../utils/api';
 import FullScreenLoader from '../components/FullScreenLoader';
+import Confetti from '../components/Confetti';
 
 type Goal = {
   id: string;
@@ -70,11 +71,59 @@ export default function GoalsScreen() {
   const [emoji, setEmoji] = useState('🎯');
   const [color, setColor] = useState('#F56E1E');
   const [saving, setSaving] = useState(false);
+  // Milestone celebration — fires a confetti burst + haptic the moment any
+  // goal crosses 100% (previous snapshot of that goal was < 100%). Also
+  // respects 50%/75% softer nudges via toast (no confetti — less noisy).
+  const [showConfetti, setShowConfetti] = useState(false);
 
   const loadGoals = useCallback(async () => {
     try {
       const r = await api.get('/goals');
-      setGoals(r.data?.goals || []);
+      const newGoals: Goal[] = r.data?.goals || [];
+
+      // Diff against previous snapshot to detect newly-crossed milestones
+      setGoals((prev) => {
+        try {
+          const prevMap = new Map(prev.map((g) => [g.id, g]));
+          for (const g of newGoals) {
+            const pct = g.target_amount > 0 ? (g.saved_amount / g.target_amount) * 100 : 0;
+            const prevG = prevMap.get(g.id);
+            const prevPct = prevG && prevG.target_amount > 0
+              ? (prevG.saved_amount / prevG.target_amount) * 100
+              : 0;
+            // 100% crossing → full celebration
+            if (prevPct < 100 && pct >= 100) {
+              Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
+              setShowConfetti(true);
+              Toast.show({
+                type: 'success',
+                text1: `🎉 Goal reached: ${g.name}!`,
+                text2: `You saved ₹${g.saved_amount.toLocaleString('en-IN')}`,
+              });
+              break; // only celebrate one at a time to avoid toast pile-up
+            }
+            // 75% crossing → soft nudge
+            if (prevPct < 75 && pct >= 75 && pct < 100) {
+              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium).catch(() => {});
+              Toast.show({
+                type: 'info',
+                text1: `Almost there on ${g.name}! ${Math.floor(pct)}% done 🔥`,
+              });
+              break;
+            }
+            // 50% crossing → light nudge
+            if (prevPct < 50 && pct >= 50 && pct < 75) {
+              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
+              Toast.show({
+                type: 'info',
+                text1: `Halfway on ${g.name} 🎯`,
+              });
+              break;
+            }
+          }
+        } catch { /* diff is best-effort — never block the refresh */ }
+        return newGoals;
+      });
     } catch (e) {
       // fail silently
     } finally {
@@ -194,6 +243,8 @@ export default function GoalsScreen() {
 
   return (
     <SafeAreaView style={s.bg} edges={['top']}>
+      {/* Milestone celebration — fires full-screen when a goal hits 100% */}
+      <Confetti trigger={showConfetti} onDone={() => setShowConfetti(false)} />
       {/* Header */}
       <View style={s.header}>
         <TouchableOpacity onPress={() => router.back()} hitSlop={10} style={s.backBtn}>
