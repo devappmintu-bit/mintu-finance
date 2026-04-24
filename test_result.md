@@ -1104,7 +1104,30 @@ profile_hub_and_goals_apr22_2026:
 agent_communication:
     -agent: "main"
     -message: |
-        🏗️ Phase 4 (response handlers) + Phase 5 (split_settle split) — DONE:
+        🏗️ Phase 6 (split_activity extraction) — DONE:
+        • routers/split_activity.py (225 L) — new module hosting GET /split/activity +
+          GET /split/settlement-leaderboard. Registered via routers/splits.py aggregator.
+        • split_settle.py: 947 → 759 lines (another -20%). Total -35% from original 1160.
+        • Fixed a latent async-iteration pattern while extracting (explicit `async for` on
+          db.users.find() cursor instead of wrapping in to_list).
+        • Adversarial pytest: 24/24 PASS (39.68s). Activity + leaderboard + balances +
+          settle all verified via 23/23 smoke assertions. Zero 5xx.
+
+        📊 TOTAL REFACTOR SCORECARD (since Round 30g start):
+          server.py:        817 → 311 (-62%)
+          split_settle.py: 1160 → 759 (-35%)
+          New core/ modules: ai_helpers, lifecycle, middleware, responses
+          New routers/ modules: split_reminders, split_activity
+          24/24 adversarial tests still green across all 6 phases.
+
+        🎯 Code-health restructure reached a natural resting point. Remaining split_settle.py
+        (759 L) is a coherent unit (settle flow, locks, coin redemption, mark-paid-offline,
+        partial-settle, settle-with-rewards) — further splits would introduce coupling
+        without net benefit.
+
+    -agent: "main"
+    -message: |
+        🏗️ Phase 4 (response handlers) + Phase 5 (split_reminders extraction) — DONE:
         • core/responses.py (117 L) — extracted _scrub_nonfinite + SafeJSONResponse +
           register_exception_handlers(app). Server.py now 311 lines.
         • routers/split_reminders.py (264 L) — extracted 4 endpoints from split_settle.py:
