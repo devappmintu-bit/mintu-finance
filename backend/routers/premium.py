@@ -167,6 +167,8 @@ async def mock_activate_premium(req: MockActivateRequest, user_id: str = Depends
         "premium_until": until.isoformat(),
         "features": PREMIUM_FEATURES,
         "money_school_access": bool(meta.get("includes_money_school", False)),
+        "effective_price": effective_price,
+        "coins_applied": coins_applied,
     }
 
 

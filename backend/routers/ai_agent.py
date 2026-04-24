@@ -42,7 +42,6 @@ async def agentic_ai_chat(data: dict, user_id: str = Depends(get_current_user)):
     user = await db.users.find_one({"_id": ObjectId(user_id)})
     now = datetime.utcnow()
     month_start = now.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
-    week_start = now - timedelta(days=now.weekday())
     
     # Spending data
     cat_pipeline = [

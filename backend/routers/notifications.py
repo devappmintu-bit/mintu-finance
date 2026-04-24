@@ -132,7 +132,6 @@ async def get_smart_notification_triggers(user_id: str = Depends(get_current_use
     
     # 3. Streak reminder (no txn today by evening)
     if not today_txns and now.hour >= 18:
-        user = await db.users.find_one({"_id": ObjectId(user_id)})
         notifications.append({
             "type": "streak",
             "title": "Don't break your streak!",

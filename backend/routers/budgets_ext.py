@@ -29,7 +29,7 @@ async def smart_budget_suggestions(user_id: str = Depends(get_current_user)):
         return {"suggestions": [], "message": "Track expenses for a week and I'll suggest smart budgets for you! 📊"}
     
     # Calculate monthly projections (scale 60 days → 30 days)
-    total_monthly = sum(s["total"] for s in spending.values()) / 2
+    # NOTE: intentionally omit unused `total_monthly` — per-category sums used below.
     
     # Indian benchmark budgets (% of income)
     INDIAN_BENCHMARKS = {
@@ -59,7 +59,6 @@ async def smart_budget_suggestions(user_id: str = Depends(get_current_user)):
         suggested = max(suggested, 500)  # Minimum ₹500
 
         is_new = cat not in existing_cats
-        status = "over" if monthly_avg > suggested else "under"
 
         suggestions.append({
             "category": cat,

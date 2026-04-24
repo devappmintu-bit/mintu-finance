@@ -362,13 +362,7 @@ async def settle_payment(data: SettlePayment, user_id: str = Depends(get_current
         pass
 
     # Get names safely
-    payer_name = "You"
     payee_name = "User"
-    try:
-        payer = await db.users.find_one({"_id": ObjectId(user_id)}, {"name": 1})
-        if payer: payer_name = payer.get("name", "You")
-    except Exception:
-        pass
     try:
         payee = await db.users.find_one({"_id": ObjectId(data.target_user_id)}, {"name": 1})
         if payee: payee_name = payee.get("name", "User")
@@ -604,7 +598,8 @@ async def settle_with_rewards(data: SettlePayment, user_id: str = Depends(get_cu
     try:
         payee = await db.users.find_one({"_id": ObjectId(data.target_user_id)}, {"name": 1})
         if payee: payee_name = payee.get("name", "User")
-    except: pass
+    except Exception:
+        pass
 
     return {
         "id": str(result.inserted_id),

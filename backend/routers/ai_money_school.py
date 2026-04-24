@@ -192,7 +192,6 @@ RULES:
 async def get_money_school_cards(user_id: str = Depends(get_current_user)):
     """Get personalized money school cards with gamification"""
     
-    user = await db.users.find_one({"_id": ObjectId(user_id)})
     progress = await db.school_progress.find_one({"user_id": user_id}) or {"xp": 0, "completed": [], "streak": 0}
     
     current_xp = progress.get("xp", 0)
@@ -239,7 +238,7 @@ async def complete_card(data: dict, user_id: str = Depends(get_current_user)):
     card_id = data.get("card_id", "")
     xp_earned = data.get("xp", 10)
     
-    result = await db.school_progress.update_one(
+    await db.school_progress.update_one(
         {"user_id": user_id},
         {
             "$set": {"user_id": user_id, "last_activity": datetime.utcnow()},
@@ -271,7 +270,6 @@ async def complete_card(data: dict, user_id: str = Depends(get_current_user)):
 async def personalized_money_school(user_id: str = Depends(get_current_user), lang: str = "en"):
     """AI-personalized money school cards based on user's actual spending"""
 
-    user = await db.users.find_one({"_id": ObjectId(user_id)})
     now = datetime.utcnow()
     month_start = now.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
 

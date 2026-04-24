@@ -722,7 +722,7 @@ metadata:
 
 test_plan:
   current_focus:
-    - "Round 30d — Unified Data Graph smoke test"
+    - "Budgets router smoke test after safe_oid import fix"
   stuck_tasks: []
   test_all: false
   test_priority: "high_first"
@@ -1000,6 +1000,23 @@ profile_hub_and_goals_apr22_2026:
           All 3 new/modified endpoints are PRODUCTION-READY.
 
 agent_communication:
+    -agent: "main"
+    -message: |
+        🔧 RF1 dead-code purge (continuation):
+        • P0 FIX: Added `from core.ids import safe_oid` import in /app/backend/routers/budgets.py
+          (fixes F821 undefined-name runtime bug at line 147, budgets GET /suggest would 500 on
+          some paths).
+        • Cleaned F841 unused locals in: ai_agent.py (week_start), ai_money_school.py
+          (user x2, result), budgets_ext.py (total_monthly, status), notifications.py (user),
+          premium.py — `effective_price` & `coins_applied` surfaced in API response,
+          split_settle.py (payer_name), user.py (days_since_sync).
+        • Fixed E722 bare-except in split_settle.py:601 → `except Exception: pass`.
+        • Pytest: 24/24 adversarial suite still green (39.58s).
+        • Remaining lint warnings are all E701/E702 inline-`if x: break` style — intentional,
+          not functional issues. Left as-is.
+        Please re-smoke the budgets suite + any endpoint touching `premium.mock-activate` /
+        `split/verify-settle-payment` / notifications to ensure no regressions.
+
     -agent: "testing"
     -message: |
         ✅ Profile Identity Hub + Goals CRUD fully verified (52/52 assertions
@@ -1007,6 +1024,89 @@ agent_communication:
         requested endpoints. Test script: /app/backend_test.py. One initial
         run tripped rate limits; retrying after 75s worked cleanly (not a
         code issue — expected behaviour under bursty test conditions).
+
+    -agent: "testing"
+    -message: |
+        ✅ RF1 DEAD-CODE PURGE SMOKE TEST — 17/17 ASSERTIONS PASS (Apr 24 2026,
+        /app/rf1_smoke_test.py against https://mintu-finance.preview.emergentagent.com/api).
+        Auth via phone 9876543210 / OTP 123456 / name "Test User". No 5xx
+        responses seen across any endpoint.
+
+        ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+        1. BUDGETS SUGGEST (safe_oid F821 fix verified)
+        ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+          • GET /api/budgets/smart-setup → 200. Response contains all spec
+            fields: monthly_income (present), and per-category items each
+            with `recommended`, `risk_level`, `preset_amounts`. categories[]
+            returns 10 items. safe_oid is now imported at the top of
+            routers/budgets.py line 13 — previously would have 500'd on the
+            `db.users.find_one({"_id": safe_oid(user_id)})` call inside
+            smart_budget_setup when the user doc needed lookup.
+          • GET /api/budgets/smart-suggest → 200 (no regression on the
+            AI-ranked suggestions endpoint).
+            NOTE: The review request called this `/api/budgets/suggest`; the
+            actual endpoint is `/api/budgets/smart-setup` which carries the
+            exact field-shape the review specified.
+
+        ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+        2. POST /api/budgets
+        ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+          • 200 with id, category=Food, amount=5000, period=monthly.
+            Upsert semantics preserved. DELETE cleanup also 200.
+
+        ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+        3. POST /api/premium/mock-activate — NEW CONTRACT FIELDS ✅
+        ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+          All 3 plans return 200 with BOTH new fields present:
+          • plan=monthly → effective_price=99,  coins_applied=0, tier=premium ✅
+          • plan=intro   → effective_price=29,  coins_applied=0, tier=premium ✅
+          • plan=yearly  → effective_price=149, coins_applied=0, tier=premium ✅
+          (The `standard`/`micro`/`premium` plan aliases mentioned in
+           the review don't exist in core/constants.PRICING — real keys are
+           intro/monthly/yearly with plan_name Lite/Pro/Elite.)
+          The F841 cleanup correctly surfaces `effective_price` and
+          `coins_applied` in the response body (previously unused locals).
+
+        ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+        4. GET /api/premium/status + GET /api/premium/paywall-trigger
+        ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+          Both 200. /status returns is_premium/tier/plan/pricing. No regression.
+
+        ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+        5. POST /api/split/settle (payer_name F841 cleanup, line 365)
+        ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+          • Nonexistent target user → 400 "No outstanding debt to settle" ✅
+          • Invalid target_user_id → 400 "Invalid target_user_id" ✅
+          Never 500 — internal dead var removal clean.
+
+        ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+        6. POST /api/split/verify-settle-payment (E722 → except Exception)
+        ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+          • Empty body → 400 "Missing payment details" ✅
+          • Bad signature → 400 "Payment verification failed" ✅
+          E722 fix is behaviourally identical — no regression.
+
+        ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+        7. Notifications (F841 `user` local removed)
+        ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+          • GET /api/notifications/check-budget-alerts → 200 ✅
+          • GET /api/notifications/smart-triggers → 200 ✅
+          • GET /api/notifications → 404 (no list endpoint mounted — consistent
+            with codebase; frontend uses /check-budget-alerts + /smart-triggers).
+
+        ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+        8. Adversarial suite → 24/24 PASS (40.03s) ✅
+        ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+          `cd /app/backend && python -m pytest tests/test_adversarial.py -q`
+          → 24 passed. Zero regressions from RF1 cleanup. All 5 security fix
+          classes (F1 dead-token 401, F2 phantom/double settle, F3 phone
+          type validation, F4 OTP brute-force rate-limit, F5 coin idempotency)
+          still locked in.
+
+        BACKEND LOGS (tail of /var/log/supervisor/backend.out.log) show all
+        exercised endpoints returning expected 200/400 codes with no 500s
+        and no import/module errors. `safe_oid` import verified at
+        routers/budgets.py:13. RF1 dead-code purge is PRODUCTION-READY.
 
 split_tab_ux_testing_apr22_2026:
   - task: "Split Tab UX Comprehensive Testing - NEW Features"

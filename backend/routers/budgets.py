@@ -10,6 +10,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, field_validator
 
 from core import db, get_current_user
+from core.ids import safe_oid
 
 try:
     from emergentintegrations.llm.chat import LlmChat, UserMessage

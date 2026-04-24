@@ -259,7 +259,6 @@ async def list_payment_methods(user_id: str = Depends(get_current_user)):
         last_sync = m.get("last_sync_at") or m.get("created_at")
         last_err = m.get("last_error")  # {"ts": ISO, "reason": "..."}
         days_since_used = _days(last_used)
-        days_since_sync = _days(last_sync)
         # Error wins over everything
         if last_err and last_err.get("ts") and _days(last_err.get("ts")) is not None and _days(last_err.get("ts")) <= 7:
             return {
