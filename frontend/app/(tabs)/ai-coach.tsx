@@ -18,7 +18,7 @@
  *   • /api/gamification/status      → streak + rank
  */
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, RefreshControl, Modal, Platform } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, RefreshControl, Modal, Platform, TouchableOpacity } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
@@ -134,6 +134,25 @@ export default function AICoachTab() {
             <Text style={s.title}>Hey, let's talk{'\n'}money 💬</Text>
           </View>
           <View style={s.headerPills}>
+            {/* Round 36 — explicit "Regenerate" button. Pull-to-refresh on a
+                non-list screen isn't discoverable; a tappable icon is. */}
+            <TouchableOpacity
+              testID="ai-regenerate-btn"
+              accessibilityRole="button"
+              accessibilityLabel="Refresh insights"
+              onPress={() => !loading && loadAll(true)}
+              disabled={loading}
+              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+              style={[s.regenBtn, loading && { opacity: 0.5 }]}
+              activeOpacity={0.7}
+            >
+              <Ionicons
+                name="refresh"
+                size={18}
+                color={COLORS.accent.primary}
+              />
+              <Text style={s.regenTxt}>{loading ? 'Refreshing…' : 'Refresh'}</Text>
+            </TouchableOpacity>
             <GlowPill label="LIVE" tone="danger" pulse />
           </View>
         </View>
@@ -285,7 +304,19 @@ const useStyles = makeStyles((c) => ({
     justifyContent: 'space-between',
     marginTop: 4,
   },
-  headerPills: { paddingTop: 8 },
+  headerPills: { paddingTop: 8, flexDirection: 'row', alignItems: 'center', gap: 8 },
+  regenBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 20,
+    backgroundColor: COLORS.accent.primary + '14',
+    borderWidth: 1,
+    borderColor: COLORS.accent.primary + '33',
+  },
+  regenTxt: { fontSize: 12, fontWeight: '700', color: COLORS.accent.primary, letterSpacing: 0.2 },
   kicker: {
     fontSize: 11,
     fontFamily: FONT_FAMILY.bold,

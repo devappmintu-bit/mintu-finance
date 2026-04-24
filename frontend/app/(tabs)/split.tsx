@@ -636,7 +636,15 @@ export default function SplitScreen() {
               </TouchableOpacity>
 
               <TouchableOpacity
-                onPress={() => setInviteGroup(null)}
+                onPress={() => {
+                  // Round 36 — after invite sheet closes, auto-open the new
+                  // group's summary so the user lands INSIDE their new group
+                  // rather than being dropped back at the group list and
+                  // having to hunt for what they just created.
+                  const g = { id: inviteGroup.id, name: inviteGroup.name };
+                  setInviteGroup(null);
+                  openSummary(g);
+                }}
                 style={{ paddingVertical: 10, alignItems: 'center', marginTop: 2 }}
                 activeOpacity={0.7}
               >

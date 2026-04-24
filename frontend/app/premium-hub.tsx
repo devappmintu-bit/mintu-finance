@@ -103,7 +103,7 @@ export default function PremiumHubScreen() {
                 <Text style={s.activeTitle}>You're Premium ✨</Text>
                 <Text style={s.activeSub}>
                   {String(status?.plan || 'Premium').toUpperCase()}
-                  {status?.premium_until ? ` · until ${new Date(status.premium_until).toLocaleDateString()}` : ''}
+                  {status?.premium_until ? ` · until ${new Date(status.premium_until).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}` : ''}
                 </Text>
               </View>
             </View>

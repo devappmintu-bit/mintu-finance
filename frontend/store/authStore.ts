@@ -52,6 +52,11 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   },
   lock: async () => {
     await AsyncStorage.setItem(LOCKED_KEY, '1');
+    // Round 36 — wipe SWR cache on soft-lock so if a different user unlocks
+    // the same device (e.g. shared family phone with same PIN) they won't
+    // briefly see the previous user's cached balances, transactions, etc.
+    // On unlock we'll refetch cleanly.
+    try { const { clearSwrCache } = await import('../utils/swrGet'); await clearSwrCache(); } catch {}
     set({ locked: true });
   },
   unlock: async () => {

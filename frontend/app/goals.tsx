@@ -20,6 +20,7 @@ import Toast from 'react-native-toast-message';
 import api from '../utils/api';
 import FullScreenLoader from '../components/FullScreenLoader';
 import Confetti from '../components/Confetti';
+import EmptyState from '../components/ui/EmptyState';
 
 type Goal = {
   id: string;
@@ -69,6 +70,27 @@ export default function GoalsScreen() {
   const [target, setTarget] = useState('');
   const [saved, setSaved] = useState('');
   const [emoji, setEmoji] = useState('🎯');
+  // Round 36 — inline blur validation so the user sees errors the moment
+  // they leave the field, not only after pressing Save.
+  const [targetError, setTargetError] = useState<string | null>(null);
+  const [savedError, setSavedError] = useState<string | null>(null);
+  const validateTargetOnBlur = () => {
+    const v = (target || '').trim();
+    if (!v) { setTargetError('Target amount is required'); return; }
+    const n = parseFloat(v);
+    if (!Number.isFinite(n) || n <= 0) { setTargetError('Must be greater than 0'); return; }
+    if (n > 100_000_000) { setTargetError('Max ₹10cr'); return; }
+    setTargetError(null);
+  };
+  const validateSavedOnBlur = () => {
+    const v = (saved || '').trim();
+    if (!v) { setSavedError(null); return; }  // optional field
+    const n = parseFloat(v);
+    if (!Number.isFinite(n) || n < 0) { setSavedError('Must be 0 or greater'); return; }
+    const tn = parseFloat(target || '0');
+    if (Number.isFinite(tn) && tn > 0 && n > tn) { setSavedError('Cannot exceed target'); return; }
+    setSavedError(null);
+  };
   const [color, setColor] = useState('#F56E1E');
   const [saving, setSaving] = useState(false);
   // Milestone celebration — fires a confetti burst + haptic the moment any
@@ -277,15 +299,13 @@ export default function GoalsScreen() {
         </LinearGradient>
 
         {goals.length === 0 ? (
-          <View style={s.emptyCard}>
-            <Text style={s.emptyEmoji}>🎯</Text>
-            <Text style={s.emptyTitle}>No goals yet</Text>
-            <Text style={s.emptySub}>Set savings goals — vacation, emergency fund, gadgets — and watch them grow</Text>
-            <TouchableOpacity style={s.emptyBtn} onPress={openNew} activeOpacity={0.85}>
-              <Ionicons name="add" size={18} color="#fff" />
-              <Text style={s.emptyBtnTxt}>Create your first goal</Text>
-            </TouchableOpacity>
-          </View>
+          <EmptyState
+            emoji="🎯"
+            title="No goals yet"
+            subtitle="Set savings goals — vacation, emergency fund, gadgets — and watch them grow"
+            ctaLabel="Create your first goal"
+            onCta={openNew}
+          />
         ) : (
           <View style={s.grid}>
             {goals.map((g) => {
@@ -356,23 +376,27 @@ export default function GoalsScreen() {
 
               <Text style={s.fieldLbl}>Target amount</Text>
               <TextInput
-                style={s.input}
+                style={[s.input, targetError && { borderColor: '#DC2626' }]}
                 value={target}
-                onChangeText={setTarget}
+                onChangeText={(v) => { setTarget(v); if (targetError) setTargetError(null); }}
+                onBlur={validateTargetOnBlur}
                 placeholder="25000"
                 keyboardType="numeric"
                 placeholderTextColor="#9CA3AF"
               />
+              {targetError && <Text style={{ color: '#DC2626', fontSize: 12, fontWeight: '600', marginTop: 4 }}>{targetError}</Text>}
 
               <Text style={s.fieldLbl}>Already saved (optional)</Text>
               <TextInput
-                style={s.input}
+                style={[s.input, savedError && { borderColor: '#DC2626' }]}
                 value={saved}
-                onChangeText={setSaved}
+                onChangeText={(v) => { setSaved(v); if (savedError) setSavedError(null); }}
+                onBlur={validateSavedOnBlur}
                 placeholder="0"
                 keyboardType="numeric"
                 placeholderTextColor="#9CA3AF"
               />
+              {savedError && <Text style={{ color: '#DC2626', fontSize: 12, fontWeight: '600', marginTop: 4 }}>{savedError}</Text>}
 
               <Text style={s.fieldLbl}>Emoji</Text>
               <View style={s.emojiRow}>

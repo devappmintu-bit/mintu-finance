@@ -778,6 +778,69 @@ metadata:
       idempotency, description strip) are pre-existing and separate from this
       round's scope.
 
+  - agent: "testing"
+    message: |
+      ✅ ROUND 36 POST-FRONTEND-AUDIT BACKEND SMOKE TEST (Apr 24 2026) — 21/21 PASS.
+      Frontend-only changes this round (goals, ai-coach, split, authStore,
+      theme, transactions, BudgetSmartSheet, unlock, premium-hub). Backend
+      NOT modified. Smoke test script /app/backend_test.py against
+      https://mintu-finance.preview.emergentagent.com/api covers all 6 items
+      from the review brief.
+
+      1) Auth ✅ — POST /api/auth/send-otp 200, POST /api/auth/verify-otp 200
+         returns JWT token for 9876543210 / OTP 123456.
+      2) GET /api/home/bundle ✅ — 200, payload has required keys
+         {user, stats, recent_txns, cached_at, cache_ttl_s}.
+      3) POST /api/goals ✅ — valid payload {name, target_amount:50000,
+         saved_amount:2500, target_date:'2026-12-31'} → 200 with id, correct
+         target_amount persisted.
+      4) POST /api/transactions + idempotency_key ✅ — 1st call creates a new
+         row (deduped absent), 2nd call with same idempotency_key returns
+         deduped:true and the exact same id. No duplicate row created.
+      5) POST /api/split/groups ✅ — valid payload {name, members:[9999888877]}
+         → 200 with id and 2 members (creator + Rahul Sharma).
+      6) POST /api/rewards/claim-marketplace idempotency ✅ — two consecutive
+         calls with reward_id=airtel_50 for the same user:
+           • 1st call 200, coins debited 202→157
+           • 2nd call 200, coins balance UNCHANGED at 157, deduped:true
+           • ledger_transactions has exactly 1 debit row
+             (source=rewards:marketplace_claim:airtel_50)
+           • rewards_wallet has exactly 1 entry (reward_id=airtel_50)
+           • The one-debit-two-vouchers bug fix from Round 34 holds.
+
+      Backend access log during the run shows only 200s for the 6 endpoints
+      tested. Zero 5xx. No unexpected statuses.
+
+      NOTE: Initial run of the smoke test returned 400 "Insufficient coins"
+      on the rewards endpoint — this was a TEST-HARNESS ISSUE (the top-up
+      helper had bumped `users.coins` but not `users.coins_balance`, which
+      is the field `spend_coins()` actually guards against via atomic
+      $gte filter). Fixed the harness to force coins_balance := ledger_sum
+      before calling the endpoint. This is NOT a backend bug — in normal
+      flow `award_coins()` keeps the two in sync. All subsequent runs pass.
+
+      VERDICT: Round 36 frontend changes introduced ZERO backend regressions.
+      All 6 endpoint families in the review brief return expected statuses
+      and the one-debit-two-vouchers idempotency guarantee is verified end
+      to end against the live DB.
+
+round36_smoke_apr24_2026:
+  - task: "Round 36 frontend-audit regression smoke — 6 endpoint families + rewards idempotency"
+    implemented: true
+    working: true
+    file: "/app/backend_test.py"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+      - working: true
+        agent: "testing"
+        comment: |
+          21/21 assertions pass. auth/send-otp, verify-otp, /home/bundle,
+          /goals, /transactions (+idempotency_key), /split/groups, and
+          /rewards/claim-marketplace (one-debit-one-voucher) all verified
+          green against the live preview URL.
+
 
 
 test_plan:

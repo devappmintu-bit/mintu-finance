@@ -36,6 +36,12 @@ const LIGHT_PALETTE = {
     moneyIn:      '#059669',     // Emerald
     moneyOut:     '#DC2626',     // Crimson
     warning:      '#D97706',
+    // Round 36 — expose brand shades that were appearing as orphan hex in
+    // screens (#F56E1E, #C14A06, #E65100). Named so future code can reach
+    // for a token instead of coping-and-pasting a hex.
+    brand:        '#F56E1E',     // Bright orange — splash / onboarding CTA
+    brandDark:    '#C14A06',     // Deep orange — pressed / active state
+    brandDeeper:  '#E65100',     // Indigo-orange accent
   },
   text: {
     primary:   '#111827',        // Near-black

@@ -101,6 +101,19 @@ export default function TransactionsScreen() {
   // is defence-in-depth to give the user immediate tactile feedback and
   // prevent two requests from ever leaving the device.
   const [submitting, setSubmitting] = useState(false);
+  // Round 36 — field-level error state for inline blur validation. Lets us
+  // show red helper text under the amount input the moment the user leaves
+  // the field, instead of waiting until they tap Save.
+  const [amountError, setAmountError] = useState<string | null>(null);
+  const validateAmountOnBlur = useCallback((raw: string) => {
+    const v = (raw || '').trim();
+    if (!v) { setAmountError('Amount is required'); return; }
+    const n = parseFloat(v);
+    if (!Number.isFinite(n)) { setAmountError('Enter a valid number'); return; }
+    if (n <= 0) { setAmountError('Amount must be greater than 0'); return; }
+    if (n > 10_000_000) { setAmountError('Amount too large (max ₹1cr)'); return; }
+    setAmountError(null);
+  }, []);
   const [cashText, setCashText] = useState('');
   const [cashLoading, setCashLoading] = useState(false);
   const [notifText, setNotifText] = useState('');
@@ -393,10 +406,19 @@ export default function TransactionsScreen() {
                 ))}
               </View>
               <Text style={styles.formLabel}>{t('amount', lang)}</Text>
-              <View style={styles.amountRow}>
+              <View style={[styles.amountRow, amountError && { borderColor: COLORS.status.danger, borderWidth: 1 }]}>
                 <Text style={styles.rupee}>₹</Text>
-                <TextInput style={styles.amountInput} placeholder="0" placeholderTextColor={COLORS.text.muted} value={formData.amount} onChangeText={(v) => setFormData({ ...formData, amount: v })} keyboardType="numeric" />
+                <TextInput
+                  style={styles.amountInput}
+                  placeholder="0"
+                  placeholderTextColor={COLORS.text.muted}
+                  value={formData.amount}
+                  onChangeText={(v) => { setFormData({ ...formData, amount: v }); if (amountError) setAmountError(null); }}
+                  onBlur={() => validateAmountOnBlur(formData.amount)}
+                  keyboardType="numeric"
+                />
               </View>
+              {amountError && <Text style={{ color: COLORS.status.danger, fontSize: 12, fontWeight: '600', marginTop: 4, marginBottom: 4 }}>{amountError}</Text>}
               <Text style={styles.formLabel}>{t('category', lang)}</Text>
               <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.chipScroll}>
                 {CATEGORY_LIST.map((c) => (

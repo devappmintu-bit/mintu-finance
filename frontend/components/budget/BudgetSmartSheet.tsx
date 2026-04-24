@@ -104,6 +104,16 @@ export default function BudgetSmartSheet({ editing, onSubmit, onClose, submittin
   const [recurring, setRecurring] = useState<boolean>(editing?.recurring ?? true);
   const [description, setDescription] = useState<string>(editing?.description || '');
   const [scope, setScope] = useState<'me' | 'shared' | 'other'>('me');
+  // Round 36 — inline blur validation for the budget amount field.
+  const [amountError, setAmountError] = useState<string | null>(null);
+  const validateAmountOnBlur = (raw: string) => {
+    const v = (raw || '').trim();
+    if (!v) { setAmountError('Amount is required'); return; }
+    const n = parseFloat(v);
+    if (!Number.isFinite(n) || n <= 0) { setAmountError('Enter an amount greater than 0'); return; }
+    if (n > 10_000_000) { setAmountError('Amount too large (max ₹1cr)'); return; }
+    setAmountError(null);
+  };
   const [goals, setGoals] = useState<Goal[]>([]);
   const [goalId, setGoalId] = useState<string | null>(editing?.goal_id || null);
   const [showNewGoal, setShowNewGoal] = useState<boolean>(false);
@@ -328,7 +338,8 @@ export default function BudgetSmartSheet({ editing, onSubmit, onClose, submittin
               <Text style={s.amountRupee}>₹</Text>
               <TextInput
                 value={amountStr}
-                onChangeText={v => setAmountStr(v.replace(/[^0-9]/g, ''))}
+                onChangeText={v => { setAmountStr(v.replace(/[^0-9]/g, '')); if (amountError) setAmountError(null); }}
+                onBlur={() => validateAmountOnBlur(amountStr)}
                 keyboardType="numeric"
                 placeholder="0"
                 placeholderTextColor="#D1D5DB"
@@ -336,6 +347,7 @@ export default function BudgetSmartSheet({ editing, onSubmit, onClose, submittin
                 testID="bs-amount"
               />
             </View>
+            {amountError && <Text style={{ color: '#DC2626', fontSize: 12, fontWeight: '600', marginTop: 6 }}>{amountError}</Text>}
             {/* Quick presets */}
             <View style={s.presetRow}>
               {presets.map(p => (

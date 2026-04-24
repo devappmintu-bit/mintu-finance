@@ -49,6 +49,26 @@ export default function UnlockScreen() {
   const [bioAvail, setBioAvail] = useState(false);
   const [attempting, setAttempting] = useState(false);
   const [unlockAnim, setUnlockAnim] = useState(false);
+  // Round 36 — progressive lockout on repeated failed PIN attempts.
+  // Without this the PIN is brute-forceable (10,000 combinations on a local
+  // device in under a minute). We force a cooldown window after 3, 5 and 10+
+  // consecutive misses; counter resets on successful unlock.
+  const [failCount, setFailCount] = useState(0);
+  const [lockUntil, setLockUntil] = useState<number>(0);
+  const [lockRemaining, setLockRemaining] = useState<number>(0);
+  useEffect(() => {
+    if (!lockUntil) return;
+    const tick = () => {
+      const ms = lockUntil - Date.now();
+      const secs = Math.max(0, Math.ceil(ms / 1000));
+      setLockRemaining(secs);
+      if (secs > 0) setError(`Too many attempts. Try again in ${secs}s`);
+      if (ms <= 0) { setLockUntil(0); setLockRemaining(0); setError(''); }
+    };
+    tick();
+    const id = setInterval(tick, 500);
+    return () => clearInterval(id);
+  }, [lockUntil]);
 
   // ── Hydrate user from /user/me if we have a token but no cached user
   useEffect(() => {
@@ -123,14 +143,32 @@ export default function UnlockScreen() {
 
   const press = async (d: string) => {
     if (pin.length >= 4) return;
+    // Reject keypad input while cooldown is active.
+    if (lockUntil && Date.now() < lockUntil) return;
     try { Haptics.selectionAsync(); } catch {}
     const next = pin + d;
     setPin(next);
     setError('');
     if (next.length === 4) {
       const ok = await verifyPin(next);
-      if (ok) { proceed(); return; }
-      setError('Incorrect mPIN');
+      if (ok) {
+        setFailCount(0);  // reset counter on success
+        proceed();
+        return;
+      }
+      // Progressive lockout: after 3 misses → 30s, 5 → 2min, 10+ → 5min.
+      const nextFails = failCount + 1;
+      setFailCount(nextFails);
+      let cooldown = 0;
+      if (nextFails >= 10) cooldown = 300_000;       // 5 min
+      else if (nextFails >= 5) cooldown = 120_000;   // 2 min
+      else if (nextFails >= 3) cooldown = 30_000;    // 30 sec
+      if (cooldown) {
+        setLockUntil(Date.now() + cooldown);
+        setError(`Too many attempts. Try again in ${Math.ceil(cooldown / 1000)}s`);
+      } else {
+        setError(`Incorrect mPIN${nextFails === 2 ? ' — one more miss will pause input' : ''}`);
+      }
       shakeErr();
       try { Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error); } catch {}
       setTimeout(() => setPin(''), 520);
