@@ -63,6 +63,7 @@ import PaymentMethodsV2 from '../../components/profile/PaymentMethodsV2';
 import NotificationSettings from '../../components/profile/NotificationSettings';
 import ThemeToggle from '../../components/profile/ThemeToggle';
 import AuthTransitionOverlay from '../../components/auth/AuthTransitionOverlay';
+import StreakCoinsHealthCard from '../../components/profile/StreakCoinsHealthCard';
 import { sendTestPush } from '../../hooks/usePushNotifications';
 
 export default function ProfileScreen() {
@@ -266,6 +267,12 @@ export default function ProfileScreen() {
           badgesTotal={badgesTotal}
           coins={coinsBalance}
           onPressViewProgress={() => router.push('/(tabs)/rewards' as any)}
+        />
+
+        {/* 3b. STREAK & COINS HEALTH — expandable observability card */}
+        <StreakCoinsHealthCard
+          initialStreak={streak}
+          initialCoins={coinsBalance}
         />
 
         {/* 4. BEAT YOUR LAST WEEK */}

@@ -7,6 +7,8 @@ import { View, Text, TouchableOpacity, StyleSheet, Platform } from 'react-native
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import { makeStyles } from '../../utils/makeStyles';
+import AnimatedStreak from '../AnimatedStreak';
+import AnimatedCoin from '../AnimatedCoin';
 
 interface Props {
   streak: number;
@@ -30,9 +32,7 @@ export default function ProgressInline({
     >
       <View style={s.row}>
         <View style={s.item}>
-          <Text style={s.emoji}>🔥</Text>
-          <Text style={s.value}>{streak}</Text>
-          <Text style={s.label}>days</Text>
+          <AnimatedStreak value={streak} size="sm" suffix="days" />
         </View>
         <View style={s.divider} />
         <View style={s.item}>
@@ -42,9 +42,7 @@ export default function ProgressInline({
         </View>
         <View style={s.divider} />
         <View style={s.item}>
-          <Text style={s.emoji}>🪙</Text>
-          <Text style={s.value}>{coins.toLocaleString('en-IN')}</Text>
-          <Text style={s.label}>coins</Text>
+          <AnimatedCoin value={coins} size="sm" />
         </View>
       </View>
 

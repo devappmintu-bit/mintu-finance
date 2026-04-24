@@ -48,13 +48,37 @@ export function useDailyCheckIn() {
 
           const streak = Number(data.streak_current || 0);
           const coins = Number(data.coins_awarded || 0);
+          const milestoneBonus = Number(data.milestone_bonus || 0);
+          const freezeUsed = !!data.freeze_used;
+
+          // Freeze saved the streak — dedicated celebration.
+          if (freezeUsed) {
+            Toast.show({
+              type: 'success',
+              text1: '❄️ Streak Freeze used!',
+              text2: `Your ${streak}-day streak is safe · +${coins} coins`,
+              visibilityTime: 4500,
+            });
+            return;
+          }
 
           // Milestone celebration (only once per milestone day).
           const isMilestone = [3, 7, 14, 30, 50, 100].includes(streak);
           const today = new Date().toISOString().slice(0, 10);
           const seenKey = `streak_milestone_${streak}_${today}`;
           const already = await AsyncStorage.getItem(seenKey).catch(() => null);
-          if (isMilestone && !already) {
+
+          if (milestoneBonus > 0) {
+            // Weekly / monthly bonus — bigger, louder toast.
+            await AsyncStorage.setItem(seenKey, '1').catch(() => {});
+            const isMonthly = streak % 30 === 0;
+            Toast.show({
+              type: 'success',
+              text1: isMonthly ? `🏆 ${streak}-day MEGA bonus!` : `🎯 Weekly bonus unlocked!`,
+              text2: `+${coins} coins (+${milestoneBonus} milestone) · You're unstoppable`,
+              visibilityTime: 5000,
+            });
+          } else if (isMilestone && !already) {
             await AsyncStorage.setItem(seenKey, '1').catch(() => {});
             Toast.show({
               type: 'success',

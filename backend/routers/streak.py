@@ -2,10 +2,12 @@
 
 Endpoints
 ---------
-  POST /api/streak/check-in   — idempotent daily check-in (awards coins)
-  GET  /api/streak/status     — read-only snapshot for UI
-  GET  /api/coins/balance     — canonical balance from ledger
-  GET  /api/coins/history     — immutable ledger history (last 50)
+  POST /api/streak/check-in        — idempotent daily check-in (awards coins)
+  GET  /api/streak/status          — read-only snapshot for UI
+  GET  /api/streak/leaderboard     — progressive global top-N (by streak)
+  GET  /api/streak/health          — observability snapshot (profile card)
+  GET  /api/coins/balance          — canonical balance from ledger
+  GET  /api/coins/history          — immutable ledger history (last 50)
 """
 from fastapi import APIRouter, Depends, HTTPException
 
@@ -37,6 +39,25 @@ async def check_in(user_id: str = Depends(get_current_user)):
 async def status(user_id: str = Depends(get_current_user)):
     """Read-only streak snapshot. Does NOT advance the streak."""
     return await streak_service.get_status(user_id)
+
+
+@router.get("/streak/leaderboard")
+async def leaderboard(limit: int = 100, user_id: str = Depends(get_current_user)):
+    """Progressive global top-N leaderboard (ranked by streak_current desc).
+
+    Includes caller's own rank + percentile even if outside the top N.
+    """
+    return await streak_service.get_leaderboard(user_id, limit=limit)
+
+
+@router.get("/streak/health")
+async def health(user_id: str = Depends(get_current_user)):
+    """Read-only streak & coins health snapshot for the Profile card.
+
+    Bundles streak stats, freeze inventory, coin totals across 7d/30d/
+    lifetime, milestone countdowns, and a ledger-integrity flag.
+    """
+    return await streak_service.get_health(user_id)
 
 
 # ══════════════════════════════════════════════════════════════════════

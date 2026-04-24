@@ -23,7 +23,7 @@ import { shareImageSmart } from '../utils/share';
 import PremiumUnlockTeaser from '../components/premium/PremiumUnlockTeaser';
 import useSwr from '../hooks/useSwr';
 
-type Scope = 'contacts' | 'global';
+type Scope = 'contacts' | 'global' | 'streak';
 
 type Entry = {
   rank: number;
@@ -48,6 +48,32 @@ type LBData = {
   contenders: Entry[];
 };
 
+/** Adapt /streak/leaderboard response shape → shared LBData shape. */
+function adaptStreakPayload(raw: any): LBData {
+  const map = (e: any): Entry => ({
+    rank: Number(e?.rank || 0),
+    id: String(e?.id || ''),
+    name: String(e?.name || 'MintU User'),
+    score: Number(e?.money_score || 0),
+    streak: Number(e?.streak_current || 0),
+    coins: 0,
+    settlements: 0,
+    is_me: !!e?.is_me,
+    phone_masked: String(e?.phone_masked || '****'),
+    has_avatar: !!e?.has_avatar,
+    percentile: e?.percentile,
+  });
+  const entries = Array.isArray(raw?.entries) ? raw.entries.map(map) : [];
+  return {
+    scope: 'streak',
+    total: Number(raw?.total_users || entries.length),
+    you: raw?.you ? map(raw.you) : null,
+    leader: entries[0] || null,
+    headline: String(raw?.headline || ''),
+    contenders: entries,
+  };
+}
+
 export default function LeaderboardScreen() {
   const [scope, setScope] = useState<Scope>('contacts');
   const [refreshing, setRefreshing] = useState(false);
@@ -59,9 +85,16 @@ export default function LeaderboardScreen() {
   // ── SWR data layer (Round 26+) ─────────────────────────────────────
   // `useSwr` serves cached data instantly, revalidates in background,
   // re-fetches on focus, and gives us a declarative refetch() hook.
-  const { data, isLoading, refetch } = useSwr<LBData>(
-    `/leaderboard/unified?scope=${scope}`,
+  const swrUrl = scope === 'streak'
+    ? `/streak/leaderboard?limit=100`
+    : `/leaderboard/unified?scope=${scope}`;
+  const { data: rawData, isLoading, refetch } = useSwr<any>(
+    swrUrl,
     { ttlMs: 15_000 }
+  );
+  const data: LBData | undefined = useMemo(
+    () => (scope === 'streak' && rawData) ? adaptStreakPayload(rawData) : rawData,
+    [scope, rawData]
   );
 
   const onRefresh = async () => {
@@ -87,7 +120,7 @@ export default function LeaderboardScreen() {
       const uri = await captureRef(shareRef, { format: 'png', quality: 0.92 });
       const rank = data.you.rank;
       const caption = rank <= 3
-        ? `🏆 I'm #${rank} on MintU's ${scope === 'contacts' ? 'friends' : 'global'} leaderboard! Join me: https://mintu.app`
+        ? `🏆 I'm #${rank} on MintU's ${scope === 'contacts' ? 'friends' : scope === 'streak' ? '🔥 streak' : 'global'} leaderboard! Join me: https://mintu.app`
         : `Climbing the MintU leaderboard · rank #${rank} (top ${100 - (data.you.percentile ?? 0)}%). Join me: https://mintu.app`;
       await shareImageSmart({ uri, fallbackText: caption, filename: `mintu-rank-${rank}.png` });
       Toast.show({ type: 'success', text1: '✓ Share sheet opened' });
@@ -131,6 +164,10 @@ export default function LeaderboardScreen() {
         <TouchableOpacity style={[styles.tog, scope === 'global' && styles.togActive]} onPress={() => switchScope('global')} activeOpacity={0.85} testID="lb-scope-global">
           <Ionicons name="globe" size={14} color={scope === 'global' ? '#fff' : c.text.muted} />
           <Text style={[styles.togText, scope === 'global' && styles.togTextActive]}>Global</Text>
+        </TouchableOpacity>
+        <TouchableOpacity style={[styles.tog, scope === 'streak' && styles.togActive]} onPress={() => switchScope('streak')} activeOpacity={0.85} testID="lb-scope-streak">
+          <Text style={{ fontSize: 14, marginRight: 2 }}>🔥</Text>
+          <Text style={[styles.togText, scope === 'streak' && styles.togTextActive]}>Streak</Text>
         </TouchableOpacity>
       </View>
 

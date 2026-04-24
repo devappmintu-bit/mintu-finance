@@ -721,10 +721,205 @@ metadata:
       ship. Backend hardening is production-ready.
 
 test_plan:
-  current_focus: []
+  current_focus:
+    - "Streak & Coins Bonus Features — Freeze (premium), Leaderboard, Weekly/Monthly Bonuses, Admin Health Card"
   stuck_tasks: []
   test_all: false
   test_priority: "high_first"
+
+streak_coins_bonus_features_apr24_2026:
+  - task: "Streak & Coins Bonus Features — Freeze (premium) + Leaderboard + Weekly/Monthly Bonuses + Admin Health endpoint"
+    implemented: true
+    working: true
+    file: "/app/backend/core/streak.py, /app/backend/routers/streak.py, /app/frontend/components/profile/StreakCoinsHealthCard.tsx, /app/frontend/components/AnimatedStreak.tsx, /app/frontend/components/profile/ProgressInline.tsx, /app/frontend/hooks/useDailyCheckIn.ts, /app/frontend/app/leaderboard.tsx"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+      - working: "NA"
+        agent: "main"
+        comment: |
+          New features implemented in this round:
+
+          ━━━ BACKEND ━━━
+          1) Streak Freeze (premium-gated)
+             • Added STREAK_FREEZE_MAX_PER_MONTH=3 constant in core/streak.py
+             • Premium users (tier in premium/legend + active premium_until)
+               auto-refill to 3 freezes per UTC month on first check-in
+               (_ensure_monthly_freeze_refill, idempotent via
+               streak_freeze_last_refill_month)
+             • check_in() now detects exactly-1-day gaps and atomically
+               consumes a freeze (find_one_and_update with $gt:0 filter) —
+               streak advances instead of resetting
+             • Multi-day gaps still reset (we don't auto-burn multiple
+               freezes)
+             • Audit trail in db.streak_freeze_events
+             • Non-premium users never get freezes
+
+          2) Progressive Leaderboard
+             • New GET /api/streak/leaderboard?limit=N (defaults 100, max 200)
+             • Sort: streak_current DESC, streak_longest DESC, money_score DESC
+             • Each entry has tier (Legend/Master/Expert/Pro/Rising/Starter/
+               Rookie) + emoji
+             • Caller's rank is included even if outside top N
+               (uses count_documents with strict-$gt filter)
+             • Phone masked ("***0109" style)
+             • Headline auto-composed
+
+          3) Weekly/Monthly Bonuses (already partially in place, now wired)
+             • +50 coins on streak day % 7 == 0 (weekly_bonus)
+             • +200 coins on streak day % 30 == 0 (monthly_bonus)
+             • Both idempotent via unique ledger keys
+               streak_week_bonus::{uid}::{UTC_date} and
+               streak_month_bonus::{uid}::{UTC_date}
+             • check_in() return now includes `milestone_bonus` field
+
+          4) Admin/Observability Health endpoint
+             • New GET /api/streak/health
+             • Returns: streak stats + tier, freeze inventory + premium
+               status, coin rollups (balance, 7d/30d earn, lifetime earn/
+               spend, txn count), milestone countdowns, ledger integrity
+               flag (cached_balance vs sum_ledger)
+
+          5) check-in response now includes:
+             • freeze_used: bool (True when a freeze rescued the streak)
+             • milestone_bonus: int (50/200 if hit weekly/monthly)
+
+          ━━━ FRONTEND ━━━
+          1) AnimatedStreak.tsx — new reusable pulsing-flame count-up
+             component with tier color transitions + milestone halo.
+
+          2) StreakCoinsHealthCard.tsx — expandable card on Profile page
+             (placed right after ProgressInline). Collapsed: shows streak
+             + coin inline. Expanded: full dashboard with 4-stat row
+             (current/longest/total/tier), freeze chips grid (premium) or
+             premium CTA (free), coin pills (balance/7d/30d/lifetime),
+             milestone countdowns, and ledger-integrity pill.
+
+          3) ProgressInline.tsx — now uses AnimatedStreak + AnimatedCoin
+             for smooth count-up animations on streak/coin changes.
+
+          4) useDailyCheckIn.ts — surfaces freeze-use (❄️ toast) and
+             milestone bonus (🎯 weekly / 🏆 monthly) in addition to
+             regular day toasts.
+
+          5) leaderboard.tsx — added 3rd toggle "🔥 Streak" that swaps to
+             /streak/leaderboard endpoint; response is adapted to the
+             shared LBData shape so all existing UI (hero card, podium,
+             rankings list, share) reuses cleanly.
+
+          ━━━ TESTS HOLDING ━━━
+          • Existing `tests/test_streak_coins_audit.py` — 13/13 PASS
+          • Python lint on core/streak.py — clean
+          • JS lint on all changed frontend files — clean
+          • Manual smoke test: freeze-use flow verified via Python
+            (premium user with 5-day streak + 1 missed day → check_in
+            returns streak_current=6, freeze_used=True, coins_awarded=5)
+          • Curl smoke: /streak/status, /streak/leaderboard, /streak/health
+            all 200 OK with expected payload shapes.
+
+          ━━━ WHAT TO TEST (adversarial) ━━━
+          1. POST /api/streak/check-in happy paths (already working):
+             a. First check-in → streak_current=1, coins=2
+             b. Same-day repeat → already_checked_in=true, no new coins
+          2. Streak freeze scenarios:
+             a. Non-premium user with 1-day gap → resets to 1 (no freeze)
+             b. Premium user with 1-day gap → streak advances, freeze_used=true, freezes_available-=1
+             c. Premium user with 3-day gap → still resets to 1 (we only rescue exactly 1 missed day)
+             d. Premium user on fresh month → freezes refilled to max 3
+          3. Weekly/monthly bonuses:
+             a. Day 7 check-in → milestone_bonus=50
+             b. Day 30 check-in → milestone_bonus=200 (and no +50 if day%7==0 too … actually both trigger, total 250. Verify).
+             c. Re-request same day → no double bonus (idempotent via ledger)
+          4. GET /api/streak/leaderboard:
+             a. limit=5 → 5 entries
+             b. limit=1000 → capped at 200
+             c. Anonymous → 401
+          5. GET /api/streak/health:
+             a. Shape validation: streak{}, freezes{}, coins{}, milestones{}
+             b. Non-premium: freezes.available=0, max_per_month=0
+             c. After check-in: coins.earned_last_7d > 0, coins.integrity_ok=true
+          6. Regression — pytest suite:
+             cd /app/backend && python -m pytest tests/test_streak_coins_audit.py tests/test_adversarial.py tests/test_principal_audit.py -q
+
+          Credentials for testing: phone 9876543210, OTP 123456.
+      - working: true
+        agent: "testing"
+        comment: |
+          ✅ STREAK & COINS BONUS FEATURES — 27/27 ASSERTIONS PASS (Apr 24 2026).
+          Test script /app/backend_test.py run against public URL
+          https://mintu-finance.preview.emergentagent.com/api. Full report:
+
+          ━━━ CATEGORY 1 — STREAK FREEZE (Premium-gated) — 5/5 PASS ━━━
+          1a. Non-premium 1-day gap → streak resets to 1, freeze_used=False ✅
+          1b. Premium 1-day gap → streak 5→6, freeze_used=True, freezes 3→2 ✅
+          1c. Premium 3-day gap → resets to 1, freezes untouched (3→3) ✅
+              (Confirmed: we do NOT burn multiple freezes for multi-day gaps)
+          1d. Premium fresh month → freezes refilled to 3 on first check-in,
+              streak_freeze_last_refill_month stamped to current YYYY-MM ✅
+          1e. Re-check same month does NOT re-refill (avail stays at 1) ✅
+
+          ━━━ CATEGORY 2 — PROGRESSIVE LEADERBOARD — 9/9 PASS ━━━
+          2a. limit=5 → 5 entries + `you` present ✅
+          2b. limit=1000 → capped to 200 (entries=200, limit=200) ✅
+          2c. limit=0 → clamped to 1 (entries=1) ✅
+          2d. limit=-50 → clamped to 1 ✅
+          2e. No auth → 401 Unauthorized ✅
+          2f. Each entry has {rank, id, name, phone_masked, streak_current,
+              streak_longest, money_score, tier, tier_emoji, tier_rank, is_me};
+              phone_masked format "***NNNN"; tier mapping matches spec
+              (Legend>=100, Master>=50, Expert>=30, Pro>=14, Rising>=7,
+              Starter>=3, else Rookie) ✅
+          2g. Sort order streak_current DESC with streak_longest DESC tiebreak ✅
+          2h. `headline` + `total_users`(=1182) present ✅
+          2i. `you` present even when caller not in top N (you.rank=47,
+              in_top_1=False) via count_documents strict-$gt fallback ✅
+
+          ━━━ CATEGORY 3 — WEEKLY/MONTHLY BONUSES — 6/6 PASS ━━━
+          3a. Day 6→7: milestone_bonus=50, coins_awarded=60 (10 daily + 50 weekly) ✅
+          3b. Day 13→14: milestone_bonus=50 (weekly only), coins=65 (15+50) ✅
+          3c. Day 29→30: milestone_bonus=200 (monthly only — 30%7=2), coins=225 (25+200) ✅
+          3d. Day 27→28: milestone_bonus=50 (weekly only) ✅
+          3e. Same-day 2nd check-in: already_checked_in=true, coins=0, balance unchanged ✅
+          3f. Milestone LEDGER-IDEMPOTENT — forced Day 13→14 twice (deleted daily
+              ledger row but left weekly bonus row). Second call's
+              milestone_bonus=0 (unique key `streak_week_bonus::{uid}::{date}`
+              prevents double-award) ✅
+
+          ━━━ CATEGORY 4 — /streak/health ADMIN ENDPOINT — 6/6 PASS ━━━
+          4a. Shape: top-level keys {streak, freezes, coins, milestones};
+              streak.tier is object {tier, emoji, rank_label} ✅
+          4b. Non-premium: freezes{is_premium:false, available:0, max_per_month:0} ✅
+          4c. Premium: freezes{is_premium:true, max_per_month:3, available:3} ✅
+          4d. Integrity check: TRUE when cached==ledger_sum;
+              after injecting `coins_balance:999999` drift → integrity_ok:FALSE
+              (cached=999999, balance=2) ✅
+          4e. Rolling earnings: earned_last_7d=2, earned_last_30d=2,
+              lifetime_txn_count=1 after single check-in ✅
+          4f. Milestone countdowns for current=5 streak: next_weekly_in_days=2,
+              next_monthly_in_days=25 ✅
+
+          ━━━ CATEGORY 5 — REGRESSION PYTEST — PASS ━━━
+          `cd /app/backend && python -m pytest tests/test_streak_coins_audit.py
+           tests/test_adversarial.py tests/test_principal_audit.py -q`
+          RESULT: 67 passed, 1 skipped, 2 warnings in 69.18s — matches expected
+          (54 audit+principal + 13 streak_coins_audit). ZERO FAILURES, ZERO
+          REGRESSIONS.
+
+          ━━━ ADDITIONAL VERIFICATION ━━━
+          • Existing /streak/check-in response shape is backward-compatible:
+            all previous fields preserved, new fields (`freeze_used`,
+            `milestone_bonus`) are ADDITIVE only. No breaking changes for
+            existing frontend consumers.
+          • /streak/status still side-effect-free (read-only).
+          • Backend access logs show all /api/streak/* endpoints returning 200
+            with sub-100ms latency. No 5xx observed during 27-assertion sweep.
+          • /streak/health integrity-check correctly surfaces ledger drift
+            (useful for admin debug + the new profile card).
+
+          VERDICT: All 5 categories GREEN. The Streak & Coins Bonus Features
+          (freeze, leaderboard, milestone bonuses, observability) are
+          PRODUCTION-READY. Safe to ship.
+
 
 principal_audit_verification_apr24_2026:
   - task: "Post-principal-audit verification — 7 P0 bug fixes (goals/transactions validators) + 6 regression spot-checks + full pytest suite"
