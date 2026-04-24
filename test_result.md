@@ -12576,3 +12576,45 @@ agent_communication:
         Leaderboard. Only the explicitly-declined items remain
         (R4 realtime sync, server.py split) — both documented in
         DATA_GRAPH.md with migration paths.
+
+phase6_split_activity_extraction_apr24_2026:
+  - task: "Phase 6 — /split/activity + /split/settlement-leaderboard extracted to routers/split_activity.py"
+    implemented: true
+    working: true
+    file: "/app/backend/routers/split_activity.py"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+      - working: true
+        agent: "testing"
+        comment: |
+          ✅ ALL 23/23 SMOKE ASSERTIONS PASS + ADVERSARIAL 24/24 (Apr 24 2026,
+          /app/phase6_smoke_test.py against https://mintu-finance.preview.emergentagent.com/api).
+          Auth phone 9876543210 / OTP 123456.
+
+          1. GET /split/activity → 200 with {feed, headline, settled_this_month, top_friend}.
+             settled_this_month has {count, amount}; feed is a list; all expected keys present.
+          2. GET /split/activity?limit=5 → 200, feed.length <= 5 honoured.
+          3. GET /split/settlement-leaderboard → 200 with {leaderboard, my_stats}.
+             my_stats contains {rank, coins, settlements, cashback_available, badges};
+             badges is a list; leaderboard is a list.
+          4a. Regression GET /split/balances → 200, dict shape preserved.
+          4b. Regression POST /split/settle with empty body → 400 (validation); NEVER 5xx.
+          5. pytest tests/test_adversarial.py → 24 passed in 39.68s.
+
+          Router registered via routers/splits.py aggregator (line 19:
+          `from routers import split_activity`) which is already included in
+          server.py via api_router.include_router(splits_router.router).
+          The `async for u in db.users.find(...)` refactor works correctly — no
+          implicit-await bug. Zero 5xx errors, zero regressions. Extraction is
+          PRODUCTION-READY.
+
+agent_communication_phase6_apr24_2026:
+    -agent: "testing"
+    -message: |
+        ✅ Phase 6 split_activity.py extraction smoke test COMPLETE (Apr 24 2026).
+        All 23 checks PASS on /split/activity (+limit variant) and /split/settlement-leaderboard;
+        regression spot-checks /split/balances (200) and /split/settle (400, not 5xx) also PASS.
+        pytest tests/test_adversarial.py 24/24 passed in 39.68s. No 5xx errors.
+        Main agent can summarise and ship.

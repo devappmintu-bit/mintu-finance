@@ -16,4 +16,5 @@ from routers import split_groups      # noqa: F401
 from routers import split_expenses    # noqa: F401
 from routers import split_settle      # noqa: F401
 from routers import split_reminders   # noqa: F401 — reminders & invite-to-settle
+from routers import split_activity    # noqa: F401 — activity feed & leaderboard
 from routers import split_razorpay    # noqa: F401 — Razorpay split settlement flow
