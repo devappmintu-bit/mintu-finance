@@ -9,11 +9,19 @@ from typing import Any, Dict, List, Optional
 
 from bson import ObjectId
 from fastapi import APIRouter, Depends, HTTPException
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 
 from core import db, get_current_user
 
 router = APIRouter(prefix="/goals", tags=["goals"])
+
+
+# Hard caps applied to both create + update bodies.
+#   • Name must be 1-100 chars after strip
+#   • Target amount must be > 0 and <= ₹10 crore (1e8) — more than realistic savings goal
+#   • Saved amount must be >= 0 and <= target_amount
+_MAX_GOAL_AMOUNT = 10_00_00_000.0   # ₹10 crore ceiling
+_MAX_NAME_LEN = 100
 
 
 def _safe_oid(s: str) -> Optional[ObjectId]:
@@ -33,23 +41,48 @@ def _doc_out(d: Dict[str, Any]) -> Dict[str, Any]:
 
 
 class GoalCreate(BaseModel):
-    name: str
-    target_amount: float
-    saved_amount: float = 0
+    name: str = Field(..., min_length=1, max_length=_MAX_NAME_LEN)
+    target_amount: float = Field(..., gt=0, le=_MAX_GOAL_AMOUNT)
+    saved_amount: float = Field(default=0, ge=0, le=_MAX_GOAL_AMOUNT)
     target_date: Optional[str] = None  # ISO string — any parseable date
-    color: str = "#F56E1E"
-    emoji: str = "🎯"
+    color: str = Field(default="#F56E1E", max_length=32)
+    emoji: str = Field(default="🎯", max_length=8)
     linked_budget_id: Optional[str] = None
+
+    @field_validator("name")
+    @classmethod
+    def _strip_name(cls, v: str) -> str:
+        v = (v or "").strip()
+        if not v:
+            raise ValueError("name cannot be empty or whitespace")
+        return v
+
+    @field_validator("saved_amount")
+    @classmethod
+    def _saved_le_target(cls, v: float, info) -> float:
+        # Can't compare to target here (saved_amount validated before target),
+        # so cap only against the absolute max; per-goal check happens in handler.
+        return v
 
 
 class GoalUpdate(BaseModel):
-    name: Optional[str] = None
-    target_amount: Optional[float] = None
-    saved_amount: Optional[float] = None
+    name: Optional[str] = Field(default=None, min_length=1, max_length=_MAX_NAME_LEN)
+    target_amount: Optional[float] = Field(default=None, gt=0, le=_MAX_GOAL_AMOUNT)
+    saved_amount: Optional[float] = Field(default=None, ge=0, le=_MAX_GOAL_AMOUNT)
     target_date: Optional[str] = None
-    color: Optional[str] = None
-    emoji: Optional[str] = None
+    color: Optional[str] = Field(default=None, max_length=32)
+    emoji: Optional[str] = Field(default=None, max_length=8)
     linked_budget_id: Optional[str] = None
+
+    @field_validator("name")
+    @classmethod
+    def _strip_name(cls, v: Optional[str]) -> Optional[str]:
+        if v is None:
+            return v
+        v = v.strip()
+        if not v:
+            raise ValueError("name cannot be empty or whitespace")
+        return v
 
 
 @router.get("")
@@ -61,6 +94,9 @@ async def list_goals(user_id: str = Depends(get_current_user)) -> Dict[str, Any]
 
 @router.post("")
 async def create_goal(body: GoalCreate, user_id: str = Depends(get_current_user)) -> Dict[str, Any]:
+    # Cross-field: saved_amount cannot exceed target_amount
+    if body.saved_amount > body.target_amount:
+        raise HTTPException(status_code=400, detail="saved_amount cannot exceed target_amount")
     now = datetime.now(timezone.utc)
     doc: Dict[str, Any] = {
         "user_id": user_id,

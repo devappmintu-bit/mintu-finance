@@ -17,7 +17,7 @@ class TransactionCreate(BaseModel):
     amount: float = Field(..., gt=0, le=1_00_00_00_000)     # > 0 and ≤ ₹100 crore (sanity cap)
     category: str = Field(..., min_length=1, max_length=60)
     description: str = Field(default="", max_length=500)
-    type: str  # "debit" or "credit"
+    type: str = Field(..., pattern="^(debit|credit)$")
     date: Optional[datetime] = None
 
     @field_validator("amount", mode="before")

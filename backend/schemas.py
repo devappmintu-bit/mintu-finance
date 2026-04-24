@@ -9,7 +9,7 @@ from datetime import datetime
 from typing import Dict, List, Optional
 import re
 
-from pydantic import BaseModel, field_validator
+from pydantic import BaseModel, Field, field_validator
 
 # ── Indian phone regex — accepts "+91XXXXXXXXXX", "91XXXXXXXXXX", or
 # bare 10-digit "9XXXXXXXXX". Hard-rejects dict/list/other types that
@@ -76,11 +76,19 @@ class OTPVerifyRequest(BaseModel):
 
 # ─── Transactions ──────────────────────────────────────────────────────────
 class TransactionCreate(BaseModel):
-    amount: float
-    category: str
-    description: str
-    type: str  # "debit" or "credit"
+    amount: float = Field(..., gt=0, le=1_00_00_00_000)  # ₹100 Cr ceiling
+    category: str = Field(..., min_length=1, max_length=50)
+    description: str = Field(default="", max_length=500)
+    type: str = Field(..., pattern="^(debit|credit)$")
     date: Optional[datetime] = None
+
+    @field_validator("category")
+    @classmethod
+    def _strip_category(cls, v: str) -> str:
+        v = (v or "").strip()
+        if not v:
+            raise ValueError("category cannot be empty")
+        return v
 
 
 class TransactionResponse(BaseModel):
