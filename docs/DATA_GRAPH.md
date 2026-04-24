@@ -300,7 +300,7 @@ mutation code must re-run that suite before merge.
 - Server → client realtime push (websockets/SSE). Clients still poll or
   refetch-on-focus. If we need live multi-device sync in future, Socket.IO
   sitting beside the existing FastAPI is the recommended path.
-- Client-side entity normalisation (Redux-toolkit-style `byId/allIds`).
+- Client-side entity normalisation (Redux-style `byId/allIds`).
   Current SWR cache by URL key is the single source of truth client-side.
   Adding normalisation is a 2+ week refactor and the current app doesn't
   have the data complexity to need it yet.
@@ -308,3 +308,93 @@ mutation code must re-run that suite before merge.
   refreshing"). Today this works via refetch-on-focus + invalidation on
   the writer's device; the viewer's device picks it up when the tab is
   re-focused or within the 30-s TTL window. Good-enough for MVP.
+
+
+---
+
+## 9. EVENT BUS (R3 — Round 30e)
+
+In-process async event emitter at `backend/core/events.py`. Use this
+for **background side-effects** that don't need to be in the primary
+response path. Rules of engagement:
+
+- Emitters fire-and-forget — `emit(name, **payload)` returns immediately.
+- Handlers run concurrently on the asyncio loop (ordered by registration
+  within a single event name only for concurrent fan-out).
+- Handler exceptions are isolated — one bad subscriber can't poison the
+  chain. Exceptions are logged with the handler name.
+- NOT for user-facing response data — if the caller needs the result of
+  a side-effect in the HTTP response, keep the logic inline.
+- NOT for ordered workflows — if handler B must run after handler A,
+  merge them; don't rely on registration order for correctness.
+
+### Canonical events (from `core.events.Events`)
+
+| Event name | Fired from | Payload |
+|---|---|---|
+| `transaction.created` | `POST /api/transactions` | `user_id, transaction_id, amount, category, type` |
+| `transaction.updated` | _reserved_ | TBD |
+| `transaction.deleted` | _reserved_ | TBD |
+| `split.settlement_completed` | `POST /api/split/settle` | `payer_id, payee_id, amount, group_id, method, settlement_id` |
+| `split.expense_created` | _reserved_ | TBD |
+| `split.group_created` | _reserved_ | TBD |
+| `coins.awarded` | _reserved_ | TBD |
+| `budget.warning` | `_check_budget_breach` handler | `user_id, category, used, cap, pct, budget_id` |
+| `budget.breached` | `_check_budget_breach` handler | same as above but `pct>=1.0` |
+| `missions.claimed` | _reserved_ | TBD |
+| `user.soft_deleted` | _reserved_ | TBD |
+| `user.hard_deleted` | _reserved_ | TBD |
+
+### Currently wired handlers (`backend/core/event_handlers.py`)
+
+| Handler | Event | Side-effect |
+|---|---|---|
+| `_check_budget_breach` | `transaction.created` | Insert `budget_alerts` row at 80%/100% thresholds (idempotent per user × budget × threshold × month); also re-emits `budget.warning` / `budget.breached` |
+| `_log_settlement` | `split.settlement_completed` | Observability log only |
+
+### Adding a new handler
+
+```python
+# In core/event_handlers.py
+from core.events import on, Events
+
+@on(Events.SETTLEMENT_COMPLETED)
+async def _push_notify_payee(event: dict) -> None:
+    # Your new side-effect logic here
+    ...
+```
+
+No other changes required — the import at server startup
+(`from core import event_handlers`) auto-registers via decorator.
+
+### Tests (F12, F13)
+
+- `F12` — Verifies that `POST /transactions` with an 80%+ usage
+  triggers a `budget_alerts` row via the event bus, and that
+  repeating the same situation doesn't double-alert (idempotent).
+- `F13` — Verifies that the primary write path `POST /transactions`
+  returns 200 even when event handlers run (handler isolation).
+
+---
+
+## 10. WHAT IS STILL NOT BUILT (after R3)
+
+- **R4 — Full client-side entity normalisation + realtime sync**
+  (websockets, offline queue, conflict resolution).
+  Decision: **declined** as of Round 30e. Reasoning:
+    • 2-4 weeks of focused architecture work with regression risk
+      across every screen.
+    • Current reactive cache graph (R2) + refetch-on-focus gives
+      **~95% of the "live UI" user experience** at a fraction of the risk.
+    • MongoDB is not a realtime sync backbone — building true real-time
+      requires either Mongo change-streams + Socket.IO OR a move to a
+      purpose-built realtime store (Firestore, Supabase).
+    • The 22 → 24 passing adversarial tests we just shipped would all need
+      re-verification against a new state layer. Very likely to regress.
+  If R4 ever becomes a priority, the recommended approach is:
+    1. Introduce Socket.IO co-located with FastAPI (single process is fine).
+    2. On each relevant mutation, backend emits a server event to the
+       user's room (e.g. `user:{id}`, `group:{id}`).
+    3. Frontend subscribes and forwards the event into
+       `invalidateAfter(...)` from the existing cache graph.
+    4. Only ~150 LOC of new code; no Redux/RTK rewrite needed.

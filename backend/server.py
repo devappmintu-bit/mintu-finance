@@ -774,6 +774,15 @@ async def on_startup():
     # Purges any user whose `scheduled_purge_at` has lapsed (30d after soft-delete).
     import asyncio as _asyncio
 
+    # Register event handlers (Round 30e). Importing the module is enough —
+    # decorators attach to the shared bus registry.
+    try:
+        from core import event_handlers  # noqa: F401
+        from core.events import Events as _E
+        logger.info(f"📡 Event bus initialised · {len([m for m in dir(_E) if not m.startswith('_')])} event kinds")
+    except Exception as e:
+        logger.warning(f"Could not register event handlers: {e}")
+
     async def _soft_delete_purge_loop():
         while True:
             try:

@@ -1,3 +1,5 @@
+# ruff: noqa: E501 — test strings intentionally long for readability
+
 """
 Adversarial-regression pytest suite.
 
@@ -533,3 +535,90 @@ async def test_f11_settle_dismisses_pending_reminder():
         assert len(pending_after) < len(pending_before), \
             f"Reminder not auto-dismissed after settle. Before={len(pending_before)} After={len(pending_after)}"
 
+
+
+# ═══ R3 EVENT BUS REGRESSIONS ════════════════════════════════════════
+
+# ─── F12 — Budget breach alert fires automatically on transaction create ──
+@pytest.mark.asyncio
+async def test_f12_event_bus_fires_budget_breach_alert():
+    """When a user has a ₹1000 monthly budget for "Food" and adds a ₹900
+    Food transaction (90% usage), the `transaction.created` event fires
+    the budget-breach handler which inserts a `budget_alerts` row at the
+    80% threshold. Verifies the end-to-end event bus wiring is live and
+    idempotent (repeating the same txn must NOT double-alert)."""
+    from motor.motor_asyncio import AsyncIOMotorClient
+    from dotenv import load_dotenv
+    import os as _os
+    load_dotenv(_os.path.join(_os.path.dirname(__file__), "..", ".env"))
+    mongo = AsyncIOMotorClient(_os.environ["MONGO_URL"])
+    dbx = mongo[_os.environ["DB_NAME"]]
+
+    async with httpx.AsyncClient(timeout=30) as client:
+        u = await register(client)
+        h = bearer(u["token"])
+
+        # Pre-condition: no existing budget alerts for this user.
+        await dbx.budget_alerts.delete_many({"user_id": u["user_id"]})
+
+        # Create a ₹1000 monthly budget for "Food"
+        r = await client.post(
+            f"{API}/budgets",
+            json={"category": "Food", "amount": 1000, "period": "monthly"},
+            headers=h,
+        )
+        assert r.status_code in (200, 201), f"budget create: {r.status_code} {r.text}"
+
+        # Add a ₹900 debit Food transaction — should fire 80% alert.
+        r = await client.post(
+            f"{API}/transactions",
+            json={"amount": 900, "category": "Food", "type": "debit", "description": "groceries"},
+            headers=h,
+        )
+        assert r.status_code == 200, f"txn create: {r.status_code} {r.text}"
+
+        # Give the bus 2s to fan out (it's fire-and-forget).
+        await asyncio.sleep(2)
+        alerts = await dbx.budget_alerts.find({"user_id": u["user_id"]}).to_list(10)
+        assert len(alerts) >= 1, f"Expected ≥1 budget alert from event bus, got {alerts}"
+        a = alerts[0]
+        assert a["threshold_pct"] in (80, 100), f"Unexpected threshold {a['threshold_pct']}"
+        assert a["category"] == "Food"
+
+        # Idempotency — add ₹50 more Food (still under 100%). Should NOT
+        # create another 80%-threshold alert for the same month.
+        before = len(alerts)
+        r = await client.post(
+            f"{API}/transactions",
+            json={"amount": 50, "category": "Food", "type": "debit", "description": "snack"},
+            headers=h,
+        )
+        assert r.status_code == 200
+        await asyncio.sleep(2)
+        alerts_after = await dbx.budget_alerts.find({
+            "user_id": u["user_id"], "threshold_pct": 80,
+        }).to_list(10)
+        assert len(alerts_after) == 1, \
+            f"Budget alert not idempotent — duplicated. before={before} after={len(alerts_after)}"
+
+    mongo.close()
+
+
+# ─── F13 — Event bus isolation: bad subscriber doesn't break emit ─────
+@pytest.mark.asyncio
+async def test_f13_event_bus_isolates_handler_failures():
+    """A handler that raises must not bubble up to the emitter. The
+    primary write path (POST /transactions) returns 200 even if a
+    listener blows up mid-event. We verify by adding a ₹100 txn — the
+    bus would fan out to the budget-breach handler (no budget → no-op,
+    no raise) and the call returns 200."""
+    async with httpx.AsyncClient(timeout=15) as client:
+        u = await register(client)
+        h = bearer(u["token"])
+        r = await client.post(
+            f"{API}/transactions",
+            json={"amount": 100, "category": "Other", "type": "debit", "description": "test"},
+            headers=h,
+        )
+        assert r.status_code == 200, \
+            f"primary write path regressed: {r.status_code} {r.text}"

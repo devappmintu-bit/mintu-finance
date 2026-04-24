@@ -72,6 +72,19 @@ async def create_transaction(transaction: TransactionCreate, user_id: str = Depe
     _invalidate_caches(user_id)
     await _bump_money_score(user_id)
 
+    # Round 30e — emit declarative event so subscribers (budget breach
+    # checker, AI cache invalidation, etc.) fan out. Non-blocking.
+    try:
+        from core.events import emit, Events
+        emit(Events.TRANSACTION_CREATED,
+             user_id=user_id,
+             transaction_id=str(result.inserted_id),
+             amount=float(trans.get("amount", 0) or 0),
+             category=trans.get("category"),
+             type=trans.get("type"))
+    except Exception:
+        pass  # event bus must never break the primary write path
+
     return {
         "id": str(result.inserted_id),
         "user_id": user_id,

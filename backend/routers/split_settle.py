@@ -348,6 +348,19 @@ async def settle_payment(data: SettlePayment, user_id: str = Depends(get_current
     # Auto-dismiss any pending reminders the payee had sent to the payer.
     await dismiss_reminders_after_settle(user_id, data.target_user_id)
 
+    # Round 30e — emit declarative event for analytics/observability.
+    try:
+        from core.events import emit, Events
+        emit(Events.SETTLEMENT_COMPLETED,
+             payer_id=user_id,
+             payee_id=data.target_user_id,
+             amount=float(data.amount),
+             group_id=data.group_id,
+             method=data.method,
+             settlement_id=settlement["id"])
+    except Exception:
+        pass
+
     # Get names safely
     payer_name = "You"
     payee_name = "User"

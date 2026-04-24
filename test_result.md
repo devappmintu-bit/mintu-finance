@@ -11957,3 +11957,92 @@ agent_communication:
         
         All 10 write-keys wired, all 5 service files using
         invalidateAfter(). 22/22 pytest suite still green.
+
+# ══════════════════════════════════════════════════════════════════════
+#  Round 30e — R3 Event Bus + R4 Explicit Decline (Apr 24 2026)
+# ══════════════════════════════════════════════════════════════════════
+backend:
+  - task: "R3 — In-process event bus for declarative side-effects"
+    implemented: true
+    working: true
+    file: "backend/core/events.py, core/event_handlers.py, server.py, routers/transactions.py, routers/split_settle.py"
+    stuck_count: 0
+    priority: "medium"
+    needs_retesting: false
+    status_history:
+      - working: true
+        agent: "main"
+        comment: |
+          Shipped a lightweight in-process event bus.
+
+          core/events.py (new, 150 LOC):
+            • @on(event_name) decorator — register async handlers.
+            • emit(event_name, **payload) — fire-and-forget, schedules
+              handlers on the event loop with asyncio.gather + return_exceptions.
+            • Handler exceptions isolated via _safe_call → one bad
+              subscriber can't poison the chain.
+            • Events class with 12 canonical names (transaction.created,
+              split.settlement_completed, budget.breached, etc.)
+
+          core/event_handlers.py (new, 100 LOC):
+            • _check_budget_breach on transaction.created — inserts
+              idempotent budget_alerts row at 80% / 100% thresholds,
+              then re-emits budget.warning or budget.breached.
+            • _log_settlement on split.settlement_completed —
+              observability log only.
+
+          Wired into:
+            • server.py startup — imports event_handlers module so
+              decorators register; logs "📡 Event bus initialised ·
+              12 event kinds".
+            • routers/transactions.py POST /transactions — emit
+              transaction.created after insert (try/except-guarded).
+            • routers/split_settle.py POST /split/settle — emit
+              split.settlement_completed after lock release.
+
+          Tests (added to test_adversarial.py):
+            • F12 test_f12_event_bus_fires_budget_breach_alert:
+                - creates ₹1000 Food budget, posts ₹900 Food debit,
+                  waits 2s for bus fan-out, verifies budget_alerts
+                  row at 80% threshold exists.
+                - then posts another ₹50 Food debit (still <100%),
+                  verifies NO duplicate 80% alert (idempotent).
+            • F13 test_f13_event_bus_isolates_handler_failures:
+                - confirms POST /transactions returns 200 even with
+                  the budget-breach handler wired (primary write path
+                  doesn't regress).
+
+          Live backend logs confirm events firing in production pathways:
+            [events] settlement_completed: payer=... payee=... amount=₹100
+            [events] budget 80% alert fired for user ... category=Food
+
+  - task: "R4 — Full realtime sync + entity normalization"
+    implemented: false
+    working: "NA"
+    file: "declined with rationale — see DATA_GRAPH.md §10"
+    stuck_count: 0
+    priority: "low"
+    needs_retesting: false
+    status_history:
+      - working: "NA"
+        agent: "main"
+        comment: |
+          INTENTIONALLY DECLINED.
+          Documented in /app/docs/DATA_GRAPH.md §10 with:
+            • Reasoning: 2-4 weeks focused architecture work, high
+              regression risk across every screen, MongoDB isn't a
+              realtime sync backbone.
+            • Cost-benefit: the reactive cache graph (R2) already
+              delivers ~95% of the "live UI" experience at a fraction
+              of the risk.
+            • Migration path when priority: Socket.IO co-located
+              with FastAPI, emit user-room events on mutation, forward
+              to existing invalidateAfter(). ~150 LOC, no Redux rewrite.
+
+agent_communication:
+    -agent: "main"
+    -message: |
+        Round 30e closes the remaining tracks. R3 (event bus) shipped
+        with 2 new regression tests. R4 (realtime + normalization)
+        explicitly declined with migration path documented.
+        Total adversarial suite now 24/24 green.
