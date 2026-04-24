@@ -94,73 +94,13 @@ app = FastAPI(
 api_router = APIRouter(prefix="/api")
 
 
-# ── Validation error handler ────────────────────────────────────────────
-# FastAPI's default 422 response echoes the invalid `input` back to the
-# client. When that input is a non-finite float (NaN / ±Infinity / etc.),
-# Starlette's default JSONResponse renders with `allow_nan=False` and
-# crashes → client sees 500 instead of 422. We fix this by:
-#   1. Scrubbing non-finite floats in the error/body we build
-#   2. Using a custom response class that tolerates NaN/Inf just in case
-#      any nested object escapes the scrub.
-from fastapi.exceptions import RequestValidationError
-from starlette.responses import Response as _StarletteResponse
-import math as _math
-import json as _json
-
-
-def _scrub_nonfinite(obj):
-    if isinstance(obj, float) and not _math.isfinite(obj):
-        return f"<non-finite:{obj}>"
-    if isinstance(obj, list):
-        return [_scrub_nonfinite(x) for x in obj]
-    if isinstance(obj, tuple):
-        return [_scrub_nonfinite(x) for x in obj]
-    if isinstance(obj, dict):
-        return {k: _scrub_nonfinite(v) for k, v in obj.items()}
-    if isinstance(obj, bytes):
-        try: return _scrub_nonfinite(_json.loads(obj))
-        except Exception: return obj.decode("utf-8", errors="replace")
-    if isinstance(obj, BaseException):
-        # Pydantic may stash the raw ValueError in the errors ctx dict.
-        return str(obj)
-    # Any remaining non-JSON-native type → coerce to str (last resort).
-    if not isinstance(obj, (str, int, bool, type(None))):
-        try:
-            _json.dumps(obj)     # probe: is it serialisable?
-            return obj
-        except Exception:
-            return repr(obj)
-    return obj
-
-
-class _SafeJSONResponse(_StarletteResponse):
-    media_type = "application/json"
-
-    def render(self, content) -> bytes:
-        return _json.dumps(
-            _scrub_nonfinite(content),
-            ensure_ascii=False,
-            allow_nan=False,
-            separators=(",", ":"),
-        ).encode("utf-8")
-
-
-@app.exception_handler(RequestValidationError)
-async def _validation_exception_handler(request: Request, exc: RequestValidationError):
-    errors = _scrub_nonfinite(exc.errors())
-    body = _scrub_nonfinite(getattr(exc, "body", None))
-    return _SafeJSONResponse(status_code=422, content={"detail": errors, "body": body})
-
-
-# ── Invalid ObjectId handler (e.g. malformed path params) ───────────────
-from bson.errors import InvalidId as _InvalidId
-
-
-@app.exception_handler(_InvalidId)
-async def _invalid_objectid_handler(request: Request, exc: _InvalidId):
-    """Catches every bare `ObjectId("not-a-hex")` across all routers → 400.
-    Defense-in-depth so downstream handlers don't have to wrap every ObjectId call."""
-    return _SafeJSONResponse(status_code=400, content={"detail": "Invalid ID format"})
+# ── Validation + InvalidId handlers (extracted to core/responses.py) ────
+from core.responses import (  # noqa: E402,F401
+    _SafeJSONResponse,
+    _scrub_nonfinite,
+    register_exception_handlers,
+)
+register_exception_handlers(app)
 # ────────────────────────────────────────────────────────────────────────
 
 

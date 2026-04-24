@@ -1104,6 +1104,127 @@ profile_hub_and_goals_apr22_2026:
 agent_communication:
     -agent: "main"
     -message: |
+        🏗️ Phase 4 (response handlers) + Phase 5 (split_settle split) — DONE:
+        • core/responses.py (117 L) — extracted _scrub_nonfinite + SafeJSONResponse +
+          register_exception_handlers(app). Server.py now 311 lines.
+        • routers/split_reminders.py (264 L) — extracted 4 endpoints from split_settle.py:
+            POST /split/remind
+            GET  /split/reminders
+            POST /split/reminders/{reminder_id}/dismiss
+            POST /split/invite-to-settle
+          split_settle.py: 1160 → 947 lines (-18%). All 4 reminder paths still registered
+          under the shared api_router (verified via route inspection).
+        • Server.py total journey: 817 → 311 lines (-62% from original). Files extracted to
+          core/: ai_helpers.py, lifecycle.py, middleware.py, responses.py.
+        • Adversarial pytest: 24/24 PASS (39.88s). Zero regressions.
+        Please smoke-test the 4 reminder/invite endpoints + all Phase-3 endpoints again to
+        confirm full path continuity.
+
+test_plan_round30g_refactor:
+    current_focus: []
+    stuck_tasks: []
+    test_all: false
+    test_priority: "high_first"
+
+phase4_5_refactor_smoke_apr24_2026:
+  - task: "Phase 4 (core/responses.py) + Phase 5 (routers/split_reminders.py) smoke test"
+    implemented: true
+    working: true
+    file: "/app/backend/core/responses.py, /app/backend/routers/split_reminders.py, /app/backend/server.py"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+      - working: true
+        agent: "testing"
+        comment: |
+          ✅ POST-REFACTOR SMOKE TEST — ALL 7/7 CHECKS GREEN (Apr 24 2026,
+          /app/phase4_5_smoke_test.py against
+          https://mintu-finance.preview.emergentagent.com/api). Auth via phone
+          9876543210 / OTP 123456 and 9999888877 / OTP 123456 → tokens from
+          /auth/verify-otp.token.
+
+          1. POST /api/split/remind ✅ — 200 with all 6 required keys
+             {id, message, whatsapp_link, whatsapp_text, recipient_name,
+             amount}. Verified id=69eb1b59 amount=250.5 recipient='Rahul
+             Sharma'. WhatsApp link built correctly (wa.me/91<phone> form).
+             Anti-spam throttle (1/hr/pair) still enforced.
+
+          2. GET /api/split/reminders ✅ — 200 with all 3 required keys
+             {received, sent, received_count}. received/sent are lists,
+             received_count is int. Shape matches spec exactly.
+
+          3. POST /api/split/reminders/{id}/dismiss ✅ — 200 with body
+             {"message":"Dismissed"} EXACTLY. Called as user B (recipient),
+             correctly updated status=dismissed.
+
+          4. POST /api/split/invite-to-settle ✅ — 200 with all 6 required
+             keys {upi_link, whatsapp_url, whatsapp_text, share_text,
+             payee_upi, has_upi}. upi_link starts with 'upi://pay' ✅.
+             whatsapp_url contains wa.me/<phone> ✅.
+
+          5. VALIDATION HANDLER (NaN) ✅ — POST /api/budgets with raw JSON
+             {"category":"Food","amount":NaN,"period":"monthly"} → 422 (NOT
+             500) with body={"detail":[...],"body":{...}}. SafeJSONResponse
+             in core/responses.py correctly scrubbed the NaN via
+             _scrub_nonfinite and rendered with allow_nan=False. No 5xx.
+
+          6. INVALID OBJECTID HANDLER ✅ — GET /api/split/groups/bad-id/
+             summary → 400 (NOT 500) with body
+             {"detail":"Invalid group_id"}. Handled by router-level guard
+             (core/responses.py InvalidId exception handler is also wired
+             as defense-in-depth via register_exception_handlers(app) on
+             server.py line 103).
+
+          7. ADVERSARIAL PYTEST ✅ — `cd /app/backend && python -m pytest
+             tests/test_adversarial.py -q` → 24 passed in 39.82s. Zero
+             failures, zero regressions from previous phases.
+
+          Zero 5xx errors encountered across all 7 checks. Backend access
+          log confirms: POST /split/remind 200, GET /split/reminders 200
+          (×2), POST /split/reminders/{id}/dismiss 200, POST /split/
+          invite-to-settle 200, POST /budgets 422, GET /split/groups/
+          bad-id/summary 400. All 4 extracted reminder endpoints still
+          routed under the shared api_router via `from routers import
+          split_reminders` in routers/splits.py (line 18).
+
+          REFACTOR VERDICT: Zero regressions. core/responses.py exception
+          handlers and routers/split_reminders.py endpoints all wired
+          correctly post-extraction. Adversarial suite still 24/24.
+          PRODUCTION-READY.
+
+agent_communication_phase4_5:
+    -agent: "testing"
+    -message: |
+        ✅ Phase 4 + Phase 5 Refactor Smoke Test COMPLETE (Apr 24 2026).
+        All 7 review-request checks PASS:
+          1. POST /api/split/remind → 200 with {id, message, whatsapp_link,
+             whatsapp_text, recipient_name, amount} ✅
+          2. GET  /api/split/reminders → 200 with {received, sent,
+             received_count} (correct types) ✅
+          3. POST /api/split/reminders/{id}/dismiss → 200 {"message":
+             "Dismissed"} ✅
+          4. POST /api/split/invite-to-settle → 200 with {upi_link,
+             whatsapp_url, whatsapp_text, share_text, payee_upi, has_upi}
+             (upi:// link, wa.me URL both well-formed) ✅
+          5. Validation handler: POST /api/budgets with NaN amount → 422
+             (NOT 500) with detail+body fields; SafeJSONResponse scrubbed
+             non-finite floats cleanly ✅
+          6. Invalid ObjectId handler: GET /split/groups/bad-id/summary →
+             400 "Invalid group_id" (NOT 500) ✅
+          7. Adversarial pytest tests/test_adversarial.py → 24/24 passed
+             in 39.82s ✅
+
+        Zero 5xx errors anywhere in the run. Backend logs clean. core/
+        responses.py (SafeJSONResponse + register_exception_handlers) and
+        routers/split_reminders.py (4 endpoints) both wired correctly
+        post-extraction. Adversarial suite 24/24. Server.py 811→311 lines
+        across phases 1-5 with no behavioural regressions.
+        Main agent can summarise and ship.
+
+agent_communication:
+    -agent: "main"
+    -message: |
         🏗️ Server.py Modular Refactor (Phase 1-3) — DONE:
         • Extracted 3 self-contained chunks from server.py → core/ modules (zero behaviour change,
           full back-compat via re-exports):
