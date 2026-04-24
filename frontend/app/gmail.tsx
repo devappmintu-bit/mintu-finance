@@ -29,22 +29,17 @@ const BANKS = [
   { name: 'IndusInd',     emoji: '🏦', color: '#A6192E' },
 ];
 
-// Gmail OAuth return URL.
+// Gmail OAuth return URL — environment-agnostic.
 //
-// Must match the origin the user is currently browsing from so the
-// OAuth redirect lands back in the right app shell after the auth
-// provider closes its popup / webview.
-//
-//   • Web: use window.location.origin — works across preview URL,
-//     custom domains, and deployed production URL alike.
-//   • Native (iOS/Android): window is undefined; fall back to the
-//     EXPO_PUBLIC_BACKEND_URL env var (which on native always points
-//     at the same host that serves the app shell).
-const RETURN_URL = (
-  typeof window !== 'undefined' && (window as any)?.location?.origin
-    ? (window as any).location.origin
-    : (process.env.EXPO_PUBLIC_BACKEND_URL as string || '')
-) + '/gmail-connected';
+// ▸ Web: always use window.location.origin + '/gmail-connected'.
+//   This works identically on preview URL, custom domains, and prod.
+// ▸ Native (iOS/Android): window is undefined → use the app's deep
+//   link scheme ('mintu://gmail-connected'), declared in app.json.
+//   `expo-web-browser` intercepts this scheme and closes the auth
+//   session once the OAuth provider redirects to it.
+const RETURN_URL = (typeof window !== 'undefined' && (window as any)?.location?.origin)
+  ? (window as any).location.origin + '/gmail-connected'
+  : 'mintu://gmail-connected';
 
 export default function GmailConnectScreen() {
   const s = useStyles();
