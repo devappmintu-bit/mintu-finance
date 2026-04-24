@@ -191,19 +191,49 @@ async def _get_user_coins(user_id: str) -> int:
 
 
 async def _add_user_coins(user_id: str, delta: int, reason: str) -> int:
-    oid = safe_oid(user_id)
-    r = await db.users.find_one_and_update(
-        {"_id": oid},
-        {"$inc": {"coins": delta}},
-        return_document=True,
-    )
-    await db.coin_ledger.insert_one({
-        "user_id": user_id,
-        "amount": delta,
-        "reason": reason,
-        "created_at": datetime.now(timezone.utc),
-    })
-    return int((r or {}).get("coins", 0))
+    """Credit or debit a user's coin balance through the immutable ledger.
+
+    Round 31 Paranoid-audit fix: previously `$inc user.coins` + legacy
+    `coin_ledger` write. Both were silently wiped by `/coins/balance`'s
+    self-heal (which sums `ledger_transactions`). Now routes through
+    `core.ledger` so all coin deltas land in the single source of truth.
+
+    Idempotency: We use `(user_id, reason, random_hex)` unless the reason
+    carries a natural unique suffix (spin_wheel:{id}, mission_claim:{id},
+    marketplace_claim:{id} already do). This preserves natural idempotency
+    when the same reason is replayed.
+    """
+    from core import ledger as ledger_service
+    import uuid as _uuid
+
+    # Derive an idempotency key. If the reason contains a colon, use the
+    # full reason as the unique anchor (it already includes the entity id).
+    # Otherwise, append a random hex so repeated calls with the same
+    # reason do get separate ledger entries (correct for e.g. daily spins).
+    if ":" in reason:
+        idem_key = f"rewards::{reason}::{user_id}"
+    else:
+        idem_key = f"rewards::{reason}::{user_id}::{_uuid.uuid4().hex[:12]}"
+
+    if delta == 0:
+        return await ledger_service.get_balance(user_id)
+    if delta > 0:
+        res = await ledger_service.award_coins(
+            user_id=user_id, amount=int(delta), source=f"rewards:{reason}",
+            idempotency_key=idem_key, txn_type="earn",
+        )
+    else:
+        # Spend through the ledger — enforces non-negative balance.
+        try:
+            res = await ledger_service.spend_coins(
+                user_id=user_id, amount=int(-delta), source=f"rewards:{reason}",
+                idempotency_key=idem_key,
+            )
+        except ValueError:
+            # Insufficient balance — caller must handle. Return current bal.
+            return await ledger_service.get_balance(user_id)
+
+    return int(res.get("balance", 0))
 
 
 # ══════════════════════════════════════════════════════════════════

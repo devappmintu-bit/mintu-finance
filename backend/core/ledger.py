@@ -171,26 +171,61 @@ async def spend_coins(
     source: str,
     idempotency_key: str,
 ) -> Dict[str, Any]:
-    """Debit ``amount`` coins. Idempotent. Refuses if balance would go negative."""
+    """Debit ``amount`` coins. Idempotent. Refuses if balance would go negative.
+
+    Round 31 paranoid-audit fix: uses an ATOMIC conditional update on
+    `users.coins_balance` (the denormalized cache) as the race-safe
+    reservation gate. Previously the read-then-write pattern allowed N
+    parallel spends to all pass the pre-check against a balance smaller
+    than their sum, letting the account go negative.
+
+    Contract:
+      • If the reserved amount would push balance < 0 → refuse atomically.
+      • Uses find_one_and_update({coins_balance: $gte: amount}, $inc: -amount)
+        — MongoDB evaluates filter+update as a single atomic op.
+      • Ledger insert occurs AFTER the reservation succeeds.
+      • On duplicate idempotency_key (rare), we roll back the reservation.
+    """
     if amount <= 0:
         raise ValueError(f"spend_coins amount must be positive, got {amount}")
     if not idempotency_key:
         raise ValueError("idempotency_key is required for spend_coins")
 
-    balance_before = await _sum_ledger(user_id)
-    if balance_before < amount:
-        # Don't insert — user would go negative.
+    oid = safe_oid(user_id)
+    if oid is None:
         return {
-            "created": False,
-            "balance": balance_before,
-            "balance_before": balance_before,
-            "amount": 0,
-            "source": source,
-            "reason": "insufficient_funds",
+            "created": False, "balance": 0, "balance_before": 0,
+            "amount": 0, "source": source, "reason": "invalid_user_id",
         }
 
+    # ── ATOMIC RESERVATION
+    # MongoDB evaluates filter+update atomically. If coins_balance < amount,
+    # filter fails → return None → we refuse. Otherwise balance is debited
+    # in the same atomic operation.
+    #
+    # `coins_balance` is the authoritative reservation slot. It's kept in
+    # sync by award_coins. Legacy-drift users must call reconcile_user()
+    # explicitly before attempting to spend — we DO NOT self-heal inside
+    # spend_coins because the read-then-write-back pattern would resurrect
+    # just-reserved coins under concurrent access.
+    reserved = await db.users.find_one_and_update(
+        {"_id": oid, "coins_balance": {"$gte": amount}},
+        {"$inc": {"coins_balance": -amount}},
+        return_document=True,
+    )
+    if reserved is None:
+        bal = int((await db.users.find_one({"_id": oid}) or {}).get("coins_balance", 0))
+        return {
+            "created": False, "balance": bal, "balance_before": bal,
+            "amount": 0, "source": source, "reason": "insufficient_funds",
+        }
+
+    balance_after = int(reserved.get("coins_balance", 0))
+    balance_before = balance_after + amount
     now = datetime.now(timezone.utc)
-    balance_after = balance_before - amount
+
+    # ── STEP 3: Insert the ledger doc. If the idempotency_key is a dup,
+    # roll back the reservation so we don't silently eat the coins.
     doc = {
         "user_id": user_id,
         "amount": -int(amount),
@@ -200,21 +235,23 @@ async def spend_coins(
         "balance_after": balance_after,
         "created_at": now,
     }
-
     try:
         await db.ledger_transactions.insert_one(doc)
     except DuplicateKeyError:
+        # Roll back the reservation since the ledger rejected the write.
+        await db.users.update_one({"_id": oid}, {"$inc": {"coins_balance": amount}})
         current = await _sum_ledger(user_id)
         return {
-            "created": False,
-            "balance": current,
-            "balance_before": current,
-            "amount": 0,
-            "source": source,
-            "reason": "duplicate",
+            "created": False, "balance": current, "balance_before": current,
+            "amount": 0, "source": source, "reason": "duplicate",
         }
 
-    await _update_cached_balance(user_id, balance_after)
+    # Also update legacy field mirrors so legacy reads don't lag.
+    await db.users.update_one(
+        {"_id": oid},
+        {"$set": {"coins": balance_after, "reward_coins": balance_after}},
+    )
+
     return {
         "created": True,
         "balance": balance_after,

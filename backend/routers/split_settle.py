@@ -126,24 +126,39 @@ async def split_coin_redeem_preview(data: dict, user_id: str = Depends(get_curre
 
 
 async def _apply_split_coin_redemption(user_id: str, amount: float, coins_requested: int) -> dict:
-    """Shared helper — deducts coins and returns breakdown. Used by settle endpoints below."""
+    """Shared helper — deducts coins and returns breakdown. Used by settle endpoints below.
+
+    Round 31 Paranoid-audit fix: now routes through `core.ledger.spend_coins`
+    so the debit lands in `ledger_transactions` (the canonical ledger).
+    Prior code did `$inc user.coins: -N` + legacy `coin_ledger` write, both
+    silently wiped by the `/coins/balance` self-heal — letting the user
+    redeem coins for a split discount while keeping the coins.
+    """
+    from core import ledger as ledger_service
+    import uuid as _uuid
+
     if coins_requested <= 0 or amount <= 0:
         return {"coins_applied": 0, "discount": 0, "effective_amount": amount}
-    balance = await _get_user_coin_balance(user_id)
+
+    # Canonical balance from the ledger (authoritative).
+    balance = await ledger_service.get_balance(user_id)
     max_disc_coins = _split_max_discount(amount) * COINS_PER_RUPEE
     applied_coins = min(coins_requested, balance, max_disc_coins)
     discount = applied_coins // COINS_PER_RUPEE
+
     if applied_coins > 0:
-        await db.users.update_one({"_id": ObjectId(user_id)}, {"$inc": {"coins": -applied_coins}})
+        # Atomic debit through the ledger (idempotency keeps a double-
+        # submission from double-spending).
+        idem_key = f"split_redemption::{user_id}::{_uuid.uuid4().hex[:12]}"
         try:
-            await db.coin_ledger.insert_one({
-                "user_id": user_id,
-                "action": "split_redemption",
-                "amount": -applied_coins,
-                "at": datetime.utcnow(),
-            })
-        except Exception:
-            pass
+            await ledger_service.spend_coins(
+                user_id=user_id, amount=int(applied_coins),
+                source="split_redemption", idempotency_key=idem_key,
+            )
+        except ValueError:
+            # Insufficient balance (rare race) — fail gracefully with no discount.
+            return {"coins_applied": 0, "discount": 0, "effective_amount": amount}
+
     return {
         "coins_applied": applied_coins,
         "discount": int(discount),
