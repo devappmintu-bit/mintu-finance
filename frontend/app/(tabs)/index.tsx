@@ -16,7 +16,7 @@
  */
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import {
-  View, Text, ScrollView, RefreshControl, InteractionManager,
+  View, Text, ScrollView, RefreshControl, InteractionManager, TouchableOpacity, AppState,
 } from 'react-native';
 import { Image } from 'expo-image';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -71,6 +71,25 @@ export default function HomeScreen() {
   // Previously a double-failure (bundle + fallback) left the user staring
   // at empty widgets with no signal the fetch died.
   const [loadError, setLoadError] = useState(false);
+  // Round 37 — bell badge unread count, fetched independently so list-screen
+  // interactions don't block notification refresh.
+  const [unread, setUnread] = useState(0);
+  const refreshUnread = useCallback(async () => {
+    try {
+      const { fetchUnreadCount } = await import('../../services/notifications');
+      const n = await fetchUnreadCount();
+      setUnread(n);
+    } catch {}
+  }, []);
+  useEffect(() => { refreshUnread(); }, [refreshUnread]);
+  // Round 37 — re-check unread count when app comes back to foreground so
+  // a notification received while backgrounded reflects on the badge.
+  useEffect(() => {
+    const sub = AppState.addEventListener('change', (state) => {
+      if (state === 'active') refreshUnread();
+    });
+    return () => sub.remove();
+  }, [refreshUnread]);
   // Round 35 — refs mirror user/stats so fetchData can detect "nothing painted"
   // without needing user/stats in its dep array (which caused an infinite
   // refetch loop).
@@ -231,12 +250,37 @@ export default function HomeScreen() {
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={COLORS.accent.primary} />}
       >
 
-        {/* 1. HEADER — slim greeting + coin chip + avatar */}
+        {/* 1. HEADER — slim greeting + search + bell + coin chip + avatar */}
         <View style={styles.header}>
           <View style={{ flex: 1 }}>
             <Text style={styles.greeting}>{t('welcome_back', lang).toUpperCase()}</Text>
             <Text style={styles.name}>{user?.name || 'User'} 👋</Text>
           </View>
+          {/* Round 37 — search icon, always visible */}
+          <TouchableOpacity
+            onPress={() => router.push('/search' as any)}
+            style={styles.headerIconBtn}
+            accessibilityRole="button"
+            accessibilityLabel="Search"
+            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+          >
+            <Ionicons name="search" size={20} color={COLORS.text.primary} />
+          </TouchableOpacity>
+          {/* Round 37 — notifications bell with unread badge */}
+          <TouchableOpacity
+            onPress={() => router.push('/notifications' as any)}
+            style={styles.headerIconBtn}
+            accessibilityRole="button"
+            accessibilityLabel={unread > 0 ? `Notifications, ${unread} unread` : 'Notifications'}
+            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+          >
+            <Ionicons name="notifications-outline" size={20} color={COLORS.text.primary} />
+            {unread > 0 && (
+              <View style={styles.badge}>
+                <Text style={styles.badgeTxt}>{unread > 9 ? '9+' : String(unread)}</Text>
+              </View>
+            )}
+          </TouchableOpacity>
           {coinsStatus && (
             <TapTile onPress={() => router.push('/rewards-hub' as any)} style={styles.coinsChip} feedback="light" testID="header-coins-chip">
               <AnimatedCoin value={Number(coinsStatus.balance || 0)} size="sm" />
@@ -351,6 +395,18 @@ const useStyles = makeStyles((c) => ({
   avatarPlaceholder: { width: 40, height: 40, borderRadius: 20, backgroundColor: 'rgba(255,107,26,0.18)', justifyContent: 'center', alignItems: 'center' },
   avatarBadge: { position: 'absolute', bottom: 0, right: 0, width: 16, height: 16, borderRadius: 8, backgroundColor: c.accent.primary, justifyContent: 'center', alignItems: 'center', borderWidth: 2, borderColor: c.bg.primary },
   coinsChip: { flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: 10, paddingVertical: 6, borderRadius: 16, backgroundColor: 'rgba(255,176,71,0.14)', borderWidth: 1, borderColor: 'rgba(255,176,71,0.45)', marginRight: 8 },
+  // Round 37 — header icon buttons + unread badge.
+  headerIconBtn: {
+    width: 40, height: 40, borderRadius: 20, alignItems: 'center', justifyContent: 'center',
+    marginRight: 6, position: 'relative',
+    backgroundColor: c.bg.secondary, borderWidth: 1, borderColor: c.border.subtle,
+  },
+  badge: {
+    position: 'absolute', top: -2, right: -2, minWidth: 18, height: 18, paddingHorizontal: 4,
+    borderRadius: 9, backgroundColor: c.state.danger, alignItems: 'center', justifyContent: 'center',
+    borderWidth: 2, borderColor: c.bg.primary,
+  },
+  badgeTxt: { fontSize: 10, fontWeight: '900', color: '#fff' },
 
   // Sections
   section: { marginBottom: SPACING.md },

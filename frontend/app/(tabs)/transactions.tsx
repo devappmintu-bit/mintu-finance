@@ -406,7 +406,7 @@ export default function TransactionsScreen() {
                 ))}
               </View>
               <Text style={styles.formLabel}>{t('amount', lang)}</Text>
-              <View style={[styles.amountRow, amountError && { borderColor: COLORS.status.danger, borderWidth: 1 }]}>
+              <View style={[styles.amountRow, amountError && { borderColor: COLORS.state.danger, borderWidth: 1 }]}>
                 <Text style={styles.rupee}>₹</Text>
                 <TextInput
                   style={styles.amountInput}
@@ -418,7 +418,7 @@ export default function TransactionsScreen() {
                   keyboardType="numeric"
                 />
               </View>
-              {amountError && <Text style={{ color: COLORS.status.danger, fontSize: 12, fontWeight: '600', marginTop: 4, marginBottom: 4 }}>{amountError}</Text>}
+              {amountError && <Text style={{ color: COLORS.state.danger, fontSize: 12, fontWeight: '600', marginTop: 4, marginBottom: 4 }}>{amountError}</Text>}
               <Text style={styles.formLabel}>{t('category', lang)}</Text>
               <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.chipScroll}>
                 {CATEGORY_LIST.map((c) => (

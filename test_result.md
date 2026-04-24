@@ -845,10 +845,58 @@ round36_smoke_apr24_2026:
 
 test_plan:
   current_focus:
-    - "Paranoid Audit (Round 30) — 2 critical fintech bugs FIXED + 22 new adversarial tests"
+    - "Round 37 — Notifications feed + unified search"
   stuck_tasks: []
   test_all: false
   test_priority: "high_first"
+
+round37_notifications_search_apr24_2026:
+  - task: "Round 37 — Notifications feed (persistent, bell icon) + unified /api/search"
+    implemented: true
+    working: true
+    file: "/app/backend/routers/notifications.py, /app/backend/routers/search.py, /app/backend/server.py"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+      - working: true
+        agent: "testing"
+        comment: |
+          ✅ ROUND 37 REGRESSION + NEW-ENDPOINT VALIDATION — 19/19 PASS (Apr 24 2026).
+          Test script /app/round37_test.py run against https://mintu-finance.preview.emergentagent.com/api
+          using phone 9876543210 / OTP 123456.
+
+          ── NOTIFICATIONS FEED (10/10 ✅) ──
+          T2a POST /notifications/seed-sample (fresh user, wiped first) → 200 {ok:true, seeded:4} ✅
+          T2b POST /notifications/seed-sample (repeat) → 200 {ok:true, seeded:0, reason:"already_has_entries"} ✅
+          T3  GET /notifications → 200, 4 items, newest-first, each with id/kind/title/body/read=false/created_at ISO/metadata ✅
+          T4  GET /notifications/unread-count → {unread:4} ✅
+          T5  POST /notifications/mark-read {notification_id: <first>} → 200 {ok:true} ✅
+          T6  GET /notifications/unread-count → {unread:3} ✅
+          T7  POST /notifications/mark-all-read → 200 {ok:true, updated:3} ✅
+          T8  GET /notifications/unread-count → {unread:0} ✅
+          T9  POST /notifications/mark-read {notification_id:"not-an-objectid"} → 400 {"detail":"Invalid id"} (NOT 500) ✅
+          T10 POST /notifications/mark-read with another user's notification id → 200 {ok:false} (user-scoping enforced via matched_count filter on {user_id, _id}) ✅
+
+          ── UNIFIED SEARCH (5/5 ✅) ──
+          T11 POST /transactions "Coffee Starbucks" → 200 ✅
+          T12 GET /search?q=coffee → 200 total=1, transactions[0].description="Coffee Starbucks" ✅
+          T13 GET /search?q= (empty) → 200 {transactions:[], budgets:[], goals:[], groups:[], total:0} ✅
+          T14 GET /search?q=.* (regex metacharacters) → 200 total=0 (re.escape protected) no crash ✅
+          T15 GET /search?q=<very-long 2018-char query> → 200 in 0.22s (well under the 10s budget) ✅
+
+          ── REGRESSION: paranoid audit suite ──
+          cd /app/backend && python -m pytest tests/test_paranoid_audit.py -q
+          → 29 passed, 2 skipped, 0 failed in 57.48s. The 2 skips are the pre-existing
+          intentional ones (test_b3 PIN brute-force is client-side; test_f1 audit log
+          covered elsewhere). Zero 5xx, zero unexpected status codes.
+
+          Backend logs during the run: only 200s for the happy paths and the expected
+          400 for the invalid-id test. No crashes.
+
+          VERDICT: Round 37 new endpoints are PRODUCTION-READY and the paranoid audit
+          baseline of 29 tests still passes. User scoping on mark-read is enforced
+          correctly (returns ok:false instead of leaking cross-user state).
 
 paranoid_audit_round30_apr24_2026:
   - task: "Paranoid Audit — all 6 tiers (A-F) covered with 22 new adversarial tests"

@@ -231,7 +231,129 @@ async def cron_check_notifications():
             success = await send_expo_push(token, notification["title"], notification["body"])
             if success:
                 await db.sent_notifications.insert_one({"user_id": user_id, "date": now, **notification})
+                # Round 37 — also persist to the in-app feed so the user can
+                # view the notification later from the bell icon.
+                try:
+                    await persist_notification(
+                        user_id=user_id,
+                        kind=_kind_from_title(notification["title"]),
+                        title=notification["title"],
+                        body=notification["body"],
+                        metadata={"source": "cron"},
+                    )
+                except Exception:
+                    pass
                 sent_count += 1
-    
+
     return {"users_checked": len(users), "notifications_sent": sent_count}
+
+
+# ═══════════════════════════════════════════════════════════════════
+# Round 37 — In-app notifications feed (persistent, bell icon)
+# ═══════════════════════════════════════════════════════════════════
+# Stores one document per notification event in `notifications_feed`.
+# Collection schema:
+#   user_id (str), kind (str), title (str), body (str),
+#   read (bool), created_at (datetime), metadata (dict)
+#
+# `kind` drives deep-linking on tap — values match what the frontend
+# expects: transaction | streak | reward | split | goal | budget_alert.
+
+
+def _kind_from_title(title: str) -> str:
+    t = (title or "").lower()
+    if "budget" in t: return "budget_alert"
+    if "streak" in t: return "streak"
+    if "payday" in t or "spending" in t or "saving" in t: return "transaction"
+    return "transaction"
+
+
+async def persist_notification(user_id: str, kind: str, title: str, body: str, metadata: dict | None = None) -> None:
+    """Insert a feed entry. Callable by event handlers and cron."""
+    doc = {
+        "user_id": user_id,
+        "kind": kind or "transaction",
+        "title": title,
+        "body": body,
+        "read": False,
+        "created_at": datetime.utcnow(),
+        "metadata": metadata or {},
+    }
+    await db.notifications_feed.insert_one(doc)
+
+
+@api_router.get("/notifications")
+async def list_notifications(user_id: str = Depends(get_current_user), limit: int = 50):
+    """Return newest-first list of notification feed entries for the user.
+
+    Includes `read` flag so the UI can style unread rows distinctly.
+    """
+    cur = db.notifications_feed.find({"user_id": user_id}).sort("created_at", -1).limit(min(limit, 200))
+    items = []
+    async for d in cur:
+        items.append({
+            "id": str(d["_id"]),
+            "kind": d.get("kind", "transaction"),
+            "title": d.get("title", ""),
+            "body": d.get("body", ""),
+            "read": bool(d.get("read", False)),
+            "created_at": (d.get("created_at") or datetime.utcnow()).isoformat(),
+            "metadata": d.get("metadata", {}),
+        })
+    return {"notifications": items, "count": len(items)}
+
+
+@api_router.get("/notifications/unread-count")
+async def unread_count(user_id: str = Depends(get_current_user)):
+    """Fast count for the home-screen bell badge."""
+    n = await db.notifications_feed.count_documents({"user_id": user_id, "read": False})
+    return {"unread": int(n)}
+
+
+class MarkReadBody(BaseModel):
+    notification_id: str
+
+
+@api_router.post("/notifications/mark-read")
+async def mark_one_read(body: MarkReadBody, user_id: str = Depends(get_current_user)):
+    """Mark a single notification as read. Safe to call multiple times."""
+    try:
+        oid = ObjectId(body.notification_id)
+    except Exception:
+        raise HTTPException(status_code=400, detail="Invalid id")
+    res = await db.notifications_feed.update_one(
+        {"_id": oid, "user_id": user_id},
+        {"$set": {"read": True}},
+    )
+    return {"ok": res.matched_count > 0}
+
+
+@api_router.post("/notifications/mark-all-read")
+async def mark_all_read(user_id: str = Depends(get_current_user)):
+    """Clear the unread badge in a single round-trip."""
+    res = await db.notifications_feed.update_many(
+        {"user_id": user_id, "read": False},
+        {"$set": {"read": True}},
+    )
+    return {"ok": True, "updated": res.modified_count}
+
+
+@api_router.post("/notifications/seed-sample")
+async def seed_sample_notifications(user_id: str = Depends(get_current_user)):
+    """Dev helper — seeds 4 representative notifications so the screen has
+    something to display during local testing. Safe to call repeatedly; we
+    only seed when the user has zero feed entries to avoid spam."""
+    existing = await db.notifications_feed.count_documents({"user_id": user_id})
+    if existing > 0:
+        return {"ok": True, "seeded": 0, "reason": "already_has_entries"}
+    now = datetime.utcnow()
+    samples = [
+        {"kind": "streak",       "title": "🔥 Keep your streak going!", "body": "You're 3 days away from a 30-day streak.", "created_at": now - timedelta(minutes=5)},
+        {"kind": "budget_alert", "title": "Food budget at 82%",         "body": "₹4,100 of ₹5,000 used this month.",         "created_at": now - timedelta(hours=2)},
+        {"kind": "reward",       "title": "🎁 New voucher unlocked",    "body": "Claim your Swiggy ₹50 off — expires in 30 days.", "created_at": now - timedelta(hours=7)},
+        {"kind": "split",        "title": "Priya settled ₹250",         "body": "Goa trip — settled 'Dinner on Friday'.",      "created_at": now - timedelta(days=1)},
+    ]
+    docs = [{"user_id": user_id, "read": False, "metadata": {"source": "seed"}, **s} for s in samples]
+    await db.notifications_feed.insert_many(docs)
+    return {"ok": True, "seeded": len(docs)}
 
