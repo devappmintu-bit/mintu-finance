@@ -145,6 +145,38 @@ export default function HomeScreen() {
   useEffect(() => { fetchData(); }, []);
   const onRefresh = () => { setRefreshing(true); fetchData(); };
 
+  // Round 30h — subscribe to the R2 cache invalidation graph so the home
+  // tab auto-refreshes whenever a mutation elsewhere marks /home/bundle
+  // as stale (txn add, settle, budget edit, profile update, etc.).
+  // Completes the reactive data graph end-to-end on home.
+  useEffect(() => {
+    let cancelled = false;
+    let pending: ReturnType<typeof setTimeout> | null = null;
+    const tick = () => {
+      if (cancelled) return;
+      // Debounce — a single transaction triggers multiple upstream
+      // invalidations (txn + budget + rewards). Collapse into one fetch.
+      if (pending) clearTimeout(pending);
+      pending = setTimeout(() => { if (!cancelled) fetchData(); }, 300);
+    };
+    let unsubs: Array<() => void> = [];
+    (async () => {
+      const { subscribeInvalidation } = await import('../../utils/swrGet');
+      unsubs = [
+        subscribeInvalidation('/home/bundle', tick),
+        subscribeInvalidation('/home/snapshot', tick),
+        subscribeInvalidation('/analytics/summary', tick),
+        subscribeInvalidation('/alerts/smart', tick),
+        subscribeInvalidation('/reports/weekly', tick),
+      ];
+    })();
+    return () => {
+      cancelled = true;
+      if (pending) clearTimeout(pending);
+      for (const u of unsubs) u();
+    };
+  }, [fetchData]);
+
   const fetchNews = useCallback(async (refresh = false) => {
     setNewsLoading(true);
     try {

@@ -12177,3 +12177,60 @@ agent_communication:
           2. Premium tier switch — one-tap confirm, silent demo fallback
              when Razorpay plan_ids aren't configured.
         Adversarial pytest suite still 24/24 green.
+
+# ══════════════════════════════════════════════════════════════════════
+#  Round 30h — Home tab wired to reactive cache graph (Apr 24 2026)
+# ══════════════════════════════════════════════════════════════════════
+frontend:
+  - task: "Home tab subscribes to R2 invalidation events"
+    implemented: true
+    working: true
+    file: "frontend/app/(tabs)/index.tsx"
+    stuck_count: 0
+    priority: "medium"
+    needs_retesting: false
+    status_history:
+      - working: true
+        agent: "main"
+        comment: |
+          Completed the R2 reactive data graph on the home tab. Home
+          previously used swrGet directly (not the useSwr hook) so it
+          didn't auto-subscribe to invalidation events — meaning adding
+          a transaction or settling a split in another tab wouldn't
+          refresh home until next focus or TTL expiry.
+
+          Surgical fix (no data-loading rewrite, lowest-risk option):
+          added a useEffect in HomeScreen that subscribes to the R2
+          pub/sub on /home/bundle, /home/snapshot, /analytics/summary,
+          /alerts/smart, /reports/weekly. Debounced 300ms so a single
+          mutation firing multiple upstream invalidations
+          (txn → txn + budget + rewards) collapses into one fetchData
+          call. Cleans up on unmount.
+
+          Net effect: the reactive data graph is now complete end-to-end
+            • Transactions tab add txn
+              → invalidateAfter('txn') fires
+              → /home/bundle, /home/snapshot, /analytics/summary,
+                /alerts/smart, /reports/weekly all marked stale
+              → home tab's subscriber fires in 300ms
+              → Balance Hero, Today Chips, Smart Alerts, Weekly Report
+                all refresh without user pull-to-refresh.
+            • Split tab settle → same chain via 'split.settle'
+              invalidates /home/bundle → home refreshes.
+            • Budget edit → same chain via 'budget'.
+
+          No new API calls on idle home (subscriber is event-driven).
+          Backend logs continue showing [events] settlement_completed
+          and [events] budget 80% alert fired — the full stack is live.
+
+          Adversarial pytest re-run: 24/24 green. Zero regressions.
+
+agent_communication:
+    -agent: "main"
+    -message: |
+        Round 30h closes the last deferred track on the H/R roadmap.
+        Home tab is now a full participant in the R2 reactive cache
+        graph alongside Transactions, Split, Budget, Rewards, and
+        Leaderboard. Only the explicitly-declined items remain
+        (R4 realtime sync, server.py split) — both documented in
+        DATA_GRAPH.md with migration paths.
