@@ -54,7 +54,7 @@ export default function LeaderboardScreen() {
   const [sharing, setSharing] = useState(false);
   const shareRef = useRef<ViewShot>(null);
   const c = useAppColors();
-  const s = useStyles();
+  const styles = useStyles();
 
   // ── SWR data layer (Round 26+) ─────────────────────────────────────
   // `useSwr` serves cached data instantly, revalidates in background,

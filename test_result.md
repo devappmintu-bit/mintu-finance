@@ -12046,3 +12046,49 @@ agent_communication:
         with 2 new regression tests. R4 (realtime + normalization)
         explicitly declined with migration path documented.
         Total adversarial suite now 24/24 green.
+
+# ══════════════════════════════════════════════════════════════════════
+#  Round 30f — Budget screen crash fix (Apr 24 2026)
+# ══════════════════════════════════════════════════════════════════════
+frontend:
+  - task: "Fix `styles is not defined` crash on Budget screen"
+    implemented: true
+    working: true
+    file: "frontend/components/premium/PremiumUnlockTeaser.tsx, app/leaderboard.tsx, components/profile/SettingsList.tsx"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+      - working: true
+        agent: "main"
+        comment: |
+          User reported ErrorBoundary crash on Budget tab:
+          "styles is not defined". Root cause: during Round 30c legacy
+          theme migration, 3 files ended up with
+          `const s = useStyles()` as the new binding but still
+          referenced `styles.xxx` inline in the JSX — a leftover from
+          earlier code patterns.
+
+          Files fixed (surgical, zero behavioural change):
+            • components/premium/PremiumUnlockTeaser.tsx — rebound
+              `const styles = useStyles()` (58 JSX refs use `styles.`).
+              This was the actual Budget crash — teaser renders on budget
+              empty state.
+            • app/leaderboard.tsx — same pattern, 58 JSX refs, rebound
+              to `styles` to match.
+            • components/profile/SettingsList.tsx — 1 stray
+              `styles.iconColor` → `s.iconColor`.
+
+          Verified:
+            • grep audit: no other migrated file has both `const s = ...`
+              and `styles.xxx` refs.
+            • Metro bundler rebuilt cleanly (multiple Web Bundled OK
+              in expo.out.log).
+            • Backend pytest suite re-run: 24/24 green.
+
+agent_communication:
+    -agent: "main"
+    -message: |
+        Budget screen crash fixed end-to-end. 3 files patched. All
+        other migrated files audited for the same pattern — none found.
+        Ready to ship.

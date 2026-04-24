@@ -43,7 +43,7 @@ export default function PremiumUnlockTeaser({ context, ctaRoute = '/premium', hi
   const [plan] = useActivePlan();
   const isPro = plan === 'monthly' || plan === 'yearly' || plan === 'intro';
   const c = useAppColors();
-  const s = useStyles();
+  const styles = useStyles();
 
   if (isPro || hidden) return null;
 

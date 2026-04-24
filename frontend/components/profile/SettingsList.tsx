@@ -35,7 +35,7 @@ export function SettingsListItem({ icon, label, value, danger, onPress, testID }
       <Ionicons
         name={icon}
         size={19}
-        color={danger ? '#EF4444' : styles.iconColor}
+        color={danger ? '#EF4444' : s.iconColor}
         style={{ width: 22 }}
       />
       <Text style={[s.label, danger && { color: '#EF4444' }]} numberOfLines={1}>{label}</Text>
