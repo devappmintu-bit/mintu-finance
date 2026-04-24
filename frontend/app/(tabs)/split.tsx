@@ -33,7 +33,6 @@ import SettleUpCard from '../../components/split/SettleUpCard';
 import SplitHero from '../../components/split/SplitHero';
 import SplitInsightsHero from '../../components/split/SplitInsightsHero';
 import RemindersBanner from '../../components/split/RemindersBanner';
-import CreateGroupSheet from '../../components/split/CreateGroupSheet';
 import ContactPickerSheet from '../../components/split/ContactPickerSheet';
 import GroupSummarySheet from '../../components/split/GroupSummarySheet';
 import GroupManageSheet from '../../components/split/GroupManageSheet';

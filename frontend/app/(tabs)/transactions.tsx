@@ -93,6 +93,11 @@ export default function TransactionsScreen() {
   const [smsLoading, setSmsLoading] = useState(false);
   const [formData, setFormData] = useState({ id: '', amount: '', category: 'Food', description: '', type: 'debit' });
   const [editingTxn, setEditingTxn] = useState<any>(null);
+  // Submit-in-flight guard so spam-click can't double-fire (Round 32 audit fix).
+  // The backend also has an idempotency_key partial-unique index, but this
+  // is defence-in-depth to give the user immediate tactile feedback and
+  // prevent two requests from ever leaving the device.
+  const [submitting, setSubmitting] = useState(false);
   const [cashText, setCashText] = useState('');
   const [cashLoading, setCashLoading] = useState(false);
   const [notifText, setNotifText] = useState('');
@@ -124,8 +129,10 @@ export default function TransactionsScreen() {
   }, [refetchTxns, refetchWaste]);
 
   const handleAdd = async () => {
+    if (submitting) return;  // Defence-in-depth against spam-click
     if (!formData.amount || !formData.description) { Alert.alert(t('error', lang), t('fill_all_fields', lang)); return; }
     const isEdit = !!editingTxn;
+    setSubmitting(true);
     try {
       if (isEdit) {
         // Optimistic update via SWR mutate
@@ -142,6 +149,7 @@ export default function TransactionsScreen() {
       setFormData({ id: '', amount: '', category: 'Food', description: '', type: 'debit' });
       fetchTransactions();
     } catch (e) { Alert.alert(t('error', lang), t('failed_save', lang)); fetchTransactions(); }
+    finally { setSubmitting(false); }
   };
 
   const openEdit = (tx: any) => {
@@ -362,7 +370,7 @@ export default function TransactionsScreen() {
               </ScrollView>
               <Text style={styles.formLabel}>{t('description', lang)}</Text>
               <TextInput style={styles.textInput} placeholder="e.g. Lunch at restaurant" placeholderTextColor={COLORS.text.muted} value={formData.description} onChangeText={(v) => setFormData({ ...formData, description: v })} />
-              <TouchableOpacity testID="submit-txn-btn" style={styles.submitBtn} onPress={handleAdd}><Text style={styles.submitText}>{editingTxn ? t('update', lang) : t('add_transaction', lang)}</Text></TouchableOpacity>
+              <TouchableOpacity testID="submit-txn-btn" style={[styles.submitBtn, submitting && { opacity: 0.6 }]} onPress={handleAdd} disabled={submitting}><Text style={styles.submitText}>{submitting ? (editingTxn ? t('saving', lang) || 'Saving…' : t('adding', lang) || 'Adding…') : (editingTxn ? t('update', lang) : t('add_transaction', lang))}</Text></TouchableOpacity>
             </ScrollView>
           </View>
         </KeyboardAvoidingView>
