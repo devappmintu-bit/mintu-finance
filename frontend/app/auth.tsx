@@ -88,10 +88,12 @@ export default function AuthScreen() {
   };
 
   const handleNameSubmit = async () => {
-    if (!name.trim()) { Alert.alert(t('error', lang), 'Enter your name'); return; }
+    const trimmed = name.trim();
+    if (!trimmed) { Alert.alert(t('error', lang), 'Enter your name'); return; }
+    if (trimmed.length > 80) { Alert.alert(t('error', lang), 'Name too long (max 80)'); return; }
     setLoading(true);
     try {
-      const res = { data: await api.post('/auth/verify-otp', { phone: phone.replace(/\D/g, ''), otp: otp.join(''), name: name.trim() }).then(r => r.data) };
+      const res = { data: await api.post('/auth/verify-otp', { phone: phone.replace(/\D/g, ''), otp: otp.join(''), name: trimmed }).then(r => r.data) };
       await setToken(res.data.token); setUser(res.data.user);
       setPinSetupVisible(true); // fresh user → always prompt for PIN setup
     } catch (err: any) { Alert.alert(t('error', lang), err.response?.data?.detail || 'Something went wrong'); }

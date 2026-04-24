@@ -103,8 +103,8 @@ export default function BudgetScreen() {
     } catch { Toast.show({ type: 'error', text1: 'Error', text2: 'Could not apply budgets' }); }
   };
 
-  const openAdd = () => { setEditingBudget(null); setFormData({ category: 'Food', amount: '', period: 'monthly', recurring: true, description: '' }); setModalVisible(true); };
-  const openEdit = (item: any) => { setEditingBudget(item); setFormData({ category: item.category, amount: String(item.amount), period: item.period, recurring: item.recurring !== false, description: item.description || '' }); setModalVisible(true); };
+  const openAdd = useCallback(() => { setEditingBudget(null); setFormData({ category: 'Food', amount: '', period: 'monthly', recurring: true, description: '' }); setModalVisible(true); }, []);
+  const openEdit = useCallback((item: any) => { setEditingBudget(item); setFormData({ category: item.category, amount: String(item.amount), period: item.period, recurring: item.recurring !== false, description: item.description || '' }); setModalVisible(true); }, []);
 
   const handleSave = async (payload?: { category: string; amount: number | string; period: string; recurring: boolean; description?: string; goal_id?: string | null }) => {
     // Prefer explicit payload (from new BudgetSmartSheet) over state (legacy path)
@@ -117,8 +117,12 @@ export default function BudgetScreen() {
       goal_id: payload.goal_id ?? null,
     } : { ...formData, goal_id: null as string | null };
 
-    if (!src.amount || parseFloat(src.amount) <= 0) {
+    if (!src.amount || !Number.isFinite(parseFloat(src.amount)) || parseFloat(src.amount) <= 0) {
       Toast.show({ type: 'error', text1: t('enter_amount', lang), text2: t('amount_gt_zero', lang) }); return;
+    }
+    // Sanity cap — nothing above ₹1cr/month.
+    if (parseFloat(src.amount) > 10_000_000) {
+      Toast.show({ type: 'error', text1: t('error', lang), text2: 'Amount too large' }); return;
     }
     // Auto-categorise "Other" when a description is given — feels magical and matches the design ask.
     let category = src.category;

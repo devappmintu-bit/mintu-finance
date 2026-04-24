@@ -78,7 +78,7 @@ export default function TransactionsScreen() {
 
   // ── SWR data layer (Round 26) ───────────────────────────────────────
   // Primary list — hot path, 15s TTL for quick revalidation on focus.
-  const { data: txnData, isLoading: txnLoading, refetch: refetchTxns, mutate: mutateTxns } =
+  const { data: txnData, isLoading: txnLoading, error: txnError, refetch: refetchTxns, mutate: mutateTxns } =
     useSwr<any[]>('/transactions', { ttlMs: 15_000 });
   // Secondary insights — 60s TTL, non-blocking. These fail open to null.
   const { data: waste, refetch: refetchWaste } = useSwr<any>('/waste-detector', { ttlMs: 60_000 });
@@ -86,6 +86,9 @@ export default function TransactionsScreen() {
 
   const transactions = txnData || [];
   const loading = txnLoading && (txnData == null);
+  // Surface hard failure of primary list so users aren't shown a misleading
+  // "Add first transaction" empty state when the fetch actually errored.
+  const hasLoadError = !!txnError && (txnData == null || transactions.length === 0);
 
   const [modalVisible, setModalVisible] = useState(false);
   const [smsModalVisible, setSmsModalVisible] = useState(false);
@@ -130,33 +133,54 @@ export default function TransactionsScreen() {
 
   const handleAdd = async () => {
     if (submitting) return;  // Defence-in-depth against spam-click
-    if (!formData.amount || !formData.description) { Alert.alert(t('error', lang), t('fill_all_fields', lang)); return; }
+    // Round 34 audit: strict input validation. parseFloat allows NaN, Infinity,
+    // negative and zero — all of which corrupt the ledger. Trim the description
+    // so whitespace-only entries are rejected.
+    const desc = (formData.description || '').trim();
+    const rawAmount = (formData.amount || '').trim();
+    const amt = parseFloat(rawAmount);
+    if (!rawAmount || !desc) { Alert.alert(t('error', lang), t('fill_all_fields', lang)); return; }
+    if (!Number.isFinite(amt) || amt <= 0) {
+      Alert.alert(t('error', lang), 'Enter a valid amount greater than 0'); return;
+    }
+    // Hard upper bound — anything above ₹1cr is almost certainly a typo.
+    if (amt > 10_000_000) {
+      Alert.alert(t('error', lang), 'Amount too large'); return;
+    }
+    if (desc.length > 200) {
+      Alert.alert(t('error', lang), 'Description too long (max 200 chars)'); return;
+    }
     const isEdit = !!editingTxn;
     setSubmitting(true);
     try {
       if (isEdit) {
         // Optimistic update via SWR mutate
-        const patched = { ...editingTxn, amount: parseFloat(formData.amount), category: formData.category, description: formData.description, type: formData.type };
+        const patched = { ...editingTxn, amount: amt, category: formData.category, description: desc, type: formData.type };
         mutateTxns((prev) => (prev || []).map((tx: any) => (tx.id === editingTxn.id ? patched : tx)));
-        await updateTransaction(editingTxn.id, { amount: parseFloat(formData.amount), category: formData.category, description: formData.description, type: formData.type as any });
+        await updateTransaction(editingTxn.id, { amount: amt, category: formData.category, description: desc, type: formData.type as any });
         Toast.show({ type: 'success', text1: t('txn_updated', lang) });
       } else {
-        await addTransaction({ ...formData, amount: parseFloat(formData.amount) } as any);
+        await addTransaction({ ...formData, description: desc, amount: amt } as any);
         Toast.show({ type: 'success', text1: t('txn_added', lang) });
       }
       setModalVisible(false);
       setEditingTxn(null);
       setFormData({ id: '', amount: '', category: 'Food', description: '', type: 'debit' });
       fetchTransactions();
-    } catch (e) { Alert.alert(t('error', lang), t('failed_save', lang)); fetchTransactions(); }
+    } catch (e: any) {
+      // Surface backend detail if available; fall back to generic message.
+      const detail = e?.response?.data?.detail;
+      Alert.alert(t('error', lang), typeof detail === 'string' ? detail : t('failed_save', lang));
+      fetchTransactions();
+    }
     finally { setSubmitting(false); }
   };
 
-  const openEdit = (tx: any) => {
+  const openEdit = useCallback((tx: any) => {
     setEditingTxn(tx);
     setFormData({ id: tx.id, amount: String(tx.amount), category: tx.category, description: tx.description, type: tx.type });
     setModalVisible(true);
-  };
+  }, []);
 
   // Unified SMS parser — handles both single bank notification AND multiple pasted SMS messages.
   // Splits on blank lines (\n\n) or "---" dividers. Falls back to single-message parse.
@@ -206,29 +230,33 @@ export default function TransactionsScreen() {
 
   // [Voice transcription removed — SMS paste is the primary input method.]
 
-  const handleDelete = (id: string) => {
+  const handleDelete = useCallback((id: string) => {
     Alert.alert(t('delete', lang), t('remove_transaction', lang), [
       { text: t('cancel', lang), style: 'cancel' },
       { text: t('delete', lang), style: 'destructive', onPress: async () => {
-        // Optimistic remove via SWR mutate
-        const prev = transactions;
-        mutateTxns((curr) => (curr || []).filter((tx: any) => tx.id !== id));
+        // Optimistic remove via SWR mutate — capture prev snapshot INSIDE the
+        // updater to avoid closing over stale `transactions` reference.
+        let prev: any[] | null = null;
+        mutateTxns((curr) => {
+          prev = curr || [];
+          return (curr || []).filter((tx: any) => tx.id !== id);
+        });
         try {
           await deleteTransaction(id);
           Toast.show({ type: 'success', text1: t('txn_deleted', lang) });
           refetchTxns();
         } catch {
           // Rollback if the server rejects
-          mutateTxns(prev);
+          if (prev) mutateTxns(prev);
           Toast.show({ type: 'error', text1: t('error', lang) });
         }
       } },
     ]);
-  };
+  }, [lang, mutateTxns, refetchTxns]);
 
   const renderTxn = useCallback(({ item }: { item: any }) => (
     <TxnRow item={item} lang={lang} onEdit={openEdit} onDelete={handleDelete} />
-  ), [lang, transactions]);
+  ), [lang, openEdit, handleDelete]);
 
   if (loading) return <SafeAreaView style={styles.container}><TransactionsSkeleton /></SafeAreaView>;
 
@@ -327,13 +355,23 @@ export default function TransactionsScreen() {
           </>
         }
         ListEmptyComponent={
-          <EmptyState
-            emoji="🧾"
-            title={t('no_transactions', lang)}
-            subtitle={t('add_first', lang)}
-            ctaLabel="Add first transaction"
-            onCta={() => setModalVisible(true)}
-          />
+          hasLoadError ? (
+            <EmptyState
+              emoji="⚠️"
+              title="Couldn't load transactions"
+              subtitle={txnError?.message || 'Check your connection and try again'}
+              ctaLabel="Retry"
+              onCta={() => refetchTxns()}
+            />
+          ) : (
+            <EmptyState
+              emoji="🧾"
+              title={t('no_transactions', lang)}
+              subtitle={t('add_first', lang)}
+              ctaLabel="Add first transaction"
+              onCta={() => setModalVisible(true)}
+            />
+          )
         }
       />
 
@@ -370,7 +408,7 @@ export default function TransactionsScreen() {
               </ScrollView>
               <Text style={styles.formLabel}>{t('description', lang)}</Text>
               <TextInput style={styles.textInput} placeholder="e.g. Lunch at restaurant" placeholderTextColor={COLORS.text.muted} value={formData.description} onChangeText={(v) => setFormData({ ...formData, description: v })} />
-              <TouchableOpacity testID="submit-txn-btn" style={[styles.submitBtn, submitting && { opacity: 0.6 }]} onPress={handleAdd} disabled={submitting}><Text style={styles.submitText}>{submitting ? (editingTxn ? t('saving', lang) || 'Saving…' : t('adding', lang) || 'Adding…') : (editingTxn ? t('update', lang) : t('add_transaction', lang))}</Text></TouchableOpacity>
+              <TouchableOpacity testID="submit-txn-btn" accessibilityRole="button" accessibilityLabel={editingTxn ? 'Update transaction' : 'Add transaction'} style={[styles.submitBtn, submitting && { opacity: 0.6 }]} onPress={handleAdd} disabled={submitting}><Text style={styles.submitText}>{submitting ? (editingTxn ? t('saving', lang) || 'Saving…' : t('adding', lang) || 'Adding…') : (editingTxn ? t('update', lang) : t('add_transaction', lang))}</Text></TouchableOpacity>
             </ScrollView>
           </View>
         </KeyboardAvoidingView>

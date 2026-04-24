@@ -720,6 +720,66 @@ metadata:
       Round 2 task flipped working=true, needs_retesting=false. Main agent can summarise and
       ship. Backend hardening is production-ready.
 
+  - agent: "testing"
+    message: |
+      ✅ ROUND 34 POST-FRONTEND-AUDIT BACKEND REGRESSION (Apr 24 2026) — ALL PASS.
+      No backend files were modified this round (frontend-only audit). Two test
+      suites were exercised:
+
+      1) /app/backend/tests/test_paranoid_audit.py
+         RESULT: 29 passed, 2 skipped, 0 failed (54.18 s). The 2 skips are
+         deliberate (test_b3 PIN brute-force — PIN is client-side; test_f1 —
+         audit log verification covered by test_principal_audit.py). All 22
+         new adversarial tests added in Round 30/31 still green.
+
+      2) /app/backend/tests/round34_regression_test.py (new, 8 tests)
+         8/8 PASS. Covered exactly the 9 review-request endpoints.
+
+      KEY FINDINGS (all working, 2 documentation items for main agent):
+
+      ✅ POST /api/transactions idempotency_key — 1st call 200, 2nd same-key
+         call returns same id with `deduped:true`. Only 1 row created.
+      ✅ Invalid amounts all rejected 4xx: negative, zero, 10^12 (>₹100cr cap).
+      ⚠️  Empty "" and whitespace-only "   " description returned 200 (backend
+         TransactionCreate.description has default="" and no min_length/strip).
+         This is a MINOR gap — frontend should enforce, or main agent can add
+         a `_strip_description` validator mirroring goals.py. Not a regression.
+      ✅ GET /api/transactions returns list, 3 seeded rows visible.
+      ⚠️  PATCH /api/transactions/{id} → 405 Method Not Allowed. Backend only
+         exposes PUT /transactions/{id}. Frontend transactions.tsx must call
+         PUT, not PATCH. If the audit assumed PATCH, that needs a one-line
+         frontend fix (client method). PUT works perfectly.
+      ✅ DELETE /api/transactions/{id} — 200 on owner delete, 404 on repeat.
+      ✅ POST /api/goals target_amount=-100 → 422; target_amount=0 → 422;
+         saved_amount > target_amount → 400 "saved_amount cannot exceed
+         target_amount". All validators hold.
+      ✅ GET /api/budgets/live → 200, non-empty dict body.
+      ✅ POST /api/streak/check-in — 1st call credits coins, 2nd call same UTC
+         day returns `already_checked_in:true, coins_awarded:0`. UTC-day
+         idempotency holds.
+      ❌ Q6 ANSWER — POST /api/rewards/marketplace/claim is the WRONG PATH.
+         Backend actually exposes POST /api/rewards/claim-marketplace (verified
+         via routers/rewards.py line 538). The path /rewards/marketplace/claim
+         returns 404. Frontend must use /rewards/claim-marketplace.
+      ❌ Q6 IDEMPOTENCY — /rewards/claim-marketplace is NOT idempotent. There
+         is no idempotency_key parameter and no per-user/per-reward dedupe
+         check. Double-click protection relies solely on the balance debit —
+         i.e. a user with enough coins for TWO claims of the same reward can
+         successfully claim it twice and get 2 wallet entries. Fresh user
+         correctly gets 400 "Need X more coins" (auth/no-coin paths work).
+         This is a PRE-EXISTING behaviour, not a regression from this round.
+
+      BACKEND LOGS during the run: only 200s and the expected 422s for the
+      pydantic-rejected payloads. Zero 5xx. No unexpected errors.
+
+      VERDICT: Round-34 frontend audit introduced ZERO backend regressions.
+      Paranoid ledger/idempotency posture is intact. Main agent can ship the
+      frontend changes. The 2 documentation items above (PATCH→PUT, claim
+      idempotency, description strip) are pre-existing and separate from this
+      round's scope.
+
+
+
 test_plan:
   current_focus:
     - "Paranoid Audit (Round 30) — 2 critical fintech bugs FIXED + 22 new adversarial tests"
@@ -13680,3 +13740,91 @@ agent_communication:
         **VERDICT**: The NEW Streak & Coins Bonus Features are **PRODUCTION-READY** and fully functional in mobile dimensions. All critical requirements verified. The implementation demonstrates excellent engineering with proper mobile-first design, smooth animations, and comprehensive feature coverage.
         
         **RECOMMENDATION**: Features are ready for production deployment. No blocking issues found.
+    -agent: "main"
+    -message: |
+        ✅ ROUND 34 DEEP STATIC FRONTEND AUDIT COMPLETE (continued from previous session)
+
+        Answered Q2-Q12 by opening and reading files line-by-line. Applied inline fixes
+        as bugs were found. Summary below — backend testing follows to ensure no
+        regressions.
+
+        **Q2 — transactions.tsx**
+        • Fixed: parseFloat allows NaN/Infinity/negatives → added Number.isFinite + upper
+          cap (₹1cr) + trimmed description + ₹0 guard.
+        • Fixed: openEdit/handleDelete/renderTxn not memoized → added useCallback, removed
+          stale `transactions` dep.
+        • Fixed: No error-state UI when /transactions load fails → now shows explicit
+          "Couldn't load transactions · Retry" EmptyState using new `hasLoadError` flag
+          driven by SWR's `error` field.
+        • Fixed: delete rollback captured stale `transactions` reference → now captured
+          atomically inside the mutate updater.
+        • Fixed: handleAdd error path surfaces backend `detail` when available.
+
+        **Q3 — budget.tsx / BudgetCard.tsx**
+        • Verified: progress bar `Math.min(100, spent/limit*100)` clamp already correct.
+        • Verified: over, remaining clamped with Math.max(0, ...).
+        • Verified: zero-limit guard in place for pct calc.
+        • Fixed: handleSave amount validation missed NaN → added Number.isFinite + cap.
+        • Fixed: openAdd/openEdit wrapped in useCallback.
+
+        **Q4 — goals.tsx**
+        • Verified: ProgressRing clamps pct with Math.min(100, Math.max(0, pct)).
+        • Verified: over-contribution guard `saved > target` returns error.
+        • Verified: negative-saved guard present.
+        • Verified: all division uses `target_amount > 0 ?` guard.
+        • Fixed Q12 accessibility: edit/delete icons (26px) now have hitSlop 12+12 to
+          reach 50pt effective target, plus accessibilityRole/Label.
+
+        **Q5 — split.tsx (Razorpay rollback)**
+        • Verified: Razorpay flow is backend-authoritative. No optimistic settlement
+          insert on frontend → no rollback needed. Hosted checkout via expo-web-browser,
+          only "Payment in progress… refreshing" toast, then fetchData() triggers
+          revalidate. Signature verify is backend-only.
+
+        **Q6 — rewards-hub.tsx (Redeem guard)**
+        • Fixed: Marketplace `onClaim` had NO in-flight guard → added `claimingMarket`
+          Set-state keyed by reward id, returns early if already in-flight. Prevents
+          spam-tap from draining coins twice on non-idempotent backend path.
+        • Verified: Mission claim (claimingMission state) already guarded.
+        • Verified: Spin wheel (spinning state) already guarded.
+
+        **Q7 — useDailyCheckIn.ts (streak failure state)**
+        • Verified: silent-swallow on streak failure is documented intent ("don't block
+          the app over a gamification call; retry on next cold-start"). Token-boundary
+          bug from prior session already fixed.
+
+        **Q8 — authStore.ts (logout cache clear)**
+        • Verified: removeAccount clears token, avatar, PIN, locked flag, AND calls
+          clearSwrCache() which wipes both in-memory MEM Map and AsyncStorage keys with
+          swr_ prefix. Soft-lock flow is intentionally lighter-weight (same-user re-entry).
+
+        **Q9 — form validation**
+        • Fixed auth.tsx handleNameSubmit: added max-length 80 check on name.
+        • Verified phone: 10-digit + Indian prefix [6-9] regex (Round 33 fix).
+        • Verified OTP: maxLength={1} per box, auto-submit on 6th digit.
+
+        **Q10 — optimistic rollback on mutation failure**
+        • Verified split.tsx create group: tempId rollback on failure (line 183).
+        • Verified split.tsx rename: prevGroups snapshot rollback (line 218).
+        • Verified budget.tsx delete: prev snapshot rollback (line 189).
+        • Fixed transactions.tsx delete rollback (see Q2).
+
+        **Q11 — timezone normalization**
+        • Verified: useDailyCheckIn uses `new Date().toISOString().slice(0,10)` = UTC day.
+          Backend also keys on UTC day (documented). Frontend/backend aligned. IST
+          midnight = UTC 18:30 previous day is a known/documented design trade-off.
+
+        **Q12 — accessibility & touch targets**
+        • Verified: 44pt minimum on hero/add/filter/back buttons.
+        • Fixed: goals.tsx goalAct icons (26pt) now have hitSlop={12,12,12,12} + labels.
+        • Fixed: transactions.tsx submit-txn-btn now has accessibilityRole + Label.
+
+        Files touched this round:
+        • /app/frontend/app/(tabs)/transactions.tsx  (Q2, Q12)
+        • /app/frontend/app/(tabs)/budget.tsx        (Q3)
+        • /app/frontend/app/rewards-hub.tsx          (Q6)
+        • /app/frontend/app/auth.tsx                 (Q9)
+        • /app/frontend/app/goals.tsx                (Q12)
+
+        Running backend tests next to verify zero regressions on the 95-assertion paranoid
+        suite.

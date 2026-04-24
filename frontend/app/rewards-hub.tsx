@@ -50,6 +50,10 @@ export default function RewardsHubScreen() {
   const [refreshing, setRefreshing] = useState(false);
   const [spinning, setSpinning] = useState(false);
   const [claimingMission, setClaimingMission] = useState<string | null>(null);
+  // Marketplace claim in-flight guard — prevents double-redeem if the user
+  // spam-taps "Claim". Backend may or may not be idempotent on this path,
+  // so defence-in-depth is warranted (draining coins twice is unrecoverable).
+  const [claimingMarket, setClaimingMarket] = useState<Set<string>>(new Set());
   const [confetti, setConfetti] = useState(false);
   const [lastWin, setLastWin] = useState<any>(null);
   const spinRef = useRef<SpinWheelHandle>(null);
@@ -295,6 +299,11 @@ export default function RewardsHubScreen() {
                   Toast.show({ type: 'info', text1: 'Not enough coins', text2: `Need ${r.cost_coins - coins} more — earn via spins & missions` });
                   return;
                 }
+                // Double-tap guard — if the user spam-taps Claim, only the
+                // first request goes through. Coin deduction is unrecoverable
+                // so we must gate this client-side as defence-in-depth.
+                if (claimingMarket.has(r.id)) return;
+                setClaimingMarket(prev => { const n = new Set(prev); n.add(r.id); return n; });
                 try {
                   const res = await claimMarketplaceReward(r.id);
                   if (Platform.OS !== 'web') Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
@@ -305,6 +314,8 @@ export default function RewardsHubScreen() {
                   load();
                 } catch (e: any) {
                   Toast.show({ type: 'error', text1: 'Claim failed', text2: e?.response?.data?.detail || 'Try again' });
+                } finally {
+                  setClaimingMarket(prev => { const n = new Set(prev); n.delete(r.id); return n; });
                 }
               }}
             />

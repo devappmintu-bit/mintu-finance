@@ -310,10 +310,20 @@ export default function GoalsScreen() {
                     </View>
                   ) : null}
                   <View style={s.goalActions}>
-                    <TouchableOpacity style={s.goalAct} onPress={(e) => { e.stopPropagation(); openEdit(g); }}>
+                    <TouchableOpacity
+                      style={s.goalAct}
+                      hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+                      accessibilityRole="button"
+                      accessibilityLabel={`Edit goal ${g.name}`}
+                      onPress={(e) => { e.stopPropagation(); openEdit(g); }}>
                       <Ionicons name="create-outline" size={13} color="#6B7280" />
                     </TouchableOpacity>
-                    <TouchableOpacity style={s.goalAct} onPress={(e) => { e.stopPropagation(); confirmDelete(g); }}>
+                    <TouchableOpacity
+                      style={s.goalAct}
+                      hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+                      accessibilityRole="button"
+                      accessibilityLabel={`Delete goal ${g.name}`}
+                      onPress={(e) => { e.stopPropagation(); confirmDelete(g); }}>
                       <Ionicons name="trash-outline" size={13} color="#EF4444" />
                     </TouchableOpacity>
                   </View>
