@@ -28,9 +28,19 @@ import { useAuthStore } from '../store/authStore';
 
 export function useDailyCheckIn() {
   const fired = useRef(false);
+  const lastTokenRef = useRef<string | null>(null);
   const token = useAuthStore((s) => s.token);
 
   useEffect(() => {
+    // Round 34 fix — reset the fire-guard whenever the JWT actually
+    // changes identity. Previous logic let the guard persist across a
+    // logout→login cycle, so the second user never got their streak
+    // bumped until a full app kill.
+    if (token !== lastTokenRef.current) {
+      fired.current = false;
+      lastTokenRef.current = token;
+    }
+
     if (fired.current || !token) return;
     fired.current = true;
 

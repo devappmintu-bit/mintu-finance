@@ -67,8 +67,13 @@ export default function HomeScreen() {
   const [newsLoading, setNewsLoading] = useState(false);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  // Round 34 audit — visible retry banner when home fails to load anything.
+  // Previously a double-failure (bundle + fallback) left the user staring
+  // at empty widgets with no signal the fetch died.
+  const [loadError, setLoadError] = useState(false);
 
   const fetchData = useCallback(async () => {
+    setLoadError(false);  // clear previous error on any retry
     try {
       try {
         const { swrGet } = await import('../../utils/swrGet');
@@ -136,13 +141,20 @@ export default function HomeScreen() {
       fetchNews(false);
     } catch (error) {
       console.error('Dashboard fetch error:', error);
+      // Round 34 fix — surface the failure so users know to retry
+      // instead of staring at a blank layout thinking the app is frozen.
+      // Only trip the error banner when nothing has painted yet (user+stats
+      // both null) — otherwise they still have SOMETHING useful to look at.
+      if (!user && !stats) {
+        setLoadError(true);
+      }
     } finally {
       setLoading(false);
       setRefreshing(false);
     }
-  }, [lang]);
+  }, [lang, user, stats]);
 
-  useEffect(() => { fetchData(); }, []);
+  useEffect(() => { fetchData(); }, [fetchData]);
   const onRefresh = () => { setRefreshing(true); fetchData(); };
 
   // Round 30h — subscribe to the R2 cache invalidation graph so the home
