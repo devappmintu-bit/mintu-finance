@@ -10,6 +10,7 @@ import { useThemePref } from '../store/themeStore';
 import ThemeTransitionOverlay from '../components/ui/ThemeTransitionOverlay';
 import { usePushNotifications } from '../hooks/usePushNotifications';
 import { useAppLock } from '../hooks/useAppLock';
+import { useDailyCheckIn } from '../hooks/useDailyCheckIn';
 import {
   useFonts,
   Inter_400Regular,
@@ -73,6 +74,11 @@ export default function RootLayout() {
 
   // Re-lock the app on resume from background — reinvokes biometric/PIN every time.
   useAppLock();
+
+  // Daily streak check-in — fires exactly once per cold-start when a valid
+  // JWT is present. Backend is idempotent per UTC day so this is safe to
+  // call eagerly. See hooks/useDailyCheckIn.ts for full spec.
+  useDailyCheckIn();
 
   useEffect(() => {
     loadFromStorage();

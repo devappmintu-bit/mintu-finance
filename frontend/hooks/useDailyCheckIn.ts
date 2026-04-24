@@ -1,0 +1,79 @@
+/**
+ * useDailyCheckIn — fires ONE /streak/check-in per cold-start when auth
+ * is ready. Idempotent by design: the backend keys on UTC-day, so even
+ * if this hook remounts we never double-award.
+ *
+ * Why here and not on home? Because the home screen is lazy-rendered
+ * after navigation settles. Bootstrapping here guarantees the streak
+ * advances the moment a valid JWT is present — before any screen reads
+ * the streak number to display it.
+ *
+ * Side-effects:
+ *   • Awards 2-25 coins once per UTC day (see core/streak._streak_reward_for)
+ *   • Fires a 🔥 haptic on first successful advance so the user feels rewarded
+ *   • Toasts a soft celebration when streak crosses a milestone day
+ *     (7, 14, 30) — only once per day per milestone via AsyncStorage key
+ *     ``streak_milestone_<UTCday>``.
+ *
+ * Failure modes:
+ *   • Offline / 5xx → silently skipped; next cold-start retries.
+ *   • 401 → handled by global axios interceptor (redirects to /unlock).
+ */
+import { useEffect, useRef } from 'react';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import * as Haptics from 'expo-haptics';
+import Toast from 'react-native-toast-message';
+import api from '../utils/api';
+import { useAuthStore } from '../store/authStore';
+
+export function useDailyCheckIn() {
+  const fired = useRef(false);
+  const token = useAuthStore((s) => s.token);
+
+  useEffect(() => {
+    if (fired.current || !token) return;
+    fired.current = true;
+
+    (async () => {
+      try {
+        const r = await api.post('/streak/check-in');
+        const data = r.data || {};
+
+        // No-op branch — user already checked in today. Silent.
+        if (data.already_checked_in) return;
+
+        // Streak just advanced — give a tactile + visual nudge.
+        if (data.incremented) {
+          Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
+
+          const streak = Number(data.streak_current || 0);
+          const coins = Number(data.coins_awarded || 0);
+
+          // Milestone celebration (only once per milestone day).
+          const isMilestone = [3, 7, 14, 30, 50, 100].includes(streak);
+          const today = new Date().toISOString().slice(0, 10);
+          const seenKey = `streak_milestone_${streak}_${today}`;
+          const already = await AsyncStorage.getItem(seenKey).catch(() => null);
+          if (isMilestone && !already) {
+            await AsyncStorage.setItem(seenKey, '1').catch(() => {});
+            Toast.show({
+              type: 'success',
+              text1: `🔥 ${streak}-day streak!`,
+              text2: `+${coins} coins · You're on a roll`,
+              visibilityTime: 4000,
+            });
+          } else if (coins > 0) {
+            Toast.show({
+              type: 'success',
+              text1: `🔥 Day ${streak}`,
+              text2: `+${coins} coins earned`,
+              visibilityTime: 2500,
+            });
+          }
+        }
+      } catch {
+        // Silently swallow — don't block the app over a streak call.
+      }
+    })();
+  }, [token]);
+}

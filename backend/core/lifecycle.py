@@ -82,6 +82,17 @@ async def _ensure_indexes(db) -> None:
             [("user_id", 1), ("source_msg_id", 1)], sparse=True
         )
 
+        # Ledger (Round 30i streak/coins rebuild) — financial-grade idempotency.
+        # Unique index on (user_id, idempotency_key) so replay attacks /
+        # double-tap awards become a DuplicateKeyError → no-op.
+        await db.ledger_transactions.create_index(
+            [("user_id", 1), ("idempotency_key", 1)],
+            unique=True,
+            partialFilterExpression={"idempotency_key": {"$exists": True, "$type": "string"}},
+        )
+        await db.ledger_transactions.create_index([("user_id", 1), ("created_at", -1)])
+        await db.ledger_transactions.create_index("source")
+
         logger.info("✅ MongoDB indexes created for 1.46B-scale performance")
     except Exception as e:
         logger.warning(f"Index creation warning: {e}")
