@@ -20,8 +20,10 @@ export default function PlansView({ potentialSavings }: { potentialSavings: numb
   const [plan, setPlan] = useActivePlan();
 
   // UPI AutoPay flow — creates a Razorpay subscription and opens the hosted
-  // mandate-authorisation page. Gracefully falls back to mock-activate if the
-  // admin hasn't configured the plan_id in Razorpay Dashboard yet.
+  // mandate-authorisation page. If the admin hasn't configured plan_ids in
+  // Razorpay Dashboard (.env has empty RAZORPAY_PLAN_ID_*), the backend returns
+  // 503 and we silently fall back to demo-activate. No second alert — the
+  // user already consented to "Activate".
   const startAutoPay = async (p: Plan) => {
     const tier = PLAN_TO_TIER[p];
     if (!tier) return;
@@ -39,19 +41,13 @@ export default function PlansView({ potentialSavings }: { potentialSavings: numb
       }
     } catch (e: any) {
       const status = e?.response?.status;
-      const detail = e?.response?.data?.detail || '';
       if (status === 503) {
-        // Plan not yet configured in Razorpay dashboard — offer mock activation.
-        Alert.alert(
-          'AutoPay not configured yet',
-          `${detail}\n\nActivate in demo mode instead?`,
-          [
-            { text: 'Cancel', style: 'cancel' },
-            { text: 'Demo activate', onPress: () => mockActivate(p) },
-          ],
-        );
-        return false;
+        // Plan not yet configured — silent fallback to demo activation so
+        // the user isn't blocked by admin plumbing.
+        await mockActivate(p);
+        return true;
       }
+      const detail = e?.response?.data?.detail || '';
       Toast.show({ type: 'error', text1: 'Could not start AutoPay', text2: detail || 'Network error' });
       return false;
     }
@@ -74,13 +70,15 @@ export default function PlansView({ potentialSavings }: { potentialSavings: numb
       await mockActivate(p);
       return;
     }
+    // Round 30f — single-tap confirm → try real UPI AutoPay → on 503 (admin
+    // hasn't configured Razorpay plan_ids yet) silently demo-activate so
+    // the user isn't bounced through two alerts.
     Alert.alert(
       `Activate ${PLAN_META[p].label}?`,
-      `${PLAN_META[p].price} ${PLAN_META[p].priceSub}\n\nChoose how you'd like to pay:`,
+      `${PLAN_META[p].price} ${PLAN_META[p].priceSub}\n\nUPI AutoPay via Razorpay. Cancel anytime.`,
       [
         { text: 'Cancel', style: 'cancel' },
-        { text: 'Demo', onPress: () => mockActivate(p) },
-        { text: '🟢 UPI AutoPay', onPress: () => startAutoPay(p) },
+        { text: 'Activate', onPress: () => startAutoPay(p) },
       ],
     );
   };

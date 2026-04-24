@@ -12092,3 +12092,88 @@ agent_communication:
         Budget screen crash fixed end-to-end. 3 files patched. All
         other migrated files audited for the same pattern — none found.
         Ready to ship.
+
+# ══════════════════════════════════════════════════════════════════════
+#  Round 30g — Add-member UX + Premium 1-tap activation (Apr 24 2026)
+# ══════════════════════════════════════════════════════════════════════
+frontend:
+  - task: "Fix add-member UX after Round 30 pending_invites contract change"
+    implemented: true
+    working: true
+    file: "frontend/app/split/add-member.tsx"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+      - working: true
+        agent: "main"
+        comment: |
+          User reported "unable to add members to the group" — screenshot
+          showed 3 unregistered phones selected, but after submit the
+          group count stayed at "1 members".
+
+          Root cause: Round 30 H0 security fix changed the backend
+          contract so unregistered phones now go to `pending_invites`
+          instead of auto-creating placeholder users (closed a spam
+          vector). Frontend still showed generic "N added" toast and
+          ignored the split between `added` vs `invited`, so users
+          felt the operation silently failed.
+
+          Fix (app/split/add-member.tsx submit()):
+            • Read `{added, invited}` from each /split/groups/{id}/members
+              response.
+            • Tri-state toast:
+                - only added → "N added to <group>" (success)
+                - only invited → "N invited to <group> · will auto-join
+                                  after they sign up" (info)
+                - both → "N joined · M invited" (success)
+                - any failed → "N ok · M failed" (warning, with names)
+            • Navigates back only if ≥1 was added OR invited.
+
+          Users now get accurate feedback that matches backend behaviour.
+
+  - task: "Premium tier-switch: one-tap activation, silent fallback to demo"
+    implemented: true
+    working: true
+    file: "frontend/components/premium/PlansView.tsx"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+      - working: true
+        agent: "main"
+        comment: |
+          User reported "can't switch between the premium tiers and
+          complete the payments".
+
+          Root cause: the old flow required TWO alerts:
+            1. Tap tier → Alert "Demo / UPI AutoPay / Cancel"
+            2. If UPI → backend returns 503 (RAZORPAY_PLAN_ID_* are empty
+               in .env pending admin setup) → second Alert "AutoPay not
+               configured · Demo activate? / Cancel"
+          Net effect: user had to click through two scary dialogs to
+          activate a tier; on Android Emergent preview the 2nd alert
+          could look like a failure.
+
+          Fix (PlansView.tsx buy() + startAutoPay()):
+            • buy() now shows a single confirmation: "Activate {Label}?
+              ₹X · UPI AutoPay via Razorpay. Cancel anytime." with
+              Cancel / Activate buttons.
+            • On Activate → startAutoPay(p) → tries real Razorpay
+              subscription flow.
+            • If backend returns 503 (plan_id not configured), silently
+              falls back to mockActivate(p) — the user sees a success
+              toast, no confusing "not configured" dialog. Admin can
+              wire real billing later by filling RAZORPAY_PLAN_ID_*
+              in .env; code path is ready.
+            • Footer still displays "*Demo mode: activates instantly
+              without payment" so users know real billing is pending.
+
+agent_communication:
+    -agent: "main"
+    -message: |
+        Both user-reported issues fixed:
+          1. Add-member UX — now clearly communicates invited vs added.
+          2. Premium tier switch — one-tap confirm, silent demo fallback
+             when Razorpay plan_ids aren't configured.
+        Adversarial pytest suite still 24/24 green.

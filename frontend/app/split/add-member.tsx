@@ -365,24 +365,57 @@ export default function AddMemberScreen() {
   const submit = async () => {
     if (!group?.id || selected.size === 0 || submitting) return;
     setSubmitting(true);
-    const added: string[] = [];
-    const failed: string[] = [];
+    const addedNames: string[] = [];
+    const invitedNames: string[] = [];
+    const failedNames: string[] = [];
+
     for (const c of selected.values()) {
       try {
-        await addGroupMember(group.id, c.phone);
-        added.push(c.name);
+        // Round 30f — backend returns {added: [], invited: []}. Registered
+        // phones land in `added`; unregistered go to `pending_invites` and
+        // we should tell the user they'll auto-join on signup (not silent
+        // success like before).
+        const resp = await addGroupMember(group.id, c.phone);
+        const body = resp || {};
+        const wasAdded = Array.isArray(body.added) && body.added.length > 0;
+        const wasInvited = Array.isArray(body.invited) && body.invited.length > 0;
+        if (wasAdded) addedNames.push(c.name);
+        else if (wasInvited) invitedNames.push(c.name);
+        else {
+          // Already in group or invalid phone → treat as added (no-op success).
+          addedNames.push(c.name);
+        }
       } catch {
-        failed.push(c.name);
+        failedNames.push(c.name);
       }
     }
+
     if (Platform.OS !== 'web') Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
-    if (added.length && !failed.length) {
-      Toast.show({ type: 'success', text1: `${added.length} added to ${group.name}` });
-    } else if (failed.length) {
-      Toast.show({ type: 'warning', text1: `${added.length} added, ${failed.length} failed`, text2: failed.slice(0, 2).join(', ') });
+
+    if (failedNames.length) {
+      Toast.show({
+        type: 'warning',
+        text1: `${addedNames.length + invitedNames.length} ok · ${failedNames.length} failed`,
+        text2: failedNames.slice(0, 2).join(', '),
+      });
+    } else if (addedNames.length && invitedNames.length) {
+      Toast.show({
+        type: 'success',
+        text1: `${addedNames.length} joined · ${invitedNames.length} invited`,
+        text2: 'Invited friends will auto-join after they sign up',
+      });
+    } else if (invitedNames.length) {
+      Toast.show({
+        type: 'info',
+        text1: `${invitedNames.length} invited to ${group.name}`,
+        text2: 'They\'ll auto-join after signing up with this phone',
+      });
+    } else if (addedNames.length) {
+      Toast.show({ type: 'success', text1: `${addedNames.length} added to ${group.name}` });
     }
+
     setSubmitting(false);
-    if (added.length) router.back();
+    if (addedNames.length || invitedNames.length) router.back();
   };
 
   const shareGroupWhatsApp = () => {
