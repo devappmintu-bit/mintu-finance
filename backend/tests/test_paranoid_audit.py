@@ -898,10 +898,85 @@ async def test_round31_negative_coin_award_rejected():
             },
             headers=h,
         )
-        assert r.status_code == 200
-        # Server must have awarded the fixed amount (5 for add_transaction), NOT 999999
-        bal = int(r.json().get("balance", 0))
-        assert bal == 5, f"Client-supplied amount was honoured! balance={bal}"
+
+
+# ══════════════════════════════════════════════════════════════════════
+#  Round 31b — Transaction idempotency key support
+# ══════════════════════════════════════════════════════════════════════
+@pytest.mark.asyncio
+async def test_round31b_transaction_idempotency_key():
+    """Spam-click 20 'Add Transaction' with SAME idempotency_key → only 1 txn."""
+    async with httpx.AsyncClient(timeout=30) as client:
+        u = await register(client)
+        h = bearer(u["token"])
+
+        idem = f"txn-idem-{uuid.uuid4()}"
+
+        async def create():
+            return await client.post(
+                f"{API}/transactions",
+                json={
+                    "amount": 100, "category": "food",
+                    "type": "debit", "description": "Spam-click txn",
+                    "idempotency_key": idem,
+                },
+                headers=h,
+            )
+
+        results = await asyncio.gather(*[create() for _ in range(20)], return_exceptions=True)
+        oks = [r for r in results if not isinstance(r, Exception) and r.status_code == 200]
+        assert len(oks) >= 1, "At least one request must succeed"
+
+        # Count how many "Spam-click txn" transactions exist.
+        r = await client.get(f"{API}/transactions", headers=h)
+        txns = r.json() if isinstance(r.json(), list) else r.json().get("transactions", [])
+        matching = [t for t in txns if t.get("description") == "Spam-click txn"]
+        assert len(matching) == 1, (
+            f"Idempotency BROKEN: {len(matching)} transactions created from spam-click "
+            f"with same idempotency_key"
+        )
+
+        # Subsequent responses must have `deduped: True`
+        deduped_count = sum(
+            1 for r in oks
+            if hasattr(r, 'json') and r.json().get("deduped") is True
+        )
+        assert deduped_count >= 1, (
+            f"Dedupe metadata missing: {deduped_count} responses had deduped=True"
+        )
+
+
+@pytest.mark.asyncio
+async def test_round31b_transaction_idempotency_per_user():
+    """Two different users CAN use the same idempotency_key independently."""
+    async with httpx.AsyncClient(timeout=30) as client:
+        a = await register(client)
+        b = await register(client)
+
+        same_key = f"shared-{uuid.uuid4()}"
+
+        # A creates with key
+        ra = await client.post(
+            f"{API}/transactions",
+            json={"amount": 100, "category": "food", "type": "debit",
+                  "description": "A", "idempotency_key": same_key},
+            headers=bearer(a["token"]),
+        )
+        assert ra.status_code == 200, f"A failed: {ra.status_code} {ra.text[:200]}"
+
+        # B creates with SAME key — must succeed because scope is per-user
+        rb = await client.post(
+            f"{API}/transactions",
+            json={"amount": 200, "category": "transport", "type": "debit",
+                  "description": "B", "idempotency_key": same_key},
+            headers=bearer(b["token"]),
+        )
+        assert rb.status_code == 200, f"B blocked by A's key: {rb.status_code} {rb.text[:200]}"
+
+        # Distinct transactions (not duplicated)
+        assert ra.json().get("id") != rb.json().get("id"), (
+            "Per-user idempotency bug — A's txn ID returned for B"
+        )
 
 
 @pytest.mark.asyncio

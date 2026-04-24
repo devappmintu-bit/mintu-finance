@@ -81,6 +81,14 @@ async def _ensure_indexes(db) -> None:
         await db.transactions.create_index(
             [("user_id", 1), ("source_msg_id", 1)], sparse=True
         )
+        # Round 31b — idempotency key for POST /transactions. Sparse so
+        # existing txns without a key are unaffected. Unique per user
+        # so spam-click duplicates collapse into a single insert.
+        await db.transactions.create_index(
+            [("user_id", 1), ("idempotency_key", 1)],
+            unique=True,
+            partialFilterExpression={"idempotency_key": {"$exists": True, "$type": "string"}},
+        )
 
         # Ledger (Round 30i streak/coins rebuild) — financial-grade idempotency.
         # Unique index on (user_id, idempotency_key) so replay attacks /
@@ -151,6 +159,62 @@ async def _start_background_workers(db) -> None:
         logger.info("🧹 Soft-delete purge worker started (hourly)")
     except Exception as e:
         logger.warning(f"Could not start soft-delete worker: {e}")
+
+    # ── Ledger reconcile worker (Round 31b) ───────────────────────────────
+    # Periodically recomputes `users.coins_balance` from the immutable
+    # ledger_transactions sum so any drift introduced by stale legacy code
+    # paths, crashed processes, or manual DB edits is self-healed.
+    #
+    # Runs every 6 hours. Scans users with recent ledger activity in the
+    # previous window (keeps scan bounded even at 1M+ users).
+    async def _ledger_reconcile_loop():
+        from core.ledger import reconcile_user
+        RECONCILE_INTERVAL = 6 * 3600  # 6 hours
+        RECENT_WINDOW = 7 * 24 * 3600  # 7 days
+        while True:
+            try:
+                since = datetime.utcnow() - __import__("datetime").timedelta(seconds=RECENT_WINDOW)
+                # Pipeline: unique user_ids with ledger activity in the window.
+                cursor = db.ledger_transactions.aggregate([
+                    {"$match": {"created_at": {"$gte": since}}},
+                    {"$group": {"_id": "$user_id"}},
+                    {"$limit": 10000},  # bound per run
+                ])
+                reconciled = 0
+                drift_count = 0
+                async for row in cursor:
+                    uid = row.get("_id")
+                    if not uid:
+                        continue
+                    try:
+                        # reconcile_user returns the authoritative balance.
+                        # It's a no-op if the cache already matches.
+                        before = await db.users.find_one(
+                            {"_id": __import__("bson").ObjectId(uid)
+                             if len(uid) == 24 else uid},
+                            {"coins_balance": 1},
+                        )
+                        before_bal = int((before or {}).get("coins_balance", 0))
+                        after_bal = await reconcile_user(uid)
+                        if before_bal != after_bal:
+                            drift_count += 1
+                        reconciled += 1
+                    except Exception:
+                        continue  # per-user failures don't block the sweep
+                if reconciled > 0:
+                    logger.info(
+                        f"🔄 Ledger reconcile: scanned {reconciled} users, "
+                        f"{drift_count} drift-corrections applied"
+                    )
+            except Exception as e:
+                logger.warning(f"Ledger reconcile iteration failed: {e}")
+            await _asyncio.sleep(RECONCILE_INTERVAL)
+
+    try:
+        _asyncio.create_task(_ledger_reconcile_loop())
+        logger.info("🔄 Ledger reconcile worker started (6-hour interval)")
+    except Exception as e:
+        logger.warning(f"Could not start ledger reconcile worker: {e}")
 
 
 def register_lifecycle(app, db, client) -> None:

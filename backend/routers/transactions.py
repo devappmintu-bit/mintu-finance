@@ -5,6 +5,7 @@ from typing import Optional, List, Dict
 from bson import ObjectId
 from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel, Field, field_validator
+from pymongo.errors import DuplicateKeyError
 
 from core import db, get_current_user, cache_clear_prefix
 from core.scoring import calculate_money_score
@@ -19,6 +20,10 @@ class TransactionCreate(BaseModel):
     description: str = Field(default="", max_length=500)
     type: str = Field(..., pattern="^(debit|credit)$")
     date: Optional[datetime] = None
+    # Round 31b — optional client-supplied idempotency key. Prevents
+    # spam-click duplicates (e.g. user taps "Save" 20 times). Must be
+    # unique per user; repeats return the existing transaction.
+    idempotency_key: Optional[str] = Field(default=None, max_length=100)
 
     @field_validator("amount", mode="before")
     @classmethod
@@ -63,12 +68,47 @@ def _invalidate_caches(user_id: str) -> None:
 # ---- Endpoints ---------------------------------------------------------------
 @router.post("")
 async def create_transaction(transaction: TransactionCreate, user_id: str = Depends(get_current_user)):
+    """Create a transaction. Supports optional idempotency_key to absorb
+    spam-click duplicates.
+
+    Round 31b: If `idempotency_key` is supplied, we check for an existing
+    matching (user_id, idempotency_key) transaction and return it verbatim
+    instead of creating a duplicate. The backing unique partial index is
+    installed in `core/lifecycle.py` on startup.
+    """
     trans = transaction.dict()
+    # Strip None idempotency_key so the partial-index filter remains sparse.
+    idem_key = trans.pop("idempotency_key", None) or None
     trans["user_id"] = user_id
     trans["date"] = transaction.date or datetime.utcnow()
     trans["created_at"] = datetime.utcnow()
+    if idem_key:
+        trans["idempotency_key"] = idem_key
 
-    result = await db.transactions.insert_one(trans)
+    try:
+        result = await db.transactions.insert_one(trans)
+    except DuplicateKeyError:
+        # Another request with the same (user_id, idempotency_key) already
+        # landed — fetch and return the existing doc (verbatim) instead of
+        # raising an error. This makes spam-click traffic behave as a NOOP.
+        existing = await db.transactions.find_one(
+            {"user_id": user_id, "idempotency_key": idem_key}
+        )
+        if existing:
+            return {
+                "id": str(existing["_id"]),
+                "user_id": user_id,
+                "amount": existing.get("amount"),
+                "category": existing.get("category"),
+                "description": existing.get("description", ""),
+                "type": existing.get("type"),
+                "date": existing.get("date"),
+                "created_at": existing.get("created_at"),
+                "deduped": True,
+            }
+        # Fallback (shouldn't happen): bubble a generic 409.
+        raise HTTPException(status_code=409, detail="Duplicate transaction")
+
     _invalidate_caches(user_id)
     await _bump_money_score(user_id)
 
