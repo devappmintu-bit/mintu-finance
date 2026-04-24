@@ -62,9 +62,26 @@ export default function AuthScreen() {
   };
 
   const handleOtpChange = (text: string, index: number) => {
-    const newOtp = [...otp]; newOtp[index] = text; setOtp(newOtp);
-    if (text && index < 5) otpRefs.current[index + 1]?.focus();
-    if (text && index === 5) { const full = [...newOtp].join(''); if (full.length === 6) handleVerifyOTP(full); }
+    // Round 35 fix — support paste of full 6-digit OTP. If the user pastes
+    // "123456" into any box (e.g. from SMS auto-fill or clipboard), the
+    // onChangeText fires with the full string; previously we sliced to the
+    // last char which threw away the other 5 digits.
+    const digits = (text || '').replace(/\D/g, '');
+    if (digits.length > 1) {
+      const newOtp = [...otp];
+      for (let i = 0; i < digits.length && index + i < 6; i++) {
+        newOtp[index + i] = digits[i];
+      }
+      setOtp(newOtp);
+      const nextIdx = Math.min(index + digits.length, 5);
+      otpRefs.current[nextIdx]?.focus();
+      const full = newOtp.join('');
+      if (full.length === 6) handleVerifyOTP(full);
+      return;
+    }
+    const newOtp = [...otp]; newOtp[index] = digits; setOtp(newOtp);
+    if (digits && index < 5) otpRefs.current[index + 1]?.focus();
+    if (digits && index === 5) { const full = [...newOtp].join(''); if (full.length === 6) handleVerifyOTP(full); }
   };
 
   const handleOtpKeyPress = (key: string, index: number) => {
@@ -127,7 +144,7 @@ export default function AuthScreen() {
       </View>
       <View style={s.phoneRow}>
         <View style={s.countryCode}><Text style={s.countryText}>+91</Text></View>
-        <TextInput testID="auth-phone-input" style={s.phoneInput} placeholder="10-digit number" placeholderTextColor={COLORS.text.muted} value={phone} onChangeText={setPhone} keyboardType="phone-pad" maxLength={10} autoFocus />
+        <TextInput testID="auth-phone-input" style={s.phoneInput} placeholder="10-digit number" placeholderTextColor={COLORS.text.muted} value={phone} onChangeText={setPhone} keyboardType="phone-pad" maxLength={10} autoFocus returnKeyType="go" onSubmitEditing={handleSendOTP} />
       </View>
       <TouchableOpacity testID="send-otp-btn" style={[s.primaryBtn, loading && s.btnDisabled]} onPress={handleSendOTP} disabled={loading}>
         {loading ? <ActivityIndicator color={COLORS.text.inverse} /> : <><Text style={s.primaryBtnText}>{t('send_otp', lang)}</Text><Ionicons name="arrow-forward" size={18} color={COLORS.text.inverse} /></>}

@@ -14,7 +14,7 @@
  *  9. Premium + Money School       (compact)
  * 10. Weekly Report · Leaderboard · News
  */
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import {
   View, Text, ScrollView, RefreshControl, InteractionManager,
 } from 'react-native';
@@ -71,6 +71,13 @@ export default function HomeScreen() {
   // Previously a double-failure (bundle + fallback) left the user staring
   // at empty widgets with no signal the fetch died.
   const [loadError, setLoadError] = useState(false);
+  // Round 35 — refs mirror user/stats so fetchData can detect "nothing painted"
+  // without needing user/stats in its dep array (which caused an infinite
+  // refetch loop).
+  const userRef = useRef<any>(user);
+  const statsRef = useRef<any>(null);
+  useEffect(() => { userRef.current = user; }, [user]);
+  useEffect(() => { statsRef.current = stats; }, [stats]);
 
   const fetchData = useCallback(async () => {
     setLoadError(false);  // clear previous error on any retry
@@ -145,14 +152,17 @@ export default function HomeScreen() {
       // instead of staring at a blank layout thinking the app is frozen.
       // Only trip the error banner when nothing has painted yet (user+stats
       // both null) — otherwise they still have SOMETHING useful to look at.
-      if (!user && !stats) {
+      // Round 35 fix — read from refs rather than state so we don't have
+      // to add user/stats to the dep array (that caused fetchData identity
+      // to flip on every paint → useEffect re-fired → refetch loop).
+      if (!userRef.current && !statsRef.current) {
         setLoadError(true);
       }
     } finally {
       setLoading(false);
       setRefreshing(false);
     }
-  }, [lang, user, stats]);
+  }, [lang]);
 
   useEffect(() => { fetchData(); }, [fetchData]);
   const onRefresh = () => { setRefreshing(true); fetchData(); };

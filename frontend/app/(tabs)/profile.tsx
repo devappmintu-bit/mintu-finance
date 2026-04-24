@@ -156,11 +156,17 @@ export default function ProfileScreen() {
   };
 
   const handleAvatarPicked = async (base64DataUri: string) => {
+    // Snapshot previous avatar so we can rollback if the upload fails —
+    // otherwise the user sees the new avatar locally but the server has
+    // the old one, creating a silent drift that reappears after relogin.
+    const prevAvatar = avatar;
     await setAvatar(base64DataUri);
     try {
       await uploadAvatar(base64DataUri);
       Toast.show({ type: 'success', text1: 'Profile photo updated' });
     } catch {
+      // Rollback to keep local state in sync with server.
+      await setAvatar(prevAvatar);
       Toast.show({ type: 'error', text1: 'Couldn\'t save photo', text2: 'Try again in a moment.' });
     }
   };

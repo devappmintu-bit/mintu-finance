@@ -278,7 +278,7 @@ export default function AICoachTab() {
 
 const useStyles = makeStyles((c) => ({
   safe: { flex: 1, backgroundColor: c.bg.primary },
-  scroll: { paddingHorizontal: SPACING.lg, paddingTop: SPACING.sm },
+  scroll: { paddingHorizontal: SPACING.lg, paddingTop: SPACING.sm, paddingBottom: 120 },
   header: {
     flexDirection: 'row',
     alignItems: 'flex-start',

@@ -173,7 +173,7 @@ export default function RewardsScreen() {
 
 const useStyles = makeStyles((c) => ({
   container: { flex: 1, backgroundColor: c.bg.primary },
-  scroll: { padding: SPACING.lg },
+  scroll: { padding: SPACING.lg, paddingBottom: 120 },
   pageTitle: { fontSize: 28, fontWeight: '800', color: c.text.primary, letterSpacing: -0.5, marginBottom: SPACING.xxl },
   section: { fontSize: 16, fontWeight: '700', color: c.text.secondary, marginTop: SPACING.xxl, marginBottom: SPACING.md },
   // Streak

@@ -304,6 +304,11 @@ export default function RewardsHubScreen() {
                 // so we must gate this client-side as defence-in-depth.
                 if (claimingMarket.has(r.id)) return;
                 setClaimingMarket(prev => { const n = new Set(prev); n.add(r.id); return n; });
+                // Round 35 — optimistic coin decrement so the header balance
+                // updates instantly; load() will reconcile with the server
+                // response a moment later.
+                const prevCoins = coins;
+                setCoins(Math.max(0, coins - r.cost_coins));
                 try {
                   const res = await claimMarketplaceReward(r.id);
                   if (Platform.OS !== 'web') Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
@@ -313,6 +318,8 @@ export default function RewardsHubScreen() {
                   // Refresh balance & marketplace
                   load();
                 } catch (e: any) {
+                  // Rollback the optimistic decrement since the claim failed.
+                  setCoins(prevCoins);
                   Toast.show({ type: 'error', text1: 'Claim failed', text2: e?.response?.data?.detail || 'Try again' });
                 } finally {
                   setClaimingMarket(prev => { const n = new Set(prev); n.delete(r.id); return n; });

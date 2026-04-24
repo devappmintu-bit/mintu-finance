@@ -373,6 +373,15 @@ export default function SplitScreen() {
   };
 
   const settleReward = async (t: any) => {
+    // Round 35 — optimistically remove the settled row so the UI reflects
+    // ₹0 balance immediately; the phase-2 fetchData() will reconcile with
+    // the server a moment later. Previously, the row lingered for ~500ms
+    // before the deferred settleRows recompute replaced it, which felt
+    // sluggish right after the user confirmed payment.
+    const prevRows = settleRows;
+    setSettleRows((rows) =>
+      rows.filter((r) => !(r.to_id === t.to_id && r.group_id === t.group_id))
+    );
     try {
       const r = { data: await settleWithRewards({
         target_user_id: t.to_id,
@@ -383,7 +392,11 @@ export default function SplitScreen() {
       }) };
       settleRowsCacheKey.current = ''; // invalidate — debt cleared
       setLastReward(r.data.reward); setModal('reward'); fetchData();
-    } catch { Toast.show({ type: 'error', text1: 'Error', text2: 'Could not settle' }); }
+    } catch {
+      // Roll back optimistic removal if the server rejected the settle.
+      setSettleRows(prevRows);
+      Toast.show({ type: 'error', text1: 'Error', text2: 'Could not settle' });
+    }
   };
 
   const partialSettle = async (partialAmt: number, coinsToUse: number = 0) => {
