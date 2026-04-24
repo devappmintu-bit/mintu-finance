@@ -296,57 +296,100 @@ COIN_RULES = {
 async def award_coins(data: dict, user_id: str = Depends(get_current_user)):
     """Award coins for a user action, capped daily to prevent abuse.
 
-    Hardened (Round 29b): optional `dedupe_key` (e.g. transaction_id) lets
-    the client mark the award as idempotent — calling twice with the same
-    key awards coins once. Closes the "farm coins by add+delete+add"
-    micro-abuse under the daily cap.
+    Hardened (Round 30 / Paranoid audit):
+    1. Routes through the immutable ledger (`core.ledger.award_coins`) so
+       the action and idempotency are enforced at the DB-unique-index layer.
+    2. The daily-cap is enforced ATOMICALLY via `find_one_and_update`
+       with a `$lt` guard on the per-day counter, closing the prior
+       race where 20 parallel requests could all pass the non-atomic
+       "remaining_cap > 0" check and bypass the limit.
+
+    `dedupe_key` in the payload (e.g. transaction_id) is an optional
+    client-supplied idempotency key. If omitted, the server generates a
+    per-minute bucket so spam-clicks within the same minute collapse.
     """
+    from core import safe_oid
+    from core import ledger as ledger_service
+
     action = data.get("action", "")
     if action not in COIN_RULES:
         return {"awarded": 0, "reason": "invalid_action", "balance": 0}
 
     rule = COIN_RULES[action]
-    today_start = datetime.utcnow().replace(hour=0, minute=0, second=0, microsecond=0)
+    today_str = datetime.utcnow().strftime("%Y-%m-%d")
+    counter_path = f"daily_coin_caps.{today_str}.{action}"
+    cap = int(rule["daily_cap"])
+    amount = int(rule["amount"])
 
+    # ── ATOMIC CAP RESERVATION ─────────────────────────────────────────
+    # Reserve `amount` from today's bucket only if the new total would
+    # NOT exceed the cap. MongoDB evaluates the filter + $inc as a single
+    # atomic operation — no race possible across parallel requests.
+    oid = safe_oid(user_id)
+    if oid is None:
+        return {"awarded": 0, "reason": "invalid_user", "balance": 0}
+
+    reserved = await db.users.find_one_and_update(
+        {
+            "_id": oid,
+            "$or": [
+                {counter_path: {"$exists": False}},             # first award today
+                {counter_path: {"$lte": cap - amount}},         # enough headroom
+            ],
+        },
+        {"$inc": {counter_path: amount}},
+        return_document=True,
+    )
+
+    if reserved is None:
+        # Cap already reached (or would be exceeded by this call).
+        current_awarded = int(
+            ((reserved or {}).get("daily_coin_caps") or {})
+            .get(today_str, {})
+            .get(action, 0)
+        )
+        # If reserved is None, we need a separate read for the display number
+        u = await db.users.find_one({"_id": oid}, {counter_path: 1})
+        current_awarded = int(
+            (u or {}).get("daily_coin_caps", {}).get(today_str, {}).get(action, 0)
+        )
+        bal = await ledger_service.get_balance(user_id)
+        return {
+            "awarded": 0, "reason": "daily_cap_reached",
+            "balance": bal, "daily_cap": cap, "daily_awarded": current_awarded,
+        }
+
+    # ── IDEMPOTENCY KEY ────────────────────────────────────────────────
     dedupe_key = (data.get("dedupe_key") or "").strip()
     if dedupe_key:
-        already = await db.coin_ledger.find_one({
-            "user_id": user_id, "action": action, "dedupe_key": dedupe_key,
-        })
-        if already:
-            user = await db.users.find_one({"_id": ObjectId(user_id)}) or {}
-            return {"awarded": 0, "reason": "already_awarded", "balance": user.get("coins", 0)}
+        idem_key = f"action::{action}::{user_id}::{dedupe_key}"
+    else:
+        minute_bucket = datetime.utcnow().strftime("%Y%m%d%H%M")
+        idem_key = f"action::{action}::{user_id}::{minute_bucket}"
 
-    # Check daily cap
-    today_awarded = 0
-    async for d in db.coin_ledger.aggregate([
-        {"$match": {"user_id": user_id, "action": action, "at": {"$gte": today_start}}},
-        {"$group": {"_id": None, "total": {"$sum": "$amount"}}},
-    ]):
-        today_awarded = d["total"]
+    # ── LEDGER WRITE ──────────────────────────────────────────────────
+    res = await ledger_service.award_coins(
+        user_id=user_id, amount=amount, source=f"action:{action}",
+        idempotency_key=idem_key, txn_type="earn",
+    )
+    today_awarded_after = int(
+        reserved.get("daily_coin_caps", {}).get(today_str, {}).get(action, amount)
+    )
 
-    remaining_cap = max(0, rule["daily_cap"] - today_awarded)
-    to_award = min(rule["amount"], remaining_cap)
-    if to_award <= 0:
-        user = await db.users.find_one({"_id": ObjectId(user_id)}) or {}
-        return {"awarded": 0, "reason": "daily_cap_reached", "balance": user.get("coins", 0), "daily_cap": rule["daily_cap"], "daily_awarded": today_awarded}
+    if not res["created"]:
+        # Duplicate idempotency key — ROLLBACK the reservation so the cap
+        # isn't silently burned by duplicate clicks.
+        await db.users.update_one({"_id": oid}, {"$inc": {counter_path: -amount}})
+        return {
+            "awarded": 0, "reason": "already_awarded",
+            "balance": res["balance"], "daily_cap": cap,
+            "daily_awarded": today_awarded_after - amount,
+        }
 
-    # Persist ledger + increment user.coins
-    ledger_doc = {"user_id": user_id, "action": action, "amount": to_award, "at": datetime.utcnow()}
-    if dedupe_key:
-        ledger_doc["dedupe_key"] = dedupe_key
-    await db.coin_ledger.insert_one(ledger_doc)
-    await db.users.update_one({"_id": ObjectId(user_id)}, {"$inc": {"coins": to_award}})
-
-    user = await db.users.find_one({"_id": ObjectId(user_id)}) or {}
     return {
-        "awarded": to_award,
-        "reason": "ok",
-        "action": action,
-        "label": rule["label"],
-        "balance": user.get("coins", 0),
-        "daily_cap": rule["daily_cap"],
-        "daily_awarded": today_awarded + to_award,
+        "awarded": amount, "reason": "ok", "action": action,
+        "label": rule["label"], "balance": res["balance"],
+        "daily_cap": cap, "daily_awarded": today_awarded_after,
     }
 
 

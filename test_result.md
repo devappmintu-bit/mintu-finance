@@ -722,10 +722,46 @@ metadata:
 
 test_plan:
   current_focus:
-    - "Comprehensive Frontend Audit Completed"
+    - "Paranoid Audit (Round 30) — 2 critical fintech bugs FIXED + 22 new adversarial tests"
   stuck_tasks: []
   test_all: false
   test_priority: "high_first"
+
+paranoid_audit_round30_apr24_2026:
+  - task: "Paranoid Audit — all 6 tiers (A-F) covered with 22 new adversarial tests"
+    implemented: true
+    working: true
+    file: "/app/backend/tests/test_paranoid_audit.py (new), /app/backend/routers/analytics.py (fix)"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+      - working: true
+        agent: "main"
+        comment: |
+          🔴 2 CRITICAL FINTECH BUGS DISCOVERED AND FIXED:
+          
+          BUG 1 (Dual-Ledger Inconsistency): /coins/award wrote to legacy
+          coin_ledger + user.coins directly, while /coins/balance self-healed
+          against the NEW ledger_transactions and silently wiped those coins.
+          FIX: Routed /coins/award through core.ledger.award_coins() which uses
+          the immutable unique-indexed ledger_transactions as single source.
+          
+          BUG 2 (Daily-Cap Race Bypass): Non-atomic read-then-write cap check
+          allowed 20 parallel awards to bypass the 50-coin cap (result: 95).
+          FIX: Atomic find_one_and_update with $lt guard on per-day counter,
+          with reservation rollback on idempotency duplicate.
+          
+          22 NEW ADVERSARIAL TESTS across tiers A (money invariants),
+          B (auth/session IDOR, JWT forgery), C (timezone arbitrage, race
+          consistency), D (DoS/limit clamping), E (spam click), F (audit).
+          
+          FINAL: 87 passed, 7 skipped, 0 failures across entire backend suite.
+          Python lint clean. No frontend changes.
+
+test_plan_legacy:
+  current_focus_legacy:
+    - "Comprehensive Frontend Audit Completed"
 
 streak_coins_bonus_features_apr24_2026:
   - task: "Streak & Coins Bonus Features — Freeze (premium) + Leaderboard + Weekly/Monthly Bonuses + Admin Health endpoint"
