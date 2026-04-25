@@ -65,6 +65,15 @@ import ThemeToggle from '../../components/profile/ThemeToggle';
 import AuthTransitionOverlay from '../../components/auth/AuthTransitionOverlay';
 import StreakCoinsHealthCard from '../../components/profile/StreakCoinsHealthCard';
 import { sendTestPush } from '../../hooks/usePushNotifications';
+import PinSetupModal from '../../components/PinSetupModal';
+import { 
+  biometricAvailable, 
+  isBiometricEnabled, 
+  supportedBiometricLabel, 
+  hasPin, 
+  setBiometricEnabled, 
+  tryBiometric 
+} from '../../utils/lockManager';
 
 function ProfileScreen() {
   const s = useStyles();
