@@ -1,7 +1,7 @@
 import { Stack, router } from 'expo-router';
 import React, { useEffect } from 'react';
 import { StatusBar } from 'expo-status-bar';
-import { LogBox, Platform, View } from 'react-native';
+import { LogBox, Platform, View, TextInput } from 'react-native';
 import Toast from 'react-native-toast-message';
 import { toastConfig } from '../components/ToastConfig';
 import { useAuthStore } from '../store/authStore';
@@ -37,6 +37,16 @@ const NOISY_PATTERNS = [
   'Listening to push token changes is not yet fully supported on web',
 ];
 LogBox.ignoreLogs(NOISY_PATTERNS);
+
+// Round 47 perf — set sensible cross-platform defaults on TextInput so we
+// don't have to repeat them on 23+ files:
+//  • selectionColor: makes the cursor visible on dark backgrounds (iOS bug)
+//  • placeholderTextColor: medium-grey works against both light & dark cards
+// Setting once on TextInput.defaultProps applies to every <TextInput /> in
+// the tree; individual components can still override with their own props.
+((TextInput as any).defaultProps ||= {});
+(TextInput as any).defaultProps.selectionColor = '#F56E1E'; // brand
+(TextInput as any).defaultProps.cursorColor = '#F56E1E';    // Android-only API
 
 // react-native-web routes warnings through console.warn — LogBox does not intercept there.
 // Patch it once at startup so 3rd-party library deprecations don't spam the browser console.
