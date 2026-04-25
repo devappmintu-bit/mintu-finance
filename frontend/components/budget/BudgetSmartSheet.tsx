@@ -30,6 +30,11 @@ import {
   Animated, Easing, Platform, PanResponder, ActivityIndicator,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+// Round 47 — when this sheet is mounted inside a @gorhom/bottom-sheet
+// (GlassSheet), regular RN ScrollView doesn't share gestures with the
+// parent sheet — content past the snap point becomes unreachable.
+// BottomSheetScrollView fixes scroll propagation and clipping.
+import { BottomSheetScrollView } from '@gorhom/bottom-sheet';
 import { LinearGradient } from 'expo-linear-gradient';
 import * as Haptics from 'expo-haptics';
 import api from '../../utils/api';
@@ -273,10 +278,10 @@ export default function BudgetSmartSheet({ editing, currentSpent, onSubmit, onCl
           <ActivityIndicator color="#F56E1E" />
         </View>
       ) : (
-        <ScrollView
+        <BottomSheetScrollView
           keyboardShouldPersistTaps="handled"
           showsVerticalScrollIndicator={false}
-          contentContainerStyle={{ paddingBottom: 32 }}
+          contentContainerStyle={{ paddingBottom: 120 }}
         >
           {/* Round 38 — over-limit warning, only when editing an existing
               budget that's already been overspent. Surfaces the gap in
@@ -609,7 +614,7 @@ export default function BudgetSmartSheet({ editing, currentSpent, onSubmit, onCl
               <Text style={s.ctaTxt}>{submitting ? 'Saving…' : !isOnline ? "Offline — can't save" : ctaText}</Text>
             </LinearGradient>
           </TouchableOpacity>
-        </ScrollView>
+        </BottomSheetScrollView>
       )}
     </View>
   );
