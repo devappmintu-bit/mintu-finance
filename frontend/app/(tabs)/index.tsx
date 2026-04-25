@@ -141,30 +141,34 @@ function HomeScreen() {
         console.warn('home/bundle failed, fallback', bundleErr);
       }
 
-      // Fallback parallel calls
-      const [profileRes, statsRes, txnRes, avatarRes, snapRes] = await Promise.all([
+      // Round 48 perf — Phase 1 must paint the home shell ASAP. We keep the
+      // 3 calls that drive above-the-fold UI (user, stats, recent txns) and
+      // move avatar + snapshot into Phase 2. On a slow mobile network this
+      // cuts ~200-500 ms off perceived TTI because the home tree paints with
+      // the avatar initial fallback while the avatar request finishes after.
+      const [profileRes, statsRes, txnRes] = await Promise.all([
         fetchCurrentUser().then(data => ({ data })),
         fetchStatsOverview().then(data => ({ data })),
         fetchTransactions({ limit: 5 }).then(data => ({ data })),
-        fetchAvatar().then(data => ({ data })),
-        api.get('/home/snapshot').catch(() => ({ data: null })),
       ]);
       setUser(profileRes.data);
       setStats(statsRes.data);
       setRecentTxns(Array.isArray(txnRes.data) ? txnRes.data.slice(0, 4) : []);
-      if (avatarRes.data?.avatar) setAvatar(avatarRes.data.avatar);
-      if (snapRes.data) setSnapshot(snapRes.data);
       setLoading(false);
 
       InteractionManager.runAfterInteractions(async () => {
         try {
-          const [alertsRes, reportRes, predRes, coinsRes, _openCoinsAward] = await Promise.all([
+          const [avatarRes, snapRes, alertsRes, reportRes, predRes, coinsRes, _openCoinsAward] = await Promise.all([
+            fetchAvatar().then(data => ({ data })).catch(() => ({ data: null })),
+            api.get('/home/snapshot').catch(() => ({ data: null })),
             api.get('/alerts/smart').catch(() => ({ data: { alerts: [] } })),
             api.get('/reports/weekly').catch(() => ({ data: null })),
             api.get('/ai/predict').catch(() => ({ data: null })),
             api.get('/coins/status').catch(() => ({ data: null })),
             awardCoins('open_app_daily').then(data => ({ data })).catch(() => ({ data: null })),
           ]);
+          if (avatarRes.data?.avatar) setAvatar(avatarRes.data.avatar);
+          if (snapRes.data) setSnapshot(snapRes.data);
           setSmartAlerts(alertsRes.data?.alerts || []);
           if (reportRes.data) setWeeklyReport(reportRes.data);
           if (predRes.data) setPredict(predRes.data);
@@ -173,8 +177,9 @@ function HomeScreen() {
             setShowConfetti(true);
           }
         } catch (e) { console.error('Phase2 err', e); }
+        // News fires last so list paints before remote feeds arrive
+        fetchNews(false);
       });
-      fetchNews(false);
     } catch (error) {
       console.error('Dashboard fetch error:', error);
       // Round 34 fix — surface the failure so users know to retry
