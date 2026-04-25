@@ -226,8 +226,16 @@ function CardContent({ item, emoji, catColor, statusColor, limit, spent, pct, ov
         </View>
       </View>
 
-      {/* Animated gradient fill — glassy soft-UI */}
-      <View style={s.track}>
+      {/* Animated gradient fill — glassy soft-UI.
+          Round 38 — wrap with progressbar role + value so screen readers
+          announce "{category} budget, 47 percent of ₹5000 used". */}
+      <View
+        style={s.track}
+        accessible
+        accessibilityRole="progressbar"
+        accessibilityLabel={`${item.category} budget`}
+        accessibilityValue={{ min: 0, max: 100, now: Math.round(Math.min(100, pct || 0)), text: `${formatINR(spent)} of ${formatINR(limit)} used` }}
+      >
         <Animated.View style={[s.fill, { width: fillWidth }]}>
           <LinearGradient
             colors={[statusColor, statusColor + 'AA']}

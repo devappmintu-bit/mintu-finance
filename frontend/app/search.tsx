@@ -77,9 +77,9 @@ export default function SearchScreen() {
     try { Haptics.selectionAsync(); } catch {}
     router.push('/(tabs)/transactions' as any);
   };
-  const onPressBudget = () => { commitSearch(); router.push('/(tabs)/budget' as any); };
-  const onPressGoal = () => { commitSearch(); router.push('/goals' as any); };
-  const onPressGroup = () => { commitSearch(); router.push('/(tabs)/split' as any); };
+  const onPressBudget = () => { commitSearch(); try { Haptics.selectionAsync(); } catch {} router.push('/(tabs)/budget' as any); };
+  const onPressGoal = () => { commitSearch(); try { Haptics.selectionAsync(); } catch {} router.push('/goals' as any); };
+  const onPressGroup = () => { commitSearch(); try { Haptics.selectionAsync(); } catch {} router.push('/(tabs)/split' as any); };
 
   // Section list data — only include sections that have hits.
   const sections: Array<{ title: string; data: any[]; kind: string }> = [];

@@ -431,6 +431,29 @@ export default function TransactionsScreen() {
               <Text style={styles.formLabel}>{t('description', lang)}</Text>
               <TextInput style={styles.textInput} placeholder="e.g. Lunch at restaurant" placeholderTextColor={COLORS.text.muted} value={formData.description} onChangeText={(v) => setFormData({ ...formData, description: v })} />
               <TouchableOpacity testID="submit-txn-btn" accessibilityRole="button" accessibilityLabel={editingTxn ? 'Update transaction' : 'Add transaction'} style={[styles.submitBtn, submitting && { opacity: 0.6 }]} onPress={handleAdd} disabled={submitting}><Text style={styles.submitText}>{submitting ? (editingTxn ? t('saving', lang) || 'Saving…' : t('adding', lang) || 'Adding…') : (editingTxn ? t('update', lang) : t('add_transaction', lang))}</Text></TouchableOpacity>
+              {/* Round 38 — Delete button INSIDE the edit sheet so users
+                  don't have to close the sheet and find the swipe action. */}
+              {editingTxn && (
+                <TouchableOpacity
+                  testID="delete-txn-btn"
+                  accessibilityRole="button"
+                  accessibilityLabel="Delete transaction"
+                  style={styles.deleteSheetBtn}
+                  onPress={() => {
+                    const id = editingTxn.id;
+                    setModalVisible(false);
+                    // Defer slightly so the sheet has finished its slide-out
+                    // animation before the Alert appears (otherwise iOS
+                    // double-stacks the modals).
+                    setTimeout(() => handleDelete(id), 220);
+                  }}
+                  disabled={submitting}
+                  activeOpacity={0.7}
+                >
+                  <Ionicons name="trash-outline" size={16} color="#DC2626" />
+                  <Text style={styles.deleteSheetTxt}>{t('delete', lang) || 'Delete'} transaction</Text>
+                </TouchableOpacity>
+              )}
             </ScrollView>
           </View>
         </KeyboardAvoidingView>
@@ -569,6 +592,14 @@ const useStyles = makeStyles((c) => ({
   textInput: { backgroundColor: c.bg.primary, borderRadius: RADIUS.xl, paddingHorizontal: SPACING.lg, paddingVertical: 16, fontSize: 16, color: c.text.primary, borderWidth: 1, borderColor: c.border.subtle, marginBottom: SPACING.xxl },
   submitBtn: { backgroundColor: c.accent.primary, borderRadius: RADIUS.full, paddingVertical: 18, alignItems: 'center' },
   submitText: { fontSize: 16, fontWeight: '700', color: c.bg.primary },
+  // Round 38 — destructive delete button inside the edit sheet.
+  deleteSheetBtn: {
+    flexDirection: 'row', gap: 8, alignItems: 'center', justifyContent: 'center',
+    paddingVertical: 14, marginTop: 12,
+    borderRadius: RADIUS.full, borderWidth: 1, borderColor: 'rgba(220,38,38,0.4)',
+    backgroundColor: 'rgba(220,38,38,0.08)',
+  },
+  deleteSheetTxt: { fontSize: 14, fontWeight: '700', color: '#DC2626', letterSpacing: 0.2 },
   smsBanner: { flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: c.accent.warning + '12', borderRadius: RADIUS.lg, padding: SPACING.md, marginBottom: SPACING.lg },
   smsBannerText: { fontSize: 13, color: c.accent.warning, fontWeight: '500' },
   smsInput: { backgroundColor: c.bg.primary, borderRadius: RADIUS.xl, padding: SPACING.lg, fontSize: 15, color: c.text.primary, borderWidth: 1, borderColor: c.border.subtle, minHeight: 120, marginBottom: SPACING.sm },

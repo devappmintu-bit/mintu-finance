@@ -42,21 +42,30 @@ function ProgressRing({ pct, color, size = 88, stroke = 8 }: { pct: number; colo
   const safePct = Math.min(100, Math.max(0, pct));
   const dashOffset = circumference - (circumference * safePct) / 100;
   return (
-    <Svg width={size} height={size}>
-      <Circle cx={size / 2} cy={size / 2} r={radius} stroke="#F3F4F6" strokeWidth={stroke} fill="none" />
-      <Circle
-        cx={size / 2}
-        cy={size / 2}
-        r={radius}
-        stroke={color}
-        strokeWidth={stroke}
-        fill="none"
-        strokeLinecap="round"
-        strokeDasharray={circumference}
-        strokeDashoffset={dashOffset}
-        transform={`rotate(-90 ${size / 2} ${size / 2})`}
-      />
-    </Svg>
+    // Round 38 — wrap SVG so screen readers announce progress meaningfully
+    // ("47 percent of goal completed") rather than reading nothing.
+    <View
+      accessible
+      accessibilityRole="progressbar"
+      accessibilityLabel="Goal progress"
+      accessibilityValue={{ min: 0, max: 100, now: Math.round(safePct) }}
+    >
+      <Svg width={size} height={size}>
+        <Circle cx={size / 2} cy={size / 2} r={radius} stroke="#F3F4F6" strokeWidth={stroke} fill="none" />
+        <Circle
+          cx={size / 2}
+          cy={size / 2}
+          r={radius}
+          stroke={color}
+          strokeWidth={stroke}
+          fill="none"
+          strokeLinecap="round"
+          strokeDasharray={circumference}
+          strokeDashoffset={dashOffset}
+          transform={`rotate(-90 ${size / 2} ${size / 2})`}
+        />
+      </Svg>
+    </View>
   );
 }
 
@@ -364,7 +373,7 @@ export default function GoalsScreen() {
             <View style={s.sheetHandle} />
             <Text style={s.sheetTitle}>{editingGoal ? 'Edit goal' : 'New goal'}</Text>
 
-            <ScrollView showsVerticalScrollIndicator={false}>
+            <ScrollView showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
               <Text style={s.fieldLbl}>Name</Text>
               <TextInput
                 style={s.input}

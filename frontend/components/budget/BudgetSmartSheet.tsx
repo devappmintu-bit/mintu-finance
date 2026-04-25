@@ -69,6 +69,8 @@ type Props = {
     description?: string;
     goal_id?: string | null;
   } | null;
+  /** Round 38 — current spent in the period; shown as warning if over limit. */
+  currentSpent?: number;
   onSubmit: (payload: {
     category: string;
     amount: number;
@@ -95,7 +97,7 @@ function fmtCompact(n: number) {
   return String(Math.round(n));
 }
 
-export default function BudgetSmartSheet({ editing, onSubmit, onClose, submitting }: Props) {
+export default function BudgetSmartSheet({ editing, currentSpent, onSubmit, onClose, submitting }: Props) {
   const [loading, setLoading] = useState(true);
   const [data, setData] = useState<{ monthly_income: number; categories: SmartCategory[] } | null>(null);
   const [category, setCategory] = useState<string>(editing?.category || 'Food');
@@ -274,6 +276,21 @@ export default function BudgetSmartSheet({ editing, onSubmit, onClose, submittin
           showsVerticalScrollIndicator={false}
           contentContainerStyle={{ paddingBottom: 32 }}
         >
+          {/* Round 38 — over-limit warning, only when editing an existing
+              budget that's already been overspent. Surfaces the gap in
+              red so users see the urgency before tweaking the limit. */}
+          {editing && typeof currentSpent === 'number' && currentSpent > editing.amount && (
+            <View style={s.overLimitBanner} accessibilityLiveRegion="polite">
+              <Ionicons name="warning" size={20} color="#DC2626" />
+              <View style={{ flex: 1 }}>
+                <Text style={s.overLimitTitle}>You've exceeded this budget</Text>
+                <Text style={s.overLimitBody}>
+                  Spent ₹{fmt(currentSpent)} of ₹{fmt(editing.amount)} ·
+                  <Text style={{ fontWeight: '900' }}> ₹{fmt(currentSpent - editing.amount)} over</Text>
+                </Text>
+              </View>
+            </View>
+          )}
           {/* 1. Smart Category Selector */}
           <Text style={s.label}>CATEGORY</Text>
           <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 10, paddingVertical: 4 }}>
@@ -627,6 +644,15 @@ const s = StyleSheet.create({
   amountRow: { flexDirection: 'row', alignItems: 'baseline', gap: 6 },
   amountRupee: { fontSize: 40, fontWeight: '900', color: '#111827', letterSpacing: -1.5 },
   amountInput: { flex: 1, fontSize: 40, fontWeight: '900', color: '#111', letterSpacing: -1.5, padding: 0 },
+  // Round 38 — over-limit warning banner.
+  overLimitBanner: {
+    flexDirection: 'row', alignItems: 'flex-start', gap: 10,
+    backgroundColor: 'rgba(220,38,38,0.08)', borderColor: 'rgba(220,38,38,0.35)',
+    borderWidth: 1, borderRadius: 12, padding: 12,
+    marginBottom: 16,
+  },
+  overLimitTitle: { fontSize: 13, fontWeight: '900', color: '#DC2626', marginBottom: 2 },
+  overLimitBody: { fontSize: 12, color: '#7F1D1D', lineHeight: 16 },
   presetRow: { flexDirection: 'row', gap: 8, flexWrap: 'wrap' },
   presetChip: { paddingHorizontal: 12, paddingVertical: 7, borderRadius: 999, backgroundColor: '#fff', borderWidth: 1, borderColor: '#FDE68A' },
   presetChipOn: { backgroundColor: '#F56E1E', borderColor: '#F56E1E' },

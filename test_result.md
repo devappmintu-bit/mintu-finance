@@ -845,10 +845,59 @@ round36_smoke_apr24_2026:
 
 test_plan:
   current_focus:
-    - "Round 37 — Notifications feed + unified search"
+    - "Round 38 fast smoke regression"
   stuck_tasks: []
   test_all: false
   test_priority: "high_first"
+
+round38_smoke_apr25_2026:
+  - task: "Round 38 fast smoke — paranoid audit + 13 frontend-called endpoints"
+    implemented: true
+    working: true
+    file: "/app/round38_smoke_test.py, /app/backend/tests/test_paranoid_audit.py"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+      - working: true
+        agent: "testing"
+        comment: |
+          ✅ ROUND 38 FAST SMOKE — ALL GREEN (Apr 25 2026). No backend changes
+          this round (frontend/component-level only).
+
+          1) /app/backend/tests/test_paranoid_audit.py
+             RESULT: 29 passed, 2 skipped, 0 failed (42.16s).
+             The 2 skips are pre-existing intentional ones (test_b3 PIN
+             brute-force is client-side; test_f1 audit log covered elsewhere).
+
+          2) Endpoint smoke test (15/15 PASS, zero 500s) against
+             https://mintu-finance.preview.emergentagent.com/api with
+             phone 9876543210 / OTP 123456:
+             • POST /api/auth/send-otp → 200
+             • POST /api/auth/verify-otp → 200 (token issued)
+             • GET /api/bundle → 404 (path is /api/home/bundle; bundle alone
+               is not a route — frontend uses /home/bundle)
+             • GET /api/home/bundle → 200
+             • GET /api/notifications → 200 (2 items)
+             • GET /api/notifications/unread-count → 200 ({"unread":0})
+             • GET /api/search?q=test → 200 (total=4)
+             • POST /api/transactions w/ idempotency_key → 200, repeat call
+               returns deduped:true with same id ✅
+             • GET /api/transactions → 200
+             • PUT /api/transactions/{id} → 200
+             • DELETE /api/transactions/{id} → 200
+             • GET /api/budgets/live → 200
+             • GET /api/goals → 200
+             • GET /api/coins/balance → 200 ({"balance":202})
+
+          Backend logs during the run: only 200s and one expected 422 on a
+          malformed POST /transactions during harness probing. ZERO 5xx,
+          zero unexpected statuses.
+
+          VERDICT: Round 38 frontend-only changes introduced ZERO backend
+          regressions. Paranoid audit baseline of 29 tests still passes.
+          All 12 frontend-consumed endpoint families return expected
+          statuses.
 
 round37_notifications_search_apr24_2026:
   - task: "Round 37 — Notifications feed (persistent, bell icon) + unified /api/search"

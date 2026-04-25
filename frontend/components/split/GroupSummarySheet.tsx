@@ -15,23 +15,61 @@ type Props = {
   onDeleteExpense: (exp: any) => void;
   onPay: (debt: any) => void;
   onRemindLegacy: (name: string, amt: number) => void;
+  // Round 38 — optional rename/leave hooks. Passed by split.tsx; the sheet
+  // gracefully degrades if a caller doesn't wire them.
+  onRename?: () => void;
+  onLeave?: () => void;
+  hasOutstandingBalance?: boolean;
 };
 
-export default function GroupSummarySheet({ visible, onClose, summary, onAddExpense, onEditExpense, onDeleteExpense, onPay, onRemindLegacy }: Props) {
+export default function GroupSummarySheet({ visible, onClose, summary, onAddExpense, onEditExpense, onDeleteExpense, onPay, onRemindLegacy, onRename, onLeave, hasOutstandingBalance }: Props) {
   const s = useStyles();
   return (
     <Modal visible={visible} animationType="slide" transparent>
       <View style={s.mBg}>
-        <View style={[s.sheet, { maxHeight: '92%' }]}>
+        <View style={[s.sheet, { maxHeight: '92%' }]} accessibilityViewIsModal>
           <View style={s.handle} />
           <View style={s.sheetH}>
             <LinearGradient colors={getGA(summary?.group_name || '').colors.map((c: string) => c + '25') as any} style={s.groupAv}>
               <Text style={{ fontSize: 16 }}>{getGA(summary?.group_name || '').emoji}</Text>
             </LinearGradient>
-            <Text style={[s.sheetT, { flex: 1 }]}>{summary?.group_name}</Text>
-            <TouchableOpacity onPress={onClose}><Ionicons name="close-circle" size={28} color={C.text4} /></TouchableOpacity>
+            <Text style={[s.sheetT, { flex: 1 }]} numberOfLines={1} ellipsizeMode="tail">{summary?.group_name}</Text>
+            {/* Round 38 — kebab menu for rename / leave when callbacks provided */}
+            {(onRename || onLeave) && (
+              <TouchableOpacity
+                onPress={() => {
+                  // Tiny inline action sheet via Alert — no extra component needed.
+                  const RN = require('react-native');
+                  const opts: any[] = [];
+                  if (onRename) opts.push({ text: 'Rename group', onPress: onRename });
+                  if (onLeave) opts.push({
+                    text: 'Leave group',
+                    style: 'destructive',
+                    onPress: () => {
+                      if (hasOutstandingBalance) {
+                        RN.Alert.alert('Settle first', 'You have an outstanding balance in this group. Settle up before leaving.');
+                      } else {
+                        RN.Alert.alert('Leave group?', "You won't see new expenses or be added to splits.", [
+                          { text: 'Cancel', style: 'cancel' },
+                          { text: 'Leave', style: 'destructive', onPress: onLeave },
+                        ]);
+                      }
+                    },
+                  });
+                  opts.push({ text: 'Cancel', style: 'cancel' });
+                  RN.Alert.alert(summary?.group_name || 'Group', undefined, opts);
+                }}
+                hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                accessibilityRole="button"
+                accessibilityLabel="More options"
+                style={{ marginRight: 6 }}
+              >
+                <Ionicons name="ellipsis-horizontal" size={22} color={C.text3} />
+              </TouchableOpacity>
+            )}
+            <TouchableOpacity onPress={onClose} accessibilityRole="button" accessibilityLabel="Close"><Ionicons name="close-circle" size={28} color={C.text4} /></TouchableOpacity>
           </View>
-          <ScrollView showsVerticalScrollIndicator={false}>
+          <ScrollView showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
             <View style={s.sumStats}>
               <View style={s.sumStat}>
                 <Text style={s.sumV}>{`₹${(summary?.total_spent || 0).toFixed(0)}`}</Text>
@@ -46,46 +84,65 @@ export default function GroupSummarySheet({ visible, onClose, summary, onAddExpe
                 {summary.simplified_debts.map((d: any, i: number) => (
                   <View key={i} style={s.debtRow}>
                     <View style={s.debtInfo}>
-                      <Text style={[s.debtN, { color: C.red }]}>{d.from_name}</Text>
+                      <Text style={[s.debtN, { color: C.red }]} numberOfLines={1}>{d.from_name}</Text>
                       <Ionicons name="arrow-forward" size={14} color={C.text4} />
-                      <Text style={[s.debtN, { color: C.green }]}>{d.to_name}</Text>
+                      <Text style={[s.debtN, { color: C.green }]} numberOfLines={1}>{d.to_name}</Text>
                     </View>
                     <Text style={s.debtA}>{`₹${d.amount.toFixed(0)}`}</Text>
-                    <TouchableOpacity onPress={() => onPay(d)}>
+                    <TouchableOpacity onPress={() => onPay(d)} accessibilityRole="button" accessibilityLabel={`Pay ₹${Math.round(d.amount)} to ${d.to_name}`}>
                       <LinearGradient colors={[C.accent, C.accentLight]} style={s.payBtn}>
                         <Ionicons name="card" size={14} color={C.inv} />
                         <Text style={s.payBtnT}>Pay</Text>
                       </LinearGradient>
                     </TouchableOpacity>
-                    <TouchableOpacity style={s.waBtn} onPress={() => onRemindLegacy(d.to_name, d.amount)}>
+                    <TouchableOpacity style={s.waBtn} onPress={() => onRemindLegacy(d.to_name, d.amount)} accessibilityRole="button" accessibilityLabel={`Remind ${d.to_name} on WhatsApp`}>
                       <Ionicons name="logo-whatsapp" size={18} color="#25D366" />
                     </TouchableOpacity>
                   </View>
                 ))}
               </>
             )}
+            {/* Round 38 — All-settled celebratory state when no debts */}
+            {summary && (!summary.simplified_debts || summary.simplified_debts.length === 0) && (
+              <View style={s.allSettled}>
+                <Text style={{ fontSize: 24 }}>🎉</Text>
+                <Text style={s.allSettledTxt}>Everyone's settled up</Text>
+              </View>
+            )}
             {summary?.recent_expenses?.length > 0 && (
               <>
                 <Text style={s.sumSec}>Activity</Text>
-                {summary.recent_expenses.map((e: any, i: number) => (
-                  <View key={i} style={s.actRow}>
-                    <View style={s.actDot} />
-                    <View style={{ flex: 1 }}>
-                      <Text style={s.actDesc}>{e.description}</Text>
-                      <Text style={s.actMeta}>Paid by {e.paid_by_name}</Text>
+                {summary.recent_expenses.map((e: any, i: number) => {
+                  // Round 38 — derive a relative date so users can scan
+                  // who-paid-when at a glance.
+                  let dateLbl = '';
+                  if (e.created_at || e.date) {
+                    try {
+                      const dt = new Date(e.created_at || e.date);
+                      const days = Math.floor((Date.now() - dt.getTime()) / 86400000);
+                      dateLbl = days === 0 ? 'Today' : days === 1 ? 'Yesterday' : days < 7 ? `${days}d ago` : dt.toLocaleDateString('en-IN', { day: 'numeric', month: 'short' });
+                    } catch {}
+                  }
+                  return (
+                    <View key={i} style={s.actRow}>
+                      <View style={s.actDot} />
+                      <View style={{ flex: 1 }}>
+                        <Text style={s.actDesc} numberOfLines={1} ellipsizeMode="tail">{e.description}</Text>
+                        <Text style={s.actMeta} numberOfLines={1}>Paid by {e.paid_by_name}{dateLbl ? `  ·  ${dateLbl}` : ''}</Text>
+                      </View>
+                      <Text style={s.actAmt}>{`₹${e.amount.toFixed(0)}`}</Text>
+                      <TouchableOpacity onPress={() => onEditExpense(e)} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }} style={s.actIcon} accessibilityRole="button" accessibilityLabel={`Edit ${e.description}`}>
+                        <Ionicons name="create-outline" size={18} color={C.accent} />
+                      </TouchableOpacity>
+                      <TouchableOpacity onPress={() => onDeleteExpense(e)} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }} style={s.actIcon} accessibilityRole="button" accessibilityLabel={`Delete ${e.description}`}>
+                        <Ionicons name="trash-outline" size={18} color={C.red} />
+                      </TouchableOpacity>
                     </View>
-                    <Text style={s.actAmt}>{`₹${e.amount.toFixed(0)}`}</Text>
-                    <TouchableOpacity onPress={() => onEditExpense(e)} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }} style={s.actIcon}>
-                      <Ionicons name="create-outline" size={18} color={C.accent} />
-                    </TouchableOpacity>
-                    <TouchableOpacity onPress={() => onDeleteExpense(e)} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }} style={s.actIcon}>
-                      <Ionicons name="trash-outline" size={18} color={C.red} />
-                    </TouchableOpacity>
-                  </View>
-                ))}
+                  );
+                })}
               </>
             )}
-            <TouchableOpacity onPress={onAddExpense}>
+            <TouchableOpacity onPress={onAddExpense} accessibilityRole="button" accessibilityLabel="Add expense to group">
               <LinearGradient colors={[C.accent, C.accentLight]} style={[s.primaryBtn, { marginTop: 16 }]}>
                 <Ionicons name="add" size={18} color={C.inv} />
                 <Text style={s.primaryBtnText}> Add Expense</Text>
@@ -125,4 +182,12 @@ const useStyles = makeStyles((c) => ({
   actIcon: { padding: 4, marginLeft: 4 },
   primaryBtn: { borderRadius: 16, paddingVertical: 16, alignItems: 'center', justifyContent: 'center', flexDirection: 'row' },
   primaryBtnText: { fontSize: 16, fontWeight: '700', color: C.inv },
+  // Round 38 — celebratory "all-settled" empty state for the debts section.
+  allSettled: {
+    flexDirection: 'row', alignItems: 'center', gap: 10,
+    backgroundColor: 'rgba(16,185,129,0.10)', borderColor: 'rgba(16,185,129,0.35)',
+    borderWidth: 1, borderRadius: 14, paddingVertical: 14, paddingHorizontal: 16,
+    marginTop: 4, marginBottom: 8,
+  },
+  allSettledTxt: { fontSize: 14, fontWeight: '700', color: '#059669' },
 }));

@@ -338,6 +338,9 @@ export default function BudgetScreen() {
             recurring: editingBudget.recurring !== false,
             description: editingBudget.description,
           } : null}
+          // Round 38 — pass current period spend so the sheet can render an
+          // over-limit warning. `spent` is provided by /budgets/live.
+          currentSpent={editingBudget ? Number(editingBudget.spent || 0) : undefined}
           submitting={aiCategorizing}
           onClose={() => { setModalVisible(false); setEditingBudget(null); budgetSheetRef.current?.dismiss?.(); }}
           onSubmit={async (payload) => {
