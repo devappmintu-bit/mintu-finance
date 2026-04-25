@@ -68,13 +68,14 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   logout: async () => { await (get().lock()); },
   removeAccount: async () => {
     await AsyncStorage.removeItem('token');
-    await AsyncStorage.removeItem(AVATAR_KEY);
-    await AsyncStorage.removeItem(LOCKED_KEY);
-    try { const { clearPin } = await import('../utils/lockManager'); await clearPin(); } catch {}
-    // Wipe the SWR cache so cached data from the previous session
-    // doesn't leak into a new login. Fixes the "deleted user's data
-    // still visible" bug.
-    try { const { clearSwrCache } = await import('../utils/swrGet'); await clearSwrCache(); } catch {}
+    // ── Comprehensive cleanup — wipes SWR cache, PIN, premium, avatar,
+    // search history, push token, biometric prefs, and the current-user
+    // marker. Single source of truth in utils/sessionReset.ts so this
+    // can never drift from the auth.tsx ensureCleanSessionFor() path.
+    try {
+      const { resetSessionState } = await import('../utils/sessionReset');
+      await resetSessionState();
+    } catch { /* noop */ }
     set({ user: null, token: null, avatar: '', locked: false });
   },
   loadFromStorage: async () => {
