@@ -82,14 +82,19 @@ export default function useSwr<T = any>(url: string | null, opts: Options = {}):
   // Initial load + on dep change
   useEffect(() => { load(); }, [load]);
 
-  // Re-validate on focus (Round 43 perf — throttled to once per 15 s so
-  // tab-bouncing or quick alt-tabs don't fire dozens of redundant requests).
+  // Re-validate on focus (Round 43+44 perf — only refetch if BOTH:
+  //  • the cache TTL window has elapsed since the last load AND
+  //  • the throttle window has elapsed since the last load.
+  // Tab-bouncing or alt-tabs within ttlMs no longer fire any network
+  // request — a cache-fresh focus is now a true no-op.)
   useFocusEffect(
     useCallback(() => {
       if (!refetchOnFocus || !url || paused) return;
-      if (Date.now() - lastLoadAtRef.current < FOCUS_THROTTLE_MS) return;
+      const sinceLast = Date.now() - lastLoadAtRef.current;
+      if (sinceLast < FOCUS_THROTTLE_MS) return;
+      if (sinceLast < ttlMs) return;
       load();
-    }, [refetchOnFocus, url, paused, load])
+    }, [refetchOnFocus, url, paused, load, ttlMs])
   );
 
   // Subscribe to invalidation events (Round 30d — data graph sync).

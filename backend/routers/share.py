@@ -23,15 +23,23 @@ async def get_score_card_data(user_id: str = Depends(get_current_user)):
     total_saved = sum(t["amount"] for t in txns if t["type"] == "credit") - sum(t["amount"] for t in txns if t["type"] == "debit")
     score = user.get("money_score", 50)
     
-    # Calculate streak
+    # Calculate streak — Round 44 perf: was 365 sequential find_one calls.
+    # Single aggregation bucketed by day, then walk in Python.
     today = datetime.utcnow().replace(hour=0, minute=0, second=0, microsecond=0)
+    earliest = today - timedelta(days=365)
+    days_with_txn: set[str] = set()
+    async for d in db.transactions.aggregate([
+        {"$match": {"user_id": user_id, "date": {"$gte": earliest}}},
+        {"$group": {"_id": {"$dateToString": {"format": "%Y-%m-%d", "date": "$date"}}}},
+    ]):
+        days_with_txn.add(d["_id"])
     streak = 0
     for i in range(365):
-        day_start = today - timedelta(days=i)
-        day_end = day_start + timedelta(days=1)
-        has = await db.transactions.find_one({"user_id": user_id, "date": {"$gte": day_start, "$lt": day_end}})
-        if has: streak += 1
-        elif i > 0: break
+        day = (today - timedelta(days=i)).strftime("%Y-%m-%d")
+        if day in days_with_txn:
+            streak += 1
+        elif i > 0:
+            break
     
     return {
         "name": user.get("name", "User"),

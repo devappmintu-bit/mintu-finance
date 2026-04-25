@@ -102,7 +102,9 @@ export default function SearchScreen() {
 
   const fmt = (n: number) => `₹${Math.round(n).toLocaleString('en-IN')}`;
 
-  const renderItem = ({ item, section }: any) => {
+  // Round 44 perf — wrap in useCallback so SectionList doesn't get a new
+  // function reference on every render (which would invalidate row memoization).
+  const renderItem = React.useCallback(({ item, section }: any) => {
     if (section.kind === 'txn') {
       return (
         <TouchableOpacity style={s.row} onPress={() => onPressTxn(item.id)} activeOpacity={0.7}>
@@ -156,7 +158,7 @@ export default function SearchScreen() {
       );
     }
     return null;
-  };
+  }, [onPressTxn, onPressBudget]);
 
   const body = (() => {
     // Before user types — recent searches or hint.

@@ -33,16 +33,29 @@ WEEKLY_CHALLENGES = [
 
 
 async def _compute_streak(user_id: str) -> int:
-    """Scan back from today until we hit a day with no transaction."""
+    """Scan back from today until we hit a day with no transaction.
+
+    Round 44 perf — was 365 sequential `find_one` queries (one per day).
+    Now we do ONE aggregation that buckets transactions by day, then walk
+    the result set in Python. Drops the cost from O(365 round-trips) to
+    O(1 round-trip).
+    """
     today = datetime.utcnow().replace(hour=0, minute=0, second=0, microsecond=0)
+    earliest = today - timedelta(days=365)
+    pipeline = [
+        {"$match": {"user_id": user_id, "date": {"$gte": earliest}}},
+        {"$group": {
+            "_id": {"$dateToString": {"format": "%Y-%m-%d", "date": "$date"}},
+        }},
+    ]
+    days_with_txn: set[str] = set()
+    async for d in db.transactions.aggregate(pipeline):
+        days_with_txn.add(d["_id"])
+
     streak = 0
     for i in range(365):
-        day_start = today - timedelta(days=i)
-        day_end = day_start + timedelta(days=1)
-        has_txn = await db.transactions.find_one(
-            {"user_id": user_id, "date": {"$gte": day_start, "$lt": day_end}}
-        )
-        if has_txn:
+        day = (today - timedelta(days=i)).strftime("%Y-%m-%d")
+        if day in days_with_txn:
             streak += 1
         elif i > 0:
             break  # allow today to not have a txn yet

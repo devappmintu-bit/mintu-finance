@@ -726,14 +726,22 @@ async def rewards_social_feed(user_id: str = Depends(get_current_user)) -> Dict[
     try:
         cur = db.reward_spins.find({"user_id": {"$ne": user_id}}).sort("created_at", -1).limit(8)
         rows = await cur.to_list(8)
+        # Round 44 perf — batch user lookup ($in) instead of per-row find_one
+        spin_user_ids = []
         for r in rows:
-            # Look up user name
             try:
-                u = await db.users.find_one({"_id": safe_oid(str(r.get("user_id", "")))})
-                name = (u or {}).get("display_name") or (u or {}).get("name") or "Someone"
-                first = name.split()[0] if isinstance(name, str) else "Someone"
+                spin_user_ids.append(safe_oid(str(r.get("user_id", ""))))
             except Exception:
-                first = "Someone"
+                pass
+        spin_user_ids = [oid for oid in spin_user_ids if oid is not None]
+        spin_user_map: dict[str, dict] = {}
+        if spin_user_ids:
+            async for u in db.users.find({"_id": {"$in": spin_user_ids}}, {"name": 1, "display_name": 1}):
+                spin_user_map[str(u["_id"])] = u
+        for r in rows:
+            u = spin_user_map.get(str(r.get("user_id", "")))
+            name = (u or {}).get("display_name") or (u or {}).get("name") or "Someone"
+            first = name.split()[0] if isinstance(name, str) else "Someone"
             prize = next((p for p in PRIZES if p["id"] == r.get("prize_id")), None)
             if prize and prize["kind"] != "none":
                 items.append({

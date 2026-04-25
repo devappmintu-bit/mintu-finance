@@ -6,7 +6,8 @@
  * now a no-op and always resolves to the canonical mascot.
  */
 import React from 'react';
-import { View, Image, StyleSheet, StyleProp, ViewStyle, Platform } from 'react-native';
+import { View, StyleSheet, StyleProp, ViewStyle, Platform } from 'react-native';
+import { Image } from 'expo-image';
 import { COLORS } from '../utils/theme';
 import { makeStyles } from '../utils/makeStyles';
 
@@ -24,7 +25,7 @@ export default function Mascot({ size = 48, style, glow = false }: Props) {
   const styles = useStyles();
   return (
     <View style={[styles.wrap, { width: size, height: size }, glow && glowStyle(size), style]}>
-      <Image source={MASCOT} style={{ width: size, height: size }} resizeMode="contain" />
+      <Image source={MASCOT} style={{ width: size, height: size }} contentFit="contain" />
     </View>
   );
 }

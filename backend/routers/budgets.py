@@ -324,16 +324,39 @@ def _period_start(period: str) -> datetime:
 
 @router.get("")
 async def get_budgets(user_id: str = Depends(get_current_user)):
-    """List all budgets with current `spent` computed against the period."""
+    """List all budgets with current `spent` computed against the period.
+
+    Round 44 perf — was N+1 (one txn query per budget). Now we run a
+    single aggregation per period type ($in on category) and bucket the
+    sums in Python. With 5 budgets across 2 periods, the request drops
+    from 5 round-trips to 2.
+    """
     budgets = await db.budgets.find({"user_id": user_id}).to_list(100)
+    if not budgets:
+        return []
+
+    # Group budgets by period — each period needs a separate aggregation
+    # because the date filter differs.
+    by_period: dict[str, list[str]] = {}
     for b in budgets:
-        txns = await db.transactions.find({
-            "user_id": user_id,
-            "category": b["category"],
-            "type": "debit",
-            "date": {"$gte": _period_start(b["period"])},
-        }).to_list(1000)
-        b["spent"] = sum(t["amount"] for t in txns)
+        by_period.setdefault(b["period"], []).append(b["category"])
+
+    spent_map: dict[tuple[str, str], float] = {}  # (period, category) → spent
+    for period, categories in by_period.items():
+        pipeline = [
+            {"$match": {
+                "user_id": user_id,
+                "type": "debit",
+                "category": {"$in": categories},
+                "date": {"$gte": _period_start(period)},
+            }},
+            {"$group": {"_id": "$category", "total": {"$sum": "$amount"}}},
+        ]
+        async for doc in db.transactions.aggregate(pipeline):
+            spent_map[(period, doc["_id"])] = float(doc["total"] or 0)
+
+    for b in budgets:
+        b["spent"] = spent_map.get((b["period"], b["category"]), 0.0)
         b["id"] = str(b.pop("_id"))
     return budgets
 

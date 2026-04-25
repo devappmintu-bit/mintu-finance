@@ -117,11 +117,17 @@ async def referral_leaderboard():
         {"$limit": 10},
     ]
     results = await db.referrals.aggregate(pipeline).to_list(10)
+    # Round 44 perf — was N+1: one users.find_one per row. Single $in batch.
+    user_ids = [ObjectId(r["_id"]) for r in results if r.get("_id")]
+    user_map: dict[str, dict] = {}
+    if user_ids:
+        async for u in db.users.find({"_id": {"$in": user_ids}}, {"name": 1}):
+            user_map[str(u["_id"])] = u
     leaderboard = []
     for r in results:
-        user = await db.users.find_one({"_id": ObjectId(r["_id"])}, {"name": 1})
-        if user:
-            leaderboard.append({"name": user["name"], "referrals": r["count"]})
+        u = user_map.get(str(r["_id"]))
+        if u:
+            leaderboard.append({"name": u.get("name", "Friend"), "referrals": r["count"]})
     return {"leaderboard": leaderboard}
 
 
@@ -148,10 +154,15 @@ async def enhanced_referral_status(user_id: str = Depends(get_current_user)):
     next_tier = next((t for t in reward_tiers if not t["unlocked"]), None)
 
     recent = []
+    # Round 44 perf — batch user lookup instead of one find_one per referral
+    referred_ids = [ObjectId(r["referred_id"]) for r in referrals[:5] if r.get("referred_id")]
+    name_map: dict[str, str] = {}
+    if referred_ids:
+        async for u in db.users.find({"_id": {"$in": referred_ids}}, {"name": 1}):
+            name_map[str(u["_id"])] = u.get("name", "Friend")
     for ref in referrals[:5]:
-        referred = await db.users.find_one({"_id": ObjectId(ref["referred_id"])}, {"name": 1})
         recent.append({
-            "name": referred.get("name", "Friend") if referred else "Friend",
+            "name": name_map.get(str(ref.get("referred_id", "")), "Friend"),
             "date": ref["created_at"],
         })
 
