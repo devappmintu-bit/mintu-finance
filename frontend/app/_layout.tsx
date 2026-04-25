@@ -97,6 +97,32 @@ export default function RootLayout() {
     loadThemePref();
   }, []);
 
+  // ── Cold-start safety net (Round 48 clean-session audit) ──────────────
+  // After loadFromStorage() resolves, if there is NO valid token, we know
+  // the app is starting in a logged-out state. In that case wipe ALL
+  // per-user device state as a defensive measure — guards against:
+  //   • A previous logout that crashed mid-flow leaving residual SecureStore PIN
+  //   • Demo/dev/test data baked into AsyncStorage from earlier builds
+  //   • A user who manually cleared just the auth token from devtools
+  // Fully idempotent — running clearSessionState on a truly empty device is a
+  // no-op so we don't pay any cost on first install.
+  useEffect(() => {
+    let alive = true;
+    const unsub = useAuthStore.subscribe((state, prev) => {
+      // We only want to act ONCE — when isLoading flips from true→false
+      // the very first time after loadFromStorage() resolves.
+      if (!alive) return;
+      if (prev.isLoading && !state.isLoading) {
+        if (!state.token) {
+          import('../utils/clearSessionState')
+            .then(({ clearSessionState }) => clearSessionState())
+            .catch(() => {});
+        }
+      }
+    });
+    return () => { alive = false; unsub(); };
+  }, []);
+
   /**
    * Auth-expired redirect.
    * When the axios interceptor detects a 401 on a request that *had* a token,

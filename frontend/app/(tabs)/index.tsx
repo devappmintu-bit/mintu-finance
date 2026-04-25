@@ -49,6 +49,7 @@ import TodayChips from '../../components/home/TodayChips';
 import ActionableAlertCard from '../../components/home/ActionableAlertCard';
 import FinancialBrainCard from '../../components/home/FinancialBrainCard';
 import EmbeddedFinanceCard from '../../components/home/EmbeddedFinanceCard';
+import WelcomeNewUserCard from '../../components/home/WelcomeNewUserCard';
 import Confetti from '../../components/Confetti';
 
 function HomeScreen() {
@@ -314,6 +315,10 @@ function HomeScreen() {
             <View style={styles.avatarBadge}><Ionicons name="settings-sharp" size={10} color="#fff" /></View>
           </TapTile>
         </View>
+
+        {/* 1.5 WELCOME — first-time registration banner. Self-hides when
+            isNewUser flag clears (which happens on first interaction). */}
+        <WelcomeNewUserCard userName={user?.name} />
 
         {/* 2. BALANCE HERO — big primary card */}
         <BalanceHero user={user} snapshot={snapshot} stats={stats} />

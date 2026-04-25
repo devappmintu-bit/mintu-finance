@@ -14493,3 +14493,84 @@ agent_communication:
         
         Need backend regression check on auth + home/bundle endpoints to confirm no
         inadvertent regression. No backend code changed; this is a frontend-only fix.
+
+round48b_clearSessionState_refactor_apr25_2026:
+  - task: "Round 48b — Refactor clean-session fix to user spec: every-login wipe, constants file, cold-start safety net, is_new_user UI gating"
+    implemented: true
+    working: "NA"
+    file: |
+      NEW: /app/frontend/constants/storageKeys.ts
+      NEW: /app/frontend/utils/clearSessionState.ts (replaces sessionReset.ts)
+      NEW: /app/frontend/components/home/WelcomeNewUserCard.tsx
+      MODIFIED: /app/frontend/app/auth.tsx
+      MODIFIED: /app/frontend/store/authStore.ts
+      MODIFIED: /app/frontend/app/_layout.tsx
+      MODIFIED: /app/frontend/app/(tabs)/index.tsx
+      DELETED: /app/frontend/utils/sessionReset.ts
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: true
+    status_history:
+      - working: "NA"
+        agent: "main"
+        comment: |
+          ROUND 48B — CLEAN SESSION REFACTOR PER USER SPEC (Apr 25 2026)
+
+          User explicitly required the clear to happen on EVERY login (not just on
+          user-switch), plus a constants file, cold-start safety net, and an empty-state
+          UI for new users gated on `is_new_user`.
+
+          **DELIVERABLES**:
+          1. /app/frontend/constants/storageKeys.ts — central registry of every
+             AsyncStorage / SecureStore key. PER_USER_*, DEVICE_*, PREFIX_* with
+             type exports. Single-file change for any future user-scoped storage.
+          2. /app/frontend/utils/clearSessionState.ts — atomic Promise.all wipe of
+             SWR cache, PIN+salt, biometric prefs, app-lock, avatar, premium plan
+             (storage + memory cache), search history, push token, soft-lock flag,
+             streak/quest sweep keys, current-user marker. Each step wrapped in
+             safe() — one failure never blocks the rest. Logs in __DEV__.
+             Companion `recordCurrentUser(userId)` writes the post-clear marker.
+          3. auth.tsx — calls `await clearSessionState()` BEFORE setToken/setUser
+             on BOTH paths (returning user OTP-verify + new-user name submit).
+             Idempotent — runs even on same-user re-login as the spec dictates.
+             Calls `recordCurrentUser` and `setIsNewUserFlag` after.
+          4. authStore.ts — ADDED `isNewUser`, `setIsNewUserFlag`, `clearNewUserFlag`.
+             `removeAccount()` now delegates to clearSessionState (single source).
+          5. _layout.tsx — Cold-start safety net: subscribes to authStore for the
+             one-shot isLoading→false transition. If no token, calls clearSessionState
+             defensively. Guards against incomplete logout / dev-cleared tokens.
+          6. WelcomeNewUserCard.tsx — Saffron-gradient banner above BalanceHero,
+             auto-renders ONLY when `isNewUser === true`. Tap "Add first transaction"
+             OR close (×) clears the flag → next render falls back to standard layout.
+             No skeleton flash for new users since SWR cache is freshly cleared.
+          7. Home screen — imports + renders WelcomeNewUserCard.
+
+          **BEHAVIOUR MATRIX**:
+            • First-ever sign-in:    RESET (clearSessionState runs in auth.tsx)
+            • Same user re-login:    RESET (idempotent — accepts PIN re-prompt)
+            • User-switch on shared device: RESET (security-critical)
+            • Cold-start with no token: RESET (safety net in _layout.tsx)
+            • Cold-start with valid token: NO reset (preserves session)
+
+          **IDEMPOTENCY NOTE**: The spec calls for clearing on every login even for
+          the same returning user. This means returning users will re-set their PIN
+          on every login (since clearPin() runs). Acceptable trade-off for security
+          + correctness; PinSetupModal already handles this UX flow gracefully.
+
+          **VERIFIED**:
+            • Metro bundles cleanly (screenshot confirms onboarding loads)
+            • Backend regression already passed in Round 48 (no backend changes here)
+            • Cold-start safety net behaviour: app loads to onboarding with a clean
+              slate — auth token wiped on first cold start of fresh build.
+
+agent_communication:
+    -agent: "main"
+    -message: |
+        Refactor complete to match exact user spec:
+        • New constants/storageKeys.ts as the single key registry
+        • clearSessionState() called on EVERY login + register + logout + cold-start-no-token
+        • is_new_user flag wired through authStore → WelcomeNewUserCard
+        • Cold-start safety net added in _layout.tsx
+        
+        No backend changes — already verified clean in Round 48 backend regression.
+        Frontend bundles successfully. Ready for user verification or testing-agent run.

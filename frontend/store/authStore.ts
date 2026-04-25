@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { ASYNC_TOKEN_KEY } from '../constants/storageKeys';
 
 interface User {
   id: string;
@@ -12,17 +13,27 @@ interface AuthState {
   user: User | null;
   token: string | null;
   avatar: string;
+  /** True when the most recent /auth/verify-otp response indicated a brand-new
+   *  account creation. Consumed by the home screen to render the welcome /
+   *  onboarding empty state instead of skeleton-then-data. Auto-clears
+   *  on the first home interaction (caller calls `clearNewUserFlag()`). */
+  isNewUser: boolean;
   locked: boolean;          // app-level lock flag — true when the user has "logged out" into the PIN/biometric screen
   isLoading: boolean;
   setUser: (user: User) => void;
   setToken: (token: string) => void;
   setAvatar: (avatar: string) => Promise<void>;
+  /** Marks the most recent successful auth as a brand-new registration. */
+  setIsNewUserFlag: (v: boolean) => void;
+  /** One-shot clear, called by home screen after rendering welcome state. */
+  clearNewUserFlag: () => void;
   /** Soft lock — preserves token + PIN, just flips `locked: true` so _layout redirects to /unlock.
    *  Matches "Logout" button behaviour per the design ask. */
   lock: () => Promise<void>;
   /** Called by /unlock after successful PIN / biometric verification. */
   unlock: () => Promise<void>;
-  /** Full logout — clears token, PIN, avatar; routes back to OTP flow. */
+  /** Full logout — clears token + ALL per-user device state via clearSessionState().
+   *  After this the app routes back to the OTP flow. */
   removeAccount: () => Promise<void>;
   /** Alias kept for backwards compat — now delegates to lock() by default. */
   logout: () => Promise<void>;
@@ -36,11 +47,12 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   user: null,
   token: null,
   avatar: '',
+  isNewUser: false,
   locked: false,
   isLoading: true,
   setUser: (user) => set({ user }),
   setToken: async (token) => {
-    await AsyncStorage.setItem('token', token);
+    await AsyncStorage.setItem(ASYNC_TOKEN_KEY, token);
     set({ token });
   },
   setAvatar: async (avatar: string) => {
@@ -50,13 +62,15 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       else await AsyncStorage.removeItem(AVATAR_KEY);
     } catch { /* noop */ }
   },
+  setIsNewUserFlag: (v) => set({ isNewUser: v }),
+  clearNewUserFlag: () => set({ isNewUser: false }),
   lock: async () => {
     await AsyncStorage.setItem(LOCKED_KEY, '1');
     // Round 36 — wipe SWR cache on soft-lock so if a different user unlocks
     // the same device (e.g. shared family phone with same PIN) they won't
     // briefly see the previous user's cached balances, transactions, etc.
     // On unlock we'll refetch cleanly.
-    try { const { clearSwrCache } = await import('../utils/swrGet'); await clearSwrCache(); } catch {}
+    try { const { clearSwrCache } = await import('../utils/swrGet'); await clearSwrCache(); } catch { /* noop */ }
     set({ locked: true });
   },
   unlock: async () => {
@@ -67,20 +81,20 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   // instead of nuking the user — matches the "relogin via biometric/PIN" flow.
   logout: async () => { await (get().lock()); },
   removeAccount: async () => {
-    await AsyncStorage.removeItem('token');
-    // ── Comprehensive cleanup — wipes SWR cache, PIN, premium, avatar,
-    // search history, push token, biometric prefs, and the current-user
-    // marker. Single source of truth in utils/sessionReset.ts so this
-    // can never drift from the auth.tsx ensureCleanSessionFor() path.
+    await AsyncStorage.removeItem(ASYNC_TOKEN_KEY);
+    // Comprehensive cleanup — wipes SWR cache, PIN, premium plan, avatar,
+    // search history, push token, biometric prefs, current-user marker.
+    // Single source of truth in utils/clearSessionState.ts so this can
+    // never drift from the auth.tsx clearSessionState() call site.
     try {
-      const { resetSessionState } = await import('../utils/sessionReset');
-      await resetSessionState();
+      const { clearSessionState } = await import('../utils/clearSessionState');
+      await clearSessionState();
     } catch { /* noop */ }
-    set({ user: null, token: null, avatar: '', locked: false });
+    set({ user: null, token: null, avatar: '', locked: false, isNewUser: false });
   },
   loadFromStorage: async () => {
     const [token, avatar, locked] = await Promise.all([
-      AsyncStorage.getItem('token'),
+      AsyncStorage.getItem(ASYNC_TOKEN_KEY),
       AsyncStorage.getItem(AVATAR_KEY),
       AsyncStorage.getItem(LOCKED_KEY),
     ]);

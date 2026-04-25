@@ -17,7 +17,7 @@ import { LANGUAGES, LangCode } from '../utils/i18n';
 import PinSetupModal from '../components/PinSetupModal';
 import AuthTransitionOverlay from '../components/auth/AuthTransitionOverlay';
 import Mascot from '../components/Mascot';
-import { ensureCleanSessionFor } from '../utils/sessionReset';
+import { clearSessionState, recordCurrentUser } from '../utils/clearSessionState';
 
 type AuthStep = 'phone' | 'otp' | 'name';
 
@@ -34,7 +34,7 @@ export default function AuthScreen() {
   const [showLangPicker, setShowLangPicker] = useState(false);
   const [pinSetupVisible, setPinSetupVisible] = useState(false);
   const [welcomeAnim, setWelcomeAnim] = useState(false);
-  const { setUser, setToken } = useAuthStore();
+  const { setUser, setToken, setIsNewUserFlag } = useAuthStore();
   const otpRefs = useRef<(TextInput | null)[]>([]);
 
   useEffect(() => {
@@ -96,14 +96,18 @@ export default function AuthScreen() {
     setLoading(true);
     try {
       const res = { data: await verifyOtp(phone.replace(/\D/g, ''), code) };
-      // ── CRITICAL: wipe any prior user's device state BEFORE we set
-      // the new token. If a different user previously used this device,
-      // their SWR cache, PIN, premium tier, avatar, etc. would otherwise
-      // leak into this session. ensureCleanSessionFor() is a no-op when
-      // the same user signs back in.
-      await ensureCleanSessionFor(res.data.user.id);
+      // ── CRITICAL: wipe ALL prior-session state BEFORE we set the new
+      // token. This is the SECOND of two "every login" call sites; the
+      // first is the cold-start safety net in _layout.tsx. Idempotent.
+      // Even on same-user re-login this keeps the session deterministic
+      // (no stale SWR cache leaking from a previous JWT).
+      await clearSessionState();
       await setToken(res.data.token); setUser(res.data.user);
-      // Returning user — offer PIN setup if they've never set one.
+      setIsNewUserFlag(!!res.data.is_new_user);
+      await recordCurrentUser(res.data.user.id);
+      // Returning user — offer PIN setup if they've never set one (always
+      // true now that clearSessionState wipes the PIN; this re-prompts on
+      // every login as part of the security model).
       const { hasPin } = await import('../utils/lockManager');
       if (!(await hasPin())) { setPinSetupVisible(true); return; }
       setWelcomeAnim(true);
@@ -118,12 +122,12 @@ export default function AuthScreen() {
     setLoading(true);
     try {
       const res = { data: await api.post('/auth/verify-otp', { phone: phone.replace(/\D/g, ''), otp: otp.join(''), name: trimmed }).then(r => r.data) };
-      // ── CRITICAL: same as handleVerifyOTP — wipe prior device state
-      // before setting new user. This is the registration path so the
-      // brand-new user MUST start with a clean slate (no old PIN, no
-      // old premium tier, no stale SWR cache from a previous session).
-      await ensureCleanSessionFor(res.data.user.id);
+      // ── CRITICAL: same as handleVerifyOTP — wipe before setting new
+      // token. The brand-new user MUST start with a clean slate.
+      await clearSessionState();
       await setToken(res.data.token); setUser(res.data.user);
+      setIsNewUserFlag(!!res.data.is_new_user);
+      await recordCurrentUser(res.data.user.id);
       setPinSetupVisible(true); // fresh user → always prompt for PIN setup
     } catch (err: any) { Alert.alert(t('error', lang), err.response?.data?.detail || 'Something went wrong'); }
     finally { setLoading(false); }
