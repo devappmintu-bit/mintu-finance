@@ -52,7 +52,7 @@ function pickHello() {
   return LOAD_HELLOS[Math.floor(Math.random() * LOAD_HELLOS.length)];
 }
 
-export default function AICoachTab() {
+function AICoachTab() {
   const s = useStyles();
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -363,3 +363,9 @@ const useStyles = makeStyles((c) => ({
     lineHeight: 16,
   },
 }));
+
+
+// Round 41 — wrap with tab-level ErrorBoundary so a crash here
+// doesn't blank the whole app; the user sees a Retry CTA instead.
+import { withTabBoundary as _wrapTab_AICoachTab } from '../../components/withTabBoundary';
+export default _wrapTab_AICoachTab(AICoachTab, 'AI Coach');

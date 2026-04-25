@@ -108,6 +108,24 @@ def register_exception_handlers(app: FastAPI) -> None:
         """
         return SafeJSONResponse(status_code=400, content={"detail": "Invalid ID format"})
 
+    # Round 41 — catch-all so unhandled exceptions never leak stack traces or
+    # internal file paths to the client. In dev (ENV=development) we include
+    # a `debug` field so engineers can still diagnose; in prod the response
+    # is purely a generic friendly message.
+    import os
+    import logging
+    _logger = logging.getLogger("error_handler")
+    _is_dev = (os.getenv("ENV", "").lower() in ("dev", "development", "local")) or bool(os.getenv("DEBUG"))
+
+    @app.exception_handler(Exception)
+    async def _catch_all_exception_handler(request: Request, exc: Exception):  # noqa: D401
+        # Log the full traceback server-side so we don't lose diagnostic info.
+        _logger.exception("Unhandled exception on %s %s", request.method, request.url.path)
+        body: dict = {"detail": "An internal error occurred. Please try again."}
+        if _is_dev:
+            body["debug"] = f"{type(exc).__name__}: {str(exc)[:500]}"
+        return SafeJSONResponse(status_code=500, content=body)
+
 
 __all__ = [
     "SafeJSONResponse",

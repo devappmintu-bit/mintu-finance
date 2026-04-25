@@ -51,7 +51,7 @@ import FinancialBrainCard from '../../components/home/FinancialBrainCard';
 import EmbeddedFinanceCard from '../../components/home/EmbeddedFinanceCard';
 import Confetti from '../../components/Confetti';
 
-export default function HomeScreen() {
+function HomeScreen() {
   const styles = useStyles();
   const { user, setUser, avatar, setAvatar } = useAuthStore();
   const { lang } = useLangStore();
@@ -429,3 +429,7 @@ const useStyles = makeStyles((c) => ({
   sectionBadge: { backgroundColor: c.accent.primary + '20', paddingHorizontal: 8, paddingVertical: 2, borderRadius: 999, minWidth: 22, alignItems: 'center' },
   sectionBadgeTxt: { fontSize: 11, fontWeight: '900', color: c.accent.primary },
 }));
+// Round 41 — wrap with tab-level ErrorBoundary so a crash here
+// doesn't blank the whole app; the user sees a Retry CTA instead.
+import { withTabBoundary } from '../../components/withTabBoundary';
+export default withTabBoundary(HomeScreen, 'Home');

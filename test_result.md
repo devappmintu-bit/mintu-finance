@@ -845,10 +845,77 @@ round36_smoke_apr24_2026:
 
 test_plan:
   current_focus:
-    - "Round 40 — frontend-only smoke regression"
+    - "Round 41 — global exception handler"
   stuck_tasks: []
   test_all: false
   test_priority: "high_first"
+
+round41_global_exception_handler_apr25_2026:
+  - task: "Round 41 — Global @app.exception_handler(Exception) catch-all in core/responses.py"
+    implemented: true
+    working: true
+    file: "/app/backend/core/responses.py, /app/round41_exception_handler_test.py"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+      - working: true
+        agent: "testing"
+        comment: |
+          ✅ ROUND 41 — ALL 26/26 ASSERTIONS PASS (Apr 25 2026). Two-part suite
+          /app/round41_exception_handler_test.py:
+
+          PART A — Live preview URL (prod-like, no ENV/DEBUG set):
+            • POST /api/auth/send-otp → 200 ✅
+            • POST /api/auth/verify-otp → 200 (token issued) ✅
+            • GET /api/coins/ledger → 200 ✅
+            • GET /api/notifications → 200 ✅
+            • GET /api/search?q=test → 200 ✅
+            • GET /api/home/bundle → 200 ✅
+            • 422 RequestValidationError handler intact (verify-otp w/ missing
+              otp returns 422 with `detail`) ✅
+            • 400 InvalidId handler intact (POST /notifications/mark-read with
+              "not-an-objectid" → 400 {"detail":"Invalid id"}) ✅
+            • 3 fault-probe payloads (bad amount strings, malformed pay-intent
+              params, null award fields) all returned clean 4xx (422) — never
+              500. Zero leak markers in any response. ✅
+
+          PART B-prod — In-process FastAPI TestClient (env clean, no ENV/DEBUG):
+          Three injected raising routes (`AttributeError`, `KeyError`,
+          `ZeroDivisionError`) all returned:
+            • status_code == 500 ✅
+            • body == {"detail":"An internal error occurred. Please try again."}
+              with NO `debug` key in prod ✅
+            • body contains zero leak markers (no Traceback, no /app/backend/,
+              no exception class names, no file paths, no line numbers) ✅
+
+          PART B-dev — In-process TestClient (ENV=development):
+            • status_code == 500 ✅
+            • detail == generic friendly message ✅
+            • `debug` field PRESENT in dev mode ✅
+            • debug format == "<ExceptionClass>: <message>" (matched exact
+              regex, exception class name + colon separator) ✅
+            • debug length <= 550 chars (truncation @500 + class prefix) ✅
+            • Even with debug present, raw traceback / file paths / line
+              numbers still absent from response body ✅
+
+          IMPLEMENTATION NOTE (verified in /app/backend/core/responses.py
+          lines 111-127): handler picks up _is_dev at app-registration time
+          via `os.getenv("ENV", "").lower() in ("dev","development","local")
+          or bool(os.getenv("DEBUG"))`. Catch-all uses
+          `_logger.exception(...)` so full traceback is preserved server-side.
+
+          PARANOID AUDIT REGRESSION:
+            cd /app/backend && python -m pytest tests/test_paranoid_audit.py -q
+            → 29 passed, 2 skipped, 0 failed (49.37s). Round 41 introduced
+            ZERO regressions to the security/idempotency baseline.
+
+          VERDICT: Round 41 global exception handler is PRODUCTION-READY.
+          Stack traces, file paths, and Python exception class names are
+          NEVER leaked to clients in prod. Existing 4xx handlers (422
+          validation, 400 InvalidId) continue to return their specific
+          messages and are unimpacted. All 6 listed normal-path endpoints
+          still return 200.
 
 round40_smoke_apr25_2026:
   - task: "Round 40 frontend-only smoke regression — 6 endpoint families"

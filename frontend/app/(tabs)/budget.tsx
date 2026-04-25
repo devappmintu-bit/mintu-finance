@@ -37,7 +37,7 @@ import { BudgetSkeleton } from '../../components/SkeletonLoader';
 
 const PERIODS = ['daily', 'weekly', 'monthly'];
 
-export default function BudgetScreen() {
+function BudgetScreen() {
   const s = useStyles();
   const { lang } = useLangStore();
   const [budgets, setBudgets] = useState<any[]>([]);
@@ -471,3 +471,9 @@ const useStyles = makeStyles((c) => ({
   otherDescBox: { backgroundColor: 'rgba(255,107,26,0.1)', borderRadius: 14, padding: 12, borderWidth: 1, borderColor: 'rgba(255,107,26,0.3)', marginBottom: 16 },
   descInput: { fontSize: 14, color: c.text.primary, minHeight: 54, paddingVertical: 6, textAlignVertical: 'top' },
 }));
+
+
+// Round 41 — wrap with tab-level ErrorBoundary so a crash here
+// doesn't blank the whole app; the user sees a Retry CTA instead.
+import { withTabBoundary as _wrapTab_BudgetScreen } from '../../components/withTabBoundary';
+export default _wrapTab_BudgetScreen(BudgetScreen, 'Budget');

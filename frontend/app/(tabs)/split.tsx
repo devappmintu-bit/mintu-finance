@@ -43,7 +43,7 @@ import EmptyState from '../../components/ui/EmptyState';
 import useSwr from '../../hooks/useSwr';
 import PremiumUnlockTeaser from '../../components/premium/PremiumUnlockTeaser';
 
-export default function SplitScreen() {
+function SplitScreen() {
   const s = useStyles();
   const { user } = useAuthStore();
   const { lang } = useLangStore();
@@ -778,3 +778,9 @@ const useStyles = makeStyles((c) => ({
   groupName: { fontSize: 16, fontWeight: '700', color: C.text1 },
   groupMeta: { fontSize: 12, color: C.text3, marginTop: 2 },
 }));
+
+
+// Round 41 — wrap with tab-level ErrorBoundary so a crash here
+// doesn't blank the whole app; the user sees a Retry CTA instead.
+import { withTabBoundary as _wrapTab_SplitScreen } from '../../components/withTabBoundary';
+export default _wrapTab_SplitScreen(SplitScreen, 'Split');

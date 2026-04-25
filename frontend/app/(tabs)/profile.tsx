@@ -66,7 +66,7 @@ import AuthTransitionOverlay from '../../components/auth/AuthTransitionOverlay';
 import StreakCoinsHealthCard from '../../components/profile/StreakCoinsHealthCard';
 import { sendTestPush } from '../../hooks/usePushNotifications';
 
-export default function ProfileScreen() {
+function ProfileScreen() {
   const s = useStyles();
   const { user, logout, avatar, setAvatar } = useAuthStore();
   const { lang, setLang } = useLangStore();
@@ -496,3 +496,9 @@ const useStyles = makeStyles((c) => ({
   footerTxt: { fontSize: 11, fontWeight: '500', color: c.text.muted },
   version: { textAlign: 'center', fontSize: 10.5, color: c.text.muted, marginTop: 4, fontWeight: '500' },
 }));
+
+
+// Round 41 — wrap with tab-level ErrorBoundary so a crash here
+// doesn't blank the whole app; the user sees a Retry CTA instead.
+import { withTabBoundary as _wrapTab_ProfileScreen } from '../../components/withTabBoundary';
+export default _wrapTab_ProfileScreen(ProfileScreen, 'Profile');

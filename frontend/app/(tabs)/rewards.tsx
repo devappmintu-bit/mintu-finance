@@ -19,7 +19,7 @@ import useSwr from '../../hooks/useSwr';
 // Push notification handler + registration now live in /hooks/usePushNotifications.ts
 // (set up once globally in app/_layout.tsx).
 
-export default function RewardsScreen() {
+function RewardsScreen() {
   const s = useStyles();
   const { lang } = useLangStore();
   const { user } = useAuthStore();
@@ -223,3 +223,9 @@ const useStyles = makeStyles((c) => ({
   lbStreak: { fontSize: 12, color: '#F59E0B' },
   // Friend Comparison
 }));
+
+
+// Round 41 — wrap with tab-level ErrorBoundary so a crash here
+// doesn't blank the whole app; the user sees a Retry CTA instead.
+import { withTabBoundary as _wrapTab_RewardsScreen } from '../../components/withTabBoundary';
+export default _wrapTab_RewardsScreen(RewardsScreen, 'Rewards');

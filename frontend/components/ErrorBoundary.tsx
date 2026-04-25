@@ -22,7 +22,8 @@ type Variant = 'full' | 'tab';
 interface Props {
   children: React.ReactNode;
   variant?: Variant;
-  onReset?: () => void;  // optional callback when Retry is pressed (tab variant)
+  tabName?: string;     // Round 41 — labels the tab in the fallback message
+  onReset?: () => void;
 }
 
 interface State {
@@ -77,10 +78,11 @@ export default class ErrorBoundary extends React.Component<Props, State> {
 
     const variant: Variant = this.props.variant || 'full';
     if (variant === 'tab') {
+      const label = this.props.tabName ? `the ${this.props.tabName} section` : 'this section';
       return (
         <View style={s.tabFallback}>
           <Text style={s.tabEmoji}>🚧</Text>
-          <Text style={s.tabTitle}>This section isn't working right now</Text>
+          <Text style={s.tabTitle}>{`${label.charAt(0).toUpperCase()}${label.slice(1)} isn't working right now`}</Text>
           <Text style={s.tabSub}>It's not you — something went sideways on our end.</Text>
           <TouchableOpacity onPress={this.reset} style={s.tabRetry} accessibilityRole="button" accessibilityLabel="Retry" activeOpacity={0.85}>
             <Text style={s.tabRetryTxt}>Retry</Text>

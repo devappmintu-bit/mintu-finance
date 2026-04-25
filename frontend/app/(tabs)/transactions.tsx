@@ -71,7 +71,7 @@ const TxnRow = memo(function TxnRow({ item, lang, onEdit, onDelete }: { item: an
   );
 });
 
-export default function TransactionsScreen() {
+function TransactionsScreen() {
   const styles = useStyles();
   const { lang } = useLangStore();
   const params = useLocalSearchParams<{ openAdd?: string; openSmsScan?: string; type?: string }>();
@@ -140,8 +140,17 @@ export default function TransactionsScreen() {
   }, [params.openAdd, params.openSmsScan, params.type]);
 
   // Unified refetch helper for mutations (replaces legacy fetchAll/fetchTransactions).
+  // Round 41 — also invalidate the budgets/live SWR cache so the budget tab's
+  // progress bars reflect this transaction's effect immediately when the user
+  // switches tabs. Otherwise the budget for the same category would show
+  // stale spent/remaining until manual refresh.
   const fetchTransactions = useCallback(async () => {
     await Promise.all([refetchTxns(), refetchWaste()]);
+    try {
+      const { invalidate } = await import('../../utils/swrGet');
+      await invalidate?.('/budgets/live');
+      await invalidate?.('/stats/overview');
+    } catch {}
   }, [refetchTxns, refetchWaste]);
 
   const handleAdd = async () => {
@@ -616,3 +625,9 @@ const useStyles = makeStyles((c) => ({
   aiRecBox: { flexDirection: 'row', gap: 8, backgroundColor: 'rgba(255,176,32,0.12)', padding: 12, borderRadius: RADIUS.lg, marginTop: 10, borderWidth: 1, borderColor: 'rgba(255,176,32,0.4)' },
   aiRecTxt: { flex: 1, fontSize: 12, fontWeight: '500', color: '#78716C', lineHeight: 18 },
 }));
+
+
+// Round 41 — wrap with tab-level ErrorBoundary so a crash here
+// doesn't blank the whole app; the user sees a Retry CTA instead.
+import { withTabBoundary as _wrapTab_TransactionsScreen } from '../../components/withTabBoundary';
+export default _wrapTab_TransactionsScreen(TransactionsScreen, 'Transactions');

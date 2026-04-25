@@ -13,7 +13,7 @@ import AICoachChat from '../../components/AICoachChat';
 import { COLORS } from '../../utils/theme';
 import { makeStyles } from '../../utils/makeStyles';
 
-export default function InsightsScreen() {
+function InsightsScreen() {
   const s = useStyles();
   return (
     <SafeAreaView style={s.wrap} edges={['top']}>
@@ -28,3 +28,9 @@ const useStyles = makeStyles((c) => ({
   wrap: { flex: 1, backgroundColor: c.bg.primary },
   content: { flex: 1 },
 }));
+
+
+// Round 41 — wrap with tab-level ErrorBoundary so a crash here
+// doesn't blank the whole app; the user sees a Retry CTA instead.
+import { withTabBoundary as _wrapTab_InsightsScreen } from '../../components/withTabBoundary';
+export default _wrapTab_InsightsScreen(InsightsScreen, 'Insights');

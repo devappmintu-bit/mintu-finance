@@ -134,14 +134,22 @@ function RewardCard({ reward, userCoins, onClaim, testID }: { reward: Reward; us
   return (
     <TouchableOpacity
       activeOpacity={0.92}
+      // Round 41 — disable tap when user can't afford and reward isn't locked.
+      // Previously a Toast fired on tap; now the visual state matches: dimmed
+      // card + "Need X more" caption. Locked-by-tier rewards stay tappable to
+      // route to /premium (existing behaviour).
+      disabled={!locked && !canAfford}
       onPress={() => {
         if (locked) { router.push('/premium' as any); return; }
         try { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); } catch {}
         onClaim && onClaim(reward);
       }}
       testID={testID}
+      accessibilityRole="button"
+      accessibilityLabel={locked ? `${reward.brand} ${reward.discount}, premium only` : (canAfford ? `Claim ${reward.brand} ${reward.discount} for ${reward.cost_coins} coins` : `${reward.brand} ${reward.discount}, need ${reward.cost_coins - userCoins} more coins`)}
+      accessibilityState={{ disabled: !locked && !canAfford }}
     >
-      <View style={[s.card, locked && s.cardLocked]}>
+      <View style={[s.card, locked && s.cardLocked, !locked && !canAfford && { opacity: 0.55 }]}>
         {/* Coloured top band with real brand logo (or emoji fallback) */}
         <LinearGradient
           colors={[reward.color, shade(reward.color, -0.2)]}
@@ -179,9 +187,13 @@ function RewardCard({ reward, userCoins, onClaim, testID }: { reward: Reward; us
             <Ionicons name="flame" size={10} color="#F59E0B" />
             <Text style={s.popTxt} numberOfLines={1}>{reward.popularity_label}</Text>
           </View>
-          <View style={[s.claimBtn, locked && { backgroundColor: '#E5E7EB' }]}>
-            <Text style={[s.coinTxt, locked && { color: '#9CA3AF' }]}>🪙 {reward.cost_coins}</Text>
-            <Ionicons name={locked ? 'lock-closed' : 'arrow-forward'} size={11} color={locked ? '#9CA3AF' : '#fff'} />
+          <View style={[s.claimBtn, locked && { backgroundColor: '#E5E7EB' }, !locked && !canAfford && { backgroundColor: '#FEE2E2' }]}>
+            <Text style={[s.coinTxt, locked && { color: '#9CA3AF' }, !locked && !canAfford && { color: '#991B1B' }]} numberOfLines={1}>
+              {!locked && !canAfford
+                ? `Need ${reward.cost_coins - userCoins} more`
+                : `🪙 ${reward.cost_coins}`}
+            </Text>
+            <Ionicons name={locked ? 'lock-closed' : (!canAfford ? 'alert-circle' : 'arrow-forward')} size={11} color={locked ? '#9CA3AF' : (!canAfford ? '#991B1B' : '#fff')} />
           </View>
         </View>
       </View>
