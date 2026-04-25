@@ -37,8 +37,20 @@ const BANKS = [
 //   link scheme ('mintu://gmail-connected'), declared in app.json.
 //   `expo-web-browser` intercepts this scheme and closes the auth
 //   session once the OAuth provider redirects to it.
-const RETURN_URL = (typeof window !== 'undefined' && (window as any)?.location?.origin)
-  ? (window as any).location.origin + '/gmail-connected'
+// Round 47 deploy hardening — explicit Platform.OS branch instead of
+// `typeof window` heuristic. This is more reliable across SSR, hermetic
+// builds, and unusual JS contexts where `window` may exist but
+// `location.origin` is empty.
+// ▸ Web: always use the live origin (preview URL, custom domain, prod
+//   all work because window.location.origin is set by the browser).
+// ▸ Native (iOS/Android): use the app's deep link scheme
+//   ('mintu://gmail-connected'), declared in app.json. `expo-web-browser`
+//   intercepts this scheme and closes the auth session once the OAuth
+//   provider redirects to it.
+const RETURN_URL = Platform.OS === 'web'
+  ? (typeof window !== 'undefined' && window.location?.origin
+      ? window.location.origin + '/gmail-connected'
+      : '/gmail-connected')
   : 'mintu://gmail-connected';
 
 export default function GmailConnectScreen() {
