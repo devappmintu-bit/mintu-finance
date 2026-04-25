@@ -14,7 +14,12 @@ export async function fetchSplitGroups(): Promise<SplitGroup[]> {
   return (r.data || []) as SplitGroup[];
 }
 
-export async function createSplitGroup(payload: { name: string; members: Array<{ phone: string; name?: string }> }): Promise<SplitGroup> {
+// Round 46 audit — payload type fix. The TS type previously said
+// `Array<{ phone, name? }>` but the runtime actually sends `string[]`
+// (phone numbers) which is what the backend `SplitGroupCreate.members`
+// expects (`List[str]`). The mismatch was masked by an `as any` at the
+// call site. Aligning the type prevents future caller bugs.
+export async function createSplitGroup(payload: { name: string; members: string[]; custom_emoji?: string }): Promise<SplitGroup> {
   const r = await api.post('/split/groups', payload);
   await invalidateAfter('split.group');
   return r.data as SplitGroup;

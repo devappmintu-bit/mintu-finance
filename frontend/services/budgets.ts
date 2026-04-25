@@ -54,7 +54,7 @@ export async function fetchBudgetAchievements(): Promise<BudgetAchievements> {
   return r.data as BudgetAchievements;
 }
 
-export async function fetchBudgetInsights(): Promise<any> {
-  const r = await api.get('/budgets/insights');
-  return r.data;
-}
+// Round 46 audit — `fetchBudgetInsights` removed. It pointed at
+// `/budgets/insights` which has never existed on the backend, and the
+// function had zero callers across the app. Use `fetchBudgetSmartSuggest`
+// or `fetchBudgetAchievements` for budget intelligence widgets.
