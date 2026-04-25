@@ -1,8 +1,13 @@
 import { create } from 'zustand';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { ASYNC_TOKEN_KEY } from '../constants/storageKeys';
+import type { User as ServiceUser } from '../services/types';
 
-interface User {
+// Local store uses a less-permissive shape for the authenticated user.
+// All known fields from the backend are required by the time we land
+// in setUser(). `money_score` extends ServiceUser since it's set by
+// /auth/verify-otp on register and updated by /money-score endpoints.
+interface User extends ServiceUser {
   id: string;
   name: string;
   phone: string;

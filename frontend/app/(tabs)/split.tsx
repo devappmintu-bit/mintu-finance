@@ -133,7 +133,10 @@ function SplitScreen() {
             fetchReminders().then(data => ({ data })).catch(() => ({ data: { received: [], sent: [] } })),
           ]);
           if (lR.data) setSettleLB(lR.data);
-          if (rR.data) setReminders({ received: rR.data.received || [], sent: rR.data.sent || [] });
+          if (rR.data) {
+            const rd = rR.data as { received?: any[]; sent?: any[] };
+            setReminders({ received: rd.received || [], sent: rd.sent || [] });
+          }
           // Use the freshest snapshot from swrGroups (set by the useEffect bridge above).
           fetchSettleRows(groups);
         } catch (e) { console.error('split phase2', e); }

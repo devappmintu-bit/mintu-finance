@@ -290,21 +290,6 @@ const en: Translations = {
   amount_gt_zero: 'Budget amount must be greater than 0',
 
   // ---- Profile ----
-  last_30_days_stats: 'Last 30 Days',
-  settings: 'Settings',
-  notifications: 'Notifications',
-  privacy_security: 'Privacy & Security',
-  export_data: 'Export Data',
-  help_support: 'Help & Support',
-  about: 'About MintU',
-  language: 'Language',
-  logout: 'Logout',
-  logout_confirm: 'Are you sure?',
-  version: 'MintU v1.0.0',
-  made_with_love: 'Made with love for India',
-  edit_profile: 'Edit Profile',
-  change_avatar: 'Change Avatar',
-  upi_id: 'UPI ID',
 
   // ---- Rewards / Gamification / Leaderboard ----
   rewards: 'Rewards',
@@ -374,9 +359,6 @@ const en: Translations = {
   expense_added: 'Expense added',
 
   // ---- Premium ----
-  premium: 'Premium',
-  go_premium: 'Go Premium',
-  upgrade: 'Upgrade',
   monthly_plan: 'Monthly',
   yearly_plan: 'Yearly',
   lifetime_plan: 'Lifetime',
@@ -385,7 +367,6 @@ const en: Translations = {
   best_value: 'Best Value',
   save_pct: 'Save {pct}%',
   unlock_premium: 'Unlock Premium',
-  premium_active: 'Premium Active',
   trial: 'Trial',
   chose_plan: 'Choose your plan',
 

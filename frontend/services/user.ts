@@ -52,7 +52,17 @@ export async function sendOtp(phone: string): Promise<any> {
   return r.data;
 }
 
-export async function verifyOtp(phone: string, otp: string): Promise<{ access_token?: string; token?: string; user?: User }> {
+/** Backend /auth/verify-otp response shape (Round 49 — was loosely typed
+ *  as { access_token?, token?, user? } which forced every consumer to
+ *  null-check fields the server always sets on a 200 response).
+ */
+export interface VerifyOtpResponse {
+  token: string;
+  user: User & { id: string; name: string; phone: string; money_score: number };
+  is_new_user: boolean;
+}
+
+export async function verifyOtp(phone: string, otp: string): Promise<VerifyOtpResponse> {
   const r = await api.post('/auth/verify-otp', { phone, otp });
-  return r.data;
+  return r.data as VerifyOtpResponse;
 }

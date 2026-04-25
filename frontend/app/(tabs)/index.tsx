@@ -152,7 +152,7 @@ function HomeScreen() {
         fetchStatsOverview().then(data => ({ data })),
         fetchTransactions({ limit: 5 }).then(data => ({ data })),
       ]);
-      setUser(profileRes.data);
+      setUser(profileRes.data as Parameters<typeof setUser>[0]);
       setStats(statsRes.data);
       setRecentTxns(Array.isArray(txnRes.data) ? txnRes.data.slice(0, 4) : []);
       setLoading(false);

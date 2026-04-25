@@ -18,7 +18,7 @@ import { MEMBER_COLORS, STICKERS } from './split/theme';
 import ExpenseMessage from './split/ExpenseMessage';
 import ExpensesTab from './split/ExpensesTab';
 import Toast from 'react-native-toast-message';
-import { FlashList } from '@shopify/flash-list';
+import { FlashList, type FlashListRef } from '@shopify/flash-list';
 
 // Format currency for display (₹1.2K, ₹12K, ₹1.2L)
 const fmtCompact = (n: number) => {
@@ -48,7 +48,7 @@ export default function GroupChat({ group, onClose, onAddExpense, onManage, onEd
   const [sending, setSending] = useState(false);
   const [showStickers, setShowStickers] = useState(false);
   const [summary, setSummary] = useState<any>(null);
-  const flatRef = useRef<FlashList<any>>(null);
+  const flatRef = useRef<FlashListRef<any>>(null);
 
   // When true, further polls halt — the group is gone (deleted / user
   // removed). Prevents the 404-spam loops we were seeing in backend logs.
@@ -328,7 +328,6 @@ export default function GroupChat({ group, onClose, onAddExpense, onManage, onEd
             data={messages}
             keyExtractor={(item) => item.id}
             renderItem={renderMsg}
-            estimatedItemSize={80}
             contentContainerStyle={s.chatList}
             onContentSizeChange={() => flatRef.current?.scrollToEnd({ animated: true })}
             showsVerticalScrollIndicator={false}

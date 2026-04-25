@@ -216,7 +216,7 @@ export default function TabLayout() {
           freezeOnBlur: true,
           lazy: true,
         } as any}
-        tabBar={(props) => <MintUTabBar {...props} />}
+        tabBar={(props) => <MintUTabBar {...(props as unknown as React.ComponentProps<typeof MintUTabBar>)} />}
       >
         <Tabs.Screen name="index" />
         <Tabs.Screen name="transactions" />

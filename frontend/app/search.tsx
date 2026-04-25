@@ -208,7 +208,7 @@ export default function SearchScreen() {
           />
         );
       }
-      return <EmptyState emoji="⚠️" title="Search unavailable" subtitle={error} ctaLabel="Retry" onCta={() => setQ((v) => v + ' ').trim && setQ(q)} />;
+      return <EmptyState emoji="⚠️" title="Search unavailable" subtitle={error} ctaLabel="Retry" onCta={() => setQ(q)} />;
     }
     if (results && results.total === 0) {
       return (

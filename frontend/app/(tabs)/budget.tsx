@@ -280,7 +280,6 @@ function BudgetScreen() {
         renderItem={renderBudget}
         keyExtractor={(item) => item.id}
         contentContainerStyle={s.list}
-        estimatedItemSize={168}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={COLORS.accent.primary} />}
         ListHeaderComponent={
           <>

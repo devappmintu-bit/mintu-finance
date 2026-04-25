@@ -84,17 +84,20 @@ export default function NotificationSettings() {
     finally { setSaving(false); }
   };
 
-  const toggleMaster = () => prefs && save({ ...prefs, master_enabled: !prefs.master_enabled });
-  const toggleChannel = (k: string) => prefs && save({ ...prefs, channels: { ...prefs.channels, [k]: !prefs.channels[k] } });
-  const toggleCategory = (k: string) => prefs && save({ ...prefs, categories: { ...prefs.categories, [k]: !prefs.categories[k] } });
-  const toggleQuiet = () => prefs && save({ ...prefs, quiet_hours: { ...prefs.quiet_hours, enabled: !prefs.quiet_hours.enabled } });
-  const setFreq = (f: Prefs['frequency']) => prefs && save({ ...prefs, frequency: f });
+  // Round 49 — wrap in `void` form so the toggleX handlers' return types
+  // satisfy Switch's `onValueChange: (v: boolean) => void` signature
+  // (otherwise TS infers `false | Promise<void>` from the `&&` short-circuit).
+  const toggleMaster   = () => { if (prefs) save({ ...prefs, master_enabled: !prefs.master_enabled }); };
+  const toggleChannel  = (k: string) => { if (prefs) save({ ...prefs, channels: { ...prefs.channels, [k]: !prefs.channels[k] } }); };
+  const toggleCategory = (k: string) => { if (prefs) save({ ...prefs, categories: { ...prefs.categories, [k]: !prefs.categories[k] } }); };
+  const toggleQuiet    = () => { if (prefs) save({ ...prefs, quiet_hours: { ...prefs.quiet_hours, enabled: !prefs.quiet_hours.enabled } }); };
+  const setFreq = (f: Prefs['frequency']) => { if (prefs) save({ ...prefs, frequency: f }); };
 
   const testPush = async () => {
     setTesting(true);
     const r = await sendTestPush();
-    if (r.ok) Toast.show({ type: 'success', text1: 'Test push sent' });
-    else      Toast.show({ type: 'info', text1: r.message || 'Push not configured' });
+    if (r.sent) Toast.show({ type: 'success', text1: 'Test push sent' });
+    else        Toast.show({ type: 'info', text1: r.message || 'Push not configured' });
     setTesting(false);
   };
 
@@ -143,7 +146,7 @@ export default function NotificationSettings() {
                     <Text style={s.toggleLabel}>{c.label}</Text>
                     <Switch
                       value={!!prefs.channels[c.key] && prefs.master_enabled}
-                      onValueChange={() => prefs.master_enabled && toggleChannel(c.key)}
+                      onValueChange={() => { if (prefs.master_enabled) toggleChannel(c.key); }}
                       disabled={!prefs.master_enabled}
                       trackColor={{ false: COLORS.border.subtle, true: COLORS.accent.primary + '66' }}
                       thumbColor={prefs.channels[c.key] ? COLORS.accent.primary : '#fff'}
@@ -166,7 +169,7 @@ export default function NotificationSettings() {
                     </View>
                     <Switch
                       value={!!prefs.categories[c.key] && prefs.master_enabled}
-                      onValueChange={() => prefs.master_enabled && toggleCategory(c.key)}
+                      onValueChange={() => { if (prefs.master_enabled) toggleCategory(c.key); }}
                       disabled={!prefs.master_enabled}
                       trackColor={{ false: COLORS.border.subtle, true: COLORS.accent.primary + '66' }}
                       thumbColor={prefs.categories[c.key] ? COLORS.accent.primary : '#fff'}

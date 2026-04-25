@@ -23,17 +23,26 @@
  * The returned `useStyles()` hook subscribes to theme changes via
  * `useAppColors()` and memoises the sheet so object identity is stable
  * within a theme.
+ *
+ * TYPE NOTE (Round 49 cleanup):
+ *   Mirrors React Native's own `StyleSheet.create<T>` signature so that
+ *   LITERAL types of style props (e.g. `position: 'absolute'`) are
+ *   preserved through the factory call. Using `Record<string, any>`
+ *   was the single biggest source of TS2769 errors across the app.
  */
 import { useMemo } from 'react';
-import { StyleSheet } from 'react-native';
+import { StyleSheet, type ViewStyle, type TextStyle, type ImageStyle } from 'react-native';
 import { useAppColors, COLORS as SharedColors } from './theme';
 
-type StyleObject = Record<string, any>;
+type Style = ViewStyle | TextStyle | ImageStyle;
+type NamedStyles<T> = { [P in keyof T]: Style };
 type Colors = typeof SharedColors;
 
-export function makeStyles<T extends StyleObject>(factory: (c: Colors) => T) {
+export function makeStyles<T extends NamedStyles<T> | NamedStyles<unknown>>(
+  factory: (c: Colors) => T & NamedStyles<unknown>,
+) {
   return function useStyles(): T {
     const c = useAppColors();
-    return useMemo(() => StyleSheet.create(factory(c)) as unknown as T, [c]);
+    return useMemo(() => StyleSheet.create(factory(c) as any) as T, [c]);
   };
 }

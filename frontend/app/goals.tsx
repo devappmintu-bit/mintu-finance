@@ -71,6 +71,7 @@ function ProgressRing({ pct, color, size = 88, stroke = 8 }: { pct: number; colo
 }
 
 export default function GoalsScreen() {
+  const isOnline = useIsOnline();
   const [goals, setGoals] = useState<Goal[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);

@@ -315,7 +315,11 @@ export default function RewardsHubScreen() {
                 // updates instantly; load() will reconcile with the server
                 // response a moment later.
                 const prevCoins = coins;
-                setCoins(Math.max(0, coins - r.cost_coins));
+                // TODO: runtime fix needed (Round 49) — `setCoins` was undefined,
+                // optimistic decrement never worked. Now uses `setData` so the
+                // top-level destructure picks up the optimistic value until
+                // load() reconciles with the server.
+                setData((d: any) => d ? { ...d, coins: Math.max(0, coins - r.cost_coins) } : d);
                 try {
                   const res = await claimMarketplaceReward(r.id);
                   if (Platform.OS !== 'web') Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
@@ -326,7 +330,7 @@ export default function RewardsHubScreen() {
                   load();
                 } catch (e: any) {
                   // Rollback the optimistic decrement since the claim failed.
-                  setCoins(prevCoins);
+                  setData((d: any) => d ? { ...d, coins: prevCoins } : d);
                   Toast.show({ type: 'error', text1: 'Claim failed', text2: e?.response?.data?.detail || 'Try again' });
                 } finally {
                   setClaimingMarket(prev => { const n = new Set(prev); n.delete(r.id); return n; });

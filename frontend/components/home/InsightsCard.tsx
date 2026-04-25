@@ -223,7 +223,7 @@ const useStyles = makeStyles((c) => ({
   sparkWrap: { alignItems: 'center', marginVertical: 6 },
   sparkLabels: { flexDirection: 'row', justifyContent: 'space-between', width: CHART_W - PAD * 2, marginTop: 2, paddingHorizontal: PAD },
   sparkLabel: { flex: 1, fontSize: 10, color: c.text.muted, fontWeight: '600', textAlign: 'center' },
-  emptySparkBox: { alignItems: 'center', padding: 20, backgroundColor: c.bg.subtle, borderRadius: 14, marginVertical: 10, gap: 8 },
+  emptySparkBox: { alignItems: 'center', padding: 20, backgroundColor: c.bg.elevated, borderRadius: 14, marginVertical: 10, gap: 8 },
   emptySparkText: { fontSize: 12, color: c.text.muted, fontWeight: '500', textAlign: 'center' },
   statsGrid: { flexDirection: 'row', alignItems: 'center', paddingTop: 14, borderTopWidth: 1, borderTopColor: c.border.subtle, marginTop: 4 },
   statCell: { flex: 1, alignItems: 'center', gap: 3 },

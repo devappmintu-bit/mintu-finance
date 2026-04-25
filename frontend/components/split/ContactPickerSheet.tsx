@@ -194,7 +194,6 @@ export default function ContactPickerSheet({ visible, onClose, onCreate }: Props
                 <FlashList
                   data={filtered}
                   keyExtractor={(c) => c.id}
-                  estimatedItemSize={62}
                   renderItem={({ item, index }) => {
                     const isSel = selected.some((s) => s.phone === item.phone);
                     return (
@@ -312,7 +311,7 @@ export default function ContactPickerSheet({ visible, onClose, onCreate }: Props
                 ))}
               </View>
 
-              <PressableGlass onPress={handleCreate} feedback="success">
+              <PressableGlass onPress={handleCreate} feedback="medium">
                 <LinearGradient colors={[C.accent, C.accentLight]} style={s.primaryBtn}>
                   <Text style={s.primaryBtnT}>Create Group</Text>
                   <Ionicons name="checkmark" size={20} color={C.inv} />

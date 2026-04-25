@@ -183,7 +183,6 @@ export default function CoinLedgerScreen() {
           data={entries}
           keyExtractor={(x) => x.id}
           renderItem={renderRow}
-          estimatedItemSize={76}
           onEndReached={loadMore}
           onEndReachedThreshold={0.4}
           refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={COLORS.accent.primary} />}

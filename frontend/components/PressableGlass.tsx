@@ -21,6 +21,9 @@ type Props = {
   hitSlop?: number;
   feedback?: 'light' | 'medium' | 'heavy' | 'selection' | 'none';
   scale?: number;
+  testID?: string;
+  accessibilityRole?: string;
+  accessibilityLabel?: string;
 };
 
 export default function PressableGlass({

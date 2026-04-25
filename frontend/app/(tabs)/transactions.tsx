@@ -9,7 +9,7 @@ import { useLocalSearchParams, router } from 'expo-router';
 import api from '../../utils/api';
 import { format } from 'date-fns';
 import { useLangStore } from '../../store/langStore';
-import { t } from '../../utils/i18n';
+import { t, type LangCode } from '../../utils/i18n';
 import { COLORS, RADIUS, SPACING, CATEGORIES, CATEGORY_LIST, SHADOW, shadowStyle } from '../../utils/theme';
 import { makeStyles } from '../../utils/makeStyles';
 import { FlashList } from '@shopify/flash-list';
@@ -35,7 +35,7 @@ import { useIsOnline } from '../../hooks/useIsOnline';
 // Pure, memoized row — prevents re-renders on unrelated parent state changes (e.g. modals).
 // Per UX spec: Transactions get DELETE-only swipe (no edit gesture).
 // Users can still open the edit modal by tapping the row itself.
-const TxnRow = memo(function TxnRow({ item, lang, onEdit, onDelete }: { item: any; lang: string; onEdit: (t: any) => void; onDelete: (id: string) => void }) {
+const TxnRow = memo(function TxnRow({ item, lang, onEdit, onDelete }: { item: any; lang: LangCode; onEdit: (t: any) => void; onDelete: (id: string) => void }) {
   const styles = useStyles();
   const cat = CATEGORIES[item.category] || CATEGORIES.Other;
   const isCash = item.source === 'cash' || item.source === 'cash_recurring';
@@ -75,6 +75,7 @@ const TxnRow = memo(function TxnRow({ item, lang, onEdit, onDelete }: { item: an
 function TransactionsScreen() {
   const styles = useStyles();
   const { lang } = useLangStore();
+  const isOnline = useIsOnline();
   const params = useLocalSearchParams<{ openAdd?: string; openSmsScan?: string; type?: string }>();
 
   // ── SWR data layer (Round 26) ───────────────────────────────────────
@@ -337,7 +338,6 @@ function TransactionsScreen() {
         renderItem={renderTxn}
         keyExtractor={(item) => item.id}
         contentContainerStyle={styles.listContent}
-        estimatedItemSize={74}
         ListHeaderComponent={
           <>
             {/* Gmail auto-import CTA — shows only when not yet connected. */}
@@ -440,11 +440,10 @@ function TransactionsScreen() {
               </ScrollView>
               <Text style={styles.formLabel}>{t('description', lang)}</Text>
               <TextInput style={styles.textInput} placeholder="e.g. Lunch at restaurant" placeholderTextColor={COLORS.text.muted} value={formData.description} onChangeText={(v) => setFormData({ ...formData, description: v })} />
-  // Round 42 — gate submit on connectivity so users see "Offline — can't save"
-  // before tapping (instead of axios eating their submit silently and leaving
-  // a half-filled form). Form data is preserved while offline; banner above
-  // already informs the user globally.
-  const isOnline = useIsOnline();
+              {/* Round 42 — gate submit on connectivity so users see "Offline — can't save"
+                  before tapping (instead of axios eating their submit silently and leaving
+                  a half-filled form). Form data is preserved while offline; banner above
+                  already informs the user globally. */}
               <TouchableOpacity testID="submit-txn-btn" accessibilityRole="button" accessibilityLabel={editingTxn ? 'Update transaction' : 'Add transaction'} style={[styles.submitBtn, (submitting || !isOnline) && { opacity: 0.6 }]} onPress={handleAdd} disabled={submitting || !isOnline}><Text style={styles.submitText}>{!isOnline ? "Offline — can't save" : submitting ? (editingTxn ? t('saving', lang) || 'Saving…' : t('adding', lang) || 'Adding…') : (editingTxn ? t('update', lang) : t('add_transaction', lang))}</Text></TouchableOpacity>
               {/* Round 38 — Delete button INSIDE the edit sheet so users
                   don't have to close the sheet and find the swipe action. */}

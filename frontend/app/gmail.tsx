@@ -107,10 +107,10 @@ export default function GmailConnectScreen() {
   const syncNow = async () => {
     setSyncing(true);
     try {
-      const r = { data: await syncGmailNow() };
+      const r = { data: await syncGmailNow() } as { data: { imported: number; scanned: number; fetched?: number; skipped?: number } };
       Toast.show({
         type: r.data.imported > 0 ? 'success' : 'info',
-        text1: `Fetched ${r.data.fetched} · Imported ${r.data.imported}`,
+        text1: `Fetched ${r.data.fetched ?? r.data.scanned} · Imported ${r.data.imported}`,
         text2: r.data.skipped ? `${r.data.skipped} already seen` : undefined,
       });
       await fetchStatus();

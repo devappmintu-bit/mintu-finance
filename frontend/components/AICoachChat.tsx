@@ -31,7 +31,7 @@ import { useAuthStore } from '../store/authStore';
 import { useLangStore } from '../store/langStore';
 import { COLORS } from '../utils/theme';
 import { makeStyles } from '../utils/makeStyles';
-import { FlashList } from '@shopify/flash-list';
+import { FlashList, type FlashListRef } from '@shopify/flash-list';
 import { fetchPremiumStatus } from '../services/premium';
 import PremiumUnlockTeaser from './premium/PremiumUnlockTeaser';
 
@@ -141,7 +141,7 @@ export default function AICoachChat({ onClose }: { onClose?: () => void }) {
       } catch { /* default: locked */ }
     })();
   }, []);
-  const flatRef = useRef<FlashList<any>>(null);
+  const flatRef = useRef<FlashListRef<any>>(null);
 
   // Load the user's real spending context once — used for prompt enrichment AND for offline fallback.
   useEffect(() => {
@@ -302,7 +302,6 @@ export default function AICoachChat({ onClose }: { onClose?: () => void }) {
           data={messages}
           keyExtractor={(_, i) => String(i)}
           renderItem={renderMsg}
-          estimatedItemSize={80}
           contentContainerStyle={s.chatList}
           onContentSizeChange={() => flatRef.current?.scrollToEnd({ animated: true })}
           showsVerticalScrollIndicator={false}

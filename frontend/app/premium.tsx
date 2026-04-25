@@ -92,6 +92,7 @@ export default function PremiumHub() {
 
 // Inline Money School view — available to yearly subscribers only.
 function MoneySchoolView() {
+  const styles = usePremiumStyles(); // TODO: runtime fix needed (Round 49) — was missing, caused undefined-styles crash
   const [lessons, setLessons] = useState<any[]>([]);
   useEffect(() => {
     api.get('/money-school/lessons').then(r => setLessons(r.data?.lessons || [])).catch(() => {});

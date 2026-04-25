@@ -233,7 +233,7 @@ export default function AddExpenseScreen() {
     return (
       <SafeAreaView style={s.container}>
         <View style={s.header}>
-          <TouchableOpacity onPress={() => router.back()} style={s.closeBtn} testID="add-expense-close">
+          <TouchableOpacity onPress={() => router.back()} style={{ width: 36, height: 36, borderRadius: 18, alignItems: 'center', justifyContent: 'center' }} testID="add-expense-close">
             <Ionicons name="close" size={22} color={COLORS.text.primary} />
           </TouchableOpacity>
           <Text style={s.title}>New expense</Text>

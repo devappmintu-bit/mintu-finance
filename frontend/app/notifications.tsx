@@ -182,7 +182,7 @@ const s = StyleSheet.create({
 
   row: {
     flexDirection: 'row', gap: 12, padding: 14, backgroundColor: COLORS.bg.secondary,
-    borderRadius: 16, borderWidth: 1, borderColor: COLORS.border,
+    borderRadius: 16, borderWidth: 1, borderColor: COLORS.border.subtle,
   },
   rowUnread: { backgroundColor: '#FFF7ED', borderColor: '#FFDDC0' },
   iconWrap: { width: 44, height: 44, borderRadius: 14, alignItems: 'center', justifyContent: 'center' },
