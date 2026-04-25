@@ -845,10 +845,57 @@ round36_smoke_apr24_2026:
 
 test_plan:
   current_focus:
-    - "Round 38 fast smoke regression"
+    - "Round 39 — /api/coins/ledger endpoint validation"
   stuck_tasks: []
   test_all: false
   test_priority: "high_first"
+
+round39_coins_ledger_apr25_2026:
+  - task: "Round 39 — GET /api/coins/ledger cursor-paginated feed + regression"
+    implemented: true
+    working: true
+    file: "/app/backend/routers/streak.py, /app/round39_ledger_test.py"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+      - working: true
+        agent: "testing"
+        comment: |
+          ✅ ROUND 39 — ALL 34 ASSERTIONS PASS (Apr 25 2026). Test script
+          /app/round39_ledger_test.py against
+          https://mintu-finance.preview.emergentagent.com/api with
+          phone 9876543210 / OTP 123456.
+
+          NEW ENDPOINT — GET /api/coins/ledger (28 ✅):
+            • Auth + token → 200.
+            • Seeded coin events: streak/check-in (200, milestone_bonus
+              path), 4 transactions (200) + /coins/award (200).
+            • GET /coins/ledger → 200, 3 entries non-empty, every entry
+              has all required fields {id, type, amount, description,
+              source, balance_after, created_at}, amount > 0, type ∈
+              {earn, spend} matching ledger sign.
+            • ?type=earn → 200, all entries earn (count=3).
+            • ?type=spend → 200, count=0 for fresh user (acceptable).
+            • ?type=banana → 200, normalized to "all" (count==3, no 500).
+            • ?limit=2 → exactly 2 entries + non-null next_cursor
+              (69ebb4d1fd9b296a4555afa0).
+            • ?limit=2&cursor=<step7 cursor> → 1 entry, ZERO overlap
+              with page-1 ids.
+            • ?cursor=notanobjectid → 200, returns first page (no 500).
+            • total_earned=204, total_spent=0, diff=204 ==
+              /api/coins/balance=204 ✅ ledger integrity.
+
+          REGRESSION — 6/6 ✅:
+            • GET /api/notifications → 200
+            • GET /api/notifications/unread-count → 200
+            • GET /api/search?q=test → 200
+            • GET /api/home/bundle → 200
+            • GET /api/coins/balance → 200
+            • GET /api/coins/history → 200
+
+          Backend logs: only 200s and one expected 422 (harness probing).
+          Zero 5xx. New /coins/ledger endpoint is PRODUCTION-READY.
 
 round38_smoke_apr25_2026:
   - task: "Round 38 fast smoke — paranoid audit + 13 frontend-called endpoints"

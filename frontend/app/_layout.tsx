@@ -150,6 +150,7 @@ export default function RootLayout() {
             <Stack.Screen name="premium-activated" options={{ animation: 'fade' }} />
             <Stack.Screen name="notifications" options={{ animation: 'slide_from_right' }} />
             <Stack.Screen name="search" options={{ animation: 'slide_from_bottom' }} />
+            <Stack.Screen name="coin-ledger" options={{ animation: 'slide_from_right' }} />
           </Stack>
           <Toast config={toastConfig} position="bottom" bottomOffset={100} />
           {/* 300ms CrossFade overlay while the Stack remount re-skins the tree */}

@@ -188,6 +188,7 @@ export default function RewardsHubScreen() {
           tierName={tier?.name || 'Bronze'}
           tierColor={tier?.color || '#CD7F32'}
           onBack={() => router.back()}
+          onPressCoins={() => router.push('/coin-ledger' as any)}
         />
 
         {/* Live FOMO social feed ticker */}

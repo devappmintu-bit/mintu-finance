@@ -18,9 +18,11 @@ type Props = {
   tierName: string;
   tierColor: string;
   onBack?: () => void;
+  // Round 39 — tap on COINS card → coin ledger.
+  onPressCoins?: () => void;
 };
 
-export default function RewardsHero({ coins, freeSpinsLeft, tierName, tierColor, onBack }: Props) {
+export default function RewardsHero({ coins, freeSpinsLeft, tierName, tierColor, onBack, onPressCoins }: Props) {
   const coinBounce = useRef(new Animated.Value(0)).current;
   useEffect(() => {
     Animated.sequence([
@@ -51,11 +53,20 @@ export default function RewardsHero({ coins, freeSpinsLeft, tierName, tierColor,
 
       <View style={s.statsRow}>
         <Animated.View style={[s.statCard, { transform: [{ scale: coinBounce.interpolate({ inputRange: [0, 1], outputRange: [0.85, 1] }) }] }]}>
-          <Text style={s.statEmoji}>🪙</Text>
-          <View>
-            <Text style={s.statLbl}>COINS</Text>
-            <Text style={s.statVal}>{coins.toLocaleString('en-IN')}</Text>
-          </View>
+          <TouchableOpacity
+            onPress={onPressCoins}
+            disabled={!onPressCoins}
+            style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}
+            accessibilityRole="button"
+            accessibilityLabel={`Coin balance ${coins}, view history`}
+            activeOpacity={0.85}
+          >
+            <Text style={s.statEmoji}>🪙</Text>
+            <View>
+              <Text style={s.statLbl}>COINS</Text>
+              <Text style={s.statVal}>{coins.toLocaleString('en-IN')}</Text>
+            </View>
+          </TouchableOpacity>
         </Animated.View>
         <View style={s.statCard}>
           <Text style={s.statEmoji}>⚡</Text>

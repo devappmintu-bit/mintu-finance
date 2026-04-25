@@ -43,6 +43,7 @@ import AnimatedCoin from '../../components/AnimatedCoin';
 import NewsCarousel from '../../components/home/NewsCarousel';
 import WeeklyReport from '../../components/home/WeeklyReport';
 import BalanceHero from '../../components/home/BalanceHero';
+import GettingStartedCard from '../../components/home/GettingStartedCard';
 import QuickActionBar from '../../components/home/QuickActionBar';
 import TodayChips from '../../components/home/TodayChips';
 import ActionableAlertCard from '../../components/home/ActionableAlertCard';
@@ -282,7 +283,7 @@ export default function HomeScreen() {
             )}
           </TouchableOpacity>
           {coinsStatus && (
-            <TapTile onPress={() => router.push('/rewards-hub' as any)} style={styles.coinsChip} feedback="light" testID="header-coins-chip">
+            <TapTile onPress={() => router.push('/coin-ledger' as any)} style={styles.coinsChip} feedback="light" testID="header-coins-chip" accessibilityLabel="Coin balance, view history">
               <AnimatedCoin value={Number(coinsStatus.balance || 0)} size="sm" />
             </TapTile>
           )}
@@ -302,6 +303,19 @@ export default function HomeScreen() {
 
         {/* 2. BALANCE HERO — big primary card */}
         <BalanceHero user={user} snapshot={snapshot} stats={stats} />
+
+        {/* Round 39 — Getting Started checklist for first-time users.
+            Self-hides when all 4 items are complete OR when user dismisses,
+            persisted in AsyncStorage. Counts derived from `stats` (which the
+            home bundle already returns) — no extra fetch. */}
+        <GettingStartedCard
+          counts={stats ? {
+            transactions: Number(stats?.month?.transaction_count || stats?.transaction_count || stats?.transactions_count || 0),
+            budgets: Number(stats?.budget_count || (stats?.budgets || []).length || 0),
+            goals: Number(stats?.goal_count || (stats?.goals || []).length || 0),
+            groups: Number(stats?.group_count || (stats?.groups || []).length || 0),
+          } : null}
+        />
 
         {/* 3. QUICK ACTION BAR */}
         <QuickActionBar />

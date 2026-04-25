@@ -10,6 +10,7 @@ Endpoints
   GET  /api/coins/history          — immutable ledger history (last 50)
 """
 from fastapi import APIRouter, Depends, HTTPException
+from datetime import datetime
 
 from core import get_current_user
 from core import ledger as ledger_service
@@ -83,3 +84,106 @@ async def history(limit: int = 50, user_id: str = Depends(get_current_user)):
         limit = 200
     rows = await ledger_service.get_history(user_id, limit=limit)
     return {"history": rows, "count": len(rows)}
+
+
+# ══════════════════════════════════════════════════════════════════════
+#  Round 39 — Cursor-paginated coin ledger feed for the in-app history view
+# ══════════════════════════════════════════════════════════════════════
+# Why a new endpoint vs reusing /coins/history?
+#   • /coins/history is offset-style (`limit`) only — fine for a strip but
+#     unsafe at scale (skip on a moving collection drops/dupes rows).
+#   • The UI needs filter (all|earn|spend), running balance per row, and
+#     lifetime totals — none of which /coins/history exposes.
+@router.get("/coins/ledger")
+async def coins_ledger(
+    type: str = "all",
+    limit: int = 50,
+    cursor: str | None = None,
+    user_id: str = Depends(get_current_user),
+):
+    """Cursor-paginated coin ledger.
+
+    Args:
+        type:    "all" | "earn" | "spend"  (filters the txn_type column)
+        limit:   1..100  (default 50)
+        cursor:  ObjectId of the last row from the previous page; rows older
+                 than it are returned. ``None`` → first page.
+
+    Returns ``{ entries[], next_cursor, total_earned, total_spent }``.
+    Cursor design uses ``_id`` (a monotonic ObjectId on this collection)
+    rather than ``created_at`` — _id is unique so we can't accidentally
+    skip a tied timestamp.
+    """
+    from bson import ObjectId
+    from core import db
+
+    # ── Sanitize inputs ──────────────────────────────────────────────
+    if limit < 1: limit = 1
+    if limit > 100: limit = 100
+    type_norm = (type or "all").lower()
+    if type_norm not in ("all", "earn", "spend"):
+        type_norm = "all"
+
+    # ── Filter clause ────────────────────────────────────────────────
+    flt: dict = {"user_id": user_id}
+    if type_norm == "earn":
+        # Earn-side rows have a positive amount in the ledger, regardless
+        # of how the original txn_type was stored. Use amount > 0.
+        flt["amount"] = {"$gt": 0}
+    elif type_norm == "spend":
+        flt["amount"] = {"$lt": 0}
+
+    if cursor:
+        try:
+            flt["_id"] = {"$lt": ObjectId(cursor)}
+        except Exception:
+            # Invalid cursor → ignore and start from top. Keeps the API
+            # forgiving without leaking a 4xx for a rolled-up corner case.
+            pass
+
+    # ── Page query ───────────────────────────────────────────────────
+    cur = db.ledger_transactions.find(flt).sort("_id", -1).limit(limit)
+    entries = []
+    last_id: str | None = None
+    async for r in cur:
+        amt = float(r.get("amount", 0) or 0)
+        # Frontend expects always-positive amount + a `type` flag; this
+        # avoids every row's UI doing `amt < 0` arithmetic.
+        kind = "earn" if amt >= 0 else "spend"
+        entries.append({
+            "id": str(r["_id"]),
+            "type": kind,
+            "amount": abs(amt),
+            "description": r.get("description") or r.get("source") or "Coin activity",
+            "source": r.get("source") or "",
+            "balance_after": int(r.get("balance_after", 0) or 0),
+            "created_at": (r.get("created_at") or datetime.utcnow()).isoformat(),
+        })
+        last_id = str(r["_id"])
+
+    # next_cursor is non-null only when a full page was returned (i.e.
+    # there's likely more behind it). When fewer rows came back, we've
+    # reached the tail and the client can stop fetching.
+    next_cursor = last_id if len(entries) >= limit else None
+
+    # ── Lifetime totals (cheap aggregate) ────────────────────────────
+    pipeline = [
+        {"$match": {"user_id": user_id}},
+        {"$group": {
+            "_id": None,
+            "earned": {"$sum": {"$cond": [{"$gt": ["$amount", 0]}, "$amount", 0]}},
+            "spent":  {"$sum": {"$cond": [{"$lt": ["$amount", 0]}, "$amount", 0]}},
+        }},
+    ]
+    total_earned = 0
+    total_spent = 0
+    async for d in db.ledger_transactions.aggregate(pipeline):
+        total_earned = int(d.get("earned") or 0)
+        total_spent = int(abs(d.get("spent") or 0))
+
+    return {
+        "entries": entries,
+        "next_cursor": next_cursor,
+        "total_earned": total_earned,
+        "total_spent": total_spent,
+    }
