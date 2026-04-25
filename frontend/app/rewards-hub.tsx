@@ -40,8 +40,10 @@ import {
   fetchMarketplace, fetchSocialFeed, fetchEvents,
   claimMarketplaceReward,
 } from '../services/rewards';
+import { useIsOnline } from '../hooks/useIsOnline';
 
 export default function RewardsHubScreen() {
+  const isOnline = useIsOnline();
   const [data, setData] = useState<any>(null);
   const [market, setMarket] = useState<any>(null);
   const [feed, setFeed] = useState<any>(null);
@@ -295,6 +297,10 @@ export default function RewardsHubScreen() {
               isPro={!!market.is_pro}
               userCoins={coins}
               onClaim={async (r) => {
+                if (!isOnline) {
+                  Toast.show({ type: 'info', text1: "You're offline", text2: 'Connect to the internet to redeem' });
+                  return;
+                }
                 if (r.locked) { router.push('/premium' as any); return; }
                 if (coins < r.cost_coins) {
                   Toast.show({ type: 'info', text1: 'Not enough coins', text2: `Need ${r.cost_coins - coins} more — earn via spins & missions` });

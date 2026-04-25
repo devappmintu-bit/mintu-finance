@@ -25,6 +25,7 @@ import Confetti from '../../components/Confetti';
 import FullScreenLoader from '../../components/FullScreenLoader';
 import { makeStyles } from '../../utils/makeStyles';
 import { COLORS, SPACING } from '../../utils/theme';
+import { useIsOnline } from '../../hooks/useIsOnline';
 
 type Member = { id: string; name: string; phone?: string };
 type SplitType = 'equal' | 'exact' | 'shares';
@@ -42,6 +43,7 @@ const fmt = (n: number) => `₹${Math.round(n).toLocaleString('en-IN')}`;
 
 export default function AddExpenseScreen() {
   const s = useStyles();
+  const isOnline = useIsOnline();
   const params = useLocalSearchParams<{ group_id?: string; expense_id?: string }>();
   const { user } = useAuthStore();
 
@@ -160,7 +162,7 @@ export default function AddExpenseScreen() {
   const splitsValid = Math.abs(splitsSum - amountNum) < 0.5;
 
   // Validation
-  const canSubmit = amountNum > 0 && desc.trim().length > 0 && payerId && participants.size > 0 && splitsValid && !submitting;
+  const canSubmit = amountNum > 0 && desc.trim().length > 0 && payerId && participants.size > 0 && splitsValid && !submitting && isOnline;
 
   const toggleParticipant = (id: string) => {
     if (Platform.OS !== 'web') Haptics.selectionAsync().catch(() => {});
@@ -458,7 +460,7 @@ export default function AddExpenseScreen() {
                 <>
                   <Ionicons name="checkmark-circle" size={18} color="#fff" />
                   <Text style={s.ctaTxt}>
-                    {amountNum > 0 ? `${editingExpenseId ? 'Update' : 'Split'} ${fmt(amountNum)}${desc ? ` for ${desc}` : ''}` : 'Enter amount'}
+                    {!isOnline ? "Offline — can't save" : (amountNum > 0 ? `${editingExpenseId ? 'Update' : 'Split'} ${fmt(amountNum)}${desc ? ` for ${desc}` : ''}` : 'Enter amount')}
                   </Text>
                 </>
               )}

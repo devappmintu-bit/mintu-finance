@@ -7,6 +7,7 @@ import { makeStyles } from '../../utils/makeStyles';
 import { C, UPI_APPS } from './theme';
 import CoinRedeemPanel from '../premium/CoinRedeemPanel';
 import SheetHeader from '../ui/SheetHeader';
+import { useIsOnline } from '../../hooks/useIsOnline';
 
 type Props = {
   visible: boolean;
@@ -23,6 +24,7 @@ type Props = {
 
 export default function PaySheet({ visible, onClose, target, onPayUPI, onPayCash, onPayPartial, onPayRazorpay }: Props) {
   const s = useStyles();
+  const isOnline = useIsOnline();
   const [partialOn, setPartialOn] = useState(false);
   const [partialAmt, setPartialAmt] = useState('');
   const [coinRedeem, setCoinRedeem] = useState<{ coinsToUse: number; discount: number; effective: number }>({
@@ -39,7 +41,7 @@ export default function PaySheet({ visible, onClose, target, onPayUPI, onPayCash
 
   const max = target?.amount || 0;
   const amt = parseFloat(partialAmt) || 0;
-  const isValid = partialOn ? amt > 0 && amt <= max : true;
+  const isValid = (partialOn ? amt > 0 && amt <= max : true) && isOnline;
   const finalAmt = partialOn ? amt : max;
 
   // Coin panel operates on the currently selected amount so discount reflects real spend.
@@ -129,7 +131,7 @@ export default function PaySheet({ visible, onClose, target, onPayUPI, onPayCash
               </View>
             )}
 
-            <Text style={s.payS}>Select payment method</Text>
+            <Text style={s.payS}>{!isOnline ? "Offline — payment unavailable" : 'Select payment method'}</Text>
             {onPayRazorpay && (
               <TouchableOpacity
                 style={[s.rzpBtn, !isValid && { opacity: 0.4 }]}

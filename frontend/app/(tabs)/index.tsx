@@ -91,6 +91,15 @@ function HomeScreen() {
     });
     return () => sub.remove();
   }, [refreshUnread]);
+  // Round 42 — foreground polling. Until real push delivery (FCM/APNs) is
+  // wired, poll every 60s so badge stays in sync if the user keeps the app
+  // open; pauses automatically when the screen is unmounted.
+  useEffect(() => {
+    const id = setInterval(() => {
+      if (AppState.currentState === 'active') refreshUnread();
+    }, 60_000);
+    return () => clearInterval(id);
+  }, [refreshUnread]);
   // Round 35 — refs mirror user/stats so fetchData can detect "nothing painted"
   // without needing user/stats in its dep array (which caused an infinite
   // refetch loop).

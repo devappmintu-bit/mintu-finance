@@ -21,6 +21,7 @@ import api from '../utils/api';
 import FullScreenLoader from '../components/FullScreenLoader';
 import Confetti from '../components/Confetti';
 import EmptyState from '../components/ui/EmptyState';
+import { useIsOnline } from '../hooks/useIsOnline';
 
 type Goal = {
   id: string;
@@ -434,11 +435,11 @@ export default function GoalsScreen() {
               </View>
             </ScrollView>
 
-            <TouchableOpacity style={[s.saveBtn, saving && { opacity: 0.7 }]} onPress={onSave} disabled={saving} activeOpacity={0.85}>
+            <TouchableOpacity style={[s.saveBtn, (saving || !isOnline) && { opacity: 0.7 }]} onPress={onSave} disabled={saving || !isOnline} activeOpacity={0.85}>
               {saving ? <ActivityIndicator color="#fff" /> : (
                 <>
                   <Ionicons name="checkmark" size={18} color="#fff" />
-                  <Text style={s.saveBtnTxt}>{editingGoal ? 'Save changes' : 'Create goal'}</Text>
+                  <Text style={s.saveBtnTxt}>{!isOnline ? "Offline — can't save" : (editingGoal ? 'Save changes' : 'Create goal')}</Text>
                 </>
               )}
             </TouchableOpacity>

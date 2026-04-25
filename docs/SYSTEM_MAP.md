@@ -278,3 +278,48 @@ No admin role exists in this build — there is NO backend admin UI; operations 
 ---
 
 _This map is a living document. Update when adding new screens, routers, collections, or workers._
+
+---
+
+## 11. ROUND 42 CLOSE — FINAL AUDIT SWEEP
+
+Round 42 closed the audit with no new product features. Changes since the
+last revision of this map:
+
+### Frontend
+
+- **NEW** `utils/time.ts` — single home for `timeAgo()`. `services/coinLedger.ts`
+  and `services/notifications.ts` now re-export instead of duplicating ~20
+  lines each.
+- **NEW** Offline-aware submit gating across every write surface — see
+  `KNOWN_ISSUES.md` Section C for the full table. Single hook
+  (`hooks/useIsOnline.ts`, Round 40) is consumed by:
+  - `(tabs)/transactions.tsx` (Add/Edit Transaction)
+  - `components/budget/BudgetSmartSheet.tsx`
+  - `app/goals.tsx`
+  - `app/split/add-expense.tsx`
+  - `components/split/PaySheet.tsx`
+  - `app/rewards-hub.tsx` (redeem path)
+  - `(tabs)/ai-coach.tsx` (offline card + Ask disable)
+  - `app/search.tsx` (input non-editable + EmptyState)
+- **NEW** Foreground notification badge polling (60 s) in `(tabs)/index.tsx`,
+  paired with the existing AppState-active refresh. Bridges the gap until
+  real FCM/APNs delivery is wired.
+
+### Backend
+
+- No schema or endpoint changes in Round 42. Adversarial invariants from
+  Rounds 39–41 audited inline and confirmed correct (see
+  `KNOWN_ISSUES.md` Section D).
+
+### Documentation (NEW)
+
+- `docs/KNOWN_ISSUES.md` — honest enumeration of TS tech debt, mocked
+  integrations, offline coverage matrix, adversarial invariants verified.
+- `docs/WHAT_WAS_BUILT.md` — shipping log Rounds 31 → 42.
+- This section in `docs/SYSTEM_MAP.md`.
+
+### Out of scope for Round 42
+
+See `KNOWN_ISSUES.md` Section F.
+

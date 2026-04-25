@@ -31,6 +31,7 @@ import ThinkingDots from '../../components/ui/ThinkingDots';
 import { COLORS, FONT_FAMILY, GRADIENT, SPACING } from '../../utils/theme';
 import { makeStyles } from '../../utils/makeStyles';
 import api from '../../utils/api';
+import { useIsOnline } from '../../hooks/useIsOnline';
 
 type Pulse = {
   currency_week_total?: number;
@@ -54,6 +55,7 @@ function pickHello() {
 
 function AICoachTab() {
   const s = useStyles();
+  const isOnline = useIsOnline();
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [chatOpen, setChatOpen] = useState(false);
@@ -161,6 +163,19 @@ function AICoachTab() {
           <Text style={s.subtitle}>{loading ? helloMsg : 'Your personalised money pulse, fresh.'}</Text>
           {loading && <ThinkingDots />}
         </View>
+
+        {/* Round 42 — offline card. AI Coach needs the network to fetch
+            insights and to call the LLM, so we show a clear non-blocking
+            note instead of letting requests fail silently. */}
+        {!isOnline && (
+          <View style={s.offlineCard} testID="ai-coach-offline">
+            <Ionicons name="cloud-offline" size={20} color="#92400E" />
+            <View style={{ flex: 1 }}>
+              <Text style={s.offlineTitle}>You're offline</Text>
+              <Text style={s.offlineSub}>Insights and chat will resume once you reconnect. Showing cached data when available.</Text>
+            </View>
+          </View>
+        )}
 
         {/* Loading skeleton */}
         {loading && (
@@ -272,9 +287,9 @@ function AICoachTab() {
         <View style={s.askBox}>
           <View style={{ flex: 1 }}>
             <Text style={s.askTitle}>Got a money question?</Text>
-            <Text style={s.askSub}>I can explain anything — from SIPs to tax tricks.</Text>
+            <Text style={s.askSub}>{!isOnline ? "Offline — connect to chat with Mintu" : 'I can explain anything — from SIPs to tax tricks.'}</Text>
           </View>
-          <NeonButton label="Ask" icon="chatbubbles" onPress={() => setChatOpen(true)} size="md" pulse />
+          <NeonButton label={!isOnline ? 'Offline' : 'Ask'} icon="chatbubbles" onPress={() => isOnline && setChatOpen(true)} size="md" pulse={isOnline} disabled={!isOnline} />
         </View>
 
         <View style={{ height: 120 }} />
@@ -359,6 +374,29 @@ const useStyles = makeStyles((c) => ({
     fontSize: 12,
     fontFamily: FONT_FAMILY.regular,
     color: c.text.secondary,
+    marginTop: 2,
+    lineHeight: 16,
+  },
+  offlineCard: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 10,
+    padding: 14,
+    borderRadius: 16,
+    backgroundColor: '#FEF3C7',
+    borderWidth: 1,
+    borderColor: '#FDE68A',
+    marginTop: 12,
+  },
+  offlineTitle: {
+    fontSize: 13,
+    fontWeight: '900',
+    color: '#92400E',
+  },
+  offlineSub: {
+    fontSize: 11.5,
+    color: '#78350F',
+    fontWeight: '600',
     marginTop: 2,
     lineHeight: 16,
   },

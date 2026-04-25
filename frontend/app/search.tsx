@@ -20,10 +20,12 @@ import {
   runSearch, pushRecentSearch, getRecentSearches, clearRecentSearches,
   SearchResults,
 } from '../services/search';
+import { useIsOnline } from '../hooks/useIsOnline';
 
 const DEBOUNCE_MS = 300;
 
 export default function SearchScreen() {
+  const isOnline = useIsOnline();
   const [q, setQ] = useState('');
   const [results, setResults] = useState<SearchResults | null>(null);
   const [loading, setLoading] = useState(false);
@@ -39,6 +41,14 @@ export default function SearchScreen() {
   useEffect(() => {
     if (!q.trim()) {
       setResults(null); setError(null); setLoading(false);
+      return;
+    }
+    // Round 42 — when offline, don't fire requests (they'd 0-out anyway and
+    // surface a generic "Search unavailable"). Show a clear offline note instead.
+    if (!isOnline) {
+      setLoading(false);
+      setError('offline');
+      setResults(null);
       return;
     }
     setLoading(true);
@@ -61,7 +71,7 @@ export default function SearchScreen() {
       }
     }, DEBOUNCE_MS);
     return () => { if (debounceRef.current) clearTimeout(debounceRef.current); };
-  }, [q]);
+  }, [q, isOnline]);
 
   const commitSearch = useCallback(() => {
     if (q.trim()) pushRecentSearch(q).then(() => getRecentSearches().then(setRecent));
@@ -187,6 +197,15 @@ export default function SearchScreen() {
       );
     }
     if (error) {
+      if (error === 'offline') {
+        return (
+          <EmptyState
+            emoji="📶"
+            title="You're offline"
+            subtitle="Search needs an internet connection. Reconnect and try again — your recent searches stay saved."
+          />
+        );
+      }
       return <EmptyState emoji="⚠️" title="Search unavailable" subtitle={error} ctaLabel="Retry" onCta={() => setQ((v) => v + ' ').trim && setQ(q)} />;
     }
     if (results && results.total === 0) {
@@ -221,10 +240,10 @@ export default function SearchScreen() {
           <Ionicons name="chevron-back" size={24} color={COLORS.text.primary} />
         </TouchableOpacity>
         <View style={s.searchBox}>
-          <Ionicons name="search" size={18} color={COLORS.text.muted} />
+          <Ionicons name={isOnline ? "search" : "cloud-offline"} size={18} color={isOnline ? COLORS.text.muted : '#92400E'} />
           <TextInput
             autoFocus
-            placeholder="Search transactions, budgets, goals…"
+            placeholder={isOnline ? "Search transactions, budgets, goals…" : "Offline — search unavailable"}
             placeholderTextColor={COLORS.text.muted}
             value={q}
             onChangeText={setQ}
@@ -232,6 +251,7 @@ export default function SearchScreen() {
             returnKeyType="search"
             style={s.input}
             accessibilityLabel="Search"
+            editable={isOnline}
           />
           {q.length > 0 && (
             <TouchableOpacity onPress={() => setQ('')} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>

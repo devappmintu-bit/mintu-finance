@@ -34,6 +34,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import * as Haptics from 'expo-haptics';
 import api from '../../utils/api';
 import { fetchGoals, createGoal, Goal } from '../../services/goals';
+import { useIsOnline } from '../../hooks/useIsOnline';
 
 const CATEGORY_META: Record<string, { icon: string; color: string; emoji: string }> = {
   Food:           { icon: 'fast-food',       color: '#F56E1E', emoji: '🍔' },
@@ -98,6 +99,7 @@ function fmtCompact(n: number) {
 }
 
 export default function BudgetSmartSheet({ editing, currentSpent, onSubmit, onClose, submitting }: Props) {
+  const isOnline = useIsOnline();
   const [loading, setLoading] = useState(true);
   const [data, setData] = useState<{ monthly_income: number; categories: SmartCategory[] } | null>(null);
   const [category, setCategory] = useState<string>(editing?.category || 'Food');
@@ -188,7 +190,7 @@ export default function BudgetSmartSheet({ editing, currentSpent, onSubmit, onCl
     return 'Save Changes';
   }, [editing, amount, originalAmount]);
 
-  const canSubmit = amount > 0 && !submitting;
+  const canSubmit = amount > 0 && !submitting && isOnline;
 
   // === ONE-TAP AI SET ===
   const aiSet = () => {
@@ -604,7 +606,7 @@ export default function BudgetSmartSheet({ editing, currentSpent, onSubmit, onCl
                 size={20}
                 color="#fff"
               />
-              <Text style={s.ctaTxt}>{submitting ? 'Saving…' : ctaText}</Text>
+              <Text style={s.ctaTxt}>{submitting ? 'Saving…' : !isOnline ? "Offline — can't save" : ctaText}</Text>
             </LinearGradient>
           </TouchableOpacity>
         </ScrollView>
