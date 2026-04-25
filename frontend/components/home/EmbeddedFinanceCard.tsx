@@ -22,7 +22,7 @@ type Product = {
   accent: string;
 };
 
-export default function EmbeddedFinanceCard({ moneyScore = 0 }: { moneyScore?: number }) {
+function EmbeddedFinanceCard({ moneyScore = 0 }: { moneyScore?: number }) {
   const haptic = () => { if (Platform.OS !== 'web') Haptics.selectionAsync().catch(() => {}); };
 
   // Contextual products: better score = better offers
@@ -142,3 +142,6 @@ const s = StyleSheet.create({
   ctaTxt: { fontSize: 12, fontWeight: '900', letterSpacing: 0.1 },
   disclaimer: { fontSize: 9.5, fontWeight: '600', color: '#6B7280', marginTop: 8, paddingHorizontal: 2, lineHeight: 13 },
 });
+
+// Round 43 perf — memoized so unrelated parent state changes don't re-render this widget.
+export default React.memo(EmbeddedFinanceCard);

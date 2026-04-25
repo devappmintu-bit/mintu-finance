@@ -22,7 +22,7 @@ const categoryColor = (cat: string) => {
   }
 };
 
-export default function NewsCarousel({ news, newsUpdatedAt, newsLoading, onRefresh }: Props) {
+function NewsCarousel({ news, newsUpdatedAt, newsLoading, onRefresh }: Props) {
   const s = useStyles();
   const [storyOpen, setStoryOpen] = useState(false);
   const [storyStart, setStoryStart] = useState(0);
@@ -157,3 +157,6 @@ const useStyles = makeStyles((c) => ({
   endBtn: { flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: c.accent.primary, paddingHorizontal: 14, paddingVertical: 8, borderRadius: 999, marginTop: 10 },
   endBtnText: { fontSize: 11, fontWeight: '800', color: '#fff' },
 }));
+
+// Round 43 perf — memoized so unrelated parent state changes don't re-render this widget.
+export default React.memo(NewsCarousel);

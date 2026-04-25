@@ -30,7 +30,7 @@ type Entry = {
   percentile?: number;
 };
 
-export default function UnifiedLeaderboard({ title = 'Leaderboard', compact = false, onPressMore, defaultScope = 'contacts' }: Props) {
+function UnifiedLeaderboard({ title = 'Leaderboard', compact = false, onPressMore, defaultScope = 'contacts' }: Props) {
   const s = useStyles();
   const [scope, setScope] = useState<'contacts' | 'global'>(defaultScope);
   const [loading, setLoading] = useState(true);
@@ -187,3 +187,6 @@ const useStyles = makeStyles((c) => ({
   moreBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 4, marginTop: 10, paddingVertical: 10 },
   moreText: { fontSize: 12, fontWeight: '700', color: c.accent.primary },
 }));
+
+// Round 43 perf — memoized so unrelated parent state changes don't re-render this widget.
+export default React.memo(UnifiedLeaderboard);

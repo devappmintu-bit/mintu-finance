@@ -11,6 +11,7 @@ Endpoints
 """
 from fastapi import APIRouter, Depends, HTTPException
 from datetime import datetime
+import asyncio
 
 from core import get_current_user
 from core import ledger as ledger_service
@@ -141,32 +142,7 @@ async def coins_ledger(
             # forgiving without leaking a 4xx for a rolled-up corner case.
             pass
 
-    # ── Page query ───────────────────────────────────────────────────
-    cur = db.ledger_transactions.find(flt).sort("_id", -1).limit(limit)
-    entries = []
-    last_id: str | None = None
-    async for r in cur:
-        amt = float(r.get("amount", 0) or 0)
-        # Frontend expects always-positive amount + a `type` flag; this
-        # avoids every row's UI doing `amt < 0` arithmetic.
-        kind = "earn" if amt >= 0 else "spend"
-        entries.append({
-            "id": str(r["_id"]),
-            "type": kind,
-            "amount": abs(amt),
-            "description": r.get("description") or r.get("source") or "Coin activity",
-            "source": r.get("source") or "",
-            "balance_after": int(r.get("balance_after", 0) or 0),
-            "created_at": (r.get("created_at") or datetime.utcnow()).isoformat(),
-        })
-        last_id = str(r["_id"])
-
-    # next_cursor is non-null only when a full page was returned (i.e.
-    # there's likely more behind it). When fewer rows came back, we've
-    # reached the tail and the client can stop fetching.
-    next_cursor = last_id if len(entries) >= limit else None
-
-    # ── Lifetime totals (cheap aggregate) ────────────────────────────
+    # ── Page query + lifetime totals (Round 43 perf — parallel) ─────
     pipeline = [
         {"$match": {"user_id": user_id}},
         {"$group": {
@@ -175,11 +151,35 @@ async def coins_ledger(
             "spent":  {"$sum": {"$cond": [{"$lt": ["$amount", 0]}, "$amount", 0]}},
         }},
     ]
-    total_earned = 0
-    total_spent = 0
-    async for d in db.ledger_transactions.aggregate(pipeline):
-        total_earned = int(d.get("earned") or 0)
-        total_spent = int(abs(d.get("spent") or 0))
+
+    async def _page():
+        out, last = [], None
+        cur = db.ledger_transactions.find(flt).sort("_id", -1).limit(limit)
+        async for r in cur:
+            amt = float(r.get("amount", 0) or 0)
+            kind = "earn" if amt >= 0 else "spend"
+            out.append({
+                "id": str(r["_id"]),
+                "type": kind,
+                "amount": abs(amt),
+                "description": r.get("description") or r.get("source") or "Coin activity",
+                "source": r.get("source") or "",
+                "balance_after": int(r.get("balance_after", 0) or 0),
+                "created_at": (r.get("created_at") or datetime.utcnow()).isoformat(),
+            })
+            last = str(r["_id"])
+        return out, last
+
+    async def _totals():
+        te, ts = 0, 0
+        async for d in db.ledger_transactions.aggregate(pipeline):
+            te = int(d.get("earned") or 0)
+            ts = int(abs(d.get("spent") or 0))
+        return te, ts
+
+    (entries, last_id), (total_earned, total_spent) = await asyncio.gather(_page(), _totals())
+
+    next_cursor = last_id if len(entries) >= limit else None
 
     return {
         "entries": entries,

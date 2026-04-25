@@ -7,7 +7,10 @@ const API_URL = Constants.expoConfig?.extra?.EXPO_PUBLIC_BACKEND_URL || process.
 
 const api = axios.create({
   baseURL: `${API_URL}/api`,
-  timeout: 25000,
+  // Round 43 perf — was 25s. Anything that takes >12s on this app is
+  // effectively a hang from the user's perspective; failing fast lets the
+  // UI surface a retry banner instead of leaving spinners spinning.
+  timeout: 12000,
 });
 
 // Auth token interceptor

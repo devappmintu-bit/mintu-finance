@@ -80,6 +80,8 @@ async def _ensure_indexes(db) -> None:
 
         # Gmail OAuth / sync (TTL auto-cleanup of pending state tokens)
         await db.oauth_states.create_index("expires_at", expireAfterSeconds=0)
+        # gmail_tokens.user_id is created here (unique). Round 43 — duplicate
+        # creation in the perf-pass block below is removed.
         await db.gmail_tokens.create_index("user_id", unique=True)
         await db.transactions.create_index(
             [("user_id", 1), ("source_msg_id", 1)], sparse=True
@@ -103,6 +105,37 @@ async def _ensure_indexes(db) -> None:
         )
         await db.ledger_transactions.create_index([("user_id", 1), ("created_at", -1)])
         await db.ledger_transactions.create_index("source")
+        # Round 43 perf — coins/ledger sorts by _id desc for cursor pagination.
+        # Without this index it was doing an in-memory sort. Compound index
+        # also handles the type=earn/spend filter via amount sign.
+        await db.ledger_transactions.create_index([("user_id", 1), ("_id", -1)])
+
+        # Round 43 perf — goals + notifications_feed had ZERO user_id indexes.
+        # Goals query (`/api/goals`, every render of /goals + Budget sheet)
+        # was a collection scan. Notifications query (`/api/notifications`,
+        # bell badge polling every 60s) was the same.
+        await db.goals.create_index([("user_id", 1), ("created_at", -1)])
+        await db.goals.create_index("user_id")
+        await db.notifications_feed.create_index([("user_id", 1), ("created_at", -1)])
+        await db.notifications_feed.create_index([("user_id", 1), ("read", 1)])
+
+        # Round 43 perf — streak/freeze/score collections also unindexed.
+        await db.streak_freeze_events.create_index([("user_id", 1), ("created_at", -1)])
+        await db.score_history.create_index([("user_id", 1), ("created_at", -1)])
+        await db.mission_claims.create_index([("user_id", 1), ("created_at", -1)])
+        await db.subscriptions.create_index("user_id")
+        await db.rewards_wallet.create_index([("user_id", 1), ("created_at", -1)])
+        await db.reward_spins.create_index([("user_id", 1), ("created_at", -1)])
+        await db.split_messages.create_index([("group_id", 1), ("created_at", -1)])
+        await db.recurring_expenses.create_index([("group_id", 1)])
+        await db.recurring_splits.create_index([("group_id", 1)])
+        await db.payment_orders.create_index([("user_id", 1), ("created_at", -1)])
+        await db.user_badges.create_index("user_id")
+        await db.referrals.create_index("referrer_id")
+        await db.school_progress.create_index("user_id")
+        await db.budget_alerts.create_index([("user_id", 1), ("created_at", -1)])
+        await db.family_groups.create_index("members.user_id")
+        await db.family_budgets.create_index("group_id")
 
         logger.info("✅ MongoDB indexes created for 1.46B-scale performance")
     except Exception as e:

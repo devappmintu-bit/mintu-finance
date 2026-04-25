@@ -40,6 +40,10 @@ export default function useSwr<T = any>(url: string | null, opts: Options = {}):
   const [isStale, setIsStale] = useState<boolean>(false);
   const [error, setError] = useState<Error | null>(null);
   const mountedRef = useRef(true);
+  // Round 43 perf — focus-refetch throttle. Stops the screen from firing a
+  // refetch when the user toggles between adjacent tabs every few seconds.
+  const lastLoadAtRef = useRef<number>(0);
+  const FOCUS_THROTTLE_MS = 15_000;
 
   useEffect(() => {
     mountedRef.current = true;
@@ -67,6 +71,7 @@ export default function useSwr<T = any>(url: string | null, opts: Options = {}):
       }
       setIsLoading(false);
       setError(null);
+      lastLoadAtRef.current = Date.now();
     } catch (e: any) {
       if (!mountedRef.current) return;
       setError(e instanceof Error ? e : new Error(String(e)));
@@ -77,10 +82,13 @@ export default function useSwr<T = any>(url: string | null, opts: Options = {}):
   // Initial load + on dep change
   useEffect(() => { load(); }, [load]);
 
-  // Re-validate on focus (with safety check — noop if pre-mount)
+  // Re-validate on focus (Round 43 perf — throttled to once per 15 s so
+  // tab-bouncing or quick alt-tabs don't fire dozens of redundant requests).
   useFocusEffect(
     useCallback(() => {
-      if (refetchOnFocus && url && !paused) load();
+      if (!refetchOnFocus || !url || paused) return;
+      if (Date.now() - lastLoadAtRef.current < FOCUS_THROTTLE_MS) return;
+      load();
     }, [refetchOnFocus, url, paused, load])
   );
 

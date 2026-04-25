@@ -32,7 +32,7 @@ const PERKS: { icon: any; title: string; sub: string }[] = [
   { icon: 'shield-checkmark', title: 'Zero ads · Priority support', sub: 'Skip the queue, forever' },
 ];
 
-export default function PremiumHomeCard() {
+function PremiumHomeCard() {
   const s = useStyles();
   const [status, setStatus] = useState<Status>(null);
   const [loading, setLoading] = useState(true);
@@ -190,3 +190,6 @@ const useStyles = makeStyles((c) => ({
   },
   secondaryCtaFullTxt: { color: '#7C2D12', fontWeight: '800', fontSize: 12.5 },
 }));
+
+// Round 43 perf — memoized so unrelated parent state changes don't re-render this widget.
+export default React.memo(PremiumHomeCard);

@@ -13,7 +13,7 @@ interface Props {
   user: any;
 }
 
-export default function WeeklyReport({ weeklyReport, snapshot, user }: Props) {
+function WeeklyReport({ weeklyReport, snapshot, user }: Props) {
   const s = useStyles();
   if (!weeklyReport || weeklyReport.total_spent <= 0) return null;
 
@@ -98,3 +98,6 @@ const useStyles = makeStyles((c) => ({
   shareBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, backgroundColor: '#25D366', paddingVertical: 12, borderRadius: 999, marginTop: 12 },
   shareBtnText: { fontSize: 13, fontWeight: '800', color: '#fff' },
 }));
+
+// Round 43 perf — memoized so unrelated parent state changes don't re-render this widget.
+export default React.memo(WeeklyReport);

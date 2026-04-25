@@ -27,7 +27,7 @@ interface Props {
   counts: Counts | null;
 }
 
-export default function GettingStartedCard({ counts }: Props) {
+function GettingStartedCard({ counts }: Props) {
   const [dismissed, setDismissed] = useState<boolean | null>(null);
 
   // Read dismissal flag once on mount.
@@ -151,3 +151,6 @@ const s = StyleSheet.create({
   stepLbl: { flex: 1, fontSize: 14, fontWeight: '700', color: COLORS.text.primary },
   stepLblDone: { color: COLORS.text.muted, textDecorationLine: 'line-through' },
 });
+
+// Round 43 perf — memoized so unrelated parent state changes don't re-render this widget.
+export default React.memo(GettingStartedCard);

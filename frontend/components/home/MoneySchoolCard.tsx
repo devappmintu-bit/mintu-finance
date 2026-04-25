@@ -21,7 +21,7 @@ import { makeStyles } from '../../utils/makeStyles';
 
 type Lesson = { title?: string; tip?: string; lesson_number?: number; total_lessons?: number };
 
-export default function MoneySchoolCard() {
+function MoneySchoolCard() {
   const s = useStyles();
   const [lesson, setLesson] = useState<Lesson | null>(null);
   const [isPremium, setIsPremium] = useState(false);
@@ -144,3 +144,6 @@ const useStyles = makeStyles((c) => ({
   ctaBtn: { flexDirection: 'row', alignItems: 'center', gap: 4 },
   ctaT: { fontSize: 12, fontWeight: '800', color: c.accent.primary, letterSpacing: 0.2 },
 }));
+
+// Round 43 perf — memoized so unrelated parent state changes don't re-render this widget.
+export default React.memo(MoneySchoolCard);

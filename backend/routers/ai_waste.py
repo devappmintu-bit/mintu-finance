@@ -11,6 +11,7 @@ Auto-extracted from backend/routers/ai.py (Round 14 refactor).
 Decorators register on the shared APIRouter from routers.ai_common.
 """
 import os
+import asyncio
 import logging
 from datetime import datetime, timedelta, date
 from typing import List, Dict, Optional
@@ -46,38 +47,52 @@ async def waste_detector(user_id: str = Depends(get_current_user)):
     now = datetime.utcnow()
     month_start = now.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
     prev_month_start = (month_start - timedelta(days=1)).replace(day=1)
-    
-    # Category spending this month
-    pipeline = [
+
+    # Round 43 perf — three independent aggregations now run in parallel
+    # via asyncio.gather (was sequential, ~3x faster cold-call).
+    async def _agg(pipeline):
+        out = {}
+        async for d in db.transactions.aggregate(pipeline):
+            out[d["_id"]] = {"total": d["total"], "count": d.get("count", 0), "user_count": d.get("user_count", 0)}
+        return out
+
+    cur_pipe = [
         {"$match": {"user_id": user_id, "type": {"$in": ["expense", "debit"]}, "date": {"$gte": month_start}}},
         {"$group": {"_id": "$category", "total": {"$sum": "$amount"}, "count": {"$sum": 1}}}
     ]
-    categories = {}
-    async for doc in db.transactions.aggregate(pipeline):
-        categories[doc["_id"]] = {"total": doc["total"], "count": doc["count"]}
-    
-    # Last month spending for trend comparison
-    prev_pipeline = [
+    prev_pipe = [
         {"$match": {"user_id": user_id, "type": {"$in": ["expense", "debit"]}, "date": {"$gte": prev_month_start, "$lt": month_start}}},
         {"$group": {"_id": "$category", "total": {"$sum": "$amount"}, "count": {"$sum": 1}}}
     ]
-    prev_categories = {}
-    async for doc in db.transactions.aggregate(prev_pipeline):
-        prev_categories[doc["_id"]] = {"total": doc["total"], "count": doc["count"]}
-    
+    # Round 43 perf — peer aggregation across ALL users is expensive at
+    # scale. Cache it globally for 10 min (it's identical for every user).
+    peer_cache_key = "waste:peer_global"
+    peer_data = cache_get(peer_cache_key)
+
+    async def _peer():
+        peer_pipeline = [
+            {"$match": {"type": {"$in": ["expense", "debit"]}, "date": {"$gte": month_start}}},
+            {"$group": {"_id": "$category", "total": {"$sum": "$amount"}, "user_count": {"$addToSet": "$user_id"}}},
+            {"$project": {"_id": 1, "total": 1, "user_count": {"$size": "$user_count"}}}
+        ]
+        out = {}
+        async for d in db.transactions.aggregate(peer_pipeline):
+            if d["user_count"] > 0:
+                out[d["_id"]] = {"avg": d["total"] / d["user_count"]}
+        return out
+
+    if peer_data is None:
+        categories, prev_categories, peer_data = await asyncio.gather(
+            _agg(cur_pipe), _agg(prev_pipe), _peer()
+        )
+        cache_set(peer_cache_key, peer_data, ttl_seconds=600)
+    else:
+        categories, prev_categories = await asyncio.gather(
+            _agg(cur_pipe), _agg(prev_pipe)
+        )
+
     total_expense = sum(c["total"] for c in categories.values())
     prev_total = sum(c["total"] for c in prev_categories.values())
-    
-    # Peer average spending (aggregate from all users this month)
-    peer_pipeline = [
-        {"$match": {"type": {"$in": ["expense", "debit"]}, "date": {"$gte": month_start}}},
-        {"$group": {"_id": "$category", "total": {"$sum": "$amount"}, "user_count": {"$addToSet": "$user_id"}}},
-        {"$project": {"_id": 1, "total": 1, "user_count": {"$size": "$user_count"}}}
-    ]
-    peer_data = {}
-    async for doc in db.transactions.aggregate(peer_pipeline):
-        if doc["user_count"] > 0:
-            peer_data[doc["_id"]] = {"avg": doc["total"] / doc["user_count"]}
     
     # Build enhanced waste insights for each category
     waste_insights = []
@@ -116,27 +131,37 @@ async def waste_detector(user_id: str = Depends(get_current_user)):
     users_with_less = await db.users.count_documents({"money_score": {"$lt": 50}})
     percentile = min(95, max(5, int((1 - (users_with_less / max(user_count, 1))) * 100)))
     
-    # Generate AI recommendation using GPT
-    ai_recommendation = ""
-    try:
-        top_3_cats = "\n".join([f"- {w['category']}: ₹{w['amount']:,.0f} ({w['count']} txns){' — ' + w['trend']['text'] if w['trend']['text'] else ''}" for w in waste_insights[:3]])
-        ai_prompt = f"""Based on this Indian user's spending, give ONE short punchy recommendation (2-3 sentences max):
+    # Round 43 perf — AI text is now strictly OPT-IN side data. Return the
+    # numeric/structural waste insights immediately (sub-100ms cold). The
+    # GPT call is fired-and-forgot in a background task; its result is
+    # written to a separate cache key (`waste_ai:{user_id}`) so the NEXT
+    # cold-call (or refresh) returns it without blocking. A new endpoint
+    # fragment isn't needed — clients see {ai_recommendation: ""} on the
+    # first cold call and a populated string on the second.
+    ai_recommendation = cache_get(f"waste_ai:{user_id}") or ""
+
+    async def _generate_ai_bg():
+        try:
+            top_3_cats = "\n".join([f"- {w['category']}: ₹{w['amount']:,.0f} ({w['count']} txns){' — ' + w['trend']['text'] if w['trend']['text'] else ''}" for w in waste_insights[:3]])
+            ai_prompt = f"""Based on this Indian user's spending, give ONE short punchy recommendation (2-3 sentences max):
 Total: ₹{total_expense:,.0f} | Last month: ₹{prev_total:,.0f} | Change: {overall_trend_pct:+.0f}%
 Top categories:
 {top_3_cats}
 Be specific, actionable, use Indian context. Sound like a smart friend, not a bot."""
-        
-        chat = LlmChat(
-            api_key=os.environ.get("EMERGENT_LLM_KEY", ""),
-            session_id=f"waste_{user_id}_{now.timestamp()}",
-            system_message="You are a witty Indian personal finance advisor. Keep it short and punchy."
-        ).with_model("openai", "gpt-5.2")
-        
-        ai_resp = await chat.send_message(UserMessage(text=ai_prompt))
-        ai_recommendation = ai_resp.strip() if isinstance(ai_resp, str) else str(ai_resp)
-    except Exception as e:
-        logging.warning(f"Waste AI recommendation failed: {e}")
-        ai_recommendation = ""
+            chat = LlmChat(
+                api_key=os.environ.get("EMERGENT_LLM_KEY", ""),
+                session_id=f"waste_{user_id}_{now.timestamp()}",
+                system_message="You are a witty Indian personal finance advisor. Keep it short and punchy."
+            ).with_model("openai", "gpt-5.2")
+            ai_resp = await chat.send_message(UserMessage(text=ai_prompt))
+            txt = ai_resp.strip() if isinstance(ai_resp, str) else str(ai_resp)
+            cache_set(f"waste_ai:{user_id}", txt, ttl_seconds=900)
+        except Exception as e:
+            logging.warning(f"Waste AI background recommendation failed: {e}")
+
+    if not ai_recommendation:
+        # Fire-and-forget. Don't await — we don't want to block the response.
+        asyncio.create_task(_generate_ai_bg())
     
     result = {
         "total_monthly_expense": total_expense,
