@@ -30,6 +30,7 @@ import SmartInsightsStrip from '../../components/transactions/SmartInsightsStrip
 import TransactionFilterSheet, { DEFAULT_FILTER, TxnFilter, applyFilterToList, filterActiveCount } from '../../components/transactions/TransactionFilterSheet';
 import TransactionsHero from '../../components/transactions/TransactionsHero';
 import useSwr from '../../hooks/useSwr';
+import { useIsOnline } from '../../hooks/useIsOnline';
 
 // Pure, memoized row — prevents re-renders on unrelated parent state changes (e.g. modals).
 // Per UX spec: Transactions get DELETE-only swipe (no edit gesture).
