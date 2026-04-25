@@ -24,6 +24,7 @@ import { BottomSheetModalProvider } from '@gorhom/bottom-sheet';
 import { PortalProvider } from '@gorhom/portal';
 import { useAppColors } from '../utils/theme';
 import ErrorBoundary from '../components/ErrorBoundary';
+import OfflineBanner from '../components/OfflineBanner';
 
 // Silence noisy, non-actionable deprecation warnings from RN core + libs.
 // These warnings are informational for future RN versions and don't affect runtime.
@@ -117,9 +118,14 @@ export default function RootLayout() {
 
   return (
     <GestureHandlerRootView style={{ flex: 1, backgroundColor: c.bg.primary }}>
-      <ErrorBoundary>
+      <ErrorBoundary variant="full">
       <PortalProvider>
         <BottomSheetModalProvider>
+          {/* Round 40 — global offline banner. Mounted outside the Stack so
+              it persists across route transitions and sits on top of every
+              screen (z-index 999, pointerEvents="none" so it never swallows
+              taps). */}
+          <OfflineBanner />
           {/*
             Round 30b: the previous Stack `key={resolvedTheme}` hard-remount
             is GONE. All 14 previously-legacy screens have been migrated to

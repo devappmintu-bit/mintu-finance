@@ -104,6 +104,11 @@ const PLAN_ACCESS: Record<Plan, Feature[]> = {
     FEATURES.TAX_CALCULATOR, FEATURES.INVESTMENT_SUGGESTER, FEATURES.YEARLY_DASHBOARD, FEATURES.REPORTS,
     FEATURES.PRIORITY_AI, FEATURES.CUSTOM_REPORTS, FEATURES.EXCLUSIVE_BADGES,
     FEATURES.AD_FREE, FEATURES.EARLY_ACCESS, FEATURES.SMART_ALERTS,
+    // Round 40 — fix latent bug: MONEY_SCHOOL was advertised in `PLANS.yearly.features`
+    // marketing text and gated via `canAccess(MONEY_SCHOOL, plan)` in premium-hub.tsx,
+    // but the feature was never actually granted to any plan. Result: yearly
+    // subscribers paid for "Money School" but saw the LockedState screen.
+    FEATURES.MONEY_SCHOOL,
   ],
 };
 

@@ -1,102 +1,168 @@
 /**
- * ErrorBoundary — root-level safety net for unexpected React render errors.
+ * Round 40 — app-wide error boundary.
  *
- * Catches any render-time crash anywhere below it, shows a branded recovery
- * screen with a "Try again" button that remounts the subtree, and logs the
- * full error+stack to console for debugging. Without this, a single JSX
- * crash would blank the entire app.
+ * React error boundaries MUST be class components (hooks can't participate in
+ * error phase). We support two variants:
+ *   • variant="full"  — wraps the entire app in _layout.tsx; fullscreen
+ *                     fallback with Restart/Report buttons.
+ *   • variant="tab"   — wraps each tab individually so one tab crash doesn't
+ *                     blank the whole app; compact fallback with Retry.
  *
- * Round 30b: migrated to a function component so theme toggles propagate
- * via useAppColors without needing the parent Stack to remount.
- *
- * Does NOT catch:
- *   • Async errors (Promise rejections, setTimeout)
- *   • Errors thrown in event handlers (React by design)
- *   • SSR errors (we render client-side only on Expo web)
+ * In __DEV__ builds we also expose the error message + component stack under
+ * a collapsible section so the developer can diagnose without opening the
+ * Metro terminal. Production builds never render raw error details.
  */
 import React from 'react';
-import { View, Text, TouchableOpacity, Platform } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
-import { useAppColors } from '../utils/theme';
-import { makeStyles } from '../utils/makeStyles';
+import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Platform } from 'react-native';
+import * as Clipboard from 'expo-clipboard';
+import { COLORS, SPACING } from '../utils/theme';
 
-interface State { hasError: boolean; error: Error | null }
+type Variant = 'full' | 'tab';
 
-interface ErrorFallbackProps { error: Error | null; reset: () => void }
-function ErrorFallback({ error, reset }: ErrorFallbackProps) {
-  const c = useAppColors();
-  const s = useStyles();
-  const msg = error?.message || 'Something went sideways';
-  const isDev = __DEV__;
-  return (
-    <View style={s.wrap}>
-      <View style={s.iconWrap}>
-        <Ionicons name="alert-circle" size={44} color={c.state.danger} />
-      </View>
-      <Text style={s.title}>We hit a bump</Text>
-      <Text style={s.subtitle}>
-        A glitch prevented this screen from loading. Tap below to try again.
-      </Text>
-      {isDev ? (
-        <View style={s.devBox}>
-          <Text style={s.devLabel}>DEV — error</Text>
-          <Text style={s.devMsg} numberOfLines={5}>{msg}</Text>
-        </View>
-      ) : null}
-      <TouchableOpacity style={s.btn} onPress={reset} activeOpacity={0.85}>
-        <Ionicons name="refresh" size={16} color="#fff" />
-        <Text style={s.btnTxt}>Try again</Text>
-      </TouchableOpacity>
-    </View>
-  );
+interface Props {
+  children: React.ReactNode;
+  variant?: Variant;
+  onReset?: () => void;  // optional callback when Retry is pressed (tab variant)
 }
 
-export default class ErrorBoundary extends React.Component<{ children: React.ReactNode }, State> {
-  state: State = { hasError: false, error: null };
+interface State {
+  hasError: boolean;
+  error: Error | null;
+  info: React.ErrorInfo | null;
+  showDetails: boolean;
+}
 
-  static getDerivedStateFromError(error: Error): State {
+export default class ErrorBoundary extends React.Component<Props, State> {
+  state: State = { hasError: false, error: null, info: null, showDetails: false };
+
+  static getDerivedStateFromError(error: Error): Partial<State> {
     return { hasError: true, error };
   }
 
   componentDidCatch(error: Error, info: React.ErrorInfo) {
     // eslint-disable-next-line no-console
-    console.error('[MintU:ErrorBoundary]', error, info.componentStack);
+    console.warn('[ErrorBoundary]', error?.message || error, info?.componentStack);
+    this.setState({ info });
   }
 
-  reset = () => this.setState({ hasError: false, error: null });
+  reset = () => {
+    this.setState({ hasError: false, error: null, info: null, showDetails: false });
+    this.props.onReset?.();
+  };
+
+  restartApp = async () => {
+    // Try expo-updates if installed; otherwise gracefully fall back to a
+    // local state reset so the user at least gets unblocked. `expo-updates`
+    // isn't a hard dependency of this project (it's typically added when
+    // OTA builds are configured), so we resolve it lazily.
+    try {
+      // @ts-ignore — optional peer
+      const Updates = require('expo-updates');
+      if (Updates?.reloadAsync) { await Updates.reloadAsync(); return; }
+    } catch {}
+    this.reset();
+  };
+
+  copyError = async () => {
+    const payload = [
+      `Error: ${this.state.error?.message || 'unknown'}`,
+      this.state.error?.stack || '',
+      this.state.info?.componentStack || '',
+    ].join('\n\n');
+    try { await Clipboard.setStringAsync(payload); } catch {}
+  };
 
   render() {
     if (!this.state.hasError) return this.props.children;
-    return <ErrorFallback error={this.state.error} reset={this.reset} />;
+
+    const variant: Variant = this.props.variant || 'full';
+    if (variant === 'tab') {
+      return (
+        <View style={s.tabFallback}>
+          <Text style={s.tabEmoji}>🚧</Text>
+          <Text style={s.tabTitle}>This section isn't working right now</Text>
+          <Text style={s.tabSub}>It's not you — something went sideways on our end.</Text>
+          <TouchableOpacity onPress={this.reset} style={s.tabRetry} accessibilityRole="button" accessibilityLabel="Retry" activeOpacity={0.85}>
+            <Text style={s.tabRetryTxt}>Retry</Text>
+          </TouchableOpacity>
+        </View>
+      );
+    }
+
+    return (
+      <ScrollView contentContainerStyle={s.fullFallback}>
+        <Text style={s.emoji}>🚨</Text>
+        <Text style={s.title}>Something went wrong</Text>
+        <Text style={s.sub}>An unexpected error occurred. Please restart the app.</Text>
+
+        <TouchableOpacity onPress={this.restartApp} style={s.btnPrimary} accessibilityRole="button" accessibilityLabel="Restart app" activeOpacity={0.85}>
+          <Text style={s.btnPrimaryTxt}>Restart App</Text>
+        </TouchableOpacity>
+        <TouchableOpacity onPress={this.copyError} style={s.btnSecondary} accessibilityRole="button" accessibilityLabel="Copy error details" activeOpacity={0.85}>
+          <Text style={s.btnSecondaryTxt}>Report Issue (copy details)</Text>
+        </TouchableOpacity>
+
+        {__DEV__ && (
+          <View style={s.devBlock}>
+            <TouchableOpacity onPress={() => this.setState((p) => ({ showDetails: !p.showDetails }))} activeOpacity={0.7}>
+              <Text style={s.devToggle}>{this.state.showDetails ? 'Hide' : 'Show'} dev details</Text>
+            </TouchableOpacity>
+            {this.state.showDetails && (
+              <ScrollView style={s.stackBox} horizontal={false} nestedScrollEnabled>
+                <Text style={s.stackTitle}>{this.state.error?.message}</Text>
+                <Text style={s.stackTxt}>{this.state.error?.stack}</Text>
+                {!!this.state.info?.componentStack && (
+                  <>
+                    <Text style={s.stackTitle}>Component stack:</Text>
+                    <Text style={s.stackTxt}>{this.state.info.componentStack}</Text>
+                  </>
+                )}
+              </ScrollView>
+            )}
+          </View>
+        )}
+      </ScrollView>
+    );
   }
 }
 
-const useStyles = makeStyles((c) => ({
-  wrap: {
-    flex: 1, alignItems: 'center', justifyContent: 'center',
-    padding: 24, backgroundColor: c.bg.primary,
+const s = StyleSheet.create({
+  fullFallback: {
+    flexGrow: 1, alignItems: 'center', justifyContent: 'center',
+    padding: SPACING.xl, backgroundColor: COLORS.bg.primary,
   },
-  iconWrap: {
-    width: 72, height: 72, borderRadius: 36,
-    backgroundColor: c.state.dangerBg,
-    alignItems: 'center', justifyContent: 'center', marginBottom: 18,
-  },
-  title: { fontSize: 22, fontWeight: '800', color: c.text.primary, letterSpacing: -0.4, textAlign: 'center' },
-  subtitle: { fontSize: 14, fontWeight: '500', color: c.text.muted, marginTop: 8, textAlign: 'center', lineHeight: 20, maxWidth: 320 },
-  devBox: {
-    marginTop: 16, padding: 12, borderRadius: 10,
-    backgroundColor: c.bg.secondary,
-    borderWidth: 1, borderColor: c.state.dangerBorder,
-    maxWidth: 360,
-  },
-  devLabel: { fontSize: 10, fontWeight: '900', color: c.state.danger, letterSpacing: 1 },
-  devMsg: { fontSize: 12, fontWeight: '600', color: c.text.primary, marginTop: 6, fontFamily: Platform.OS === 'ios' ? 'Menlo' : 'monospace' },
+  emoji: { fontSize: 56, marginBottom: 12 },
+  title: { fontSize: 22, fontWeight: '900', color: COLORS.text.primary, letterSpacing: -0.4, textAlign: 'center' },
+  sub: { fontSize: 14, color: COLORS.text.muted, marginTop: 8, textAlign: 'center', lineHeight: 20, maxWidth: 320 },
 
-  btn: {
-    flexDirection: 'row', alignItems: 'center', gap: 8,
-    backgroundColor: c.accent.primary,
-    paddingHorizontal: 22, paddingVertical: 13,
-    borderRadius: 999, marginTop: 22,
+  btnPrimary: {
+    marginTop: 28, paddingHorizontal: 28, paddingVertical: 14,
+    borderRadius: 999, backgroundColor: COLORS.accent.primary,
   },
-  btnTxt: { color: '#fff', fontSize: 15, fontWeight: '800', letterSpacing: -0.2 },
-}));
+  btnPrimaryTxt: { color: '#fff', fontWeight: '900', fontSize: 15, letterSpacing: 0.2 },
+  btnSecondary: {
+    marginTop: 10, paddingHorizontal: 20, paddingVertical: 12, borderRadius: 999,
+    borderWidth: 1, borderColor: COLORS.border.subtle, backgroundColor: COLORS.bg.secondary,
+  },
+  btnSecondaryTxt: { color: COLORS.text.primary, fontWeight: '700', fontSize: 13 },
+
+  devBlock: { marginTop: 24, width: '100%', maxWidth: 520 },
+  devToggle: { textAlign: 'center', color: COLORS.text.muted, fontSize: 12, fontWeight: '700', letterSpacing: 1 },
+  stackBox: { marginTop: 10, padding: 12, borderRadius: 10, backgroundColor: '#0F172A', maxHeight: 240 },
+  stackTitle: { color: '#FCA5A5', fontWeight: '800', fontSize: 12, marginTop: 6 },
+  stackTxt: { color: '#CBD5E1', fontSize: 11, fontFamily: Platform.select({ ios: 'Menlo', android: 'monospace' }) },
+
+  // Tab variant — compact; sits inside the tab's own render area.
+  tabFallback: {
+    flex: 1, alignItems: 'center', justifyContent: 'center',
+    padding: SPACING.xl, backgroundColor: COLORS.bg.primary,
+  },
+  tabEmoji: { fontSize: 40, marginBottom: 10 },
+  tabTitle: { fontSize: 16, fontWeight: '900', color: COLORS.text.primary, textAlign: 'center' },
+  tabSub: { fontSize: 13, color: COLORS.text.muted, marginTop: 6, textAlign: 'center', lineHeight: 18 },
+  tabRetry: {
+    marginTop: 18, paddingHorizontal: 22, paddingVertical: 10, borderRadius: 999,
+    backgroundColor: COLORS.accent.primary,
+  },
+  tabRetryTxt: { color: '#fff', fontWeight: '900', fontSize: 13, letterSpacing: 0.4 },
+});

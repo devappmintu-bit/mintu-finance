@@ -845,10 +845,49 @@ round36_smoke_apr24_2026:
 
 test_plan:
   current_focus:
-    - "Round 39 — /api/coins/ledger endpoint validation"
+    - "Round 40 — frontend-only smoke regression"
   stuck_tasks: []
   test_all: false
   test_priority: "high_first"
+
+round40_smoke_apr25_2026:
+  - task: "Round 40 frontend-only smoke regression — 6 endpoint families"
+    implemented: true
+    working: true
+    file: "/app/round40_smoke_test.py"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+      - working: true
+        agent: "testing"
+        comment: |
+          ✅ ROUND 40 QUICK SMOKE — 7/8 PASS, 1 expected 404 (Apr 25 2026).
+          No backend changes this round (frontend-only: ErrorBoundary, OfflineBanner,
+          AnimatedStreak rewrite, premium.ts MONEY_SCHOOL access fix). Smoke test
+          /app/round40_smoke_test.py against
+          https://mintu-finance.preview.emergentagent.com/api with phone
+          9876543210 / OTP 123456:
+
+            • POST /api/auth/send-otp → 200 ✅
+            • POST /api/auth/verify-otp → 200 (token issued) ✅
+            • GET  /api/money-school/lessons → 200, body has {lessons, total} ✅
+            • GET  /api/coins/ledger (Round 39) → 200 ✅
+            • GET  /api/notifications (Round 37) → 200 ✅
+            • GET  /api/search?q=test (Round 37) → 200 ✅
+            • GET  /api/bundle → 404 (EXPECTED — this path does not exist; the
+              actual route consumed by the frontend is /api/home/bundle. Already
+              documented in Round 38 status. Not a regression.)
+            • GET  /api/home/bundle → 200 ✅
+
+          Backend logs during the run: only 200s for the happy paths. Zero 5xx,
+          zero unexpected statuses.
+
+          VERDICT: Round 40 frontend-only changes introduced ZERO backend
+          regressions. All 6 endpoint families consumed by the frontend
+          return expected statuses. Money School backend endpoint is alive
+          and returning the lessons payload — yearly subscribers' new
+          access path will work end-to-end.
 
 round39_coins_ledger_apr25_2026:
   - task: "Round 39 — GET /api/coins/ledger cursor-paginated feed + regression"
