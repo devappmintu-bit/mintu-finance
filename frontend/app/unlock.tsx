@@ -36,9 +36,10 @@ import { COLORS } from '../utils/theme';
 import { makeStyles } from '../utils/makeStyles';
 import {
   biometricAvailable, tryBiometric, verifyPin, supportedBiometricLabel,
-  hasPin, clearPin, isBiometricEnabled,
+  hasPin, clearPin, isBiometricEnabled, setBiometricEnabled,
 } from '../utils/lockManager';
 import AuthTransitionOverlay from '../components/auth/AuthTransitionOverlay';
+import Toast from 'react-native-toast-message';
 
 export default function UnlockScreen() {
   const s = useStyles();
@@ -56,6 +57,12 @@ export default function UnlockScreen() {
   const [failCount, setFailCount] = useState(0);
   const [lockUntil, setLockUntil] = useState<number>(0);
   const [lockRemaining, setLockRemaining] = useState<number>(0);
+  // Round 45 — biometric failure tracking. Independent counter so bio
+  // misses do NOT contribute to the PIN lockout (different attack surface,
+  // different cost model — Face ID rejecting your face shouldn't cost you
+  // 5 minutes). After 3 bio fails we hide the puck for the session and
+  // force the user onto PIN.
+  const [bioFailCount, setBioFailCount] = useState(0);
   useEffect(() => {
     if (!lockUntil) return;
     const tick = () => {
@@ -116,12 +123,35 @@ export default function UnlockScreen() {
     setAttempting(true);
     try {
       const ok = await tryBiometric(`Unlock MintU${user?.name ? `, ${user.name}` : ''}`);
-      if (ok) proceed();
-      else { try { Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning); } catch {} }
+      if (ok) {
+        setBioFailCount(0);
+        proceed();
+      } else {
+        try { Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning); } catch {}
+        // Round 45 — soft-fail: toast + 3-strike disable for this session.
+        const next = bioFailCount + 1;
+        setBioFailCount(next);
+        if (next >= 3) {
+          setBioAvail(false);
+          Toast.show({
+            type: 'info',
+            text1: `${bioLabel} disabled for now`,
+            text2: 'Use your mPIN to unlock',
+            position: 'bottom',
+          });
+        } else {
+          Toast.show({
+            type: 'info',
+            text1: `${bioLabel} not recognised`,
+            text2: 'Try again or use your mPIN',
+            position: 'bottom',
+          });
+        }
+      }
     } finally {
       setAttempting(false);
     }
-  }, [attempting, proceed, user?.name]);
+  }, [attempting, proceed, user?.name, bioFailCount, bioLabel]);
 
   // ── On mount: decide initial path
   useEffect(() => {
@@ -133,7 +163,22 @@ export default function UnlockScreen() {
         supportedBiometricLabel(),
       ]);
       setBioLabel(lbl);
-      setBioAvail(hwAvail && enabled);
+      // Round 45 — orphan-pref detection. If user enabled bio earlier and
+      // since then removed every fingerprint/face from device settings,
+      // hwAvail is false but enabled is true. Auto-disable the pref so we
+      // don't keep prompting an empty enrollment, and inform the user.
+      if (enabled && !hwAvail) {
+        await setBiometricEnabled(false);
+        Toast.show({
+          type: 'info',
+          text1: `${lbl} login disabled`,
+          text2: 'No biometrics enrolled on this device',
+          position: 'bottom',
+        });
+        setBioAvail(false);
+      } else {
+        setBioAvail(hwAvail && enabled);
+      }
       // No credentials at all → let user through
       if (!hasP && !(hwAvail && enabled)) { proceed(); return; }
       // Biometric ready → auto-prompt

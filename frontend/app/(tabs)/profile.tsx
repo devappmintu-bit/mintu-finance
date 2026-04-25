@@ -83,6 +83,79 @@ function ProfileScreen() {
   const [scoreBreakdownVisible, setScoreBreakdownVisible] = useState(false);
   const [gmailStatus, setGmailStatus] = useState<any>(null);
 
+  // Round 45 — Security section state
+  const [bioHwAvail, setBioHwAvail] = useState(false);
+  const [bioOn, setBioOn] = useState(false);
+  const [bioLabel, setBioLabel] = useState<'Face ID' | 'Fingerprint' | 'Biometric'>('Biometric');
+  const [appLockOn, setAppLockOn] = useState(true);
+  const [pinModalVisible, setPinModalVisible] = useState(false);
+  const [hasPinSet, setHasPinSet] = useState(false);
+
+  useEffect(() => {
+    (async () => {
+      try {
+        const [hw, on, lbl, pinSet] = await Promise.all([
+          biometricAvailable(), isBiometricEnabled(), supportedBiometricLabel(), hasPin(),
+        ]);
+        setBioHwAvail(hw); setBioOn(hw && on); setBioLabel(lbl); setHasPinSet(pinSet);
+        // App-lock pref via SecureStore
+        try {
+          const SecureStore = require('expo-secure-store');
+          const v = await SecureStore.getItemAsync('app_lock_enabled');
+          if (v === '0') setAppLockOn(false);
+        } catch { /* web — default ON */ }
+      } catch { /* non-blocking */ }
+    })();
+  }, []);
+
+  const onToggleBio = useCallback(async () => {
+    if (!bioHwAvail) return;
+    const next = !bioOn;
+    if (next) {
+      // Verify with biometric BEFORE flipping pref ON.
+      const ok = await tryBiometric(`Confirm to enable ${bioLabel}`);
+      if (!ok) {
+        Toast.show({ type: 'info', text1: `${bioLabel} not confirmed`, text2: 'Try again to enable', position: 'bottom' });
+        return;
+      }
+    }
+    await setBiometricEnabled(next);
+    setBioOn(next);
+    Toast.show({
+      type: 'success',
+      text1: next ? `${bioLabel} enabled` : `${bioLabel} disabled`,
+      text2: next ? `Use ${bioLabel} to unlock MintU` : 'Use mPIN to unlock',
+      position: 'bottom',
+    });
+  }, [bioHwAvail, bioOn, bioLabel]);
+
+  const onToggleAppLock = useCallback(async () => {
+    const next = !appLockOn;
+    setAppLockOn(next);
+    try {
+      const SecureStore = require('expo-secure-store');
+      await SecureStore.setItemAsync('app_lock_enabled', next ? '1' : '0');
+    } catch { /* web fallback — ignored */ }
+    Toast.show({
+      type: 'success',
+      text1: next ? 'App lock ON' : 'App lock OFF',
+      text2: next ? 'MintU will lock when sent to background' : 'MintU stays unlocked in background',
+      position: 'bottom',
+    });
+  }, [appLockOn]);
+
+  const onChangePin = useCallback(async () => {
+    // Require current credential before allowing PIN change.
+    if (bioHwAvail && bioOn) {
+      const ok = await tryBiometric(`Confirm to change mPIN`);
+      if (!ok) {
+        Toast.show({ type: 'info', text1: 'Verification needed', text2: 'Confirm to change PIN', position: 'bottom' });
+        return;
+      }
+    }
+    setPinModalVisible(true);
+  }, [bioHwAvail, bioOn]);
+
   // Modals / sheets
   const [langModalVisible, setLangModalVisible] = useState(false);
   const [helpVisible, setHelpVisible] = useState(false);
@@ -309,6 +382,29 @@ function ProfileScreen() {
           <SettingsListItem icon="card-outline" label="Payment methods" onPress={() => setPaymentMethodsVisible(true)} />
         </SettingsList>
 
+        <SettingsList header="Security">
+          <SettingsListItem
+            icon="finger-print-outline"
+            label={`${bioLabel} login`}
+            value={!bioHwAvail ? 'Not available' : (bioOn ? 'On' : 'Off')}
+            onPress={bioHwAvail ? onToggleBio : undefined}
+            testID="security-bio-toggle"
+          />
+          <SettingsListItem
+            icon="keypad-outline"
+            label={hasPinSet ? 'Change mPIN' : 'Set mPIN'}
+            onPress={onChangePin}
+            testID="security-change-pin"
+          />
+          <SettingsListItem
+            icon="lock-closed-outline"
+            label="App lock on background"
+            value={appLockOn ? 'On' : 'Off'}
+            onPress={onToggleAppLock}
+            testID="security-app-lock"
+          />
+        </SettingsList>
+
         <SettingsList header="App">
           <SettingsListItem
             icon="color-palette-outline"
@@ -481,6 +577,17 @@ function ProfileScreen() {
           })}
         />
       ) : null}
+
+      {/* Round 45 — Change/Set PIN modal triggered from Security section */}
+      <PinSetupModal
+        visible={pinModalVisible}
+        onDone={async () => {
+          setPinModalVisible(false);
+          setHasPinSet(true);
+          Toast.show({ type: 'success', text1: 'mPIN updated', position: 'bottom' });
+        }}
+        onSkip={() => setPinModalVisible(false)}
+      />
     </SafeAreaView>
   );
 }

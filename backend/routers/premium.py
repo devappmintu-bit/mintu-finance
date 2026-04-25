@@ -14,6 +14,7 @@ import logging
 from datetime import datetime, timedelta
 from bson import ObjectId
 from fastapi import Depends, HTTPException
+from pydantic import BaseModel
 
 from core import db, get_current_user
 from core.constants import PREMIUM_FEATURES, PRICING
@@ -124,6 +125,71 @@ RAZORPAY_CHECKOUT_TMPL = """<!doctype html>
 
 
 # ═══════════════════════════════ CORE ENDPOINTS ═════════════════════════════════
+
+# Round 45 — `/premium/investment-suggester` was being called from the
+# frontend (`components/premium/InvestmentSuggester.tsx`) but had no
+# matching route — every tap returned 404 silently. The frontend already
+# implements the locked/unlocked gate so we only need a small handler that
+# computes a deterministic asset-allocation split based on a few inputs.
+
+class InvestmentSuggesterBody(BaseModel):
+    monthly_income: float = 0
+    monthly_expenses: float = 0
+    risk_tolerance: str = "moderate"  # conservative | moderate | aggressive
+
+
+@api_router.post("/premium/investment-suggester")
+async def premium_investment_suggester(
+    body: InvestmentSuggesterBody,
+    user_id: str = Depends(get_current_user),
+):
+    """Return a sane equity/debt/gold split + investable surplus.
+    Pure-fn — no DB writes; safe to spam from the UI."""
+    surplus = max(0.0, float(body.monthly_income) - float(body.monthly_expenses))
+    risk = (body.risk_tolerance or "moderate").lower()
+    # Standard Indian retail allocations by risk bucket
+    if risk == "conservative":
+        eq, debt, gold = 30, 60, 10
+    elif risk == "aggressive":
+        eq, debt, gold = 75, 15, 10
+    else:
+        eq, debt, gold = 60, 30, 10
+
+    monthly = {
+        "equity": round(surplus * eq / 100),
+        "debt": round(surplus * debt / 100),
+        "gold": round(surplus * gold / 100),
+    }
+    return {
+        "investable_surplus": round(surplus),
+        "allocation_pct": {"equity": eq, "debt": debt, "gold": gold},
+        "monthly_amounts": monthly,
+        "recommendations": [
+            {
+                "asset": "Equity",
+                "percent": eq,
+                "amount": monthly["equity"],
+                "vehicles": ["Index funds (Nifty 50 / Next 50)", "Flexi-cap MFs", "ELSS for tax saving"],
+                "note": "Long-term wealth creation. Stay invested 5+ years.",
+            },
+            {
+                "asset": "Debt",
+                "percent": debt,
+                "amount": monthly["debt"],
+                "vehicles": ["Liquid funds", "Short-duration debt funds", "PPF / EPF"],
+                "note": "Stability + capital preservation. Tax-efficient over 3 years.",
+            },
+            {
+                "asset": "Gold",
+                "percent": gold,
+                "amount": monthly["gold"],
+                "vehicles": ["Sovereign Gold Bonds (SGB)", "Gold ETFs"],
+                "note": "Hedge against inflation. Limit to ~10% of portfolio.",
+            },
+        ],
+        "risk_tolerance": risk,
+    }
+
 
 @api_router.post("/premium/mock-activate")
 async def mock_activate_premium(req: MockActivateRequest, user_id: str = Depends(get_current_user)):

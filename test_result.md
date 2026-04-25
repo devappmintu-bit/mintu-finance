@@ -14162,3 +14162,129 @@ agent_communication:
 
         **Status**: No backend regressions. Marketplace claim is now end-to-end
         safe against double-redeem. Ready for user to validate frontend changes.
+
+round45_investment_suggester_apr25_2026:
+  - task: "Round 45 — POST /api/premium/investment-suggester (NEW) + full backend regression sweep"
+    implemented: true
+    working: true
+    file: "/app/backend/routers/premium.py, /app/round45_regression_test.py"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+      - working: true
+        agent: "testing"
+        comment: |
+          ✅ ROUND 45 — 61/61 ASSERTIONS PASS (Apr 25 2026). Test script
+          /app/round45_regression_test.py against
+          https://mintu-finance.preview.emergentagent.com/api with phone
+          9876543210 / OTP 123456.
+
+          NEW ENDPOINT — POST /api/premium/investment-suggester (24/24 ✅):
+            Verified the brand-new handler in routers/premium.py:141-191. Pure-fn,
+            no DB writes. All 3 risk levels return the documented payload with
+            correct allocations:
+              • conservative → equity=30%, debt=60%, gold=10%
+              • moderate     → equity=60%, debt=30%, gold=10%
+              • aggressive   → equity=75%, debt=15%, gold=10%
+            For body {monthly_income:100000, monthly_expenses:60000}:
+              investable_surplus = 40000 (verified all 3 levels)
+              monthly_amounts.equity/debt/gold = round(surplus * pct/100)
+              recommendations is a 3-element list with {asset, percent, amount,
+                vehicles[], note} per asset
+              risk_tolerance echo correct
+            Edge cases:
+              • expenses > income → investable_surplus clamped to 0,
+                monthly_amounts all 0 ✅
+              • Missing bearer → 401 (auth required) ✅
+            Latency: 141–406 ms per call. No 5xx.
+
+          REGRESSION SWEEP — 37 happy-path assertions ALL PASS:
+            • POST /api/auth/send-otp → 200 (637 ms)
+            • POST /api/auth/verify-otp → 200 + JWT (492 ms)
+            • GET  /api/user/me → 200 (147 ms)
+            • GET  /api/transactions → 200 (192 ms)
+            • POST /api/transactions {amount, category:Food, type:debit,
+              description, date} → 200, id returned (260 ms)
+            • GET  /api/budgets → 200 (285 ms)
+            • GET  /api/budgets/live → 200 (309 ms)
+            • POST /api/budgets {Food, 5000, monthly} → 200, id returned (210 ms)
+            • GET  /api/goals → 200 (247 ms)
+            • POST /api/goals {target_amount:50000, target_date:2026-12-31} → 200
+              with `goal.id` in response payload (156 ms)
+            • PATCH /api/goals/{id} {saved_amount:1500} → 200 (frontend uses this
+              path for "contribute" — see note below)
+            • GET  /api/split/groups → 200 (201 ms)
+            • POST /api/split/groups {name, members:[9999888877]} → 200, id
+              returned (148 ms)
+            • POST /api/split/expenses {group_id, paid_by:me, amount, split_type}
+              → 200 (176 ms) — see note below on route shape
+            • GET  /api/notifications → 200 (146 ms)
+            • GET  /api/notifications/unread-count → 200 (147 ms)
+            • GET  /api/coins/ledger → 200 (144 ms)
+            • GET  /api/rewards/summary → 200 (162 ms)
+            • GET  /api/rewards/marketplace → 200 (142 ms)
+            • GET  /api/search?q=test → 200 (151 ms)
+            • GET  /api/waste-detector → 200 in 150 ms ✅ Confirms the
+              fire-and-forget AI refactor: even after seeding fresh debits the
+              endpoint returns instantly (well under the 3-s target).
+            • GET  /api/stats/overview → 200 (143 ms)
+            • GET  /api/gamification/status → 200 (155 ms)
+
+          PERFORMANCE: All cached/indexed reads stayed under 200 ms after the
+          first request; writes 150–300 ms. The N+1-elimination + index work
+          from Rounds 42-44 is holding up. ZERO 5xx anywhere in the run.
+
+          DOCUMENTATION NOTES (NOT regressions — backend is correct, review
+          spec used wrong route shapes):
+            1. POST /api/split/groups/{id}/expenses → 405 Method Not Allowed.
+               This route does NOT exist. The actual endpoint is
+               POST /api/split/expenses with {group_id, paid_by, ...} in the
+               body. Frontend services/split.ts already uses the correct path.
+            2. POST /api/goals/{id}/contribute → 404 Not Found. This route
+               does NOT exist. routers/goals.py only exposes GET, POST,
+               PATCH /{id}, DELETE /{id}. Frontend updates saved_amount via
+               PATCH /api/goals/{id} (verified 200).
+            3. POST /api/goals returns {ok:true, goal:{id, ...}} — id is
+               nested under `goal`, not at the top level (this is fine; the
+               frontend already reads from response.goal.id).
+
+          MOCKED/LIMITED (per review spec — NOT failures):
+            • [MOCK SMS] OTP for 9876543210: 123456 (logged to backend stdout)
+            • Push notifications are MOCKED (in-app feed only, no FCM/APNs)
+            • WhatsApp bot NOT BUILT
+            • Razorpay in test mode
+
+          VERDICT: Round 45 PRODUCTION-READY. New investment-suggester
+          handler returns the exact documented payload shape and is auth-
+          gated. Full regression sweep across 14 endpoint families —
+          ZERO regressions. The two original 4xx responses in this run
+          are documentation-mismatch on the review spec, not backend bugs.
+
+agent_communication:
+    -agent: "testing"
+    -message: |
+        ✅ Round 45 verification complete — 61/61 assertions pass against the
+        live preview URL. New POST /api/premium/investment-suggester returns
+        the exact documented shape across all 3 risk levels (conservative
+        30/60/10, moderate 60/30/10, aggressive 75/15/10) with surplus
+        clamping when expenses>income, and proper 401 when no bearer.
+
+        Full regression sweep across 14 endpoint families: auth, user/me,
+        transactions, budgets (incl. /live), goals, split groups + expenses,
+        notifications + unread-count, coins/ledger, rewards summary +
+        marketplace, search, waste-detector (fire-and-forget AI fast path
+        verified — 150 ms), stats/overview, gamification/status. ALL 200.
+        Response times stayed under 200 ms for cached/indexed reads, 150–
+        300 ms for writes. Zero 5xx anywhere.
+
+        Two routes from the review brief are NOT real backend routes (and
+        never were — pre-existing): POST /split/groups/{id}/expenses (use
+        POST /split/expenses with group_id+paid_by in body) and
+        POST /goals/{id}/contribute (use PATCH /goals/{id} with saved_amount).
+        Frontend already consumes the correct paths. NOT regressions.
+
+        Main agent can finish — the new investment-suggester endpoint is
+        production-ready and the backend has zero regressions from
+        Rounds 42-44 perf work.
+

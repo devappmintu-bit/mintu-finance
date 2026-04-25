@@ -16,7 +16,8 @@
         "NSMicrophoneUsageDescription": "Record voice to add expenses hands-free",
         "NSContactsUsageDescription": "Pick friends to split group expenses",
         "NSCameraUsageDescription": "Take a profile photo for your MintU account",
-        "NSPhotoLibraryUsageDescription": "Choose a profile photo from your library"
+        "NSPhotoLibraryUsageDescription": "Choose a profile photo from your library",
+        "NSFaceIDUsageDescription": "MintU uses Face ID to protect your financial data"
       }
     },
     "android": {
@@ -30,7 +31,9 @@
         "RECORD_AUDIO",
         "READ_CONTACTS",
         "CAMERA",
-        "READ_MEDIA_IMAGES"
+        "READ_MEDIA_IMAGES",
+        "USE_BIOMETRIC",
+        "USE_FINGERPRINT"
       ],
       "intentFilters": [
         {
