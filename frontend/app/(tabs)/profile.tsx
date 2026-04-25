@@ -115,7 +115,7 @@ function ProfileScreen() {
         api.get('/profile/missions').catch(() => ({ data: null })),
         api.get('/gmail/status').catch(() => ({ data: null })),
       ]);
-      if (avatarRes.data?.avatar) setAvatar(avatarRes.data.avatar);
+      if ((avatarRes.data as any)?.avatar) setAvatar((avatarRes.data as any).avatar);
       if (statsRes.data) setStats(statsRes.data);
       if (gamiRes.data) setGamiStatus(gamiRes.data);
       if (rewardsRes.data) setRewardsSummary(rewardsRes.data);

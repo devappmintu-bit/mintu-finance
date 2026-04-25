@@ -439,7 +439,12 @@ function TransactionsScreen() {
               </ScrollView>
               <Text style={styles.formLabel}>{t('description', lang)}</Text>
               <TextInput style={styles.textInput} placeholder="e.g. Lunch at restaurant" placeholderTextColor={COLORS.text.muted} value={formData.description} onChangeText={(v) => setFormData({ ...formData, description: v })} />
-              <TouchableOpacity testID="submit-txn-btn" accessibilityRole="button" accessibilityLabel={editingTxn ? 'Update transaction' : 'Add transaction'} style={[styles.submitBtn, submitting && { opacity: 0.6 }]} onPress={handleAdd} disabled={submitting}><Text style={styles.submitText}>{submitting ? (editingTxn ? t('saving', lang) || 'Saving…' : t('adding', lang) || 'Adding…') : (editingTxn ? t('update', lang) : t('add_transaction', lang))}</Text></TouchableOpacity>
+  // Round 42 — gate submit on connectivity so users see "Offline — can't save"
+  // before tapping (instead of axios eating their submit silently and leaving
+  // a half-filled form). Form data is preserved while offline; banner above
+  // already informs the user globally.
+  const isOnline = useIsOnline();
+              <TouchableOpacity testID="submit-txn-btn" accessibilityRole="button" accessibilityLabel={editingTxn ? 'Update transaction' : 'Add transaction'} style={[styles.submitBtn, (submitting || !isOnline) && { opacity: 0.6 }]} onPress={handleAdd} disabled={submitting || !isOnline}><Text style={styles.submitText}>{!isOnline ? "Offline — can't save" : submitting ? (editingTxn ? t('saving', lang) || 'Saving…' : t('adding', lang) || 'Adding…') : (editingTxn ? t('update', lang) : t('add_transaction', lang))}</Text></TouchableOpacity>
               {/* Round 38 — Delete button INSIDE the edit sheet so users
                   don't have to close the sheet and find the swipe action. */}
               {editingTxn && (
