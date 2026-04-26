@@ -3,7 +3,7 @@ import { View, Text, StyleSheet, Modal, ScrollView, TouchableOpacity, TextInput,
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import Toast from 'react-native-toast-message';
-import { COLORS } from '../../utils/theme';
+import {  COLORS, useAppColors } from '../../utils/theme';
 import { makeStyles } from '../../utils/makeStyles';
 import { C } from './theme';
 
@@ -15,6 +15,7 @@ type Props = {
 
 export default function CreateGroupSheet({ visible, onClose, onCreate }: Props) {
   const s = useStyles();
+  const c = useAppColors();
   const [name, setName] = useState('');
   const [phoneInput, setPhoneInput] = useState('');
   const [phones, setPhones] = useState<string[]>([]);

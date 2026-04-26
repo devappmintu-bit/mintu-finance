@@ -5,7 +5,7 @@
 import React from 'react';
 import { View, Text, StyleSheet, Modal, TouchableOpacity, Pressable } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { CATEGORIES } from '../../utils/theme';
+import {  CATEGORIES, useAppColors } from '../../utils/theme';
 import { makeStyles } from '../../utils/makeStyles';
 
 type Props = {
@@ -18,6 +18,7 @@ type Props = {
 
 export default function DeleteBudgetSheet({ visible, category, amount, onCancel, onConfirm }: Props) {
   const s = useStyles();
+  const c = useAppColors();
   const cat = (CATEGORIES as any)[category || 'Other'] || (CATEGORIES as any).Other;
   return (
     <Modal visible={visible} transparent animationType="fade" onRequestClose={onCancel}>
@@ -25,8 +26,8 @@ export default function DeleteBudgetSheet({ visible, category, amount, onCancel,
       <View style={s.wrap}>
         <View style={s.sheet}>
           <View style={s.handle} />
-          <View style={[s.icon, { backgroundColor: '#FEE2E2' }]}>
-            <Ionicons name="trash" size={28} color="#B91C1C" />
+          <View style={[s.icon, { backgroundColor: c.state.dangerBg }]}>
+            <Ionicons name="trash" size={28} color={c.state.danger} />
           </View>
           <Text style={s.title}>Delete this budget?</Text>
           <Text style={s.desc}>
@@ -61,7 +62,7 @@ const useStyles = makeStyles((c) => ({
   row: { flexDirection: 'row', gap: 10, alignSelf: 'stretch' },
   btn: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, paddingVertical: 14, borderRadius: 14 },
   btnGhost: { backgroundColor: c.gray[100] },
-  btnGhostT: { fontSize: 14, fontWeight: '700', color: '#374151' },
+  btnGhostT: { fontSize: 14, fontWeight: '700', color: c.text.secondary },
   btnDanger: { backgroundColor: c.state.danger },
   btnDangerT: { fontSize: 14, fontWeight: '800', color: c.bg.elevated },
 }));

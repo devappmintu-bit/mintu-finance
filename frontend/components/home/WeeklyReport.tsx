@@ -2,7 +2,7 @@ import React from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Linking, Share } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import Toast from 'react-native-toast-message';
-import { COLORS, RADIUS, SPACING, shadowStyle } from '../../utils/theme';
+import {  COLORS, RADIUS, SPACING, shadowStyle, useAppColors } from '../../utils/theme';
 import { makeStyles } from '../../utils/makeStyles';
 
 import { APP_LINK } from '../../utils/brand';
@@ -15,6 +15,7 @@ interface Props {
 
 function WeeklyReport({ weeklyReport, snapshot, user }: Props) {
   const s = useStyles();
+  const c = useAppColors();
   if (!weeklyReport || weeklyReport.total_spent <= 0) return null;
 
   const handleShare = async () => {
@@ -52,7 +53,7 @@ function WeeklyReport({ weeklyReport, snapshot, user }: Props) {
       <Text style={s.headline}>{weeklyReport.headline}</Text>
       <View style={s.statsRow}>
         <View style={s.stat}>
-          <Text style={[s.statVal, { color: '#EF4444' }]}>₹{weeklyReport.total_spent?.toFixed(0)}</Text>
+          <Text style={[s.statVal, { color: c.state.danger }]}>₹{weeklyReport.total_spent?.toFixed(0)}</Text>
           <Text style={s.statLbl}>This Week</Text>
         </View>
         {weeklyReport.last_week_spent > 0 && (

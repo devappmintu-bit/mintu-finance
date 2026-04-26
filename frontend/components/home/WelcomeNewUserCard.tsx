@@ -20,7 +20,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { router } from 'expo-router';
 import { useAuthStore } from '../../store/authStore';
-import { COLORS, RADIUS, SPACING } from '../../utils/theme';
+import {  COLORS, RADIUS, SPACING, useAppColors } from '../../utils/theme';
 
 interface Props {
   userName?: string;

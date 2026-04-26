@@ -20,7 +20,7 @@ import { Swipeable, RectButton } from 'react-native-gesture-handler';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import * as Haptics from 'expo-haptics';
-import { CATEGORIES, shadowStyle } from '../../utils/theme';
+import {  CATEGORIES, shadowStyle, useAppColors } from '../../utils/theme';
 import { makeStyles } from '../../utils/makeStyles';
 
 type Props = {
@@ -35,6 +35,7 @@ function formatINR(n: number) { return `₹${Math.round(n).toLocaleString('en-IN
 
 const BudgetCard = memo(function BudgetCard({ item, onEdit, onDelete, onAddExpense, onInsights }: Props) {
   const s = useStyles();
+  const c = useAppColors();
   const limit = Number(item.amount ?? item.budget ?? 0);
   const spent = Number(item.spent ?? 0);
   const pct = limit > 0 ? Math.min(100, (spent / limit) * 100) : 0;
@@ -119,18 +120,18 @@ const BudgetCard = memo(function BudgetCard({ item, onEdit, onDelete, onAddExpen
           </TouchableOpacity>
         )}
         <TouchableOpacity style={s.dotsBtn} onPress={() => setMenuOpen(v => !v)} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
-          <Ionicons name="ellipsis-horizontal" size={16} color="#6B7280" />
+          <Ionicons name="ellipsis-horizontal" size={16} color={c.text.muted} />
         </TouchableOpacity>
         {menuOpen && (
           <View style={s.menu}>
             <TouchableOpacity style={s.menuItem} onPress={tap(() => { setMenuOpen(false); onEdit(); })}>
-              <Ionicons name="create-outline" size={16} color="#2563EB" /><Text style={[s.menuT, { color: '#2563EB' }]}>Edit</Text>
+              <Ionicons name="create-outline" size={16} color={c.state.info} /><Text style={[s.menuT, { color: c.state.info }]}>Edit</Text>
             </TouchableOpacity>
             <TouchableOpacity style={s.menuItem} onPress={tap(() => { setMenuOpen(false); onAddExpense(); }, Haptics.ImpactFeedbackStyle.Medium)}>
-              <Ionicons name="add-circle-outline" size={16} color="#10B981" /><Text style={[s.menuT, { color: '#10B981' }]}>+ Expense</Text>
+              <Ionicons name="add-circle-outline" size={16} color={c.state.success} /><Text style={[s.menuT, { color: c.state.success }]}>+ Expense</Text>
             </TouchableOpacity>
             <TouchableOpacity style={s.menuItem} onPress={tap(() => { setMenuOpen(false); onDelete(); }, Haptics.ImpactFeedbackStyle.Heavy)}>
-              <Ionicons name="trash-outline" size={16} color="#EF4444" /><Text style={[s.menuT, { color: '#EF4444' }]}>Delete</Text>
+              <Ionicons name="trash-outline" size={16} color={c.state.danger} /><Text style={[s.menuT, { color: c.state.danger }]}>Delete</Text>
             </TouchableOpacity>
           </View>
         )}
@@ -209,6 +210,7 @@ export default BudgetCard;
 function CardContent({ item, emoji, catColor, statusColor, limit, spent, pct, over, remaining,
   burnRate, daysLeft, projectedOver, projectedSpend, fillAnim, isOver, isWarn, isRisk, status }: any) {
   const s = useStyles();
+  const c = useAppColors();
   const fillWidth = fillAnim.interpolate({ inputRange: [0, 100], outputRange: ['0%', '100%'] });
   return (
     <>
@@ -249,26 +251,26 @@ function CardContent({ item, emoji, catColor, statusColor, limit, spent, pct, ov
       <View style={s.row2}>
         <Text style={s.pct}>{Math.round(pct)}% used</Text>
         {isOver ? (
-          <Text style={[s.tail, { color: '#EF4444' }]}>over by {formatINR(over)}</Text>
+          <Text style={[s.tail, { color: c.state.danger }]}>over by {formatINR(over)}</Text>
         ) : (
-          <Text style={[s.tail, { color: '#059669' }]}>{formatINR(remaining)} left</Text>
+          <Text style={[s.tail, { color: c.state.success }]}>{formatINR(remaining)} left</Text>
         )}
       </View>
 
       {/* Insight chips row */}
       <View style={s.chipsRow}>
         <View style={s.chip}>
-          <Ionicons name="flame-outline" size={11} color="#6B7280" />
+          <Ionicons name="flame-outline" size={11} color={c.text.muted} />
           <Text style={s.chipT}>{formatINR(burnRate)}/day</Text>
         </View>
         <View style={s.chip}>
-          <Ionicons name="calendar-outline" size={11} color="#6B7280" />
+          <Ionicons name="calendar-outline" size={11} color={c.text.muted} />
           <Text style={s.chipT}>{daysLeft}d left</Text>
         </View>
         {status === 'healthy' && (
-          <View style={[s.chip, { backgroundColor: '#DCFCE7', borderColor: '#86EFAC' }]}>
-            <Ionicons name="checkmark-circle" size={11} color="#059669" />
-            <Text style={[s.chipT, { color: '#059669' }]}>On track</Text>
+          <View style={[s.chip, { backgroundColor: c.state.successBg, borderColor: c.state.successBorder }]}>
+            <Ionicons name="checkmark-circle" size={11} color={c.state.success} />
+            <Text style={[s.chipT, { color: c.state.success }]}>On track</Text>
           </View>
         )}
       </View>
@@ -282,7 +284,7 @@ function CardContent({ item, emoji, catColor, statusColor, limit, spent, pct, ov
       )}
       {isOver && (
         <View style={s.overBanner}>
-          <Ionicons name="alert-circle" size={13} color="#B91C1C" />
+          <Ionicons name="alert-circle" size={13} color={c.state.danger} />
           <Text style={s.overT}>Overspent · {formatINR(over)} above limit</Text>
         </View>
       )}
@@ -310,20 +312,20 @@ const useStyles = makeStyles((c) => ({
 
   chipsRow: { flexDirection: 'row', gap: 6, marginTop: 10, flexWrap: 'wrap' },
   chip: { flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: 'rgba(255,255,255,0.7)', borderWidth: 1, borderColor: c.gray[200], borderRadius: 999, paddingHorizontal: 8, paddingVertical: 3 },
-  chipT: { fontSize: 10.5, color: '#374151', fontWeight: '700' },
+  chipT: { fontSize: 10.5, color: c.text.secondary, fontWeight: '700' },
 
-  warnBanner: { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 10, paddingVertical: 6, paddingHorizontal: 10, borderRadius: 10, backgroundColor: '#FFEDD5', borderWidth: 1, borderColor: '#FED7AA' },
+  warnBanner: { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 10, paddingVertical: 6, paddingHorizontal: 10, borderRadius: 10, backgroundColor: c.accent.brandSoft, borderWidth: 1, borderColor: c.accent.brandSoft },
   warnT: { fontSize: 11.5, fontWeight: '700', color: '#9A3412', flex: 1 },
-  overBanner: { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 10, paddingVertical: 6, paddingHorizontal: 10, borderRadius: 10, backgroundColor: '#FEE2E2', borderWidth: 1, borderColor: '#FCA5A5' },
-  overT: { fontSize: 11.5, fontWeight: '800', color: '#B91C1C', flex: 1 },
+  overBanner: { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 10, paddingVertical: 6, paddingHorizontal: 10, borderRadius: 10, backgroundColor: c.state.dangerBg, borderWidth: 1, borderColor: c.state.dangerBorder },
+  overT: { fontSize: 11.5, fontWeight: '800', color: c.state.danger, flex: 1 },
 
   rightAct: { backgroundColor: c.state.danger, justifyContent: 'center', alignItems: 'center', width: 92, borderRadius: 16, marginBottom: 10, marginLeft: 8 },
-  leftActEdit: { backgroundColor: '#3B82F6', justifyContent: 'center', alignItems: 'center', width: 78, borderRadius: 16, marginBottom: 10, marginRight: 6 },
+  leftActEdit: { backgroundColor: c.state.info, justifyContent: 'center', alignItems: 'center', width: 78, borderRadius: 16, marginBottom: 10, marginRight: 6 },
   leftActAdd: { backgroundColor: c.state.success, justifyContent: 'center', alignItems: 'center', width: 82, borderRadius: 16, marginBottom: 10, marginRight: 6 },
   actTxt: { color: c.bg.elevated, fontSize: 11, fontWeight: '800', marginTop: 3 },
 
   dotsBtn: { position: 'absolute', top: 10, right: 10, width: 28, height: 28, borderRadius: 14, backgroundColor: 'rgba(255,255,255,0.85)', alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: c.gray[200] },
-  aiBtn: { position: 'absolute', top: 10, right: 44, width: 28, height: 28, borderRadius: 14, backgroundColor: c.accent.brandSoft, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: '#FED7AA' },
+  aiBtn: { position: 'absolute', top: 10, right: 44, width: 28, height: 28, borderRadius: 14, backgroundColor: c.accent.brandSoft, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: c.accent.brandSoft },
   menu: { position: 'absolute', top: 42, right: 8, backgroundColor: c.bg.elevated, borderRadius: 12, paddingVertical: 6, paddingHorizontal: 4, borderWidth: 1, borderColor: c.gray[200], zIndex: 10, minWidth: 130, ...shadowStyle('#000000', 8, 14, 0.1, 10) },
   menuItem: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingHorizontal: 10, paddingVertical: 8, borderRadius: 8 },
   menuT: { fontSize: 13, fontWeight: '700' },

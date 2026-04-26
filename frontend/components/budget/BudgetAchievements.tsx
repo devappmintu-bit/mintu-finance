@@ -17,7 +17,7 @@ import { View, Text, StyleSheet, ScrollView, Animated, Easing, TouchableOpacity 
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import api from '../../utils/api';
-import { COLORS } from '../../utils/theme';
+import {  COLORS, useAppColors } from '../../utils/theme';
 import { makeStyles } from '../../utils/makeStyles';
 
 type Badge = {
@@ -53,6 +53,7 @@ type Props = {
 
 export default function BudgetAchievements({ refreshKey = 0, onBadgePress }: Props) {
   const s = useStyles();
+  const c = useAppColors();
   const [data, setData] = useState<Achievements | null>(null);
   const [loading, setLoading] = useState(true);
 
@@ -169,7 +170,7 @@ export default function BudgetAchievements({ refreshKey = 0, onBadgePress }: Pro
             <Text style={s.chipLbl}>cats on track</Text>
           </View>
           <View style={s.chip}>
-            <Text style={[s.chipVal, { color: '#10B981' }]}>{`₹${Math.round(stats.saved_amount).toLocaleString('en-IN')}`}</Text>
+            <Text style={[s.chipVal, { color: c.state.success }]}>{`₹${Math.round(stats.saved_amount).toLocaleString('en-IN')}`}</Text>
             <Text style={s.chipLbl}>{`saved (${stats.saved_pct}%)`}</Text>
           </View>
         </View>
@@ -239,7 +240,7 @@ const useStyles = makeStyles((c) => ({
     height: 8, borderRadius: 4, backgroundColor: 'rgba(255,255,255,0.2)',
     overflow: 'hidden', marginTop: 4,
   },
-  progressFill: { height: 8, borderRadius: 4, backgroundColor: '#FEF3C7' },
+  progressFill: { height: 8, borderRadius: 4, backgroundColor: c.state.warningBg },
   progRow: { flexDirection: 'row', justifyContent: 'space-between', marginTop: 6 },
   progressLabel: { color: 'rgba(255,255,255,0.85)', fontSize: 11, fontWeight: '700' },
 
@@ -287,5 +288,5 @@ const useStyles = makeStyles((c) => ({
     backgroundColor: CARD, borderRadius: 20, padding: 18, marginBottom: 12,
     borderWidth: 1, borderColor: BORDER, height: 110,
   },
-  skelLine: { height: 14, borderRadius: 7, backgroundColor: '#FED7AA', width: '40%' },
+  skelLine: { height: 14, borderRadius: 7, backgroundColor: c.accent.brandSoft, width: '40%' },
 }));

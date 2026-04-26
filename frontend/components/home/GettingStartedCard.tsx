@@ -12,7 +12,7 @@ import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { COLORS, SPACING } from '../../utils/theme';
+import {  COLORS, SPACING, useAppColors } from '../../utils/theme';
 
 const DISMISS_KEY = 'getting_started_dismissed_v1';
 

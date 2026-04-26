@@ -2,7 +2,7 @@ import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
-import { COLORS, SHADOW } from '../../utils/theme';
+import {  COLORS, SHADOW, useAppColors } from '../../utils/theme';
 import { makeStyles } from '../../utils/makeStyles';
 import PressableGlass from '../PressableGlass';
 import { C, DebtRow } from './theme';
@@ -16,6 +16,7 @@ type Props = {
 
 export default function SettleUpCard({ rows, onPay, onRemind, onMarkPaid }: Props) {
   const s = useStyles();
+  const c = useAppColors();
   if (!rows || rows.length === 0) return null;
   return (
     <View style={s.settleCard}>

@@ -2,7 +2,7 @@ import React from 'react';
 import { View, Text, StyleSheet, Modal, ScrollView, TouchableOpacity } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
-import { COLORS } from '../../utils/theme';
+import {  COLORS, useAppColors } from '../../utils/theme';
 import { makeStyles } from '../../utils/makeStyles';
 import { C, getGA } from './theme';
 
@@ -24,6 +24,7 @@ type Props = {
 
 export default function GroupSummarySheet({ visible, onClose, summary, onAddExpense, onEditExpense, onDeleteExpense, onPay, onRemindLegacy, onRename, onLeave, hasOutstandingBalance }: Props) {
   const s = useStyles();
+  const c = useAppColors();
   return (
     <Modal visible={visible} animationType="slide" transparent>
       <View style={s.mBg}>

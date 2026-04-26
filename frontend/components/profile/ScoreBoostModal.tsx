@@ -4,6 +4,7 @@
  * Fetches 3 personalised boost suggestions from /api/profile/score-boosts
  * and lets the user tap through to the relevant route.
  */
+import { useAppColors } from '../../utils/theme';
 import React, { useEffect, useMemo, useState } from 'react';
 import {
   View, Text, StyleSheet, TouchableOpacity, Modal, ScrollView,
@@ -32,6 +33,7 @@ type Props = {
 };
 
 export default function ScoreBoostModal({ visible, onClose, currentScore }: Props) {
+  const c = useAppColors();
   const [boosts, setBoosts] = useState<Boost[]>([]);
   const [loading, setLoading] = useState(true);
   const [maxPotential, setMaxPotential] = useState(0);
@@ -90,7 +92,7 @@ export default function ScoreBoostModal({ visible, onClose, currentScore }: Prop
               </Text>
             </View>
             <TouchableOpacity onPress={onClose} hitSlop={10} style={s.closeBtn}>
-              <Ionicons name="close" size={20} color="#111827" />
+              <Ionicons name="close" size={20} color={c.text.primary} />
             </TouchableOpacity>
           </View>
 
@@ -110,7 +112,7 @@ export default function ScoreBoostModal({ visible, onClose, currentScore }: Prop
               </View>
               <View style={{ flex: 1, alignItems: 'flex-end' }}>
                 <View style={s.deltaPill}>
-                  <Ionicons name="trending-up" size={12} color="#10B981" />
+                  <Ionicons name="trending-up" size={12} color={c.state.success} />
                   <Text style={s.deltaTxt}>+{maxPotential} pts</Text>
                 </View>
               </View>

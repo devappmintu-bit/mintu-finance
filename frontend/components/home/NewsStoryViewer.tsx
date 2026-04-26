@@ -8,7 +8,7 @@ import {
 import * as WebBrowser from 'expo-web-browser';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
-import { COLORS } from '../../utils/theme';
+import {  COLORS, useAppColors } from '../../utils/theme';
 import { makeStyles } from '../../utils/makeStyles';
 
 const { width: W, height: H } = Dimensions.get('window');
@@ -35,6 +35,7 @@ interface Props {
 
 export default function NewsStoryViewer({ visible, articles, startIndex, onClose }: Props) {
   const s = useStyles();
+  const c = useAppColors();
   const [idx, setIdx] = useState(startIndex);
   const [paused, setPaused] = useState(false);
   const progress = useRef(new Animated.Value(0)).current;

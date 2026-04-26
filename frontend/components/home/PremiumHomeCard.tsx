@@ -19,6 +19,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { router } from 'expo-router';
 import api from '../../utils/api';
 import { makeStyles } from '../../utils/makeStyles';
+import { useAppColors } from '../../utils/theme';
 
 type Status = { is_premium?: boolean; tier?: string; plan?: string; premium_until?: string } | null;
 
@@ -34,6 +35,7 @@ const PERKS: { icon: any; title: string; sub: string }[] = [
 
 function PremiumHomeCard() {
   const s = useStyles();
+  const c = useAppColors();
   const [status, setStatus] = useState<Status>(null);
   const [loading, setLoading] = useState(true);
   const [expanded, setExpanded] = useState(false);
@@ -102,8 +104,8 @@ function PremiumHomeCard() {
               <Text style={[s.perkSub, !isPremium && s.lockedSub]} numberOfLines={2}>{p.sub}</Text>
             </View>
             {isPremium
-              ? <Ionicons name="checkmark-circle" size={18} color="#10B981" />
-              : <Ionicons name="lock-closed" size={14} color="#9CA3AF" />}
+              ? <Ionicons name="checkmark-circle" size={18} color={c.state.success} />
+              : <Ionicons name="lock-closed" size={14} color={c.text.muted} />}
           </View>
         ))}
 

@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, ActivityIndicator, Linking } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { COLORS, SPACING } from '../../utils/theme';
+import {  COLORS, SPACING, useAppColors } from '../../utils/theme';
 import { makeStyles } from '../../utils/makeStyles';
 import NewsStoryViewer from './NewsStoryViewer';
 
@@ -24,6 +24,7 @@ const categoryColor = (cat: string) => {
 
 function NewsCarousel({ news, newsUpdatedAt, newsLoading, onRefresh }: Props) {
   const s = useStyles();
+  const c = useAppColors();
   const [storyOpen, setStoryOpen] = useState(false);
   const [storyStart, setStoryStart] = useState(0);
   return (

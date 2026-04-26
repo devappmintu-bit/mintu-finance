@@ -11,7 +11,7 @@ import React, { useMemo } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import Svg, { Polyline, Circle, Defs, LinearGradient, Stop, Polygon } from 'react-native-svg';
 import { Ionicons } from '@expo/vector-icons';
-import { COLORS, RADIUS, SPACING, shadowStyle } from '../../utils/theme';
+import {  COLORS, RADIUS, SPACING, shadowStyle, useAppColors } from '../../utils/theme';
 import { makeStyles } from '../../utils/makeStyles';
 
 type SparkPoint = { day: string; date: string; amount: number };
@@ -51,6 +51,7 @@ const formatINR = (n: number) => {
 
 const Sparkline: React.FC<{ points: SparkPoint[] }> = ({ points }) => {
   const s = useStyles();
+  const c = useAppColors();
   const { polyPts, areaPts, maxPt, minPt, maxAmt } = useMemo(() => {
     if (!points || points.length === 0) return { polyPts: '', areaPts: '', maxPt: null, minPt: null, maxAmt: 0 };
     const amts = points.map(p => p.amount);
@@ -103,6 +104,7 @@ const Sparkline: React.FC<{ points: SparkPoint[] }> = ({ points }) => {
 
 export default function InsightsCard({ snapshot, onPressSparkline }: Props) {
   const s = useStyles();
+  const c = useAppColors();
   const { mtd_spend, mtd_income, savings_rate, sparkline, pace_headline, pace_emoji, top_category, week_change_pct, this_week_total, tier, transaction_count } = snapshot;
   const weekTrendDown = week_change_pct < 0;
   const hasData = transaction_count > 0;

@@ -9,13 +9,14 @@ import { router } from 'expo-router';
 import * as Haptics from 'expo-haptics';
 import AIInsightCard from './AIInsightCard';
 import { makeStyles } from '../../utils/makeStyles';
-import { COLORS } from '../../utils/theme';
+import {  COLORS, useAppColors } from '../../utils/theme';
 
 type Props = { snapshot: any | null; stats: any | null; predict: any | null };
 type TabKey = 'insight' | 'predict' | 'waste';
 
 function FinancialBrainCard({ snapshot, stats, predict }: Props) {
   const s = useStyles();
+  const c = useAppColors();
   const hasPredict = !!(predict?.overspend_alerts?.length);
   const hasWaste = !!(predict?.waste_comparisons?.length);
 
@@ -57,7 +58,7 @@ function FinancialBrainCard({ snapshot, stats, predict }: Props) {
         >
           <Ionicons name={a.severity === 'critical' ? 'alert-circle' : 'warning'} size={17} color={a.severity === 'critical' ? '#EF4444' : '#F59E0B'} />
           <Text style={s.predictTxt} numberOfLines={2}>{a.message}</Text>
-          <Ionicons name="chevron-forward" size={14} color="#6B7280" />
+          <Ionicons name="chevron-forward" size={14} color={c.text.muted} />
         </TouchableOpacity>
       ))}
     </View>
@@ -113,10 +114,10 @@ const useStyles = makeStyles((c) => ({
   tabActive: { backgroundColor: c.bg.elevated, shadowColor: '#000000', shadowOpacity: 0.05, shadowRadius: 4, shadowOffset: { width: 0, height: 1 }, elevation: 1 },
   tabTxt: { fontSize: 11.5, fontWeight: '700', color: c.text.muted },
   tabTxtActive: { color: c.text.primary, fontWeight: '800' },
-  predictRow: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 10, paddingHorizontal: 10, backgroundColor: '#FFFBEB', borderRadius: 11, borderWidth: 1, borderColor: '#FDE68A' },
-  predictRowCrit: { backgroundColor: '#FEF2F2', borderColor: '#FCA5A5' },
+  predictRow: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 10, paddingHorizontal: 10, backgroundColor: c.state.warningBg, borderRadius: 11, borderWidth: 1, borderColor: c.state.warningBorder },
+  predictRowCrit: { backgroundColor: c.state.dangerBg, borderColor: c.state.dangerBorder },
   predictTxt: { flex: 1, fontSize: 12.5, color: c.text.primary, fontWeight: '600', lineHeight: 17 },
   wasteRow: { flexDirection: 'row', gap: 10, alignItems: 'flex-start', paddingVertical: 10, paddingHorizontal: 10, backgroundColor: c.accent.brandSoft, borderRadius: 11, borderLeftWidth: 3, borderLeftColor: c.accent.primary },
   wasteTitle: { fontSize: 13, fontWeight: '800', color: '#C2410C' },
-  wasteSub: { fontSize: 11.5, color: '#78350F', marginTop: 2, lineHeight: 16 },
+  wasteSub: { fontSize: 11.5, color: c.state.warning, marginTop: 2, lineHeight: 16 },
 }));

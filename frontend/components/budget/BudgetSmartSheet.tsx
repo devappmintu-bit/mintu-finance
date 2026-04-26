@@ -41,6 +41,7 @@ import api from '../../utils/api';
 import { fetchGoals, createGoal, Goal } from '../../services/goals';
 import { useIsOnline } from '../../hooks/useIsOnline';
 import { makeStyles } from '../../utils/makeStyles';
+import { useAppColors } from '../../utils/theme';
 
 const CATEGORY_META: Record<string, { icon: string; color: string; emoji: string }> = {
   Food:           { icon: 'fast-food',       color: '#F56E1E', emoji: '🍔' },
@@ -106,6 +107,7 @@ function fmtCompact(n: number) {
 
 export default function BudgetSmartSheet({ editing, currentSpent, onSubmit, onClose, submitting }: Props) {
   const s = useStyles();
+  const c = useAppColors();
   const isOnline = useIsOnline();
   const [loading, setLoading] = useState(true);
   const [data, setData] = useState<{ monthly_income: number; categories: SmartCategory[] } | null>(null);
@@ -271,7 +273,7 @@ export default function BudgetSmartSheet({ editing, currentSpent, onSubmit, onCl
           <Text style={s.subtitle}>Plan smarter, save better</Text>
         </View>
         <TouchableOpacity onPress={onClose} hitSlop={14} style={s.closeBtn} testID="bs-close">
-          <Ionicons name="close" size={20} color="#6B7280" />
+          <Ionicons name="close" size={20} color={c.text.muted} />
         </TouchableOpacity>
       </View>
 
@@ -290,7 +292,7 @@ export default function BudgetSmartSheet({ editing, currentSpent, onSubmit, onCl
               red so users see the urgency before tweaking the limit. */}
           {editing && typeof currentSpent === 'number' && currentSpent > editing.amount && (
             <View style={s.overLimitBanner} accessibilityLiveRegion="polite">
-              <Ionicons name="warning" size={20} color="#DC2626" />
+              <Ionicons name="warning" size={20} color={c.state.danger} />
               <View style={{ flex: 1 }}>
                 <Text style={s.overLimitTitle}>You've exceeded this budget</Text>
                 <Text style={s.overLimitBody}>
@@ -351,7 +353,7 @@ export default function BudgetSmartSheet({ editing, currentSpent, onSubmit, onCl
                 </View>
                 <View style={s.aiCta}>
                   <Text style={s.aiCtaTxt}>Apply</Text>
-                  <Ionicons name="arrow-forward" size={12} color="#7C3AED" />
+                  <Ionicons name="arrow-forward" size={12} color={c.accent.tertiary} />
                 </View>
               </LinearGradient>
             </TouchableOpacity>
@@ -368,7 +370,7 @@ export default function BudgetSmartSheet({ editing, currentSpent, onSubmit, onCl
                 onBlur={() => validateAmountOnBlur(amountStr)}
                 keyboardType="numeric"
                 placeholder="0"
-                placeholderTextColor="#D1D5DB"
+                placeholderTextColor={c.border.subtle}
                 style={s.amountInput}
                 testID="bs-amount"
               />
@@ -508,12 +510,12 @@ export default function BudgetSmartSheet({ editing, currentSpent, onSubmit, onCl
           {category === 'Other' && (
             <View style={s.otherDesc}>
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5, marginBottom: 6 }}>
-                <Ionicons name="sparkles" size={13} color="#7C3AED" />
+                <Ionicons name="sparkles" size={13} color={c.accent.tertiary} />
                 <Text style={s.otherLbl}>AI will auto-categorise this</Text>
               </View>
               <TextInput
                 placeholder="e.g. Monthly Netflix & Spotify"
-                placeholderTextColor="#9CA3AF"
+                placeholderTextColor={c.text.muted}
                 value={description}
                 onChangeText={setDescription}
                 style={s.descInput}
@@ -566,7 +568,7 @@ export default function BudgetSmartSheet({ editing, currentSpent, onSubmit, onCl
               <View style={s.goalFormRow}>
                 <TextInput
                   placeholder="Goal name (e.g. Trip to Goa)"
-                  placeholderTextColor="#9CA3AF"
+                  placeholderTextColor={c.text.muted}
                   value={newGoalName}
                   onChangeText={setNewGoalName}
                   style={[s.goalFormInput, { flex: 2 }]}
@@ -575,7 +577,7 @@ export default function BudgetSmartSheet({ editing, currentSpent, onSubmit, onCl
                   <Text style={s.goalRupee}>₹</Text>
                   <TextInput
                     placeholder="Target"
-                    placeholderTextColor="#9CA3AF"
+                    placeholderTextColor={c.text.muted}
                     value={newGoalTarget}
                     onChangeText={(v) => setNewGoalTarget(v.replace(/[^0-9]/g, ''))}
                     keyboardType="numeric"

@@ -14,6 +14,7 @@ import { Ionicons } from '@expo/vector-icons';
 import Toast from 'react-native-toast-message';
 import api from '../../utils/api';
 import { makeStyles } from '../../utils/makeStyles';
+import { useAppColors } from '../../utils/theme';
 
 const TONE_COLOR: Record<string, { bg: string; fg: string; border: string }> = {
   success: { bg: '#DCFCE7', fg: '#065F46', border: '#86EFAC' },
@@ -32,6 +33,7 @@ type Props = {
 
 export default function BudgetInsightsSheet({ visible, category, onClose, onApplied }: Props) {
   const s = useStyles();
+  const c = useAppColors();
   const [loading, setLoading] = useState(false);
   const [data, setData] = useState<any>(null);
   const [applying, setApplying] = useState<string | null>(null);
@@ -81,7 +83,7 @@ export default function BudgetInsightsSheet({ visible, category, onClose, onAppl
               <Text style={s.sub}>Pattern-based recommendations from your 60-day history</Text>
             </View>
             <TouchableOpacity onPress={onClose} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
-              <Ionicons name="close" size={22} color="#6B7280" />
+              <Ionicons name="close" size={22} color={c.text.muted} />
             </TouchableOpacity>
           </View>
 
@@ -108,7 +110,7 @@ export default function BudgetInsightsSheet({ visible, category, onClose, onAppl
               <Text style={s.sect}>Smart tips</Text>
               {(data.tips || []).map((tip: any, i: number) => (
                 <View key={i} style={s.tipRow}>
-                  <View style={s.bullet}><Ionicons name="bulb" size={12} color="#F59E0B" /></View>
+                  <View style={s.bullet}><Ionicons name="bulb" size={12} color={c.accent.warning} /></View>
                   <Text style={s.tipT}>{tip.text}</Text>
                   {tip.save > 0 && (
                     <View style={s.saveChip}>
@@ -135,7 +137,7 @@ export default function BudgetInsightsSheet({ visible, category, onClose, onAppl
                       >
                         <Ionicons name={a.action === 'enable_alert' ? 'notifications-outline' : 'sparkles-outline'} size={16} color="#F56E1E" />
                         <Text style={s.actT}>{a.label}</Text>
-                        {busy ? <ActivityIndicator size="small" color="#F56E1E" /> : <Ionicons name="chevron-forward" size={14} color="#9CA3AF" />}
+                        {busy ? <ActivityIndicator size="small" color="#F56E1E" /> : <Ionicons name="chevron-forward" size={14} color={c.text.muted} />}
                       </TouchableOpacity>
                     );
                   })}

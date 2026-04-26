@@ -9,6 +9,7 @@ import { Ionicons } from '@expo/vector-icons';
 import Svg, { Circle } from 'react-native-svg';
 import api from '../../utils/api';
 import { makeStyles } from '../../utils/makeStyles';
+import { COLORS, useAppColors } from '../../utils/theme';
 
 type Pillar = { key: string; label: string; score: number; emoji: string; hint: string };
 type Data = {
@@ -22,17 +23,18 @@ type Data = {
 
 function Ring({ pct, color, size = 72 }: { pct: number; color: string; size?: number }) {
   const r = (size - 8) / 2;
-  const c = 2 * Math.PI * r;
+  const circumference = 2 * Math.PI * r;
   return (
     <Svg width={size} height={size}>
-      <Circle cx={size / 2} cy={size / 2} r={r} stroke="#F3F4F6" strokeWidth={8} fill="none" />
-      <Circle cx={size / 2} cy={size / 2} r={r} stroke={color} strokeWidth={8} fill="none" strokeLinecap="round" strokeDasharray={c} strokeDashoffset={c - (c * Math.min(100, pct)) / 100} transform={`rotate(-90 ${size / 2} ${size / 2})`} />
+      <Circle cx={size / 2} cy={size / 2} r={r} stroke={COLORS.bg.secondary} strokeWidth={8} fill="none" />
+      <Circle cx={size / 2} cy={size / 2} r={r} stroke={color} strokeWidth={8} fill="none" strokeLinecap="round" strokeDasharray={circumference} strokeDashoffset={circumference - (circumference * Math.min(100, pct)) / 100} transform={`rotate(-90 ${size / 2} ${size / 2})`} />
     </Svg>
   );
 }
 
 export default function ScoreBreakdownModal({ visible, onClose, fallbackScore = 0 }: { visible: boolean; onClose: () => void; fallbackScore?: number }) {
   const s = useStyles();
+  const c = useAppColors();
   const [data, setData] = useState<Data | null>(null);
   const [loading, setLoading] = useState(true);
 

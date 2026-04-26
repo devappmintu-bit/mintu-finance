@@ -23,7 +23,7 @@ import { router } from 'expo-router';
 import * as Haptics from 'expo-haptics';
 import { Platform } from 'react-native';
 import { makeStyles } from '../../utils/makeStyles';
-import { COLORS } from '../../utils/theme';
+import {  COLORS, useAppColors } from '../../utils/theme';
 
 type Props = {
   snapshot: any | null;
@@ -146,6 +146,7 @@ function computeHeroState({ snapshot, stats, user, txnCount }: Props): HeroState
 
 function HeroCard(props: Props) {
   const s = useStyles();
+  const c = useAppColors();
   const state = useMemo(() => computeHeroState(props), [props]);
 
   const handlePress = () => {

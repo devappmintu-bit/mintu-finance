@@ -9,7 +9,7 @@ import React from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Platform, Linking } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
-import { COLORS } from '../../utils/theme';
+import {  COLORS, useAppColors } from '../../utils/theme';
 import { makeStyles } from '../../utils/makeStyles';
 import { MEMBER_COLORS, C } from './theme';
 import SwipeableRow from '../SwipeableRow';
@@ -52,6 +52,7 @@ const fmtDate = (s: string): string => {
 
 export default function ExpensesTab({ summary, currentUserId, onAddExpense, onEditExpense, onDeleteExpense, onDirectPay, onRemind }: Props) {
   const s = useStyles();
+  const c = useAppColors();
   const { lang } = useLangStore();
 
   const owedByYou =
@@ -107,7 +108,7 @@ export default function ExpensesTab({ summary, currentUserId, onAddExpense, onEd
             activeOpacity={0.85}
           >
             <View style={[s.quickIcon, { backgroundColor: '#FEF3C7' }]}>
-              <Ionicons name="notifications" size={18} color="#F59E0B" />
+              <Ionicons name="notifications" size={18} color={c.accent.warning} />
             </View>
             <Text style={s.quickTxt}>Remind</Text>
           </TouchableOpacity>
@@ -120,7 +121,7 @@ export default function ExpensesTab({ summary, currentUserId, onAddExpense, onEd
             activeOpacity={0.85}
           >
             <View style={[s.quickIcon, { backgroundColor: '#DCFCE7' }]}>
-              <Ionicons name="flash" size={18} color="#10B981" />
+              <Ionicons name="flash" size={18} color={c.state.success} />
             </View>
             <Text style={s.quickTxt}>Direct Pay</Text>
           </TouchableOpacity>

@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { View, Text, StyleSheet, Modal, TouchableOpacity, TextInput, KeyboardAvoidingView, Platform, Linking } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
-import { COLORS } from '../../utils/theme';
+import {  COLORS, useAppColors } from '../../utils/theme';
 import { makeStyles } from '../../utils/makeStyles';
 import { C, DebtRow } from './theme';
 
@@ -15,6 +15,7 @@ type Props = {
 
 export default function RemindSheet({ visible, onClose, target, onSend }: Props) {
   const s = useStyles();
+  const c = useAppColors();
   const [note, setNote] = useState('');
   useEffect(() => { if (visible) setNote(''); }, [visible]);
 
@@ -69,7 +70,7 @@ export default function RemindSheet({ visible, onClose, target, onSend }: Props)
         <View style={s.sheet}>
           <View style={s.handle} />
           <View style={s.sheetH}>
-            <Ionicons name="notifications" size={22} color="#F59E0B" />
+            <Ionicons name="notifications" size={22} color={c.accent.warning} />
             <Text style={[s.sheetT, { flex: 1 }]}>Send Reminder</Text>
             <TouchableOpacity onPress={onClose}><Ionicons name="close-circle" size={28} color={C.text4} /></TouchableOpacity>
           </View>

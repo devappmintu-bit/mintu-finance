@@ -37,7 +37,7 @@ const useStyles = makeStyles((c) => ({
   card: { backgroundColor: C.sheetBg, borderRadius: 28, padding: 32, width: '85%', alignItems: 'center', borderWidth: 2, borderColor: 'rgba(230,81,0,0.2)' },
   emoji: { fontSize: 48, marginBottom: 8 },
   title: { fontSize: 22, fontWeight: '800', color: C.text1, marginBottom: 12 },
-  coins: { fontSize: 36, fontWeight: '900', color: '#92400E' },
+  coins: { fontSize: 36, fontWeight: '900', color: c.state.warning },
   label: { fontSize: 14, fontWeight: '600', color: C.text3, marginTop: 4 },
   cashback: { marginTop: 12, paddingHorizontal: 16, paddingVertical: 8, borderRadius: 12, backgroundColor: C.accentDim },
   cashbackT: { fontSize: 15, fontWeight: '700', color: C.accent },

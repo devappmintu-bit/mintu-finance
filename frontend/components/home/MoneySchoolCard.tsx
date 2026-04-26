@@ -16,13 +16,14 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { router } from 'expo-router';
 import api from '../../utils/api';
 import { fetchPremiumStatus } from '../../services/premium';
-import { COLORS } from '../../utils/theme';
+import {  COLORS, useAppColors } from '../../utils/theme';
 import { makeStyles } from '../../utils/makeStyles';
 
 type Lesson = { title?: string; tip?: string; lesson_number?: number; total_lessons?: number };
 
 function MoneySchoolCard() {
   const s = useStyles();
+  const c = useAppColors();
   const [lesson, setLesson] = useState<Lesson | null>(null);
   const [isPremium, setIsPremium] = useState(false);
   const [xp, setXp] = useState(0);

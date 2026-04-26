@@ -153,12 +153,12 @@ const useStyles = makeStyles((c) => ({
   head: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   title: { fontSize: 15, fontWeight: '800', color: c.text.primary, letterSpacing: -0.2 },
   sub: { fontSize: 11.5, fontWeight: '500', color: c.text.muted, marginTop: 2 },
-  timerPill: { flexDirection: 'row', alignItems: 'center', gap: 3, paddingHorizontal: 8, paddingVertical: 4, borderRadius: 999, backgroundColor: '#FEF3C7' },
-  timerTxt: { fontSize: 11, fontWeight: '800', color: '#92400E', letterSpacing: 0.3 },
+  timerPill: { flexDirection: 'row', alignItems: 'center', gap: 3, paddingHorizontal: 8, paddingVertical: 4, borderRadius: 999, backgroundColor: c.state.warningBg },
+  timerTxt: { fontSize: 11, fontWeight: '800', color: c.state.warning, letterSpacing: 0.3 },
 
-  streakAlert: { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 10, padding: 10, borderRadius: 12, backgroundColor: '#FEE2E2', borderWidth: 1, borderColor: '#FCA5A5' },
+  streakAlert: { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 10, padding: 10, borderRadius: 12, backgroundColor: c.state.dangerBg, borderWidth: 1, borderColor: c.state.dangerBorder },
   streakAlertEmoji: { fontSize: 14 },
-  streakAlertTxt: { flex: 1, fontSize: 11.5, fontWeight: '700', color: '#B91C1C' },
+  streakAlertTxt: { flex: 1, fontSize: 11.5, fontWeight: '700', color: c.state.danger },
 
   missionList: { marginTop: 12 },
   mission: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 10 },
@@ -175,8 +175,8 @@ const useStyles = makeStyles((c) => ({
   missionHint: { fontSize: 11, fontWeight: '500', color: c.text.muted, marginTop: 1 },
   missionReward: { alignItems: 'flex-end', gap: 2 },
   rewardRow: { flexDirection: 'row', alignItems: 'center', gap: 4 },
-  xpTxt: { fontSize: 10.5, fontWeight: '800', color: '#7C3AED' },
-  coinTxt: { fontSize: 10.5, fontWeight: '800', color: '#D97706' },
+  xpTxt: { fontSize: 10.5, fontWeight: '800', color: c.accent.tertiary },
+  coinTxt: { fontSize: 10.5, fontWeight: '800', color: c.accent.warning },
   rewardDot: { width: 2, height: 2, borderRadius: 1, backgroundColor: c.text.muted },
   estTxt: { fontSize: 9.5, fontWeight: '600', color: c.text.muted },
 

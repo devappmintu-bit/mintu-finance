@@ -10,7 +10,7 @@ import { View, Text, StyleSheet, Modal, ScrollView, TouchableOpacity, TextInput,
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import Toast from 'react-native-toast-message';
-import { COLORS } from '../../utils/theme';
+import {  COLORS, useAppColors } from '../../utils/theme';
 import { makeStyles } from '../../utils/makeStyles';
 import { C, MEMBER_COLORS } from './theme';
 
@@ -42,6 +42,7 @@ type Props = {
 
 export default function GroupManageSheet({ visible, onClose, manage, currentUserId, onRename, onAddMember, onRemoveMember, onDelete, onLeave, onFullAddMember }: Props) {
   const s = useStyles();
+  const c = useAppColors();
   const [addPhoneVal, setAddPhoneVal] = useState('');
   const [renameVal, setRenameVal] = useState('');
   const [showRename, setShowRename] = useState(false);
@@ -202,6 +203,7 @@ export default function GroupManageSheet({ visible, onClose, manage, currentUser
 // --- Sub-component ---
 function ActionRow({ icon, label, onPress, danger }: { icon: string; label: string; onPress: () => void; danger?: boolean }) {
   const s = useStyles();
+  const c = useAppColors();
   const color = danger ? C.red : C.text1;
   return (
     <TouchableOpacity style={s.actionRow} onPress={onPress} activeOpacity={0.7}>

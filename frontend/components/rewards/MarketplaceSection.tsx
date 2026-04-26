@@ -133,6 +133,7 @@ function Lane({ emoji, title, subtitle, items, userCoins, isPro, onClaim, testID
 
 function RewardCard({ reward, userCoins, onClaim, testID }: { reward: Reward; userCoins: number; onClaim?: (r: Reward) => void; testID?: string }) {
   const s = useStyles();
+  const c = useAppColors();
   const canAfford = userCoins >= reward.cost_coins;
   const locked = reward.locked;
   const urgency = reward.urgency && URGENCY_COPY[reward.urgency];
@@ -192,7 +193,7 @@ function RewardCard({ reward, userCoins, onClaim, testID }: { reward: Reward; us
           <Text style={s.discTxt} numberOfLines={1}>{reward.discount}</Text>
           {!!reward.min_order && <Text style={s.minTxt} numberOfLines={1}>Min. {reward.min_order}</Text>}
           <View style={s.popRow}>
-            <Ionicons name="flame" size={10} color="#F59E0B" />
+            <Ionicons name="flame" size={10} color={c.accent.warning} />
             <Text style={s.popTxt} numberOfLines={1}>{reward.popularity_label}</Text>
           </View>
           <View style={[s.claimBtn, locked && { backgroundColor: '#E5E7EB' }, !locked && !canAfford && { backgroundColor: '#FEE2E2' }]}>

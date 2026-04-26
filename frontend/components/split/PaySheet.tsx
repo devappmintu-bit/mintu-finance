@@ -2,7 +2,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { View, Text, StyleSheet, Modal, TouchableOpacity, TextInput, Platform, KeyboardAvoidingView, ScrollView } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
-import { COLORS } from '../../utils/theme';
+import {  COLORS, useAppColors } from '../../utils/theme';
 import { makeStyles } from '../../utils/makeStyles';
 import { C, UPI_APPS } from './theme';
 import CoinRedeemPanel from '../premium/CoinRedeemPanel';
@@ -24,6 +24,7 @@ type Props = {
 
 export default function PaySheet({ visible, onClose, target, onPayUPI, onPayCash, onPayPartial, onPayRazorpay }: Props) {
   const s = useStyles();
+  const c = useAppColors();
   const isOnline = useIsOnline();
   const [partialOn, setPartialOn] = useState(false);
   const [partialAmt, setPartialAmt] = useState('');
@@ -205,10 +206,10 @@ const useStyles = makeStyles((c) => ({
   quickRow: { flexDirection: 'row', gap: 8, marginTop: 10, justifyContent: 'center' },
   quickBtn: { paddingVertical: 6, paddingHorizontal: 14, borderRadius: 14, backgroundColor: C.accentDim },
   quickT: { fontSize: 13, fontWeight: '700', color: C.accent },
-  netBox: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', backgroundColor: '#ECFDF5', borderRadius: 12, padding: 12, marginBottom: 10, borderWidth: 1, borderColor: '#A7F3D0' },
-  netLbl: { fontSize: 11, fontWeight: '800', color: '#065F46', textTransform: 'uppercase', letterSpacing: 0.4 },
+  netBox: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', backgroundColor: c.state.successBg, borderRadius: 12, padding: 12, marginBottom: 10, borderWidth: 1, borderColor: c.state.successBorder },
+  netLbl: { fontSize: 11, fontWeight: '800', color: c.state.success, textTransform: 'uppercase', letterSpacing: 0.4 },
   netStrike: { fontSize: 13, color: c.gray[400], fontWeight: '600', textDecorationLine: 'line-through' },
-  netVal: { fontSize: 18, fontWeight: '800', color: '#065F46' },
+  netVal: { fontSize: 18, fontWeight: '800', color: c.state.success },
   payS: { fontSize: 14, color: C.text3, marginBottom: 8, marginTop: 4 },
   upiRow: { flexDirection: 'row', alignItems: 'center', paddingVertical: 14, borderBottomWidth: 1, borderBottomColor: C.border },
   upiIcon: { width: 44, height: 44, borderRadius: 14, justifyContent: 'center', alignItems: 'center', marginRight: 12 },

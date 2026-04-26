@@ -20,7 +20,7 @@ import Toast from 'react-native-toast-message';
 import { router } from 'expo-router';
 import api from '../../utils/api';
 import { useAuthStore } from '../../store/authStore';
-import { COLORS } from '../../utils/theme';
+import {  COLORS, useAppColors } from '../../utils/theme';
 import { makeStyles } from '../../utils/makeStyles';
 import TapTile from '../ui/TapTile';
 
@@ -29,6 +29,7 @@ type Mode = 'soft' | 'hard';
 export default function DeleteAccountSection() {
   const s = useSStyles();
   const m = useMStyles();
+  const c = useAppColors();
   const [sheetOpen, setSheetOpen] = useState(false);
   const [modalMode, setModalMode] = useState<Mode | null>(null);
   const [confirmation, setConfirmation] = useState('');
@@ -115,12 +116,12 @@ export default function DeleteAccountSection() {
                   </View>
                 </View>
                 <View style={s.primaryBody}>
-                  <Ionicons name="shield-checkmark" size={22} color="#059669" />
+                  <Ionicons name="shield-checkmark" size={22} color={c.state.success} />
                   <View style={{ flex: 1 }}>
                     <Text style={s.primaryTitle}>Schedule deletion</Text>
                     <Text style={s.primarySub}>Log back in within 30 days to restore — no data lost.</Text>
                   </View>
-                  <Ionicons name="chevron-forward" size={18} color="#059669" />
+                  <Ionicons name="chevron-forward" size={18} color={c.state.success} />
                 </View>
               </TouchableOpacity>
 

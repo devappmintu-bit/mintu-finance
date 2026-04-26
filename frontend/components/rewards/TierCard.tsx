@@ -12,6 +12,7 @@ import { View, Text } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { makeStyles } from '../../utils/makeStyles';
+import { useAppColors } from '../../utils/theme';
 
 type Tier = {
   id: string;
@@ -45,6 +46,7 @@ const SCRIM = 'rgba(0,0,0,0.22)';
 
 export default function TierCard({ tier }: { tier: Tier }) {
   const s = useStyles();
+  const c = useAppColors();
   const gradient = TIER_GRADIENTS[tier.id] || TIER_GRADIENTS.bronze;
   const emoji = TIER_EMOJI[tier.id] || '🥉';
 

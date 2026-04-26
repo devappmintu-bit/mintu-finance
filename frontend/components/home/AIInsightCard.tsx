@@ -14,7 +14,7 @@ import React, { useMemo } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
-import { COLORS } from '../../utils/theme';
+import {  COLORS, useAppColors } from '../../utils/theme';
 import { makeStyles } from '../../utils/makeStyles';
 
 type Props = {
@@ -39,6 +39,7 @@ export default function AIInsightCard({
   monthlyIncome = 0,
 }: Props) {
   const s = useStyles();
+  const c = useAppColors();
   const insight = useMemo(() => {
     // 1) WEEKDAY SPIKE — strongest narrative when one day is 2x+ avg
     const dayTotals: Record<number, number> = {};

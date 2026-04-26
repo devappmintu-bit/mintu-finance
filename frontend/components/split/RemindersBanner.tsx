@@ -3,6 +3,7 @@ import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { C } from './theme';
 import { makeStyles } from '../../utils/makeStyles';
+import { useAppColors } from '../../utils/theme';
 
 type Reminder = { id: string; sender_name: string; amount: number; note?: string };
 
@@ -10,11 +11,12 @@ type Props = { received: Reminder[]; onDismiss: (id: string) => void };
 
 export default function RemindersBanner({ received, onDismiss }: Props) {
   const s = useStyles();
+  const c = useAppColors();
   if (!received || received.length === 0) return null;
   return (
     <View style={s.banner}>
       <View style={s.head}>
-        <Ionicons name="notifications" size={16} color="#92400E" />
+        <Ionicons name="notifications" size={16} color={c.state.warning} />
         <Text style={s.title}>
           {received.length === 1 ? '1 Payment Reminder' : `${received.length} Payment Reminders`}
         </Text>
@@ -30,7 +32,7 @@ export default function RemindersBanner({ received, onDismiss }: Props) {
             {rem.note ? <Text style={s.note}>{`"${rem.note}"`}</Text> : null}
           </View>
           <TouchableOpacity onPress={() => onDismiss(rem.id)} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
-            <Ionicons name="close" size={18} color="#92400E" />
+            <Ionicons name="close" size={18} color={c.state.warning} />
           </TouchableOpacity>
         </View>
       ))}

@@ -262,6 +262,7 @@ function maskUpi(upi: string): string {
 // ══════════════════════════════════════════════════════════════════
 function AddMethodModal({ visible, onClose, onSaved }: { visible: boolean; onClose: () => void; onSaved: () => void }) {
   const m = useMStyles();
+  const c = useAppColors();
   const [type, setType] = useState<Method['type']>('upi');
   const [upiId, setUpiId] = useState('');
   const [cardLast4, setCardLast4] = useState('');
@@ -329,15 +330,15 @@ function AddMethodModal({ visible, onClose, onSaved }: { visible: boolean; onClo
             {/* Phase 2 — RBI / encryption trust badges */}
             <View style={m.trustRow}>
               <View style={m.trustBadge}>
-                <Ionicons name="shield-checkmark" size={12} color="#065F46" />
+                <Ionicons name="shield-checkmark" size={12} color={c.state.success} />
                 <Text style={m.trustTxt}>RBI-aligned</Text>
               </View>
               <View style={m.trustBadge}>
-                <Ionicons name="lock-closed" size={12} color="#065F46" />
+                <Ionicons name="lock-closed" size={12} color={c.state.success} />
                 <Text style={m.trustTxt}>256-bit encrypted</Text>
               </View>
               <View style={m.trustBadge}>
-                <Ionicons name="eye-off" size={12} color="#065F46" />
+                <Ionicons name="eye-off" size={12} color={c.state.success} />
                 <Text style={m.trustTxt}>Never shared</Text>
               </View>
             </View>
@@ -370,10 +371,10 @@ function AddMethodModal({ visible, onClose, onSaved }: { visible: boolean; onClo
                     style={m.inputInline}
                     testID="pm-upi-input"
                   />
-                  {upiStatus === 'valid' && <Ionicons name="checkmark-circle" size={18} color="#10B981" />}
-                  {upiStatus === 'invalid' && <Ionicons name="alert-circle" size={18} color="#F59E0B" />}
+                  {upiStatus === 'valid' && <Ionicons name="checkmark-circle" size={18} color={c.state.success} />}
+                  {upiStatus === 'invalid' && <Ionicons name="alert-circle" size={18} color={c.accent.warning} />}
                 </View>
-                <Text style={[m.helperTxt, upiStatus === 'invalid' && { color: '#B45309' }]}>
+                <Text style={[m.helperTxt, upiStatus === 'invalid' && { color: c.state.warning }]}>
                   {upiStatus === 'valid' ? '✓ Valid UPI format' : upiStatus === 'invalid' ? 'Format: name@bank (e.g., rahul@okhdfcbank)' : 'Example: yourname@oksbi, yourname@ybl, yourname@paytm'}
                 </Text>
               </View>
@@ -502,16 +503,16 @@ const useMStyles = makeStyles((c) => ({
   subtitle: { fontSize: 12, color: c.text.secondary, marginBottom: 10, fontWeight: '600' },
   // Phase 2 — Trust badges
   trustRow: { flexDirection: 'row', gap: 6, marginBottom: 14 },
-  trustBadge: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: 4, paddingVertical: 6, paddingHorizontal: 8, borderRadius: 999, backgroundColor: '#ECFDF5', borderWidth: 1, borderColor: '#A7F3D0' },
-  trustTxt: { fontSize: 9.5, fontWeight: '800', color: '#065F46', letterSpacing: 0.1 },
+  trustBadge: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: 4, paddingVertical: 6, paddingHorizontal: 8, borderRadius: 999, backgroundColor: c.state.successBg, borderWidth: 1, borderColor: c.state.successBorder },
+  trustTxt: { fontSize: 9.5, fontWeight: '800', color: c.state.success, letterSpacing: 0.1 },
   // Inline UPI validation
   inputWrap: { flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: c.bg.primary, borderRadius: 10, paddingHorizontal: 12, borderWidth: 1, borderColor: c.border.subtle },
-  inputWrapValid: { borderColor: '#10B981', borderWidth: 1.5 },
-  inputWrapInvalid: { borderColor: '#F59E0B', borderWidth: 1.5 },
+  inputWrapValid: { borderColor: c.state.success, borderWidth: 1.5 },
+  inputWrapInvalid: { borderColor: c.accent.warning, borderWidth: 1.5 },
   inputInline: { flex: 1, paddingVertical: 11, fontSize: 14, color: c.text.primary },
   helperTxt: { fontSize: 11, color: c.text.muted, marginTop: 5, fontWeight: '600' },
   // Success state on save button
-  btnSuccess: { backgroundColor: '#10B981', flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6 },
+  btnSuccess: { backgroundColor: c.state.success, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6 },
   typeRow: { flexDirection: 'row', gap: 8, marginBottom: 12 },
   typeChip: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 5, paddingVertical: 9, borderRadius: 10, backgroundColor: c.bg.primary, borderWidth: 1, borderColor: c.border.subtle },
   typeChipOn: { backgroundColor: c.accent.primary, borderColor: c.accent.primary },

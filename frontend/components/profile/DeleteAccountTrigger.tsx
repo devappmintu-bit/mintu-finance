@@ -100,7 +100,7 @@ const DeleteAccountTrigger = forwardRef<DeleteAccountTriggerRef>((_props, ref) =
             <View style={s.sheet}>
               <View style={s.grip} />
               <View style={s.iconBig}>
-                <Ionicons name="warning" size={26} color="#EF4444" />
+                <Ionicons name="warning" size={26} color={c.state.danger} />
               </View>
               <Text style={s.title}>Leave MintU?</Text>
               <Text style={s.sub}>Pick the option that works for you.</Text>
@@ -116,25 +116,25 @@ const DeleteAccountTrigger = forwardRef<DeleteAccountTriggerRef>((_props, ref) =
                   </View>
                 </View>
                 <View style={s.primaryBody}>
-                  <Ionicons name="shield-checkmark" size={22} color="#059669" />
+                  <Ionicons name="shield-checkmark" size={22} color={c.state.success} />
                   <View style={{ flex: 1 }}>
                     <Text style={s.primaryTitle}>Schedule deletion</Text>
                     <Text style={s.primarySub}>Log back in within 30 days to restore — no data lost.</Text>
                   </View>
-                  <Ionicons name="chevron-forward" size={18} color="#059669" />
+                  <Ionicons name="chevron-forward" size={18} color={c.state.success} />
                 </View>
               </TouchableOpacity>
 
               {/* Danger zone */}
               <View style={s.dangerZone}>
                 <View style={s.dangerZoneHeader}>
-                  <Ionicons name="alert-circle" size={13} color="#EF4444" />
+                  <Ionicons name="alert-circle" size={13} color={c.state.danger} />
                   <Text style={s.dangerZoneLabel}>DANGER ZONE — IRREVERSIBLE</Text>
                 </View>
                 <TouchableOpacity style={s.dangerRow} onPress={() => onPickMode('hard')} activeOpacity={0.8} testID="del-hard-btn">
-                  <Ionicons name="nuclear" size={16} color="#EF4444" />
+                  <Ionicons name="nuclear" size={16} color={c.state.danger} />
                   <Text style={s.dangerRowTxt}>Delete immediately · wipe all data</Text>
-                  <Ionicons name="chevron-forward" size={14} color="#EF4444" />
+                  <Ionicons name="chevron-forward" size={14} color={c.state.danger} />
                 </TouchableOpacity>
               </View>
 
@@ -153,10 +153,10 @@ const DeleteAccountTrigger = forwardRef<DeleteAccountTriggerRef>((_props, ref) =
             <View style={s.sheet}>
               <View style={s.grip} />
               <View style={[s.iconBig, { backgroundColor: '#FEE2E2' }]}>
-                <Ionicons name="nuclear" size={32} color="#EF4444" />
+                <Ionicons name="nuclear" size={32} color={c.state.danger} />
               </View>
               <View style={s.irreversibleBadge}>
-                <Ionicons name="alert-circle" size={12} color="#EF4444" />
+                <Ionicons name="alert-circle" size={12} color={c.state.danger} />
                 <Text style={s.irreversibleTxt}>IRREVERSIBLE ACTION</Text>
               </View>
               <Text style={s.title}>Delete account permanently?</Text>

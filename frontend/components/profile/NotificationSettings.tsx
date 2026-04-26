@@ -18,7 +18,7 @@ import { Ionicons } from '@expo/vector-icons';
 import Toast from 'react-native-toast-message';
 import api from '../../utils/api';
 import useFocusRefresh from '../../hooks/useFocusRefresh';
-import { COLORS, shadowStyle } from '../../utils/theme';
+import {  COLORS, shadowStyle, useAppColors } from '../../utils/theme';
 import { makeStyles } from '../../utils/makeStyles';
 import { sendTestPush } from '../../hooks/usePushNotifications';
 
@@ -56,6 +56,7 @@ const FREQUENCIES: Array<{ key: Prefs['frequency']; label: string; sub: string }
 
 export default function NotificationSettings() {
   const s = useStyles();
+  const c = useAppColors();
   const [expanded, setExpanded] = useState(false);
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);

@@ -24,7 +24,7 @@ import { FlashList } from '@shopify/flash-list';
 import Toast from 'react-native-toast-message';
 import PressableGlass from '../PressableGlass';
 import { haptic } from '../../utils/haptics';
-import { COLORS, SHADOW } from '../../utils/theme';
+import {  COLORS, SHADOW, useAppColors } from '../../utils/theme';
 import { makeStyles } from '../../utils/makeStyles';
 import { C, MEMBER_COLORS, getGA } from './theme';
 
@@ -40,6 +40,7 @@ type Props = {
 
 export default function ContactPickerSheet({ visible, onClose, onCreate }: Props) {
   const s = useStyles();
+  const c = useAppColors();
   const [step, setStep] = useState<1 | 2>(1);
   const [search, setSearch] = useState('');
   const [selected, setSelected] = useState<Contact[]>([]);

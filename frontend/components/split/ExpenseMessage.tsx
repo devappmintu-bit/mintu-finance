@@ -2,7 +2,7 @@
 import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { COLORS, RADIUS } from '../../utils/theme';
+import {  COLORS, RADIUS, useAppColors } from '../../utils/theme';
 import { makeStyles } from '../../utils/makeStyles';
 import { MEMBER_COLORS } from './theme';
 
@@ -14,6 +14,7 @@ interface Props {
 
 export default function ExpenseMessage({ item, isMe, formatTime }: Props) {
   const s = useStyles();
+  const c = useAppColors();
   const ed = item.expense_data;
   const totalSplits = ed.split_count || ed.splits_count || 0;
   const paidCount = ed.paid_count != null ? ed.paid_count : 1;

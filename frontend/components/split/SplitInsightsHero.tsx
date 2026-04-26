@@ -18,7 +18,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import * as Haptics from 'expo-haptics';
 import api from '../../utils/api';
-import { COLORS } from '../../utils/theme';
+import {  COLORS, useAppColors } from '../../utils/theme';
 import { makeStyles } from '../../utils/makeStyles';
 
 type InsightCard = {
@@ -31,6 +31,7 @@ type InsightCard = {
 
 export default function SplitInsightsHero() {
   const s = useStyles();
+  const c = useAppColors();
   const [cards, setCards] = useState<InsightCard[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -80,6 +81,7 @@ export default function SplitInsightsHero() {
 
 function FeaturedCard({ card }: { card: InsightCard }) {
   const s = useStyles();
+  const c = useAppColors();
   const scale = useRef(new Animated.Value(0.95)).current;
   const opacity = useRef(new Animated.Value(0)).current;
 
@@ -145,6 +147,7 @@ const DEFAULT_ZERO_STATE: InsightCard[] = [
 
 function AnimatedCard({ card, index }: { card: InsightCard; index: number }) {
   const s = useStyles();
+  const c = useAppColors();
   const scale = useRef(new Animated.Value(0.8)).current;
   const opacity = useRef(new Animated.Value(0)).current;
 

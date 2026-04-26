@@ -24,6 +24,7 @@ import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import { router } from 'expo-router';
 import { makeStyles } from '../../utils/makeStyles';
+import { useAppColors } from '../../utils/theme';
 import api from '../../utils/api';
 import AnimatedStreak from '../AnimatedStreak';
 import AnimatedCoin from '../AnimatedCoin';
@@ -70,6 +71,7 @@ interface Props {
 
 export default function StreakCoinsHealthCard({ initialStreak = 0, initialCoins = 0 }: Props) {
   const s = useStyles();
+  const c = useAppColors();
   const [expanded, setExpanded] = useState(false);
   const [loading, setLoading] = useState(false);
   const [data, setData] = useState<HealthData | null>(null);
@@ -127,7 +129,7 @@ export default function StreakCoinsHealthCard({ initialStreak = 0, initialCoins 
           <View style={{ width: 8 }} />
           <AnimatedCoin value={coins} size="sm" />
           <Animated.View style={{ transform: [{ rotate: chevronRotate }], marginLeft: 6 }}>
-            <Ionicons name="chevron-down" size={18} color="#9CA3AF" />
+            <Ionicons name="chevron-down" size={18} color={c.text.muted} />
           </Animated.View>
         </View>
       </TouchableOpacity>
@@ -258,7 +260,7 @@ export default function StreakCoinsHealthCard({ initialStreak = 0, initialCoins 
                   : 'Ledger reconciling…'}
               </Text>
               <TouchableOpacity onPress={fetchHealth} style={{ marginLeft: 'auto' }} hitSlop={8}>
-                <Ionicons name="refresh" size={14} color="#9CA3AF" />
+                <Ionicons name="refresh" size={14} color={c.text.muted} />
               </TouchableOpacity>
             </View>
           </View>
@@ -272,6 +274,7 @@ export default function StreakCoinsHealthCard({ initialStreak = 0, initialCoins 
 
 function Stat({ label, value }: { label: string; value: string }) {
   const s = useStyles();
+  const c = useAppColors();
   return (
     <View style={s.statItem}>
       <Text style={s.statValue}>{value}</Text>
@@ -282,11 +285,13 @@ function Stat({ label, value }: { label: string; value: string }) {
 
 function Divider() {
   const s = useStyles();
+  const c = useAppColors();
   return <View style={s.divider} />;
 }
 
 function SectionTitle({ icon, title }: { icon: any; title: string }) {
   const s = useStyles();
+  const c = useAppColors();
   return (
     <View style={s.sectionHeader}>
       <Ionicons name={icon} size={14} color="#F56E1E" />
@@ -299,6 +304,7 @@ function CoinPill({
   label, value, highlight = false, negative = false, noCoin = false,
 }: { label: string; value: number; highlight?: boolean; negative?: boolean; noCoin?: boolean }) {
   const s = useStyles();
+  const c = useAppColors();
   return (
     <View style={[s.coinPill, highlight && s.coinPillHighlight]}>
       <Text style={s.coinPillLabel}>{label}</Text>

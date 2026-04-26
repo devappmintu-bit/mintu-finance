@@ -12,6 +12,7 @@
  *   • Accepts a predetermined winning prize id (so the backend's
  *     weighted pick stays server-authoritative).
  */
+import { useAppColors } from '../../utils/theme';
 import React, { useEffect, useImperativeHandle, useRef, forwardRef, useState } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Animated, Easing, Platform } from 'react-native';
 import Svg, { G, Path, Circle, Defs, LinearGradient as SvgGradient, Stop, Text as SvgText } from 'react-native-svg';
@@ -46,6 +47,7 @@ const SpinWheel = forwardRef<SpinWheelHandle, Props>(function SpinWheel(
   { prizes, size = 300, disabled = false, ctaLabel = 'Spin & Win Rewards', ctaSubtitle, onSpin, onResult },
   ref
 ) {
+  const c = useAppColors();
   const rotation = useRef(new Animated.Value(0)).current;
   const pulse = useRef(new Animated.Value(1)).current;
   const glow = useRef(new Animated.Value(0)).current;
@@ -193,7 +195,7 @@ const SpinWheel = forwardRef<SpinWheelHandle, Props>(function SpinWheel(
             ))}
           </Defs>
           {/* Outer ring */}
-          <Circle cx={radius} cy={radius} r={radius - 2} fill="#FEF3C7" />
+          <Circle cx={radius} cy={radius} r={radius - 2} fill={c.state.warningBg} />
           <Circle cx={radius} cy={radius} r={radius - 4} fill="#FFFFFF" />
           {prizes.map((p, i) => {
             const start = i * sliceAngle;
@@ -231,8 +233,8 @@ const SpinWheel = forwardRef<SpinWheelHandle, Props>(function SpinWheel(
             );
           })}
           {/* Inner hub */}
-          <Circle cx={radius} cy={radius} r={innerRadius} fill="#1F2937" />
-          <Circle cx={radius} cy={radius} r={innerRadius - 6} fill="#F59E0B" />
+          <Circle cx={radius} cy={radius} r={innerRadius} fill={c.text.primary} />
+          <Circle cx={radius} cy={radius} r={innerRadius - 6} fill={c.accent.warning} />
           <Circle cx={radius} cy={radius} r={innerRadius - 14} fill="#FFFFFF" />
         </Svg>
       </Animated.View>

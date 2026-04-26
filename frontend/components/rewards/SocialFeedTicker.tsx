@@ -12,11 +12,13 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { View, Text, Animated, Easing } from 'react-native';
 import { makeStyles } from '../../utils/makeStyles';
+import { useAppColors } from '../../utils/theme';
 
 type Item = { name: string; action: string; emoji: string };
 
 export default function SocialFeedTicker({ items }: { items: Item[] }) {
   const s = useStyles();
+  const c = useAppColors();
 
   const [idx, setIdx] = useState(0);
   const fade = useRef(new Animated.Value(1)).current;

@@ -108,7 +108,7 @@ const useStyles = makeStyles((c) => ({
   title: { fontSize: 16, fontWeight: '900', color: c.text.primary, letterSpacing: -0.2 },
   liveBadge: { flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: 8, paddingVertical: 4, borderRadius: 999, backgroundColor: c.state.success + '18' },
   liveDot: { width: 4, height: 4, borderRadius: 4, backgroundColor: c.state.success },
-  liveTxt: { fontSize: 9, fontWeight: '900', color: '#065F46', letterSpacing: 0.6 },
+  liveTxt: { fontSize: 9, fontWeight: '900', color: c.state.success, letterSpacing: 0.6 },
   row: { gap: 12, paddingRight: 16, paddingVertical: 4 },
   card: { width: 232, padding: 16, borderRadius: 20, gap: 8, shadowColor: c.shadow.medium, shadowOpacity: 1, shadowRadius: 8, shadowOffset: { width: 0, height: 4 }, elevation: 3 },
   cardTop: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
