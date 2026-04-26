@@ -94,6 +94,26 @@ app = FastAPI(
 api_router = APIRouter(prefix="/api")
 
 
+# ══════════════════════════════════════════════════════════════════════
+#  HEALTH CHECK — Round 51f
+#  GET /api/health → { "status": "ok", "version": "1.0.0" }
+#
+#  Pure ping. No auth dependency, no database call, no third-party
+#  side-effects. Always returns 200 OK as long as the FastAPI process
+#  is responsive. Used by:
+#    • Kubernetes liveness/readiness probes
+#    • External uptime monitors (UptimeRobot, BetterStack, etc.)
+#    • Load balancers / ingress health checks
+#    • CI smoke tests
+#  Mounted on the main `api_router` so the standard `/api` prefix
+#  applies, BUT since it has no `Depends(get_current_user)` it sits
+#  outside the auth boundary by design.
+# ══════════════════════════════════════════════════════════════════════
+@api_router.get("/health")
+def health_check() -> dict:
+    return {"status": "ok", "version": "1.0.0"}
+
+
 # ── Validation + InvalidId handlers (extracted to core/responses.py) ────
 from core.responses import (  # noqa: E402,F401
     _SafeJSONResponse,

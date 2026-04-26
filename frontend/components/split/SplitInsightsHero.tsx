@@ -173,7 +173,7 @@ function AnimatedCard({ card, index }: { card: InsightCard; index: number }) {
   const press = () => { try { Haptics.selectionAsync(); } catch {} };
 
   return (
-    <Animated.View style={[s.card, { transform: [{ scale }], opacity, borderColor: card.color + '44' }]}>
+    <Animated.View style={[s.card, { transform: [{ scale }], opacity, borderColor: card.color + '88' }]}>
       <TouchableOpacity activeOpacity={0.9} onPress={press} style={{ flex: 1 }} testID={`insight-${card.id}`}>
         <LinearGradient
           colors={[card.color + '16', card.color + '06']}
@@ -213,12 +213,21 @@ const useStyles = makeStyles((c) => ({
   featTitle: { fontSize: 19, fontWeight: '900', color: c.bg.elevated, letterSpacing: -0.4, marginTop: 4 },
   featSubtitle: { fontSize: 12.5, fontWeight: '600', color: 'rgba(255,255,255,0.92)', lineHeight: 17 },
   // Compact cards
+  // Round 51e — increased card border alpha (`+44` → handled inline as `+88`)
+  // and added a subtle elevation/shadow so cards visually separate from
+  // the page background instead of melting into it. Width 1.5px gives a
+  // crisper edge at 2x DPI than the previous 1px.
   card: {
     width: 182,
     borderRadius: 18,
-    borderWidth: 1,
+    borderWidth: 1.5,
     backgroundColor: c.bg.secondary,
     overflow: 'hidden',
+    shadowColor: '#000000',
+    shadowOpacity: 0.06,
+    shadowRadius: 8,
+    shadowOffset: { width: 0, height: 2 },
+    elevation: 2,
   },
   cardInner: { padding: 12, minHeight: 110, gap: 5 },
   emojiPill: {

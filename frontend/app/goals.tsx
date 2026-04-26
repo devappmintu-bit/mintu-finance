@@ -472,8 +472,13 @@ const useStyles = makeStyles((c) => ({
   sumLbl: { fontSize: 11, fontWeight: '900', color: 'rgba(255,255,255,0.85)', letterSpacing: 1 },
   sumAmt: { fontSize: 28, fontWeight: '900', color: c.bg.elevated, letterSpacing: -0.8, marginTop: 4 },
   sumSub: { fontSize: 12, fontWeight: '700', color: 'rgba(255,255,255,0.75)', marginTop: 4 },
-  sumBar: { height: 8, borderRadius: 4, backgroundColor: 'rgba(0,0,0,0.3)', marginTop: 12, overflow: 'hidden' },
-  sumFill: { height: '100%', backgroundColor: c.bg.elevated, borderRadius: 4 },
+  // Round 51e — orange-on-orange visibility fix.
+  // Track was rgba(0,0,0,0.3) (dark on orange = invisible).
+  // Fill was c.bg.elevated (light, but theme-dependent).
+  // Now: track = white-25%, fill = solid white. Always WCAG-visible
+  // on the orange→amber gradient regardless of theme.
+  sumBar: { height: 8, borderRadius: 4, backgroundColor: 'rgba(255,255,255,0.3)', marginTop: 12, overflow: 'hidden' },
+  sumFill: { height: '100%', backgroundColor: '#FFFFFF', borderRadius: 4 },
   sumRing: { position: 'relative', alignItems: 'center', justifyContent: 'center' },
   sumRingPct: { position: 'absolute', fontSize: 14, fontWeight: '900', color: c.bg.elevated },
 

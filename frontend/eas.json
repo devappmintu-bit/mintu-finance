@@ -2,26 +2,30 @@
   "cli": {
     "version": ">= 7.6.0",
     "requireCommit": false,
-    "appVersionSource": "remote"
+    "appVersionSource": "remote",
+    "promptToConfigurePushNotifications": false
   },
   "build": {
     "development": {
       "developmentClient": true,
       "distribution": "internal",
       "env": {
-        "EXPO_NO_GIT_STATUS": "1"
+        "EXPO_NO_GIT_STATUS": "1",
+        "EAS_NO_VCS": "1"
       }
     },
     "preview": {
       "distribution": "internal",
       "env": {
-        "EXPO_NO_GIT_STATUS": "1"
+        "EXPO_NO_GIT_STATUS": "1",
+        "EAS_NO_VCS": "1"
       }
     },
     "production": {
       "autoIncrement": true,
       "env": {
-        "EXPO_NO_GIT_STATUS": "1"
+        "EXPO_NO_GIT_STATUS": "1",
+        "EAS_NO_VCS": "1"
       }
     }
   },

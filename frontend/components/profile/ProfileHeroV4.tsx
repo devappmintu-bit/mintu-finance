@@ -18,6 +18,46 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 
+/**
+ * Round 51e — privacy-friendly phone masking.
+ *
+ * Profile hero displays the user's phone, which is one of the most
+ * sensitive identifiers the app exposes. Masking middle digits keeps
+ * enough of the number visible for the user to confirm ownership at a
+ * glance, while preventing accidental disclosure to people sharing or
+ * peeking at the screen (cafés, public transport, screenshots).
+ *
+ * Examples:
+ *   "+91 9441234707"  →  "+91 944••••707"
+ *   "9441234707"      →  "+91 944••••707"  (assumes IN if 10-digit)
+ *   "+44 7012345678"  →  "+44 701•••••678" (preserves CC + 3 + 3)
+ *   undefined/empty   →  "—"
+ */
+function maskPhone(raw: any): string {
+  if (!raw) return '—';
+  const s = String(raw).trim();
+  if (!s) return '—';
+
+  // Split country code (leading "+xx") from the local digits.
+  let cc = '+91';
+  let local = s;
+  const ccMatch = s.match(/^(\+\d{1,3})\s*(.*)$/);
+  if (ccMatch) {
+    cc = ccMatch[1];
+    local = ccMatch[2];
+  }
+  // Strip non-digits from the local part for masking.
+  const digits = local.replace(/\D/g, '');
+  if (digits.length < 6) {
+    // Too short to safely mask — return original (rare edge case).
+    return s;
+  }
+  const head = digits.slice(0, 3);
+  const tail = digits.slice(-3);
+  const middle = '•'.repeat(Math.max(4, digits.length - 6));
+  return `${cc} ${head}${middle}${tail}`;
+}
+
 interface Props {
   user: any;
   avatar?: string | null;
@@ -126,7 +166,13 @@ export default function ProfileHeroV4({
         </TouchableOpacity>
 
         <Text style={s.name} numberOfLines={1}>{user?.name || 'User'}</Text>
-        <Text style={s.phone} numberOfLines={1}>{user?.phone || '—'}</Text>
+        {/* Round 51e — masked phone display for privacy.
+            "+91 9441234707"  →  "+91 944••••707"
+            Keeps country code + first 3 digits + last 3 digits visible
+            so the user can still verify their identity at a glance,
+            without exposing the full number to anyone glancing at the
+            screen. Falls back gracefully for non-Indian or short numbers. */}
+        <Text style={s.phone} numberOfLines={1}>{maskPhone(user?.phone)}</Text>
       </View>
 
       {/* Score — tappable */}

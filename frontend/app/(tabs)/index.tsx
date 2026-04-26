@@ -343,17 +343,53 @@ function HomeScreen() {
         {/* 4. TODAY CHIPS — glanceable stats */}
         <TodayChips snapshot={snapshot} stats={stats} />
 
-        {/* 4b. PREMIUM TEASER — loss-framing conversion card (free users only) */}
-        <PremiumTeaserCard
-          monthlyLoss={Number(predict?.monthly_waste || predict?.overspend_total || 0)}
-          topLeaks={(predict?.waste_comparisons || []).slice(0, 3).map((w: any) => ({
-            label: w.title || w.category || 'Spending leak',
-            amount: Number(w.amount || 0),
-            emoji: w.emoji || '💸',
-          }))}
-          hiddenInsightsCount={5}
-          ctaRoute="/premium"
-        />
+        {/* 4b. PREMIUM TEASER — loss-framing conversion card.
+            Round 51e — gate by transaction count. The card shows
+            "YOU LOST THIS MONTH ₹X" with leak categories, which is
+            misleading and demoralising for brand-new users with zero
+            transactions (where amounts come from the static fallback
+            list). Only render once the user has at least one logged
+            transaction so the framing is data-grounded. New users see
+            an empty-state hint instead. */}
+        {(() => {
+          const txnCount = Number(
+            stats?.transaction_count
+            ?? stats?.txn_count
+            ?? stats?.total_transactions
+            ?? snapshot?.transaction_count
+            ?? snapshot?.txn_count
+            ?? 0
+          );
+          if (txnCount > 0) {
+            return (
+              <PremiumTeaserCard
+                monthlyLoss={Number(predict?.monthly_waste || predict?.overspend_total || 0)}
+                topLeaks={(predict?.waste_comparisons || []).slice(0, 3).map((w: any) => ({
+                  label: w.title || w.category || 'Spending leak',
+                  amount: Number(w.amount || 0),
+                  emoji: w.emoji || '💸',
+                }))}
+                hiddenInsightsCount={5}
+                ctaRoute="/premium"
+              />
+            );
+          }
+          // New-user empty state — encouraging onboarding card instead
+          // of fake "you lost ₹X" framing.
+          return (
+            <View style={styles.newUserAiCoachCard}>
+              <View style={styles.newUserAiCoachIcon}>
+                <Text style={{ fontSize: 28 }}>✨</Text>
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.newUserAiCoachTitle}>Your AI Coach is warming up</Text>
+                <Text style={styles.newUserAiCoachSub}>
+                  Log your first 3 expenses to unlock personalised spending insights and money-saving tips.
+                </Text>
+              </View>
+            </View>
+          );
+        })()}
 
         {/* 5. ACTIONABLE ALERTS — only when present */}
         {smartAlerts.length > 0 && (
@@ -448,6 +484,23 @@ const useStyles = makeStyles((c) => ({
   sectionTitle: { fontSize: 16, fontWeight: '800', color: c.text.primary, letterSpacing: -0.2 },
   sectionBadge: { backgroundColor: c.accent.primary + '20', paddingHorizontal: 8, paddingVertical: 2, borderRadius: 999, minWidth: 22, alignItems: 'center' },
   sectionBadgeTxt: { fontSize: 11, fontWeight: '900', color: c.accent.primary },
+
+  // Round 51e — empty-state for AI Coach card (zero transactions). Shown
+  // in place of PremiumTeaserCard for new users so they get an
+  // encouraging onboarding card instead of fake "you lost ₹X" framing.
+  newUserAiCoachCard: {
+    flexDirection: 'row', alignItems: 'center', gap: 14,
+    padding: 18, borderRadius: 22, marginBottom: 14,
+    backgroundColor: c.bg.elevated,
+    borderWidth: 1, borderColor: c.accent.primary + '33',
+  },
+  newUserAiCoachIcon: {
+    width: 52, height: 52, borderRadius: 16,
+    backgroundColor: c.accent.primary + '14',
+    alignItems: 'center', justifyContent: 'center',
+  },
+  newUserAiCoachTitle: { fontSize: 14.5, fontWeight: '900', color: c.text.primary, letterSpacing: -0.2 },
+  newUserAiCoachSub: { fontSize: 12, fontWeight: '600', color: c.text.muted, marginTop: 4, lineHeight: 17 },
 }));
 // Round 41 — wrap with tab-level ErrorBoundary so a crash here
 // doesn't blank the whole app; the user sees a Retry CTA instead.

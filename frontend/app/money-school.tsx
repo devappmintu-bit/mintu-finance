@@ -18,7 +18,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { router } from 'expo-router';
-import api from '../utils/api';
+import api, { apiSlow } from '../utils/api';
 import { fetchPremiumStatus } from '../services/premium';
 import { COLORS } from '../utils/theme';
 import { makeStyles } from '../utils/makeStyles';
@@ -48,12 +48,28 @@ export default function MoneySchoolScreen() {
   const [cards, setCards] = useState<Card[]>([]);
   const [progress, setProgress] = useState<Progress | null>(null);
 
+  // Round 51d — load with progress UX + retry button.
+  // Lesson generation can take 15-25s on cold CPU, so we use the slow-path
+  // axios instance (30s timeout) and surface a "Building today's lesson…
+  // this may take a moment" hint after 6s. If the call ultimately fails,
+  // the user gets a Retry button instead of a generic offline screen.
+  const [loadError, setLoadError] = useState<string | null>(null);
+  const [stillWorking, setStillWorking] = useState(false);
+
   const load = useCallback(async () => {
+    setLoadError(null);
+    setStillWorking(false);
+    const stillTimer = setTimeout(() => setStillWorking(true), 6_000);
     try {
       const [prem, daily, cardsRes] = await Promise.all([
         fetchPremiumStatus().catch(() => ({ is_premium: false })),
-        api.get('/money-school/daily').then(r => r.data).catch(() => null),
-        api.get('/money-school/cards').then(r => r.data).catch(() => null),
+        // Lesson generation = AI; use slow client (30s).
+        apiSlow.get('/money-school/daily').then(r => r.data).catch((e) => {
+          // Re-throw so we can surface a retry button rather than blanking
+          // out the screen.
+          throw e;
+        }),
+        apiSlow.get('/money-school/cards').then(r => r.data).catch(() => null),
       ]);
       setIsPremium(!!prem?.is_premium);
       if (daily?.lesson) {
@@ -64,7 +80,14 @@ export default function MoneySchoolScreen() {
       }
       if (cardsRes?.cards) setCards(cardsRes.cards.slice(0, 12));
       if (cardsRes?.progress) setProgress(cardsRes.progress);
-    } catch { /* noop */ } finally {
+    } catch (e: any) {
+      const isTimeout = e?.code === 'ECONNABORTED' || /timeout/i.test(e?.message || '');
+      setLoadError(isTimeout
+        ? 'Server is busy generating your lesson. Try again?'
+        : "Couldn't load today's lesson. Try again?");
+    } finally {
+      clearTimeout(stillTimer);
+      setStillWorking(false);
       setLoading(false);
       setRefreshing(false);
     }
@@ -82,7 +105,45 @@ export default function MoneySchoolScreen() {
     } catch { /* noop */ }
   };
 
-  if (loading) return <FullScreenLoader tagline="Building today's lesson…" />;
+  if (loading) return (
+    <FullScreenLoader
+      tagline={stillWorking
+        ? "Building today's lesson… this may take a moment"
+        : "Building today's lesson…"}
+    />
+  );
+
+  // Round 51d — error state (timeout / unreachable). Provides a clear
+  // retry path instead of a blank screen or a misleading "offline" toast.
+  if (loadError) {
+    return (
+      <SafeAreaView style={s.bg} edges={['top']}>
+        <TopBar subtitle="Retry to continue" />
+        <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', padding: 28, gap: 14 }}>
+          <Ionicons name="hourglass-outline" size={42} color={COLORS.accent.primary} />
+          <Text style={{ fontSize: 16, fontWeight: '800', color: COLORS.text.primary, textAlign: 'center' }}>
+            Taking longer than usual…
+          </Text>
+          <Text style={{ fontSize: 13, color: COLORS.text.muted, textAlign: 'center', lineHeight: 18 }}>
+            {loadError}
+          </Text>
+          <TouchableOpacity
+            onPress={() => { setLoading(true); load(); }}
+            style={{
+              flexDirection: 'row', alignItems: 'center', gap: 6,
+              backgroundColor: COLORS.accent.primary,
+              paddingHorizontal: 18, paddingVertical: 10, borderRadius: 999,
+              marginTop: 4,
+            }}
+            testID="money-school-retry"
+          >
+            <Ionicons name="refresh" size={14} color="#FFFFFF" />
+            <Text style={{ color: '#FFFFFF', fontWeight: '800', fontSize: 13 }}>Try again</Text>
+          </TouchableOpacity>
+        </View>
+      </SafeAreaView>
+    );
+  }
 
   return (
     <SafeAreaView style={s.bg} edges={['top']}>

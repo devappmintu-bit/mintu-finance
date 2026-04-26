@@ -177,7 +177,13 @@ export default function LeaderboardScreen() {
         </View>
       ) : !data || data.total === 0 ? (
         <View style={styles.emptyWrap}>
-          <Ionicons name="trophy-outline" size={64} color={c.text.muted} />
+          {/* Round 51e — bigger, filled trophy with brand-warm color
+              instead of muted outline. Higher visual weight rewards
+              users who arrive at this empty state and creates a
+              clearer "achievement waiting" affordance. */}
+          <View style={styles.emptyTrophyWrap}>
+            <Ionicons name="trophy" size={64} color={c.accent.primary} />
+          </View>
           <Text style={styles.emptyT}>No one on the board yet</Text>
           <Text style={styles.emptyS}>
             {scope === 'contacts' ? 'Invite friends to Split groups — their scores will appear here.' : 'Be the first mover in your cohort.'}
@@ -318,6 +324,14 @@ const useStyles = makeStyles((c) => ({
 
   loadingWrap: { flex: 1, justifyContent: 'center', alignItems: 'center' },
   emptyWrap: { flex: 1, justifyContent: 'center', alignItems: 'center', padding: 32, gap: 8 },
+  // Round 51e — soft pedestal behind the trophy so the heavier filled
+  // icon reads as a "ready and waiting" award rather than abandoned.
+  emptyTrophyWrap: {
+    width: 110, height: 110, borderRadius: 55,
+    backgroundColor: c.accent.primary + '14',
+    alignItems: 'center', justifyContent: 'center',
+    marginBottom: 6,
+  },
   emptyT: { fontSize: 17, fontWeight: '800', color: c.text.primary, marginTop: 12 },
   emptyS: { fontSize: 13, color: c.text.secondary, textAlign: 'center', lineHeight: 19, maxWidth: 280 },
 

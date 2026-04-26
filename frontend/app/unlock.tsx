@@ -128,30 +128,37 @@ export default function UnlockScreen() {
         proceed();
       } else {
         try { Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning); } catch {}
-        // Round 45 — soft-fail: toast + 3-strike disable for this session.
+        // Round 51d — louder PIN fallback. The previous behavior only
+        // surfaced a small toast on bio fail, which testers reported as
+        // confusing on real devices (they didn't realize PIN was the
+        // way out). Now we:
+        //   • Set a prominent inline error message above the keypad,
+        //   • Trigger the shake animation so the PIN dots are clearly
+        //     the next interaction surface,
+        //   • Still toast for accessibility/screen readers.
         const next = bioFailCount + 1;
         setBioFailCount(next);
         if (next >= 3) {
+          // Hide the bio puck for the rest of this unlock session.
           setBioAvail(false);
-          Toast.show({
-            type: 'info',
-            text1: `${bioLabel} disabled for now`,
-            text2: 'Use your mPIN to unlock',
-            position: 'bottom',
-          });
+          setError(`${bioLabel} disabled. Enter your mPIN to unlock.`);
         } else {
-          Toast.show({
-            type: 'info',
-            text1: `${bioLabel} not recognised`,
-            text2: 'Try again or use your mPIN',
-            position: 'bottom',
-          });
+          setError(`${bioLabel} not recognised — enter your mPIN below`);
         }
+        shakeErr();
+        // Toast is now secondary signal (for VoiceOver / TalkBack).
+        Toast.show({
+          type: 'info',
+          text1: `${bioLabel} failed`,
+          text2: 'Enter your mPIN below to unlock.',
+          position: 'bottom',
+          visibilityTime: 2200,
+        });
       }
     } finally {
       setAttempting(false);
     }
-  }, [attempting, proceed, user?.name, bioFailCount, bioLabel]);
+  }, [attempting, proceed, user?.name, bioFailCount, bioLabel, shake]);
 
   // ── On mount: decide initial path
   useEffect(() => {

@@ -67,22 +67,56 @@ const notifyAuthExpired = async (hadToken: boolean) => {
 // Retry on 429/5xx with exponential backoff + request dedup
 const pendingRequests = new Map<string, Promise<any>>();
 
-// Network-down global toast. Throttled so parallel failures don't spam.
-// Only fires on true network failures (no response received) AFTER retries
-// are exhausted. 4xx/5xx with a response body are left to the caller, and
-// 401 is handled by notifyAuthExpired above.
+// Network-down vs Server-slow toast. Throttled so parallel failures don't spam.
+//
+// Round 51d — Real-device testing on Starter-tier infra exposed two flaws:
+//  1. We were showing "You're offline" on every API timeout, even when the
+//     device was clearly online (NetInfo says yes, the user can browse, etc).
+//     The actual issue was server CPU throttling causing >12s response times.
+//  2. AI / lesson generation calls genuinely need >12s on cold-CPU. We now
+//     expose `apiSlow` with a 30s timeout for those endpoints.
+//
+// The fix: when a request fails with NO response, we ask NetInfo whether
+// the device is *actually* offline:
+//   • offline   → "You're offline" toast (real connectivity loss)
+//   • online    → "Server is slow…" toast (request timed out / unreachable)
 let lastNetworkToastAt = 0;
-const notifyNetworkDown = () => {
+const notifyTransportError = async (err: any) => {
   const now = Date.now();
   if (now - lastNetworkToastAt < 15000) return;   // one toast / 15s max
   lastNetworkToastAt = now;
+  // Differentiate via NetInfo + the error code.
+  const isTimeout = err?.code === 'ECONNABORTED'
+    || /timeout/i.test(err?.message || '')
+    || err?.name === 'CanceledError';
+  let trulyOffline = false;
   try {
-    Toast.show({
-      type: 'error',
-      text1: 'You’re offline',
-      text2: 'Check your connection and try again.',
-      position: 'bottom',
-    });
+    const { isCurrentlyOnline } = await import('../hooks/useIsOnline');
+    trulyOffline = !(await isCurrentlyOnline());
+  } catch { /* noop */ }
+  try {
+    if (trulyOffline) {
+      Toast.show({
+        type: 'error',
+        text1: "You're offline",
+        text2: 'Check your connection and try again.',
+        position: 'bottom',
+      });
+    } else if (isTimeout) {
+      Toast.show({
+        type: 'info',
+        text1: 'Taking longer than usual…',
+        text2: 'Server is busy. Please try again in a moment.',
+        position: 'bottom',
+      });
+    } else {
+      Toast.show({
+        type: 'error',
+        text1: "Couldn't reach MintU",
+        text2: 'Please try again in a moment.',
+        position: 'bottom',
+      });
+    }
   } catch { /* noop */ }
 };
 
@@ -114,8 +148,12 @@ api.interceptors.response.use(
       return api(config);
     }
     if (!error.response) {
-      // Retries exhausted — user is genuinely offline. Single throttled toast.
-      notifyNetworkDown();
+      // Retries exhausted — surface the right toast for the situation.
+      // notifyTransportError differentiates real offline (NetInfo says no
+      // connection) from server-side timeout (NetInfo says connected, but
+      // axios got no response). Prevents false "You're offline" banners
+      // when the user is online but the request was just slow.
+      notifyTransportError(error);
     }
     return Promise.reject(error);
   }
@@ -143,5 +181,44 @@ export const clearCache = (url?: string) => {
   if (url) delete cache[url];
   else Object.keys(cache).forEach(k => delete cache[k]);
 };
+
+// Round 51d — slow-path axios instance for AI & lesson generation.
+//
+// Cold-CPU AI generations (Money School lesson, agent-chat, waste detector)
+// can legitimately take 15-25 seconds on Starter-tier infra. Using the
+// default 12s timeout caused them to abort and surface as "offline" toasts.
+// `apiSlow` shares all interceptors (auth, retry, transport-error toast)
+// but ups the timeout to 30s. Use it only for endpoints we know are slow.
+export const apiSlow = axios.create({
+  baseURL: `${API_URL}/api`,
+  timeout: 30_000,
+});
+apiSlow.interceptors.request.use(async (config) => {
+  const token = await AsyncStorage.getItem('token');
+  if (token) config.headers.Authorization = `Bearer ${token}`;
+  return config;
+});
+apiSlow.interceptors.response.use(
+  (response) => response,
+  async (error) => {
+    const config = error.config;
+    const status = error.response?.status;
+    if (status === 401) {
+      const sentToken = !!config?.headers?.Authorization;
+      notifyAuthExpired(sentToken);
+      return Promise.reject(error);
+    }
+    // Retry slow requests once on 5xx/429.
+    if ((status === 429 || (status >= 500 && status < 600)) && (!config._retryCount || config._retryCount < 1)) {
+      config._retryCount = (config._retryCount || 0) + 1;
+      await new Promise(r => setTimeout(r, 1500));
+      return apiSlow(config);
+    }
+    if (!error.response) {
+      notifyTransportError(error);
+    }
+    return Promise.reject(error);
+  }
+);
 
 export default api;

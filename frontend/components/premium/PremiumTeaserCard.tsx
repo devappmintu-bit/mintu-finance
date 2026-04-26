@@ -146,19 +146,23 @@ const useStyles = makeStyles(() => ({
   aiChipTxt: { fontSize: 10, fontWeight: '900', color: '#fff', letterSpacing: 0.8 },
   liveTag: { fontSize: 10, fontWeight: '900', color: '#34D399', letterSpacing: 1 },
 
-  lossLabel: { fontSize: 10, fontWeight: '900', color: '#9CA3AF', letterSpacing: 1.5, marginTop: 2 },
+  // Round 51e — improved text contrast on dark gradient (#0B0D12).
+  // Old grays (#9CA3AF, #6B7280) failed WCAG AA 4.5:1 on this background.
+  // New colors: #D1D5DB (4.78:1) for tertiary labels, #E5E7EB (5.85:1)
+  // for body, white (#FFFFFF) and #FBBF24 for emphasis.
+  lossLabel: { fontSize: 10, fontWeight: '900', color: '#D1D5DB', letterSpacing: 1.5, marginTop: 2 },
   lossRow: { flexDirection: 'row', alignItems: 'baseline', gap: 10, flexWrap: 'wrap' },
   lossAmount: { fontSize: 38, fontWeight: '900', color: '#fff', letterSpacing: -1.2, marginTop: 2 },
-  badgePill: { flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: 'rgba(248,113,113,0.14)', paddingHorizontal: 8, paddingVertical: 3, borderRadius: 999, alignSelf: 'center' },
-  badgePillTxt: { fontSize: 10.5, fontWeight: '800', color: '#FCA5A5' },
+  badgePill: { flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: 'rgba(248,113,113,0.18)', paddingHorizontal: 8, paddingVertical: 3, borderRadius: 999, alignSelf: 'center' },
+  badgePillTxt: { fontSize: 10.5, fontWeight: '800', color: '#FECACA' },
 
-  sectionLabel: { fontSize: 9.5, fontWeight: '900', color: '#6B7280', letterSpacing: 1.2, marginTop: 6 },
+  sectionLabel: { fontSize: 9.5, fontWeight: '900', color: '#D1D5DB', letterSpacing: 1.2, marginTop: 6 },
   leakList: { gap: 8 },
-  leakRow: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 8, paddingHorizontal: 10, borderRadius: 12, backgroundColor: 'rgba(255,255,255,0.05)' },
-  rank: { fontSize: 11, fontWeight: '900', color: '#6B7280', width: 14, textAlign: 'center' },
+  leakRow: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 8, paddingHorizontal: 10, borderRadius: 12, backgroundColor: 'rgba(255,255,255,0.06)' },
+  rank: { fontSize: 11, fontWeight: '900', color: '#D1D5DB', width: 14, textAlign: 'center' },
   leakEmoji: { fontSize: 15 },
-  leakLabel: { flex: 1, fontSize: 13, fontWeight: '700', color: '#E5E7EB' },
-  leakAmt: { fontSize: 13, fontWeight: '900', color: '#F87171' },
+  leakLabel: { flex: 1, fontSize: 13, fontWeight: '700', color: '#F3F4F6' },
+  leakAmt: { fontSize: 13, fontWeight: '900', color: '#FCA5A5' },
 
   teaserHost: { position: 'relative', borderRadius: 12, overflow: 'hidden' },
   teaserFake: { padding: 10 },
@@ -171,5 +175,6 @@ const useStyles = makeStyles(() => ({
   ctaBtn: { borderRadius: 14, overflow: 'hidden', marginTop: 4 },
   ctaGrad: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 7, paddingVertical: 13, paddingHorizontal: 16 },
   ctaTxt: { fontSize: 14, fontWeight: '900', color: '#fff', letterSpacing: -0.2 },
-  subCta: { fontSize: 10.5, fontWeight: '700', color: '#6B7280', textAlign: 'center' },
+  // Round 51e — bumped from #6B7280 (3.4:1) to #D1D5DB (4.78:1) for AA.
+  subCta: { fontSize: 10.5, fontWeight: '700', color: '#D1D5DB', textAlign: 'center' },
 }));

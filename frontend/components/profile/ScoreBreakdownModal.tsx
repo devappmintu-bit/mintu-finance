@@ -2,9 +2,14 @@
  * ScoreBreakdownModal — tap the hero score to open this. Shows 3 sub-scores
  * (Saving habits, Spending control, Consistency) each with a ring + hint,
  * and the predictive tier progression line.
+ *
+ * Round 51e — UX upgrade: replaced the bare "Unable to load breakdown"
+ * error text with a proper empty/error state UI (icon + message + Retry
+ * button), and added a per-attempt request timeout so the spinner can't
+ * hang forever on a throttled backend.
  */
-import React, { useEffect, useState } from 'react';
-import { Modal, View, Text, StyleSheet, TouchableOpacity, ScrollView, ActivityIndicator, Platform } from 'react-native';
+import React, { useEffect, useState, useCallback } from 'react';
+import { Modal, View, Text, StyleSheet, TouchableOpacity, ScrollView, ActivityIndicator } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import Svg, { Circle } from 'react-native-svg';
 import api from '../../utils/api';
@@ -37,12 +42,33 @@ export default function ScoreBreakdownModal({ visible, onClose, fallbackScore = 
   const c = useAppColors();
   const [data, setData] = useState<Data | null>(null);
   const [loading, setLoading] = useState(true);
+  const [errorKind, setErrorKind] = useState<null | 'timeout' | 'offline' | 'server'>(null);
+
+  // Round 51e — wrapped in useCallback so the Retry button can re-invoke
+  // the same fetch path. Includes a 10s per-request timeout (longer than
+  // the default 12s axios timeout to allow for retry-once) and
+  // distinguishes timeout vs server vs network errors so the UI can
+  // surface a precise message.
+  const load = useCallback(() => {
+    setLoading(true);
+    setErrorKind(null);
+    api.get('/profile/score-breakdown', { timeout: 10_000 })
+      .then(r => { setData(r.data); setErrorKind(null); })
+      .catch((e: any) => {
+        setData(null);
+        const code = e?.code || '';
+        const msg = e?.message || '';
+        if (code === 'ECONNABORTED' || /timeout/i.test(msg)) setErrorKind('timeout');
+        else if (!e?.response) setErrorKind('offline');
+        else setErrorKind('server');
+      })
+      .finally(() => setLoading(false));
+  }, []);
 
   useEffect(() => {
     if (!visible) return;
-    setLoading(true);
-    api.get('/profile/score-breakdown').then(r => setData(r.data)).catch(() => setData(null)).finally(() => setLoading(false));
-  }, [visible]);
+    load();
+  }, [visible, load]);
 
   const PILLAR_COLORS: Record<string, string> = { saving_habits: '#10B981', spending_control: '#F59E0B', consistency: '#7C3AED' };
 
@@ -97,7 +123,37 @@ export default function ScoreBreakdownModal({ visible, onClose, fallbackScore = 
                 </View>
               </ScrollView>
             ) : (
-              <Text style={{ textAlign: 'center', color: '#6B7280', padding: 30 }}>Unable to load breakdown</Text>
+              /* Round 51e — proper empty/error state instead of raw text. */
+              <View style={s.errorWrap}>
+                <View style={s.errorIconWrap}>
+                  <Ionicons
+                    name={errorKind === 'offline' ? 'cloud-offline-outline' : errorKind === 'timeout' ? 'hourglass-outline' : 'alert-circle-outline'}
+                    size={36}
+                    color={c.text.muted}
+                  />
+                </View>
+                <Text style={s.errorTitle}>
+                  {errorKind === 'offline' ? "You're offline"
+                    : errorKind === 'timeout' ? 'Server is busy'
+                    : "Couldn't load breakdown"}
+                </Text>
+                <Text style={s.errorSub}>
+                  {errorKind === 'offline'
+                    ? 'Connect to the internet and try again.'
+                    : errorKind === 'timeout'
+                      ? 'This is taking longer than usual. One more try?'
+                      : "We'll do better next time. Tap retry."}
+                </Text>
+                <TouchableOpacity
+                  onPress={load}
+                  style={s.errorRetry}
+                  activeOpacity={0.85}
+                  testID="score-breakdown-retry"
+                >
+                  <Ionicons name="refresh" size={14} color="#FFFFFF" />
+                  <Text style={s.errorRetryTxt}>Try again</Text>
+                </TouchableOpacity>
+              </View>
             )}
           </View>
         </TouchableOpacity>
@@ -129,4 +185,16 @@ const useStyles = makeStyles((c) => ({
 
   footerTip: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingTop: 14 },
   footerTipTxt: { fontSize: 11, fontWeight: '500', color: c.text.muted },
+
+  // Round 51e — error/empty state UI for /profile/score-breakdown failures.
+  errorWrap: { alignItems: 'center', justifyContent: 'center', paddingVertical: 36, paddingHorizontal: 16, gap: 10 },
+  errorIconWrap: { width: 64, height: 64, borderRadius: 32, backgroundColor: c.bg.primary, alignItems: 'center', justifyContent: 'center' },
+  errorTitle: { fontSize: 16, fontWeight: '800', color: c.text.primary, textAlign: 'center', marginTop: 4 },
+  errorSub: { fontSize: 12.5, color: c.text.muted, textAlign: 'center', lineHeight: 18, marginBottom: 6 },
+  errorRetry: {
+    flexDirection: 'row', alignItems: 'center', gap: 6,
+    backgroundColor: c.accent.primary, paddingHorizontal: 16, paddingVertical: 10,
+    borderRadius: 999, marginTop: 4,
+  },
+  errorRetryTxt: { color: '#FFFFFF', fontWeight: '800', fontSize: 13 },
 }));

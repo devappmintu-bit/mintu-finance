@@ -13,6 +13,7 @@
     "typecheck:watch": "tsc --noEmit --watch",
     "build:web": "expo export --platform web --output-dir dist",
     "postbuild:web": "node -e \"process.exit(require('fs').existsSync('dist/index.html')?0:1)\" && echo '✓ dist/index.html present'",
+    "preinstall": "node ./scripts/preinstall_git_init.js",
     "postinstall": "node ./scripts/postinstall_build_web.js"
   },
   "dependencies": {

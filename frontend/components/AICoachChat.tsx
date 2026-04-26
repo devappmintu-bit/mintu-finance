@@ -25,7 +25,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { router } from 'expo-router';
-import api from '../utils/api';
+import api, { apiSlow } from '../utils/api';
 import MintULogo from './MintULogo';
 import { useAuthStore } from '../store/authStore';
 import { useLangStore } from '../store/langStore';
@@ -182,7 +182,11 @@ export default function AICoachChat({ onClose }: { onClose?: () => void }) {
     setChatLoading(true);
     const sentAt = Date.now();
     try {
-      const res = await api.post('/ai/agent-chat', {
+      // Round 51d — use slow-path axios (30s timeout). AI agents often
+      // take 12-25s on cold-CPU; with the default 12s the request would
+      // time out and trigger the offline toast even though the device is
+      // perfectly online and the lesson would have arrived in 16s.
+      const res = await apiSlow.post('/ai/agent-chat', {
         message: text.trim(),
         lang,
         // Send context so backend can personalise (ignored if backend doesn't use it)

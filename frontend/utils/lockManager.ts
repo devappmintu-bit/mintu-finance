@@ -7,9 +7,30 @@
 //   clearPin()                     → remove PIN (on logout)
 //   biometricAvailable()           → boolean (Face ID / fingerprint enrolled)
 //   tryBiometric(prompt?)          → boolean (true = unlocked)
+//   isExpoGo()                     → boolean (true when running inside Expo Go,
+//                                    where biometric prompts get intercepted)
 import * as SecureStore from 'expo-secure-store';
 import * as LocalAuthentication from 'expo-local-authentication';
+import Constants from 'expo-constants';
 import { Platform } from 'react-native';
+
+// Round 51d — Expo Go bypass.
+// Inside the Expo Go sandbox, expo-local-authentication's native prompt is
+// intercepted by Expo's own development host, which shows a generic dialog
+// that doesn't actually authenticate against device biometrics. To avoid
+// trapping the user in an unlock loop on real devices running Expo Go,
+// we treat Expo Go as "biometric unavailable" and force the PIN path.
+// The check uses both `Constants.appOwnership === 'expo'` (legacy) and
+// `Constants.executionEnvironment === 'storeClient'` (modern SDKs).
+export function isExpoGo(): boolean {
+  try {
+    const own = (Constants as any)?.appOwnership;
+    const env = (Constants as any)?.executionEnvironment;
+    return own === 'expo' || env === 'storeClient';
+  } catch {
+    return false;
+  }
+}
 
 const PIN_KEY = 'mintu_lock_pin_v1';
 const PIN_SALT_KEY = 'mintu_lock_salt_v1';
@@ -87,6 +108,9 @@ export async function clearPin(): Promise<void> {
 export async function biometricAvailable(): Promise<boolean> {
   try {
     if (Platform.OS === 'web') return false;
+    // Round 51d — Expo Go intercepts biometric prompts. Treat as unavailable
+    // so the unlock flow falls through to PIN immediately.
+    if (isExpoGo()) return false;
     const hasHw = await LocalAuthentication.hasHardwareAsync();
     const enrolled = await LocalAuthentication.isEnrolledAsync();
     return hasHw && enrolled;

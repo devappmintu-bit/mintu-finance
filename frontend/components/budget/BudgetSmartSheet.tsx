@@ -143,25 +143,78 @@ export default function BudgetSmartSheet({ editing, currentSpent, onSubmit, onCl
     Animated.timing(displayAnim, { toValue: amount, duration: 180, useNativeDriver: false, easing: Easing.out(Easing.quad) }).start();
   }, [amount, displayAnim]);
 
-  // Load smart setup data
+  // Round 51d — Static category fallback.
+  // The form must render even if /budgets/smart-setup is slow or fails.
+  // Categories are intrinsically static; the API only adds last-month
+  // spend + AI recommendations. We seed with a baseline catalog so the
+  // user can ALWAYS create a budget within 5 seconds of opening the
+  // sheet, regardless of network conditions.
+  const STATIC_CATEGORIES: SmartCategory[] = useMemo(() => (
+    Object.keys(CATEGORY_META).map((cat) => ({
+      category: cat,
+      last_month_spend: 0,
+      three_month_avg: 0,
+      recommended: 0,
+      risk_level: 'low' as const,
+      preset_amounts: [5000, 10000, 15000, 20000],
+      existing_budget: null,
+    }))
+  ), []);
+
+  // Load smart setup data — but never block the form longer than 5s.
   useEffect(() => {
+    let mounted = true;
+    let resolved = false;
+
+    // Hard 5-second deadline. If the API hasn't returned by then, render
+    // the form with the static fallback so the user is never stuck on a
+    // spinner. The async response (if it arrives later) will then upgrade
+    // the chips with real spend numbers via the data setter below.
+    const deadline = setTimeout(() => {
+      if (!mounted || resolved) return;
+      resolved = true;
+      setData({ monthly_income: 0, categories: STATIC_CATEGORIES });
+      setLoading(false);
+    }, 5_000);
+
     (async () => {
       try {
         const r = await api.get('/budgets/smart-setup');
-        setData(r.data);
-      } catch (e) {
-        setData({ monthly_income: 0, categories: [] });
+        if (!mounted) return;
+        resolved = true;
+        clearTimeout(deadline);
+        // Merge: keep static catalog (full set) but overlay real data
+        // for categories the backend returned, so the user has a
+        // comprehensive list even if the backend filtered some out.
+        const apiCats: SmartCategory[] = Array.isArray(r.data?.categories) ? r.data.categories : [];
+        const byName: Record<string, SmartCategory> = {};
+        for (const c of STATIC_CATEGORIES) byName[c.category] = c;
+        for (const c of apiCats) byName[c.category] = c;
+        setData({
+          monthly_income: r.data?.monthly_income || 0,
+          categories: Object.values(byName),
+        });
+      } catch {
+        if (!mounted || resolved) return;
+        resolved = true;
+        clearTimeout(deadline);
+        // Soft fallback — same static catalog the deadline would have set.
+        setData({ monthly_income: 0, categories: STATIC_CATEGORIES });
       } finally {
-        setLoading(false);
+        if (mounted) setLoading(false);
       }
     })();
     // Load goals in parallel (optional — errors are non-blocking)
     (async () => {
       try {
         const g = await fetchGoals();
+        if (!mounted) return;
         setGoals(g.goals || []);
       } catch { /* no-op */ }
     })();
+
+    return () => { mounted = false; clearTimeout(deadline); };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const currentCat: SmartCategory | undefined = useMemo(
@@ -728,9 +781,12 @@ const useStyles = makeStyles((c) => ({
   goalChipAdd: { backgroundColor: '#FEF3C7', borderColor: c.accent.secondary, borderStyle: 'dashed' },
   goalTxt: { fontSize: 11.5, color: c.text.muted, fontWeight: '700' },
   goalProg: { fontSize: 9.5, color: c.gray[400], fontWeight: '700', marginTop: 1 },
-  goalForm: { marginTop: 10, padding: 12, backgroundColor: '#FFFBEB', borderRadius: 14, borderWidth: 1, borderColor: '#FDE68A', gap: 10 },
-  goalFormRow: { flexDirection: 'row', gap: 8 },
-  goalFormInput: { flex: 1, fontSize: 13, color: c.text.primary, paddingHorizontal: 10, paddingVertical: 9, backgroundColor: c.bg.elevated, borderRadius: 10, borderWidth: 1, borderColor: '#FDE68A' },
+  // Round 51e — standardised New-Goal form spacing (label→input 8px,
+  // between fields 24px). Increased internal padding so the form feels
+  // breathable instead of cramped.
+  goalForm: { marginTop: 12, padding: 16, backgroundColor: '#FFFBEB', borderRadius: 14, borderWidth: 1, borderColor: '#FDE68A', gap: 24 },
+  goalFormRow: { flexDirection: 'row', gap: 24 },
+  goalFormInput: { flex: 1, fontSize: 13, color: c.text.primary, paddingHorizontal: 12, paddingVertical: 11, backgroundColor: c.bg.elevated, borderRadius: 10, borderWidth: 1, borderColor: '#FDE68A', marginTop: 8 },
   goalTargetWrap: { flex: 1, flexDirection: 'row', alignItems: 'center', paddingLeft: 10, backgroundColor: c.bg.elevated, borderRadius: 10, borderWidth: 1, borderColor: '#FDE68A' },
   goalRupee: { fontSize: 13, fontWeight: '900', color: '#92400E' },
   goalFormCta: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, backgroundColor: c.accent.brand, paddingVertical: 10, borderRadius: 12 },

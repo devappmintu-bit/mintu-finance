@@ -25,6 +25,8 @@ import { PortalProvider } from '@gorhom/portal';
 import { useAppColors } from '../utils/theme';
 import ErrorBoundary from '../components/ErrorBoundary';
 import OfflineBanner from '../components/OfflineBanner';
+import AppLockOverlay from '../components/AppLockOverlay';
+import { isExpoGo } from '../utils/lockManager';
 
 // Silence noisy, non-actionable deprecation warnings from RN core + libs.
 // These warnings are informational for future RN versions and don't affect runtime.
@@ -95,6 +97,29 @@ export default function RootLayout() {
     loadFromStorage();
     loadLang();
     loadThemePref();
+  }, []);
+
+  // Round 51d — Expo Go dev banner.
+  // Real-device testing in Expo Go was breaking biometric auth (the prompt
+  // is intercepted by the Expo dev host). The unlock flow now bypasses
+  // biometric in Expo Go, but we surface this clearly to the user via a
+  // single non-blocking toast on first mount so they know why Face ID /
+  // Fingerprint isn't being requested. Fires exactly once per cold start.
+  useEffect(() => {
+    if (!isExpoGo()) return;
+    // Tiny delay so Toast root has mounted.
+    const t = setTimeout(() => {
+      try {
+        Toast.show({
+          type: 'info',
+          text1: '🛠 Dev mode (Expo Go)',
+          text2: 'App lock is bypassed. Use a built APK to test biometric.',
+          position: 'bottom',
+          visibilityTime: 4500,
+        });
+      } catch { /* noop */ }
+    }, 800);
+    return () => clearTimeout(t);
   }, []);
 
   // ── Cold-start safety net (Round 48 clean-session audit) ──────────────
@@ -207,6 +232,12 @@ export default function RootLayout() {
           <Toast config={toastConfig} position="bottom" bottomOffset={100} />
           {/* 300ms CrossFade overlay while the Stack remount re-skins the tree */}
           <ThemeTransitionOverlay />
+          {/* Round 51d — full-screen opaque lock overlay. Mounted LAST so
+              it renders above every Stack screen, sheet, and toast.
+              Only paints when authStore.locked === true. Guarantees that
+              sensitive content is never visible during the lock→unlock
+              transition. */}
+          <AppLockOverlay />
         </BottomSheetModalProvider>
       </PortalProvider>
       </ErrorBoundary>

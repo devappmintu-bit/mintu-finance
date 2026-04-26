@@ -281,7 +281,37 @@ const useStyles = makeStyles((c) => ({
   countryText: { fontSize: 17, fontWeight: '600', color: c.text.primary },
   phoneInput: { flex: 1, backgroundColor: c.bg.secondary, borderRadius: RADIUS.xl, paddingHorizontal: SPACING.lg, paddingVertical: 18, fontSize: 18, fontWeight: '600', color: c.text.primary, borderWidth: 1, borderColor: c.border.subtle, letterSpacing: 1 },
   otpRow: { flexDirection: 'row', justifyContent: 'center', gap: 10, marginBottom: SPACING.xxxl },
-  otpBox: { width: 48, height: 56, borderRadius: RADIUS.lg, backgroundColor: c.bg.secondary, borderWidth: 2, borderColor: c.border.subtle, textAlign: 'center', fontSize: 22, fontWeight: '700', color: c.text.primary },
+  // Round 51e — uniform OTP box sizing across Android & iOS.
+  // Previously the first box rendered visibly larger on Android because:
+  //   • the OS applies its own default `paddingHorizontal` to focused
+  //     TextInputs (the first box receives focus on mount), and
+  //   • Android adds extra `includeFontPadding` to text rendering.
+  // Fix: zero internal padding, disable font padding, set explicit
+  // `lineHeight` + `textAlignVertical: 'center'`, and force `flexGrow: 0`
+  // so flexbox can never widen one box to fill leftover space.
+  otpBox: {
+    width: 48,
+    height: 56,
+    minWidth: 48,
+    maxWidth: 48,
+    flexGrow: 0,
+    flexShrink: 0,
+    borderRadius: RADIUS.lg,
+    backgroundColor: c.bg.secondary,
+    borderWidth: 2,
+    borderColor: c.border.subtle,
+    textAlign: 'center',
+    textAlignVertical: 'center',
+    paddingTop: 0,
+    paddingBottom: 0,
+    paddingLeft: 0,
+    paddingRight: 0,
+    fontSize: 22,
+    fontWeight: '700',
+    lineHeight: 26,
+    includeFontPadding: false,
+    color: c.text.primary,
+  },
   otpBoxFilled: { borderColor: c.accent.primary, backgroundColor: c.accent.primary + '08' },
   nameInputWrap: { flexDirection: 'row', alignItems: 'center', backgroundColor: c.bg.secondary, borderRadius: RADIUS.xl, paddingHorizontal: SPACING.lg, borderWidth: 1, borderColor: c.border.subtle, marginBottom: SPACING.xxl },
   nameIcon: { marginRight: 12 },
