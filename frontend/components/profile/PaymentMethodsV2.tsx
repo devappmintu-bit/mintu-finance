@@ -172,7 +172,7 @@ export default function PaymentMethodsV2() {
                       </View>
                       {m.is_default ? (
                         <View style={s.defaultPill}>
-                          <Ionicons name="checkmark-circle" size={11} color="#fff" />
+                          <Ionicons name="checkmark-circle" size={11} color="#FFFFFF" />
                           <Text style={s.defaultPillT}>Default</Text>
                         </View>
                       ) : (
@@ -203,15 +203,15 @@ export default function PaymentMethodsV2() {
                             testID={`pm-verify-${m.id}`}
                           >
                             {isVerifying ? (
-                              <ActivityIndicator size="small" color={health.action === 'retry' ? '#fff' : COLORS.accent.primary} />
+                              <ActivityIndicator size="small" color={health.action === 'retry' ? '#FFFFFF' : COLORS.accent.primary} />
                             ) : (
                               <>
                                 <Ionicons
                                   name={health.action === 'retry' ? 'alert-circle' : 'shield-checkmark'}
                                   size={12}
-                                  color={health.action === 'retry' ? '#fff' : COLORS.accent.primary}
+                                  color={health.action === 'retry' ? '#FFFFFF' : COLORS.accent.primary}
                                 />
-                                <Text style={[s.healthCtaT, health.action === 'retry' && { color: '#fff' }]}>
+                                <Text style={[s.healthCtaT, health.action === 'retry' && { color: '#FFFFFF' }]}>
                                   {health.action_label}
                                 </Text>
                               </>
@@ -227,7 +227,7 @@ export default function PaymentMethodsV2() {
           )}
 
           <TouchableOpacity style={s.addBtn} onPress={() => setAddVisible(true)} activeOpacity={0.85} testID="pm-add-btn">
-            <Ionicons name="add-circle" size={18} color="#fff" />
+            <Ionicons name="add-circle" size={18} color="#FFFFFF" />
             <Text style={s.addBtnT}>Add payment method</Text>
           </TouchableOpacity>
         </View>
@@ -349,7 +349,7 @@ function AddMethodModal({ visible, onClose, onSaved }: { visible: boolean; onClo
                 const on = t === type;
                 return (
                   <TouchableOpacity key={t} style={[m.typeChip, on && m.typeChipOn]} onPress={() => setType(t)} activeOpacity={0.85} testID={`pm-type-${t}`}>
-                    <Ionicons name={meta.icon as any} size={15} color={on ? '#fff' : meta.color} />
+                    <Ionicons name={meta.icon as any} size={15} color={on ? '#FFFFFF' : meta.color} />
                     <Text style={[m.typeChipT, on && m.typeChipTOn]}>{meta.label}</Text>
                   </TouchableOpacity>
                 );
@@ -432,7 +432,7 @@ function AddMethodModal({ visible, onClose, onSaved }: { visible: boolean; onClo
 
             <TouchableOpacity style={m.defaultRow} onPress={() => setIsDefault(!isDefault)} activeOpacity={0.8}>
               <View style={[m.cbox, isDefault && m.cboxOn]}>
-                {isDefault && <Ionicons name="checkmark" size={13} color="#fff" />}
+                {isDefault && <Ionicons name="checkmark" size={13} color="#FFFFFF" />}
               </View>
               <Text style={m.defaultT}>Set as default payment method</Text>
             </TouchableOpacity>
@@ -444,13 +444,13 @@ function AddMethodModal({ visible, onClose, onSaved }: { visible: boolean; onClo
               <TouchableOpacity style={[m.btn, showSuccess ? m.btnSuccess : m.btnPrimary]} onPress={save} disabled={saving || showSuccess} activeOpacity={0.85} testID="pm-save-btn">
                 {showSuccess ? (
                   <>
-                    <Ionicons name="checkmark-circle" size={18} color="#fff" />
-                    <Text style={[m.btnT, { color: '#fff' }]}>Saved securely</Text>
+                    <Ionicons name="checkmark-circle" size={18} color="#FFFFFF" />
+                    <Text style={[m.btnT, { color: '#FFFFFF' }]}>Saved securely</Text>
                   </>
                 ) : saving ? (
-                  <ActivityIndicator color="#fff" />
+                  <ActivityIndicator color="#FFFFFF" />
                 ) : (
-                  <Text style={[m.btnT, { color: '#fff' }]}>Save securely</Text>
+                  <Text style={[m.btnT, { color: '#FFFFFF' }]}>Save securely</Text>
                 )}
               </TouchableOpacity>
             </View>
@@ -516,7 +516,7 @@ const useMStyles = makeStyles((c) => ({
   typeChip: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 5, paddingVertical: 9, borderRadius: 10, backgroundColor: c.bg.primary, borderWidth: 1, borderColor: c.border.subtle },
   typeChipOn: { backgroundColor: c.accent.primary, borderColor: c.accent.primary },
   typeChipT: { fontSize: 12, fontWeight: '800', color: c.text.primary },
-  typeChipTOn: { color: '#fff' },
+  typeChipTOn: { color: '#FFFFFF' },
   rowWrap: { flexDirection: 'row', gap: 10 },
   field: { marginBottom: 12 },
   label: { fontSize: 11, fontWeight: '800', color: c.text.muted, textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 5 },
@@ -525,7 +525,7 @@ const useMStyles = makeStyles((c) => ({
   miniChip: { paddingHorizontal: 10, paddingVertical: 6, borderRadius: 999, backgroundColor: c.bg.primary, borderWidth: 1, borderColor: c.border.subtle },
   miniChipOn: { backgroundColor: c.accent.primary, borderColor: c.accent.primary },
   miniChipT: { fontSize: 11, fontWeight: '800', color: c.text.secondary },
-  miniChipTOn: { color: '#fff' },
+  miniChipTOn: { color: '#FFFFFF' },
   defaultRow: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 6 },
   cbox: { width: 20, height: 20, borderRadius: 5, borderWidth: 1.5, borderColor: c.border.subtle, alignItems: 'center', justifyContent: 'center' },
   cboxOn: { backgroundColor: c.accent.primary, borderColor: c.accent.primary },

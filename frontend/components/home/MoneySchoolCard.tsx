@@ -65,7 +65,7 @@ function MoneySchoolCard() {
           start={{ x: 0, y: 0 }} end={{ x: 0, y: 1 }}
           style={s.iconStrip}
         >
-          <Ionicons name="school" size={22} color="#fff" />
+          <Ionicons name="school" size={22} color="#FFFFFF" />
         </LinearGradient>
 
         <View style={s.body}>
@@ -78,8 +78,8 @@ function MoneySchoolCard() {
               </View>
             ) : (
               <View style={[s.proPill, s.proPillOn]}>
-                <Ionicons name="flash" size={9} color="#fff" />
-                <Text style={[s.proPillT, { color: '#fff' }]}>ACTIVE</Text>
+                <Ionicons name="flash" size={9} color="#FFFFFF" />
+                <Text style={[s.proPillT, { color: '#FFFFFF' }]}>ACTIVE</Text>
               </View>
             )}
           </View>

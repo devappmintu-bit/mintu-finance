@@ -148,7 +148,7 @@ export default function ContactPickerSheet({ visible, onClose, onCreate }: Props
                     <TouchableOpacity key={c.id} onPress={() => toggleContact(c)} style={s.selectedCell}>
                       <View style={[s.selectedAv, { backgroundColor: MEMBER_COLORS[i % MEMBER_COLORS.length] + '20' }]}>
                         <Text style={[s.selectedAvT, { color: MEMBER_COLORS[i % MEMBER_COLORS.length] }]}>{c.name[0].toUpperCase()}</Text>
-                        <View style={s.selectedBadge}><Ionicons name="close" size={10} color="#fff" /></View>
+                        <View style={s.selectedBadge}><Ionicons name="close" size={10} color="#FFFFFF" /></View>
                       </View>
                       <Text numberOfLines={1} style={s.selectedName}>{c.name.split(' ')[0]}</Text>
                     </TouchableOpacity>
@@ -231,8 +231,8 @@ export default function ContactPickerSheet({ visible, onClose, onCreate }: Props
                         onPress={() => setManualPhone((p) => p || '')}
                         activeOpacity={0.8}
                       >
-                        <Ionicons name="call" size={14} color="#fff" />
-                        <Text style={{ color: '#fff', fontSize: 12, fontWeight: '800' }}>Enter phone number</Text>
+                        <Ionicons name="call" size={14} color="#FFFFFF" />
+                        <Text style={{ color: '#FFFFFF', fontSize: 12, fontWeight: '800' }}>Enter phone number</Text>
                       </TouchableOpacity>
                     </>
                   ) : (

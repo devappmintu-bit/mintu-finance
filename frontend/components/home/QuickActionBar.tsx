@@ -31,7 +31,7 @@ function QuickActionBar() {
     <View style={s.wrap}>
       <TouchableOpacity style={s.primaryShell} activeOpacity={0.9} onPress={add} testID="qa-add">
         <LinearGradient colors={['#F56E1E', '#C14A06']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={s.primary}>
-          <Ionicons name="add-circle" size={20} color="#fff" />
+          <Ionicons name="add-circle" size={20} color="#FFFFFF" />
           <Text style={s.primaryTxt}>Add Expense</Text>
         </LinearGradient>
       </TouchableOpacity>

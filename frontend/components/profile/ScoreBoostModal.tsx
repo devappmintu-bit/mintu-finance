@@ -167,7 +167,7 @@ const s = StyleSheet.create({
   backdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.55)', justifyContent: 'flex-end' },
   backdropTap: { ...StyleSheet.absoluteFillObject },
   sheet: {
-    backgroundColor: '#fff',
+    backgroundColor: '#FFFFFF',
     borderTopLeftRadius: 28,
     borderTopRightRadius: 28,
     padding: 20,
@@ -197,14 +197,14 @@ const s = StyleSheet.create({
   // Boost rows
   boostRow: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 12, paddingHorizontal: 10, borderRadius: 14, marginBottom: 8, backgroundColor: '#F9FAFB', borderWidth: 1, borderColor: '#F3F4F6' },
   numBadge: { width: 24, height: 24, borderRadius: 12, backgroundColor: '#111827', alignItems: 'center', justifyContent: 'center' },
-  numTxt: { fontSize: 11, fontWeight: '900', color: '#fff' },
-  emojiBox: { width: 42, height: 42, borderRadius: 14, backgroundColor: '#fff', alignItems: 'center', justifyContent: 'center', shadowColor: '#000', shadowOpacity: 0.06, shadowRadius: 4, shadowOffset: { width: 0, height: 2 }, elevation: 2 },
+  numTxt: { fontSize: 11, fontWeight: '900', color: '#FFFFFF' },
+  emojiBox: { width: 42, height: 42, borderRadius: 14, backgroundColor: '#FFFFFF', alignItems: 'center', justifyContent: 'center', shadowColor: '#000000', shadowOpacity: 0.06, shadowRadius: 4, shadowOffset: { width: 0, height: 2 }, elevation: 2 },
   emoji: { fontSize: 22 },
   boostTitle: { fontSize: 13.5, fontWeight: '900', color: '#111827', letterSpacing: -0.1 },
   boostSub: { fontSize: 11, fontWeight: '600', color: '#6B7280', marginTop: 2, lineHeight: 14 },
   ptsCol: { alignItems: 'flex-end', gap: 4 },
   ptsPill: { paddingHorizontal: 8, paddingVertical: 4, borderRadius: 999 },
-  ptsTxt: { fontSize: 11.5, fontWeight: '900', color: '#fff' },
+  ptsTxt: { fontSize: 11.5, fontWeight: '900', color: '#FFFFFF' },
   ctaTxt: { fontSize: 10, fontWeight: '800', color: '#F56E1E' },
 
   footer: { fontSize: 11, fontWeight: '600', color: '#9CA3AF', textAlign: 'center', marginTop: 10, lineHeight: 15 },

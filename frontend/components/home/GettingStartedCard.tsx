@@ -108,7 +108,7 @@ function GettingStartedCard({ counts }: Props) {
         >
           <View style={[s.checkbox, step.done && s.checkboxDone]}>
             {step.done ? (
-              <Ionicons name="checkmark" size={14} color="#fff" />
+              <Ionicons name="checkmark" size={14} color="#FFFFFF" />
             ) : (
               <Text style={s.stepEmoji}>{step.emoji}</Text>
             )}
@@ -143,7 +143,7 @@ const s = StyleSheet.create({
   },
   checkbox: {
     width: 28, height: 28, borderRadius: 14,
-    borderWidth: 1.5, borderColor: '#FFDDC0', backgroundColor: '#fff',
+    borderWidth: 1.5, borderColor: '#FFDDC0', backgroundColor: '#FFFFFF',
     alignItems: 'center', justifyContent: 'center',
   },
   checkboxDone: { backgroundColor: '#10B981', borderColor: '#10B981' },

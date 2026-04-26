@@ -98,7 +98,7 @@ export default function ProfileHeroV4({
           hitSlop={8} activeOpacity={0.7}
           accessibilityLabel="Edit name"
         >
-          <Ionicons name="create-outline" size={16} color="#fff" />
+          <Ionicons name="create-outline" size={16} color="#FFFFFF" />
         </TouchableOpacity>
       </View>
 
@@ -176,7 +176,7 @@ export default function ProfileHeroV4({
 
       {/* Level Up CTA */}
       <TouchableOpacity style={s.cta} onPress={() => { haptic(); onLevelUp(); }} activeOpacity={0.85} testID="profile-level-up">
-        <Ionicons name="rocket" size={14} color="#fff" />
+        <Ionicons name="rocket" size={14} color="#FFFFFF" />
         <Text style={s.ctaTxt}>Level up · {nextTier.label}</Text>
       </TouchableOpacity>
     </LinearGradient>
@@ -193,7 +193,7 @@ const s = StyleSheet.create({
   topRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   tierPill: { flexDirection: 'row', alignItems: 'center', gap: 5, backgroundColor: 'rgba(255,255,255,0.18)', paddingHorizontal: 10, paddingVertical: 4, borderRadius: 999 },
   tierEmoji: { fontSize: 12 },
-  tierTxt: { fontSize: 10, fontWeight: '900', color: '#fff', letterSpacing: 0.8 },
+  tierTxt: { fontSize: 10, fontWeight: '900', color: '#FFFFFF', letterSpacing: 0.8 },
   editBtn: { width: 30, height: 30, borderRadius: 15, backgroundColor: 'rgba(0,0,0,0.18)', alignItems: 'center', justifyContent: 'center' },
 
   // Samsung Health style identity — centered stack
@@ -205,31 +205,31 @@ const s = StyleSheet.create({
     alignItems: 'center', justifyContent: 'center',
     position: 'relative',
     // subtle inner glow
-    shadowColor: '#000', shadowOpacity: 0.2, shadowRadius: 10, shadowOffset: { width: 0, height: 4 }, elevation: 4,
+    shadowColor: '#000000', shadowOpacity: 0.2, shadowRadius: 10, shadowOffset: { width: 0, height: 4 }, elevation: 4,
   },
   avatarImg: { width: AVATAR_INNER, height: AVATAR_INNER, borderRadius: AVATAR_INNER / 2 },
   avatarInitialsWrap: {
     width: AVATAR_INNER, height: AVATAR_INNER, borderRadius: AVATAR_INNER / 2,
     alignItems: 'center', justifyContent: 'center',
-    backgroundColor: '#fff',
+    backgroundColor: '#FFFFFF',
   },
   avatarInitials: { fontSize: 32, fontWeight: '900', color: '#C14A06', letterSpacing: -0.5 },
   cameraBadge: {
     position: 'absolute', right: -2, bottom: -2,
     width: 30, height: 30, borderRadius: 15,
-    backgroundColor: '#fff',
+    backgroundColor: '#FFFFFF',
     alignItems: 'center', justifyContent: 'center',
     borderWidth: 2, borderColor: '#C14A06',
-    shadowColor: '#000', shadowOpacity: 0.2, shadowRadius: 4, shadowOffset: { width: 0, height: 2 }, elevation: 3,
+    shadowColor: '#000000', shadowOpacity: 0.2, shadowRadius: 4, shadowOffset: { width: 0, height: 2 }, elevation: 3,
   },
 
-  name: { fontSize: 20, fontWeight: '800', color: '#fff', letterSpacing: -0.3, marginTop: 12, textAlign: 'center' },
+  name: { fontSize: 20, fontWeight: '800', color: '#FFFFFF', letterSpacing: -0.3, marginTop: 12, textAlign: 'center' },
   phone: { fontSize: 12.5, fontWeight: '600', color: 'rgba(255,255,255,0.78)', marginTop: 2, textAlign: 'center' },
 
   scoreBlock: { marginTop: 20 },
   label: { fontSize: 10.5, fontWeight: '800', color: 'rgba(255,255,255,0.75)', letterSpacing: 1, textTransform: 'uppercase' },
   amountRow: { flexDirection: 'row', alignItems: 'baseline', marginTop: 2 },
-  amount: { fontSize: 44, fontWeight: '900', color: '#fff', letterSpacing: -1.5 },
+  amount: { fontSize: 44, fontWeight: '900', color: '#FFFFFF', letterSpacing: -1.5 },
   amountOf: { fontSize: 16, fontWeight: '700', color: 'rgba(255,255,255,0.7)', marginLeft: 6 },
   breakdownHint: { marginLeft: 'auto', alignSelf: 'center', backgroundColor: 'rgba(0,0,0,0.15)', borderRadius: 14, paddingHorizontal: 6, paddingVertical: 6 },
 
@@ -246,5 +246,5 @@ const s = StyleSheet.create({
   rewardTxt: { fontSize: 11.5, fontWeight: '600', color: 'rgba(255,255,255,0.88)' },
 
   cta: { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 16, alignSelf: 'center', backgroundColor: 'rgba(0,0,0,0.22)', paddingVertical: 9, paddingHorizontal: 14, borderRadius: 999 },
-  ctaTxt: { fontSize: 12.5, fontWeight: '800', color: '#fff', letterSpacing: 0.2 },
+  ctaTxt: { fontSize: 12.5, fontWeight: '800', color: '#FFFFFF', letterSpacing: 0.2 },
 });

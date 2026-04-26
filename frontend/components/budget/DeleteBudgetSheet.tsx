@@ -40,7 +40,7 @@ export default function DeleteBudgetSheet({ visible, category, amount, onCancel,
               <Text style={s.btnGhostT}>Cancel</Text>
             </TouchableOpacity>
             <TouchableOpacity style={[s.btn, s.btnDanger]} onPress={onConfirm} activeOpacity={0.85} testID="confirm-delete-budget">
-              <Ionicons name="trash-outline" size={16} color="#fff" />
+              <Ionicons name="trash-outline" size={16} color="#FFFFFF" />
               <Text style={s.btnDangerT}>Delete</Text>
             </TouchableOpacity>
           </View>

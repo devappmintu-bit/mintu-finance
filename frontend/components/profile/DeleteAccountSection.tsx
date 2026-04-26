@@ -184,7 +184,7 @@ export default function DeleteAccountSection() {
                   activeOpacity={0.85}
                   testID="del-hard-submit"
                 >
-                  {submitting ? <ActivityIndicator color="#fff" /> : <Text style={[m.btnT, { color: '#fff' }]}>Delete forever</Text>}
+                  {submitting ? <ActivityIndicator color="#FFFFFF" /> : <Text style={[m.btnT, { color: '#FFFFFF' }]}>Delete forever</Text>}
                 </TouchableOpacity>
               </View>
             </View>

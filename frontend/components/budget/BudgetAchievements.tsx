@@ -194,7 +194,7 @@ export default function BudgetAchievements({ refreshKey = 0, onBadgePress }: Pro
             <Text style={[s.badgeName, !b.unlocked && s.badgeNameOff]} numberOfLines={1}>{b.name}</Text>
             {b.unlocked ? (
               <View style={s.unlockedPill}>
-                <Ionicons name="checkmark-circle" size={10} color="#fff" />
+                <Ionicons name="checkmark-circle" size={10} color="#FFFFFF" />
                 <Text style={s.unlockedT}>Unlocked</Text>
               </View>
             ) : (

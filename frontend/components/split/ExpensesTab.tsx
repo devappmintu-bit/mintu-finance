@@ -72,7 +72,7 @@ export default function ExpensesTab({ summary, currentUserId, onAddExpense, onEd
       >
         <View style={s.heroHead}>
           <Text style={s.heroLbl}>{net >= 0 ? "You're net owed" : "You owe net"}</Text>
-          <Ionicons name={net >= 0 ? 'trending-up' : 'trending-down'} size={16} color="#fff" />
+          <Ionicons name={net >= 0 ? 'trending-up' : 'trending-down'} size={16} color="#FFFFFF" />
         </View>
         <Text style={s.heroAmt}>₹{Math.abs(net).toLocaleString('en-IN')}</Text>
 
@@ -95,7 +95,7 @@ export default function ExpensesTab({ summary, currentUserId, onAddExpense, onEd
       <View style={s.quickRow}>
         <TouchableOpacity style={s.quickBtn} onPress={onAddExpense} activeOpacity={0.85} testID="quick-add-expense">
           <LinearGradient colors={['#F56E1E', '#C14A06']} style={s.quickIconSaff}>
-            <Ionicons name="add" size={18} color="#fff" />
+            <Ionicons name="add" size={18} color="#FFFFFF" />
           </LinearGradient>
           <Text style={s.quickTxt}>{t('split_expense', lang)}</Text>
         </TouchableOpacity>
@@ -155,7 +155,7 @@ export default function ExpensesTab({ summary, currentUserId, onAddExpense, onEd
                     testID={`direct-pay-${i}`}
                   >
                     <LinearGradient colors={['#F56E1E', '#C14A06']} style={s.payBtnGrad}>
-                      <Ionicons name="flash" size={14} color="#fff" />
+                      <Ionicons name="flash" size={14} color="#FFFFFF" />
                       <Text style={s.payBtnTxt}>Pay</Text>
                     </LinearGradient>
                   </TouchableOpacity>
@@ -166,7 +166,7 @@ export default function ExpensesTab({ summary, currentUserId, onAddExpense, onEd
                     style={s.bellOnly}
                     testID={`remind-${i}`}
                   >
-                    <Ionicons name="notifications" size={18} color="#fff" />
+                    <Ionicons name="notifications" size={18} color="#FFFFFF" />
                   </TouchableOpacity>
                 )}
               </View>

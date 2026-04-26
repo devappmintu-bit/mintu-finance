@@ -62,7 +62,7 @@ function BudgetHero({ budgets, onPressAdd, onPressShare, sharing }: Props) {
         </View>
         <View style={s.headActions}>
           <TouchableOpacity style={s.iconBtn} onPress={() => { haptic(); onPressShare?.(); }} activeOpacity={0.8} disabled={!!sharing} testID="budget-hero-share">
-            {sharing ? <ActivityIndicator size="small" color="#fff" /> : <Ionicons name="share-social-outline" size={17} color="#fff" />}
+            {sharing ? <ActivityIndicator size="small" color="#FFFFFF" /> : <Ionicons name="share-social-outline" size={17} color="#FFFFFF" />}
           </TouchableOpacity>
           <TouchableOpacity style={s.addBtn} onPress={() => { haptic(); onPressAdd?.(); }} activeOpacity={0.88} testID="budget-hero-add">
             <Ionicons name="add" size={20} color="#C14A06" />

@@ -383,7 +383,7 @@ export default function BudgetSmartSheet({ editing, currentSpent, onSubmit, onCl
                   style={[s.presetChip, amount === p && s.presetChipOn]}
                   testID={`preset-${p}`}
                 >
-                  <Text style={[s.presetTxt, amount === p && { color: '#fff' }]}>₹{fmtCompact(p)}</Text>
+                  <Text style={[s.presetTxt, amount === p && { color: '#FFFFFF' }]}>₹{fmtCompact(p)}</Text>
                 </TouchableOpacity>
               ))}
             </View>
@@ -477,7 +477,7 @@ export default function BudgetSmartSheet({ editing, currentSpent, onSubmit, onCl
                 style={[s.periodChip, period === p && s.periodChipOn]}
                 testID={`period-${p}`}
               >
-                <Text style={[s.periodTxt, period === p && { color: '#fff' }]}>
+                <Text style={[s.periodTxt, period === p && { color: '#FFFFFF' }]}>
                   {p.charAt(0).toUpperCase() + p.slice(1)}
                 </Text>
               </TouchableOpacity>
@@ -498,8 +498,8 @@ export default function BudgetSmartSheet({ editing, currentSpent, onSubmit, onCl
                 style={[s.scopeChip, scope === o.id && s.scopeChipOn]}
                 testID={`scope-${o.id}`}
               >
-                <Ionicons name={o.icon as any} size={14} color={scope === o.id ? '#fff' : '#6B7280'} />
-                <Text style={[s.scopeTxt, scope === o.id && { color: '#fff' }]}>{o.label}</Text>
+                <Ionicons name={o.icon as any} size={14} color={scope === o.id ? '#FFFFFF' : '#6B7280'} />
+                <Text style={[s.scopeTxt, scope === o.id && { color: '#FFFFFF' }]}>{o.label}</Text>
               </TouchableOpacity>
             ))}
           </View>
@@ -589,7 +589,7 @@ export default function BudgetSmartSheet({ editing, currentSpent, onSubmit, onCl
                 style={[s.goalFormCta, (creatingGoal || !newGoalName.trim() || parseFloat(newGoalTarget) <= 0) && { opacity: 0.6 }]}
                 testID="goal-create"
               >
-                <Ionicons name="add-circle" size={14} color="#fff" />
+                <Ionicons name="add-circle" size={14} color="#FFFFFF" />
                 <Text style={s.goalFormCtaTxt}>{creatingGoal ? 'Creating…' : 'Create & link'}</Text>
               </TouchableOpacity>
             </View>
@@ -611,7 +611,7 @@ export default function BudgetSmartSheet({ editing, currentSpent, onSubmit, onCl
               <Ionicons
                 name={editing ? (ctaText.includes('Increase') ? 'trending-up' : ctaText.includes('Reduce') ? 'trending-down' : 'checkmark-circle') : 'add-circle'}
                 size={20}
-                color="#fff"
+                color="#FFFFFF"
               />
               <Text style={s.ctaTxt}>{submitting ? 'Saving…' : !isOnline ? "Offline — can't save" : ctaText}</Text>
             </LinearGradient>
@@ -669,7 +669,7 @@ const useStyles = makeStyles((c) => ({
 
   sliderTrack: { height: 8, borderRadius: 4, backgroundColor: '#FEF3C7', position: 'relative', overflow: 'visible', marginTop: 4 },
   sliderFill: { height: '100%', borderRadius: 4 },
-  sliderThumb: { position: 'absolute', top: -6, width: 20, height: 20, borderRadius: 10, backgroundColor: c.bg.elevated, borderWidth: 3, borderColor: c.accent.brand, shadowColor: '#000', shadowOpacity: 0.2, shadowRadius: 5, shadowOffset: { width: 0, height: 2 }, elevation: 3 },
+  sliderThumb: { position: 'absolute', top: -6, width: 20, height: 20, borderRadius: 10, backgroundColor: c.bg.elevated, borderWidth: 3, borderColor: c.accent.brand, shadowColor: '#000000', shadowOpacity: 0.2, shadowRadius: 5, shadowOffset: { width: 0, height: 2 }, elevation: 3 },
   sliderLblRow: { flexDirection: 'row', justifyContent: 'space-between', marginTop: 2 },
   sliderLbl: { fontSize: 10, color: c.gray[400], fontWeight: '700' },
 
@@ -694,7 +694,7 @@ const useStyles = makeStyles((c) => ({
   rolloverSub: { fontSize: 11, color: c.text.muted, fontWeight: '600', marginTop: 1 },
   toggle: { width: 42, height: 26, borderRadius: 13, backgroundColor: c.gray[200], padding: 3 },
   toggleOn: { backgroundColor: c.accent.brand },
-  knob: { width: 20, height: 20, borderRadius: 10, backgroundColor: c.bg.elevated, shadowColor: '#000', shadowOpacity: 0.15, shadowRadius: 2, shadowOffset: { width: 0, height: 1 }, elevation: 2 },
+  knob: { width: 20, height: 20, borderRadius: 10, backgroundColor: c.bg.elevated, shadowColor: '#000000', shadowOpacity: 0.15, shadowRadius: 2, shadowOffset: { width: 0, height: 1 }, elevation: 2 },
   knobOn: { transform: [{ translateX: 16 }] },
   rolloverOpts: { flexDirection: 'row', gap: 8, marginTop: 2 },
   rolloverOpt: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 10, paddingVertical: 8, borderRadius: 10, backgroundColor: c.gray[50], borderWidth: 1, borderColor: c.gray[100] },

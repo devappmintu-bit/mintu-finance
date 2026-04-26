@@ -53,7 +53,7 @@ function SplitHero({ balances, coins, groupCount, onAddGroup, onSettleUp }: Prop
 
       <View style={s.topRow}>
         <View style={s.pill}>
-          <Ionicons name="people" size={12} color="#fff" />
+          <Ionicons name="people" size={12} color="#FFFFFF" />
           <Text style={s.pillTxt}>{groupCount} {groupCount === 1 ? 'GROUP' : 'GROUPS'}</Text>
         </View>
         <View style={s.coinPill}>

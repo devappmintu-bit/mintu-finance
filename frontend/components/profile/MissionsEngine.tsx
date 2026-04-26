@@ -94,9 +94,9 @@ function MissionsEngineBase({
           >
             <View style={[s.missionIcon, m.done && s.missionIconDone, m.streak_saver && s.missionIconSaver]}>
               {m.done ? (
-                <Ionicons name="checkmark" size={14} color="#fff" />
+                <Ionicons name="checkmark" size={14} color="#FFFFFF" />
               ) : (
-                <Ionicons name={m.icon} size={17} color={m.streak_saver ? '#fff' : '#6B7280'} />
+                <Ionicons name={m.icon} size={17} color={m.streak_saver ? '#FFFFFF' : '#6B7280'} />
               )}
             </View>
             <View style={{ flex: 1, minWidth: 0 }}>
@@ -121,7 +121,7 @@ function MissionsEngineBase({
       </View>
 
       <TouchableOpacity style={s.cta} onPress={() => { haptic(); onEarnAll(); }} activeOpacity={0.88}>
-        <Ionicons name="rocket" size={15} color="#fff" />
+        <Ionicons name="rocket" size={15} color="#FFFFFF" />
         <Text style={s.ctaTxt}>Earn +{totalXp} XP + {totalCoins}🪙 · Level Up 🚀</Text>
       </TouchableOpacity>
     </View>

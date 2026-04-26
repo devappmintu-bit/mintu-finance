@@ -62,7 +62,7 @@ function WelcomeNewUserCard({ userName }: Props) {
         </Text>
 
         <TouchableOpacity onPress={onAddFirst} style={s.cta} activeOpacity={0.85} testID="welcome-add-first-txn">
-          <Ionicons name="add-circle" size={18} color="#fff" />
+          <Ionicons name="add-circle" size={18} color="#FFFFFF" />
           <Text style={s.ctaTxt}>Add your first transaction</Text>
         </TouchableOpacity>
       </LinearGradient>
@@ -94,7 +94,7 @@ const s = StyleSheet.create({
     borderRadius: RADIUS.full,
     backgroundColor: COLORS.accent.primary,
   },
-  ctaTxt: { fontSize: 14.5, fontWeight: '800', color: '#fff' },
+  ctaTxt: { fontSize: 14.5, fontWeight: '800', color: '#FFFFFF' },
 });
 
 export default memo(WelcomeNewUserCard);

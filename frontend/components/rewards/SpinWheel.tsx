@@ -194,7 +194,7 @@ const SpinWheel = forwardRef<SpinWheelHandle, Props>(function SpinWheel(
           </Defs>
           {/* Outer ring */}
           <Circle cx={radius} cy={radius} r={radius - 2} fill="#FEF3C7" />
-          <Circle cx={radius} cy={radius} r={radius - 4} fill="#fff" />
+          <Circle cx={radius} cy={radius} r={radius - 4} fill="#FFFFFF" />
           {prizes.map((p, i) => {
             const start = i * sliceAngle;
             const end = start + sliceAngle;
@@ -205,7 +205,7 @@ const SpinWheel = forwardRef<SpinWheelHandle, Props>(function SpinWheel(
                 <Path
                   d={segmentPath(start, end)}
                   fill={`url(#grad-${i})`}
-                  stroke="#fff"
+                  stroke="#FFFFFF"
                   strokeWidth={2}
                 />
                 <SvgText
@@ -223,7 +223,7 @@ const SpinWheel = forwardRef<SpinWheelHandle, Props>(function SpinWheel(
                   textAnchor="middle"
                   fontSize={size > 260 ? 10 : 8}
                   fontWeight="900"
-                  fill="#fff"
+                  fill="#FFFFFF"
                 >
                   {trunc(p.label, 10)}
                 </SvgText>
@@ -233,7 +233,7 @@ const SpinWheel = forwardRef<SpinWheelHandle, Props>(function SpinWheel(
           {/* Inner hub */}
           <Circle cx={radius} cy={radius} r={innerRadius} fill="#1F2937" />
           <Circle cx={radius} cy={radius} r={innerRadius - 6} fill="#F59E0B" />
-          <Circle cx={radius} cy={radius} r={innerRadius - 14} fill="#fff" />
+          <Circle cx={radius} cy={radius} r={innerRadius - 14} fill="#FFFFFF" />
         </Svg>
       </Animated.View>
 
@@ -246,7 +246,7 @@ const SpinWheel = forwardRef<SpinWheelHandle, Props>(function SpinWheel(
             end={{ x: 1, y: 1 }}
             style={s.cta}
           >
-            <Ionicons name={spinning ? 'sync' : 'flash'} size={18} color="#fff" />
+            <Ionicons name={spinning ? 'sync' : 'flash'} size={18} color="#FFFFFF" />
             <View>
               <Text style={s.ctaText}>{spinning ? 'Spinning…' : ctaLabel}</Text>
               {!!ctaSubtitle && <Text style={s.ctaSub}>{ctaSubtitle}</Text>}
@@ -278,8 +278,8 @@ const s = StyleSheet.create({
   glow: { position: 'absolute', top: -6, backgroundColor: '#FCD34D', shadowColor: '#F59E0B', shadowOpacity: 0.8, shadowRadius: 28, shadowOffset: { width: 0, height: 0 }, elevation: 10 },
   pointerWrap: { position: 'absolute', zIndex: 4, alignItems: 'center' },
   pointer: { width: 0, height: 0, borderLeftWidth: 14, borderRightWidth: 14, borderTopWidth: 22, borderLeftColor: 'transparent', borderRightColor: 'transparent', borderTopColor: '#EF4444' },
-  pointerDot: { width: 10, height: 10, borderRadius: 5, backgroundColor: '#fff', borderWidth: 2, borderColor: '#EF4444', marginTop: -4 },
+  pointerDot: { width: 10, height: 10, borderRadius: 5, backgroundColor: '#FFFFFF', borderWidth: 2, borderColor: '#EF4444', marginTop: -4 },
   cta: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 10, paddingHorizontal: 28, paddingVertical: 14, borderRadius: 999, minWidth: 220, shadowColor: '#F56E1E', shadowOpacity: 0.45, shadowRadius: 14, shadowOffset: { width: 0, height: 6 }, elevation: 6 },
-  ctaText: { fontSize: 15, fontWeight: '900', color: '#fff', letterSpacing: 0.3 },
+  ctaText: { fontSize: 15, fontWeight: '900', color: '#FFFFFF', letterSpacing: 0.3 },
   ctaSub: { fontSize: 10.5, fontWeight: '700', color: 'rgba(255,255,255,0.85)', marginTop: 1 },
 });

@@ -160,7 +160,7 @@ function HeroCard(props: Props) {
       <View style={s.topRow}>
         <Text style={s.emoji}>{state.emoji}</Text>
         <View style={s.dailyBadge}>
-          <Ionicons name="calendar" size={10} color="#fff" />
+          <Ionicons name="calendar" size={10} color="#FFFFFF" />
           <Text style={s.dailyBadgeTxt}>TODAY</Text>
         </View>
       </View>
@@ -187,7 +187,7 @@ const useStyles = makeStyles((c) => ({
     padding: 20,
     borderRadius: 22,
     overflow: 'hidden',
-    shadowColor: '#000',
+    shadowColor: '#000000',
     shadowOpacity: 0.15,
     shadowOffset: { width: 0, height: 6 },
     shadowRadius: 12,

@@ -108,7 +108,7 @@ function NewsCarousel({ news, newsUpdatedAt, newsLoading, onRefresh }: Props) {
             <Text style={s.endTitle}>You're caught up!</Text>
             <Text style={s.endSub}>Pull down or tap refresh for updates</Text>
             <TouchableOpacity style={s.endBtn} onPress={onRefresh} activeOpacity={0.8}>
-              <Ionicons name="refresh" size={12} color="#fff" />
+              <Ionicons name="refresh" size={12} color="#FFFFFF" />
               <Text style={s.endBtnText}>Refresh now</Text>
             </TouchableOpacity>
           </View>

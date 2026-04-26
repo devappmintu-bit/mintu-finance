@@ -145,13 +145,13 @@ export default function PaySheet({ visible, onClose, target, onPayUPI, onPayCash
                   style={s.rzpInner}
                 >
                   <View style={s.rzpIcon}>
-                    <Ionicons name="card" size={20} color="#fff" />
+                    <Ionicons name="card" size={20} color="#FFFFFF" />
                   </View>
                   <View style={{ flex: 1 }}>
                     <Text style={s.rzpTitle}>Pay with Razorpay</Text>
                     <Text style={s.rzpSub}>Cards · Netbanking · UPI · Wallets</Text>
                   </View>
-                  <Ionicons name="chevron-forward" size={18} color="#fff" />
+                  <Ionicons name="chevron-forward" size={18} color="#FFFFFF" />
                 </LinearGradient>
               </TouchableOpacity>
             )}

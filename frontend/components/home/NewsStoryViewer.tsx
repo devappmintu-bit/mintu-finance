@@ -95,7 +95,7 @@ export default function NewsStoryViewer({ visible, articles, startIndex, onClose
           <View style={s.pill}><View style={s.liveDot} /><Text style={s.pillText}>LIVE</Text></View>
           <Text style={s.cat}>{String(cur.category || '').toUpperCase()}</Text>
           <TouchableOpacity onPress={onClose} style={s.closeBtn} hitSlop={10}>
-            <Ionicons name="close" size={26} color="#fff" />
+            <Ionicons name="close" size={26} color="#FFFFFF" />
           </TouchableOpacity>
         </View>
 
@@ -128,9 +128,9 @@ export default function NewsStoryViewer({ visible, articles, startIndex, onClose
                       } catch { try { await Linking.openURL(cur.source_url); } catch {} }
                     }}
                   >
-                    <Ionicons name="open-outline" size={14} color="#fff" />
+                    <Ionicons name="open-outline" size={14} color="#FFFFFF" />
                     <Text style={s.readMoreTxt}>Read on {cur.source || 'source'}</Text>
-                    <Ionicons name="arrow-forward" size={14} color="#fff" />
+                    <Ionicons name="arrow-forward" size={14} color="#FFFFFF" />
                   </TouchableOpacity>
                 )}
               </ScrollView>
@@ -173,7 +173,7 @@ export default function NewsStoryViewer({ visible, articles, startIndex, onClose
 }
 
 const useStyles = makeStyles((c) => ({
-  bg: { flex: 1, backgroundColor: '#000' },
+  bg: { flex: 1, backgroundColor: '#000000' },
   progressRow: { flexDirection: 'row', gap: 4, paddingTop: Platform.OS === 'ios' ? 56 : 32, paddingHorizontal: 12, marginBottom: 12 },
   progressTrack: { flex: 1, height: 3, borderRadius: 2, backgroundColor: 'rgba(255,255,255,0.25)', overflow: 'hidden' },
   progressFill: { height: '100%', backgroundColor: c.bg.elevated, borderRadius: 2 },

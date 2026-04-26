@@ -139,7 +139,7 @@ export default function AIInsightCard({
         activeOpacity={0.85}
       >
         <Text style={s.ctaText}>{insight.cta}</Text>
-        <Ionicons name="chevron-forward" size={14} color="#fff" />
+        <Ionicons name="chevron-forward" size={14} color="#FFFFFF" />
       </TouchableOpacity>
     </View>
   );

@@ -114,6 +114,16 @@ export default function RootLayout() {
       if (!alive) return;
       if (prev.isLoading && !state.isLoading) {
         if (!state.token) {
+          // Round 50 Session 4b — `?testMode=1` URL flag (web only) skips
+          // the cold-start wipe so the Playwright visual-gate can persist
+          // its theme/locale seed across reloads. No effect on native.
+          if (Platform.OS === 'web') {
+            try {
+              if (typeof window !== 'undefined' && window.location?.search?.includes('testMode=1')) {
+                return;
+              }
+            } catch { /* ignore */ }
+          }
           import('../utils/clearSessionState')
             .then(({ clearSessionState }) => clearSessionState())
             .catch(() => {});

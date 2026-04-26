@@ -147,7 +147,7 @@ const BudgetCard = memo(function BudgetCard({ item, onEdit, onDelete, onAddExpen
     return (
       <RectButton style={s.rightAct} onPress={() => { close(); tap(onDelete, Haptics.ImpactFeedbackStyle.Heavy)(); }}>
         <Animated.View style={{ transform: [{ scale }], alignItems: 'center' }}>
-          <Ionicons name="trash-outline" size={22} color="#fff" />
+          <Ionicons name="trash-outline" size={22} color="#FFFFFF" />
           <Text style={s.actTxt}>Delete</Text>
         </Animated.View>
       </RectButton>
@@ -160,13 +160,13 @@ const BudgetCard = memo(function BudgetCard({ item, onEdit, onDelete, onAddExpen
       <View style={{ flexDirection: 'row' }}>
         <RectButton style={s.leftActEdit} onPress={() => { close(); tap(onEdit)(); }}>
           <Animated.View style={{ transform: [{ scale }], alignItems: 'center' }}>
-            <Ionicons name="create-outline" size={20} color="#fff" />
+            <Ionicons name="create-outline" size={20} color="#FFFFFF" />
             <Text style={s.actTxt}>Edit</Text>
           </Animated.View>
         </RectButton>
         <RectButton style={s.leftActAdd} onPress={() => { close(); tap(onAddExpense, Haptics.ImpactFeedbackStyle.Medium)(); }}>
           <Animated.View style={{ transform: [{ scale }], alignItems: 'center' }}>
-            <Ionicons name="add" size={22} color="#fff" />
+            <Ionicons name="add" size={22} color="#FFFFFF" />
             <Text style={s.actTxt}>Expense</Text>
           </Animated.View>
         </RectButton>
@@ -324,7 +324,7 @@ const useStyles = makeStyles((c) => ({
 
   dotsBtn: { position: 'absolute', top: 10, right: 10, width: 28, height: 28, borderRadius: 14, backgroundColor: 'rgba(255,255,255,0.85)', alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: c.gray[200] },
   aiBtn: { position: 'absolute', top: 10, right: 44, width: 28, height: 28, borderRadius: 14, backgroundColor: c.accent.brandSoft, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: '#FED7AA' },
-  menu: { position: 'absolute', top: 42, right: 8, backgroundColor: c.bg.elevated, borderRadius: 12, paddingVertical: 6, paddingHorizontal: 4, borderWidth: 1, borderColor: c.gray[200], zIndex: 10, minWidth: 130, ...shadowStyle('#000', 8, 14, 0.1, 10) },
+  menu: { position: 'absolute', top: 42, right: 8, backgroundColor: c.bg.elevated, borderRadius: 12, paddingVertical: 6, paddingHorizontal: 4, borderWidth: 1, borderColor: c.gray[200], zIndex: 10, minWidth: 130, ...shadowStyle('#000000', 8, 14, 0.1, 10) },
   menuItem: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingHorizontal: 10, paddingVertical: 8, borderRadius: 8 },
   menuT: { fontSize: 13, fontWeight: '700' },
 }));

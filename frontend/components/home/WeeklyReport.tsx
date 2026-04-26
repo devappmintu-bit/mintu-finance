@@ -76,7 +76,7 @@ function WeeklyReport({ weeklyReport, snapshot, user }: Props) {
       </View>
       <Text style={s.suggestion}>{weeklyReport.savings_suggestion}</Text>
       <TouchableOpacity style={s.shareBtn} activeOpacity={0.85} onPress={handleShare}>
-        <Ionicons name="logo-whatsapp" size={16} color="#fff" />
+        <Ionicons name="logo-whatsapp" size={16} color="#FFFFFF" />
         <Text style={s.shareBtnText}>Share Weekly Report</Text>
       </TouchableOpacity>
     </View>

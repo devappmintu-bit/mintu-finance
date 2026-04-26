@@ -183,7 +183,7 @@ function RewardCard({ reward, userCoins, onClaim, testID }: { reward: Reward; us
           )}
           {locked && (
             <View style={s.lockOverlay}>
-              <Ionicons name="lock-closed" size={22} color="#fff" />
+              <Ionicons name="lock-closed" size={22} color="#FFFFFF" />
             </View>
           )}
         </LinearGradient>
@@ -201,7 +201,7 @@ function RewardCard({ reward, userCoins, onClaim, testID }: { reward: Reward; us
                 ? `Need ${reward.cost_coins - userCoins} more`
                 : `🪙 ${reward.cost_coins}`}
             </Text>
-            <Ionicons name={locked ? 'lock-closed' : (!canAfford ? 'alert-circle' : 'arrow-forward')} size={11} color={locked ? '#9CA3AF' : (!canAfford ? '#991B1B' : '#fff')} />
+            <Ionicons name={locked ? 'lock-closed' : (!canAfford ? 'alert-circle' : 'arrow-forward')} size={11} color={locked ? '#9CA3AF' : (!canAfford ? '#991B1B' : '#FFFFFF')} />
           </View>
         </View>
       </View>
@@ -227,7 +227,7 @@ const useStyles = makeStyles((c) => ({
   laneSub: { fontSize: 10.5, fontWeight: '700', color: c.text.muted, marginTop: 1 },
   unlockTxt: { fontSize: 11.5, fontWeight: '900', color: c.accent.brand, letterSpacing: 0.2 },
 
-  card: { width: 160, backgroundColor: c.bg.elevated, borderRadius: 18, borderWidth: 1, borderColor: c.gray[100], overflow: 'hidden', shadowColor: '#000', shadowOpacity: 0.06, shadowRadius: 6, shadowOffset: { width: 0, height: 2 }, elevation: 2 },
+  card: { width: 160, backgroundColor: c.bg.elevated, borderRadius: 18, borderWidth: 1, borderColor: c.gray[100], overflow: 'hidden', shadowColor: '#000000', shadowOpacity: 0.06, shadowRadius: 6, shadowOffset: { width: 0, height: 2 }, elevation: 2 },
   cardLocked: { opacity: 0.9 },
   cardBand: { height: 68, alignItems: 'center', justifyContent: 'center', position: 'relative' },
   cardEmoji: { fontSize: 34 },

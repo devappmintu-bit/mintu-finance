@@ -63,7 +63,7 @@ export default function PremiumConversionFunnel({ isPro }: Props) {
           ))}
         </View>
         <Text style={s.socialTxt}>
-          <Text style={{ fontWeight: '900', color: '#fff' }}>2,400+</Text> upgraded this week
+          <Text style={{ fontWeight: '900', color: '#FFFFFF' }}>2,400+</Text> upgraded this week
         </Text>
       </View>
 
@@ -88,8 +88,8 @@ const s = StyleSheet.create({
   proBadgeTxt: { fontSize: 9.5, fontWeight: '900', color: '#0F172A', letterSpacing: 0.7 },
   urgencyBadge: { backgroundColor: '#EF444422', paddingHorizontal: 8, paddingVertical: 3, borderRadius: 999, borderWidth: 1, borderColor: '#EF444488' },
   urgencyTxt: { fontSize: 9, fontWeight: '900', color: '#FCA5A5', letterSpacing: 0.5 },
-  title: { fontSize: 16, fontWeight: '700', color: '#fff', letterSpacing: -0.3, marginTop: 6, maxWidth: 210 },
-  price: { fontSize: 20, fontWeight: '900', color: '#fff' },
+  title: { fontSize: 16, fontWeight: '700', color: '#FFFFFF', letterSpacing: -0.3, marginTop: 6, maxWidth: 210 },
+  price: { fontSize: 20, fontWeight: '900', color: '#FFFFFF' },
   priceSub: { fontSize: 12, fontWeight: '600', color: '#9CA3AF' },
 
   roiBanner: { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 14, padding: 10, borderRadius: 12, backgroundColor: '#10B98114', borderWidth: 1, borderColor: '#10B98133' },
@@ -100,7 +100,7 @@ const s = StyleSheet.create({
   feature: { flexDirection: 'row', alignItems: 'center', gap: 10 },
   featIcon: { width: 34, height: 34, borderRadius: 10, backgroundColor: '#1E293B', alignItems: 'center', justifyContent: 'center' },
   featTitleRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
-  featTitle: { fontSize: 13, fontWeight: '700', color: '#fff' },
+  featTitle: { fontSize: 13, fontWeight: '700', color: '#FFFFFF' },
   featBlur: { fontSize: 11, fontWeight: '500', color: '#9CA3AF', marginTop: 1, opacity: 0.7 },
 
   social: { flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 14, paddingTop: 12, borderTopWidth: 1, borderTopColor: '#1E293B' },

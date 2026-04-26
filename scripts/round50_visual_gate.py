@@ -60,7 +60,7 @@ async def dismiss_redbox(page):
 
 
 async def sweep_route(page, route, slug, theme, first_load):
-    url = f'http://localhost:3000{route}'
+    url = f'http://localhost:3000{route}?testMode=1' if '?' not in route else f'http://localhost:3000{route}&testMode=1'
     try:
         await page.goto(url, wait_until='domcontentloaded', timeout=60000)
     except Exception as e:
@@ -101,7 +101,7 @@ async def main():
         # right document. (localStorage is origin-scoped — about:blank seeds
         # are isolated and never carry over to the SPA.)
         try:
-            await page.goto('http://localhost:3000/', wait_until='domcontentloaded', timeout=60000)
+            await page.goto('http://localhost:3000/?testMode=1', wait_until='domcontentloaded', timeout=60000)
             await page.wait_for_timeout(6000)  # let initial bundle warm up
             await dismiss_redbox(page)
         except Exception as e:

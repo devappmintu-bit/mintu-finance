@@ -79,7 +79,7 @@ function PremiumHomeCard() {
         {!isPremium && (
           <View style={s.lockBadge}><Text style={s.lockBadgeTxt}>PRO</Text></View>
         )}
-        <Ionicons name={expanded ? 'chevron-up' : 'chevron-down'} size={20} color="#fff" />
+        <Ionicons name={expanded ? 'chevron-up' : 'chevron-down'} size={20} color="#FFFFFF" />
       </LinearGradient>
     </TouchableOpacity>
   );
@@ -117,9 +117,9 @@ function PremiumHomeCard() {
               testID="premium-home-hub"
             >
               <LinearGradient colors={['#F56E1E', '#C14A06']} style={s.ctaGrad}>
-                <Ionicons name="grid" size={16} color="#fff" />
+                <Ionicons name="grid" size={16} color="#FFFFFF" />
                 <Text style={s.ctaText}>Open Premium Hub</Text>
-                <Ionicons name="arrow-forward" size={16} color="#fff" />
+                <Ionicons name="arrow-forward" size={16} color="#FFFFFF" />
               </LinearGradient>
             </TouchableOpacity>
           </View>
@@ -132,9 +132,9 @@ function PremiumHomeCard() {
               testID="premium-home-hub-locked"
             >
               <LinearGradient colors={['#F56E1E', '#C14A06']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={s.ctaGrad}>
-                <Ionicons name="grid" size={16} color="#fff" />
+                <Ionicons name="grid" size={16} color="#FFFFFF" />
                 <Text style={s.ctaText}>Open Premium Hub</Text>
-                <Ionicons name="arrow-forward" size={16} color="#fff" />
+                <Ionicons name="arrow-forward" size={16} color="#FFFFFF" />
               </LinearGradient>
             </TouchableOpacity>
             <TouchableOpacity

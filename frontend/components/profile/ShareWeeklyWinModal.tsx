@@ -104,10 +104,10 @@ export default function ShareWeeklyWinModal({ visible, onClose, cardProps, capti
           {/* Actions */}
           <TouchableOpacity style={[s.primary, sharing && { opacity: 0.7 }]} onPress={onShare} disabled={sharing} activeOpacity={0.85}>
             {sharing ? (
-              <ActivityIndicator color="#fff" />
+              <ActivityIndicator color="#FFFFFF" />
             ) : (
               <>
-                <Ionicons name="share-social" size={18} color="#fff" />
+                <Ionicons name="share-social" size={18} color="#FFFFFF" />
                 <Text style={s.primaryTxt}>Share image</Text>
               </>
             )}

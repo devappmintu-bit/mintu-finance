@@ -63,7 +63,7 @@ export default function ThemeToggle() {
               <Ionicons
                 name={opt.icon as any}
                 size={16}
-                color={active ? '#fff' : c.text.secondary}
+                color={active ? '#FFFFFF' : c.text.secondary}
               />
               <Text style={[s.pillText, active && s.pillTextOn]}>{opt.label}</Text>
             </Pressable>
@@ -82,7 +82,7 @@ export default function ThemeToggle() {
         style={s.amoledRow}
         android_ripple={{ color: 'rgba(255,107,26,0.2)' }}
       >
-        <Ionicons name="contrast-outline" size={18} color={resolved === 'amoled' ? '#fff' : (resolved === 'light' ? '#111' : '#FF6B1A')} />
+        <Ionicons name="contrast-outline" size={18} color={resolved === 'amoled' ? '#FFFFFF' : (resolved === 'light' ? '#111' : '#FF6B1A')} />
         <View style={{ flex: 1 }}>
           <Text style={s.amoledTitle}>AMOLED true-black</Text>
           <Text style={s.amoledSub}>Saves battery on OLED displays (active in dark mode)</Text>

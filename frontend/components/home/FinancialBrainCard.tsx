@@ -110,7 +110,7 @@ const useStyles = makeStyles((c) => ({
   aiPillTxt: { color: c.bg.elevated, fontSize: 9, fontWeight: '900', letterSpacing: 0.4 },
   tabRow: { flexDirection: 'row', gap: 4, padding: 4, backgroundColor: c.gray[100], borderRadius: 12, marginBottom: 12 },
   tab: { flex: 1, paddingVertical: 7, paddingHorizontal: 10, borderRadius: 9, alignItems: 'center' },
-  tabActive: { backgroundColor: c.bg.elevated, shadowColor: '#000', shadowOpacity: 0.05, shadowRadius: 4, shadowOffset: { width: 0, height: 1 }, elevation: 1 },
+  tabActive: { backgroundColor: c.bg.elevated, shadowColor: '#000000', shadowOpacity: 0.05, shadowRadius: 4, shadowOffset: { width: 0, height: 1 }, elevation: 1 },
   tabTxt: { fontSize: 11.5, fontWeight: '700', color: c.text.muted },
   tabTxtActive: { color: c.text.primary, fontWeight: '800' },
   predictRow: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 10, paddingHorizontal: 10, backgroundColor: '#FFFBEB', borderRadius: 11, borderWidth: 1, borderColor: '#FDE68A' },

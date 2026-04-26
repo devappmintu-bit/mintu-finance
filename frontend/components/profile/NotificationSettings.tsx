@@ -132,7 +132,7 @@ export default function NotificationSettings() {
                   value={prefs.master_enabled}
                   onValueChange={toggleMaster}
                   trackColor={{ false: COLORS.border.subtle, true: COLORS.accent.primary + '66' }}
-                  thumbColor={prefs.master_enabled ? COLORS.accent.primary : '#fff'}
+                  thumbColor={prefs.master_enabled ? COLORS.accent.primary : '#FFFFFF'}
                   testID="notif-master-switch"
                 />
               </View>
@@ -149,7 +149,7 @@ export default function NotificationSettings() {
                       onValueChange={() => { if (prefs.master_enabled) toggleChannel(c.key); }}
                       disabled={!prefs.master_enabled}
                       trackColor={{ false: COLORS.border.subtle, true: COLORS.accent.primary + '66' }}
-                      thumbColor={prefs.channels[c.key] ? COLORS.accent.primary : '#fff'}
+                      thumbColor={prefs.channels[c.key] ? COLORS.accent.primary : '#FFFFFF'}
                     />
                   </View>
                 ))}
@@ -172,7 +172,7 @@ export default function NotificationSettings() {
                       onValueChange={() => { if (prefs.master_enabled) toggleCategory(c.key); }}
                       disabled={!prefs.master_enabled}
                       trackColor={{ false: COLORS.border.subtle, true: COLORS.accent.primary + '66' }}
-                      thumbColor={prefs.categories[c.key] ? COLORS.accent.primary : '#fff'}
+                      thumbColor={prefs.categories[c.key] ? COLORS.accent.primary : '#FFFFFF'}
                     />
                   </View>
                 ))}
@@ -189,7 +189,7 @@ export default function NotificationSettings() {
                   value={prefs.quiet_hours.enabled}
                   onValueChange={toggleQuiet}
                   trackColor={{ false: COLORS.border.subtle, true: COLORS.accent.primary + '66' }}
-                  thumbColor={prefs.quiet_hours.enabled ? COLORS.accent.primary : '#fff'}
+                  thumbColor={prefs.quiet_hours.enabled ? COLORS.accent.primary : '#FFFFFF'}
                 />
               </View>
 

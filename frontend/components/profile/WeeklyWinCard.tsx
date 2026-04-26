@@ -118,7 +118,7 @@ export default function WeeklyWinCard({
             <Text style={s.barVal}>{inr(lastVal)}</Text>
           </View>
           <View style={s.barRow}>
-            <Text style={[s.barLbl, { color: '#fff', fontWeight: '800' }]}>{thisWeek.label}</Text>
+            <Text style={[s.barLbl, { color: '#FFFFFF', fontWeight: '800' }]}>{thisWeek.label}</Text>
             <View style={s.barTrack}>
               <View style={[s.barFill, { width: `${thisPct}%`, backgroundColor: meta.accent }]} />
             </View>
@@ -157,15 +157,15 @@ const s = StyleSheet.create({
   topRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   logoWrap: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   logo: { width: 24, height: 24, borderRadius: 6 },
-  brand: { fontSize: 16, fontWeight: '900', color: '#fff', letterSpacing: -0.3 },
+  brand: { fontSize: 16, fontWeight: '900', color: '#FFFFFF', letterSpacing: -0.3 },
   tierPill: { backgroundColor: 'rgba(0,0,0,0.22)', paddingHorizontal: 10, paddingVertical: 5, borderRadius: 999 },
-  tierTxt: { fontSize: 10.5, fontWeight: '900', color: '#fff', letterSpacing: 0.4 },
+  tierTxt: { fontSize: 10.5, fontWeight: '900', color: '#FFFFFF', letterSpacing: 0.4 },
 
   hero: { marginTop: 18 },
   eyebrow: { fontSize: 10.5, fontWeight: '900', color: 'rgba(255,255,255,0.85)', letterSpacing: 1.4 },
   heroRow: { flexDirection: 'row', alignItems: 'center', gap: 10, marginTop: 4 },
   heroEmoji: { fontSize: 32 },
-  heroValue: { fontSize: 48, fontWeight: '900', color: '#fff', letterSpacing: -2, flexShrink: 1 },
+  heroValue: { fontSize: 48, fontWeight: '900', color: '#FFFFFF', letterSpacing: -2, flexShrink: 1 },
   tagline: { fontSize: 13, fontWeight: '700', color: 'rgba(255,255,255,0.92)', marginTop: 6, letterSpacing: -0.2, lineHeight: 17 },
 
   compareBlock: { marginTop: 16, gap: 8, backgroundColor: 'rgba(0,0,0,0.18)', borderRadius: 14, padding: 12 },
@@ -174,15 +174,15 @@ const s = StyleSheet.create({
   barTrack: { flex: 1, height: 8, borderRadius: 4, backgroundColor: 'rgba(255,255,255,0.15)', overflow: 'hidden' },
   barFillDim: { height: '100%', backgroundColor: 'rgba(255,255,255,0.45)' },
   barFill: { height: '100%' },
-  barVal: { width: 60, textAlign: 'right', fontSize: 11.5, fontWeight: '700', color: '#fff' },
+  barVal: { width: 60, textAlign: 'right', fontSize: 11.5, fontWeight: '700', color: '#FFFFFF' },
 
   footer: {
     position: 'absolute', left: 22, right: 22, bottom: 18,
     flexDirection: 'row', alignItems: 'center', gap: 10,
   },
-  footerHint: { fontSize: 11, fontWeight: '800', color: '#fff', letterSpacing: 0.2 },
+  footerHint: { fontSize: 11, fontWeight: '800', color: '#FFFFFF', letterSpacing: 0.2 },
   footerSmall: { fontSize: 10, fontWeight: '600', color: 'rgba(255,255,255,0.75)', marginTop: 1 },
-  ctaPill: { flexDirection: 'row', alignItems: 'center', gap: 5, backgroundColor: '#fff', paddingHorizontal: 11, paddingVertical: 7, borderRadius: 999 },
+  ctaPill: { flexDirection: 'row', alignItems: 'center', gap: 5, backgroundColor: '#FFFFFF', paddingHorizontal: 11, paddingVertical: 7, borderRadius: 999 },
   ctaTxt: { fontSize: 11, fontWeight: '900', color: '#C14A06', letterSpacing: -0.1 },
 });
 

@@ -106,7 +106,7 @@ function FeaturedCard({ card }: { card: InsightCard }) {
               <Text style={s.featEmoji}>{card.emoji}</Text>
             </View>
             <View style={s.featPill}>
-              <Ionicons name="flash" size={10} color="#fff" />
+              <Ionicons name="flash" size={10} color="#FFFFFF" />
               <Text style={s.featPillTxt}>FEATURED</Text>
             </View>
           </View>
@@ -199,7 +199,7 @@ const useStyles = makeStyles((c) => ({
   featWrap: { paddingHorizontal: 16, marginBottom: 4 },
   featCard: {
     borderRadius: 22, padding: 16, gap: 8, overflow: 'hidden', position: 'relative',
-    shadowColor: '#000', shadowOpacity: 0.15, shadowRadius: 12, shadowOffset: { width: 0, height: 6 }, elevation: 4,
+    shadowColor: '#000000', shadowOpacity: 0.15, shadowRadius: 12, shadowOffset: { width: 0, height: 6 }, elevation: 4,
   },
   featBlob: { position: 'absolute', top: -40, right: -40, width: 130, height: 130, borderRadius: 65, backgroundColor: 'rgba(255,255,255,0.12)' },
   featHeaderRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },

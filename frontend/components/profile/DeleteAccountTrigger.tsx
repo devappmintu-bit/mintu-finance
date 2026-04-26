@@ -185,7 +185,7 @@ const DeleteAccountTrigger = forwardRef<DeleteAccountTriggerRef>((_props, ref) =
                   activeOpacity={0.85}
                   testID="del-hard-submit"
                 >
-                  {submitting ? <ActivityIndicator color="#fff" /> : <Text style={[s.btnT, { color: '#fff' }]}>Delete forever</Text>}
+                  {submitting ? <ActivityIndicator color="#FFFFFF" /> : <Text style={[s.btnT, { color: '#FFFFFF' }]}>Delete forever</Text>}
                 </TouchableOpacity>
               </View>
             </View>
