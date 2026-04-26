@@ -56,6 +56,19 @@ needs_rebuild() {
     log "  → no build hash file"; return 0
   fi
 
+  # Trust very-fresh dist/ regardless of hash format. The postinstall hook
+  # (Node.js) and this script (bash) use different hash algorithms, so their
+  # hashes won't match each other — but if dist/ was built within the last
+  # hour, we know it's the canonical artefact for the current source.
+  local mtime now age
+  mtime=$(stat -c %Y "${DIST_DIR}/index.html" 2>/dev/null || echo 0)
+  now=$(date +%s)
+  age=$((now - mtime))
+  if [ "$age" -lt 3600 ]; then
+    log "  → dist/ is very fresh (age=${age}s — trusting CI/postinstall build)"
+    return 1
+  fi
+
   local current_hash stored_hash
   current_hash=$(compute_source_hash)
   stored_hash=$(cat "$HASH_FILE" 2>/dev/null || echo "")
@@ -67,10 +80,6 @@ needs_rebuild() {
 
   # Age check (defensive — handles cases where hash is stable but build
   # artefacts somehow corrupted).
-  local mtime now age
-  mtime=$(stat -c %Y "${DIST_DIR}/index.html" 2>/dev/null || echo 0)
-  now=$(date +%s)
-  age=$((now - mtime))
   if [ "$age" -gt "$MAX_AGE_SECONDS" ]; then
     log "  → dist/ older than 24h (age=${age}s)"
     return 0

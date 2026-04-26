@@ -178,3 +178,86 @@ cd /app/frontend && yarn lint
 5. Commit — pre-commit hook runs `tsc --noEmit` automatically.
 6. Push — GitHub Actions runs the same check.
 7. PR.
+
+
+---
+
+## 🚀 Deployment Pipeline (Round 51b)
+
+Every container boot of the preview/production environment is handled by
+a 3-layer bootstrap so the app loads in <500 ms instead of waiting on
+Metro to dev-bundle.
+
+### Layer 1 — Image build time (CI)
+
+When deploying via Emergent (or any CI), set one of these env vars before
+`yarn install`:
+
+```bash
+EMERGENT_DEPLOY=1 yarn install   # Emergent pipeline
+CI=true            yarn install   # Generic CI
+BUILD_WEB=1        yarn install   # Explicit local pre-build
+```
+
+The `postinstall` hook (`frontend/scripts/postinstall_build_web.js`) will:
+
+1. Compute a SHA-256 of all source files (`app/`, `components/`, `utils/`,
+   `store/`, `constants/`, plus `package.json`, `babel.config.js`,
+   `metro.config.js`, `app.json`).
+2. If the hash matches `dist/.build_hash` and `dist/index.html` exists →
+   skip the build (idempotent).
+3. Otherwise run `yarn build:web` (≈ 20 s on this hardware) and write
+   the new hash file.
+4. If the build fails → log the error and exit 0 (never breaks `yarn
+   install`); the runtime startup hook will retry.
+
+**Without** any of those env vars, `yarn install` is a silent no-op for
+dist/ — local developers don't pay the build cost.
+
+### Layer 2 — Container start time
+
+Supervisor brings up `[program:web_switcher]` (configured in
+`/etc/supervisor/conf.d/supervisord_web_switcher.conf`). It's a one-shot
+program that:
+
+1. Sleeps 4 s for supervisor RPC to settle.
+2. Calls `/app/scripts/startup.sh`, which:
+   - Re-checks the source hash; rebuilds dist/ if drifted.
+   - `supervisorctl stop expo` (the dev server in the read-only base config).
+   - `supervisorctl start static_web` (our static server on port 3000).
+3. Exits with code 0 — `autorestart=false` so it never re-fires.
+
+### Layer 3 — Runtime serving
+
+`/app/scripts/static_web_server.py` is a Python ThreadingHTTP server
+that serves `/app/frontend/dist/` on port 3000 with:
+
+- gzip on-the-fly for text resources > 1 KB
+- `Cache-Control: public, max-age=31536000, immutable` for hashed JS/CSS
+- `Cache-Control: no-cache, no-store, must-revalidate` for `index.html`
+- SPA fallback (`<route>.html` → `/index.html`)
+- Defensive 404 on `/api/*` (defers to backend on port 8001 via ingress)
+- `/health` endpoint for k8s liveness probes
+- Security headers: `X-Content-Type-Options`, `X-Frame-Options`
+
+### Manual trigger (e.g. after a hot patch)
+
+```bash
+bash /app/scripts/startup.sh           # checks hash, rebuilds if needed,
+                                        # swaps to static server
+bash /app/scripts/web_switcher.sh      # same, with supervisor wait
+yarn build:web                          # raw build, no swap
+```
+
+### Fallbacks
+
+If anything goes wrong:
+
+- `yarn build:web` fails in CI → `postinstall` exits 0; runtime
+  rebuilds at first boot
+- Runtime rebuild fails → previous `dist/` stays in place; static_web
+  keeps serving old build
+- No `dist/` at all → static_web fails to start, expo dev server keeps
+  running as ultimate fallback (slow but app stays up)
+
+

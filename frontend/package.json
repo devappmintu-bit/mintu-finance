@@ -12,7 +12,8 @@
     "typecheck": "tsc --noEmit",
     "typecheck:watch": "tsc --noEmit --watch",
     "build:web": "expo export --platform web --output-dir dist",
-    "postbuild:web": "node -e \"process.exit(require('fs').existsSync('dist/index.html')?0:1)\" && echo '✓ dist/index.html present'"
+    "postbuild:web": "node -e \"process.exit(require('fs').existsSync('dist/index.html')?0:1)\" && echo '✓ dist/index.html present'",
+    "postinstall": "node ./scripts/postinstall_build_web.js"
   },
   "dependencies": {
     "@babel/runtime": "^7.20.6",
