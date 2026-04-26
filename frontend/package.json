@@ -10,7 +10,9 @@
     "web": "expo start --web",
     "lint": "expo lint",
     "typecheck": "tsc --noEmit",
-    "typecheck:watch": "tsc --noEmit --watch"
+    "typecheck:watch": "tsc --noEmit --watch",
+    "build:web": "expo export --platform web --output-dir dist",
+    "postbuild:web": "node -e \"process.exit(require('fs').existsSync('dist/index.html')?0:1)\" && echo '✓ dist/index.html present'"
   },
   "dependencies": {
     "@babel/runtime": "^7.20.6",
