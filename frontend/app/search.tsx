@@ -15,7 +15,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import * as Haptics from 'expo-haptics';
 import EmptyState from '../components/ui/EmptyState';
-import { COLORS, SPACING } from '../utils/theme';
+import { COLORS, SPACING, useAppColors } from '../utils/theme';
 import {
   runSearch, pushRecentSearch, getRecentSearches, clearRecentSearches,
   SearchResults,
@@ -25,6 +25,7 @@ import { useIsOnline } from '../hooks/useIsOnline';
 const DEBOUNCE_MS = 300;
 
 export default function SearchScreen() {
+  const c = useAppColors();
   const isOnline = useIsOnline();
   const [q, setQ] = useState('');
   const [results, setResults] = useState<SearchResults | null>(null);
@@ -108,14 +109,14 @@ export default function SearchScreen() {
     if (section.kind === 'txn') {
       return (
         <TouchableOpacity style={s.row} onPress={() => onPressTxn(item.id)} activeOpacity={0.7}>
-          <View style={[s.iconWrap, { backgroundColor: '#FFE9DC' }]}>
+          <View style={[s.iconWrap, { backgroundColor: c.accent.brandSoft }]}>
             <Text style={s.iconEmoji}>{item.type === 'credit' ? '💰' : '💸'}</Text>
           </View>
           <View style={{ flex: 1 }}>
             <Text style={s.rowTitle} numberOfLines={1}>{item.merchant || item.description || 'Transaction'}</Text>
             <Text style={s.rowSub} numberOfLines={1}>{item.category}  ·  {new Date(item.date).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })}</Text>
           </View>
-          <Text style={[s.rowAmt, { color: item.type === 'credit' ? '#059669' : '#111827' }]}>
+          <Text style={[s.rowAmt, { color: item.type === 'credit' ? c.state.success : c.text.primary }]}>
             {item.type === 'credit' ? '+' : ''}{fmt(item.amount)}
           </Text>
         </TouchableOpacity>
@@ -124,7 +125,7 @@ export default function SearchScreen() {
     if (section.kind === 'budget') {
       return (
         <TouchableOpacity style={s.row} onPress={onPressBudget} activeOpacity={0.7}>
-          <View style={[s.iconWrap, { backgroundColor: '#FFF0DE' }]}><Text style={s.iconEmoji}>🎯</Text></View>
+          <View style={[s.iconWrap, { backgroundColor: c.accent.brandSoft }]}><Text style={s.iconEmoji}>🎯</Text></View>
           <View style={{ flex: 1 }}>
             <Text style={s.rowTitle}>{item.category}</Text>
             <Text style={s.rowSub}>{item.period}  ·  {fmt(item.amount)} limit</Text>
@@ -136,7 +137,7 @@ export default function SearchScreen() {
     if (section.kind === 'goal') {
       return (
         <TouchableOpacity style={s.row} onPress={onPressGoal} activeOpacity={0.7}>
-          <View style={[s.iconWrap, { backgroundColor: '#DBEAFE' }]}><Text style={s.iconEmoji}>{item.emoji}</Text></View>
+          <View style={[s.iconWrap, { backgroundColor: c.state.infoBg }]}><Text style={s.iconEmoji}>{item.emoji}</Text></View>
           <View style={{ flex: 1 }}>
             <Text style={s.rowTitle}>{item.name}</Text>
             <Text style={s.rowSub}>{fmt(item.saved_amount)} / {fmt(item.target_amount)}  ·  {item.pct}%</Text>
@@ -148,7 +149,7 @@ export default function SearchScreen() {
     if (section.kind === 'group') {
       return (
         <TouchableOpacity style={s.row} onPress={onPressGroup} activeOpacity={0.7}>
-          <View style={[s.iconWrap, { backgroundColor: '#D1FAE5' }]}><Text style={s.iconEmoji}>{item.emoji}</Text></View>
+          <View style={[s.iconWrap, { backgroundColor: c.state.successBg }]}><Text style={s.iconEmoji}>{item.emoji}</Text></View>
           <View style={{ flex: 1 }}>
             <Text style={s.rowTitle}>{item.name}</Text>
             <Text style={s.rowSub}>{item.member_count} member{item.member_count === 1 ? '' : 's'}</Text>
@@ -242,7 +243,7 @@ export default function SearchScreen() {
           <Ionicons name="chevron-back" size={24} color={COLORS.text.primary} />
         </TouchableOpacity>
         <View style={s.searchBox}>
-          <Ionicons name={isOnline ? "search" : "cloud-offline"} size={18} color={isOnline ? COLORS.text.muted : '#92400E'} />
+          <Ionicons name={isOnline ? "search" : "cloud-offline"} size={18} color={isOnline ? COLORS.text.muted : c.state.warning} />
           <TextInput
             autoFocus
             placeholder={isOnline ? "Search transactions, budgets, goals…" : "Offline — search unavailable"}

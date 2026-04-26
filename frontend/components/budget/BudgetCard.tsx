@@ -296,20 +296,20 @@ const useStyles = makeStyles((c) => ({
 
   row1: { flexDirection: 'row', alignItems: 'center' },
   icon: { width: 40, height: 40, borderRadius: 12, alignItems: 'center', justifyContent: 'center' },
-  name: { fontSize: 15, fontWeight: '800', color: '#111' },
-  period: { fontSize: 10, color: '#6B7280', fontWeight: '700', letterSpacing: 0.3, marginTop: 2 },
+  name: { fontSize: 15, fontWeight: '800', color: c.text.primary },
+  period: { fontSize: 10, color: c.text.muted, fontWeight: '700', letterSpacing: 0.3, marginTop: 2 },
   amt: { fontSize: 16, fontWeight: '800' },
-  of: { fontSize: 11, color: '#6B7280', fontWeight: '600', marginTop: 2 },
+  of: { fontSize: 11, color: c.text.muted, fontWeight: '600', marginTop: 2 },
 
   track: { height: 7, borderRadius: 4, backgroundColor: 'rgba(0,0,0,0.06)', overflow: 'hidden', marginTop: 10 },
   fill: { height: '100%', borderRadius: 4 },
 
   row2: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: 6 },
-  pct: { fontSize: 10.5, color: '#6B7280', fontWeight: '700', textTransform: 'uppercase', letterSpacing: 0.3 },
+  pct: { fontSize: 10.5, color: c.text.muted, fontWeight: '700', textTransform: 'uppercase', letterSpacing: 0.3 },
   tail: { fontSize: 11, fontWeight: '800' },
 
   chipsRow: { flexDirection: 'row', gap: 6, marginTop: 10, flexWrap: 'wrap' },
-  chip: { flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: 'rgba(255,255,255,0.7)', borderWidth: 1, borderColor: '#E5E7EB', borderRadius: 999, paddingHorizontal: 8, paddingVertical: 3 },
+  chip: { flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: 'rgba(255,255,255,0.7)', borderWidth: 1, borderColor: c.gray[200], borderRadius: 999, paddingHorizontal: 8, paddingVertical: 3 },
   chipT: { fontSize: 10.5, color: '#374151', fontWeight: '700' },
 
   warnBanner: { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 10, paddingVertical: 6, paddingHorizontal: 10, borderRadius: 10, backgroundColor: '#FFEDD5', borderWidth: 1, borderColor: '#FED7AA' },
@@ -317,14 +317,14 @@ const useStyles = makeStyles((c) => ({
   overBanner: { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 10, paddingVertical: 6, paddingHorizontal: 10, borderRadius: 10, backgroundColor: '#FEE2E2', borderWidth: 1, borderColor: '#FCA5A5' },
   overT: { fontSize: 11.5, fontWeight: '800', color: '#B91C1C', flex: 1 },
 
-  rightAct: { backgroundColor: '#EF4444', justifyContent: 'center', alignItems: 'center', width: 92, borderRadius: 16, marginBottom: 10, marginLeft: 8 },
+  rightAct: { backgroundColor: c.state.danger, justifyContent: 'center', alignItems: 'center', width: 92, borderRadius: 16, marginBottom: 10, marginLeft: 8 },
   leftActEdit: { backgroundColor: '#3B82F6', justifyContent: 'center', alignItems: 'center', width: 78, borderRadius: 16, marginBottom: 10, marginRight: 6 },
-  leftActAdd: { backgroundColor: '#10B981', justifyContent: 'center', alignItems: 'center', width: 82, borderRadius: 16, marginBottom: 10, marginRight: 6 },
-  actTxt: { color: '#fff', fontSize: 11, fontWeight: '800', marginTop: 3 },
+  leftActAdd: { backgroundColor: c.state.success, justifyContent: 'center', alignItems: 'center', width: 82, borderRadius: 16, marginBottom: 10, marginRight: 6 },
+  actTxt: { color: c.bg.elevated, fontSize: 11, fontWeight: '800', marginTop: 3 },
 
-  dotsBtn: { position: 'absolute', top: 10, right: 10, width: 28, height: 28, borderRadius: 14, backgroundColor: 'rgba(255,255,255,0.85)', alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: '#E5E7EB' },
-  aiBtn: { position: 'absolute', top: 10, right: 44, width: 28, height: 28, borderRadius: 14, backgroundColor: '#FFF7ED', alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: '#FED7AA' },
-  menu: { position: 'absolute', top: 42, right: 8, backgroundColor: '#fff', borderRadius: 12, paddingVertical: 6, paddingHorizontal: 4, borderWidth: 1, borderColor: '#E5E7EB', zIndex: 10, minWidth: 130, ...shadowStyle('#000', 8, 14, 0.1, 10) },
+  dotsBtn: { position: 'absolute', top: 10, right: 10, width: 28, height: 28, borderRadius: 14, backgroundColor: 'rgba(255,255,255,0.85)', alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: c.gray[200] },
+  aiBtn: { position: 'absolute', top: 10, right: 44, width: 28, height: 28, borderRadius: 14, backgroundColor: c.accent.brandSoft, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: '#FED7AA' },
+  menu: { position: 'absolute', top: 42, right: 8, backgroundColor: c.bg.elevated, borderRadius: 12, paddingVertical: 6, paddingHorizontal: 4, borderWidth: 1, borderColor: c.gray[200], zIndex: 10, minWidth: 130, ...shadowStyle('#000', 8, 14, 0.1, 10) },
   menuItem: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingHorizontal: 10, paddingVertical: 8, borderRadius: 8 },
   menuT: { fontSize: 13, fontWeight: '700' },
 }));

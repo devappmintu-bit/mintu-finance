@@ -53,7 +53,7 @@ const useStyles = makeStyles((c) => ({
   wrap: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 16 },
   primaryShell: { flex: 1.35, borderRadius: 16, overflow: 'hidden' },
   primary: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, paddingVertical: 16, paddingHorizontal: 8, borderRadius: 16 },
-  primaryTxt: { color: '#fff', fontSize: 13, fontWeight: '900', letterSpacing: -0.2 },
+  primaryTxt: { color: c.bg.elevated, fontSize: 13, fontWeight: '900', letterSpacing: -0.2 },
   tile: { flex: 1, alignItems: 'center', gap: 5, paddingVertical: 10, borderRadius: 14, backgroundColor: c.bg.secondary, borderWidth: 1, borderColor: c.border.card },
   iconBubble: { width: 36, height: 36, borderRadius: 18, alignItems: 'center', justifyContent: 'center' },
   tileTxt: { fontSize: 10.5, fontWeight: '800', color: c.text.primary },

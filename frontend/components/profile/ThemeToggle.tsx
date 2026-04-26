@@ -159,7 +159,7 @@ const useStyles = makeStyles((c) => ({
     letterSpacing: 0.2,
   },
   pillTextOn: {
-    color: '#fff',
+    color: c.bg.elevated,
     fontFamily: FONT_FAMILY.bold,
   },
   currently: {
@@ -220,7 +220,7 @@ const useStyles = makeStyles((c) => ({
     alignSelf: 'flex-start',
   },
   knobOn: {
-    backgroundColor: '#fff',
+    backgroundColor: c.bg.elevated,
     alignSelf: 'flex-end',
   },
 }));

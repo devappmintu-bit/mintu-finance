@@ -200,9 +200,9 @@ const useStyles = makeStyles((c) => ({
     backgroundColor: 'rgba(255,255,255,0.22)',
     paddingHorizontal: 10, paddingVertical: 4, borderRadius: 999,
   },
-  dailyBadgeTxt: { color: '#fff', fontSize: 10, fontWeight: '900', letterSpacing: 0.8 },
+  dailyBadgeTxt: { color: c.bg.elevated, fontSize: 10, fontWeight: '900', letterSpacing: 0.8 },
   title: {
-    color: '#fff',
+    color: c.bg.elevated,
     fontSize: 20,
     fontWeight: '900',
     letterSpacing: -0.4,
@@ -218,7 +218,7 @@ const useStyles = makeStyles((c) => ({
   },
   ctaBtn: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6,
-    backgroundColor: '#fff',
+    backgroundColor: c.bg.elevated,
     paddingVertical: 11, paddingHorizontal: 16,
     borderRadius: 14,
     alignSelf: 'flex-start',

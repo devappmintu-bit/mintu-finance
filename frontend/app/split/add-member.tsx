@@ -723,7 +723,7 @@ const useStyles = makeStyles((c) => ({
     borderWidth: 1, borderColor: c.accent.primary + '44',
   },
   chipAvatar: { width: 26, height: 26, borderRadius: 13, backgroundColor: c.accent.primary, alignItems: 'center', justifyContent: 'center' },
-  chipInitials: { fontSize: 11, fontWeight: '900', color: '#fff' },
+  chipInitials: { fontSize: 11, fontWeight: '900', color: c.bg.elevated },
   chipTxt: { maxWidth: 120, fontSize: 12, fontWeight: '800', color: c.accent.primary, letterSpacing: -0.2 },
 
   listContent: { paddingHorizontal: 0, paddingBottom: 120 },
@@ -739,7 +739,7 @@ const useStyles = makeStyles((c) => ({
   inviteBody: { marginHorizontal: SPACING.md, marginTop: 8, gap: 8 },
   waBtn: { borderRadius: 14, overflow: 'hidden' },
   waGrad: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, paddingVertical: 14 },
-  waTxt: { fontSize: 14, fontWeight: '900', color: '#fff' },
+  waTxt: { fontSize: 14, fontWeight: '900', color: c.bg.elevated },
   altBtn: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingVertical: 12, paddingHorizontal: 14, borderRadius: 12, backgroundColor: c.bg.secondary, borderWidth: 1, borderColor: c.border.subtle },
   altTxt: { fontSize: 13, fontWeight: '800', color: c.text.primary },
   altSub: { flex: 1, fontSize: 11, fontWeight: '600', color: c.text.muted, textAlign: 'right' },
@@ -804,7 +804,7 @@ const useStyles = makeStyles((c) => ({
   emptyTitle: { fontSize: 15, fontWeight: '800', color: c.text.primary, textAlign: 'center' },
   emptySub: { fontSize: 12.5, fontWeight: '600', color: c.text.muted, textAlign: 'center', marginTop: 4, maxWidth: 280, lineHeight: 17 },
   emptyCta: { flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: c.accent.primary, paddingHorizontal: 16, paddingVertical: 9, borderRadius: 999, marginTop: 14 },
-  emptyCtaTxt: { fontSize: 12.5, fontWeight: '900', color: '#fff' },
+  emptyCtaTxt: { fontSize: 12.5, fontWeight: '900', color: c.bg.elevated },
 
   footer: {
     position: 'absolute', left: 0, right: 0, bottom: 0,
@@ -816,5 +816,5 @@ const useStyles = makeStyles((c) => ({
   footerSub: { fontSize: 11, fontWeight: '600', color: c.text.muted, marginTop: 1 },
   footerCta: { borderRadius: 12, overflow: 'hidden' },
   footerGrad: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingVertical: 12, paddingHorizontal: 18 },
-  footerCtaTxt: { fontSize: 13.5, fontWeight: '900', color: '#fff', letterSpacing: -0.2 },
+  footerCtaTxt: { fontSize: 13.5, fontWeight: '900', color: c.bg.elevated, letterSpacing: -0.2 },
 }));

@@ -223,7 +223,7 @@ const useStyles = makeStyles((c) => ({
     borderRadius: 20,
     padding: 18,
     marginBottom: 12,
-    shadowColor: '#C14A06',
+    shadowColor: c.accent.brandDark,
     shadowOffset: { width: 0, height: 8 },
     shadowOpacity: 0.18,
     shadowRadius: 14,
@@ -231,7 +231,7 @@ const useStyles = makeStyles((c) => ({
   },
   headRow: { flexDirection: 'row', alignItems: 'center', gap: 12, marginBottom: 10 },
   flame: { fontSize: 32 },
-  streakDays: { color: '#fff', fontSize: 32, fontWeight: '900', letterSpacing: -1 },
+  streakDays: { color: c.bg.elevated, fontSize: 32, fontWeight: '900', letterSpacing: -1 },
   streakDaysSmall: { fontSize: 14, fontWeight: '700', opacity: 0.85 },
   streakSub: { color: 'rgba(255,255,255,0.92)', fontSize: 13, fontWeight: '600', marginTop: -2 },
 
@@ -265,8 +265,8 @@ const useStyles = makeStyles((c) => ({
     backgroundColor: CARD,
     alignItems: 'center',
   },
-  badgeOn: { borderColor: '#F56E1E', backgroundColor: '#FFF7ED' },
-  badgeOff: { borderColor: '#E5E7EB', backgroundColor: '#F9FAFB', opacity: 0.85 },
+  badgeOn: { borderColor: c.accent.brand, backgroundColor: c.accent.brandSoft },
+  badgeOff: { borderColor: c.gray[200], backgroundColor: c.gray[50], opacity: 0.85 },
   badgeEmoji: { fontSize: 30, marginBottom: 4 },
   badgeEmojiOff: { opacity: 0.45 },
   badgeName: { fontSize: 12.5, fontWeight: '800', color: c.text.primary, textAlign: 'center' },
@@ -274,13 +274,13 @@ const useStyles = makeStyles((c) => ({
 
   unlockedPill: {
     marginTop: 6, flexDirection: 'row', alignItems: 'center', gap: 3,
-    backgroundColor: '#F56E1E', paddingHorizontal: 8, paddingVertical: 3, borderRadius: 10,
+    backgroundColor: c.accent.brand, paddingHorizontal: 8, paddingVertical: 3, borderRadius: 10,
   },
-  unlockedT: { color: '#fff', fontSize: 10, fontWeight: '800', letterSpacing: 0.2 },
+  unlockedT: { color: c.bg.elevated, fontSize: 10, fontWeight: '800', letterSpacing: 0.2 },
 
   lockedRow: { width: '100%', marginTop: 6, alignItems: 'center' },
-  bTrack: { width: '100%', height: 4, borderRadius: 2, backgroundColor: '#E5E7EB', overflow: 'hidden' },
-  bFill: { height: 4, borderRadius: 2, backgroundColor: '#F56E1E' },
+  bTrack: { width: '100%', height: 4, borderRadius: 2, backgroundColor: c.gray[200], overflow: 'hidden' },
+  bFill: { height: 4, borderRadius: 2, backgroundColor: c.accent.brand },
   bLabel: { fontSize: 10, fontWeight: '700', color: c.text.tertiary, marginTop: 4 },
 
   skelCard: {

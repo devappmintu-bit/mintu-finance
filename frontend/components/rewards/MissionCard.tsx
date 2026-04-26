@@ -139,6 +139,6 @@ const useStyles = makeStyles((c) => ({
   btnMuted: { width: 44, height: 44, borderRadius: 16, alignItems: 'center', justifyContent: 'center', backgroundColor: c.gray[200] },
   btnFaint: { width: 44, height: 44, borderRadius: 16, alignItems: 'center', justifyContent: 'center', backgroundColor: c.gray[100] },
   pendingTxt: { fontSize: 13, fontWeight: '900', color: c.gray[400] },
-  claimBtn: { paddingHorizontal: 16, paddingVertical: 12, borderRadius: 16, shadowColor: '#10B981', shadowOpacity: 0.35, shadowRadius: 8, shadowOffset: { width: 0, height: 4 }, elevation: 3 },
-  claimTxt: { fontSize: 12, fontWeight: '900', color: '#FFFFFF', letterSpacing: 0.4 },
+  claimBtn: { paddingHorizontal: 16, paddingVertical: 12, borderRadius: 16, shadowColor: c.state.success, shadowOpacity: 0.35, shadowRadius: 8, shadowOffset: { width: 0, height: 4 }, elevation: 3 },
+  claimTxt: { fontSize: 12, fontWeight: '900', color: c.bg.elevated, letterSpacing: 0.4 },
 }));

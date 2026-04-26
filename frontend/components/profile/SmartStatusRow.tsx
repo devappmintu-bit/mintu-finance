@@ -85,6 +85,6 @@ const useStyles = makeStyles((c) => ({
   statusRow: { flexDirection: 'row', alignItems: 'center', gap: 5, marginTop: 3 },
   dot: { width: 6, height: 6, borderRadius: 3 },
   statusText: { fontSize: 11.5, fontWeight: '700', letterSpacing: 0.1 },
-  fixPill: { paddingHorizontal: 10, paddingVertical: 6, borderRadius: 999, backgroundColor: '#EF4444' },
-  fixPillTxt: { fontSize: 11, fontWeight: '800', color: '#fff', letterSpacing: 0.2 },
+  fixPill: { paddingHorizontal: 10, paddingVertical: 6, borderRadius: 999, backgroundColor: c.state.danger },
+  fixPillTxt: { fontSize: 11, fontWeight: '800', color: c.bg.elevated, letterSpacing: 0.2 },
 }));

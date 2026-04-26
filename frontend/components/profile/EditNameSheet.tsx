@@ -87,7 +87,7 @@ const useStyles = makeStyles((c) => ({
     color: c.text.primary, backgroundColor: c.bg.primary,
   },
   saveBtn: { backgroundColor: c.accent.primary, paddingVertical: 13, borderRadius: 12, alignItems: 'center', marginTop: 14 },
-  saveTxt: { color: '#fff', fontSize: 15, fontWeight: '800', letterSpacing: -0.2 },
+  saveTxt: { color: c.bg.elevated, fontSize: 15, fontWeight: '800', letterSpacing: -0.2 },
   cancel: { paddingVertical: 10, alignItems: 'center', marginTop: 4 },
   cancelTxt: { color: c.text.muted, fontSize: 14, fontWeight: '600' },
 }));

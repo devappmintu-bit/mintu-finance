@@ -147,7 +147,7 @@ export default function AIInsightCard({
 
 const useStyles = makeStyles((c) => ({
   card: {
-    backgroundColor: '#fff',
+    backgroundColor: c.bg.elevated,
     borderRadius: 18,
     padding: 16,
     marginBottom: 12,
@@ -167,5 +167,5 @@ const useStyles = makeStyles((c) => ({
     paddingVertical: 10, borderRadius: 999, alignSelf: 'flex-start',
     paddingHorizontal: 18, marginLeft: 60, marginTop: 2,
   },
-  ctaText: { fontSize: 12, fontWeight: '800', color: '#fff', letterSpacing: 0.3 },
+  ctaText: { fontSize: 12, fontWeight: '800', color: c.bg.elevated, letterSpacing: 0.3 },
 }));

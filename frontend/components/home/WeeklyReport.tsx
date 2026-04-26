@@ -96,7 +96,7 @@ const useStyles = makeStyles((c) => ({
   changePill: { flexDirection: 'row', alignItems: 'center', gap: 3, paddingHorizontal: 8, paddingVertical: 4, borderRadius: 999 },
   suggestion: { fontSize: 13, color: c.text.secondary, lineHeight: 18, marginTop: 4 },
   shareBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, backgroundColor: '#25D366', paddingVertical: 12, borderRadius: 999, marginTop: 12 },
-  shareBtnText: { fontSize: 13, fontWeight: '800', color: '#fff' },
+  shareBtnText: { fontSize: 13, fontWeight: '800', color: c.bg.elevated },
 }));
 
 // Round 43 perf — memoized so unrelated parent state changes don't re-render this widget.

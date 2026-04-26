@@ -114,7 +114,7 @@ function BudgetHero({ budgets, onPressAdd, onPressShare, sharing }: Props) {
 
 export default memo(BudgetHero);
 
-const useStyles = makeStyles(() => ({
+const useStyles = makeStyles((c) => ({
   card: {
     borderRadius: 22,
     paddingHorizontal: 18,
@@ -123,23 +123,23 @@ const useStyles = makeStyles(() => ({
     marginBottom: 14,
     overflow: 'hidden',
     position: 'relative',
-    shadowColor: '#C14A06', shadowOpacity: 0.18, shadowRadius: 14, shadowOffset: { width: 0, height: 6 }, elevation: 5,
+    shadowColor: c.accent.brandDark, shadowOpacity: 0.18, shadowRadius: 14, shadowOffset: { width: 0, height: 6 }, elevation: 5,
   },
   blob1: { position: 'absolute', top: -50, right: -50, width: 150, height: 150, borderRadius: 75, backgroundColor: 'rgba(255,255,255,0.08)' },
   blob2: { position: 'absolute', bottom: -60, left: -40, width: 140, height: 140, borderRadius: 70, backgroundColor: 'rgba(0,0,0,0.08)' },
   topRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
   healthPill: { flexDirection: 'row', alignItems: 'center', gap: 5, paddingHorizontal: 10, paddingVertical: 4, borderRadius: 999, backgroundColor: 'rgba(255,255,255,0.18)' },
   healthEmoji: { fontSize: 13 },
-  healthTxt: { fontSize: 10, fontWeight: '900', color: '#fff', letterSpacing: 0.8 },
+  healthTxt: { fontSize: 10, fontWeight: '900', color: c.bg.elevated, letterSpacing: 0.8 },
   headActions: { flexDirection: 'row', gap: 8 },
   iconBtn: { width: 38, height: 38, borderRadius: 19, backgroundColor: 'rgba(0,0,0,0.22)', alignItems: 'center', justifyContent: 'center' },
-  addBtn: { width: 38, height: 38, borderRadius: 19, backgroundColor: '#FFFFFF', alignItems: 'center', justifyContent: 'center' },
+  addBtn: { width: 38, height: 38, borderRadius: 19, backgroundColor: c.bg.elevated, alignItems: 'center', justifyContent: 'center' },
   eyebrow: { fontSize: 10, fontWeight: '900', letterSpacing: 1.1, color: 'rgba(255,255,255,0.82)', marginTop: 14 },
   amountRow: { flexDirection: 'row', alignItems: 'baseline', gap: 8, marginTop: 3 },
-  amount: { fontSize: 36, fontWeight: '900', color: '#fff', letterSpacing: -1.2 },
+  amount: { fontSize: 36, fontWeight: '900', color: c.bg.elevated, letterSpacing: -1.2 },
   of: { fontSize: 14, fontWeight: '700', color: 'rgba(255,255,255,0.78)' },
   barBg: { marginTop: 12, height: 8, borderRadius: 4, backgroundColor: 'rgba(0,0,0,0.25)', overflow: 'hidden' },
-  barFill: { height: 8, borderRadius: 4, backgroundColor: '#FFFFFF' },
+  barFill: { height: 8, borderRadius: 4, backgroundColor: c.bg.elevated },
   metaRow: { flexDirection: 'row', alignItems: 'center', gap: 6, flexWrap: 'wrap', marginTop: 9 },
   metaTxt: { fontSize: 11.5, fontWeight: '800', color: 'rgba(255,255,255,0.92)' },
   metaDot: { fontSize: 11, color: 'rgba(255,255,255,0.5)' },

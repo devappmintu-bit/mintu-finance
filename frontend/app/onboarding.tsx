@@ -167,7 +167,7 @@ export default function Onboarding() {
 }
 
 const useStyles = makeStyles((c) => ({
-  root: { flex: 1, backgroundColor: '#FFF7ED' },
+  root: { flex: 1, backgroundColor: c.accent.brandSoft },
   skip: { position: 'absolute', top: 58, right: 22, zIndex: 10, paddingHorizontal: 14, paddingVertical: 8, borderRadius: 999, backgroundColor: 'rgba(0,0,0,0.06)' },
   skipT: { fontSize: 13, color: '#7C2D12', fontWeight: '800', letterSpacing: 0.3 },
 
@@ -200,8 +200,8 @@ const useStyles = makeStyles((c) => ({
     backgroundColor: ACCENT, borderRadius: 22, paddingVertical: 18,
     shadowColor: ACCENT_DEEP, shadowOffset: { width: 0, height: 10 }, shadowOpacity: 0.4, shadowRadius: 16, elevation: 10,
   },
-  ctaT: { color: '#fff', fontSize: 17, fontWeight: '900', letterSpacing: 0.4 },
+  ctaT: { color: c.bg.elevated, fontSize: 17, fontWeight: '900', letterSpacing: 0.4 },
 
-  tos: { textAlign: 'center', fontSize: 11, color: '#9CA3AF', marginTop: 6 },
+  tos: { textAlign: 'center', fontSize: 11, color: c.gray[400], marginTop: 6 },
   tosLink: { color: ACCENT_DEEP, fontWeight: '700' },
 }));

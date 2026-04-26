@@ -22,6 +22,10 @@ import {
   deeplinkFor, timeAgo, NotifItem, NotifKind,
 } from '../services/notifications';
 
+// Categorical icon palette per notification kind. These hex literals are an
+// intentional brand identity per Round 50 audit (similar to CATEGORIES[].color
+// in theme.ts) — each kind gets a distinct, recognizable tint that reads in
+// both light and dark themes.
 const ICONS: Record<NotifKind, { emoji: string; tint: string }> = {
   transaction:  { emoji: '💸', tint: '#E84A0C' },
   streak:       { emoji: '🔥', tint: '#F59E0B' },
@@ -184,7 +188,7 @@ const s = StyleSheet.create({
     flexDirection: 'row', gap: 12, padding: 14, backgroundColor: COLORS.bg.secondary,
     borderRadius: 16, borderWidth: 1, borderColor: COLORS.border.subtle,
   },
-  rowUnread: { backgroundColor: '#FFF7ED', borderColor: '#FFDDC0' },
+  rowUnread: { backgroundColor: COLORS.accent.brandSoft, borderColor: 'rgba(255,107,26,0.32)' },
   iconWrap: { width: 44, height: 44, borderRadius: 14, alignItems: 'center', justifyContent: 'center' },
   iconEmoji: { fontSize: 22 },
   rowHead: { flexDirection: 'row', alignItems: 'center', gap: 8 },

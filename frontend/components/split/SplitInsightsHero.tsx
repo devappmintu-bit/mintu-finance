@@ -206,8 +206,8 @@ const useStyles = makeStyles((c) => ({
   featEmojiPill: { width: 42, height: 42, borderRadius: 14, backgroundColor: 'rgba(255,255,255,0.26)', alignItems: 'center', justifyContent: 'center' },
   featEmoji: { fontSize: 22 },
   featPill: { flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: 8, paddingVertical: 4, borderRadius: 999, backgroundColor: 'rgba(0,0,0,0.22)' },
-  featPillTxt: { fontSize: 9, fontWeight: '900', letterSpacing: 1, color: '#fff' },
-  featTitle: { fontSize: 19, fontWeight: '900', color: '#fff', letterSpacing: -0.4, marginTop: 4 },
+  featPillTxt: { fontSize: 9, fontWeight: '900', letterSpacing: 1, color: c.bg.elevated },
+  featTitle: { fontSize: 19, fontWeight: '900', color: c.bg.elevated, letterSpacing: -0.4, marginTop: 4 },
   featSubtitle: { fontSize: 12.5, fontWeight: '600', color: 'rgba(255,255,255,0.92)', lineHeight: 17 },
   // Compact cards
   card: {

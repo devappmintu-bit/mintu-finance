@@ -273,12 +273,12 @@ const useStyles = makeStyles((c) => ({
   hero: { borderRadius: 22, padding: 18, overflow: 'hidden' },
   heroHead: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   heroLbl: { color: 'rgba(255,255,255,0.9)', fontSize: 11, fontWeight: '800', textTransform: 'uppercase', letterSpacing: 0.7 },
-  heroAmt: { color: '#fff', fontSize: 34, fontWeight: '800', marginTop: 4, letterSpacing: -0.5 },
+  heroAmt: { color: c.bg.elevated, fontSize: 34, fontWeight: '800', marginTop: 4, letterSpacing: -0.5 },
   heroSplits: { flexDirection: 'row', alignItems: 'center', marginTop: 12, paddingTop: 12, borderTopWidth: 1, borderTopColor: 'rgba(255,255,255,0.25)' },
   heroSplit: { flex: 1, alignItems: 'flex-start' },
   heroDot: { width: 8, height: 8, borderRadius: 4, marginBottom: 4 },
   heroSplitLbl: { color: 'rgba(255,255,255,0.85)', fontSize: 10, fontWeight: '700', textTransform: 'uppercase', letterSpacing: 0.5 },
-  heroSplitVal: { color: '#fff', fontSize: 18, fontWeight: '800', marginTop: 2 },
+  heroSplitVal: { color: c.bg.elevated, fontSize: 18, fontWeight: '800', marginTop: 2 },
   heroSplitDiv: { width: 1, height: 38, backgroundColor: 'rgba(255,255,255,0.25)' },
 
   // Quick actions
@@ -299,7 +299,7 @@ const useStyles = makeStyles((c) => ({
   debtSub: { fontSize: 18, fontWeight: '800', color: C.accent, marginTop: 2 },
   payBtn: { borderRadius: 999, overflow: 'hidden' },
   payBtnGrad: { flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: 14, paddingVertical: 8 },
-  payBtnTxt: { color: '#fff', fontSize: 13, fontWeight: '800' },
+  payBtnTxt: { color: c.bg.elevated, fontSize: 13, fontWeight: '800' },
   bellOnly: { width: 38, height: 38, borderRadius: 19, backgroundColor: C.gold, alignItems: 'center', justifyContent: 'center' },
 
   // Expense card

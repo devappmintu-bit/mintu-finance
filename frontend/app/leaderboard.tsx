@@ -314,7 +314,7 @@ const useStyles = makeStyles((c) => ({
   },
   togActive: { backgroundColor: c.accent.primary, borderColor: c.accent.primary },
   togText: { fontSize: 13, fontWeight: '800', color: c.text.muted },
-  togTextActive: { color: '#fff' },
+  togTextActive: { color: c.bg.elevated },
 
   loadingWrap: { flex: 1, justifyContent: 'center', alignItems: 'center' },
   emptyWrap: { flex: 1, justifyContent: 'center', alignItems: 'center', padding: 32, gap: 8 },

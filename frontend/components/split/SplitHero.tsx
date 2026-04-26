@@ -107,7 +107,7 @@ function SplitHero({ balances, coins, groupCount, onAddGroup, onSettleUp }: Prop
 
 export default memo(SplitHero);
 
-const useStyles = makeStyles(() => ({
+const useStyles = makeStyles((c) => ({
   card: {
     borderRadius: 24,
     paddingHorizontal: 18,
@@ -116,22 +116,22 @@ const useStyles = makeStyles(() => ({
     marginBottom: 14,
     overflow: 'hidden',
     position: 'relative',
-    shadowColor: '#C14A06', shadowOpacity: 0.22, shadowRadius: 16, shadowOffset: { width: 0, height: 8 }, elevation: 6,
+    shadowColor: c.accent.brandDark, shadowOpacity: 0.22, shadowRadius: 16, shadowOffset: { width: 0, height: 8 }, elevation: 6,
   },
   blob1: { position: 'absolute', top: -50, right: -50, width: 160, height: 160, borderRadius: 80, backgroundColor: 'rgba(255,255,255,0.08)' },
   blob2: { position: 'absolute', bottom: -60, left: -40, width: 150, height: 150, borderRadius: 75, backgroundColor: 'rgba(0,0,0,0.08)' },
   topRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 14 },
   pill: { flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: 10, paddingVertical: 4, borderRadius: 999, backgroundColor: 'rgba(255,255,255,0.18)' },
-  pillTxt: { fontSize: 10, fontWeight: '900', color: '#fff', letterSpacing: 0.8 },
+  pillTxt: { fontSize: 10, fontWeight: '900', color: c.bg.elevated, letterSpacing: 0.8 },
   coinPill: { flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: 10, paddingVertical: 4, borderRadius: 999, backgroundColor: 'rgba(0,0,0,0.22)' },
   coinEmoji: { fontSize: 12 },
   coinTxt: { fontSize: 11, fontWeight: '900', color: '#FCD34D' },
-  addBtn: { marginLeft: 'auto', width: 38, height: 38, borderRadius: 19, backgroundColor: '#FFFFFF', alignItems: 'center', justifyContent: 'center' },
+  addBtn: { marginLeft: 'auto', width: 38, height: 38, borderRadius: 19, backgroundColor: c.bg.elevated, alignItems: 'center', justifyContent: 'center' },
   eyebrow: { fontSize: 10, fontWeight: '900', letterSpacing: 1.1, color: 'rgba(255,255,255,0.82)' },
-  amount: { fontSize: 40, fontWeight: '900', color: '#fff', letterSpacing: -1.5, marginTop: 2 },
+  amount: { fontSize: 40, fontWeight: '900', color: c.bg.elevated, letterSpacing: -1.5, marginTop: 2 },
   sub: { fontSize: 12.5, fontWeight: '600', color: 'rgba(255,255,255,0.85)', marginTop: 6, lineHeight: 17 },
-  settleBtn: { alignSelf: 'flex-start', flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 12, paddingVertical: 8, borderRadius: 999, backgroundColor: '#FFFFFF', marginTop: 10 },
-  settleTxt: { fontSize: 12, fontWeight: '900', color: '#C14A06', letterSpacing: -0.1 },
+  settleBtn: { alignSelf: 'flex-start', flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 12, paddingVertical: 8, borderRadius: 999, backgroundColor: c.bg.elevated, marginTop: 10 },
+  settleTxt: { fontSize: 12, fontWeight: '900', color: c.accent.brandDark, letterSpacing: -0.1 },
   statsRow: { flexDirection: 'row', alignItems: 'center', marginTop: 14, backgroundColor: 'rgba(0,0,0,0.22)', borderRadius: 14, paddingVertical: 12 },
   statBlock: { flex: 1, alignItems: 'center', gap: 3 },
   statLabel: { fontSize: 9.5, fontWeight: '900', letterSpacing: 0.9, color: 'rgba(255,255,255,0.7)' },

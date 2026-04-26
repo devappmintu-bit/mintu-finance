@@ -124,7 +124,7 @@ const useStyles = makeStyles((c) => ({
   eyebrow: { fontSize: 10, fontWeight: '900', color: c.accent.primary, letterSpacing: 1.4 },
   proPill: {
     flexDirection: 'row', alignItems: 'center', gap: 4,
-    backgroundColor: '#fff',
+    backgroundColor: c.bg.elevated,
     paddingHorizontal: 7, paddingVertical: 2.5,
     borderRadius: 999,
     borderWidth: 1, borderColor: c.accent.primary + '40',
@@ -136,7 +136,7 @@ const useStyles = makeStyles((c) => ({
   ctaRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 10 },
   progressChip: {
     flexDirection: 'row', alignItems: 'center', gap: 4,
-    backgroundColor: '#fff',
+    backgroundColor: c.bg.elevated,
     paddingHorizontal: 8, paddingVertical: 4,
     borderRadius: 999,
   },

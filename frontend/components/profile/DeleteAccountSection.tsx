@@ -213,8 +213,8 @@ const useSStyles = makeStyles((c) => ({
   // Phase 1 — Schedule (primary) + Danger Zone (collapsed)
   primaryOption: { marginTop: 12, borderRadius: 18, backgroundColor: '#F0FDF4', borderWidth: 2, borderColor: '#86EFAC', padding: 14 },
   primaryHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 },
-  primaryBadge: { backgroundColor: '#059669', paddingHorizontal: 10, paddingVertical: 3, borderRadius: 999 },
-  primaryBadgeTxt: { fontSize: 9.5, fontWeight: '900', color: '#fff', letterSpacing: 0.7 },
+  primaryBadge: { backgroundColor: c.state.success, paddingHorizontal: 10, paddingVertical: 3, borderRadius: 999 },
+  primaryBadgeTxt: { fontSize: 9.5, fontWeight: '900', color: c.bg.elevated, letterSpacing: 0.7 },
   primaryDays: { backgroundColor: '#D1FAE5', paddingHorizontal: 10, paddingVertical: 3, borderRadius: 999 },
   primaryDaysTxt: { fontSize: 10, fontWeight: '900', color: '#065F46', letterSpacing: 1 },
   primaryBody: { flexDirection: 'row', alignItems: 'center', gap: 10 },

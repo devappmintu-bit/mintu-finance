@@ -115,7 +115,7 @@ const useStyles = makeStyles((c) => ({
   closeBtn: { width: 34, height: 34, borderRadius: 17, backgroundColor: c.bg.primary, alignItems: 'center', justifyContent: 'center' },
 
   predictive: { flexDirection: 'row', alignItems: 'center', gap: 6, padding: 12, borderRadius: 12, backgroundColor: '#F56E1E14', borderWidth: 1, borderColor: '#F56E1E33', marginBottom: 14 },
-  predictiveTxt: { flex: 1, fontSize: 12.5, fontWeight: '700', color: '#C14A06' },
+  predictiveTxt: { flex: 1, fontSize: 12.5, fontWeight: '700', color: c.accent.brandDark },
 
   pillar: { flexDirection: 'row', alignItems: 'center', gap: 14, paddingVertical: 12, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: c.border.subtle },
   ringWrap: { position: 'relative', alignItems: 'center', justifyContent: 'center' },

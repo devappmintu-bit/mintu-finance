@@ -19,7 +19,7 @@ import { FlashList } from '@shopify/flash-list';
 import * as Haptics from 'expo-haptics';
 import EmptyState from '../components/ui/EmptyState';
 import Skeleton from '../components/ui/Skeleton';
-import { COLORS, SPACING } from '../utils/theme';
+import { COLORS, SPACING, useAppColors } from '../utils/theme';
 import {
   fetchLedgerPage, sourceEmoji, timeAgo,
   LedgerEntry, LedgerType,
@@ -32,6 +32,7 @@ const FILTERS: { key: LedgerType; label: string }[] = [
 ];
 
 export default function CoinLedgerScreen() {
+  const c = useAppColors();
   const [filter, setFilter] = useState<LedgerType>('all');
   const [entries, setEntries] = useState<LedgerEntry[] | null>(null);
   const [cursor, setCursor] = useState<string | null>(null);
@@ -92,7 +93,7 @@ export default function CoinLedgerScreen() {
 
   const renderRow = useCallback(({ item }: { item: LedgerEntry }) => {
     const isEarn = item.type === 'earn';
-    const tint = isEarn ? '#10B981' : '#DC2626';
+    const tint = isEarn ? c.state.success : c.state.danger;
     return (
       <View
         style={s.row}
@@ -102,7 +103,8 @@ export default function CoinLedgerScreen() {
         <View style={[s.iconWrap, { backgroundColor: tint + '18' }]}>
           <Text style={s.iconEmoji}>{sourceEmoji(item.source)}</Text>
           <View style={[s.iconDot, { backgroundColor: tint }]}>
-            <Ionicons name={isEarn ? 'arrow-up' : 'arrow-down'} size={9} color="#fff" />
+            {/* White arrow on saturated state-tint dot — intentional per Round 50 audit. */}
+            <Ionicons name={isEarn ? 'arrow-up' : 'arrow-down'} size={9} color="#FFFFFF" />
           </View>
         </View>
         <View style={{ flex: 1 }}>
@@ -142,13 +144,13 @@ export default function CoinLedgerScreen() {
 
       {/* Lifetime totals row */}
       <View style={s.totalsRow}>
-        <View style={[s.totalCard, { borderColor: '#10B98133', backgroundColor: '#10B98110' }]}>
-          <Text style={[s.totalLbl, { color: '#059669' }]}>Earned</Text>
-          <Text style={[s.totalVal, { color: '#059669' }]}>+{fmt(totals.earned)}</Text>
+        <View style={[s.totalCard, { borderColor: c.state.successBorder, backgroundColor: c.state.successBg }]}>
+          <Text style={[s.totalLbl, { color: c.state.success }]}>Earned</Text>
+          <Text style={[s.totalVal, { color: c.state.success }]}>+{fmt(totals.earned)}</Text>
         </View>
-        <View style={[s.totalCard, { borderColor: '#DC262633', backgroundColor: '#DC262610' }]}>
-          <Text style={[s.totalLbl, { color: '#DC2626' }]}>Spent</Text>
-          <Text style={[s.totalVal, { color: '#DC2626' }]}>−{fmt(totals.spent)}</Text>
+        <View style={[s.totalCard, { borderColor: c.state.dangerBorder, backgroundColor: c.state.dangerBg }]}>
+          <Text style={[s.totalLbl, { color: c.state.danger }]}>Spent</Text>
+          <Text style={[s.totalVal, { color: c.state.danger }]}>−{fmt(totals.spent)}</Text>
         </View>
       </View>
 
@@ -229,7 +231,7 @@ const s = StyleSheet.create({
     backgroundColor: 'rgba(255,176,71,0.16)', borderWidth: 1, borderColor: 'rgba(255,176,71,0.45)',
   },
   balanceEmoji: { fontSize: 14 },
-  balanceTxt: { fontSize: 13, fontWeight: '900', color: '#92400E' },
+  balanceTxt: { fontSize: 13, fontWeight: '900', color: COLORS.accent.warning },
 
   totalsRow: { flexDirection: 'row', gap: 10, paddingHorizontal: SPACING.lg, paddingTop: 14 },
   totalCard: { flex: 1, padding: 12, borderRadius: 14, borderWidth: 1 },
@@ -240,7 +242,8 @@ const s = StyleSheet.create({
   tab: { paddingHorizontal: 14, paddingVertical: 8, borderRadius: 20, backgroundColor: COLORS.bg.secondary, borderWidth: 1, borderColor: COLORS.border.subtle },
   tabActive: { backgroundColor: COLORS.accent.primary, borderColor: COLORS.accent.primary },
   tabTxt: { fontSize: 11, fontWeight: '900', color: COLORS.text.muted, letterSpacing: 1 },
-  tabTxtActive: { color: '#fff' },
+  /* Active tab — white-on-saturated-orange (intentional per Round 50). */
+  tabTxtActive: { color: '#FFFFFF' },
 
   row: {
     flexDirection: 'row', alignItems: 'center', gap: 12,

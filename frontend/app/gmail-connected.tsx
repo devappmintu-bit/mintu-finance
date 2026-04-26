@@ -43,6 +43,6 @@ const useStyles = makeStyles((c) => ({
   wrap: { flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: c.bg.primary, padding: 24 },
   title: { fontSize: 20, fontWeight: '800', color: c.text.primary, marginTop: 14 },
   sub: { fontSize: 14, color: c.text.muted, marginTop: 6 },
-  err: { fontSize: 12, color: '#EF4444', marginTop: 8, textAlign: 'center' },
+  err: { fontSize: 12, color: c.state.danger, marginTop: 8, textAlign: 'center' },
   hint: { fontSize: 12, color: c.text.muted, marginTop: 8 },
 }));

@@ -189,5 +189,5 @@ const useStyles = makeStyles((c) => ({
     borderWidth: 1, borderRadius: 14, paddingVertical: 14, paddingHorizontal: 16,
     marginTop: 4, marginBottom: 8,
   },
-  allSettledTxt: { fontSize: 14, fontWeight: '700', color: '#059669' },
+  allSettledTxt: { fontSize: 14, fontWeight: '700', color: c.state.success },
 }));

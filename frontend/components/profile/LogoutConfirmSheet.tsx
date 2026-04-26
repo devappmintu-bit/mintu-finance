@@ -66,8 +66,8 @@ const useStyles = makeStyles((c) => ({
   title: { fontSize: 18, fontWeight: '700', color: c.text.primary, textAlign: 'center', letterSpacing: -0.3 },
   sub: { fontSize: 13, fontWeight: '500', color: c.text.muted, textAlign: 'center', marginTop: 6, lineHeight: 17, marginBottom: 20 },
 
-  primary: { width: '100%', paddingVertical: 14, borderRadius: 12, backgroundColor: '#EF4444', alignItems: 'center', marginBottom: 8 },
-  primaryTxt: { fontSize: 14.5, fontWeight: '700', color: '#fff' },
+  primary: { width: '100%', paddingVertical: 14, borderRadius: 12, backgroundColor: c.state.danger, alignItems: 'center', marginBottom: 8 },
+  primaryTxt: { fontSize: 14.5, fontWeight: '700', color: c.bg.elevated },
   secondary: { width: '100%', paddingVertical: 14, borderRadius: 12, alignItems: 'center' },
   secondaryTxt: { fontSize: 14, fontWeight: '600', color: c.text.secondary },
 }));

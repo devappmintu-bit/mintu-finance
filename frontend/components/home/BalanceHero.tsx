@@ -113,31 +113,31 @@ function BalanceHero({ user, snapshot, stats }: Props) {
 
 export default memo(BalanceHero);
 
-const useStyles = makeStyles(() => ({
+const useStyles = makeStyles((c) => ({
   shell: { marginTop: 6, marginBottom: 14 },
   card: {
     borderRadius: 24,
     padding: 20,
     overflow: 'hidden',
     position: 'relative',
-    shadowColor: '#C14A06', shadowOpacity: 0.2, shadowRadius: 18, shadowOffset: { width: 0, height: 8 }, elevation: 6,
+    shadowColor: c.accent.brandDark, shadowOpacity: 0.2, shadowRadius: 18, shadowOffset: { width: 0, height: 8 }, elevation: 6,
   },
   blob1: { position: 'absolute', top: -40, right: -40, width: 140, height: 140, borderRadius: 70, backgroundColor: 'rgba(255,255,255,0.08)' },
   blob2: { position: 'absolute', bottom: -50, left: -50, width: 160, height: 160, borderRadius: 80, backgroundColor: 'rgba(0,0,0,0.08)' },
   headerRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14 },
   tierPill: { flexDirection: 'row', alignItems: 'center', gap: 5, backgroundColor: 'rgba(255,255,255,0.18)', paddingHorizontal: 10, paddingVertical: 4, borderRadius: 999 },
   tierEmoji: { fontSize: 12 },
-  tierTxt: { fontSize: 10, fontWeight: '900', color: '#fff', letterSpacing: 0.8 },
+  tierTxt: { fontSize: 10, fontWeight: '900', color: c.bg.elevated, letterSpacing: 0.8 },
   streakPill: { flexDirection: 'row', alignItems: 'center', gap: 3, backgroundColor: 'rgba(0,0,0,0.22)', paddingHorizontal: 10, paddingVertical: 4, borderRadius: 999 },
   streakEmoji: { fontSize: 12 },
-  streakTxt: { fontSize: 11, fontWeight: '900', color: '#FFF', letterSpacing: 0.4 },
+  streakTxt: { fontSize: 11, fontWeight: '900', color: c.bg.elevated, letterSpacing: 0.4 },
   greet: { fontSize: 13, fontWeight: '700', color: 'rgba(255,255,255,0.82)', letterSpacing: 0.2 },
   label: { fontSize: 11, fontWeight: '800', color: 'rgba(255,255,255,0.8)', letterSpacing: 1, marginTop: 10, textTransform: 'uppercase' },
   amountRow: { flexDirection: 'row', alignItems: 'center', gap: 10, marginTop: 2 },
-  amount: { fontSize: 44, fontWeight: '900', color: '#fff', letterSpacing: -1.5 },
+  amount: { fontSize: 44, fontWeight: '900', color: c.bg.elevated, letterSpacing: -1.5 },
   rateChip: { flexDirection: 'row', alignItems: 'center', gap: 3, paddingHorizontal: 8, paddingVertical: 3, borderRadius: 999, marginBottom: 6 },
-  rateTxt: { fontSize: 11, fontWeight: '900', color: '#fff' },
+  rateTxt: { fontSize: 11, fontWeight: '900', color: c.bg.elevated },
   sub: { fontSize: 12.5, fontWeight: '600', color: 'rgba(255,255,255,0.88)', marginTop: 8, lineHeight: 17 },
   ctaRow: { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 14, alignSelf: 'flex-start', backgroundColor: 'rgba(0,0,0,0.18)', paddingVertical: 7, paddingHorizontal: 12, borderRadius: 999 },
-  ctaTxt: { fontSize: 11.5, fontWeight: '800', color: '#fff', letterSpacing: 0.2 },
+  ctaTxt: { fontSize: 11.5, fontWeight: '800', color: c.bg.elevated, letterSpacing: 0.2 },
 }));

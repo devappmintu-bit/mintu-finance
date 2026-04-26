@@ -473,12 +473,12 @@ const useSStyles = makeStyles((c) => ({
   emptyS: { fontSize: 11.5, color: c.text.secondary, textAlign: 'center', marginTop: 4, lineHeight: 16 },
   row: { flexDirection: 'column', gap: 8, padding: 12, borderRadius: 14, backgroundColor: c.bg.primary, borderWidth: 1, borderColor: c.border.subtle },
   rowMain: { flexDirection: 'row', alignItems: 'center', gap: 10 },
-  rowDefault: { borderColor: c.accent.primary + '60', backgroundColor: '#FFF7ED' },
+  rowDefault: { borderColor: c.accent.primary + '60', backgroundColor: c.accent.brandSoft },
   rowIcon: { width: 34, height: 34, borderRadius: 10, alignItems: 'center', justifyContent: 'center' },
   rowLabel: { fontSize: 13.5, fontWeight: '800', color: c.text.primary },
   rowSub: { fontSize: 11, color: c.text.muted, marginTop: 2 },
   defaultPill: { flexDirection: 'row', alignItems: 'center', gap: 3, backgroundColor: c.accent.primary, paddingHorizontal: 8, paddingVertical: 4, borderRadius: 999 },
-  defaultPillT: { fontSize: 10, fontWeight: '900', color: '#fff' },
+  defaultPillT: { fontSize: 10, fontWeight: '900', color: c.bg.elevated },
   setDefaultBtn: { paddingHorizontal: 8, paddingVertical: 5, borderRadius: 8, backgroundColor: c.accent.primary + '15' },
   setDefaultT: { fontSize: 10.5, fontWeight: '800', color: c.accent.primary },
   delBtn: { padding: 6 },
@@ -488,10 +488,10 @@ const useSStyles = makeStyles((c) => ({
   healthDot: { width: 6, height: 6, borderRadius: 3 },
   healthLabel: { fontSize: 10.5, fontWeight: '800', letterSpacing: 0.1, flexShrink: 1 },
   healthCta: { flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: 10, paddingVertical: 5, borderRadius: 999, backgroundColor: c.accent.primary + '15', borderWidth: 1, borderColor: c.accent.primary + '50', minHeight: 26 },
-  healthCtaDanger: { backgroundColor: '#DC2626', borderColor: '#DC2626' },
+  healthCtaDanger: { backgroundColor: c.state.danger, borderColor: c.state.danger },
   healthCtaT: { fontSize: 10.5, fontWeight: '800', color: c.accent.primary, letterSpacing: 0.1 },
   addBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, backgroundColor: c.accent.primary, paddingVertical: 12, borderRadius: 12, marginTop: 6 },
-  addBtnT: { color: '#fff', fontWeight: '800', fontSize: 13, letterSpacing: 0.2 },
+  addBtnT: { color: c.bg.elevated, fontWeight: '800', fontSize: 13, letterSpacing: 0.2 },
 }));
 
 const useMStyles = makeStyles((c) => ({

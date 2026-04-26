@@ -65,11 +65,11 @@ const useStyles = makeStyles((c) => ({
   wrap: { flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: c.gray[800], borderRadius: 12, paddingHorizontal: 12, paddingVertical: 8, marginHorizontal: 16 },
   liveBadge: { flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: c.state.danger, paddingHorizontal: 8, paddingVertical: 4, borderRadius: 999 },
   // White-on-dark-bg works in both themes
-  liveDot: { width: 4, height: 4, borderRadius: 4, backgroundColor: '#FFFFFF' },
-  liveTxt: { fontSize: 8, fontWeight: '900', color: '#FFFFFF', letterSpacing: 0.8 },
+  liveDot: { width: 4, height: 4, borderRadius: 4, backgroundColor: c.bg.elevated },
+  liveTxt: { fontSize: 8, fontWeight: '900', color: c.bg.elevated, letterSpacing: 0.8 },
   row: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: 8 },
   emoji: { fontSize: 16 },
-  line: { flex: 1, fontSize: 12, color: '#FFFFFF', fontWeight: '700' },
+  line: { flex: 1, fontSize: 12, color: c.bg.elevated, fontWeight: '700' },
   // Gold accent for the name — intentional brand colour, works on dark bg in both themes.
   name: { fontWeight: '900', color: '#FCD34D' },
   action: { fontWeight: '600', color: 'rgba(255,255,255,0.85)' },

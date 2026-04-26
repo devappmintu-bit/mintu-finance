@@ -24,7 +24,7 @@ import { fetchGroupSummary, createExpense, updateExpense } from '../../services/
 import Confetti from '../../components/Confetti';
 import FullScreenLoader from '../../components/FullScreenLoader';
 import { makeStyles } from '../../utils/makeStyles';
-import { COLORS, SPACING } from '../../utils/theme';
+import { COLORS, SPACING, useAppColors } from '../../utils/theme';
 import { useIsOnline } from '../../hooks/useIsOnline';
 
 type Member = { id: string; name: string; phone?: string };
@@ -43,6 +43,7 @@ const fmt = (n: number) => `₹${Math.round(n).toLocaleString('en-IN')}`;
 
 export default function AddExpenseScreen() {
   const s = useStyles();
+  const c = useAppColors();
   const isOnline = useIsOnline();
   const params = useLocalSearchParams<{ group_id?: string; expense_id?: string }>();
   const { user } = useAuthStore();
@@ -257,8 +258,8 @@ export default function AddExpenseScreen() {
             }}
             testID="add-expense-goto-members"
           >
-            <Ionicons name="person-add" size={16} color="#fff" />
-            <Text style={{ fontSize: 15, fontWeight: '800', color: '#fff' }}>Add members</Text>
+            <Ionicons name="person-add" size={16} color="#FFFFFF" />
+            <Text style={{ fontSize: 15, fontWeight: '800', color: '#FFFFFF' }}>Add members</Text>
           </TouchableOpacity>
           <TouchableOpacity onPress={() => router.back()} style={{ marginTop: 4 }}>
             <Text style={{ fontSize: 13, fontWeight: '600', color: COLORS.text.muted }}>Cancel</Text>
@@ -293,7 +294,7 @@ export default function AddExpenseScreen() {
               onChangeText={(v) => setAmount(v.replace(/[^0-9.]/g, ''))}
               keyboardType="decimal-pad"
               placeholder="0"
-              placeholderTextColor="#D1D5DB"
+              placeholderTextColor={c.gray[300]}
               style={s.amountInput}
               testID="ae-amount"
             />
@@ -325,7 +326,7 @@ export default function AddExpenseScreen() {
               const active = m.id === payerId;
               return (
                 <TouchableOpacity key={m.id} style={[s.personChip, active && s.personChipActive]} onPress={() => setPayer(m.id)} activeOpacity={0.82}>
-                  {active && <Ionicons name="checkmark-circle" size={14} color="#C14A06" />}
+                  {active && <Ionicons name="checkmark-circle" size={14} color={c.accent.brandDark} />}
                   <Text style={[s.personTxt, active && s.personTxtActive]} numberOfLines={1}>
                     {m.id === user?.id ? 'You' : m.name.split(' ')[0]}
                   </Text>
@@ -341,7 +342,7 @@ export default function AddExpenseScreen() {
               const active = participants.has(m.id);
               return (
                 <TouchableOpacity key={m.id} style={[s.personChip, active && s.personChipActive]} onPress={() => toggleParticipant(m.id)} activeOpacity={0.82}>
-                  {active && <Ionicons name="checkmark-circle" size={14} color="#C14A06" />}
+                  {active && <Ionicons name="checkmark-circle" size={14} color={c.accent.brandDark} />}
                   <Text style={[s.personTxt, active && s.personTxtActive]} numberOfLines={1}>
                     {m.id === user?.id ? 'You' : m.name.split(' ')[0]}
                   </Text>
@@ -419,11 +420,11 @@ export default function AddExpenseScreen() {
           <Text style={s.label}>SMART SUGGESTIONS</Text>
           <View style={s.smartRow}>
             <TouchableOpacity style={s.smartChip} onPress={() => applySmartSuggestion('equal')} activeOpacity={0.82}>
-              <Ionicons name="people" size={13} color="#7C3AED" />
+              <Ionicons name="people" size={13} color={c.accent.tertiary} />
               <Text style={s.smartTxt}>Split equally</Text>
             </TouchableOpacity>
             <TouchableOpacity style={s.smartChip} onPress={() => applySmartSuggestion('you-paid')} activeOpacity={0.82}>
-              <Ionicons name="wallet" size={13} color="#059669" />
+              <Ionicons name="wallet" size={13} color={c.state.success} />
               <Text style={s.smartTxt}>You paid → others owe</Text>
             </TouchableOpacity>
           </View>
@@ -432,7 +433,7 @@ export default function AddExpenseScreen() {
           {settlements.length > 0 && (
             <View style={s.previewCard}>
               <View style={s.previewHead}>
-                <Ionicons name="eye" size={14} color="#C14A06" />
+                <Ionicons name="eye" size={14} color={c.accent.brandDark} />
                 <Text style={s.previewLbl}>LIVE PREVIEW</Text>
               </View>
               {settlements.slice(0, 5).map((x, i) => (
@@ -456,9 +457,9 @@ export default function AddExpenseScreen() {
             testID="ae-submit"
           >
             <LinearGradient colors={canSubmit ? ['#F56E1E', '#C14A06'] : ['#D1D5DB', '#9CA3AF']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={s.ctaGrad}>
-              {submitting ? <ActivityIndicator color="#fff" /> : (
+              {submitting ? <ActivityIndicator color="#FFFFFF" /> : (
                 <>
-                  <Ionicons name="checkmark-circle" size={18} color="#fff" />
+                  <Ionicons name="checkmark-circle" size={18} color="#FFFFFF" />
                   <Text style={s.ctaTxt}>
                     {!isOnline ? "Offline — can't save" : (amountNum > 0 ? `${editingExpenseId ? 'Update' : 'Split'} ${fmt(amountNum)}${desc ? ` for ${desc}` : ''}` : 'Enter amount')}
                   </Text>
@@ -480,9 +481,10 @@ const useStyles = makeStyles((c) => ({
   groupName: { fontSize: 11, fontWeight: '700', color: c.text.muted, marginTop: 1 },
   scroll: { paddingHorizontal: SPACING.lg, paddingTop: SPACING.lg, paddingBottom: 100, gap: 10 },
 
-  amountCard: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingVertical: 20, paddingHorizontal: 18, borderRadius: 20, backgroundColor: '#FFF7ED', borderWidth: 1, borderColor: '#FED7AA' },
-  rupee: { fontSize: 42, fontWeight: '900', color: '#C14A06' },
-  amountInput: { flex: 1, fontSize: 44, fontWeight: '900', color: '#111', letterSpacing: -1.5, padding: 0 },
+  /* Brand-soft border — intentional warm-orange peach tone (Round 50). */
+  amountCard: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingVertical: 20, paddingHorizontal: 18, borderRadius: 20, backgroundColor: c.accent.brandSoft, borderWidth: 1, borderColor: c.accent.brand + '33' },
+  rupee: { fontSize: 42, fontWeight: '900', color: c.accent.brandDark },
+  amountInput: { flex: 1, fontSize: 44, fontWeight: '900', color: c.text.primary, letterSpacing: -1.5, padding: 0 },
 
   label: { fontSize: 10, fontWeight: '900', color: c.text.muted, letterSpacing: 1.2, marginTop: 6 },
   descInput: { fontSize: 15, fontWeight: '700', color: c.text.primary, backgroundColor: c.bg.secondary, borderRadius: 12, paddingVertical: 12, paddingHorizontal: 14, borderWidth: 1, borderColor: c.border.subtle },
@@ -493,37 +495,39 @@ const useStyles = makeStyles((c) => ({
 
   chipRow: { flexDirection: 'row', gap: 6, flexWrap: 'wrap' },
   personChip: { flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: 11, paddingVertical: 7, borderRadius: 999, backgroundColor: c.bg.secondary, borderWidth: 1, borderColor: c.border.subtle },
-  personChipActive: { backgroundColor: '#FFF7ED', borderColor: '#C14A06' },
+  personChipActive: { backgroundColor: c.accent.brandSoft, borderColor: c.accent.brandDark },
   personTxt: { fontSize: 12, fontWeight: '800', color: c.text.secondary },
-  personTxtActive: { color: '#C14A06' },
+  personTxtActive: { color: c.accent.brandDark },
 
   tabRow: { flexDirection: 'row', gap: 4, padding: 4, backgroundColor: c.bg.secondary, borderRadius: 12 },
   tab: { flex: 1, paddingVertical: 9, alignItems: 'center', borderRadius: 9 },
-  tabActive: { backgroundColor: '#FFFFFF', shadowColor: '#000', shadowOpacity: 0.06, shadowRadius: 4, shadowOffset: { width: 0, height: 1 }, elevation: 1 },
+  tabActive: { backgroundColor: c.bg.elevated, shadowColor: '#000', shadowOpacity: 0.06, shadowRadius: 4, shadowOffset: { width: 0, height: 1 }, elevation: 1 },
   tabTxt: { fontSize: 12, fontWeight: '800', color: c.text.muted },
-  tabTxtActive: { color: '#C14A06' },
+  tabTxtActive: { color: c.accent.brandDark },
 
   inlineInputRow: { flexDirection: 'row', alignItems: 'center', gap: 10 },
   inlineLbl: { flex: 1, fontSize: 13, fontWeight: '700', color: c.text.primary },
   inlineInputWrap: { flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: c.bg.secondary, borderRadius: 10, paddingHorizontal: 10, borderWidth: 1, borderColor: c.border.subtle, minWidth: 110 },
   inlineRupee: { fontSize: 13, color: c.text.muted, fontWeight: '700' },
   inlineInput: { flex: 1, paddingVertical: 8, fontSize: 14, fontWeight: '700', color: c.text.primary, padding: 0, textAlign: 'right' },
-  warnTxt: { fontSize: 11.5, color: '#B45309', fontWeight: '700', marginTop: 4 },
+  warnTxt: { fontSize: 11.5, color: c.state.warning, fontWeight: '700', marginTop: 4 },
 
   smartRow: { flexDirection: 'row', gap: 6, flexWrap: 'wrap' },
   smartChip: { flexDirection: 'row', alignItems: 'center', gap: 5, paddingHorizontal: 10, paddingVertical: 7, borderRadius: 999, backgroundColor: c.bg.secondary, borderWidth: 1, borderColor: c.border.subtle },
   smartTxt: { fontSize: 11.5, fontWeight: '800', color: c.text.secondary },
 
-  previewCard: { backgroundColor: '#FFF7ED', borderRadius: 16, padding: 14, borderWidth: 1, borderColor: '#FED7AA', gap: 7 },
+  /* Preview block: brand-soft bg + brand-deep ink (intentional warm orange tone). */
+  previewCard: { backgroundColor: c.accent.brandSoft, borderRadius: 16, padding: 14, borderWidth: 1, borderColor: c.accent.brand + '33', gap: 7 },
   previewHead: { flexDirection: 'row', alignItems: 'center', gap: 5, marginBottom: 2 },
-  previewLbl: { fontSize: 10, fontWeight: '900', color: '#C14A06', letterSpacing: 1.2 },
+  previewLbl: { fontSize: 10, fontWeight: '900', color: c.accent.brandDark, letterSpacing: 1.2 },
+  /* Deep brand ink — warm chocolate-orange used in preview blocks (intentional brand identity per Round 50). */
   previewLine: { fontSize: 13, color: '#7A2E0A', lineHeight: 19, fontWeight: '500' },
   previewStrong: { fontWeight: '900', color: '#7A2E0A' },
-  previewAmt: { fontWeight: '900', color: '#C14A06' },
+  previewAmt: { fontWeight: '900', color: c.accent.brandDark },
 
   ctaWrap: { padding: SPACING.lg, borderTopWidth: 1, borderTopColor: c.border.subtle, backgroundColor: c.bg.primary },
   ctaBtn: { borderRadius: 14, overflow: 'hidden' },
   ctaDisabled: { opacity: 0.65 },
   ctaGrad: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 7, paddingVertical: 16 },
-  ctaTxt: { fontSize: 15, fontWeight: '900', color: '#fff', letterSpacing: -0.2 },
+  ctaTxt: { fontSize: 15, fontWeight: '900', color: c.bg.elevated, letterSpacing: -0.2 },
 }));

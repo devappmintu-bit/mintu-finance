@@ -90,13 +90,13 @@ const useStyles = makeStyles((c) => ({
   card: { width: 360, borderRadius: 24, overflow: 'hidden', backgroundColor: 'transparent' },
   bg: { padding: 22 },
   headRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-  brand: { color: '#fff', fontSize: 14, fontWeight: '900', letterSpacing: 2, textTransform: 'uppercase' },
+  brand: { color: c.bg.elevated, fontSize: 14, fontWeight: '900', letterSpacing: 2, textTransform: 'uppercase' },
   month: { color: 'rgba(255,255,255,0.9)', fontSize: 12, fontWeight: '700' },
-  hero: { color: '#fff', fontSize: 24, fontWeight: '800', marginTop: 18, letterSpacing: -0.4 },
+  hero: { color: c.bg.elevated, fontSize: 24, fontWeight: '800', marginTop: 18, letterSpacing: -0.4 },
 
   amtRow: { flexDirection: 'row', justifyContent: 'space-between', marginTop: 20 },
   amtLbl: { color: 'rgba(255,255,255,0.85)', fontSize: 10.5, fontWeight: '700', textTransform: 'uppercase', letterSpacing: 0.4 },
-  amtVal: { color: '#fff', fontSize: 22, fontWeight: '800', marginTop: 3 },
+  amtVal: { color: c.bg.elevated, fontSize: 22, fontWeight: '800', marginTop: 3 },
 
   track: { height: 10, borderRadius: 5, backgroundColor: 'rgba(255,255,255,0.25)', overflow: 'hidden', marginTop: 16 },
   fill: { height: '100%', borderRadius: 5 },
@@ -105,7 +105,7 @@ const useStyles = makeStyles((c) => ({
   kpis: { flexDirection: 'row', gap: 10, marginTop: 18 },
   kpi: { flex: 1, backgroundColor: 'rgba(255,255,255,0.15)', borderRadius: 14, padding: 12, borderWidth: 1, borderColor: 'rgba(255,255,255,0.25)' },
   kpiLbl: { color: 'rgba(255,255,255,0.85)', fontSize: 10.5, fontWeight: '700' },
-  kpiVal: { color: '#fff', fontSize: 18, fontWeight: '800', marginTop: 4 },
+  kpiVal: { color: c.bg.elevated, fontSize: 18, fontWeight: '800', marginTop: 4 },
   kpiSub: { color: 'rgba(255,255,255,0.85)', fontSize: 10, marginTop: 2, fontWeight: '700' },
 
   tag: { color: 'rgba(255,255,255,0.8)', fontSize: 11, fontWeight: '700', marginTop: 20, textAlign: 'center', letterSpacing: 0.5 },

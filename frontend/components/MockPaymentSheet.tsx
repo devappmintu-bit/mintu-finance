@@ -117,8 +117,8 @@ export default function MockPaymentSheet({ visible, planId, planLabel, amount, o
 
 const useStyles = makeStyles((c) => ({
   backdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.45)', justifyContent: 'flex-end' },
-  sheet: { backgroundColor: '#fff', borderTopLeftRadius: 28, borderTopRightRadius: 28, padding: 20, paddingBottom: Platform.OS === 'ios' ? 36 : 20 },
-  handle: { width: 40, height: 4, borderRadius: 2, backgroundColor: '#E5E7EB', alignSelf: 'center', marginBottom: 14 },
+  sheet: { backgroundColor: c.bg.elevated, borderTopLeftRadius: 28, borderTopRightRadius: 28, padding: 20, paddingBottom: Platform.OS === 'ios' ? 36 : 20 },
+  handle: { width: 40, height: 4, borderRadius: 2, backgroundColor: c.gray[200], alignSelf: 'center', marginBottom: 14 },
   logoRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 14 },
   brand: { fontSize: 14, fontWeight: '800', color: '#78350F', letterSpacing: 0.3 },
   amountCard: {
@@ -137,14 +137,14 @@ const useStyles = makeStyles((c) => ({
   methodRow: {
     flexDirection: 'row', alignItems: 'center', gap: 12,
     paddingVertical: 12, paddingHorizontal: 14,
-    backgroundColor: '#F9FAFB', borderRadius: 12, marginBottom: 8,
-    borderWidth: 1, borderColor: '#E5E7EB',
+    backgroundColor: c.gray[50], borderRadius: 12, marginBottom: 8,
+    borderWidth: 1, borderColor: c.gray[200],
   },
-  methodIcon: { width: 32, height: 32, borderRadius: 16, backgroundColor: '#fff', alignItems: 'center', justifyContent: 'center' },
+  methodIcon: { width: 32, height: 32, borderRadius: 16, backgroundColor: c.bg.elevated, alignItems: 'center', justifyContent: 'center' },
   methodLbl: { flex: 1, fontSize: 13, color: '#1E293B', fontWeight: '600' },
   cta: { borderRadius: 999, overflow: 'hidden' },
   ctaGrad: { flexDirection: 'row', gap: 8, alignItems: 'center', justifyContent: 'center', paddingVertical: 16 },
-  ctaTxt: { color: '#fff', fontSize: 16, fontWeight: '800' },
+  ctaTxt: { color: c.bg.elevated, fontSize: 16, fontWeight: '800' },
   footNote: { fontSize: 10, color: '#94A3B8', textAlign: 'center', marginTop: 14, lineHeight: 14 },
   stateWrap: { alignItems: 'center', paddingVertical: 40 },
   stateTitle: { fontSize: 18, fontWeight: '800', color: '#0F172A', marginTop: 18 },

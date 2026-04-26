@@ -12,7 +12,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import Svg, { Rect, Line, Text as SvgText } from 'react-native-svg';
 import { router } from 'expo-router';
 import api from '../utils/api';
-import { COLORS, shadowStyle } from '../utils/theme';
+import { COLORS, shadowStyle, useAppColors } from '../utils/theme';
 import { makeStyles } from '../utils/makeStyles';
 import { useActivePlan, FEATURES, canAccess } from '../utils/premium';
 
@@ -45,6 +45,7 @@ type Monthly = {
 
 function BarChart({ data }: { data: Monthly[] }) {
   const s = useStyles();
+  const c = useAppColors();
   const [selected, setSelected] = useState<number | null>(null);
   const { maxVal, chartW } = useMemo(() => {
     const maxVal = Math.max(1, ...data.flatMap(d => [d.income, d.expense]));
@@ -85,7 +86,7 @@ function BarChart({ data }: { data: Monthly[] }) {
                   y={PAD_T + (plotH - incomeH)}
                   width={halfW}
                   height={incomeH}
-                  fill={isSel ? '#059669' : '#10B981'}
+                  fill={isSel ? c.accent.moneyIn : c.state.success}
                   rx={2}
                   onPress={() => setSelected(i === selected ? null : i)}
                 />
@@ -95,7 +96,7 @@ function BarChart({ data }: { data: Monthly[] }) {
                   y={PAD_T + (plotH - expenseH)}
                   width={halfW}
                   height={expenseH}
-                  fill={isSel ? '#DC2626' : '#EF4444'}
+                  fill={isSel ? c.accent.moneyOut : c.state.danger}
                   rx={2}
                   onPress={() => setSelected(i === selected ? null : i)}
                 />
@@ -119,11 +120,11 @@ function BarChart({ data }: { data: Monthly[] }) {
       {/* Legend */}
       <View style={s.legendRow}>
         <View style={s.legendItem}>
-          <View style={[s.legendDot, { backgroundColor: '#10B981' }]} />
+          <View style={[s.legendDot, { backgroundColor: c.state.success }]} />
           <Text style={s.legendText}>Income</Text>
         </View>
         <View style={s.legendItem}>
-          <View style={[s.legendDot, { backgroundColor: '#EF4444' }]} />
+          <View style={[s.legendDot, { backgroundColor: c.state.danger }]} />
           <Text style={s.legendText}>Expense</Text>
         </View>
       </View>
@@ -133,15 +134,15 @@ function BarChart({ data }: { data: Monthly[] }) {
           <Text style={s.selectedLabel}>{data[selected].label}</Text>
           <View style={s.selectedGrid}>
             <View style={s.selectedCell}>
-              <Text style={[s.selectedVal, { color: '#10B981' }]}>{fmtINR(data[selected].income)}</Text>
+              <Text style={[s.selectedVal, { color: c.state.success }]}>{fmtINR(data[selected].income)}</Text>
               <Text style={s.selectedSub}>Income</Text>
             </View>
             <View style={s.selectedCell}>
-              <Text style={[s.selectedVal, { color: '#EF4444' }]}>{fmtINR(data[selected].expense)}</Text>
+              <Text style={[s.selectedVal, { color: c.state.danger }]}>{fmtINR(data[selected].expense)}</Text>
               <Text style={s.selectedSub}>Expense</Text>
             </View>
             <View style={s.selectedCell}>
-              <Text style={[s.selectedVal, { color: '#E65100' }]}>{data[selected].savings_rate}%</Text>
+              <Text style={[s.selectedVal, { color: c.accent.brandDeeper }]}>{data[selected].savings_rate}%</Text>
               <Text style={s.selectedSub}>Saved</Text>
             </View>
           </View>
@@ -156,6 +157,7 @@ function BarChart({ data }: { data: Monthly[] }) {
 
 export default function YearlyDashboard() {
   const s = useStyles();
+  const tc = useAppColors(); // 'tc' to avoid shadow with map-iter `c` below
   const [data, setData] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -203,8 +205,8 @@ export default function YearlyDashboard() {
             activeOpacity={0.85}
             style={{ backgroundColor: COLORS.accent.primary, paddingHorizontal: 32, paddingVertical: 14, borderRadius: 999, flexDirection: 'row', alignItems: 'center', gap: 8 }}
           >
-            <Ionicons name="sparkles" size={16} color="#fff" />
-            <Text style={{ color: '#fff', fontSize: 14, fontWeight: '800' }}>Upgrade to unlock</Text>
+            <Ionicons name="sparkles" size={16} color="#FFFFFF" />
+            <Text style={{ color: '#FFFFFF', fontSize: 14, fontWeight: '800' }}>Upgrade to unlock</Text>
           </TouchableOpacity>
         </View>
       </SafeAreaView>
@@ -214,7 +216,7 @@ export default function YearlyDashboard() {
   if (loading) {
     return (
       <SafeAreaView style={s.container}>
-        <ActivityIndicator size="large" color="#E65100" style={{ marginTop: 80 }} />
+        <ActivityIndicator size="large" color={tc.accent.brandDeeper} style={{ marginTop: 80 }} />
       </SafeAreaView>
     );
   }
@@ -230,10 +232,11 @@ export default function YearlyDashboard() {
       </View>
 
       <ScrollView
-        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); load(); }} tintColor="#E65100" />}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); load(); }} tintColor={tc.accent.brandDeeper} />}
       >
         {/* Hero headline */}
-        <LinearGradient colors={['#E65100', '#E65100']} style={s.hero}>
+        {/* Hero — yearly brand gradient (deep indigo-orange, intentional brand identity per Round 50). */}
+        <LinearGradient colors={[tc.accent.brandDeeper, tc.accent.brandDeeper]} style={s.hero}>
           <Text style={s.heroLabel}>{data?.label || 'Last 12 months'}</Text>
           <Text style={s.heroHeadline}>{data?.headline}</Text>
           <View style={s.heroStats}>
@@ -263,12 +266,12 @@ export default function YearlyDashboard() {
 
         {/* Momentum */}
         {data?.momentum && data.yearly.expense > 0 && (
-          <View style={[s.card, { backgroundColor: data.momentum.direction === 'falling' ? '#ECFDF5' : data.momentum.direction === 'rising' ? '#FEF2F2' : '#F3F4F6' }]}>
+          <View style={[s.card, { backgroundColor: data.momentum.direction === 'falling' ? tc.state.successBg : data.momentum.direction === 'rising' ? tc.state.dangerBg : tc.bg.secondary }]}>
             <View style={s.momentumRow}>
               <Ionicons
                 name={data.momentum.direction === 'rising' ? 'trending-up' : data.momentum.direction === 'falling' ? 'trending-down' : 'remove'}
                 size={22}
-                color={data.momentum.direction === 'rising' ? '#DC2626' : data.momentum.direction === 'falling' ? '#059669' : '#6B7280'}
+                color={data.momentum.direction === 'rising' ? tc.state.danger : data.momentum.direction === 'falling' ? tc.state.success : tc.text.muted}
               />
               <View style={{ flex: 1 }}>
                 <Text style={s.momentumTitle}>Momentum · {data.momentum.direction.toUpperCase()}</Text>
@@ -341,17 +344,17 @@ export default function YearlyDashboard() {
           <Text style={s.cardTitle}>📐 Monthly averages</Text>
           <View style={s.avgGrid}>
             <View style={s.avgCell}>
-              <Text style={[s.avgVal, { color: '#10B981' }]}>{fmtINR(data?.yearly?.avg_monthly_income || 0)}</Text>
+              <Text style={[s.avgVal, { color: tc.state.success }]}>{fmtINR(data?.yearly?.avg_monthly_income || 0)}</Text>
               <Text style={s.avgLbl}>Avg income/mo</Text>
             </View>
             <View style={s.avgDiv} />
             <View style={s.avgCell}>
-              <Text style={[s.avgVal, { color: '#EF4444' }]}>{fmtINR(data?.yearly?.avg_monthly_spend || 0)}</Text>
+              <Text style={[s.avgVal, { color: tc.state.danger }]}>{fmtINR(data?.yearly?.avg_monthly_spend || 0)}</Text>
               <Text style={s.avgLbl}>Avg spend/mo</Text>
             </View>
             <View style={s.avgDiv} />
             <View style={s.avgCell}>
-              <Text style={[s.avgVal, { color: '#E65100' }]}>{data?.yearly?.txn_count || 0}</Text>
+              <Text style={[s.avgVal, { color: tc.accent.brandDeeper }]}>{data?.yearly?.txn_count || 0}</Text>
               <Text style={s.avgLbl}>Transactions</Text>
             </View>
           </View>
@@ -365,26 +368,28 @@ export default function YearlyDashboard() {
 
 const useStyles = makeStyles((c) => ({
   container: { flex: 1, backgroundColor: c.bg.primary },
-  header: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 12, paddingVertical: 12, backgroundColor: '#FFFFFF', borderBottomWidth: 1, borderBottomColor: c.border.subtle },
+  header: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 12, paddingVertical: 12, backgroundColor: c.bg.elevated, borderBottomWidth: 1, borderBottomColor: c.border.subtle },
   backBtn: { padding: 6 },
   headerTitle: { flex: 1, fontSize: 17, fontWeight: '800', color: c.text.primary, textAlign: 'center' },
-  hero: { margin: 12, padding: 18, borderRadius: 18, ...shadowStyle('#E65100', 6, 16, 0.25, 6) },
+  hero: { margin: 12, padding: 18, borderRadius: 18, ...shadowStyle(c.accent.brandDeeper, 6, 16, 0.25, 6) },
   heroLabel: { color: 'rgba(255,255,255,0.8)', fontSize: 11, fontWeight: '800', letterSpacing: 1 },
-  heroHeadline: { color: '#fff', fontSize: 16, fontWeight: '800', marginTop: 4, lineHeight: 22 },
+  heroHeadline: { color: c.bg.elevated, fontSize: 16, fontWeight: '800', marginTop: 4, lineHeight: 22 },
   heroStats: { flexDirection: 'row', marginTop: 16, paddingTop: 14, borderTopWidth: 1, borderTopColor: 'rgba(255,255,255,0.25)' },
   heroStat: { flex: 1, alignItems: 'center' },
-  heroStatV: { color: '#fff', fontSize: 16, fontWeight: '900' },
+  heroStatV: { color: c.bg.elevated, fontSize: 16, fontWeight: '900' },
   heroStatL: { color: 'rgba(255,255,255,0.85)', fontSize: 11, fontWeight: '700', marginTop: 2 },
   heroDiv: { width: 1, height: 28, backgroundColor: 'rgba(255,255,255,0.3)', alignSelf: 'center' },
-  card: { backgroundColor: '#FFFFFF', margin: 12, padding: 16, borderRadius: 16, borderWidth: 1, borderColor: c.border.card, ...shadowStyle('#2E1F1A', 2, 10, 0.05, 2) },
+  /* Brand-tinted shadow + brand-tinted border are intentional per Round 50. */
+  card: { backgroundColor: c.bg.elevated, margin: 12, padding: 16, borderRadius: 16, borderWidth: 1, borderColor: c.border.card, ...shadowStyle('#2E1F1A', 2, 10, 0.05, 2) },
   cardTitle: { fontSize: 15, fontWeight: '800', color: c.text.primary },
   cardSub: { fontSize: 11, color: c.text.muted, marginTop: 2, marginBottom: 10 },
   legendRow: { flexDirection: 'row', justifyContent: 'center', gap: 16, marginTop: 8 },
   legendItem: { flexDirection: 'row', alignItems: 'center', gap: 5 },
   legendDot: { width: 10, height: 10, borderRadius: 2 },
   legendText: { fontSize: 11, color: c.text.muted, fontWeight: '600' },
-  selectedCard: { marginTop: 10, padding: 12, backgroundColor: c.bg.elevated, borderRadius: 10, borderWidth: 1, borderColor: '#E6510040' },
-  selectedLabel: { fontSize: 13, fontWeight: '800', color: '#E65100', marginBottom: 8 },
+  /* Brand-tinted alpha border + soft fill — intentional warm-orange identity per Round 50. */
+  selectedCard: { marginTop: 10, padding: 12, backgroundColor: c.bg.elevated, borderRadius: 10, borderWidth: 1, borderColor: c.accent.brandDeeper + '40' },
+  selectedLabel: { fontSize: 13, fontWeight: '800', color: c.accent.brandDeeper, marginBottom: 8 },
   selectedGrid: { flexDirection: 'row' },
   selectedCell: { flex: 1, alignItems: 'center' },
   selectedVal: { fontSize: 14, fontWeight: '800' },
@@ -394,8 +399,8 @@ const useStyles = makeStyles((c) => ({
   momentumTitle: { fontSize: 13, fontWeight: '800', color: c.text.primary, letterSpacing: 0.3 },
   momentumDetail: { fontSize: 12, color: c.text.secondary, marginTop: 2 },
   catRow: { flexDirection: 'row', alignItems: 'center', gap: 10, marginTop: 10 },
-  catRank: { width: 24, height: 24, borderRadius: 12, backgroundColor: '#E6510015', justifyContent: 'center', alignItems: 'center' },
-  catRankNum: { fontSize: 11, fontWeight: '800', color: '#E65100' },
+  catRank: { width: 24, height: 24, borderRadius: 12, backgroundColor: c.accent.brandDeeper + '15', justifyContent: 'center', alignItems: 'center' },
+  catRankNum: { fontSize: 11, fontWeight: '800', color: c.accent.brandDeeper },
   catName: { fontSize: 13, fontWeight: '700', color: c.text.primary },
   catBar: { height: 5, backgroundColor: c.bg.elevated, borderRadius: 999, overflow: 'hidden', marginTop: 4 },
   catBarFill: { height: '100%', borderRadius: 999 },

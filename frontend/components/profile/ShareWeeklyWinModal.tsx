@@ -162,7 +162,7 @@ const useStyles = makeStyles((c) => ({
     backgroundColor: c.accent.primary, paddingVertical: 15, borderRadius: 14,
     shadowColor: c.accent.primary, shadowOpacity: 0.25, shadowRadius: 12, shadowOffset: { width: 0, height: 6 }, elevation: 4,
   },
-  primaryTxt: { fontSize: 15, fontWeight: '800', color: '#fff', letterSpacing: -0.2 },
+  primaryTxt: { fontSize: 15, fontWeight: '800', color: c.bg.elevated, letterSpacing: -0.2 },
 
   secondary: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6,

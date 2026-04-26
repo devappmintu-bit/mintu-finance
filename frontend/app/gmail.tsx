@@ -8,7 +8,7 @@ import { router } from 'expo-router';
 import Toast from 'react-native-toast-message';
 import api from '../utils/api';
 import { fetchGmailStatus, startGmailOAuth, syncGmailNow, disconnectGmail } from '../services/gmail';
-import { COLORS, SPACING, RADIUS } from '../utils/theme';
+import { COLORS, SPACING, RADIUS, useAppColors } from '../utils/theme';
 import { makeStyles } from '../utils/makeStyles';
 
 type Status = {
@@ -19,6 +19,8 @@ type Status = {
   imported_count?: number;
 };
 
+// Indian bank brand colors (third-party visual identity, kept as literal hex
+// per Round 50 audit — these are protected trademarks/brand colors).
 const BANKS = [
   { name: 'HDFC Bank',    emoji: '🏦', color: '#004C8F' },
   { name: 'SBI',          emoji: '🏦', color: '#22409A' },
@@ -55,6 +57,7 @@ const RETURN_URL = Platform.OS === 'web'
 
 export default function GmailConnectScreen() {
   const s = useStyles();
+  const c = useAppColors();
   const [status, setStatus] = useState<Status | null>(null);
   const [loading, setLoading] = useState(true);
   const [connecting, setConnecting] = useState(false);
@@ -146,7 +149,7 @@ export default function GmailConnectScreen() {
   if (loading) {
     return (
       <SafeAreaView style={s.container}>
-        <ActivityIndicator color="#F56E1E" size="large" style={{ marginTop: 80 }} />
+        <ActivityIndicator color={c.accent.brand} size="large" style={{ marginTop: 80 }} />
       </SafeAreaView>
     );
   }
@@ -167,7 +170,7 @@ export default function GmailConnectScreen() {
         {/* Hero — condensed copy (Phase 2 trust-first UX) */}
         <LinearGradient colors={connected ? ['#047857', '#10B981'] : ['#F56E1E', '#C14A06']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={s.hero}>
           <View style={s.heroIcon}>
-            <Ionicons name={connected ? 'checkmark-circle' : 'mail-outline'} size={38} color="#fff" />
+            <Ionicons name={connected ? 'checkmark-circle' : 'mail-outline'} size={38} color="#FFFFFF" />
           </View>
           <Text style={s.heroTitle}>{connected ? 'Gmail connected' : 'Auto-import bank SMS'}</Text>
           <Text style={s.heroSub}>
@@ -194,15 +197,15 @@ export default function GmailConnectScreen() {
         {!connected && (
           <View style={s.badgeRow}>
             <View style={s.badge}>
-              <Ionicons name="lock-closed" size={14} color="#059669" />
+              <Ionicons name="lock-closed" size={14} color={c.state.success} />
               <Text style={s.badgeTxt}>End-to-end{'\n'}encrypted</Text>
             </View>
             <View style={s.badge}>
-              <Ionicons name="eye-off" size={14} color="#059669" />
+              <Ionicons name="eye-off" size={14} color={c.state.success} />
               <Text style={s.badgeTxt}>Read-only{'\n'}access</Text>
             </View>
             <View style={s.badge}>
-              <Ionicons name="flash" size={14} color="#059669" />
+              <Ionicons name="flash" size={14} color={c.state.success} />
               <Text style={s.badgeTxt}>Revoke{'\n'}anytime</Text>
             </View>
           </View>
@@ -213,10 +216,10 @@ export default function GmailConnectScreen() {
           <TouchableOpacity style={[s.cta, connecting && { opacity: 0.6 }]} disabled={connecting} onPress={connect} activeOpacity={0.85}>
             <LinearGradient colors={['#F56E1E', '#C14A06']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={s.ctaBg}>
               {connecting
-                ? <ActivityIndicator color="#fff" />
+                ? <ActivityIndicator color="#FFFFFF" />
                 : (
                   <>
-                    <Ionicons name="logo-google" size={18} color="#fff" />
+                    <Ionicons name="logo-google" size={18} color="#FFFFFF" />
                     <Text style={s.ctaT}>Connect with Google</Text>
                   </>
                 )}
@@ -227,17 +230,17 @@ export default function GmailConnectScreen() {
             <TouchableOpacity style={[s.cta, syncing && { opacity: 0.6 }]} disabled={syncing} onPress={syncNow} activeOpacity={0.85}>
               <LinearGradient colors={['#F56E1E', '#C14A06']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={s.ctaBg}>
                 {syncing
-                  ? <ActivityIndicator color="#fff" />
+                  ? <ActivityIndicator color="#FFFFFF" />
                   : (
                     <>
-                      <Ionicons name="sync" size={18} color="#fff" />
+                      <Ionicons name="sync" size={18} color="#FFFFFF" />
                       <Text style={s.ctaT}>Sync now</Text>
                     </>
                   )}
               </LinearGradient>
             </TouchableOpacity>
             <TouchableOpacity style={s.secondary} onPress={disconnect} activeOpacity={0.85}>
-              <Ionicons name="unlink-outline" size={16} color="#B91C1C" />
+              <Ionicons name="unlink-outline" size={16} color={c.state.danger} />
               <Text style={s.secondaryT}>Disconnect Gmail</Text>
             </TouchableOpacity>
           </View>
@@ -247,17 +250,17 @@ export default function GmailConnectScreen() {
         <Text style={s.sect}>Why it's safe</Text>
         <View style={s.bulletCard}>
           <View style={s.bulletRow}>
-            <Ionicons name="shield-checkmark" size={16} color="#059669" />
+            <Ionicons name="shield-checkmark" size={16} color={c.state.success} />
             <Text style={s.bulletTxt}><Text style={s.bulletBold}>Read-only.</Text> We can&apos;t send or delete emails</Text>
           </View>
           <View style={s.bulletRow}>
-            <Ionicons name="filter" size={16} color="#059669" />
+            <Ionicons name="filter" size={16} color={c.state.success} />
             <Text style={s.bulletTxt}><Text style={s.bulletBold}>Bank-only filter.</Text> Personal mail never opened</Text>
           </View>
           <View style={s.bulletRow}>
-            <Ionicons name="close-circle" size={16} color="#059669" />
+            <Ionicons name="close-circle" size={16} color={c.state.success} />
             <Text style={s.bulletTxt}><Text style={s.bulletBold}>Revoke anytime.</Text>{' '}
-              <Text style={{ color: '#F56E1E', textDecorationLine: 'underline' }} onPress={() => Linking.openURL('https://myaccount.google.com/permissions')}>
+              <Text style={{ color: c.accent.brand, textDecorationLine: 'underline' }} onPress={() => Linking.openURL('https://myaccount.google.com/permissions')}>
                 myaccount.google.com
               </Text>
             </Text>
@@ -275,46 +278,47 @@ const useStyles = makeStyles((c) => ({
 
   hero: { borderRadius: 24, padding: 22, marginBottom: 14 },
   heroIcon: { alignSelf: 'flex-start', padding: 6, marginBottom: 8 },
-  heroTitle: { color: '#fff', fontSize: 22, fontWeight: '800', letterSpacing: -0.3 },
+  heroTitle: { color: c.bg.elevated, fontSize: 22, fontWeight: '800', letterSpacing: -0.3 },
   heroSub: { color: 'rgba(255,255,255,0.9)', fontSize: 13, marginTop: 6, lineHeight: 19 },
   heroStats: { flexDirection: 'row', marginTop: 14, paddingTop: 12, borderTopWidth: 1, borderTopColor: 'rgba(255,255,255,0.25)' },
   heroStat: { flex: 1 },
-  heroStatVal: { color: '#fff', fontSize: 18, fontWeight: '800' },
+  heroStatVal: { color: c.bg.elevated, fontSize: 18, fontWeight: '800' },
   heroStatLbl: { color: 'rgba(255,255,255,0.85)', fontSize: 11, fontWeight: '700', marginTop: 2, textTransform: 'uppercase', letterSpacing: 0.4 },
   heroStatDiv: { width: 1, backgroundColor: 'rgba(255,255,255,0.25)', marginHorizontal: 12 },
 
   cta: { borderRadius: 14, overflow: 'hidden' },
   ctaBg: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 10, paddingVertical: 15 },
-  ctaT: { color: '#fff', fontSize: 15, fontWeight: '800' },
+  ctaT: { color: c.bg.elevated, fontSize: 15, fontWeight: '800' },
 
-  secondary: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, paddingVertical: 12, backgroundColor: '#FEE2E2', borderRadius: 14 },
-  secondaryT: { color: '#B91C1C', fontSize: 14, fontWeight: '700' },
+  secondary: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, paddingVertical: 12, backgroundColor: c.state.dangerBg, borderRadius: 14 },
+  secondaryT: { color: c.state.danger, fontSize: 14, fontWeight: '700' },
 
-  sect: { fontSize: 11, fontWeight: '800', color: '#9CA3AF', textTransform: 'uppercase', letterSpacing: 0.6, marginTop: 24, marginBottom: 10 },
+  sect: { fontSize: 11, fontWeight: '800', color: c.gray[400], textTransform: 'uppercase', letterSpacing: 0.6, marginTop: 24, marginBottom: 10 },
 
   bankGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
-  bankChip: { flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: '#fff', borderRadius: 999, paddingHorizontal: 10, paddingVertical: 6, borderWidth: 1, borderColor: '#F3F4F6' },
+  bankChip: { flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: c.bg.elevated, borderRadius: 999, paddingHorizontal: 10, paddingVertical: 6, borderWidth: 1, borderColor: c.gray[100] },
   bankEmoji: { fontSize: 12 },
-  bankName: { fontSize: 12, fontWeight: '700', color: '#111' },
+  bankName: { fontSize: 12, fontWeight: '700', color: c.text.primary },
 
-  stepsCard: { backgroundColor: '#fff', borderRadius: 16, padding: 14, gap: 12, borderWidth: 1, borderColor: '#F3F4F6' },
+  stepsCard: { backgroundColor: c.bg.elevated, borderRadius: 16, padding: 14, gap: 12, borderWidth: 1, borderColor: c.gray[100] },
   step: { flexDirection: 'row', gap: 12 },
-  stepNumBg: { width: 26, height: 26, borderRadius: 13, backgroundColor: '#FFF7ED', alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: '#FED7AA' },
-  stepNum: { fontSize: 12, fontWeight: '800', color: '#C14A06' },
-  stepT: { fontSize: 14, fontWeight: '700', color: '#111' },
-  stepD: { fontSize: 12, color: '#6B7280', marginTop: 2 },
+  /* Pill border — brand-soft alpha (intentional aesthetic per Round 50). */
+  stepNumBg: { width: 26, height: 26, borderRadius: 13, backgroundColor: c.accent.brandSoft, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: c.accent.brand + '33' },
+  stepNum: { fontSize: 12, fontWeight: '800', color: c.accent.brandDark },
+  stepT: { fontSize: 14, fontWeight: '700', color: c.text.primary },
+  stepD: { fontSize: 12, color: c.text.muted, marginTop: 2 },
 
   // Phase 2 — Trust badge row (3 visual badges replace verbose privacy block)
   badgeRow: { flexDirection: 'row', gap: 8, marginBottom: 14 },
-  badge: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: 7, backgroundColor: '#ECFDF5', borderWidth: 1, borderColor: '#A7F3D0', borderRadius: 12, paddingVertical: 10, paddingHorizontal: 10 },
-  badgeTxt: { fontSize: 10, fontWeight: '800', color: '#065F46', lineHeight: 13 },
+  badge: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: 7, backgroundColor: c.state.successBg, borderWidth: 1, borderColor: c.state.successBorder, borderRadius: 12, paddingVertical: 10, paddingHorizontal: 10 },
+  badgeTxt: { fontSize: 10, fontWeight: '800', color: c.state.success, lineHeight: 13 },
   // Phase 2 — condensed bullet card (replaces 4-step wordy block)
-  bulletCard: { backgroundColor: '#fff', borderRadius: 14, padding: 14, gap: 12, borderWidth: 1, borderColor: '#F3F4F6' },
+  bulletCard: { backgroundColor: c.bg.elevated, borderRadius: 14, padding: 14, gap: 12, borderWidth: 1, borderColor: c.gray[100] },
   bulletRow: { flexDirection: 'row', alignItems: 'center', gap: 10 },
-  bulletTxt: { flex: 1, fontSize: 12.5, color: '#374151', fontWeight: '600', lineHeight: 17 },
-  bulletBold: { fontWeight: '900', color: '#111' },
+  bulletTxt: { flex: 1, fontSize: 12.5, color: c.text.secondary, fontWeight: '600', lineHeight: 17 },
+  bulletBold: { fontWeight: '900', color: c.text.primary },
 
-  privacy: { flexDirection: 'row', gap: 10, backgroundColor: '#ECFDF5', borderRadius: 14, padding: 12, marginTop: 16, borderWidth: 1, borderColor: '#A7F3D0' },
-  privacyT: { fontSize: 13, fontWeight: '800', color: '#065F46' },
-  privacyD: { fontSize: 12, color: '#065F46', marginTop: 4, lineHeight: 17 },
+  privacy: { flexDirection: 'row', gap: 10, backgroundColor: c.state.successBg, borderRadius: 14, padding: 12, marginTop: 16, borderWidth: 1, borderColor: c.state.successBorder },
+  privacyT: { fontSize: 13, fontWeight: '800', color: c.state.success },
+  privacyD: { fontSize: 12, color: c.state.success, marginTop: 4, lineHeight: 17 },
 }));
