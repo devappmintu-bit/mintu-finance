@@ -28,7 +28,7 @@ import NeonButton from '../../components/ui/NeonButton';
 import GlowPill from '../../components/ui/GlowPill';
 import Skeleton from '../../components/ui/Skeleton';
 import ThinkingDots from '../../components/ui/ThinkingDots';
-import { COLORS, FONT_FAMILY, GRADIENT, SPACING } from '../../utils/theme';
+import { COLORS, FONT_FAMILY, GRADIENT, SPACING, useAppColors } from '../../utils/theme';
 import { makeStyles } from '../../utils/makeStyles';
 import api from '../../utils/api';
 import { useIsOnline } from '../../hooks/useIsOnline';
@@ -55,6 +55,7 @@ function pickHello() {
 
 function AICoachTab() {
   const s = useStyles();
+  const c = useAppColors();
   const isOnline = useIsOnline();
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -169,7 +170,7 @@ function AICoachTab() {
             note instead of letting requests fail silently. */}
         {!isOnline && (
           <View style={s.offlineCard} testID="ai-coach-offline">
-            <Ionicons name="cloud-offline" size={20} color="#92400E" />
+            <Ionicons name="cloud-offline" size={20} color={c.state.warning} />
             <View style={{ flex: 1 }}>
               <Text style={s.offlineTitle}>You're offline</Text>
               <Text style={s.offlineSub}>Insights and chat will resume once you reconnect. Showing cached data when available.</Text>
@@ -383,22 +384,23 @@ const useStyles = makeStyles((c) => ({
     gap: 10,
     padding: 14,
     borderRadius: 16,
-    backgroundColor: '#FEF3C7',
+    backgroundColor: c.state.warningBg,
     borderWidth: 1,
-    borderColor: '#FDE68A',
+    borderColor: c.state.warningBorder,
     marginTop: 12,
   },
   offlineTitle: {
     fontSize: 13,
     fontWeight: '900',
-    color: '#92400E',
+    color: c.state.warning,
   },
   offlineSub: {
     fontSize: 11.5,
-    color: '#78350F',
+    color: c.state.warning,
     fontWeight: '600',
     marginTop: 2,
     lineHeight: 16,
+    opacity: 0.85,
   },
 }));
 

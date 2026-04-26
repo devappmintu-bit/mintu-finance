@@ -22,6 +22,8 @@ import FullScreenLoader from '../components/FullScreenLoader';
 import Confetti from '../components/Confetti';
 import EmptyState from '../components/ui/EmptyState';
 import { useIsOnline } from '../hooks/useIsOnline';
+import { makeStyles } from '../utils/makeStyles';
+import { useAppColors } from '../utils/theme';
 
 type Goal = {
   id: string;
@@ -71,6 +73,8 @@ function ProgressRing({ pct, color, size = 88, stroke = 8 }: { pct: number; colo
 }
 
 export default function GoalsScreen() {
+  const s = useStyles();
+  const c = useAppColors();
   const isOnline = useIsOnline();
   const [goals, setGoals] = useState<Goal[]>([]);
   const [loading, setLoading] = useState(true);
@@ -454,61 +458,62 @@ export default function GoalsScreen() {
   );
 }
 
-const s = StyleSheet.create({
-  bg: { flex: 1, backgroundColor: '#FFFBF7' },
+const useStyles = makeStyles((c) => ({
+  bg: { flex: 1, backgroundColor: c.bg.primary },
   header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 16, paddingVertical: 12 },
-  backBtn: { width: 36, height: 36, borderRadius: 18, backgroundColor: '#F3F4F6', alignItems: 'center', justifyContent: 'center' },
-  title: { fontSize: 20, fontWeight: '900', color: '#111827', letterSpacing: -0.5 },
-  addBtn: { width: 36, height: 36, borderRadius: 18, backgroundColor: '#F56E1E', alignItems: 'center', justifyContent: 'center' },
+  backBtn: { width: 36, height: 36, borderRadius: 20, backgroundColor: c.gray[100], alignItems: 'center', justifyContent: 'center' },
+  title: { fontSize: 20, fontWeight: '900', color: c.text.primary, letterSpacing: -0.5 },
+  addBtn: { width: 36, height: 36, borderRadius: 20, backgroundColor: c.accent.brand, alignItems: 'center', justifyContent: 'center' },
   scroll: { padding: 16, paddingBottom: 80 },
 
-  // Summary card
-  summaryCard: { flexDirection: 'row', alignItems: 'center', padding: 18, borderRadius: 22, marginBottom: 20, gap: 14 },
-  sumLbl: { fontSize: 10.5, fontWeight: '900', color: 'rgba(255,255,255,0.85)', letterSpacing: 1 },
-  sumAmt: { fontSize: 28, fontWeight: '900', color: '#fff', letterSpacing: -0.8, marginTop: 4 },
-  sumSub: { fontSize: 11.5, fontWeight: '700', color: 'rgba(255,255,255,0.75)', marginTop: 2 },
-  sumBar: { height: 6, borderRadius: 3, backgroundColor: 'rgba(0,0,0,0.3)', marginTop: 10, overflow: 'hidden' },
-  sumFill: { height: '100%', backgroundColor: '#fff', borderRadius: 3 },
+  // Summary card — overlaid on a saturated brand gradient. White-on-color
+  // text + dark scrim work consistently in both themes (gradient is bright).
+  summaryCard: { flexDirection: 'row', alignItems: 'center', padding: 20, borderRadius: 24, marginBottom: 20, gap: 16 },
+  sumLbl: { fontSize: 11, fontWeight: '900', color: 'rgba(255,255,255,0.85)', letterSpacing: 1 },
+  sumAmt: { fontSize: 28, fontWeight: '900', color: c.bg.elevated, letterSpacing: -0.8, marginTop: 4 },
+  sumSub: { fontSize: 12, fontWeight: '700', color: 'rgba(255,255,255,0.75)', marginTop: 4 },
+  sumBar: { height: 8, borderRadius: 4, backgroundColor: 'rgba(0,0,0,0.3)', marginTop: 12, overflow: 'hidden' },
+  sumFill: { height: '100%', backgroundColor: c.bg.elevated, borderRadius: 4 },
   sumRing: { position: 'relative', alignItems: 'center', justifyContent: 'center' },
-  sumRingPct: { position: 'absolute', fontSize: 14, fontWeight: '900', color: '#fff' },
+  sumRingPct: { position: 'absolute', fontSize: 14, fontWeight: '900', color: c.bg.elevated },
 
   // Empty state
-  emptyCard: { alignItems: 'center', padding: 30, borderRadius: 20, backgroundColor: '#fff', borderWidth: 1, borderColor: '#FED7AA', gap: 10 },
+  emptyCard: { alignItems: 'center', padding: 32, borderRadius: 20, backgroundColor: c.bg.elevated, borderWidth: 1, borderColor: c.accent.brandSoft, gap: 12 },
   emptyEmoji: { fontSize: 52 },
-  emptyTitle: { fontSize: 17, fontWeight: '900', color: '#111827' },
-  emptySub: { fontSize: 12.5, fontWeight: '600', color: '#6B7280', textAlign: 'center', lineHeight: 17 },
-  emptyBtn: { flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: '#F56E1E', paddingHorizontal: 18, paddingVertical: 11, borderRadius: 999, marginTop: 6 },
-  emptyBtnTxt: { fontSize: 13, fontWeight: '800', color: '#fff' },
+  emptyTitle: { fontSize: 17, fontWeight: '900', color: c.text.primary },
+  emptySub: { fontSize: 13, fontWeight: '600', color: c.text.muted, textAlign: 'center', lineHeight: 18 },
+  emptyBtn: { flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: c.accent.brand, paddingHorizontal: 20, paddingVertical: 12, borderRadius: 999, marginTop: 8 },
+  emptyBtnTxt: { fontSize: 13, fontWeight: '800', color: c.bg.elevated },
 
   // Grid
   grid: { flexDirection: 'row', flexWrap: 'wrap', gap: 12 },
-  goalCard: { width: '47.5%', backgroundColor: '#fff', borderRadius: 18, padding: 14, alignItems: 'center', borderWidth: 1, borderColor: '#F3F4F6', shadowColor: '#000', shadowOpacity: 0.06, shadowRadius: 6, shadowOffset: { width: 0, height: 2 }, elevation: 2 },
+  goalCard: { width: '47.5%', backgroundColor: c.bg.elevated, borderRadius: 20, padding: 16, alignItems: 'center', borderWidth: 1, borderColor: c.gray[100], shadowColor: c.shadow.primary, shadowOpacity: 1, shadowRadius: 8, shadowOffset: { width: 0, height: 2 }, elevation: 2 },
   ringWrap: { position: 'relative', alignItems: 'center', justifyContent: 'center' },
   ringCenter: { position: 'absolute' },
   ringEmoji: { fontSize: 32 },
-  doneBadge: { position: 'absolute', top: -2, right: -4, width: 22, height: 22, borderRadius: 11, backgroundColor: '#10B981', alignItems: 'center', justifyContent: 'center', borderWidth: 2, borderColor: '#fff' },
-  goalName: { fontSize: 14, fontWeight: '900', color: '#111827', marginTop: 8 },
-  goalAmt: { fontSize: 17, fontWeight: '900', color: '#111827', marginTop: 4, letterSpacing: -0.3 },
-  goalTarget: { fontSize: 10.5, fontWeight: '700', color: '#6B7280', marginTop: 1 },
-  linkedChip: { flexDirection: 'row', alignItems: 'center', gap: 3, marginTop: 6, paddingHorizontal: 7, paddingVertical: 2, borderRadius: 999, backgroundColor: '#D1FAE5' },
+  doneBadge: { position: 'absolute', top: 0, right: -4, width: 24, height: 24, borderRadius: 12, backgroundColor: c.state.success, alignItems: 'center', justifyContent: 'center', borderWidth: 2, borderColor: c.bg.elevated },
+  goalName: { fontSize: 14, fontWeight: '900', color: c.text.primary, marginTop: 8 },
+  goalAmt: { fontSize: 17, fontWeight: '900', color: c.text.primary, marginTop: 4, letterSpacing: -0.3 },
+  goalTarget: { fontSize: 11, fontWeight: '700', color: c.text.muted, marginTop: 0 },
+  linkedChip: { flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 8, paddingHorizontal: 8, paddingVertical: 4, borderRadius: 999, backgroundColor: '#D1FAE5' },
   linkedChipTxt: { fontSize: 9, fontWeight: '800', color: '#065F46' },
   goalActions: { flexDirection: 'row', gap: 8, marginTop: 8 },
-  goalAct: { width: 26, height: 26, borderRadius: 13, alignItems: 'center', justifyContent: 'center', backgroundColor: '#F9FAFB' },
+  goalAct: { width: 28, height: 28, borderRadius: 16, alignItems: 'center', justifyContent: 'center', backgroundColor: c.gray[50] },
 
   // Sheet
   sheetBg: { flex: 1, justifyContent: 'flex-end', backgroundColor: 'rgba(0,0,0,0.5)' },
   sheetBgTap: { ...StyleSheet.absoluteFillObject },
-  sheet: { backgroundColor: '#fff', borderTopLeftRadius: 28, borderTopRightRadius: 28, padding: 20, maxHeight: '88%' },
-  sheetHandle: { width: 40, height: 4, borderRadius: 2, backgroundColor: '#D1D5DB', alignSelf: 'center', marginBottom: 14 },
-  sheetTitle: { fontSize: 19, fontWeight: '900', color: '#111827', marginBottom: 14 },
-  fieldLbl: { fontSize: 11, fontWeight: '900', color: '#6B7280', letterSpacing: 0.5, textTransform: 'uppercase', marginBottom: 6, marginTop: 10 },
-  input: { backgroundColor: '#F9FAFB', borderWidth: 1, borderColor: '#E5E7EB', borderRadius: 12, paddingHorizontal: 14, paddingVertical: 12, fontSize: 14, color: '#111827' },
-  emojiRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 6 },
-  emojiBtn: { width: 42, height: 42, borderRadius: 12, alignItems: 'center', justifyContent: 'center', backgroundColor: '#F9FAFB', borderWidth: 2, borderColor: 'transparent' },
-  emojiBtnOn: { borderColor: '#F56E1E', backgroundColor: '#FFF7ED' },
+  sheet: { backgroundColor: c.bg.elevated, borderTopLeftRadius: 28, borderTopRightRadius: 28, padding: 20, maxHeight: '88%' },
+  sheetHandle: { width: 40, height: 4, borderRadius: 4, backgroundColor: c.gray[300], alignSelf: 'center', marginBottom: 16 },
+  sheetTitle: { fontSize: 20, fontWeight: '900', color: c.text.primary, marginBottom: 16 },
+  fieldLbl: { fontSize: 11, fontWeight: '900', color: c.text.muted, letterSpacing: 0.5, textTransform: 'uppercase', marginBottom: 8, marginTop: 12 },
+  input: { backgroundColor: c.gray[50], borderWidth: 1, borderColor: c.gray[200], borderRadius: 12, paddingHorizontal: 16, paddingVertical: 12, fontSize: 15, color: c.text.primary },
+  emojiRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
+  emojiBtn: { width: 44, height: 44, borderRadius: 12, alignItems: 'center', justifyContent: 'center', backgroundColor: c.gray[50], borderWidth: 2, borderColor: 'transparent' },
+  emojiBtnOn: { borderColor: c.accent.brand, backgroundColor: c.accent.brandSoft },
   colorRow: { flexDirection: 'row', gap: 8, flexWrap: 'wrap' },
-  colorBtn: { width: 38, height: 38, borderRadius: 19, borderWidth: 3, borderColor: 'transparent' },
-  colorBtnOn: { borderColor: '#111827' },
-  saveBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, backgroundColor: '#F56E1E', paddingVertical: 14, borderRadius: 999, marginTop: 16 },
-  saveBtnTxt: { fontSize: 14, fontWeight: '900', color: '#fff' },
-});
+  colorBtn: { width: 40, height: 40, borderRadius: 20, borderWidth: 3, borderColor: 'transparent' },
+  colorBtnOn: { borderColor: c.text.primary },
+  saveBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, backgroundColor: c.accent.brand, paddingVertical: 16, borderRadius: 999, marginTop: 16 },
+  saveBtnTxt: { fontSize: 14, fontWeight: '900', color: c.bg.elevated },
+}));

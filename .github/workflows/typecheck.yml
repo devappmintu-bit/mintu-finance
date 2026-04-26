@@ -1,0 +1,45 @@
+name: TypeScript Strict
+
+# Round 49 guard: block any PR that re-introduces TypeScript errors.
+# Mirrors /app/scripts/pre-commit-typecheck.sh which runs locally.
+#
+# After we drove the error count from 2228 → 0 via the makeStyles.ts
+# structural fix, this workflow ensures the clean state is permanent.
+
+on:
+  push:
+    branches: [main, master]
+  pull_request:
+    branches: [main, master]
+  workflow_dispatch:
+
+jobs:
+  typecheck:
+    name: tsc --noEmit (frontend)
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'yarn'
+          cache-dependency-path: frontend/yarn.lock
+
+      - name: Install dependencies (frontend)
+        working-directory: frontend
+        run: yarn install --frozen-lockfile --prefer-offline
+
+      - name: Run tsc --noEmit
+        working-directory: frontend
+        run: yarn typecheck
+
+      - name: Annotate failure
+        if: failure()
+        run: |
+          echo "::error::TypeScript errors detected. Fix locally with: cd frontend && yarn typecheck"
+          echo "::notice::Round 49 baseline: 0 errors. Any new error indicates a regression."

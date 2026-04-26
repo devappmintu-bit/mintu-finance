@@ -5,12 +5,19 @@
  *   • Incomplete: progress bar + emoji + title + reward badge.
  *   • Complete (not claimed): pulsing "Claim" button.
  *   • Claimed: muted with ✓ badge.
+ *
+ * Round 50 — migrated to makeStyles + useAppColors. Status-driven
+ * progress gradients (orange/green/gray) are semantic and stay literal
+ * because each represents a state that must read consistently in
+ * light + dark themes ("green = complete" everywhere).
  */
 import React, { useEffect, useRef } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Animated, Easing, Platform } from 'react-native';
+import { View, Text, TouchableOpacity, Animated, Easing, Platform } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
+import { makeStyles } from '../../utils/makeStyles';
+import { useAppColors } from '../../utils/theme';
 
 type Mission = {
   id: string;
@@ -31,7 +38,15 @@ type Props = {
   submitting?: boolean;
 };
 
+// Status-driven gradients — semantic, theme-independent
+const PROG_GRAD_INCOMPLETE: readonly [string, string] = ['#F59E0B', '#F56E1E'];
+const PROG_GRAD_COMPLETE:   readonly [string, string] = ['#10B981', '#059669'];
+const PROG_GRAD_CLAIMED:    readonly [string, string] = ['#D1D5DB', '#9CA3AF'];
+const CLAIM_BTN_GRAD:       readonly [string, string] = ['#10B981', '#059669'];
+
 export default function MissionCard({ mission, onClaim, submitting }: Props) {
+  const s = useStyles();
+  const c = useAppColors();
   const pulse = useRef(new Animated.Value(1)).current;
 
   useEffect(() => {
@@ -39,7 +54,7 @@ export default function MissionCard({ mission, onClaim, submitting }: Props) {
     const loop = Animated.loop(
       Animated.sequence([
         Animated.timing(pulse, { toValue: 1.06, duration: 700, easing: Easing.inOut(Easing.quad), useNativeDriver: true }),
-        Animated.timing(pulse, { toValue: 1, duration: 700, easing: Easing.inOut(Easing.quad), useNativeDriver: true }),
+        Animated.timing(pulse, { toValue: 1,    duration: 700, easing: Easing.inOut(Easing.quad), useNativeDriver: true }),
       ])
     );
     loop.start();
@@ -47,23 +62,24 @@ export default function MissionCard({ mission, onClaim, submitting }: Props) {
   }, [mission.completed, mission.claimed, pulse]);
 
   const handle = () => {
-    if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium).catch(() => {});
+    if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium).catch(() => { /* noop */ });
     onClaim && onClaim(mission.id);
   };
 
   const isClaimable = mission.completed && !mission.claimed;
+  const progGradient = mission.claimed ? PROG_GRAD_CLAIMED : mission.completed ? PROG_GRAD_COMPLETE : PROG_GRAD_INCOMPLETE;
 
   return (
     <View style={[s.card, mission.claimed && s.cardClaimed]}>
-      <View style={[s.emojiPill, mission.claimed && { backgroundColor: '#E5E7EB' }]}>
+      <View style={[s.emojiPill, mission.claimed && { backgroundColor: c.gray[200] }]}>
         <Text style={s.emoji}>{mission.emoji}</Text>
       </View>
       <View style={{ flex: 1 }}>
-        <Text style={[s.title, mission.claimed && { color: '#9CA3AF' }]} numberOfLines={1}>{mission.title}</Text>
+        <Text style={[s.title, mission.claimed && { color: c.gray[400] }]} numberOfLines={1}>{mission.title}</Text>
         <View style={s.metaRow}>
           <View style={s.track}>
             <LinearGradient
-              colors={mission.claimed ? ['#D1D5DB', '#9CA3AF'] : mission.completed ? ['#10B981', '#059669'] : ['#F59E0B', '#F56E1E']}
+              colors={progGradient}
               start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }}
               style={[s.fill, { width: `${Math.max(2, mission.progress_pct)}%` }]}
             />
@@ -76,26 +92,26 @@ export default function MissionCard({ mission, onClaim, submitting }: Props) {
           <View style={s.rewardChip}>
             <Text style={s.rewardTxt}>🪙 +{mission.reward_coins}</Text>
           </View>
-          <View style={[s.rewardChip, { backgroundColor: '#EDE9FE' }]}>
-            <Text style={[s.rewardTxt, { color: '#6D28D9' }]}>⭐ +{mission.reward_xp} XP</Text>
+          <View style={s.rewardChipPurple}>
+            <Text style={s.rewardTxtPurple}>⭐ +{mission.reward_xp} XP</Text>
           </View>
         </View>
       </View>
       <View style={s.cta}>
         {mission.claimed ? (
-          <View style={[s.btn, { backgroundColor: '#E5E7EB' }]}>
-            <Ionicons name="checkmark" size={18} color="#9CA3AF" />
+          <View style={s.btnMuted}>
+            <Ionicons name="checkmark" size={20} color={c.gray[400]} />
           </View>
         ) : isClaimable ? (
           <Animated.View style={{ transform: [{ scale: pulse }] }}>
             <TouchableOpacity onPress={handle} disabled={submitting} activeOpacity={0.85} testID={`claim-${mission.id}`}>
-              <LinearGradient colors={['#10B981', '#059669']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={s.claimBtn}>
+              <LinearGradient colors={CLAIM_BTN_GRAD} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={s.claimBtn}>
                 <Text style={s.claimTxt}>{submitting ? '…' : 'Claim'}</Text>
               </LinearGradient>
             </TouchableOpacity>
           </Animated.View>
         ) : (
-          <View style={[s.btn, { backgroundColor: '#F3F4F6' }]}>
+          <View style={s.btnFaint}>
             <Text style={s.pendingTxt}>{Math.max(0, mission.target - mission.progress)}</Text>
           </View>
         )}
@@ -104,22 +120,25 @@ export default function MissionCard({ mission, onClaim, submitting }: Props) {
   );
 }
 
-const s = StyleSheet.create({
-  card: { flexDirection: 'row', alignItems: 'center', gap: 10, padding: 12, backgroundColor: '#fff', borderRadius: 16, borderWidth: 1, borderColor: '#F3F4F6' },
+const useStyles = makeStyles((c) => ({
+  card: { flexDirection: 'row', alignItems: 'center', gap: 12, padding: 12, backgroundColor: c.bg.elevated, borderRadius: 16, borderWidth: 1, borderColor: c.gray[100] },
   cardClaimed: { opacity: 0.55 },
-  emojiPill: { width: 42, height: 42, borderRadius: 14, backgroundColor: '#FEF3C7', alignItems: 'center', justifyContent: 'center' },
-  emoji: { fontSize: 22 },
-  title: { fontSize: 13, fontWeight: '800', color: '#111827' },
-  metaRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 6 },
-  track: { flex: 1, height: 4, borderRadius: 2, backgroundColor: '#F3F4F6', overflow: 'hidden' },
-  fill: { height: '100%', borderRadius: 2 },
-  progTxt: { fontSize: 10, fontWeight: '900', color: '#6B7280', minWidth: 28, textAlign: 'right' },
-  rewardRow: { flexDirection: 'row', gap: 6, marginTop: 6 },
-  rewardChip: { paddingHorizontal: 7, paddingVertical: 2, borderRadius: 999, backgroundColor: '#FEF3C7' },
-  rewardTxt: { fontSize: 9.5, fontWeight: '800', color: '#92400E' },
+  emojiPill: { width: 44, height: 44, borderRadius: 16, backgroundColor: '#FEF3C7', alignItems: 'center', justifyContent: 'center' },
+  emoji: { fontSize: 24 },
+  title: { fontSize: 13, fontWeight: '800', color: c.text.primary },
+  metaRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 4 },
+  track: { flex: 1, height: 4, borderRadius: 4, backgroundColor: c.gray[100], overflow: 'hidden' },
+  fill: { height: '100%', borderRadius: 4 },
+  progTxt: { fontSize: 11, fontWeight: '900', color: c.text.muted, minWidth: 28, textAlign: 'right' },
+  rewardRow: { flexDirection: 'row', gap: 8, marginTop: 4 },
+  rewardChip: { paddingHorizontal: 8, paddingVertical: 4, borderRadius: 999, backgroundColor: '#FEF3C7' },
+  rewardChipPurple: { paddingHorizontal: 8, paddingVertical: 4, borderRadius: 999, backgroundColor: '#EDE9FE' },
+  rewardTxt: { fontSize: 11, fontWeight: '800', color: '#92400E' },
+  rewardTxtPurple: { fontSize: 11, fontWeight: '800', color: '#6D28D9' },
   cta: { alignItems: 'center', justifyContent: 'center', marginLeft: 4 },
-  btn: { width: 42, height: 42, borderRadius: 14, alignItems: 'center', justifyContent: 'center' },
-  pendingTxt: { fontSize: 13, fontWeight: '900', color: '#9CA3AF' },
-  claimBtn: { paddingHorizontal: 14, paddingVertical: 10, borderRadius: 14, shadowColor: '#10B981', shadowOpacity: 0.35, shadowRadius: 8, shadowOffset: { width: 0, height: 4 }, elevation: 3 },
-  claimTxt: { fontSize: 12, fontWeight: '900', color: '#fff', letterSpacing: 0.4 },
-});
+  btnMuted: { width: 44, height: 44, borderRadius: 16, alignItems: 'center', justifyContent: 'center', backgroundColor: c.gray[200] },
+  btnFaint: { width: 44, height: 44, borderRadius: 16, alignItems: 'center', justifyContent: 'center', backgroundColor: c.gray[100] },
+  pendingTxt: { fontSize: 13, fontWeight: '900', color: c.gray[400] },
+  claimBtn: { paddingHorizontal: 16, paddingVertical: 12, borderRadius: 16, shadowColor: '#10B981', shadowOpacity: 0.35, shadowRadius: 8, shadowOffset: { width: 0, height: 4 }, elevation: 3 },
+  claimTxt: { fontSize: 12, fontWeight: '900', color: '#FFFFFF', letterSpacing: 0.4 },
+}));

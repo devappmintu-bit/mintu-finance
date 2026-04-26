@@ -3,12 +3,17 @@
  *
  * Renders active events (Weekend Mega Spin / Double Rewards Hour) with
  * an animated countdown chip. Always shows Mystery Box teaser last.
+ *
+ * Round 50 — migrated to makeStyles. Per-event gradient stays driven
+ * by `ev.color` from the backend (each event has its own brand color).
+ * White-on-gradient text stays literal (correct for both themes).
  */
 import React, { useEffect, useState } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, ScrollView } from 'react-native';
+import { View, Text, TouchableOpacity, ScrollView } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
+import { makeStyles } from '../../utils/makeStyles';
 
 type Event = {
   id: string;
@@ -19,6 +24,11 @@ type Event = {
   ends_in_seconds: number | null;
   cta: string;
 };
+
+const ON_BRAND = '#FFFFFF';
+const ON_BRAND_SOFT = 'rgba(255,255,255,0.9)';
+const SCRIM_LIGHT = 'rgba(255,255,255,0.22)';
+const SCRIM_DARK = 'rgba(0,0,0,0.24)';
 
 function fmtCountdown(sec: number): string {
   if (sec <= 0) return '0s';
@@ -31,6 +41,7 @@ function fmtCountdown(sec: number): string {
 }
 
 export default function EventsBanner({ events, onPress }: { events: Event[]; onPress?: (e: Event) => void }) {
+  const s = useStyles();
   const [, tick] = useState(0);
   useEffect(() => {
     const hasTimer = events.some(e => typeof e.ends_in_seconds === 'number');
@@ -42,7 +53,7 @@ export default function EventsBanner({ events, onPress }: { events: Event[]; onP
   if (!events?.length) return null;
 
   return (
-    <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 10, paddingHorizontal: 16 }}>
+    <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 12, paddingHorizontal: 16 }}>
       {events.map((ev) => {
         const remaining = typeof ev.ends_in_seconds === 'number'
           ? Math.max(0, ev.ends_in_seconds - Math.floor((Date.now() - evMountedAt) / 1000))
@@ -52,7 +63,7 @@ export default function EventsBanner({ events, onPress }: { events: Event[]; onP
           <TouchableOpacity
             key={ev.id}
             activeOpacity={0.9}
-            onPress={() => { try { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); } catch {} onPress && onPress(ev); }}
+            onPress={() => { try { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); } catch { /* noop */ } onPress && onPress(ev); }}
             testID={`event-${ev.id}`}
           >
             <LinearGradient colors={[ev.color, shade(ev.color, -0.25)]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={s.card}>
@@ -67,13 +78,13 @@ export default function EventsBanner({ events, onPress }: { events: Event[]; onP
               <View style={s.footer}>
                 {remaining != null && (
                   <View style={s.countdown}>
-                    <Ionicons name="timer" size={11} color="#fff" />
+                    <Ionicons name="timer" size={12} color={ON_BRAND} />
                     <Text style={s.countdownTxt}>{fmtCountdown(remaining)}</Text>
                   </View>
                 )}
                 <View style={s.ctaPill}>
                   <Text style={s.ctaTxt}>{ev.cta}</Text>
-                  <Ionicons name="arrow-forward" size={11} color="#fff" />
+                  <Ionicons name="arrow-forward" size={12} color={ON_BRAND} />
                 </View>
               </View>
             </LinearGradient>
@@ -97,16 +108,16 @@ function shade(hex: string, pct: number) {
   } catch { return hex; }
 }
 
-const s = StyleSheet.create({
-  card: { width: 240, padding: 12, borderRadius: 16, gap: 10, overflow: 'hidden', position: 'relative', shadowColor: '#000', shadowOpacity: 0.12, shadowRadius: 8, shadowOffset: { width: 0, height: 4 }, elevation: 3 },
-  blob: { position: 'absolute', top: -30, right: -30, width: 100, height: 100, borderRadius: 50, backgroundColor: 'rgba(255,255,255,0.14)' },
-  row: { flexDirection: 'row', alignItems: 'center', gap: 10 },
-  emoji: { fontSize: 30 },
-  title: { fontSize: 12.5, fontWeight: '900', color: '#fff', letterSpacing: 0.8 },
-  sub: { fontSize: 11, fontWeight: '700', color: 'rgba(255,255,255,0.9)', marginTop: 1 },
+const useStyles = makeStyles((c) => ({
+  card: { width: 240, padding: 12, borderRadius: 16, gap: 12, overflow: 'hidden', position: 'relative', shadowColor: c.shadow.medium, shadowOpacity: 1, shadowRadius: 8, shadowOffset: { width: 0, height: 4 }, elevation: 3 },
+  blob: { position: 'absolute', top: -32, right: -32, width: 100, height: 100, borderRadius: 52, backgroundColor: 'rgba(255,255,255,0.14)' },
+  row: { flexDirection: 'row', alignItems: 'center', gap: 12 },
+  emoji: { fontSize: 28 },
+  title: { fontSize: 13, fontWeight: '900', color: ON_BRAND, letterSpacing: 0.8 },
+  sub: { fontSize: 11, fontWeight: '700', color: ON_BRAND_SOFT, marginTop: 0 },
   footer: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-  countdown: { flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: 7, paddingVertical: 3, borderRadius: 999, backgroundColor: 'rgba(0,0,0,0.22)' },
-  countdownTxt: { fontSize: 10.5, fontWeight: '900', color: '#fff', letterSpacing: 0.2 },
-  ctaPill: { flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: 10, paddingVertical: 4, borderRadius: 999, backgroundColor: 'rgba(255,255,255,0.22)' },
-  ctaTxt: { fontSize: 11, fontWeight: '900', color: '#fff', letterSpacing: 0.2 },
-});
+  countdown: { flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: 8, paddingVertical: 4, borderRadius: 999, backgroundColor: SCRIM_DARK },
+  countdownTxt: { fontSize: 11, fontWeight: '900', color: ON_BRAND, letterSpacing: 0.2 },
+  ctaPill: { flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: 12, paddingVertical: 4, borderRadius: 999, backgroundColor: SCRIM_LIGHT },
+  ctaTxt: { fontSize: 11, fontWeight: '900', color: ON_BRAND, letterSpacing: 0.2 },
+}));

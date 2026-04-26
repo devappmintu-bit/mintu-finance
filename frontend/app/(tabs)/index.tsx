@@ -312,7 +312,8 @@ function HomeScreen() {
                 </View>
               )}
             </View>
-            <View style={styles.avatarBadge}><Ionicons name="settings-sharp" size={10} color="#fff" /></View>
+            {/* Settings badge — white icon on saturated brand bg (theme-invariant per Round 50 audit). */}
+            <View style={styles.avatarBadge}><Ionicons name="settings-sharp" size={10} color="#FFFFFF" /></View>
           </TapTile>
         </View>
 
@@ -439,7 +440,7 @@ const useStyles = makeStyles((c) => ({
     borderRadius: 9, backgroundColor: c.state.danger, alignItems: 'center', justifyContent: 'center',
     borderWidth: 2, borderColor: c.bg.primary,
   },
-  badgeTxt: { fontSize: 10, fontWeight: '900', color: '#fff' },
+  badgeTxt: { fontSize: 10, fontWeight: '900', color: c.bg.elevated },
 
   // Sections
   section: { marginBottom: SPACING.md },

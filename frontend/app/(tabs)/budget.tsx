@@ -13,7 +13,7 @@ import {
   fetchBudgets as fetchBudgetsSrv, fetchLiveBudgets, fetchBudgetSuggestions,
   createBudget, updateBudget, deleteBudget,
 } from '../../services/budgets';
-import { COLORS, RADIUS, SPACING, CATEGORIES, CATEGORY_LIST, SHADOW } from '../../utils/theme';
+import { COLORS, RADIUS, SPACING, CATEGORIES, CATEGORY_LIST, SHADOW, useAppColors } from '../../utils/theme';
 import { makeStyles } from '../../utils/makeStyles';
 import PressableGlass from '../../components/PressableGlass';
 import BudgetCard from '../../components/budget/BudgetCard';
@@ -39,6 +39,7 @@ const PERIODS = ['daily', 'weekly', 'monthly'];
 
 function BudgetScreen() {
   const s = useStyles();
+  const c = useAppColors();
   const { lang } = useLangStore();
   const [budgets, setBudgets] = useState<any[]>([]);
   const [suggestions, setSuggestions] = useState<any>(null);
@@ -293,7 +294,7 @@ function BudgetScreen() {
             {suggestions?.suggestions?.length > 0 && (
               <View style={s.suggestCard}>
                 <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 6 }}>
-                  <Ionicons name="bulb" size={16} color="#F59E0B" />
+                  <Ionicons name="bulb" size={16} color={c.accent.secondary} />
                   <Text style={s.suggestTitle}>{t('ai_suggestions', lang)}</Text>
                 </View>
                 <Text style={s.suggestMsg}>{suggestions.message}</Text>
@@ -304,7 +305,8 @@ function BudgetScreen() {
                   </View>
                 ))}
                 <TouchableOpacity style={s.applyBtn} onPress={applySmartBudgets}>
-                  <Ionicons name="sparkles" size={14} color="#fff" />
+                  {/* Sparkles icon — white-on-saturated-brand-bg (theme-invariant per Round 50 audit). */}
+                  <Ionicons name="sparkles" size={14} color="#FFFFFF" />
                   <Text style={s.applyText}>{t('auto_apply', lang)}</Text>
                 </TouchableOpacity>
               </View>
@@ -413,18 +415,18 @@ const useStyles = makeStyles((c) => ({
   overText: { fontSize: 12, fontWeight: '600', color: c.accent.moneyOut },
   // AI Suggest — dark glass
   suggestCard: { backgroundColor: 'rgba(255,176,32,0.1)', borderRadius: RADIUS.card, padding: SPACING.lg, marginBottom: SPACING.lg, borderWidth: 1, borderColor: 'rgba(255,176,32,0.35)' },
-  suggestTitle: { fontSize: 14, fontWeight: '800', color: '#FFB547' },
+  suggestTitle: { fontSize: 14, fontWeight: '800', color: c.accent.secondary },
   suggestMsg: { fontSize: 12, color: c.text.secondary, marginBottom: 10 },
   suggestRow: { flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 8, borderTopWidth: 1, borderTopColor: 'rgba(255,176,32,0.25)' },
   suggestCat: { fontSize: 14, fontWeight: '600', color: c.text.primary },
   suggestSave: { fontSize: 13, fontWeight: '700', color: c.accent.moneyIn },
   applyBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, backgroundColor: c.accent.primary, paddingVertical: 12, borderRadius: RADIUS.full, marginTop: 10 },
-  applyText: { fontSize: 14, fontWeight: '700', color: '#fff' },
+  applyText: { fontSize: 14, fontWeight: '700', color: c.bg.elevated },
   // Empty
   empty: { alignItems: 'center', paddingVertical: 60 },
   emptyTitle: { fontSize: 16, fontWeight: '600', color: c.text.muted, marginTop: 12 },
   emptyBtn: { backgroundColor: c.accent.primary, paddingHorizontal: 24, paddingVertical: 12, borderRadius: RADIUS.full, marginTop: 16 },
-  emptyBtnText: { fontSize: 14, fontWeight: '600', color: '#fff' },
+  emptyBtnText: { fontSize: 14, fontWeight: '600', color: c.bg.elevated },
   // Modal — dark sheet
   mBg: { flex: 1, justifyContent: 'flex-end', backgroundColor: 'rgba(0,0,0,0.75)' },
   sheet: { backgroundColor: c.bg.elevated, borderTopLeftRadius: 28, borderTopRightRadius: 28, padding: 24, maxHeight: '88%', borderTopWidth: 1, borderColor: 'rgba(255,255,255,0.08)' },
@@ -440,7 +442,7 @@ const useStyles = makeStyles((c) => ({
   rupee: { fontSize: 24, fontWeight: '700', color: c.accent.primary, marginRight: 8 },
   amtInput: { flex: 1, fontSize: 28, fontWeight: '700', color: c.text.primary, paddingVertical: 16 },
   saveBtn: { backgroundColor: c.accent.primary, borderRadius: RADIUS.full, paddingVertical: 18, alignItems: 'center' },
-  saveBtnText: { fontSize: 16, fontWeight: '700', color: '#fff' },
+  saveBtnText: { fontSize: 16, fontWeight: '700', color: c.bg.elevated },
   // Bar-style category rows — dark glass
   barRow: {
     flexDirection: 'row', alignItems: 'center', padding: 14, borderRadius: 16,
@@ -464,7 +466,7 @@ const useStyles = makeStyles((c) => ({
   recurringSub: { fontSize: 11, color: c.text.muted, marginTop: 2 },
   toggle: { width: 42, height: 24, borderRadius: 12, backgroundColor: 'rgba(255,255,255,0.12)', padding: 2, justifyContent: 'center' },
   toggleOn: { backgroundColor: c.accent.primary },
-  toggleKnob: { width: 20, height: 20, borderRadius: 10, backgroundColor: '#fff' },
+  toggleKnob: { width: 20, height: 20, borderRadius: 10, backgroundColor: c.bg.elevated },
   toggleKnobOn: { alignSelf: 'flex-end' },
   // Other-category description box — dark glass orange
   otherDescBox: { backgroundColor: 'rgba(255,107,26,0.1)', borderRadius: 14, padding: 12, borderWidth: 1, borderColor: 'rgba(255,107,26,0.3)', marginBottom: 16 },

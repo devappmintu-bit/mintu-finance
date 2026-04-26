@@ -31,6 +31,7 @@ const LIGHT_PALETTE = {
   accent: {
     primary:      '#E84A0C',     // Neon orange, slightly deeper for light-bg contrast
     primaryLight: '#FF6B1A',
+    primaryDark:  '#B83A05',     // Round 50 — pressed/dark variant of primary (was hardcoded #C14A06 in 77 places)
     secondary:    '#F59E0B',     // Saffron
     tertiary:     '#A21CAF',     // Premium magenta
     moneyIn:      '#059669',     // Emerald
@@ -42,6 +43,7 @@ const LIGHT_PALETTE = {
     brand:        '#F56E1E',     // Bright orange — splash / onboarding CTA
     brandDark:    '#C14A06',     // Deep orange — pressed / active state
     brandDeeper:  '#E65100',     // Indigo-orange accent
+    brandSoft:    '#FFF7ED',     // Round 50 — warm-orange tint bg (was hardcoded in 26 places)
   },
   text: {
     primary:   '#111827',        // Near-black
@@ -54,6 +56,16 @@ const LIGHT_PALETTE = {
     subtle: 'rgba(17,24,39,0.08)',
     focus:  '#E84A0C',
     card:   'rgba(17,24,39,0.08)',
+  },
+  // Round 50 — explicit shadow + skeleton tokens (light)
+  shadow: {
+    primary: 'rgba(17,24,39,0.08)',  // light shadow on white card
+    medium:  'rgba(17,24,39,0.12)',
+    strong:  'rgba(17,24,39,0.18)',
+  },
+  skeleton: {
+    bg:      '#F3F4F6',
+    shimmer: '#FFFFFF',
   },
   state: {
     success:       '#059669',
@@ -205,11 +217,17 @@ export const COLORS = {
   accent: {
     primary:      '#FF6B1A',     // Neon Orange — hero accent
     primaryLight: '#FF8C42',     // Saffron highlight
+    primaryDark:  '#E55A0F',     // Round 50 — pressed/dark variant
     secondary:    '#FFB547',     // Marigold glow
     tertiary:     '#C026D3',     // Premium Magenta
     moneyIn:      '#10E0A0',     // Neon Green (credits)
     moneyOut:     '#FF5470',     // Neon Pink-Red (debits)
     warning:      '#FFB020',     // Amber
+    // Round 50 — brand parity with light palette
+    brand:        '#FF6B1A',     // dark-mode brand (slightly hotter)
+    brandDark:    '#E55A0F',     // pressed
+    brandDeeper:  '#C14A06',     // deepest variant
+    brandSoft:    'rgba(255,107,26,0.12)', // warm-orange tint bg on dark
   },
   text: {
     primary:   '#F5F5F7',        // Near-white (high contrast on dark bg)
@@ -250,6 +268,16 @@ export const COLORS = {
     700: '#374151',
     800: '#1F2937',
     900: '#111827',
+  },
+  // Round 50 — explicit shadow + skeleton tokens (dark)
+  shadow: {
+    primary: 'rgba(0,0,0,0.40)',
+    medium:  'rgba(0,0,0,0.55)',
+    strong:  'rgba(0,0,0,0.70)',
+  },
+  skeleton: {
+    bg:      '#1A1A24',
+    shimmer: '#26262F',
   },
 };
 
@@ -381,6 +409,50 @@ export const FONT = {
   overline: { fontSize: 11, fontFamily: FONT_FAMILY.bold,     letterSpacing: 1.5, textTransform: 'uppercase' as const },
   // Big-number display (balances, coin counts)
   display:  { fontSize: 44, fontFamily: FONT_FAMILY.black,    letterSpacing: -1.2 },
+};
+
+// ══════════════════════════════════════════════════════════════════════
+//  TYPE — canonical 8-step type scale (Round 50)
+//  Use as fontSize values. lineHeight derived as 1.4× for body / 1.2× for headings.
+//  letterSpacing per the audit spec: headings -0.5, labels 0.2, body 0.
+// ══════════════════════════════════════════════════════════════════════
+export const TYPE = {
+  xs:   11,
+  sm:   13,
+  base: 15,
+  md:   17,
+  lg:   20,
+  xl:   24,
+  xl2:  28,    // alias for "2xl" (TS-safe key)
+  xl3:  34,    // alias for "3xl"
+} as const;
+
+export const LINE_HEIGHT = {
+  xs:   16,
+  sm:   18,
+  base: 22,
+  md:   24,
+  lg:   26,
+  xl:   30,
+  xl2:  34,
+  xl3:  40,
+} as const;
+
+export const LETTER = {
+  heading: -0.5,
+  body:     0,
+  label:    0.2,
+} as const;
+
+// ══════════════════════════════════════════════════════════════════════
+//  WEIGHT — canonical font weights (Round 50)
+// ══════════════════════════════════════════════════════════════════════
+export const WEIGHT = {
+  regular:  '400' as const,
+  medium:   '500' as const,
+  semibold: '600' as const,
+  bold:     '700' as const,
+  black:    '900' as const,
 };
 
 // ══════════════════════════════════════════════════════════════════════

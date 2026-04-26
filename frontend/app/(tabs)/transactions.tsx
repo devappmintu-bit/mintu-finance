@@ -10,7 +10,7 @@ import api from '../../utils/api';
 import { format } from 'date-fns';
 import { useLangStore } from '../../store/langStore';
 import { t, type LangCode } from '../../utils/i18n';
-import { COLORS, RADIUS, SPACING, CATEGORIES, CATEGORY_LIST, SHADOW, shadowStyle } from '../../utils/theme';
+import { COLORS, RADIUS, SPACING, CATEGORIES, CATEGORY_LIST, SHADOW, shadowStyle, useAppColors } from '../../utils/theme';
 import { makeStyles } from '../../utils/makeStyles';
 import { FlashList } from '@shopify/flash-list';
 import PressableGlass from '../../components/PressableGlass';
@@ -37,6 +37,7 @@ import { useIsOnline } from '../../hooks/useIsOnline';
 // Users can still open the edit modal by tapping the row itself.
 const TxnRow = memo(function TxnRow({ item, lang, onEdit, onDelete }: { item: any; lang: LangCode; onEdit: (t: any) => void; onDelete: (id: string) => void }) {
   const styles = useStyles();
+  const c = useAppColors();
   const cat = CATEGORIES[item.category] || CATEGORIES.Other;
   const isCash = item.source === 'cash' || item.source === 'cash_recurring';
   const isGmail = item.source === 'gmail';
@@ -54,7 +55,7 @@ const TxnRow = memo(function TxnRow({ item, lang, onEdit, onDelete }: { item: an
             <Text style={styles.txnDesc} numberOfLines={1}>{item.description}</Text>
             {isGmail && (
               <View style={styles.gmailBadge}>
-                <Ionicons name="mail" size={9} color="#C14A06" style={{ marginRight: 3 }} />
+                <Ionicons name="mail" size={9} color={c.accent.brandDark} style={{ marginRight: 3 }} />
                 <Text style={styles.gmailBadgeText}>Gmail</Text>
               </View>
             )}
@@ -74,6 +75,7 @@ const TxnRow = memo(function TxnRow({ item, lang, onEdit, onDelete }: { item: an
 
 function TransactionsScreen() {
   const styles = useStyles();
+  const c = useAppColors();
   const { lang } = useLangStore();
   const isOnline = useIsOnline();
   const params = useLocalSearchParams<{ openAdd?: string; openSmsScan?: string; type?: string }>();
@@ -354,9 +356,9 @@ function TransactionsScreen() {
                   <Text style={styles.reportTitle}>AI Expense Report</Text>
                 </View>
                 {waste.overall_trend_pct !== undefined && waste.prev_month_total > 0 && (
-                  <View style={[styles.trendRow, { backgroundColor: waste.overall_trend_pct > 0 ? '#FEF2F2' : '#F0FDF4' }]}>
-                    <Ionicons name={waste.overall_trend_pct > 0 ? 'trending-up' : 'trending-down'} size={14} color={waste.overall_trend_pct > 0 ? '#EF4444' : '#10B981'} />
-                    <Text style={{ fontSize: 12, fontWeight: '700', color: waste.overall_trend_pct > 0 ? '#EF4444' : '#10B981' }}>
+                  <View style={[styles.trendRow, { backgroundColor: waste.overall_trend_pct > 0 ? c.state.dangerBg : c.state.successBg }]}>
+                    <Ionicons name={waste.overall_trend_pct > 0 ? 'trending-up' : 'trending-down'} size={14} color={waste.overall_trend_pct > 0 ? c.state.danger : c.state.success} />
+                    <Text style={{ fontSize: 12, fontWeight: '700', color: waste.overall_trend_pct > 0 ? c.state.danger : c.state.success }}>
                       {Math.abs(waste.overall_trend_pct).toFixed(0)}% {waste.overall_trend_pct > 0 ? 'more' : 'less'} than last month
                     </Text>
                     <Text style={{ fontSize: 11, color: COLORS.text.muted, marginLeft: 'auto' }}>₹{waste.total_monthly_expense?.toLocaleString()}</Text>
@@ -365,11 +367,11 @@ function TransactionsScreen() {
                 {waste.category_waste?.slice(0, 3).map((w: any, i: number) => (
                   <View key={i} style={styles.insightRow}>
                     <Text style={{ fontSize: 13, fontWeight: '600', color: COLORS.text.primary }}>{w.shock_text}</Text>
-                    {w.peer_comparison?.text ? <Text style={{ fontSize: 11, color: '#9CA3AF', marginTop: 2 }}>👥 {w.peer_comparison.text}</Text> : null}
+                    {w.peer_comparison?.text ? <Text style={{ fontSize: 11, color: c.text.muted, marginTop: 2 }}>👥 {w.peer_comparison.text}</Text> : null}
                   </View>
                 ))}
                 <View style={styles.aiRecBox}>
-                  <Ionicons name="bulb" size={14} color="#F59E0B" />
+                  <Ionicons name="bulb" size={14} color={c.accent.secondary} />
                   <Text style={styles.aiRecTxt}>{waste.ai_recommendation}</Text>
                 </View>
               </View>
@@ -464,7 +466,7 @@ function TransactionsScreen() {
                   disabled={submitting}
                   activeOpacity={0.7}
                 >
-                  <Ionicons name="trash-outline" size={16} color="#DC2626" />
+                  <Ionicons name="trash-outline" size={16} color={c.state.danger} />
                   <Text style={styles.deleteSheetTxt}>{t('delete', lang) || 'Delete'} transaction</Text>
                 </TouchableOpacity>
               )}
@@ -558,8 +560,8 @@ const useStyles = makeStyles((c) => ({
   headerActions: { flexDirection: 'row', gap: 10 },
   addBtn: { width: 44, height: 44, borderRadius: 22, backgroundColor: c.accent.primary, justifyContent: 'center', alignItems: 'center', ...SHADOW.md },
   filterBtn: { width: 44, height: 44, borderRadius: 22, backgroundColor: 'rgba(255,107,26,0.14)', justifyContent: 'center', alignItems: 'center', borderWidth: 1, borderColor: 'rgba(255,107,26,0.4)', position: 'relative' },
-  filterBadge: { position: 'absolute', top: -2, right: -2, minWidth: 18, height: 18, borderRadius: 9, backgroundColor: '#F56E1E', alignItems: 'center', justifyContent: 'center', paddingHorizontal: 4, borderWidth: 2, borderColor: '#FAFAF9' },
-  filterBadgeTxt: { fontSize: 10, fontWeight: '800', color: '#fff' },
+  filterBadge: { position: 'absolute', top: -2, right: -2, minWidth: 18, height: 18, borderRadius: 9, backgroundColor: c.accent.brand, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 4, borderWidth: 2, borderColor: c.bg.primary },
+  filterBadgeTxt: { fontSize: 10, fontWeight: '800', color: c.bg.elevated },
   // Quick bar
   quickBar: { flexDirection: 'row', paddingHorizontal: SPACING.lg, marginBottom: SPACING.md, gap: 10 },
   quickInputWrap: { flex: 1, flexDirection: 'row', alignItems: 'center', backgroundColor: c.bg.card, borderRadius: RADIUS.full, paddingHorizontal: SPACING.lg, borderWidth: 1, borderColor: c.border.card },
@@ -574,7 +576,7 @@ const useStyles = makeStyles((c) => ({
   txnDesc: { fontSize: 15, fontWeight: '600', color: c.text.primary, flex: 1 },
   txnDescRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
   gmailBadge: { flexDirection: 'row', alignItems: 'center', backgroundColor: 'rgba(255,107,26,0.14)', borderColor: 'rgba(255,107,26,0.4)', borderWidth: 1, paddingHorizontal: 6, paddingVertical: 2, borderRadius: 6 },
-  gmailBadgeText: { fontSize: 9, fontWeight: '800', color: '#C14A06', letterSpacing: 0.3 },
+  gmailBadgeText: { fontSize: 9, fontWeight: '800', color: c.accent.brandDark, letterSpacing: 0.3 },
   txnMetaRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 3 },
   txnMeta: { fontSize: 12, color: c.text.muted },
   cashBadge: { backgroundColor: c.accent.warning + '20', paddingHorizontal: 8, paddingVertical: 2, borderRadius: 6 },
@@ -613,7 +615,7 @@ const useStyles = makeStyles((c) => ({
     borderRadius: RADIUS.full, borderWidth: 1, borderColor: 'rgba(220,38,38,0.4)',
     backgroundColor: 'rgba(220,38,38,0.08)',
   },
-  deleteSheetTxt: { fontSize: 14, fontWeight: '700', color: '#DC2626', letterSpacing: 0.2 },
+  deleteSheetTxt: { fontSize: 14, fontWeight: '700', color: c.state.danger, letterSpacing: 0.2 },
   smsBanner: { flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: c.accent.warning + '12', borderRadius: RADIUS.lg, padding: SPACING.md, marginBottom: SPACING.lg },
   smsBannerText: { fontSize: 13, color: c.accent.warning, fontWeight: '500' },
   smsInput: { backgroundColor: c.bg.primary, borderRadius: RADIUS.xl, padding: SPACING.lg, fontSize: 15, color: c.text.primary, borderWidth: 1, borderColor: c.border.subtle, minHeight: 120, marginBottom: SPACING.sm },
@@ -628,7 +630,7 @@ const useStyles = makeStyles((c) => ({
   trendRow: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 12, paddingVertical: 8, borderRadius: RADIUS.full, marginBottom: 10 },
   insightRow: { paddingVertical: 8, borderBottomWidth: 1, borderBottomColor: c.border.subtle },
   aiRecBox: { flexDirection: 'row', gap: 8, backgroundColor: 'rgba(255,176,32,0.12)', padding: 12, borderRadius: RADIUS.lg, marginTop: 10, borderWidth: 1, borderColor: 'rgba(255,176,32,0.4)' },
-  aiRecTxt: { flex: 1, fontSize: 12, fontWeight: '500', color: '#78716C', lineHeight: 18 },
+  aiRecTxt: { flex: 1, fontSize: 12, fontWeight: '500', color: c.text.muted, lineHeight: 18 },
 }));
 
 

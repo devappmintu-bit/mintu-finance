@@ -40,6 +40,7 @@ import * as Haptics from 'expo-haptics';
 import api from '../../utils/api';
 import { fetchGoals, createGoal, Goal } from '../../services/goals';
 import { useIsOnline } from '../../hooks/useIsOnline';
+import { makeStyles } from '../../utils/makeStyles';
 
 const CATEGORY_META: Record<string, { icon: string; color: string; emoji: string }> = {
   Food:           { icon: 'fast-food',       color: '#F56E1E', emoji: '🍔' },
@@ -104,6 +105,7 @@ function fmtCompact(n: number) {
 }
 
 export default function BudgetSmartSheet({ editing, currentSpent, onSubmit, onClose, submitting }: Props) {
+  const s = useStyles();
   const isOnline = useIsOnline();
   const [loading, setLoading] = useState(true);
   const [data, setData] = useState<{ monthly_income: number; categories: SmartCategory[] } | null>(null);
@@ -620,37 +622,37 @@ export default function BudgetSmartSheet({ editing, currentSpent, onSubmit, onCl
   );
 }
 
-const s = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#fff', paddingHorizontal: 20, paddingTop: 12 },
+const useStyles = makeStyles((c) => ({
+  container: { flex: 1, backgroundColor: c.bg.elevated, paddingHorizontal: 20, paddingTop: 12 },
   header: { flexDirection: 'row', alignItems: 'center', paddingVertical: 8, marginBottom: 10 },
-  title: { fontSize: 22, fontWeight: '900', color: '#111827', letterSpacing: -0.5 },
-  subtitle: { fontSize: 12.5, color: '#6B7280', fontWeight: '600', marginTop: 3 },
-  closeBtn: { width: 36, height: 36, borderRadius: 18, backgroundColor: '#F3F4F6', alignItems: 'center', justifyContent: 'center' },
+  title: { fontSize: 22, fontWeight: '900', color: c.text.primary, letterSpacing: -0.5 },
+  subtitle: { fontSize: 12.5, color: c.text.muted, fontWeight: '600', marginTop: 3 },
+  closeBtn: { width: 36, height: 36, borderRadius: 18, backgroundColor: c.gray[100], alignItems: 'center', justifyContent: 'center' },
 
-  label: { fontSize: 10.5, fontWeight: '900', color: '#6B7280', letterSpacing: 1.2, marginTop: 18, marginBottom: 10 },
+  label: { fontSize: 10.5, fontWeight: '900', color: c.text.muted, letterSpacing: 1.2, marginTop: 18, marginBottom: 10 },
 
   // Category chip
-  catChip: { width: 132, backgroundColor: '#fff', borderWidth: 1.5, borderColor: '#E5E7EB', borderRadius: 16, paddingHorizontal: 12, paddingVertical: 10, gap: 4 },
+  catChip: { width: 132, backgroundColor: c.bg.elevated, borderWidth: 1.5, borderColor: c.gray[200], borderRadius: 16, paddingHorizontal: 12, paddingVertical: 10, gap: 4 },
   catHead: { flexDirection: 'row', alignItems: 'center', gap: 6 },
-  catName: { fontSize: 12.5, fontWeight: '800', color: '#111827' },
-  catMeta: { fontSize: 10.5, color: '#9CA3AF', fontWeight: '600', marginTop: 1 },
-  catRecPill: { flexDirection: 'row', alignItems: 'center', gap: 3, paddingHorizontal: 6, paddingVertical: 2, borderRadius: 999, backgroundColor: '#F3F4F6', alignSelf: 'flex-start', marginTop: 2 },
-  catRecTxt: { fontSize: 9.5, fontWeight: '900', color: '#6B7280', letterSpacing: 0.2 },
+  catName: { fontSize: 12.5, fontWeight: '800', color: c.text.primary },
+  catMeta: { fontSize: 10.5, color: c.gray[400], fontWeight: '600', marginTop: 1 },
+  catRecPill: { flexDirection: 'row', alignItems: 'center', gap: 3, paddingHorizontal: 6, paddingVertical: 2, borderRadius: 999, backgroundColor: c.gray[100], alignSelf: 'flex-start', marginTop: 2 },
+  catRecTxt: { fontSize: 9.5, fontWeight: '900', color: c.text.muted, letterSpacing: 0.2 },
 
   // AI banner
   aiBanner: { flexDirection: 'row', alignItems: 'center', gap: 12, padding: 12, borderRadius: 16, marginTop: 14 },
-  aiEmojiPill: { width: 38, height: 38, borderRadius: 12, backgroundColor: '#fff', alignItems: 'center', justifyContent: 'center' },
+  aiEmojiPill: { width: 38, height: 38, borderRadius: 12, backgroundColor: c.bg.elevated, alignItems: 'center', justifyContent: 'center' },
   aiTitle: { fontSize: 14, fontWeight: '900', color: '#4C1D95', letterSpacing: -0.1 },
-  aiSub: { fontSize: 11, color: '#6B7280', fontWeight: '600', marginTop: 1 },
-  aiCta: { flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: 10, paddingVertical: 6, borderRadius: 999, backgroundColor: '#fff' },
+  aiSub: { fontSize: 11, color: c.text.muted, fontWeight: '600', marginTop: 1 },
+  aiCta: { flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: 10, paddingVertical: 6, borderRadius: 999, backgroundColor: c.bg.elevated },
   aiCtaTxt: { fontSize: 11, fontWeight: '900', color: '#7C3AED', letterSpacing: 0.2 },
 
   // Amount card
   amountCard: { backgroundColor: '#FFFBEB', borderRadius: 20, padding: 16, marginTop: 16, gap: 12, borderWidth: 1.5, borderColor: '#FDE68A' },
   amountEyebrow: { fontSize: 9.5, fontWeight: '900', letterSpacing: 1.2, color: '#92400E' },
   amountRow: { flexDirection: 'row', alignItems: 'baseline', gap: 6 },
-  amountRupee: { fontSize: 40, fontWeight: '900', color: '#111827', letterSpacing: -1.5 },
-  amountInput: { flex: 1, fontSize: 40, fontWeight: '900', color: '#111', letterSpacing: -1.5, padding: 0 },
+  amountRupee: { fontSize: 40, fontWeight: '900', color: c.text.primary, letterSpacing: -1.5 },
+  amountInput: { flex: 1, fontSize: 40, fontWeight: '900', color: c.text.primary, letterSpacing: -1.5, padding: 0 },
   // Round 38 — over-limit warning banner.
   overLimitBanner: {
     flexDirection: 'row', alignItems: 'flex-start', gap: 10,
@@ -658,82 +660,82 @@ const s = StyleSheet.create({
     borderWidth: 1, borderRadius: 12, padding: 12,
     marginBottom: 16,
   },
-  overLimitTitle: { fontSize: 13, fontWeight: '900', color: '#DC2626', marginBottom: 2 },
+  overLimitTitle: { fontSize: 13, fontWeight: '900', color: c.state.danger, marginBottom: 2 },
   overLimitBody: { fontSize: 12, color: '#7F1D1D', lineHeight: 16 },
   presetRow: { flexDirection: 'row', gap: 8, flexWrap: 'wrap' },
-  presetChip: { paddingHorizontal: 12, paddingVertical: 7, borderRadius: 999, backgroundColor: '#fff', borderWidth: 1, borderColor: '#FDE68A' },
-  presetChipOn: { backgroundColor: '#F56E1E', borderColor: '#F56E1E' },
+  presetChip: { paddingHorizontal: 12, paddingVertical: 7, borderRadius: 999, backgroundColor: c.bg.elevated, borderWidth: 1, borderColor: '#FDE68A' },
+  presetChipOn: { backgroundColor: c.accent.brand, borderColor: c.accent.brand },
   presetTxt: { fontSize: 12, fontWeight: '800', color: '#92400E' },
 
   sliderTrack: { height: 8, borderRadius: 4, backgroundColor: '#FEF3C7', position: 'relative', overflow: 'visible', marginTop: 4 },
   sliderFill: { height: '100%', borderRadius: 4 },
-  sliderThumb: { position: 'absolute', top: -6, width: 20, height: 20, borderRadius: 10, backgroundColor: '#fff', borderWidth: 3, borderColor: '#F56E1E', shadowColor: '#000', shadowOpacity: 0.2, shadowRadius: 5, shadowOffset: { width: 0, height: 2 }, elevation: 3 },
+  sliderThumb: { position: 'absolute', top: -6, width: 20, height: 20, borderRadius: 10, backgroundColor: c.bg.elevated, borderWidth: 3, borderColor: c.accent.brand, shadowColor: '#000', shadowOpacity: 0.2, shadowRadius: 5, shadowOffset: { width: 0, height: 2 }, elevation: 3 },
   sliderLblRow: { flexDirection: 'row', justifyContent: 'space-between', marginTop: 2 },
-  sliderLbl: { fontSize: 10, color: '#9CA3AF', fontWeight: '700' },
+  sliderLbl: { fontSize: 10, color: c.gray[400], fontWeight: '700' },
 
   // Impact
-  impact: { backgroundColor: '#F9FAFB', borderRadius: 16, padding: 14, marginTop: 14, gap: 10 },
+  impact: { backgroundColor: c.gray[50], borderRadius: 16, padding: 14, marginTop: 14, gap: 10 },
   impactRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
   impactEmoji: { fontSize: 15 },
-  impactTitle: { fontSize: 13, fontWeight: '900', color: '#111827' },
+  impactTitle: { fontSize: 13, fontWeight: '900', color: c.text.primary },
   impactGrid: { flexDirection: 'row', gap: 10 },
-  impactCell: { flex: 1, backgroundColor: '#fff', borderRadius: 12, padding: 10, gap: 4 },
-  impactK: { fontSize: 10, fontWeight: '900', color: '#6B7280', letterSpacing: 0.5 },
-  impactV: { fontSize: 14, fontWeight: '900', color: '#111827' },
+  impactCell: { flex: 1, backgroundColor: c.bg.elevated, borderRadius: 12, padding: 10, gap: 4 },
+  impactK: { fontSize: 10, fontWeight: '900', color: c.text.muted, letterSpacing: 0.5 },
+  impactV: { fontSize: 14, fontWeight: '900', color: c.text.primary },
   riskPill: { flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: 7, paddingVertical: 3, borderRadius: 999, alignSelf: 'flex-start' },
   riskDot: { width: 6, height: 6, borderRadius: 3 },
   riskTxt: { fontSize: 10, fontWeight: '900', letterSpacing: 0.3 },
 
   // Rollover
-  rolloverCard: { backgroundColor: '#fff', borderRadius: 16, padding: 14, marginTop: 14, borderWidth: 1, borderColor: '#F3F4F6', gap: 10 },
+  rolloverCard: { backgroundColor: c.bg.elevated, borderRadius: 16, padding: 14, marginTop: 14, borderWidth: 1, borderColor: c.gray[100], gap: 10 },
   rolloverHead: { flexDirection: 'row', alignItems: 'center', gap: 10 },
   rolloverIcon: { width: 36, height: 36, borderRadius: 12, backgroundColor: '#FEF3C7', alignItems: 'center', justifyContent: 'center' },
-  rolloverTitle: { fontSize: 13.5, fontWeight: '900', color: '#111827' },
-  rolloverSub: { fontSize: 11, color: '#6B7280', fontWeight: '600', marginTop: 1 },
-  toggle: { width: 42, height: 26, borderRadius: 13, backgroundColor: '#E5E7EB', padding: 3 },
-  toggleOn: { backgroundColor: '#F56E1E' },
-  knob: { width: 20, height: 20, borderRadius: 10, backgroundColor: '#fff', shadowColor: '#000', shadowOpacity: 0.15, shadowRadius: 2, shadowOffset: { width: 0, height: 1 }, elevation: 2 },
+  rolloverTitle: { fontSize: 13.5, fontWeight: '900', color: c.text.primary },
+  rolloverSub: { fontSize: 11, color: c.text.muted, fontWeight: '600', marginTop: 1 },
+  toggle: { width: 42, height: 26, borderRadius: 13, backgroundColor: c.gray[200], padding: 3 },
+  toggleOn: { backgroundColor: c.accent.brand },
+  knob: { width: 20, height: 20, borderRadius: 10, backgroundColor: c.bg.elevated, shadowColor: '#000', shadowOpacity: 0.15, shadowRadius: 2, shadowOffset: { width: 0, height: 1 }, elevation: 2 },
   knobOn: { transform: [{ translateX: 16 }] },
   rolloverOpts: { flexDirection: 'row', gap: 8, marginTop: 2 },
-  rolloverOpt: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 10, paddingVertical: 8, borderRadius: 10, backgroundColor: '#F9FAFB', borderWidth: 1, borderColor: '#F3F4F6' },
-  rolloverOptOn: { backgroundColor: '#FEF3C7', borderColor: '#F59E0B' },
-  rolloverOptTxt: { fontSize: 11.5, color: '#6B7280', fontWeight: '700' },
+  rolloverOpt: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 10, paddingVertical: 8, borderRadius: 10, backgroundColor: c.gray[50], borderWidth: 1, borderColor: c.gray[100] },
+  rolloverOptOn: { backgroundColor: '#FEF3C7', borderColor: c.accent.secondary },
+  rolloverOptTxt: { fontSize: 11.5, color: c.text.muted, fontWeight: '700' },
 
   // Period
   periodRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 14, flexWrap: 'wrap' },
-  periodLbl: { fontSize: 11, color: '#6B7280', fontWeight: '800', letterSpacing: 0.5 },
-  periodChip: { paddingHorizontal: 10, paddingVertical: 6, borderRadius: 999, backgroundColor: '#F3F4F6' },
-  periodChipOn: { backgroundColor: '#111827' },
-  periodTxt: { fontSize: 11, color: '#6B7280', fontWeight: '800' },
+  periodLbl: { fontSize: 11, color: c.text.muted, fontWeight: '800', letterSpacing: 0.5 },
+  periodChip: { paddingHorizontal: 10, paddingVertical: 6, borderRadius: 999, backgroundColor: c.gray[100] },
+  periodChipOn: { backgroundColor: c.text.primary },
+  periodTxt: { fontSize: 11, color: c.text.muted, fontWeight: '800' },
 
   // Scope
   scopeRow: { flexDirection: 'row', gap: 8 },
-  scopeChip: { flexDirection: 'row', alignItems: 'center', gap: 5, paddingHorizontal: 12, paddingVertical: 8, borderRadius: 999, backgroundColor: '#F3F4F6' },
-  scopeChipOn: { backgroundColor: '#111827' },
-  scopeTxt: { fontSize: 12, color: '#6B7280', fontWeight: '800' },
+  scopeChip: { flexDirection: 'row', alignItems: 'center', gap: 5, paddingHorizontal: 12, paddingVertical: 8, borderRadius: 999, backgroundColor: c.gray[100] },
+  scopeChipOn: { backgroundColor: c.text.primary },
+  scopeTxt: { fontSize: 12, color: c.text.muted, fontWeight: '800' },
 
   // Other description
   otherDesc: { marginTop: 14, backgroundColor: '#F5F3FF', borderRadius: 14, padding: 12, borderWidth: 1, borderColor: '#DDD6FE' },
   otherLbl: { fontSize: 11, fontWeight: '800', color: '#7C3AED', letterSpacing: 0.3 },
-  descInput: { minHeight: 44, fontSize: 13, color: '#111827', padding: 0 },
+  descInput: { minHeight: 44, fontSize: 13, color: c.text.primary, padding: 0 },
 
   // Goal
   goalRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
-  goalChip: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 10, paddingVertical: 7, borderRadius: 14, backgroundColor: '#F9FAFB', borderWidth: 1, borderColor: '#E5E7EB' },
-  goalChipOn: { backgroundColor: '#F3F4F6', borderColor: '#111827' },
-  goalChipAdd: { backgroundColor: '#FEF3C7', borderColor: '#F59E0B', borderStyle: 'dashed' },
-  goalTxt: { fontSize: 11.5, color: '#6B7280', fontWeight: '700' },
-  goalProg: { fontSize: 9.5, color: '#9CA3AF', fontWeight: '700', marginTop: 1 },
+  goalChip: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 10, paddingVertical: 7, borderRadius: 14, backgroundColor: c.gray[50], borderWidth: 1, borderColor: c.gray[200] },
+  goalChipOn: { backgroundColor: c.gray[100], borderColor: c.text.primary },
+  goalChipAdd: { backgroundColor: '#FEF3C7', borderColor: c.accent.secondary, borderStyle: 'dashed' },
+  goalTxt: { fontSize: 11.5, color: c.text.muted, fontWeight: '700' },
+  goalProg: { fontSize: 9.5, color: c.gray[400], fontWeight: '700', marginTop: 1 },
   goalForm: { marginTop: 10, padding: 12, backgroundColor: '#FFFBEB', borderRadius: 14, borderWidth: 1, borderColor: '#FDE68A', gap: 10 },
   goalFormRow: { flexDirection: 'row', gap: 8 },
-  goalFormInput: { flex: 1, fontSize: 13, color: '#111827', paddingHorizontal: 10, paddingVertical: 9, backgroundColor: '#fff', borderRadius: 10, borderWidth: 1, borderColor: '#FDE68A' },
-  goalTargetWrap: { flex: 1, flexDirection: 'row', alignItems: 'center', paddingLeft: 10, backgroundColor: '#fff', borderRadius: 10, borderWidth: 1, borderColor: '#FDE68A' },
+  goalFormInput: { flex: 1, fontSize: 13, color: c.text.primary, paddingHorizontal: 10, paddingVertical: 9, backgroundColor: c.bg.elevated, borderRadius: 10, borderWidth: 1, borderColor: '#FDE68A' },
+  goalTargetWrap: { flex: 1, flexDirection: 'row', alignItems: 'center', paddingLeft: 10, backgroundColor: c.bg.elevated, borderRadius: 10, borderWidth: 1, borderColor: '#FDE68A' },
   goalRupee: { fontSize: 13, fontWeight: '900', color: '#92400E' },
-  goalFormCta: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, backgroundColor: '#F56E1E', paddingVertical: 10, borderRadius: 12 },
-  goalFormCtaTxt: { fontSize: 12.5, fontWeight: '900', color: '#fff', letterSpacing: 0.3 },
+  goalFormCta: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, backgroundColor: c.accent.brand, paddingVertical: 10, borderRadius: 12 },
+  goalFormCtaTxt: { fontSize: 12.5, fontWeight: '900', color: c.bg.elevated, letterSpacing: 0.3 },
 
   // CTA
   cta: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 10, paddingVertical: 15, borderRadius: 999 },
-  ctaGlow: { shadowColor: '#F56E1E', shadowOpacity: 0.45, shadowRadius: 14, shadowOffset: { width: 0, height: 6 }, elevation: 5 },
-  ctaTxt: { fontSize: 15.5, fontWeight: '900', color: '#fff', letterSpacing: 0.3 },
-});
+  ctaGlow: { shadowColor: c.accent.brand, shadowOpacity: 0.45, shadowRadius: 14, shadowOffset: { width: 0, height: 6 }, elevation: 5 },
+  ctaTxt: { fontSize: 15.5, fontWeight: '900', color: c.bg.elevated, letterSpacing: 0.3 },
+}));

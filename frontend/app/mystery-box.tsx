@@ -26,10 +26,14 @@ import * as Haptics from 'expo-haptics';
 import Toast from 'react-native-toast-message';
 import Confetti from '../components/Confetti';
 import { spinWheel, fetchRewardsSummary } from '../services/rewards';
+import { makeStyles } from '../utils/makeStyles';
+import { useAppColors } from '../utils/theme';
 
 type Stage = 'idle' | 'opening' | 'revealed';
 
 export default function MysteryBoxScreen() {
+  const s = useStyles();
+  const c = useAppColors();
   const [stage, setStage] = useState<Stage>('idle');
   const [loadingSummary, setLoadingSummary] = useState(true);
   const [reward, setReward] = useState<any>(null);
@@ -302,14 +306,14 @@ export default function MysteryBoxScreen() {
   );
 }
 
-const s = StyleSheet.create({
+const useStyles = makeStyles((c) => ({
   container: { flex: 1, backgroundColor: '#4C1D95' },
   header: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingHorizontal: 16, paddingVertical: 12 },
   iconBtn: { width: 34, height: 34, borderRadius: 17, backgroundColor: 'rgba(255,255,255,0.18)', alignItems: 'center', justifyContent: 'center' },
   eyebrow: { fontSize: 10, fontWeight: '900', letterSpacing: 1.5, color: 'rgba(255,255,255,0.85)' },
-  hdrTitle: { fontSize: 16, fontWeight: '900', color: '#fff', marginTop: 2, letterSpacing: -0.2 },
+  hdrTitle: { fontSize: 16, fontWeight: '900', color: c.bg.elevated, marginTop: 2, letterSpacing: -0.2 },
   coinsPill: { paddingHorizontal: 10, paddingVertical: 5, borderRadius: 999, backgroundColor: 'rgba(255,255,255,0.18)' },
-  coinsTxt: { fontSize: 12, fontWeight: '900', color: '#fff' },
+  coinsTxt: { fontSize: 12, fontWeight: '900', color: c.bg.elevated },
 
   stage: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 20 },
 
@@ -317,27 +321,27 @@ const s = StyleSheet.create({
   boxWrap: { width: 220, height: 220, alignItems: 'center', justifyContent: 'center', position: 'relative' },
   boxBody: { position: 'absolute', bottom: 0, width: 200, height: 160, borderRadius: 14, alignItems: 'center', justifyContent: 'center', shadowColor: '#000', shadowOpacity: 0.35, shadowRadius: 20, shadowOffset: { width: 0, height: 8 }, elevation: 8 },
   boxLid: { position: 'absolute', top: 20, width: 210, height: 44, borderRadius: 10 },
-  boxQ: { fontSize: 68, fontWeight: '900', color: '#fff', textShadowColor: 'rgba(0,0,0,0.25)', textShadowOffset: { width: 0, height: 2 }, textShadowRadius: 6 },
-  ribbonV: { position: 'absolute', top: 18, bottom: 0, width: 18, backgroundColor: '#EF4444', left: 101 },
-  ribbonH: { position: 'absolute', left: 10, right: 10, height: 18, top: 82, backgroundColor: '#EF4444' },
+  boxQ: { fontSize: 68, fontWeight: '900', color: c.bg.elevated, textShadowColor: 'rgba(0,0,0,0.25)', textShadowOffset: { width: 0, height: 2 }, textShadowRadius: 6 },
+  ribbonV: { position: 'absolute', top: 18, bottom: 0, width: 18, backgroundColor: c.state.danger, left: 101 },
+  ribbonH: { position: 'absolute', left: 10, right: 10, height: 18, top: 82, backgroundColor: c.state.danger },
   bow: { position: 'absolute', top: 4, alignSelf: 'center' },
 
   // Reward
   rewardWrap: { alignItems: 'center', justifyContent: 'center' },
   rays: { position: 'absolute', width: 360, height: 360, alignItems: 'center', justifyContent: 'center' },
   ray: { position: 'absolute', width: 340, height: 40, borderRadius: 20, backgroundColor: 'rgba(255,255,255,0.08)' },
-  rewardCard: { backgroundColor: '#fff', paddingHorizontal: 22, paddingVertical: 26, borderRadius: 22, alignItems: 'center', gap: 10, minWidth: 260, shadowColor: '#000', shadowOpacity: 0.25, shadowRadius: 20, shadowOffset: { width: 0, height: 10 }, elevation: 10 },
+  rewardCard: { backgroundColor: c.bg.elevated, paddingHorizontal: 22, paddingVertical: 26, borderRadius: 22, alignItems: 'center', gap: 10, minWidth: 260, shadowColor: '#000', shadowOpacity: 0.25, shadowRadius: 20, shadowOffset: { width: 0, height: 10 }, elevation: 10 },
   rewardEmoji: { fontSize: 64 },
-  rewardTitle: { fontSize: 20, fontWeight: '900', color: '#111827', letterSpacing: -0.3, textAlign: 'center' },
-  rewardSub: { fontSize: 13, color: '#6B7280', fontWeight: '700', textAlign: 'center' },
-  multPill: { paddingHorizontal: 9, paddingVertical: 4, borderRadius: 999, backgroundColor: '#FEF3C7', borderWidth: 1, borderColor: '#F59E0B' },
+  rewardTitle: { fontSize: 20, fontWeight: '900', color: c.text.primary, letterSpacing: -0.3, textAlign: 'center' },
+  rewardSub: { fontSize: 13, color: c.text.muted, fontWeight: '700', textAlign: 'center' },
+  multPill: { paddingHorizontal: 9, paddingVertical: 4, borderRadius: 999, backgroundColor: '#FEF3C7', borderWidth: 1, borderColor: c.accent.secondary },
   multTxt: { fontSize: 10.5, fontWeight: '900', color: '#92400E', letterSpacing: 0.4 },
 
   // Footer
   footer: { paddingHorizontal: 20, paddingBottom: 28, paddingTop: 12, gap: 10, alignItems: 'center' },
   hintTxt: { fontSize: 12.5, color: 'rgba(255,255,255,0.9)', fontWeight: '700', textAlign: 'center' },
   cta: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 10, paddingVertical: 15, paddingHorizontal: 36, borderRadius: 999, minWidth: 240, shadowColor: '#000', shadowOpacity: 0.3, shadowRadius: 12, shadowOffset: { width: 0, height: 6 }, elevation: 5 },
-  ctaTxt: { fontSize: 15, fontWeight: '900', color: '#fff', letterSpacing: 0.3 },
+  ctaTxt: { fontSize: 15, fontWeight: '900', color: c.bg.elevated, letterSpacing: 0.3 },
   ghostCta: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 7, paddingVertical: 12, borderRadius: 999, borderWidth: 1.5, borderColor: 'rgba(255,255,255,0.4)', minWidth: 240 },
-  ghostTxt: { fontSize: 13, fontWeight: '800', color: '#fff', letterSpacing: 0.2 },
-});
+  ghostTxt: { fontSize: 13, fontWeight: '800', color: c.bg.elevated, letterSpacing: 0.2 },
+}));

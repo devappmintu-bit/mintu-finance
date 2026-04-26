@@ -27,7 +27,7 @@ import Svg, { Path, Defs, LinearGradient as SvgLG, Stop } from 'react-native-svg
 import { BottomTabBarProps } from '@react-navigation/bottom-tabs';
 import { BlurView } from 'expo-blur';
 import Mascot from '../../components/Mascot';
-import { COLORS, FONT_FAMILY, GLOW, useAppColors } from '../../utils/theme';
+import { COLORS, FONT_FAMILY, GLOW, useAppColors, getActiveMode } from '../../utils/theme';
 import { makeStyles } from '../../utils/makeStyles';
 import { useLangStore } from '../../store/langStore';
 import { t } from '../../utils/i18n';
@@ -121,8 +121,10 @@ function MintUTabBar({ state, navigation }: BottomTabBarProps) {
   const c = useAppColors();
   const { lang } = useLangStore();
   const screenW = Dimensions.get('window').width;
-  // Paytm-inspired floating capsule palette (light/white pill adapts to theme)
-  const isLight = c.bg.primary === '#FAFAF9' || c.bg.primary.toUpperCase() === '#FAFAF9';
+  // Round 50 — light/dark detection via theme engine (was hex-equality check).
+  const isLight = getActiveMode() === 'light';
+  // Floating capsule palette — bespoke surface colors (kept as literals
+  // because the dark pill is a custom obsidian shade, not c.bg.elevated).
   const pillBg = isLight ? '#FFFFFF' : '#14151B';
   const pillBorder = isLight ? 'rgba(17,24,39,0.06)' : 'rgba(255,255,255,0.08)';
 
@@ -232,7 +234,8 @@ export default function TabLayout() {
 }
 
 const useStyles = makeStyles((c) => {
-  const isLight = c.bg.primary === '#FAFAF9' || c.bg.primary.toUpperCase() === '#FAFAF9';
+  // Round 50 — light/dark detection via theme engine (was hex-equality check).
+  const isLight = getActiveMode() === 'light';
   return ({
     wrap: {
       position: 'absolute', left: 0, right: 0, bottom: 0,

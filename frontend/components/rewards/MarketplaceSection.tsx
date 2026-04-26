@@ -13,6 +13,8 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import * as Haptics from 'expo-haptics';
+import { makeStyles } from '../../utils/makeStyles';
+import { useAppColors } from '../../utils/theme';
 
 // Clearbit free brand logo API — falls back gracefully to emoji if image
 // fails to load (e.g. offline, rate-limited, or unknown domain).
@@ -61,6 +63,8 @@ const URGENCY_COPY: Record<string, { txt: string; color: string }> = {
 };
 
 export default function MarketplaceSection({ trending, recommended, premium, isPro, userCoins, onClaim }: Props) {
+  const s = useStyles();
+  const c = useAppColors();
   return (
     <View style={{ gap: 22 }}>
       <Lane
@@ -97,8 +101,10 @@ export default function MarketplaceSection({ trending, recommended, premium, isP
   );
 }
 
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 function Lane({ emoji, title, subtitle, items, userCoins, isPro, onClaim, testIDPrefix, showUnlockCTA }:
   { emoji: string; title: string; subtitle?: string; items: Reward[]; userCoins: number; isPro: boolean; onClaim?: (r: Reward) => void; testIDPrefix: string; showUnlockCTA?: boolean }) {
+  const s = useStyles();
   if (!items?.length) return null;
   return (
     <View>
@@ -126,6 +132,7 @@ function Lane({ emoji, title, subtitle, items, userCoins, isPro, onClaim, testID
 }
 
 function RewardCard({ reward, userCoins, onClaim, testID }: { reward: Reward; userCoins: number; onClaim?: (r: Reward) => void; testID?: string }) {
+  const s = useStyles();
   const canAfford = userCoins >= reward.cost_coins;
   const locked = reward.locked;
   const urgency = reward.urgency && URGENCY_COPY[reward.urgency];
@@ -213,29 +220,29 @@ function shade(hex: string, pct: number) {
   } catch { return hex; }
 }
 
-const s = StyleSheet.create({
+const useStyles = makeStyles((c) => ({
   laneHead: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 16, marginBottom: 10 },
   laneEmoji: { fontSize: 17 },
-  laneTitle: { fontSize: 15, fontWeight: '900', color: '#111827', letterSpacing: -0.2 },
-  laneSub: { fontSize: 10.5, fontWeight: '700', color: '#6B7280', marginTop: 1 },
-  unlockTxt: { fontSize: 11.5, fontWeight: '900', color: '#F56E1E', letterSpacing: 0.2 },
+  laneTitle: { fontSize: 15, fontWeight: '900', color: c.text.primary, letterSpacing: -0.2 },
+  laneSub: { fontSize: 10.5, fontWeight: '700', color: c.text.muted, marginTop: 1 },
+  unlockTxt: { fontSize: 11.5, fontWeight: '900', color: c.accent.brand, letterSpacing: 0.2 },
 
-  card: { width: 160, backgroundColor: '#fff', borderRadius: 18, borderWidth: 1, borderColor: '#F3F4F6', overflow: 'hidden', shadowColor: '#000', shadowOpacity: 0.06, shadowRadius: 6, shadowOffset: { width: 0, height: 2 }, elevation: 2 },
+  card: { width: 160, backgroundColor: c.bg.elevated, borderRadius: 18, borderWidth: 1, borderColor: c.gray[100], overflow: 'hidden', shadowColor: '#000', shadowOpacity: 0.06, shadowRadius: 6, shadowOffset: { width: 0, height: 2 }, elevation: 2 },
   cardLocked: { opacity: 0.9 },
   cardBand: { height: 68, alignItems: 'center', justifyContent: 'center', position: 'relative' },
   cardEmoji: { fontSize: 34 },
-  logoFrame: { width: 54, height: 42, backgroundColor: '#fff', borderRadius: 10, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 6, paddingVertical: 4 },
+  logoFrame: { width: 54, height: 42, backgroundColor: c.bg.elevated, borderRadius: 10, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 6, paddingVertical: 4 },
   logoImg: { width: '100%', height: '100%' },
   urgencyPill: { position: 'absolute', top: 6, right: 6, paddingHorizontal: 6, paddingVertical: 2, borderRadius: 999 },
-  urgencyTxt: { fontSize: 8.5, fontWeight: '900', color: '#fff', letterSpacing: 0.5 },
+  urgencyTxt: { fontSize: 8.5, fontWeight: '900', color: c.bg.elevated, letterSpacing: 0.5 },
   lockOverlay: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.3)', alignItems: 'center', justifyContent: 'center' },
 
   cardBody: { padding: 10, gap: 3 },
-  brandTxt: { fontSize: 13, fontWeight: '900', color: '#111827', letterSpacing: -0.1 },
-  discTxt: { fontSize: 12, fontWeight: '800', color: '#F56E1E' },
-  minTxt: { fontSize: 10, fontWeight: '600', color: '#9CA3AF' },
+  brandTxt: { fontSize: 13, fontWeight: '900', color: c.text.primary, letterSpacing: -0.1 },
+  discTxt: { fontSize: 12, fontWeight: '800', color: c.accent.brand },
+  minTxt: { fontSize: 10, fontWeight: '600', color: c.gray[400] },
   popRow: { flexDirection: 'row', alignItems: 'center', gap: 3, marginTop: 4 },
-  popTxt: { fontSize: 9.5, fontWeight: '700', color: '#6B7280' },
-  claimBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 4, marginTop: 6, paddingVertical: 7, borderRadius: 10, backgroundColor: '#F56E1E' },
-  coinTxt: { fontSize: 11, fontWeight: '900', color: '#fff' },
-});
+  popTxt: { fontSize: 9.5, fontWeight: '700', color: c.text.muted },
+  claimBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 4, marginTop: 6, paddingVertical: 7, borderRadius: 10, backgroundColor: c.accent.brand },
+  coinTxt: { fontSize: 11, fontWeight: '900', color: c.bg.elevated },
+}));

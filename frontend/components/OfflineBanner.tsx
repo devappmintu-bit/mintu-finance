@@ -1,8 +1,11 @@
 /**
  * Round 40 — persistent offline banner.
  *
- * Slides in from the top when connectivity drops; shows a brief green
- * "✓ Back online" flash on reconnect, then slides out.
+ * Slides in from the top when connectivity drops; shows a brief
+ * "✓ Back online" success flash on reconnect, then slides out.
+ *
+ * Round 50 — migrated to theme-aware colors via makeStyles +
+ * useAppColors. Banner colors track light/dark theme.
  *
  * Implementation notes:
  *   • Uses `translateY` + `opacity` (native-driver-friendly) rather than
@@ -14,9 +17,11 @@
  *     reflow the layout (which would cause flicker on slow devices).
  */
 import React, { useEffect, useRef, useState } from 'react';
-import { Animated, StyleSheet, Text, View, Platform } from 'react-native';
+import { Animated, Text, View, Platform } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useIsOnline } from '../hooks/useIsOnline';
+import { makeStyles } from '../utils/makeStyles';
+import { useAppColors } from '../utils/theme';
 
 const HEIGHT = 32;
 const ANIM_MS = 220;
@@ -25,6 +30,8 @@ const BACK_ONLINE_MS = 1400;
 export default function OfflineBanner() {
   const online = useIsOnline();
   const insets = useSafeAreaInsets();
+  const s = useStyles();
+  const c = useAppColors();
   const translateY = useRef(new Animated.Value(-HEIGHT - 20)).current;
   const opacity = useRef(new Animated.Value(0)).current;
   const [mode, setMode] = useState<'hidden' | 'offline' | 'back'>('hidden');
@@ -39,7 +46,7 @@ export default function OfflineBanner() {
     }
 
     if (!online) {
-      // Slide in the grey offline bar.
+      // Slide in the offline bar.
       setMode('offline');
       Animated.parallel([
         Animated.timing(translateY, { toValue: 0, duration: ANIM_MS, useNativeDriver: true }),
@@ -48,7 +55,7 @@ export default function OfflineBanner() {
       return;
     }
 
-    // Online transition: flash green "Back online", then slide out.
+    // Online transition: flash success "Back online", then slide out.
     setMode('back');
     Animated.parallel([
       Animated.timing(translateY, { toValue: 0, duration: 140, useNativeDriver: true }),
@@ -65,7 +72,9 @@ export default function OfflineBanner() {
 
   if (mode === 'hidden') return null;
 
-  const bg = mode === 'offline' ? '#374151' : '#059669';
+  // Round 50 — theme-aware bg. Offline = neutral dark gray (gray.700);
+  // Back-online = success green from state palette.
+  const bg = mode === 'offline' ? c.gray[700] : c.state.success;
   const msg = mode === 'offline'
     ? '📡 No internet — some features may not work'
     : '✓ Back online';
@@ -87,15 +96,16 @@ export default function OfflineBanner() {
   );
 }
 
-const s = StyleSheet.create({
+const useStyles = makeStyles((c) => ({
   banner: {
     position: 'absolute', top: 0, left: 0, right: 0,
     zIndex: 999, elevation: 999,
     ...Platform.select({
-      ios: { shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.18, shadowRadius: 6 },
+      ios: { shadowColor: c.shadow.medium, shadowOffset: { width: 0, height: 2 }, shadowOpacity: 1, shadowRadius: 6 },
       android: {},
     }),
   },
   inner: { height: HEIGHT, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 16 },
-  txt: { color: '#fff', fontSize: 12, fontWeight: '800', letterSpacing: 0.3 },
-});
+  // White text on the colored bg works on both light and dark themes.
+  txt: { color: '#FFFFFF', fontSize: 12, fontWeight: '800', letterSpacing: 0.3 },
+}));

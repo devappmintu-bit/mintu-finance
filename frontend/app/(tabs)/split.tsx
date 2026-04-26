@@ -597,7 +597,7 @@ function SplitScreen() {
         <Modal visible={!!inviteGroup} animationType="slide" transparent onRequestClose={() => setInviteGroup(null)}>
           <View style={{ flex: 1, justifyContent: 'flex-end', backgroundColor: 'rgba(0,0,0,0.5)' }}>
             <View style={{ backgroundColor: COLORS.bg.elevated, borderTopLeftRadius: 28, borderTopRightRadius: 28, padding: 24, paddingBottom: 36, gap: 14, borderTopWidth: 1, borderColor: 'rgba(255,255,255,0.08)' }}>
-              <View style={{ width: 40, height: 4, borderRadius: 2, backgroundColor: '#E5E7EB', alignSelf: 'center', marginBottom: 8 }} />
+              <View style={{ width: 40, height: 4, borderRadius: 2, backgroundColor: COLORS.border.subtle, alignSelf: 'center', marginBottom: 8 }} />
 
               <View style={{ alignItems: 'center', marginBottom: 4 }}>
                 <View style={{ width: 64, height: 64, borderRadius: 32, backgroundColor: COLORS.accent.moneyIn + '15', justifyContent: 'center', alignItems: 'center', marginBottom: 10 }}>
@@ -614,6 +614,8 @@ function SplitScreen() {
               </Text>
 
               <TouchableOpacity
+                /* WhatsApp brand green (#25D366) + white-on-saturated-bg —
+                   intentional brand literals per Round 50 audit. */
                 style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 10, backgroundColor: '#25D366', paddingVertical: 14, borderRadius: 999 }}
                 onPress={async () => {
                   const url = `https://mintu.app/split/invite/${inviteGroup.id}`;
@@ -622,8 +624,8 @@ function SplitScreen() {
                 }}
                 activeOpacity={0.85}
               >
-                <Ionicons name="logo-whatsapp" size={20} color="#fff" />
-                <Text style={{ fontSize: 15, fontWeight: '800', color: '#fff' }}>Invite via WhatsApp</Text>
+                <Ionicons name="logo-whatsapp" size={20} color="#FFFFFF" />
+                <Text style={{ fontSize: 15, fontWeight: '800', color: '#FFFFFF' }}>Invite via WhatsApp</Text>
               </TouchableOpacity>
 
               <TouchableOpacity
