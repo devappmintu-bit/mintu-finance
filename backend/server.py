@@ -114,6 +114,21 @@ def health_check() -> dict:
     return {"status": "ok", "version": "1.0.0"}
 
 
+# ══════════════════════════════════════════════════════════════════════
+#  ROUTE-STATS TELEMETRY — Round 51i
+#
+#  Per-route p50/p95/p99 latency + error-rate, via an in-memory ring
+#  buffer populated by an ASGI middleware. Read at GET /api/admin/
+#  route-stats (admin-only — gated by ADMIN_PHONES env var).
+#
+#  Goal: data-driven decisions on which endpoints to optimise next.
+#  See backend/core/route_stats.py for design notes.
+# ══════════════════════════════════════════════════════════════════════
+from core.route_stats import RouteStatsRecorder, build_admin_router  # noqa: E402
+app.add_middleware(RouteStatsRecorder)
+api_router.include_router(build_admin_router())
+
+
 # ── Validation + InvalidId handlers (extracted to core/responses.py) ────
 from core.responses import (  # noqa: E402,F401
     _SafeJSONResponse,
