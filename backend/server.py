@@ -298,6 +298,7 @@ from routers import (  # noqa: E402
     profile_engine as profile_engine_router,
     streak as streak_router,
     search as search_router,
+    split_ws as split_ws_router,
 )
 
 for r in (
@@ -312,6 +313,7 @@ for r in (
     profile_identity_router, profile_engine_router,
     streak_router,
     search_router,
+    split_ws_router,
 ):
     api_router.include_router(r.router)
 

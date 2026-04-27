@@ -374,6 +374,26 @@ async def send_group_message(group_id: str, data: dict, user_id: str = Depends(g
         "created_at": datetime.now(timezone.utc),
     }
     result = await db.split_messages.insert_one(msg)
+    # Round 51k — fan-out to live WS subscribers (chat is broadcast-only;
+    # offline / older clients keep using the 8s poll fallback).
+    try:
+        from core.ws_manager import manager as _ws
+        await _ws.broadcast(group_id, {
+            "type": "message",
+            "data": {
+                "id": str(result.inserted_id),
+                "group_id": group_id,
+                "sender_id": user_id,
+                "sender_name": name,
+                "type": msg_type,
+                "content": data.get("content", ""),
+                "emoji": data.get("emoji"),
+                "created_at": msg["created_at"].isoformat(),
+            },
+        })
+    except Exception:
+        # WS broadcast must never break the HTTP write path.
+        pass
     return {"id": str(result.inserted_id), "message": "Sent"}
     return {"message": "Left group"}
 

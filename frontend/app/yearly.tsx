@@ -15,6 +15,7 @@ import api from '../utils/api';
 import { COLORS, shadowStyle, useAppColors } from '../utils/theme';
 import { makeStyles } from '../utils/makeStyles';
 import { useActivePlan, FEATURES, canAccess } from '../utils/premium';
+import { YearlySkeleton } from '../components/SkeletonLoader';
 
 const CHART_H = 180;
 const BAR_WIDTH = 22;
@@ -216,7 +217,7 @@ export default function YearlyDashboard() {
   if (loading) {
     return (
       <SafeAreaView style={s.container}>
-        <ActivityIndicator size="large" color={tc.accent.brandDeeper} style={{ marginTop: 80 }} />
+        <YearlySkeleton />
       </SafeAreaView>
     );
   }

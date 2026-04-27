@@ -18,18 +18,24 @@ from routers.split_common import (
 
 @api_router.post("/split/expenses")
 async def add_split_expense(expense: SplitExpenseCreate, user_id: str = Depends(get_current_user)):
+    # Round 51j — group_id is now Optional on the model (so the same
+    # schema can be reused for drafts). Legacy endpoint still requires it.
+    if not expense.group_id:
+        raise HTTPException(status_code=400, detail="group_id is required for /split/expenses. Use /split/expenses/draft for unattached expenses.")
     group = await db.split_groups.find_one({"_id": ObjectId(expense.group_id), "members.user_id": user_id})
     if not group:
         raise HTTPException(status_code=404, detail="Group not found")
     
     member_ids = [m["user_id"] for m in group["members"]]
+    # Default paid_by to the current user if not specified
+    paid_by = expense.paid_by or user_id
     splits = _compute_splits(expense.amount, expense.split_type, member_ids, expense.splits)
     
     exp_doc = {
         "group_id": expense.group_id,
         "description": expense.description,
         "amount": expense.amount,
-        "paid_by": expense.paid_by,
+        "paid_by": paid_by,
         "split_type": expense.split_type,
         "splits": splits,
         "created_by": user_id,
@@ -37,11 +43,12 @@ async def add_split_expense(expense: SplitExpenseCreate, user_id: str = Depends(
     }
     result = await db.split_expenses.insert_one(exp_doc)
     # Auto-insert chat message for the expense
-    payer_name = next((m["name"] for m in group["members"] if m["user_id"] == user_id), "Someone")
+    payer_name = next((m["name"] for m in group["members"] if m["user_id"] == paid_by), "Someone")
     member_count = len(splits)
     # Collect display names for the avatar stack in the chat card
     split_member_names = [next((m["name"] for m in group["members"] if m["user_id"] == uid), "?") for uid in splits.keys()]
-    await db.split_messages.insert_one({
+    _msg_now = datetime.now(timezone.utc)
+    _msg_doc = {
         "group_id": expense.group_id, "type": "expense", "sender_id": user_id, "sender_name": payer_name,
         "content": expense.description,
         "expense_data": {
@@ -52,11 +59,213 @@ async def add_split_expense(expense: SplitExpenseCreate, user_id: str = Depends(
             "member_names": split_member_names,
             "expense_id": str(result.inserted_id),
         },
-        "created_at": datetime.now(timezone.utc)
-    })
+        "created_at": _msg_now
+    }
+    msg_result = await db.split_messages.insert_one(_msg_doc)
+    # Round 51k — broadcast the expense card to live WS subscribers so
+    # the chat updates instantly without waiting for the 8s poll.
+    try:
+        from core.ws_manager import manager as _ws
+        await _ws.broadcast(expense.group_id, {
+            "type": "message",
+            "data": {
+                "id": str(msg_result.inserted_id),
+                "group_id": expense.group_id,
+                "sender_id": user_id,
+                "sender_name": payer_name,
+                "type": "expense",
+                "content": expense.description,
+                "expense_data": _msg_doc["expense_data"],
+                "created_at": _msg_now.isoformat(),
+            },
+        })
+    except Exception:
+        pass
     # Round 51 — invalidate /split/groups cache so balance changes appear immediately.
     await invalidate_split_cache_for_group(expense.group_id, db)
     return {"id": str(result.inserted_id), **{k: v for k, v in exp_doc.items() if k != "_id"}, "created_at": exp_doc["created_at"]}
+
+
+# ══════════════════════════════════════════════════════════════════════
+#  ROUND 51j — DRAFT / SOLO EXPENSES
+#
+#  Frees the create-expense flow from the hard requirement of a group.
+#  Users can save an expense first ("I just paid ₹450 for dinner") and
+#  attach it to a group later — or never. Drafts live in their own
+#  collection (`draft_expenses`) so they never pollute group balance
+#  computations and can be migrated atomically when the user is ready.
+#
+#  Three endpoints, all scoped to the calling user:
+#    POST  /split/expenses/draft               — save a draft
+#    GET   /split/expenses/drafts              — list my unattached drafts
+#    POST  /split/expenses/{id}/attach-to-group → migrate draft → real expense
+#  And:
+#    DELETE /split/expenses/drafts/{id}        — discard a draft
+#
+#  Index is created in core/lifecycle.py at startup; we ALSO
+#  create_index here as a defensive fallback for first-run installs that
+#  predate the lifecycle entry.
+# ══════════════════════════════════════════════════════════════════════
+@api_router.post("/split/expenses/draft")
+async def create_draft_expense(expense: SplitExpenseCreate, user_id: str = Depends(get_current_user)):
+    """Save an expense as a draft (unattached to any group). Required:
+    description + amount. paid_by defaults to current user. splits, if
+    provided, are kept as a hint for when the user later attaches to a
+    group — but they're not validated against members until attach-time."""
+    # Defensive: ensure index exists. Idempotent and cheap (mongo no-ops
+    # if the index already exists).
+    try:
+        await db.draft_expenses.create_index([("user_id", 1), ("created_at", -1)])
+    except Exception:
+        pass
+    paid_by = expense.paid_by or user_id
+    doc = {
+        "user_id": user_id,
+        "description": expense.description,
+        "amount": expense.amount,
+        "paid_by": paid_by,
+        "split_type": expense.split_type,
+        "splits_hint": expense.splits or {},
+        "created_at": datetime.now(timezone.utc),
+    }
+    result = await db.draft_expenses.insert_one(doc)
+    return {
+        "id": str(result.inserted_id),
+        "description": doc["description"],
+        "amount": doc["amount"],
+        "paid_by": doc["paid_by"],
+        "split_type": doc["split_type"],
+        "splits_hint": doc["splits_hint"],
+        "created_at": doc["created_at"],
+    }
+
+
+@api_router.get("/split/expenses/drafts")
+async def list_draft_expenses(user_id: str = Depends(get_current_user)):
+    """Current user's unattached drafts, newest first."""
+    cursor = db.draft_expenses.find({"user_id": user_id}).sort("created_at", -1).limit(100)
+    drafts = []
+    async for d in cursor:
+        drafts.append({
+            "id": str(d["_id"]),
+            "description": d.get("description", ""),
+            "amount": float(d.get("amount", 0) or 0),
+            "paid_by": d.get("paid_by"),
+            "split_type": d.get("split_type", "equal"),
+            "splits_hint": d.get("splits_hint", {}),
+            "created_at": d.get("created_at"),
+        })
+    return {"drafts": drafts, "count": len(drafts)}
+
+
+@api_router.delete("/split/expenses/drafts/{draft_id}")
+async def delete_draft_expense(draft_id: str, user_id: str = Depends(get_current_user)):
+    """Discard a draft. Only the owner can delete their own."""
+    if not ObjectId.is_valid(draft_id):
+        raise HTTPException(status_code=400, detail="Invalid draft id")
+    result = await db.draft_expenses.delete_one({"_id": ObjectId(draft_id), "user_id": user_id})
+    if result.deleted_count == 0:
+        raise HTTPException(status_code=404, detail="Draft not found")
+    return {"deleted": True}
+
+
+@api_router.post("/split/expenses/{draft_id}/attach-to-group")
+async def attach_draft_to_group(
+    draft_id: str,
+    payload: dict,  # expects {"group_id": "..."}
+    user_id: str = Depends(get_current_user),
+):
+    """Atomically migrate a draft into a real group expense.
+
+    Steps (best-effort atomic):
+      1. Fetch the draft (validate ownership)
+      2. Fetch the target group (validate user is a member)
+      3. Compute splits against current group members
+      4. Insert the real expense + chat card message
+      5. Delete the draft
+      6. Invalidate /split/groups cache so balances appear instantly
+
+    On any failure between steps 4 and 5 we leave the draft intact so
+    the user can retry — preferable to silent data loss.
+    """
+    group_id = (payload or {}).get("group_id")
+    if not group_id:
+        raise HTTPException(status_code=400, detail="group_id is required")
+    if not ObjectId.is_valid(draft_id):
+        raise HTTPException(status_code=400, detail="Invalid draft id")
+    if not ObjectId.is_valid(group_id):
+        raise HTTPException(status_code=400, detail="Invalid group id")
+
+    draft = await db.draft_expenses.find_one({"_id": ObjectId(draft_id), "user_id": user_id})
+    if not draft:
+        raise HTTPException(status_code=404, detail="Draft not found")
+
+    group = await db.split_groups.find_one({"_id": ObjectId(group_id), "members.user_id": user_id})
+    if not group:
+        raise HTTPException(status_code=404, detail="Group not found or you're not a member")
+
+    member_ids = [m["user_id"] for m in group["members"]]
+    paid_by = draft.get("paid_by") or user_id
+    # If a paid_by was set on the draft but isn't a current member, fall
+    # back to the current user. Avoids creating an orphan expense whose
+    # payer isn't in the group.
+    if paid_by not in member_ids:
+        paid_by = user_id
+
+    raw_splits = draft.get("splits_hint") or None
+    # Drop split entries for users who aren't in this group.
+    if isinstance(raw_splits, dict):
+        raw_splits = {uid: v for uid, v in raw_splits.items() if uid in member_ids} or None
+
+    splits = _compute_splits(
+        float(draft["amount"]),
+        draft.get("split_type", "equal"),
+        member_ids,
+        raw_splits,
+    )
+
+    exp_doc = {
+        "group_id": group_id,
+        "description": draft["description"],
+        "amount": float(draft["amount"]),
+        "paid_by": paid_by,
+        "split_type": draft.get("split_type", "equal"),
+        "splits": splits,
+        "created_by": user_id,
+        "created_at": datetime.now(timezone.utc),
+        "from_draft_id": draft_id,  # audit trail
+    }
+    result = await db.split_expenses.insert_one(exp_doc)
+
+    # Mirror the chat card the regular create-expense path produces.
+    payer_name = next((m["name"] for m in group["members"] if m["user_id"] == paid_by), "Someone")
+    split_member_names = [next((m["name"] for m in group["members"] if m["user_id"] == uid), "?") for uid in splits.keys()]
+    await db.split_messages.insert_one({
+        "group_id": group_id, "type": "expense", "sender_id": user_id, "sender_name": payer_name,
+        "content": draft["description"],
+        "expense_data": {
+            "amount": float(draft["amount"]),
+            "paid_by": payer_name,
+            "split_count": len(splits),
+            "paid_count": 1,
+            "member_names": split_member_names,
+            "expense_id": str(result.inserted_id),
+        },
+        "created_at": datetime.now(timezone.utc)
+    })
+
+    # Only delete the draft after the real expense is durably written.
+    await db.draft_expenses.delete_one({"_id": ObjectId(draft_id), "user_id": user_id})
+    await invalidate_split_cache_for_group(group_id, db)
+    return {
+        "id": str(result.inserted_id),
+        "group_id": group_id,
+        "description": exp_doc["description"],
+        "amount": exp_doc["amount"],
+        "paid_by": paid_by,
+        "splits": splits,
+        "attached_from_draft": draft_id,
+    }
 
 
 

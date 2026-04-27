@@ -12,7 +12,10 @@
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.mintu.finance",
-      "associatedDomains": ["applinks:mintu.app", "applinks:www.mintu.app"],
+      "associatedDomains": [
+        "applinks:mintu.app",
+        "applinks:www.mintu.app"
+      ],
       "infoPlist": {
         "NSMicrophoneUsageDescription": "Record voice to add expenses hands-free",
         "NSContactsUsageDescription": "Pick friends to split group expenses",
@@ -41,11 +44,25 @@
           "action": "VIEW",
           "autoVerify": true,
           "data": [
-            { "scheme": "https", "host": "mintu.app", "pathPrefix": "/join" },
-            { "scheme": "https", "host": "www.mintu.app", "pathPrefix": "/join" },
-            { "scheme": "mintu", "host": "join" }
+            {
+              "scheme": "https",
+              "host": "mintu.app",
+              "pathPrefix": "/join"
+            },
+            {
+              "scheme": "https",
+              "host": "www.mintu.app",
+              "pathPrefix": "/join"
+            },
+            {
+              "scheme": "mintu",
+              "host": "join"
+            }
           ],
-          "category": ["BROWSABLE", "DEFAULT"]
+          "category": [
+            "BROWSABLE",
+            "DEFAULT"
+          ]
         }
       ]
     },
@@ -70,7 +87,8 @@
         }
       ],
       "expo-secure-store",
-      "expo-font"
+      "expo-font",
+      "expo-web-browser"
     ],
     "experiments": {
       "typedRoutes": true

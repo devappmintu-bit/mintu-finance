@@ -39,6 +39,7 @@ import GroupManageSheet from '../../components/split/GroupManageSheet';
 import PaySheet from '../../components/split/PaySheet';
 import RemindSheet from '../../components/split/RemindSheet';
 import RewardModal from '../../components/split/RewardModal';
+import DraftsPill from '../../components/split/DraftsPill';
 import EmptyState from '../../components/ui/EmptyState';
 import useSwr from '../../hooks/useSwr';
 import PremiumUnlockTeaser from '../../components/premium/PremiumUnlockTeaser';
@@ -534,6 +535,12 @@ function SplitScreen() {
           onAddGroup={() => setModal('create')}
           onSettleUp={() => setModal('settle' as any)}
         />
+
+        {/* Round 51j — Drafts pill (auto-hides when no drafts).
+            Surfaces unattached expenses so they're never "lost" between
+            capture and group-assignment. Uses lazy-fetch so we don't
+            slow the Split tab cold-load. */}
+        <DraftsPill />
 
         <RemindersBanner received={reminders.received} onDismiss={dismissReminder} />
 

@@ -19,6 +19,7 @@ import ExpenseMessage from './split/ExpenseMessage';
 import ExpensesTab from './split/ExpensesTab';
 import Toast from 'react-native-toast-message';
 import { FlashList, type FlashListRef } from '@shopify/flash-list';
+import useGroupChat from '../hooks/useGroupChat';
 
 // Format currency for display (₹1.2K, ₹12K, ₹1.2L)
 const fmtCompact = (n: number) => {
@@ -120,6 +121,29 @@ export default function GroupChat({ group, onClose, onAddExpense, onManage, onEd
       if (appStateSub) appStateSub.remove();
     };
   }, [loadMessages]);
+
+  // Round 51k — Real-time WebSocket layer.
+  // Layered ON TOP of the 8s HTTP poll (kept as a guaranteed-eventual
+  // consistency fallback). When the socket is connected, new messages
+  // appear sub-second; the polling pass dedupes by id so we never
+  // duplicate. If the socket fails for any reason (network, server
+  // restart, expo go missing the upgrade), the poll keeps the chat
+  // alive — zero regression vs the pre-WS behaviour.
+  useGroupChat({
+    groupId: group?.id,
+    enabled: !goneRef.current,
+    onMessage: (incoming: any) => {
+      if (!incoming) return;
+      setMessages((prev: any[]) => {
+        const id = incoming.id || incoming._id;
+        if (id && prev.some((x: any) => (x.id || x._id) === id)) return prev;
+        // Always append — server timestamps are monotonic per group.
+        return [...prev, incoming];
+      });
+      // Stay pinned to the bottom for the active chat — same UX as send.
+      setTimeout(() => { try { flatRef.current?.scrollToEnd({ animated: true }); } catch {} }, 50);
+    },
+  });
 
   const sendMessage = async (content: string, type = 'text') => {
     if (!content.trim() && type === 'text') return;

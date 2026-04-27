@@ -19,6 +19,7 @@ import Svg, { Circle } from 'react-native-svg';
 import Toast from 'react-native-toast-message';
 import api from '../utils/api';
 import FullScreenLoader from '../components/FullScreenLoader';
+import { GoalsSkeleton } from '../components/SkeletonLoader';
 import Confetti from '../components/Confetti';
 import EmptyState from '../components/ui/EmptyState';
 import { useIsOnline } from '../hooks/useIsOnline';
@@ -275,7 +276,11 @@ export default function GoalsScreen() {
   const overallPct = totalTarget > 0 ? (totalSaved / totalTarget) * 100 : 0;
 
   if (loading) {
-    return <FullScreenLoader tagline="Loading your goals…" />;
+    return (
+      <SafeAreaView style={s.bg} edges={['top']}>
+        <GoalsSkeleton />
+      </SafeAreaView>
+    );
   }
 
   return (

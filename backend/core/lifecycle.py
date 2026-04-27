@@ -163,6 +163,12 @@ async def _ensure_indexes(db) -> None:
             name="split_settlements_group",
         )
 
+        # Round 51j — Drafts collection for Solo / Unattached expenses.
+        await db.draft_expenses.create_index(
+            [("user_id", 1), ("created_at", -1)],
+            name="draft_expenses_user_recent",
+        )
+
         logger.info("✅ MongoDB indexes created for 1.46B-scale performance")
     except Exception as e:
         logger.warning(f"Index creation warning: {e}")

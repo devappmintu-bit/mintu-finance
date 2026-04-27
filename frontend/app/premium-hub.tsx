@@ -20,6 +20,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { router } from 'expo-router';
 import api from '../utils/api';
 import FullScreenLoader from '../components/FullScreenLoader';
+import { PremiumHubSkeleton } from '../components/SkeletonLoader';
 import { fetchPremiumStatus } from '../services/premium';
 import { makeStyles } from '../utils/makeStyles';
 import { COLORS } from '../utils/theme';
@@ -67,7 +68,11 @@ export default function PremiumHubScreen() {
     { id: 'support', title: 'Priority Support', desc: 'Skip the queue · email & in-app chat.', icon: 'shield-checkmark', tint: '#14B8A6', action: () => router.push('/support' as any) },
   ];
 
-  if (loading) return <FullScreenLoader tagline="Loading your premium perks…" />;
+  if (loading) return (
+    <SafeAreaView style={s.bg} edges={['top']}>
+      <PremiumHubSkeleton />
+    </SafeAreaView>
+  );
 
   return (
     <SafeAreaView style={s.bg} edges={['top']}>

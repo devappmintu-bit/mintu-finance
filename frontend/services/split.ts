@@ -9,8 +9,7 @@ import { invalidateAfter, invalidateAll } from '../utils/cacheGraph';
 import type { SplitGroup, SplitBalance, RazorpayOrder } from './types';
 
 // ── Groups ─────────────────────────────────────────────────────────────
-export async function fetchSplitGroups(): Promise<SplitGroup[]> {
-  const r = await api.get('/split/groups');
+export async function fetchSplitGroups(): Promise<SplitGroup[]> {  const r = await api.get('/split/groups');
   return (r.data || []) as SplitGroup[];
 }
 
@@ -176,5 +175,45 @@ export async function markPaidOffline(payload: {
 }): Promise<any> {
   const r = await api.post('/split/mark-paid-offline', payload);
   await invalidateAfter('split.settle');
+  return r.data;
+}
+
+// ── Round 51j — Drafts (Solo / unattached expenses) ──────────────────
+// Lightweight helpers wrapping the 4 new backend endpoints. Drafts
+// don't belong to any group so we don't trigger split-cache
+// invalidation here — only the attach-to-group call does (server-side).
+export type DraftExpense = {
+  id: string;
+  description: string;
+  amount: number;
+  paid_by?: string;
+  split_type?: string;
+  splits_hint?: Record<string, number>;
+  created_at?: string;
+};
+
+export async function createDraftExpense(payload: {
+  description: string;
+  amount: number;
+  paid_by?: string;
+  split_type?: string;
+  splits?: Record<string, number>;
+}): Promise<DraftExpense> {
+  const r = await api.post('/split/expenses/draft', payload);
+  return r.data;
+}
+
+export async function fetchDraftExpenses(): Promise<{ drafts: DraftExpense[]; count: number }> {
+  const r = await api.get('/split/expenses/drafts');
+  return r.data;
+}
+
+export async function deleteDraftExpense(draftId: string): Promise<void> {
+  await api.delete(`/split/expenses/drafts/${draftId}`);
+}
+
+export async function attachDraftToGroup(draftId: string, groupId: string): Promise<any> {
+  const r = await api.post(`/split/expenses/${draftId}/attach-to-group`, { group_id: groupId });
+  await invalidateAfter('split.expense');
   return r.data;
 }

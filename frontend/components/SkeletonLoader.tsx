@@ -283,3 +283,262 @@ export const SplitSkeleton = () => {
   </View>
   );
 };
+
+
+/**
+ * LeaderboardSkeleton — header + scope toggles + your-rank hero +
+ * podium top-3 + full list rows. Mirrors /leaderboard layout.
+ */
+export const LeaderboardSkeleton = () => {
+  const sk = useStyles();
+  return (
+    <View style={sk.container}>
+      <View style={sk.row}>
+        <Skeleton width={36} height={36} borderRadius={18} />
+        <View style={{ flex: 1, alignItems: 'center' }}>
+          <Skeleton width={140} height={18} />
+        </View>
+        <Skeleton width={36} height={36} borderRadius={18} />
+      </View>
+
+      {/* Scope toggle */}
+      <View style={[sk.row, { marginTop: 14, gap: 6 }]}>
+        <Skeleton width={'33%' as any} height={34} borderRadius={999} />
+        <Skeleton width={'33%' as any} height={34} borderRadius={999} />
+        <Skeleton width={'33%' as any} height={34} borderRadius={999} />
+      </View>
+
+      {/* Your-rank hero (gradient) */}
+      <LinearGradient
+        colors={[COLORS.accent.brand, COLORS.accent.brandDark]}
+        start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}
+        style={sk.hero}
+      >
+        <Skeleton width={70} height={10} onHero />
+        <View style={{ height: 10 }} />
+        <View style={sk.row}>
+          <Skeleton width={56} height={56} borderRadius={28} onHero />
+          <View style={{ marginLeft: 12, flex: 1 }}>
+            <Skeleton width={120} height={20} borderRadius={6} onHero />
+            <Skeleton width={80} height={12} style={{ marginTop: 6 }} onHero />
+          </View>
+          <Skeleton width={64} height={26} borderRadius={999} onHero />
+        </View>
+      </LinearGradient>
+
+      {/* Podium row (top 3) */}
+      <View style={[sk.row, { marginTop: 16, alignItems: 'flex-end', gap: 10 }]}>
+        {[64, 86, 56].map((h, i) => (
+          <View key={i} style={{ flex: 1, alignItems: 'center', gap: 6 }}>
+            <Skeleton width={42} height={42} borderRadius={21} />
+            <Skeleton width={'70%' as any} height={10} />
+            <Skeleton width={'100%' as any} height={h} borderRadius={10} />
+          </View>
+        ))}
+      </View>
+
+      {/* List rows */}
+      {[1, 2, 3, 4].map(i => (
+        <View key={i} style={sk.txItem}>
+          <Skeleton width={28} height={20} borderRadius={6} />
+          <View style={{ width: 12 }} />
+          <Skeleton width={36} height={36} borderRadius={18} />
+          <View style={{ flex: 1, marginLeft: 10 }}>
+            <Skeleton width={'55%' as any} height={14} />
+            <Skeleton width={'30%' as any} height={10} style={{ marginTop: 5 }} />
+          </View>
+          <Skeleton width={56} height={18} />
+        </View>
+      ))}
+    </View>
+  );
+};
+
+/**
+ * MysteryBoxSkeleton — hero "open box" CTA + reward log. Matches the
+ * mystery-box screen layout so the swap is invisible.
+ */
+export const MysteryBoxSkeleton = () => {
+  const sk = useStyles();
+  return (
+    <View style={sk.container}>
+      <View style={sk.row}>
+        <Skeleton width={36} height={36} borderRadius={18} />
+        <View style={{ flex: 1, alignItems: 'center' }}>
+          <Skeleton width={150} height={18} />
+        </View>
+        <View style={{ width: 36 }} />
+      </View>
+
+      {/* Hero box CTA */}
+      <LinearGradient
+        colors={[COLORS.accent.brand, COLORS.accent.brandDark]}
+        start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}
+        style={[sk.hero, { alignItems: 'center', paddingVertical: 28 }]}
+      >
+        <Skeleton width={96} height={96} borderRadius={20} onHero />
+        <View style={{ height: 14 }} />
+        <Skeleton width={180} height={18} borderRadius={6} onHero />
+        <View style={{ height: 10 }} />
+        <Skeleton width={160} height={42} borderRadius={999} onHero />
+      </LinearGradient>
+
+      {/* Streak / coin counters */}
+      <View style={[sk.row, { marginTop: 14, gap: 10 }]}>
+        <Skeleton width={'48%' as any} height={70} borderRadius={14} />
+        <Skeleton width={'48%' as any} height={70} borderRadius={14} />
+      </View>
+
+      {/* Recent rewards list */}
+      <Skeleton width={140} height={12} style={{ marginTop: 18 }} />
+      {[1, 2, 3].map(i => (
+        <View key={i} style={sk.txItem}>
+          <Skeleton width={36} height={36} borderRadius={10} />
+          <View style={{ flex: 1, marginLeft: 12 }}>
+            <Skeleton width={'60%' as any} height={14} />
+            <Skeleton width={'35%' as any} height={10} style={{ marginTop: 6 }} />
+          </View>
+          <Skeleton width={56} height={16} />
+        </View>
+      ))}
+    </View>
+  );
+};
+
+/**
+ * YearlySkeleton — month tiles grid + summary chips for the
+ * year-in-review screen.
+ */
+export const YearlySkeleton = () => {
+  const sk = useStyles();
+  return (
+    <View style={sk.container}>
+      <View style={sk.row}>
+        <Skeleton width={36} height={36} borderRadius={18} />
+        <View style={{ flex: 1, alignItems: 'center' }}>
+          <Skeleton width={160} height={18} />
+        </View>
+        <Skeleton width={36} height={36} borderRadius={18} />
+      </View>
+
+      {/* Year hero */}
+      <LinearGradient
+        colors={[COLORS.accent.brand, COLORS.accent.brandDark]}
+        start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}
+        style={sk.hero}
+      >
+        <Skeleton width={100} height={12} onHero />
+        <View style={{ height: 10 }} />
+        <Skeleton width={200} height={36} borderRadius={6} onHero />
+        <View style={{ height: 14 }} />
+        <View style={sk.row}>
+          <Skeleton width={'48%' as any} height={48} borderRadius={12} onHero />
+          <View style={{ width: 8 }} />
+          <Skeleton width={'48%' as any} height={48} borderRadius={12} onHero />
+        </View>
+      </LinearGradient>
+
+      {/* Month grid (3×4) */}
+      <View style={{ marginTop: 16, flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
+        {Array.from({ length: 12 }).map((_, i) => (
+          <View key={i} style={{ width: '31.5%' }}>
+            <Skeleton height={86} borderRadius={14} />
+          </View>
+        ))}
+      </View>
+
+      {/* Insights cards */}
+      <Skeleton height={120} borderRadius={RADIUS.card} style={{ marginTop: 16 }} />
+      <Skeleton height={120} borderRadius={RADIUS.card} style={{ marginTop: 10 }} />
+    </View>
+  );
+};
+
+/**
+ * PremiumHubSkeleton — premium status hero + entitlement chips +
+ * reports list. Used while /premium/status loads.
+ */
+export const PremiumHubSkeleton = () => {
+  const sk = useStyles();
+  return (
+    <View style={sk.container}>
+      <View style={sk.row}>
+        <Skeleton width={36} height={36} borderRadius={18} />
+        <View style={{ flex: 1, alignItems: 'center' }}>
+          <Skeleton width={120} height={18} />
+        </View>
+        <Skeleton width={36} height={36} borderRadius={18} />
+      </View>
+
+      {/* Pro hero */}
+      <LinearGradient
+        colors={[COLORS.accent.brand, COLORS.accent.brandDark]}
+        start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}
+        style={sk.hero}
+      >
+        <View style={[sk.row, { alignItems: 'center' }]}>
+          <Skeleton width={60} height={60} borderRadius={30} onHero />
+          <View style={{ marginLeft: 14, flex: 1 }}>
+            <Skeleton width={140} height={18} borderRadius={6} onHero />
+            <Skeleton width={100} height={12} style={{ marginTop: 8 }} onHero />
+          </View>
+        </View>
+        <View style={{ height: 14 }} />
+        <Skeleton height={42} borderRadius={999} onHero />
+      </LinearGradient>
+
+      {/* Entitlement chips row */}
+      <View style={[sk.row, { marginTop: 14, gap: 8 }]}>
+        {[1, 2, 3, 4].map(i => (
+          <Skeleton key={i} width={70} height={28} borderRadius={999} />
+        ))}
+      </View>
+
+      {/* Reports list cards */}
+      {[1, 2, 3].map(i => (
+        <Skeleton key={i} height={90} borderRadius={RADIUS.card} style={{ marginTop: 12 }} />
+      ))}
+    </View>
+  );
+};
+
+/**
+ * GoalsSkeleton — header + KPI strip + 3 goal cards.
+ */
+export const GoalsSkeleton = () => {
+  const sk = useStyles();
+  return (
+    <View style={sk.container}>
+      <View style={sk.row}>
+        <Skeleton width={36} height={36} borderRadius={18} />
+        <View style={{ flex: 1, alignItems: 'center' }}>
+          <Skeleton width={100} height={18} />
+        </View>
+        <Skeleton width={36} height={36} borderRadius={18} />
+      </View>
+
+      {/* KPI strip */}
+      <View style={[sk.row, { marginTop: 14, gap: 10 }]}>
+        <Skeleton width={'31%' as any} height={70} borderRadius={12} />
+        <Skeleton width={'31%' as any} height={70} borderRadius={12} />
+        <Skeleton width={'31%' as any} height={70} borderRadius={12} />
+      </View>
+
+      {/* Goal cards */}
+      {[1, 2, 3].map(i => (
+        <View key={i} style={sk.budgetCard}>
+          <View style={sk.row}>
+            <Skeleton width={42} height={42} borderRadius={12} />
+            <View style={{ flex: 1, marginLeft: 12 }}>
+              <Skeleton width={'60%' as any} height={14} />
+              <Skeleton width={'35%' as any} height={10} style={{ marginTop: 6 }} />
+            </View>
+            <Skeleton width={50} height={16} />
+          </View>
+          <Skeleton height={8} borderRadius={4} style={{ marginTop: 12 }} />
+        </View>
+      ))}
+    </View>
+  );
+};
+

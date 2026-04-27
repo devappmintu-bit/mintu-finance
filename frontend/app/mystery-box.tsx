@@ -28,6 +28,7 @@ import Confetti from '../components/Confetti';
 import { spinWheel, fetchRewardsSummary } from '../services/rewards';
 import { makeStyles } from '../utils/makeStyles';
 import { COLORS, useAppColors } from '../utils/theme';
+import { MysteryBoxSkeleton } from '../components/SkeletonLoader';
 
 type Stage = 'idle' | 'opening' | 'revealed';
 
@@ -164,8 +165,8 @@ export default function MysteryBoxScreen() {
 
   if (loadingSummary) {
     return (
-      <SafeAreaView style={[s.container, { alignItems: 'center', justifyContent: 'center' }]}>
-        <ActivityIndicator size="large" color={COLORS.accent.secondary} />
+      <SafeAreaView style={s.container}>
+        <MysteryBoxSkeleton />
       </SafeAreaView>
     );
   }

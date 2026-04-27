@@ -51,10 +51,15 @@ class SplitGroupCreate(BaseModel):
 
 
 class SplitExpenseCreate(BaseModel):
-    group_id: str
+    # Round 51j — group_id is now Optional. When None, the expense is
+    # saved as a "draft" (unattached, solo) via POST /split/expenses/draft
+    # and can be attached to a group later via the /attach-to-group
+    # endpoint. The legacy POST /split/expenses still requires a group_id
+    # at the handler level, so existing flows are unaffected.
+    group_id: Optional[str] = None
     description: str = Field(..., min_length=1, max_length=300)
     amount: float
-    paid_by: str
+    paid_by: Optional[str] = None
     split_type: str = "equal"
     splits: Optional[Dict[str, float]] = None
 

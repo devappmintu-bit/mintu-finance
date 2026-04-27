@@ -21,6 +21,7 @@ import { useAppColors } from '../utils/theme';
 import { makeStyles } from '../utils/makeStyles';
 import { shareImageSmart } from '../utils/share';
 import PremiumUnlockTeaser from '../components/premium/PremiumUnlockTeaser';
+import { LeaderboardSkeleton } from '../components/SkeletonLoader';
 import useSwr from '../hooks/useSwr';
 
 type Scope = 'contacts' | 'global' | 'streak';
@@ -172,9 +173,7 @@ export default function LeaderboardScreen() {
       </View>
 
       {isLoading ? (
-        <View style={styles.loadingWrap}>
-          <ActivityIndicator size="large" color={c.accent.primary} />
-        </View>
+        <LeaderboardSkeleton />
       ) : !data || data.total === 0 ? (
         <View style={styles.emptyWrap}>
           {/* Round 51e — bigger, filled trophy with brand-warm color
