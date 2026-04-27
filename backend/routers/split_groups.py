@@ -10,10 +10,11 @@ from bson import ObjectId
 from fastapi import Depends, HTTPException
 
 from core import db, get_current_user
-from core.cache import cache_get, cache_set
+from core.cache import cache_get, cache_set, cache_clear_prefix
 from routers.split_common import (
     api_router,
     SplitGroupCreate,
+    invalidate_split_cache_for_group,
 )
 
 
@@ -71,6 +72,9 @@ async def create_split_group(group: SplitGroupCreate, user_id: str = Depends(get
     if group.custom_emoji:
         g["custom_emoji"] = group.custom_emoji
     result = await db.split_groups.insert_one(g)
+    # Round 51 — invalidate cache for every member so the new group
+    # appears in their /split/groups list immediately.
+    await invalidate_split_cache_for_group(str(result.inserted_id), db)
     return {
         "id": str(result.inserted_id),
         "name": g["name"],
@@ -203,6 +207,8 @@ async def add_members_to_group(group_id: str, data: dict, user_id: str = Depends
         parts.append(f"Added {len(added)} member(s): {', '.join(added)}")
     if invited:
         parts.append(f"Invited {len(invited)} pending: {', '.join(invited)}")
+    # Round 51 — invalidate cache so all members (incl. just-added) see fresh group list.
+    await invalidate_split_cache_for_group(group_id, db)
     return {"added": added, "invited": invited, "message": " · ".join(parts)}
 
 
@@ -253,6 +259,8 @@ async def rename_group(group_id: str, data: dict, user_id: str = Depends(get_cur
     )
     if result.matched_count == 0:
         raise HTTPException(status_code=404, detail="Group not found")
+    # Round 51 — invalidate so renamed group surfaces in everyone's list.
+    await invalidate_split_cache_for_group(group_id, db)
     return {"message": "Group renamed", "name": name}
 
 
@@ -265,10 +273,18 @@ async def remove_member(group_id: str, member_id: str, user_id: str = Depends(ge
     group = await db.split_groups.find_one({"_id": ObjectId(group_id), "created_by": user_id})
     if not group:
         raise HTTPException(status_code=403, detail="Only the group admin can remove members")
+    # Round 51 — invalidate BEFORE the $pull so the removed member is
+    # still reachable by `invalidate_split_cache_for_group` (which reads
+    # the members list to find whose caches to clear).
+    await invalidate_split_cache_for_group(group_id, db)
     await db.split_groups.update_one(
         {"_id": ObjectId(group_id)},
         {"$pull": {"members": {"user_id": member_id}}},
     )
+    # Also clear the removed member's cache directly (they're gone from
+    # the members array now, so the helper above couldn't reach them
+    # AFTER the pull — this preempts that case too).
+    cache_clear_prefix(f"split_groups:{member_id}")
     return {"message": "Member removed"}
 
 
@@ -281,6 +297,8 @@ async def delete_group(group_id: str, user_id: str = Depends(get_current_user)):
     group = await db.split_groups.find_one({"_id": ObjectId(group_id), "created_by": user_id})
     if not group:
         raise HTTPException(status_code=403, detail="Only the group admin can delete the group")
+    # Round 51 — invalidate BEFORE delete so the helper can read members.
+    await invalidate_split_cache_for_group(group_id, db)
     await db.split_groups.delete_one({"_id": ObjectId(group_id)})
     await db.split_expenses.delete_many({"group_id": group_id})
     return {"message": "Group deleted"}
@@ -294,10 +312,13 @@ async def leave_group(group_id: str, user_id: str = Depends(get_current_user)):
         raise HTTPException(status_code=400, detail="Invalid group_id")
     user = await db.users.find_one({"_id": ObjectId(user_id)}) if ObjectId.is_valid(user_id) else await db.users.find_one({"phone": user_id})
     name = user.get("name", "Someone") if user else "Someone"
+    # Round 51 — invalidate BEFORE the $pull so the leaver's cache also clears.
+    await invalidate_split_cache_for_group(group_id, db)
     await db.split_groups.update_one(
         {"_id": ObjectId(group_id)},
         {"$pull": {"members": {"user_id": user_id}}}
     )
+    cache_clear_prefix(f"split_groups:{user_id}")
     # System message
     await db.split_messages.insert_one({"group_id": group_id, "type": "system", "content": f"{name} left the group", "created_at": datetime.now(timezone.utc)})
     return {"message": "Left group"}
@@ -436,4 +457,7 @@ async def self_join_group(group_id: str, user_id: str = Depends(get_current_user
             "$pull": {"pending_invites": {"phone": phone}},
         },
     )
+    # Round 51 — invalidate so the new member sees the group + existing
+    # members see the updated member roster.
+    await invalidate_split_cache_for_group(group_id, db)
     return {"ok": True, "already_member": False, "group_id": group_id, "name": group.get("name")}

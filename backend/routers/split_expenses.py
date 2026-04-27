@@ -4,20 +4,15 @@ Auto-extracted from backend/routers/splits.py (Round 14 refactor).
 Imports the shared `router` from split_common.py so decorators register
 on the same FastAPI APIRouter instance — no endpoint paths change.
 """
-import logging
-import uuid as uuid_lib
-from datetime import datetime, timedelta, timezone
-from urllib.parse import quote, quote_plus
+from datetime import datetime, timezone
 from typing import List, Optional, Dict
 from bson import ObjectId
 from fastapi import Depends, HTTPException
 
 from core import db, get_current_user
-from core.upi import mask_upi_id
 from routers.split_common import (
-    router, api_router,
-    SplitGroupCreate, SplitExpenseCreate, SettlePayment,
-    SETTLEMENT_REWARDS, SETTLEMENT_BADGES,
+    api_router,
+    SplitExpenseCreate, invalidate_split_cache_for_group,
 )
 
 
@@ -59,6 +54,8 @@ async def add_split_expense(expense: SplitExpenseCreate, user_id: str = Depends(
         },
         "created_at": datetime.now(timezone.utc)
     })
+    # Round 51 — invalidate /split/groups cache so balance changes appear immediately.
+    await invalidate_split_cache_for_group(expense.group_id, db)
     return {"id": str(result.inserted_id), **{k: v for k, v in exp_doc.items() if k != "_id"}, "created_at": exp_doc["created_at"]}
 
 
@@ -261,6 +258,8 @@ async def delete_expense(expense_id: str, user_id: str = Depends(get_current_use
     if not (is_creator or is_payer or is_admin):
         raise HTTPException(status_code=403, detail="Only the expense creator, payer, or group admin can delete this expense")
     await db.split_expenses.delete_one({"_id": ObjectId(expense_id)})
+    # Round 51 — invalidate all members' /split/groups cache (balances changed).
+    await invalidate_split_cache_for_group(str(existing.get("group_id") or ""), db)
     return {"message": "Expense deleted"}
 
 
@@ -317,6 +316,9 @@ async def edit_expense(expense_id: str, data: dict, user_id: str = Depends(get_c
     if updates:
         updates["updated_at"] = datetime.now(timezone.utc)
         await db.split_expenses.update_one({"_id": ObjectId(expense_id)}, {"$set": updates})
+        # Round 51 — invalidate when amount/splits/payer changed (balance-affecting fields).
+        if any(k in updates for k in ("amount", "splits", "split_type", "paid_by")):
+            await invalidate_split_cache_for_group(str(existing.get("group_id") or ""), db)
     return {"message": "Expense updated", "splits": updates.get("splits", existing.get("splits", {}))}
 
 

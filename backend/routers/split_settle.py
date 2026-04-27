@@ -7,20 +7,38 @@ on the same FastAPI APIRouter instance — no endpoint paths change.
 import logging
 import uuid as uuid_lib
 from contextlib import asynccontextmanager
-from datetime import datetime, timedelta, timezone
-from urllib.parse import quote, quote_plus
-from typing import List, Optional, Dict, Any
+from datetime import datetime, timezone
+from urllib.parse import quote
+from typing import Optional, Dict, Any
 from bson import ObjectId
 from fastapi import Depends, HTTPException
 from pymongo.errors import DuplicateKeyError
 
 from core import db, get_current_user
+from core.cache import cache_clear_prefix
 from core.upi import mask_upi_id
 from routers.split_common import (
-    router, api_router,
-    SplitGroupCreate, SplitExpenseCreate, SettlePayment,
+    api_router,
+    SettlePayment,
     SETTLEMENT_REWARDS, SETTLEMENT_BADGES,
+    invalidate_split_cache_for_group,
 )
+
+
+# Round 51 — settlement cache invalidation helper.
+# A settlement always changes the balance for at least 2 users (payer +
+# payee). When a `group_id` is provided we invalidate the full member
+# roster via the shared helper so every member sees the fresh /split/
+# groups response. For cross-group settlements (rare; group_id=None) we
+# clear just the two affected users' caches directly.
+async def _invalidate_settlement_caches(payer_id: str, payee_id: str, group_id: Optional[str]) -> None:
+    if group_id:
+        try:
+            await invalidate_split_cache_for_group(group_id, db)
+        except Exception:
+            pass
+    cache_clear_prefix(f"split_groups:{payer_id}")
+    cache_clear_prefix(f"split_groups:{payee_id}")
 
 
 # ─── Debt-pair advisory lock (Round 30 race fix) ──────────────────────
@@ -361,6 +379,8 @@ async def settle_payment(data: SettlePayment, user_id: str = Depends(get_current
 
     # Auto-dismiss any pending reminders the payee had sent to the payer.
     await dismiss_reminders_after_settle(user_id, data.target_user_id)
+    # Round 51 — invalidate /split/groups cache for both parties.
+    await _invalidate_settlement_caches(user_id, data.target_user_id, data.group_id)
 
     # Round 30e — emit declarative event for analytics/observability.
     try:
@@ -479,6 +499,8 @@ async def partial_settle(data: dict, user_id: str = Depends(get_current_user)):
     # Auto-dismiss any pending reminders for this debt (Round 30 — mirrors
     # mark-paid-offline behaviour so payments via any channel clear the banner).
     await dismiss_reminders_after_settle(user_id, target_user_id)
+    # Round 51 — invalidate /split/groups cache for both parties.
+    await _invalidate_settlement_caches(user_id, target_user_id, group_id)
 
     # Coin reward proportional to amount (max 5 coins for partial)
     coins_earned = min(5, max(1, int(amount / 500)))
@@ -586,6 +608,8 @@ async def settle_with_rewards(data: SettlePayment, user_id: str = Depends(get_cu
 
     # Auto-dismiss any pending reminders for this debt (Round 30)
     await dismiss_reminders_after_settle(user_id, data.target_user_id)
+    # Round 51 — invalidate /split/groups cache for both parties.
+    await _invalidate_settlement_caches(user_id, data.target_user_id, data.group_id)
 
     # Update user's reward coins
     await db.users.update_one(
@@ -720,6 +744,9 @@ async def mark_paid_offline(data: dict, user_id: str = Depends(get_current_user)
         )
     except Exception:
         pass
+
+    # Round 51 — invalidate /split/groups cache for both parties.
+    await _invalidate_settlement_caches(user_id, target_user_id, group_id)
 
     # System message in group chat
     payer_name = "User"

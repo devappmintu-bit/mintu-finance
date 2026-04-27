@@ -85,3 +85,9 @@ frontend/dist/
 backend/__pycache__/
 *.pyc
 frontend/.expo/
+backend/.env
+frontend/.env
+.env
+.env.local
+test_reports/
+*.log
