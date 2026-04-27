@@ -1,5 +1,5 @@
 """sms router — sample SMS inbox + bulk SMS parsing to create transactions."""
-from datetime import datetime
+from datetime import datetime, timezone
 from bson import ObjectId
 from fastapi import APIRouter, Depends, HTTPException
 
@@ -47,8 +47,8 @@ async def bulk_parse_sms(data: dict, user_id: str = Depends(get_current_user)):
                     "description": parsed.get("description", parsed.get("merchant", "Transaction")),
                     "type": parsed["type"],
                     "source": "sms_import",
-                    "date": datetime.utcnow(),
-                    "created_at": datetime.utcnow()
+                    "date": datetime.now(timezone.utc),
+                    "created_at": datetime.now(timezone.utc)
                 })
                 parsed_count += 1
             else:

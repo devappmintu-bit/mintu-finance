@@ -16,7 +16,7 @@ import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import { useThemePref, ThemeMode, useResolvedTheme } from '../../store/themeStore';
 import Mascot from '../Mascot';
-import { FONT_FAMILY, RADIUS, SPACING, useAppColors } from '../../utils/theme';
+import { COLORS, FONT_FAMILY, RADIUS, SPACING, useAppColors } from '../../utils/theme';
 import { makeStyles } from '../../utils/makeStyles';
 
 const OPTIONS: { key: ThemeMode; label: string; icon: string }[] = [
@@ -82,7 +82,7 @@ export default function ThemeToggle() {
         style={s.amoledRow}
         android_ripple={{ color: 'rgba(255,107,26,0.2)' }}
       >
-        <Ionicons name="contrast-outline" size={18} color={resolved === 'amoled' ? '#FFFFFF' : (resolved === 'light' ? '#111' : '#FF6B1A')} />
+        <Ionicons name="contrast-outline" size={18} color={resolved === 'amoled' ? '#FFFFFF' : (resolved === 'light' ? '#111' : COLORS.accent.primaryLight)} />
         <View style={{ flex: 1 }}>
           <Text style={s.amoledTitle}>AMOLED true-black</Text>
           <Text style={s.amoledSub}>Saves battery on OLED displays (active in dark mode)</Text>

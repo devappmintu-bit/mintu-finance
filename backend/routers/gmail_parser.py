@@ -9,7 +9,7 @@ patterns, then category inference via merchant keywords.
 """
 from __future__ import annotations
 import re
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Optional, Dict
 
 
@@ -140,7 +140,7 @@ def parse_bank_body(body: str, subject: str = "", received_at: Optional[datetime
         merchant = merchant[:48]
 
     # Date
-    date = _parse_date(b) or received_at or datetime.utcnow()
+    date = _parse_date(b) or received_at or datetime.now(timezone.utc)
 
     category = _infer_category(merchant, b)
 

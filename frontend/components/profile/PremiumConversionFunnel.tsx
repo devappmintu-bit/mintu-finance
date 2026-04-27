@@ -7,6 +7,7 @@ import { View, Text, TouchableOpacity, StyleSheet, Platform } from 'react-native
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import * as Haptics from 'expo-haptics';
+import { COLORS } from '../../utils/theme';
 
 interface Props { isPro: boolean; }
 
@@ -35,7 +36,7 @@ export default function PremiumConversionFunnel({ isPro }: Props) {
 
       {/* ROI banner */}
       <View style={s.roiBanner}>
-        <Ionicons name="trending-up" size={14} color={'#10B981'} />
+        <Ionicons name="trending-up" size={14} color={COLORS.state.successAlt} />
         <Text style={s.roiTxt}>Pro users save <Text style={s.roiBold}>avg ₹1,200/month</Text> — pays for itself 12×</Text>
       </View>
 
@@ -59,7 +60,7 @@ export default function PremiumConversionFunnel({ isPro }: Props) {
       <View style={s.social}>
         <View style={s.avatars}>
           {[0, 1, 2, 3].map((i) => (
-            <View key={i} style={[s.avatarDot, { left: i * 12, backgroundColor: ['#F56E1E', '#10B981', '#7C3AED', '#3B82F6'][i] }]} />
+            <View key={i} style={[s.avatarDot, { left: i * 12, backgroundColor: [COLORS.accent.brand, COLORS.state.successAlt, '#7C3AED', '#3B82F6'][i] }]} />
           ))}
         </View>
         <Text style={s.socialTxt}>
@@ -90,7 +91,7 @@ const s = StyleSheet.create({
   urgencyTxt: { fontSize: 9, fontWeight: '900', color: '#FCA5A5', letterSpacing: 0.5 },
   title: { fontSize: 16, fontWeight: '700', color: '#FFFFFF', letterSpacing: -0.3, marginTop: 6, maxWidth: 210 },
   price: { fontSize: 20, fontWeight: '900', color: '#FFFFFF' },
-  priceSub: { fontSize: 12, fontWeight: '600', color: '#9CA3AF' },
+  priceSub: { fontSize: 12, fontWeight: '600', color: COLORS.text.muted },
 
   roiBanner: { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 14, padding: 10, borderRadius: 12, backgroundColor: '#10B98114', borderWidth: 1, borderColor: '#10B98133' },
   roiTxt: { flex: 1, fontSize: 12, fontWeight: '600', color: '#D1FAE5' },
@@ -101,14 +102,14 @@ const s = StyleSheet.create({
   featIcon: { width: 34, height: 34, borderRadius: 10, backgroundColor: '#1E293B', alignItems: 'center', justifyContent: 'center' },
   featTitleRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
   featTitle: { fontSize: 13, fontWeight: '700', color: '#FFFFFF' },
-  featBlur: { fontSize: 11, fontWeight: '500', color: '#9CA3AF', marginTop: 1, opacity: 0.7 },
+  featBlur: { fontSize: 11, fontWeight: '500', color: COLORS.text.muted, marginTop: 1, opacity: 0.7 },
 
   social: { flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 14, paddingTop: 12, borderTopWidth: 1, borderTopColor: '#1E293B' },
   avatars: { width: 60, height: 18, position: 'relative' },
   avatarDot: { position: 'absolute', top: 0, width: 18, height: 18, borderRadius: 9, borderWidth: 2, borderColor: '#0F172A' },
-  socialTxt: { fontSize: 11.5, fontWeight: '600', color: '#9CA3AF' },
+  socialTxt: { fontSize: 11.5, fontWeight: '600', color: COLORS.text.muted },
 
   cta: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, backgroundColor: '#FCD34D', paddingVertical: 13, borderRadius: 12, marginTop: 14 },
   ctaTxt: { fontSize: 14, fontWeight: '900', color: '#0F172A', letterSpacing: -0.1 },
-  ctaSub: { fontSize: 10.5, fontWeight: '500', color: '#9CA3AF', textAlign: 'center', marginTop: 8 },
+  ctaSub: { fontSize: 10.5, fontWeight: '500', color: COLORS.text.muted, textAlign: 'center', marginTop: 8 },
 });

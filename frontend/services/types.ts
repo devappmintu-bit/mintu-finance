@@ -95,3 +95,39 @@ export type RazorpayOrder = {
   currency: 'INR';
   checkout_url: string;
 };
+
+export type SmartAlert = {
+  type: string;
+  title: string;
+  body: string;
+  priority: 'high' | 'medium' | 'low';
+  route?: string;
+  action?: string;
+  data?: Record<string, unknown>;
+};
+
+export type NewsItem = {
+  title: string;
+  url?: string;
+  summary?: string;
+  source?: string;
+  published_at?: string;
+  image_url?: string;
+};
+
+export type GroupSummary = {
+  id: string;
+  total_expenses: number;
+  simplified_debts: Array<{ from: string; to: string; amount: number; from_name?: string; to_name?: string }>;
+  member_balances: Record<string, number>;
+};
+
+export type Notification = {
+  id: string;
+  type: string;
+  title: string;
+  body: string;
+  read: boolean;
+  created_at: string;
+  metadata?: Record<string, unknown>;
+};

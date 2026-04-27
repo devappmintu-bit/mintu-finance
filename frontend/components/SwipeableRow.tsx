@@ -95,7 +95,7 @@ export default function SwipeableRow({
             {onDelete && (
               <TouchableOpacity
                 onPress={() => { setOpenActions(false); onDelete(); }}
-                style={[s.webBarBtn, { backgroundColor: '#EF4444' }]}
+                style={[s.webBarBtn, { backgroundColor: COLORS.state.danger }]}
                 activeOpacity={0.85}
               >
                 <Ionicons name="trash-outline" size={14} color="#fff" />
@@ -125,7 +125,7 @@ export default function SwipeableRow({
 }
 
 const useStyles = makeStyles((c) => ({
-  rightAction: { backgroundColor: '#EF4444', justifyContent: 'center', alignItems: 'center', width: 90, borderRadius: RADIUS.lg, marginBottom: 10, marginLeft: 8 },
+  rightAction: { backgroundColor: COLORS.state.danger, justifyContent: 'center', alignItems: 'center', width: 90, borderRadius: RADIUS.lg, marginBottom: 10, marginLeft: 8 },
   leftAction: { backgroundColor: '#3B82F6', justifyContent: 'center', alignItems: 'center', width: 90, borderRadius: RADIUS.lg, marginBottom: 10, marginRight: 8 },
   actionText: { color: '#fff', fontSize: 11, fontWeight: '700', marginTop: 2 },
 

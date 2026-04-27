@@ -1,10 +1,11 @@
 """notifications router — push-token registration, budget alerts, cron-based smart nudges."""
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from bson import ObjectId
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 
 from core import db, get_current_user
+from core.cache import cache_get, cache_set
 
 
 def _send_expo_push(token, title, body, data=None):
@@ -70,7 +71,7 @@ async def send_test_push(user_id: str = Depends(get_current_user)):
 async def check_budget_alerts(user_id: str = Depends(get_current_user)):
     """Check budgets and return any that need alerts"""
     budgets = await db.budgets.find({"user_id": user_id}).to_list(100)
-    thirty_days_ago = datetime.utcnow() - timedelta(days=30)
+    thirty_days_ago = datetime.now(timezone.utc) - timedelta(days=30)
     
     alerts = []
     for budget in budgets:
@@ -99,7 +100,7 @@ async def check_budget_alerts(user_id: str = Depends(get_current_user)):
 @api_router.get("/notifications/smart-triggers")
 async def get_smart_notification_triggers(user_id: str = Depends(get_current_user)):
     """Generate all pending smart notifications for user"""
-    now = datetime.utcnow()
+    now = datetime.now(timezone.utc)
     today_start = now.replace(hour=0, minute=0, second=0, microsecond=0)
     
     notifications = []
@@ -142,11 +143,14 @@ async def get_smart_notification_triggers(user_id: str = Depends(get_current_use
     # 4. Budget alerts
     budgets = await db.budgets.find({"user_id": user_id}).to_list(50)
     thirty_days_ago = now - timedelta(days=30)
+    # Batch-fetch all monthly transactions once (avoids N+1 per budget)
+    all_month_txns = await db.transactions.find(
+        {"user_id": user_id, "type": "debit", "date": {"$gte": thirty_days_ago}}
+    ).to_list(2000)
     for b in budgets:
         spent = sum(t["amount"] for t in week_txns if t["category"] == b["category"]) if b["period"] == "weekly" else 0
         if b["period"] == "monthly":
-            month_txns = await db.transactions.find({"user_id": user_id, "category": b["category"], "type": "debit", "date": {"$gte": thirty_days_ago}}).to_list(500)
-            spent = sum(t["amount"] for t in month_txns)
+            spent = sum(t["amount"] for t in all_month_txns if t.get("category") == b["category"])
         pct = (spent / b["amount"] * 100) if b["amount"] > 0 else 0
         if pct >= 100:
             notifications.append({"type": "budget_exceeded", "title": f"{b['category']} Budget Exceeded!", "body": f"₹{spent:.0f} of ₹{b['amount']:.0f} — time to slow down", "priority": "high"})
@@ -182,7 +186,7 @@ async def cron_check_notifications():
         token = user.get("push_token", "")
         if not token: continue
         
-        now = datetime.utcnow()
+        now = datetime.now(timezone.utc)
         today_start = now.replace(hour=0, minute=0, second=0, microsecond=0)
         seven_days_ago = now - timedelta(days=7)
         thirty_days_ago = now - timedelta(days=30)
@@ -276,7 +280,7 @@ async def persist_notification(user_id: str, kind: str, title: str, body: str, m
         "title": title,
         "body": body,
         "read": False,
-        "created_at": datetime.utcnow(),
+        "created_at": datetime.now(timezone.utc),
         "metadata": metadata or {},
     }
     await db.notifications_feed.insert_one(doc)
@@ -297,7 +301,7 @@ async def list_notifications(user_id: str = Depends(get_current_user), limit: in
             "title": d.get("title", ""),
             "body": d.get("body", ""),
             "read": bool(d.get("read", False)),
-            "created_at": (d.get("created_at") or datetime.utcnow()).isoformat(),
+            "created_at": (d.get("created_at") or datetime.now(timezone.utc)).isoformat(),
             "metadata": d.get("metadata", {}),
         })
     return {"notifications": items, "count": len(items)}
@@ -305,9 +309,15 @@ async def list_notifications(user_id: str = Depends(get_current_user), limit: in
 
 @api_router.get("/notifications/unread-count")
 async def unread_count(user_id: str = Depends(get_current_user)):
-    """Fast count for the home-screen bell badge."""
+    """Fast count for the home-screen bell badge. Cached 30s."""
+    cache_key = f"unread_count:{user_id}"
+    cached = cache_get(cache_key)
+    if cached is not None:
+        return cached
     n = await db.notifications_feed.count_documents({"user_id": user_id, "read": False})
-    return {"unread": int(n)}
+    result = {"unread": int(n)}
+    cache_set(cache_key, result, ttl_seconds=30)
+    return result
 
 
 class MarkReadBody(BaseModel):
@@ -346,7 +356,7 @@ async def seed_sample_notifications(user_id: str = Depends(get_current_user)):
     existing = await db.notifications_feed.count_documents({"user_id": user_id})
     if existing > 0:
         return {"ok": True, "seeded": 0, "reason": "already_has_entries"}
-    now = datetime.utcnow()
+    now = datetime.now(timezone.utc)
     samples = [
         {"kind": "streak",       "title": "🔥 Keep your streak going!", "body": "You're 3 days away from a 30-day streak.", "created_at": now - timedelta(minutes=5)},
         {"kind": "budget_alert", "title": "Food budget at 82%",         "body": "₹4,100 of ₹5,000 used this month.",         "created_at": now - timedelta(hours=2)},

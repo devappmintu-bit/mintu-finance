@@ -21,12 +21,13 @@ New endpoints (add-only; do NOT break existing /api/profile/identity):
 from __future__ import annotations
 
 from datetime import datetime, timezone, timedelta
-from typing import Any, Dict, List
+from typing import Any, Dict
 
 from bson import ObjectId
 from fastapi import APIRouter, Depends
 
 from core import db, get_current_user
+from core.cache import cache_get, cache_set
 
 router = APIRouter(tags=["profile-engine"])
 
@@ -77,7 +78,11 @@ async def _sum_range(user_id: str, start: datetime, end: datetime) -> Dict[str, 
 # ── Endpoints ──────────────────────────────────────────────────
 @router.get("/profile/score-breakdown")
 async def score_breakdown(user_id: str = Depends(get_current_user)) -> Dict[str, Any]:
-    """Break the Money Score into 3 pillars + predictive insight."""
+    """Break the Money Score into 3 pillars + predictive insight. Cached 120s."""
+    cache_key = f"score_breakdown:{user_id}"
+    cached = cache_get(cache_key)
+    if cached is not None:
+        return cached
     try:
         user = await db.users.find_one(
             {"_id": ObjectId(user_id)},
@@ -126,7 +131,9 @@ async def score_breakdown(user_id: str = Depends(get_current_user)) -> Dict[str,
     else:
         predictive = f"At this pace, you'll reach {next_tier} in {days_to_next} days"
 
-    return {
+    # Round 51 — fix script omission: capture result, populate cache,
+    # then return. Without cache_set the cache_get above never hits.
+    result = {
         "current_score": score,
         "next_tier": next_tier,
         "points_to_next": delta,
@@ -150,6 +157,8 @@ async def score_breakdown(user_id: str = Depends(get_current_user)) -> Dict[str,
             },
         ],
     }
+    cache_set(cache_key, result, ttl_seconds=120)
+    return result
 
 
 @router.get("/profile/weekly-comparison")

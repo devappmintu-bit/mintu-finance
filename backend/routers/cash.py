@@ -1,6 +1,6 @@
 """cash router — quick natural-language cash entry + recurring expenses."""
 import re
-from datetime import datetime
+from datetime import datetime, timezone
 from bson import ObjectId
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
@@ -67,8 +67,8 @@ async def quick_cash_entry(entry: QuickCashEntry, user_id: str = Depends(get_cur
         "description": desc,
         "type": "debit",
         "source": "cash",
-        "date": datetime.utcnow(),
-        "created_at": datetime.utcnow()
+        "date": datetime.now(timezone.utc),
+        "created_at": datetime.now(timezone.utc)
     }
     result = await db.transactions.insert_one(trans_dict)
 
@@ -96,7 +96,7 @@ async def create_recurring_expense(expense: RecurringExpenseCreate, user_id: str
         "frequency": expense.frequency,
         "active": True,
         "last_applied": None,
-        "created_at": datetime.utcnow()
+        "created_at": datetime.now(timezone.utc)
     }
     result = await db.recurring_expenses.insert_one(rec)
     return {
@@ -133,7 +133,7 @@ async def delete_recurring_expense(expense_id: str, user_id: str = Depends(get_c
 async def apply_recurring_expenses(user_id: str = Depends(get_current_user)):
     """Apply all due recurring expenses as transactions"""
     expenses = await db.recurring_expenses.find({"user_id": user_id, "active": True}).to_list(100)
-    now = datetime.utcnow()
+    now = datetime.now(timezone.utc)
     added = 0
 
     for exp in expenses:

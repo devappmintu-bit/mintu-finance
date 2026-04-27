@@ -15,7 +15,7 @@ All four reuse the shared ``api_router`` from ``split_common`` so no
 path changes occur on the client side.
 """
 import logging
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from urllib.parse import quote, quote_plus
 
 from bson import ObjectId
@@ -48,7 +48,7 @@ async def send_payment_reminder(data: dict, user_id: str = Depends(get_current_u
         raise HTTPException(status_code=400, detail="target_user_id and positive amount required")
 
     # Anti-spam: 1 reminder/hour per pair
-    one_hour_ago = datetime.utcnow() - timedelta(hours=1)
+    one_hour_ago = datetime.now(timezone.utc) - timedelta(hours=1)
     recent = await db.split_reminders.find_one({
         "sender_id": user_id,
         "recipient_id": target_user_id,
@@ -83,7 +83,7 @@ async def send_payment_reminder(data: dict, user_id: str = Depends(get_current_u
         "group_id": group_id,
         "note": note,
         "status": "pending",
-        "created_at": datetime.utcnow(),
+        "created_at": datetime.now(timezone.utc),
     }
     result = await db.split_reminders.insert_one(reminder)
     reminder_id = str(result.inserted_id)
@@ -108,7 +108,7 @@ async def send_payment_reminder(data: dict, user_id: str = Depends(get_current_u
                     "recipient_id": target_user_id,
                     "reminder_id": reminder_id,
                 },
-                "created_at": datetime.utcnow(),
+                "created_at": datetime.now(timezone.utc),
             })
         except Exception as e:
             logging.warning(f"Could not post reminder system message: {e}")
@@ -168,7 +168,7 @@ async def get_my_reminders(user_id: str = Depends(get_current_user)):
             "note": r.get("note", ""),
             "status": r.get("status", "pending"),
             "created_at": (
-                r.get("created_at", datetime.utcnow()).isoformat()
+                r.get("created_at", datetime.now(timezone.utc)).isoformat()
                 if hasattr(r.get("created_at"), "isoformat")
                 else str(r.get("created_at", ""))
             ),
@@ -187,7 +187,7 @@ async def dismiss_reminder(reminder_id: str, user_id: str = Depends(get_current_
     try:
         await db.split_reminders.update_one(
             {"_id": ObjectId(reminder_id), "recipient_id": user_id},
-            {"$set": {"status": "dismissed", "dismissed_at": datetime.utcnow()}},
+            {"$set": {"status": "dismissed", "dismissed_at": datetime.now(timezone.utc)}},
         )
     except Exception:
         raise HTTPException(status_code=404, detail="Reminder not found")

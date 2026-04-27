@@ -17,7 +17,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import { makeStyles } from '../../utils/makeStyles';
-import { useAppColors } from '../../utils/theme';
+import { COLORS, useAppColors } from '../../utils/theme';
 
 type Mission = {
   id: string;
@@ -39,10 +39,10 @@ type Props = {
 };
 
 // Status-driven gradients — semantic, theme-independent
-const PROG_GRAD_INCOMPLETE: readonly [string, string] = ['#F59E0B', '#F56E1E'];
-const PROG_GRAD_COMPLETE:   readonly [string, string] = ['#10B981', '#059669'];
-const PROG_GRAD_CLAIMED:    readonly [string, string] = ['#D1D5DB', '#9CA3AF'];
-const CLAIM_BTN_GRAD:       readonly [string, string] = ['#10B981', '#059669'];
+const PROG_GRAD_INCOMPLETE: readonly [string, string] = [COLORS.accent.secondary, COLORS.accent.brand];
+const PROG_GRAD_COMPLETE:   readonly [string, string] = [COLORS.state.successAlt, COLORS.state.success];
+const PROG_GRAD_CLAIMED:    readonly [string, string] = ['#D1D5DB', COLORS.text.muted];
+const CLAIM_BTN_GRAD:       readonly [string, string] = [COLORS.state.successAlt, COLORS.state.success];
 
 export default function MissionCard({ mission, onClaim, submitting }: Props) {
   const s = useStyles();

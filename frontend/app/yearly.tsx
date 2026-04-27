@@ -293,7 +293,7 @@ export default function YearlyDashboard() {
                 <View style={{ flex: 1 }}>
                   <Text style={s.catName}>{c.name}</Text>
                   <View style={s.catBar}>
-                    <View style={[s.catBarFill, { width: `${c.pct}%`, backgroundColor: ['#E65100', '#EC4899', '#F59E0B', '#10B981', '#3B82F6'][i] }]} />
+                    <View style={[s.catBarFill, { width: `${c.pct}%`, backgroundColor: ['#E65100', '#EC4899', COLORS.accent.secondary, COLORS.state.successAlt, '#3B82F6'][i] }]} />
                   </View>
                 </View>
                 <View style={{ alignItems: 'flex-end' }}>

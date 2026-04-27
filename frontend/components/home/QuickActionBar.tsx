@@ -9,14 +9,15 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { router } from 'expo-router';
 import * as Haptics from 'expo-haptics';
 import { makeStyles } from '../../utils/makeStyles';
+import { COLORS } from '../../utils/theme';
 
 type Action = { id: string; icon: keyof typeof Ionicons.glyphMap; label: string; route: string; tint: string };
 
 const ACTIONS: Action[] = [
   { id: 'scan_sms', icon: 'scan',     label: 'Scan',    route: '/(tabs)/transactions?openSmsScan=1', tint: '#7C3AED' },
   { id: 'split',    icon: 'people',   label: 'Split',   route: '/(tabs)/split',                        tint: '#2563EB' },
-  { id: 'ai_coach', icon: 'sparkles', label: 'Ask AI',  route: '/(tabs)/ai-coach',                     tint: '#10B981' },
-  { id: 'rewards',  icon: 'gift',     label: 'Rewards', route: '/(tabs)/rewards',                      tint: '#F59E0B' },
+  { id: 'ai_coach', icon: 'sparkles', label: 'Ask AI',  route: '/(tabs)/ai-coach',                     tint: COLORS.state.successAlt },
+  { id: 'rewards',  icon: 'gift',     label: 'Rewards', route: '/(tabs)/rewards',                      tint: COLORS.accent.secondary },
 ];
 
 function QuickActionBar() {
@@ -30,7 +31,7 @@ function QuickActionBar() {
   return (
     <View style={s.wrap}>
       <TouchableOpacity style={s.primaryShell} activeOpacity={0.9} onPress={add} testID="qa-add">
-        <LinearGradient colors={['#F56E1E', '#C14A06']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={s.primary}>
+        <LinearGradient colors={[COLORS.accent.brand, COLORS.accent.brandDark]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={s.primary}>
           <Ionicons name="add-circle" size={20} color="#FFFFFF" />
           <Text style={s.primaryTxt}>Add Expense</Text>
         </LinearGradient>

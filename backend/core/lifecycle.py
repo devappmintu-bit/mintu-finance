@@ -14,7 +14,7 @@ from __future__ import annotations
 
 import asyncio as _asyncio
 import logging
-from datetime import datetime
+from datetime import datetime, timezone
 
 logger = logging.getLogger(__name__)
 
@@ -137,6 +137,32 @@ async def _ensure_indexes(db) -> None:
         await db.family_groups.create_index("members.user_id")
         await db.family_budgets.create_index("group_id")
 
+        # ── Round 51 additions: previously unindexed collections ──────
+        await db.sent_notifications.create_index(
+            [("user_id", 1), ("date", -1)],
+            name="sent_notifs_user_date",
+        )
+        await db.agent_memory.create_index("user_id", unique=True)
+        await db.split_reminders.create_index(
+            [("recipient_id", 1), ("status", 1), ("created_at", -1)],
+            name="split_reminders_recipient",
+        )
+        await db.split_reminders.create_index(
+            [("sender_id", 1), ("recipient_id", 1), ("group_id", 1), ("created_at", -1)],
+            name="split_reminders_sender_pair",
+        )
+        await db.otp_audit.create_index("phone")
+        await db.otp_audit.create_index(
+            "created_at", expireAfterSeconds=3600,
+            name="otp_audit_ttl",
+        )
+        await db.ab_events.create_index("group")
+        await db.coins_wallet.create_index("user_id", unique=True)
+        await db.split_settlements.create_index(
+            [("group_id", 1), ("created_at", -1)],
+            name="split_settlements_group",
+        )
+
         logger.info("✅ MongoDB indexes created for 1.46B-scale performance")
     except Exception as e:
         logger.warning(f"Index creation warning: {e}")
@@ -223,7 +249,7 @@ async def _start_background_workers(db) -> None:
     async def _soft_delete_purge_loop():
         while True:
             try:
-                now = datetime.utcnow()
+                now = datetime.now(timezone.utc)
                 expired = await db.users.find(
                     {"deleted_at": {"$exists": True},
                      "scheduled_purge_at": {"$lte": now}},
@@ -259,7 +285,7 @@ async def _start_background_workers(db) -> None:
         RECENT_WINDOW = 7 * 24 * 3600  # 7 days
         while True:
             try:
-                since = datetime.utcnow() - __import__("datetime").timedelta(seconds=RECENT_WINDOW)
+                since = datetime.now(timezone.utc) - __import__("datetime").timedelta(seconds=RECENT_WINDOW)
                 # Pipeline: unique user_ids with ledger activity in the window.
                 cursor = db.ledger_transactions.aggregate([
                     {"$match": {"created_at": {"$gte": since}}},

@@ -139,7 +139,7 @@ function HomeScreen() {
         setRefreshing(false);
         return;
       } catch (bundleErr) {
-        console.warn('home/bundle failed, fallback', bundleErr);
+        if (__DEV__) console.warn('home/bundle failed, fallback', bundleErr);
       }
 
       // Round 48 perf — Phase 1 must paint the home shell ASAP. We keep the
@@ -177,12 +177,12 @@ function HomeScreen() {
           if (_openCoinsAward?.data?.awarded && _openCoinsAward.data.awarded > 0) {
             setShowConfetti(true);
           }
-        } catch (e) { console.error('Phase2 err', e); }
+        } catch (e) { if (__DEV__) console.error('Phase2 err', e); }
         // News fires last so list paints before remote feeds arrive
         fetchNews(false);
       });
     } catch (error) {
-      console.error('Dashboard fetch error:', error);
+      if (__DEV__) console.error('Dashboard fetch error:', error);
       // Round 34 fix — surface the failure so users know to retry
       // instead of staring at a blank layout thinking the app is frozen.
       // Only trip the error banner when nothing has painted yet (user+stats

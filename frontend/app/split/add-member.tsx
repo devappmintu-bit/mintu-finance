@@ -674,7 +674,7 @@ export default function AddMemberScreen() {
               testID="am-submit"
               accessibilityLabel={`Add ${selected.size} to group`}
             >
-              <LinearGradient colors={['#F56E1E', '#C14A06']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={s.footerGrad}>
+              <LinearGradient colors={[COLORS.accent.brand, COLORS.accent.brandDark]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={s.footerGrad}>
                 {submitting ? <ActivityIndicator color="#fff" /> : (
                   <>
                     <Ionicons name="person-add" size={16} color="#fff" />

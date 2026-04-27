@@ -1,5 +1,5 @@
 """Gamification router — streaks, badges, weekly challenges."""
-from datetime import datetime, timedelta, date
+from datetime import datetime, timedelta, date, timezone
 from bson import ObjectId
 from fastapi import APIRouter, Depends
 
@@ -40,7 +40,7 @@ async def _compute_streak(user_id: str) -> int:
     the result set in Python. Drops the cost from O(365 round-trips) to
     O(1 round-trip).
     """
-    today = datetime.utcnow().replace(hour=0, minute=0, second=0, microsecond=0)
+    today = datetime.now(timezone.utc).replace(hour=0, minute=0, second=0, microsecond=0)
     earliest = today - timedelta(days=365)
     pipeline = [
         {"$match": {"user_id": user_id, "date": {"$gte": earliest}}},

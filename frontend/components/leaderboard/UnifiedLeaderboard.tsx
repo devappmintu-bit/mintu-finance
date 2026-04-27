@@ -65,7 +65,7 @@ function UnifiedLeaderboard({ title = 'Leaderboard', compact = false, onPressMor
     <View style={s.card}>
       {/* Header with scope toggle */}
       <View style={s.header}>
-        <Ionicons name="trophy" size={18} color="#F59E0B" />
+        <Ionicons name="trophy" size={18} color={COLORS.accent.secondary} />
         <Text style={s.title}>{title}</Text>
         <View style={s.toggle}>
           <TouchableOpacity
@@ -101,11 +101,11 @@ function UnifiedLeaderboard({ title = 'Leaderboard', compact = false, onPressMor
           </View>
           <View style={s.meBox}>
             <Text style={s.meLabel}>Percentile</Text>
-            <Text style={[s.meNum, { color: '#10B981' }]}>{you.percentile ?? 0}%</Text>
+            <Text style={[s.meNum, { color: COLORS.state.successAlt }]}>{you.percentile ?? 0}%</Text>
           </View>
           <View style={s.meBox}>
             <Text style={s.meLabel}>Coins</Text>
-            <Text style={[s.meNum, { color: '#F59E0B' }]}>{you.coins}</Text>
+            <Text style={[s.meNum, { color: COLORS.accent.secondary }]}>{you.coins}</Text>
           </View>
         </View>
       )}

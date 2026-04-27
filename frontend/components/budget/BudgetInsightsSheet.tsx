@@ -14,7 +14,7 @@ import { Ionicons } from '@expo/vector-icons';
 import Toast from 'react-native-toast-message';
 import api from '../../utils/api';
 import { makeStyles } from '../../utils/makeStyles';
-import { useAppColors } from '../../utils/theme';
+import { COLORS, useAppColors } from '../../utils/theme';
 
 const TONE_COLOR: Record<string, { bg: string; fg: string; border: string }> = {
   success: { bg: '#DCFCE7', fg: '#065F46', border: '#86EFAC' },
@@ -88,7 +88,7 @@ export default function BudgetInsightsSheet({ visible, category, onClose, onAppl
           </View>
 
           {loading ? (
-            <ActivityIndicator color="#F56E1E" size="large" style={{ marginVertical: 40 }} />
+            <ActivityIndicator color={COLORS.accent.brand} size="large" style={{ marginVertical: 40 }} />
           ) : !data ? (
             <Text style={s.err}>Could not load insights</Text>
           ) : (
@@ -135,9 +135,9 @@ export default function BudgetInsightsSheet({ visible, category, onClose, onAppl
                         onPress={() => apply(a)}
                         activeOpacity={0.85}
                       >
-                        <Ionicons name={a.action === 'enable_alert' ? 'notifications-outline' : 'sparkles-outline'} size={16} color="#F56E1E" />
+                        <Ionicons name={a.action === 'enable_alert' ? 'notifications-outline' : 'sparkles-outline'} size={16} color={COLORS.accent.brand} />
                         <Text style={s.actT}>{a.label}</Text>
-                        {busy ? <ActivityIndicator size="small" color="#F56E1E" /> : <Ionicons name="chevron-forward" size={14} color={c.text.muted} />}
+                        {busy ? <ActivityIndicator size="small" color={COLORS.accent.brand} /> : <Ionicons name="chevron-forward" size={14} color={c.text.muted} />}
                       </TouchableOpacity>
                     );
                   })}
@@ -151,7 +151,7 @@ export default function BudgetInsightsSheet({ visible, category, onClose, onAppl
                   <View style={s.statDiv} />
                   <View style={s.stat}><Text style={s.statV}>{data.stats.txn_count_60d}</Text><Text style={s.statL}>60-day txns</Text></View>
                   <View style={s.statDiv} />
-                  <View style={s.stat}><Text style={[s.statV, { color: data.stats.delta_pct > 0 ? '#B91C1C' : '#059669' }]}>{data.stats.delta_pct > 0 ? '+' : ''}{data.stats.delta_pct}%</Text><Text style={s.statL}>vs last mo</Text></View>
+                  <View style={s.stat}><Text style={[s.statV, { color: data.stats.delta_pct > 0 ? '#B91C1C' : COLORS.state.success }]}>{data.stats.delta_pct > 0 ? '+' : ''}{data.stats.delta_pct}%</Text><Text style={s.statL}>vs last mo</Text></View>
                 </View>
               )}
             </>

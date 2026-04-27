@@ -18,6 +18,7 @@ import * as Haptics from 'expo-haptics';
 import { router } from 'expo-router';
 import PulseCTA from './PulseCTA';
 import { makeStyles } from '../../utils/makeStyles';
+import { COLORS } from '../../utils/theme';
 
 type Props = {
   lossAmount?: number;         // "You're missing ₹X"
@@ -60,7 +61,7 @@ function SoftPaywall({
       {/* Loss-framing headline */}
       <View style={s.lossRow}>
         <View style={s.lossIcon}>
-          <Ionicons name="trending-down" size={14} color="#DC2626" />
+          <Ionicons name="trending-down" size={14} color={COLORS.state.danger} />
         </View>
         <View style={{ flex: 1 }}>
           <Text style={s.lossLabel}>MONEY YOU'RE LEAKING</Text>
@@ -93,14 +94,14 @@ function SoftPaywall({
         {Platform.OS !== 'web' ? (
           <BlurView intensity={28} tint="light" style={s.blurOverlay}>
             <View style={s.blurInner}>
-              <Ionicons name="lock-closed" size={18} color="#C14A06" />
+              <Ionicons name="lock-closed" size={18} color={COLORS.accent.brandDark} />
               <Text style={s.blurTxt}>{hiddenCount} more insights locked</Text>
             </View>
           </BlurView>
         ) : (
           <View style={[s.blurOverlay, s.webFog]}>
             <View style={s.blurInner}>
-              <Ionicons name="lock-closed" size={18} color="#C14A06" />
+              <Ionicons name="lock-closed" size={18} color={COLORS.accent.brandDark} />
               <Text style={s.blurTxt}>{hiddenCount} more insights locked</Text>
             </View>
           </View>
@@ -126,7 +127,7 @@ function SoftPaywall({
       {/* Primary CTA with pulse */}
       <PulseCTA>
         <TouchableOpacity activeOpacity={0.88} onPress={handlePress} style={s.ctaBtn} testID="softpaywall-cta">
-          <LinearGradient colors={['#F56E1E', '#C14A06']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={s.ctaGrad}>
+          <LinearGradient colors={[COLORS.accent.brand, COLORS.accent.brandDark]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={s.ctaGrad}>
             <Ionicons name="sparkles" size={16} color="#fff" />
             <Text style={s.ctaTxt}>{ctaLabel}</Text>
             <Ionicons name="arrow-forward" size={15} color="#fff" />

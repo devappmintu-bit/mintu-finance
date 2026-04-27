@@ -70,7 +70,7 @@ export default function ScoreBreakdownModal({ visible, onClose, fallbackScore = 
     load();
   }, [visible, load]);
 
-  const PILLAR_COLORS: Record<string, string> = { saving_habits: '#10B981', spending_control: '#F59E0B', consistency: '#7C3AED' };
+  const PILLAR_COLORS: Record<string, string> = { saving_habits: COLORS.state.successAlt, spending_control: COLORS.accent.secondary, consistency: '#7C3AED' };
 
   return (
     <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
@@ -84,23 +84,23 @@ export default function ScoreBreakdownModal({ visible, onClose, fallbackScore = 
                 <Text style={s.sheetTitle}>{data?.current_score ?? fallbackScore} <Text style={s.sheetTitleOf}>/ 100</Text></Text>
               </View>
               <TouchableOpacity onPress={onClose} hitSlop={10} style={s.closeBtn}>
-                <Ionicons name="close" size={20} color={'#111827'} />
+                <Ionicons name="close" size={20} color={COLORS.text.primary} />
               </TouchableOpacity>
             </View>
 
             {loading ? (
-              <View style={{ padding: 30, alignItems: 'center' }}><ActivityIndicator color="#F56E1E" /></View>
+              <View style={{ padding: 30, alignItems: 'center' }}><ActivityIndicator color={COLORS.accent.brand} /></View>
             ) : data ? (
               <ScrollView showsVerticalScrollIndicator={false}>
                 {/* Predictive insight */}
                 <View style={s.predictive}>
-                  <Ionicons name="sparkles" size={14} color="#F56E1E" />
+                  <Ionicons name="sparkles" size={14} color={COLORS.accent.brand} />
                   <Text style={s.predictiveTxt}>{data.predictive_insight}</Text>
                 </View>
 
                 {/* Pillars */}
                 {data.pillars.map((p) => {
-                  const color = PILLAR_COLORS[p.key] || '#F56E1E';
+                  const color = PILLAR_COLORS[p.key] || COLORS.accent.brand;
                   return (
                     <View key={p.key} style={s.pillar}>
                       <View style={s.ringWrap}>
@@ -118,7 +118,7 @@ export default function ScoreBreakdownModal({ visible, onClose, fallbackScore = 
 
                 {/* Footer tip */}
                 <View style={s.footerTip}>
-                  <Ionicons name="information-circle-outline" size={13} color={'#6B7280'} />
+                  <Ionicons name="information-circle-outline" size={13} color={COLORS.text.muted} />
                   <Text style={s.footerTipTxt}>Complete today's missions to raise every pillar.</Text>
                 </View>
               </ScrollView>

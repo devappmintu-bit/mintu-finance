@@ -10,6 +10,7 @@ import MintULogo from './MintULogo';
 import { useLangStore } from '../store/langStore';
 import { t } from '../utils/i18n';
 import { makeStyles } from '../utils/makeStyles';
+import { COLORS } from '../utils/theme';
 
 interface Props {
   visible: boolean;
@@ -68,7 +69,7 @@ export default function MockPaymentSheet({ visible, planId, planLabel, amount, o
                 <View style={s.methodRow}>
                   <View style={s.methodIcon}><Ionicons name="phone-portrait" size={18} color="#5F259F" /></View>
                   <Text style={s.methodLbl}>{t('method_upi', lang)}</Text>
-                  <Ionicons name="radio-button-on" size={20} color="#F56E1E" />
+                  <Ionicons name="radio-button-on" size={20} color={COLORS.accent.brand} />
                 </View>
                 <View style={s.methodRow}>
                   <View style={s.methodIcon}><Ionicons name="card" size={18} color="#1E293B" /></View>
@@ -83,7 +84,7 @@ export default function MockPaymentSheet({ visible, planId, planLabel, amount, o
               </View>
 
               <TouchableOpacity style={s.cta} onPress={startPayment} activeOpacity={0.9}>
-                <LinearGradient colors={['#F56E1E', '#C14A06']} style={s.ctaGrad}>
+                <LinearGradient colors={[COLORS.accent.brand, COLORS.accent.brandDark]} style={s.ctaGrad}>
                   <Ionicons name="lock-closed" size={16} color="#fff" />
                   <Text style={s.ctaTxt}>{t('pay_amount', lang)} ₹{amount.toLocaleString('en-IN')}</Text>
                 </LinearGradient>
@@ -94,7 +95,7 @@ export default function MockPaymentSheet({ visible, planId, planLabel, amount, o
 
           {phase === 'processing' && (
             <View style={s.stateWrap}>
-              <ActivityIndicator size="large" color="#F56E1E" />
+              <ActivityIndicator size="large" color={COLORS.accent.brand} />
               <Text style={s.stateTitle}>{t('processing_payment', lang)}</Text>
               <Text style={s.stateSub}>{t('do_not_close', lang)}</Text>
             </View>
@@ -102,7 +103,7 @@ export default function MockPaymentSheet({ visible, planId, planLabel, amount, o
 
           {phase === 'success' && (
             <View style={s.stateWrap}>
-              <LinearGradient colors={['#10B981', '#047857']} style={s.checkCircle}>
+              <LinearGradient colors={[COLORS.state.successAlt, '#047857']} style={s.checkCircle}>
                 <Ionicons name="checkmark" size={42} color="#fff" />
               </LinearGradient>
               <Text style={s.stateTitle}>{t('payment_success', lang)}</Text>

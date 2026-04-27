@@ -193,6 +193,11 @@ export const apiSlow = axios.create({
   baseURL: `${API_URL}/api`,
   timeout: 30_000,
 });
+// Round 51 — apiSlow gets its own explicit auth interceptor.
+// (The script's attempt to reuse `api.interceptors.request.handlers[0]`
+// referenced an axios internal that TypeScript correctly flags as
+// possibly-undefined. The duplication here is 4 lines and not worth a
+// type-system fight.)
 apiSlow.interceptors.request.use(async (config) => {
   const token = await AsyncStorage.getItem('token');
   if (token) config.headers.Authorization = `Bearer ${token}`;

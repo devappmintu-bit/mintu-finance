@@ -10,6 +10,7 @@ from typing import Dict, List, Optional
 import re
 
 from pydantic import BaseModel, Field, field_validator
+from pydantic import ConfigDict
 
 # ── Indian phone regex — accepts "+91XXXXXXXXXX", "91XXXXXXXXXX", or
 # bare 10-digit "9XXXXXXXXX". Hard-rejects dict/list/other types that
@@ -29,12 +30,14 @@ from routers.budgets import BudgetCreate  # noqa: F401
 
 # ─── Auth / User ───────────────────────────────────────────────────────────
 class UserCreate(BaseModel):
+    model_config = ConfigDict(extra="forbid")
     phone: str
     name: str
     password: str
 
 
 class UserLogin(BaseModel):
+    model_config = ConfigDict(extra="forbid")
     phone: str
     password: str
 
@@ -48,6 +51,7 @@ class UserResponse(BaseModel):
 
 
 class OTPSendRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
     phone: str
 
     @field_validator("phone", mode="before")
@@ -57,6 +61,7 @@ class OTPSendRequest(BaseModel):
 
 
 class OTPVerifyRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
     phone: str
     otp: str
     name: Optional[str] = None  # Required for new users
@@ -76,6 +81,7 @@ class OTPVerifyRequest(BaseModel):
 
 # ─── Transactions ──────────────────────────────────────────────────────────
 class TransactionCreate(BaseModel):
+    model_config = ConfigDict(extra="forbid")
     amount: float = Field(..., gt=0, le=1_00_00_00_000)  # ₹100 Cr ceiling
     category: str = Field(..., min_length=1, max_length=50)
     description: str = Field(default="", max_length=500)
@@ -103,6 +109,7 @@ class TransactionResponse(BaseModel):
 
 
 class SMSParseRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
     sms_text: str
 
 

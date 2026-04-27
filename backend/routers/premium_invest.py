@@ -1,5 +1,5 @@
 """Investment / SIP suggester — rule-based allocation for Indian users."""
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from fastapi import Depends, HTTPException
 
 from core import db, get_current_user
@@ -20,7 +20,7 @@ async def investment_suggest(data: dict, user_id: str = Depends(get_current_user
 
     monthly_expenses = data.get("monthly_expenses")
     if monthly_expenses is None:
-        now = datetime.utcnow()
+        now = datetime.now(timezone.utc)
         month_start = now - timedelta(days=30)
         pipeline = [
             {"$match": {"user_id": user_id, "type": {"$in": ["debit", "expense"]}, "date": {"$gte": month_start}}},

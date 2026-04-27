@@ -27,7 +27,7 @@ import Toast from 'react-native-toast-message';
 import Confetti from '../components/Confetti';
 import { spinWheel, fetchRewardsSummary } from '../services/rewards';
 import { makeStyles } from '../utils/makeStyles';
-import { useAppColors } from '../utils/theme';
+import { COLORS, useAppColors } from '../utils/theme';
 
 type Stage = 'idle' | 'opening' | 'revealed';
 
@@ -165,7 +165,7 @@ export default function MysteryBoxScreen() {
   if (loadingSummary) {
     return (
       <SafeAreaView style={[s.container, { alignItems: 'center', justifyContent: 'center' }]}>
-        <ActivityIndicator size="large" color="#F59E0B" />
+        <ActivityIndicator size="large" color={COLORS.accent.secondary} />
       </SafeAreaView>
     );
   }
@@ -207,11 +207,11 @@ export default function MysteryBoxScreen() {
             ]}
           >
             {/* Box body */}
-            <LinearGradient colors={['#FCD34D', '#F59E0B']} style={s.boxBody} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}>
+            <LinearGradient colors={['#FCD34D', COLORS.accent.secondary]} style={s.boxBody} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}>
               <Text style={s.boxQ}>?</Text>
             </LinearGradient>
             {/* Box lid */}
-            <LinearGradient colors={['#F59E0B', '#B45309']} style={s.boxLid} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} />
+            <LinearGradient colors={[COLORS.accent.secondary, '#B45309']} style={s.boxLid} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} />
             {/* Ribbon */}
             <View style={s.ribbonV} />
             <View style={s.ribbonH} />
@@ -268,7 +268,7 @@ export default function MysteryBoxScreen() {
             </Text>
             <TouchableOpacity onPress={open} disabled={!canSpin} activeOpacity={0.88}>
               <LinearGradient
-                colors={canSpin ? ['#F59E0B', '#F56E1E'] : ['#6B7280', '#4B5563']}
+                colors={canSpin ? [COLORS.accent.secondary, COLORS.accent.brand] : [COLORS.text.muted, '#4B5563']}
                 start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}
                 style={s.cta}
               >
@@ -286,7 +286,7 @@ export default function MysteryBoxScreen() {
         {stage === 'revealed' && (
           <View style={{ gap: 10 }}>
             <TouchableOpacity onPress={() => router.back()} activeOpacity={0.88}>
-              <LinearGradient colors={['#10B981', '#059669']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={s.cta}>
+              <LinearGradient colors={[COLORS.state.successAlt, COLORS.state.success]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={s.cta}>
                 <Ionicons name="checkmark-circle" size={18} color="#fff" />
                 <Text style={s.ctaTxt}>Collect & Continue</Text>
               </LinearGradient>

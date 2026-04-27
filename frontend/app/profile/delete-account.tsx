@@ -20,6 +20,7 @@ import api from '../../utils/api';
 import { useAuthStore } from '../../store/authStore';
 import { makeStyles } from '../../utils/makeStyles';
 import { hasPin, verifyPin } from '../../utils/lockManager';
+import { COLORS } from '../../utils/theme';
 
 const DATA_LIST = [
   'Transactions, budgets & categories',
@@ -107,7 +108,7 @@ export default function DeleteAccountScreen() {
         {/* Header */}
         <View style={s.header}>
           <TouchableOpacity onPress={() => router.back()} hitSlop={10} style={s.backBtn}>
-            <Ionicons name="chevron-back" size={22} color="#111827" />
+            <Ionicons name="chevron-back" size={22} color={COLORS.text.primary} />
           </TouchableOpacity>
           <Text style={s.headerTitle}>Delete account</Text>
           <View style={{ width: 36 }} />
@@ -116,7 +117,7 @@ export default function DeleteAccountScreen() {
         <ScrollView contentContainerStyle={s.scroll} keyboardShouldPersistTaps="handled">
           {/* Hero */}
           <View style={s.heroIcon}>
-            <Ionicons name="alert-circle" size={30} color="#EF4444" />
+            <Ionicons name="alert-circle" size={30} color={COLORS.state.danger} />
           </View>
           <Text style={s.title}>Before you go…</Text>
           <Text style={s.subtitle}>
@@ -129,7 +130,7 @@ export default function DeleteAccountScreen() {
             <View style={s.listCard}>
               {DATA_LIST.map((item, i) => (
                 <View key={i} style={[s.listItem, i > 0 && s.listItemDivider]}>
-                  <Ionicons name="close-circle-outline" size={16} color="#6B7280" />
+                  <Ionicons name="close-circle-outline" size={16} color={COLORS.text.muted} />
                   <Text style={s.listItemTxt}>{item}</Text>
                 </View>
               ))}
@@ -138,7 +139,7 @@ export default function DeleteAccountScreen() {
 
           {/* Recovery note */}
           <View style={s.noteCard}>
-            <Ionicons name="time-outline" size={16} color="#059669" />
+            <Ionicons name="time-outline" size={16} color={COLORS.state.success} />
             <Text style={s.noteTxt}>
               <Text style={s.noteBold}>30-day recovery window:</Text> Choose "Schedule" and you can
               restore everything by signing in within 30 days. After that, all data is permanently wiped.
@@ -173,11 +174,11 @@ export default function DeleteAccountScreen() {
               activeOpacity={0.8}
               testID="opt-hard"
             >
-              <View style={[s.radio, mode === 'hard' && { borderColor: '#EF4444' }]}>
-                {mode === 'hard' ? <View style={[s.radioDot, { backgroundColor: '#EF4444' }]} /> : null}
+              <View style={[s.radio, mode === 'hard' && { borderColor: COLORS.state.danger }]}>
+                {mode === 'hard' ? <View style={[s.radioDot, { backgroundColor: COLORS.state.danger }]} /> : null}
               </View>
               <View style={{ flex: 1 }}>
-                <Text style={[s.optTitle, { color: '#EF4444' }]}>Delete immediately</Text>
+                <Text style={[s.optTitle, { color: COLORS.state.danger }]}>Delete immediately</Text>
                 <Text style={s.optSub}>Wipes everything now. Cannot be undone.</Text>
               </View>
             </TouchableOpacity>
@@ -193,7 +194,7 @@ export default function DeleteAccountScreen() {
                 value={pin}
                 onChangeText={setPin}
                 placeholder="Enter 4-digit PIN"
-                placeholderTextColor="#9CA3AF"
+                placeholderTextColor={COLORS.text.muted}
                 keyboardType="number-pad"
                 secureTextEntry
                 maxLength={6}
@@ -207,7 +208,7 @@ export default function DeleteAccountScreen() {
           {/* For users without a PIN — show a brief notice so they know HARD is final */}
           {mode === 'hard' && pinRequired === false ? (
             <View style={[s.noteCard, { backgroundColor: '#FEF2F2', borderColor: '#FECACA' }]}>
-              <Ionicons name="warning" size={16} color="#DC2626" />
+              <Ionicons name="warning" size={16} color={COLORS.state.danger} />
               <Text style={[s.noteTxt, { color: '#991B1B' }]}>
                 <Text style={[s.noteBold, { color: '#991B1B' }]}>Final step:</Text> Tap the red button below
                 to permanently delete your account and all associated data.
@@ -266,24 +267,24 @@ const useStyles = makeStyles((c) => ({
 
   noteCard: { flexDirection: 'row', gap: 10, marginTop: 16, padding: 14, borderRadius: 14, backgroundColor: '#10B9810F', borderWidth: 1, borderColor: '#10B98133' },
   noteTxt: { flex: 1, fontSize: 12.5, fontWeight: '500', color: c.text.secondary, lineHeight: 17 },
-  noteBold: { fontWeight: '700', color: '#059669' },
+  noteBold: { fontWeight: '700', color: COLORS.state.success },
 
   optionRow: { flexDirection: 'row', gap: 12, alignItems: 'center', padding: 14, borderRadius: 14, backgroundColor: c.bg.secondary, borderWidth: 1, borderColor: c.border.subtle, marginBottom: 8 },
-  optionRowActive: { borderColor: '#10B981', backgroundColor: '#10B9810F' },
-  optionRowDangerActive: { borderColor: '#EF4444', backgroundColor: '#FEE2E22E' },
+  optionRowActive: { borderColor: COLORS.state.successAlt, backgroundColor: '#10B9810F' },
+  optionRowDangerActive: { borderColor: COLORS.state.danger, backgroundColor: '#FEE2E22E' },
   radio: { width: 20, height: 20, borderRadius: 10, borderWidth: 2, borderColor: '#D1D5DB', alignItems: 'center', justifyContent: 'center' },
-  radioDot: { width: 10, height: 10, borderRadius: 5, backgroundColor: '#10B981' },
+  radioDot: { width: 10, height: 10, borderRadius: 5, backgroundColor: COLORS.state.successAlt },
   optTitleRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
   optTitle: { fontSize: 14.5, fontWeight: '700', color: c.text.primary, letterSpacing: -0.1 },
   optSub: { fontSize: 12, fontWeight: '500', color: c.text.secondary, marginTop: 3, lineHeight: 16 },
-  recBadge: { backgroundColor: '#10B981', paddingHorizontal: 6, paddingVertical: 2, borderRadius: 999 },
+  recBadge: { backgroundColor: COLORS.state.successAlt, paddingHorizontal: 6, paddingVertical: 2, borderRadius: 999 },
   recBadgeTxt: { fontSize: 8.5, fontWeight: '800', color: '#fff', letterSpacing: 0.6 },
 
   pinInput: { backgroundColor: c.bg.secondary, borderRadius: 12, paddingHorizontal: 14, paddingVertical: 13, fontSize: 16, color: c.text.primary, borderWidth: 1, borderColor: c.border.subtle, fontWeight: '700', letterSpacing: 3, textAlign: 'center' },
   pinHint: { fontSize: 11.5, fontWeight: '500', color: c.text.muted, marginTop: 6, textAlign: 'center' },
 
-  primaryBtn: { marginTop: 28, paddingVertical: 14, borderRadius: 12, backgroundColor: '#10B981', alignItems: 'center' },
-  primaryDanger: { backgroundColor: '#EF4444' },
+  primaryBtn: { marginTop: 28, paddingVertical: 14, borderRadius: 12, backgroundColor: COLORS.state.successAlt, alignItems: 'center' },
+  primaryDanger: { backgroundColor: COLORS.state.danger },
   primaryTxt: { fontSize: 14.5, fontWeight: '700', color: '#fff' },
   cancelBtn: { marginTop: 10, paddingVertical: 12, alignItems: 'center' },
   cancelTxt: { fontSize: 13.5, fontWeight: '600', color: c.text.secondary },

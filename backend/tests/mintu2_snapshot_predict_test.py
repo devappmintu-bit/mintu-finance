@@ -103,11 +103,11 @@ def t2_sparkline(d):
     sp = d.get("sparkline", [])
     check("T2.len==7", len(sp) == 7, f"len={len(sp)}")
     if len(sp) == 7:
-        from datetime import datetime
+        from datetime import datetime, timezone
         # last entry date should be today or yesterday
         try:
             last_date_str = sp[-1]["date"]  # e.g. "Apr 18"
-            now = datetime.utcnow()
+            now = datetime.now(timezone.utc)
             expected_today = now.strftime("%b %d")
             from datetime import timedelta
             expected_yesterday = (now - timedelta(days=1)).strftime("%b %d")

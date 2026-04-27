@@ -7,6 +7,23 @@ from pydantic import BaseModel, Field, field_validator
 router = APIRouter(tags=["splits"])
 api_router = router
 
+
+async def invalidate_split_cache_for_group(group_id: str, db) -> None:
+    """Invalidate the split_groups list cache for all members of a group."""
+    from core.cache import cache_clear_prefix
+    try:
+        group = await db.split_groups.find_one(
+            {"_id": __import__("bson").ObjectId(group_id)},
+            {"members": 1},
+        )
+        if group:
+            for m in group.get("members", []):
+                uid = m.get("user_id")
+                if uid:
+                    cache_clear_prefix(f"split_groups:{uid}")
+    except Exception:
+        pass
+
 # Local copy of settlement reward tiers (also in server.py for legacy refs)
 SETTLEMENT_REWARDS = {
     "instant": {"coins": 15, "label": "Lightning Settler ⚡", "hours": 1},

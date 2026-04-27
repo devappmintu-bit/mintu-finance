@@ -1,6 +1,6 @@
 """ab router — A/B testing groups and event tracking."""
 import hashlib
-from datetime import datetime
+from datetime import datetime, timezone
 from bson import ObjectId
 from fastapi import APIRouter, Depends
 
@@ -38,7 +38,7 @@ async def track_ab_event(event: dict, user_id: str = Depends(get_current_user)):
         "event": event.get("event", "view"),  # "view", "click", "convert"
         "group": event.get("group", ""),
         "placement": event.get("placement", ""),
-        "created_at": datetime.utcnow()
+        "created_at": datetime.now(timezone.utc)
     })
     return {"tracked": True}
 

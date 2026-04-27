@@ -8,6 +8,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import { makeStyles } from '../../utils/makeStyles';
+import { COLORS } from '../../utils/theme';
 
 type Props = {
   transactions: any[];
@@ -53,7 +54,7 @@ function TransactionsHero({ transactions, onPressAdd, onPressFilter, activeFilte
   const haptic = () => { if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {}); };
 
   return (
-    <LinearGradient colors={['#F56E1E', '#C14A06']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={s.card}>
+    <LinearGradient colors={[COLORS.accent.brand, COLORS.accent.brandDark]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={s.card}>
       <View style={s.blob1} />
       <View style={s.blob2} />
 
@@ -70,7 +71,7 @@ function TransactionsHero({ transactions, onPressAdd, onPressFilter, activeFilte
             )}
           </TouchableOpacity>
           <TouchableOpacity style={s.addBtn} onPress={() => { haptic(); onPressAdd?.(); }} activeOpacity={0.88} testID="tx-hero-add">
-            <Ionicons name="add" size={20} color="#C14A06" />
+            <Ionicons name="add" size={20} color={COLORS.accent.brandDark} />
           </TouchableOpacity>
         </View>
       </View>
@@ -118,7 +119,7 @@ const useStyles = makeStyles(() => ({
     marginBottom: 12,
     overflow: 'hidden',
     position: 'relative',
-    shadowColor: '#C14A06', shadowOpacity: 0.18, shadowRadius: 14, shadowOffset: { width: 0, height: 6 }, elevation: 5,
+    shadowColor: COLORS.accent.brandDark, shadowOpacity: 0.18, shadowRadius: 14, shadowOffset: { width: 0, height: 6 }, elevation: 5,
   },
   blob1: { position: 'absolute', top: -50, right: -50, width: 150, height: 150, borderRadius: 75, backgroundColor: 'rgba(255,255,255,0.08)' },
   blob2: { position: 'absolute', bottom: -60, left: -40, width: 140, height: 140, borderRadius: 70, backgroundColor: 'rgba(0,0,0,0.08)' },
@@ -127,8 +128,8 @@ const useStyles = makeStyles(() => ({
   amount: { fontSize: 36, fontWeight: '900', color: '#fff', letterSpacing: -1.2, marginTop: 3 },
   headActions: { flexDirection: 'row', gap: 8, marginTop: 3 },
   iconBtn: { width: 40, height: 40, borderRadius: 20, backgroundColor: 'rgba(0,0,0,0.22)', alignItems: 'center', justifyContent: 'center', position: 'relative' },
-  filterBadge: { position: 'absolute', top: -4, right: -4, minWidth: 18, height: 18, borderRadius: 9, backgroundColor: '#FFFFFF', justifyContent: 'center', alignItems: 'center', paddingHorizontal: 4, borderWidth: 2, borderColor: '#C14A06' },
-  filterBadgeTxt: { fontSize: 9, fontWeight: '900', color: '#C14A06' },
+  filterBadge: { position: 'absolute', top: -4, right: -4, minWidth: 18, height: 18, borderRadius: 9, backgroundColor: '#FFFFFF', justifyContent: 'center', alignItems: 'center', paddingHorizontal: 4, borderWidth: 2, borderColor: COLORS.accent.brandDark },
+  filterBadgeTxt: { fontSize: 9, fontWeight: '900', color: COLORS.accent.brandDark },
   addBtn: { width: 40, height: 40, borderRadius: 20, backgroundColor: '#FFFFFF', alignItems: 'center', justifyContent: 'center' },
   statsRow: { flexDirection: 'row', alignItems: 'center', marginTop: 14, backgroundColor: 'rgba(0,0,0,0.18)', borderRadius: 14, paddingVertical: 10 },
   statBlock: { flex: 1, alignItems: 'center', gap: 2 },

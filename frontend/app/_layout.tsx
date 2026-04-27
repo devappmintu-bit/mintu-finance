@@ -22,7 +22,7 @@ import {
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { BottomSheetModalProvider } from '@gorhom/bottom-sheet';
 import { PortalProvider } from '@gorhom/portal';
-import { useAppColors } from '../utils/theme';
+import { COLORS, useAppColors } from '../utils/theme';
 import ErrorBoundary from '../components/ErrorBoundary';
 import OfflineBanner from '../components/OfflineBanner';
 import AppLockOverlay from '../components/AppLockOverlay';
@@ -47,8 +47,8 @@ LogBox.ignoreLogs(NOISY_PATTERNS);
 // Setting once on TextInput.defaultProps applies to every <TextInput /> in
 // the tree; individual components can still override with their own props.
 ((TextInput as any).defaultProps ||= {});
-(TextInput as any).defaultProps.selectionColor = '#F56E1E'; // brand
-(TextInput as any).defaultProps.cursorColor = '#F56E1E';    // Android-only API
+(TextInput as any).defaultProps.selectionColor = COLORS.accent.brand; // brand
+(TextInput as any).defaultProps.cursorColor = COLORS.accent.brand;    // Android-only API
 
 // react-native-web routes warnings through console.warn — LogBox does not intercept there.
 // Patch it once at startup so 3rd-party library deprecations don't spam the browser console.

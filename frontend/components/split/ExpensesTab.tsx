@@ -28,14 +28,14 @@ interface Props {
 
 const catIcon = (desc: string): { emoji: string; color: string } => {
   const d = (desc || '').toLowerCase();
-  if (/(food|restaurant|dinner|lunch|breakfast|swiggy|zomato|coffee)/.test(d)) return { emoji: '🍽', color: '#F59E0B' };
+  if (/(food|restaurant|dinner|lunch|breakfast|swiggy|zomato|coffee)/.test(d)) return { emoji: '🍽', color: COLORS.accent.secondary };
   if (/(uber|ola|taxi|cab|fuel|petrol|transport)/.test(d))                   return { emoji: '🚕', color: '#3B82F6' };
   if (/(movie|netflix|entertainment|concert|party)/.test(d))                 return { emoji: '🎬', color: '#8B5CF6' };
-  if (/(grocery|vegetable|bigbasket|blinkit|fruit)/.test(d))                 return { emoji: '🛒', color: '#10B981' };
-  if (/(rent|flat|hostel|bnb|hotel|room)/.test(d))                           return { emoji: '🏠', color: '#F56E1E' };
-  if (/(medic|doctor|pharmacy|hospital|health)/.test(d))                     return { emoji: '💊', color: '#EF4444' };
+  if (/(grocery|vegetable|bigbasket|blinkit|fruit)/.test(d))                 return { emoji: '🛒', color: COLORS.state.successAlt };
+  if (/(rent|flat|hostel|bnb|hotel|room)/.test(d))                           return { emoji: '🏠', color: COLORS.accent.brand };
+  if (/(medic|doctor|pharmacy|hospital|health)/.test(d))                     return { emoji: '💊', color: COLORS.state.danger };
   if (/(shopping|amazon|flipkart|myntra|mall)/.test(d))                      return { emoji: '🛍', color: '#EC4899' };
-  return { emoji: '💰', color: '#6B7280' };
+  return { emoji: '💰', color: COLORS.text.muted };
 };
 
 const fmtDate = (s: string): string => {
@@ -67,7 +67,7 @@ export default function ExpensesTab({ summary, currentUserId, onAddExpense, onEd
     <ScrollView contentContainerStyle={{ padding: 16, paddingBottom: 40 }}>
       {/* 1. Hero balance card ----------------------------------------- */}
       <LinearGradient
-        colors={net >= 0 ? ['#047857', '#10B981'] : ['#C14A06', '#F56E1E']}
+        colors={net >= 0 ? ['#047857', COLORS.state.successAlt] : [COLORS.accent.brandDark, COLORS.accent.brand]}
         start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}
         style={s.hero}
       >
@@ -95,7 +95,7 @@ export default function ExpensesTab({ summary, currentUserId, onAddExpense, onEd
       {/* 2. Quick-action strip --------------------------------------- */}
       <View style={s.quickRow}>
         <TouchableOpacity style={s.quickBtn} onPress={onAddExpense} activeOpacity={0.85} testID="quick-add-expense">
-          <LinearGradient colors={['#F56E1E', '#C14A06']} style={s.quickIconSaff}>
+          <LinearGradient colors={[COLORS.accent.brand, COLORS.accent.brandDark]} style={s.quickIconSaff}>
             <Ionicons name="add" size={18} color="#FFFFFF" />
           </LinearGradient>
           <Text style={s.quickTxt}>{t('split_expense', lang)}</Text>
@@ -155,7 +155,7 @@ export default function ExpensesTab({ summary, currentUserId, onAddExpense, onEd
                     style={s.payBtn}
                     testID={`direct-pay-${i}`}
                   >
-                    <LinearGradient colors={['#F56E1E', '#C14A06']} style={s.payBtnGrad}>
+                    <LinearGradient colors={[COLORS.accent.brand, COLORS.accent.brandDark]} style={s.payBtnGrad}>
                       <Ionicons name="flash" size={14} color="#FFFFFF" />
                       <Text style={s.payBtnTxt}>Pay</Text>
                     </LinearGradient>
@@ -207,7 +207,7 @@ export default function ExpensesTab({ summary, currentUserId, onAddExpense, onEd
                   {totalShares > 0 && (
                     <View style={s.progWrap}>
                       <View style={s.progTrack}>
-                        <View style={[s.progFill, { width: `${pct}%`, backgroundColor: isFullyPaid ? '#10B981' : '#F56E1E' }]} />
+                        <View style={[s.progFill, { width: `${pct}%`, backgroundColor: isFullyPaid ? COLORS.state.successAlt : COLORS.accent.brand }]} />
                       </View>
                       <Text style={[s.progLbl, isFullyPaid && { color: '#065F46' }]}>
                         {isFullyPaid ? '✓ Settled' : `${paidCount}/${totalShares} paid`}
@@ -220,7 +220,7 @@ export default function ExpensesTab({ summary, currentUserId, onAddExpense, onEd
                   {yourShare > 0 && (
                     <Text style={s.expShare}>
                       {iPaid ? 'Your share ' : 'You owe '}
-                      <Text style={{ color: iPaid ? '#065F46' : '#C14A06', fontWeight: '800' }}>
+                      <Text style={{ color: iPaid ? '#065F46' : COLORS.accent.brandDark, fontWeight: '800' }}>
                         ₹{yourShare.toFixed(0)}
                       </Text>
                     </Text>

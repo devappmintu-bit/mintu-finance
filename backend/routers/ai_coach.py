@@ -6,7 +6,7 @@ Decorators register on the shared APIRouter from routers.ai_common.
 import os
 import math
 import logging
-from datetime import datetime, timedelta, date
+from datetime import datetime, timedelta, date, timezone
 from typing import List, Dict, Optional
 from bson import ObjectId
 from fastapi import Depends, HTTPException, UploadFile, File
@@ -40,7 +40,7 @@ async def ai_financial_coach(msg: ChatMessage, user_id: str = Depends(get_curren
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
     
-    now = datetime.utcnow()
+    now = datetime.now(timezone.utc)
     month_start = now.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
     
     # Aggregate spending
@@ -167,7 +167,7 @@ RULES:
         llm_key = os.environ.get("EMERGENT_LLM_KEY", "")
         chat = LlmChat(
             api_key=llm_key,
-            session_id=f"coach_{user_id}_{datetime.utcnow().timestamp()}",
+            session_id=f"coach_{user_id}_{datetime.now(timezone.utc).timestamp()}",
             system_message=system_prompt
         ).with_model("openai", "gpt-5.2")
         response = await chat.send_message(UserMessage(text=msg.message))
@@ -244,7 +244,7 @@ async def save_agent_memory(data: dict, user_id: str = Depends(get_current_user)
                 "user_id": user_id,
                 "preferences": prefs,
                 "habits": habits,
-                "updated_at": datetime.utcnow()
+                "updated_at": datetime.now(timezone.utc)
             }
         },
         upsert=True

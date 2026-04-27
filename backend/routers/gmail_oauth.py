@@ -65,8 +65,8 @@ async def _save_state(state: str, user_id: str) -> None:
     await db.oauth_states.insert_one({
         "state": state,
         "user_id": user_id,
-        "created_at": datetime.utcnow(),
-        "expires_at": datetime.utcnow() + timedelta(minutes=10),
+        "created_at": datetime.now(timezone.utc),
+        "expires_at": datetime.now(timezone.utc) + timedelta(minutes=10),
     })
 
 
@@ -75,7 +75,7 @@ async def _consume_state(state: str) -> Optional[str]:
     if not rec:
         return None
     await db.oauth_states.delete_one({"_id": rec["_id"]})
-    if rec["expires_at"] < datetime.utcnow():
+    if rec["expires_at"] < datetime.now(timezone.utc):
         return None
     return rec["user_id"]
 
@@ -110,7 +110,7 @@ async def _get_refreshed_creds(user_id: str) -> Optional[Credentials]:
                 {"$set": {
                     "access_token": creds.token,
                     "expires_at": creds.expiry.replace(tzinfo=timezone.utc) if creds.expiry else None,
-                    "refreshed_at": datetime.utcnow(),
+                    "refreshed_at": datetime.now(timezone.utc),
                 }},
             )
         except Exception as e:
@@ -174,7 +174,7 @@ async def gmail_oauth_callback(request: Request, code: Optional[str] = None, sta
             "token_uri": creds.token_uri,
             "scopes": list(creds.scopes or SCOPES),
             "expires_at": expires_at,
-            "connected_at": datetime.utcnow(),
+            "connected_at": datetime.now(timezone.utc),
             "last_sync": None,
             "last_msg_id": None,
         }},
@@ -199,7 +199,7 @@ async def gmail_status(user_id: str = Depends(get_current_user)):
     return {
         "connected": True,
         "email": doc.get("email"),
-        "connected_at": (doc.get("connected_at") or datetime.utcnow()).isoformat() if doc.get("connected_at") else None,
+        "connected_at": (doc.get("connected_at") or datetime.now(timezone.utc)).isoformat() if doc.get("connected_at") else None,
         "last_sync": doc.get("last_sync").isoformat() if doc.get("last_sync") else None,
         "imported_count": int(doc.get("imported_count", 0) or 0),
     }
@@ -344,7 +344,7 @@ async def sync_user_inbox(user_id: str, initial: bool = False) -> dict:
             "source": "gmail",
             "source_msg_id": mid,
             "source_from": from_h,
-            "created_at": datetime.utcnow(),
+            "created_at": datetime.now(timezone.utc),
         }
         await db.transactions.insert_one(txn)
         imported += 1
@@ -353,7 +353,7 @@ async def sync_user_inbox(user_id: str, initial: bool = False) -> dict:
     await db.gmail_tokens.update_one(
         {"user_id": user_id},
         {"$set": {
-            "last_sync": datetime.utcnow(),
+            "last_sync": datetime.now(timezone.utc),
             "last_msg_id": last_msg_id or doc.get("last_msg_id"),
         }, "$inc": {"imported_count": imported}},
     )

@@ -24,7 +24,7 @@ import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import { router } from 'expo-router';
 import { makeStyles } from '../../utils/makeStyles';
-import { useAppColors } from '../../utils/theme';
+import { COLORS, useAppColors } from '../../utils/theme';
 import api from '../../utils/api';
 import AnimatedStreak from '../AnimatedStreak';
 import AnimatedCoin from '../AnimatedCoin';
@@ -138,7 +138,7 @@ export default function StreakCoinsHealthCard({ initialStreak = 0, initialCoins 
       {expanded ? (
         loading && !data ? (
           <View style={s.loader}>
-            <ActivityIndicator color="#F56E1E" />
+            <ActivityIndicator color={COLORS.accent.brand} />
           </View>
         ) : data ? (
           <View style={s.body}>
@@ -195,7 +195,7 @@ export default function StreakCoinsHealthCard({ initialStreak = 0, initialCoins 
                       Get 3 streak freezes/month · Never lose your streak
                     </Text>
                   </View>
-                  <Ionicons name="arrow-forward" size={16} color="#F56E1E" />
+                  <Ionicons name="arrow-forward" size={16} color={COLORS.accent.brand} />
                 </TouchableOpacity>
               )}
             </View>
@@ -247,12 +247,12 @@ export default function StreakCoinsHealthCard({ initialStreak = 0, initialCoins 
               <Ionicons
                 name={data.coins.integrity_ok ? 'shield-checkmark' : 'warning'}
                 size={12}
-                color={data.coins.integrity_ok ? '#10B981' : '#F59E0B'}
+                color={data.coins.integrity_ok ? COLORS.state.successAlt : COLORS.accent.secondary}
               />
               <Text
                 style={[
                   s.footerTxt,
-                  { color: data.coins.integrity_ok ? '#10B981' : '#F59E0B' },
+                  { color: data.coins.integrity_ok ? COLORS.state.successAlt : COLORS.accent.secondary },
                 ]}
               >
                 {data.coins.integrity_ok
@@ -294,7 +294,7 @@ function SectionTitle({ icon, title }: { icon: any; title: string }) {
   const c = useAppColors();
   return (
     <View style={s.sectionHeader}>
-      <Ionicons name={icon} size={14} color="#F56E1E" />
+      <Ionicons name={icon} size={14} color={COLORS.accent.brand} />
       <Text style={s.sectionTitle}>{title}</Text>
     </View>
   );
@@ -313,8 +313,8 @@ function CoinPill({
         <Text
           style={[
             s.coinPillValue,
-            negative && { color: '#EF4444' },
-            highlight && { color: '#F56E1E' },
+            negative && { color: COLORS.state.danger },
+            highlight && { color: COLORS.accent.brand },
           ]}
         >
           {negative ? '-' : ''}

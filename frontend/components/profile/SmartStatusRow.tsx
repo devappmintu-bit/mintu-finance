@@ -14,6 +14,7 @@ import { View, Text, TouchableOpacity, StyleSheet, Platform } from 'react-native
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import { makeStyles } from '../../utils/makeStyles';
+import { COLORS } from '../../utils/theme';
 
 export type RowStatus = 'ok' | 'warn' | 'error' | 'syncing' | 'idle';
 
@@ -29,11 +30,11 @@ export type SmartStatusRowProps = {
 };
 
 const STATUS_META: Record<RowStatus, { bg: string; fg: string; dot: string; defaultTxt: string }> = {
-  ok:      { bg: '#10B98114', fg: '#059669', dot: '#10B981', defaultTxt: 'Connected' },
-  warn:    { bg: '#F59E0B14', fg: '#B45309', dot: '#F59E0B', defaultTxt: 'Review' },
-  error:   { bg: '#EF444414', fg: '#DC2626', dot: '#EF4444', defaultTxt: 'Error' },
+  ok:      { bg: '#10B98114', fg: COLORS.state.success, dot: COLORS.state.successAlt, defaultTxt: 'Connected' },
+  warn:    { bg: '#F59E0B14', fg: '#B45309', dot: COLORS.accent.secondary, defaultTxt: 'Review' },
+  error:   { bg: '#EF444414', fg: COLORS.state.danger, dot: COLORS.state.danger, defaultTxt: 'Error' },
   syncing: { bg: '#3B82F614', fg: '#1D4ED8', dot: '#3B82F6', defaultTxt: 'Syncing…' },
-  idle:    { bg: '#9CA3AF14', fg: '#6B7280', dot: '#9CA3AF', defaultTxt: 'Not connected' },
+  idle:    { bg: '#9CA3AF14', fg: COLORS.text.muted, dot: COLORS.text.muted, defaultTxt: 'Not connected' },
 };
 
 export default function SmartStatusRow({
@@ -53,7 +54,7 @@ export default function SmartStatusRow({
       activeOpacity={0.6}
       testID={testID}
     >
-      <Ionicons name={icon} size={19} color={'#6B7280'} style={{ width: 22 }} />
+      <Ionicons name={icon} size={19} color={COLORS.text.muted} style={{ width: 22 }} />
       <View style={{ flex: 1, minWidth: 0 }}>
         <Text style={s.label} numberOfLines={1}>{label}</Text>
         <View style={s.statusRow}>

@@ -17,6 +17,7 @@ import { View, Text, Animated, Easing, TouchableOpacity } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { makeStyles } from '../../utils/makeStyles';
+import { COLORS } from '../../utils/theme';
 
 type Props = {
   coins: number;
@@ -28,7 +29,7 @@ type Props = {
 };
 
 // Brand gradient — intentional, theme-independent
-const HERO_GRADIENT: readonly [string, string, string] = ['#F56E1E', '#F59E0B', '#FCD34D'];
+const HERO_GRADIENT: readonly [string, string, string] = [COLORS.accent.brand, COLORS.accent.secondary, '#FCD34D'];
 const ON_BRAND = '#FFFFFF';
 const ON_BRAND_SOFT = 'rgba(255,255,255,0.85)';
 const ON_BRAND_SCRIM = 'rgba(255,255,255,0.22)';

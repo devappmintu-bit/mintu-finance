@@ -41,19 +41,19 @@ import api from '../../utils/api';
 import { fetchGoals, createGoal, Goal } from '../../services/goals';
 import { useIsOnline } from '../../hooks/useIsOnline';
 import { makeStyles } from '../../utils/makeStyles';
-import { useAppColors } from '../../utils/theme';
+import { COLORS, useAppColors } from '../../utils/theme';
 
 const CATEGORY_META: Record<string, { icon: string; color: string; emoji: string }> = {
-  Food:           { icon: 'fast-food',       color: '#F56E1E', emoji: '🍔' },
+  Food:           { icon: 'fast-food',       color: COLORS.accent.brand, emoji: '🍔' },
   Transport:      { icon: 'car',             color: '#3B82F6', emoji: '🚗' },
   Shopping:       { icon: 'bag',             color: '#EC4899', emoji: '🛍️' },
   Entertainment:  { icon: 'musical-notes',   color: '#8B5CF6', emoji: '🎬' },
-  Bills:          { icon: 'receipt',         color: '#EF4444', emoji: '💡' },
-  Health:         { icon: 'heart',           color: '#10B981', emoji: '💊' },
+  Bills:          { icon: 'receipt',         color: COLORS.state.danger, emoji: '💡' },
+  Health:         { icon: 'heart',           color: COLORS.state.successAlt, emoji: '💊' },
   Travel:         { icon: 'airplane',        color: '#06B6D4', emoji: '✈️' },
   Groceries:      { icon: 'basket',          color: '#65A30D', emoji: '🛒' },
   Education:      { icon: 'school',          color: '#2563EB', emoji: '📚' },
-  Other:          { icon: 'ellipsis-horizontal', color: '#6B7280', emoji: '✨' },
+  Other:          { icon: 'ellipsis-horizontal', color: COLORS.text.muted, emoji: '✨' },
 };
 
 type SmartCategory = {
@@ -241,7 +241,7 @@ export default function BudgetSmartSheet({ editing, currentSpent, onSubmit, onCl
     return { daily, savings, risk, riskPct };
   }, [amount, lastMonth, monthlyIncome, period]);
 
-  const riskColor = impact.risk === 'low' ? '#10B981' : impact.risk === 'moderate' ? '#F59E0B' : '#EF4444';
+  const riskColor = impact.risk === 'low' ? COLORS.state.successAlt : impact.risk === 'moderate' ? COLORS.accent.secondary : COLORS.state.danger;
   const riskLabel = impact.risk === 'low' ? 'Low risk' : impact.risk === 'moderate' ? 'Moderate risk' : 'High risk';
 
   // === DYNAMIC CTA TEXT ===
@@ -306,7 +306,7 @@ export default function BudgetSmartSheet({ editing, currentSpent, onSubmit, onCl
         name: newGoalName.trim(),
         target_amount: parseFloat(newGoalTarget),
         emoji: '🎯',
-        color: '#F56E1E',
+        color: COLORS.accent.brand,
       });
       setGoals(prev => [res.goal, ...prev]);
       setGoalId(res.goal.id);
@@ -332,7 +332,7 @@ export default function BudgetSmartSheet({ editing, currentSpent, onSubmit, onCl
 
       {loading ? (
         <View style={{ paddingVertical: 60, alignItems: 'center' }}>
-          <ActivityIndicator color="#F56E1E" />
+          <ActivityIndicator color={COLORS.accent.brand} />
         </View>
       ) : (
         <BottomSheetScrollView
@@ -383,7 +383,7 @@ export default function BudgetSmartSheet({ editing, currentSpent, onSubmit, onCl
                     )}
                     {c.recommended > 0 && (
                       <View style={[s.catRecPill, on && { backgroundColor: meta.color + '22' }]}>
-                        <Ionicons name="sparkles" size={9} color={on ? meta.color : '#6B7280'} />
+                        <Ionicons name="sparkles" size={9} color={on ? meta.color : COLORS.text.muted} />
                         <Text style={[s.catRecTxt, on && { color: meta.color }]}>AI ₹{fmtCompact(c.recommended)}</Text>
                       </View>
                     )}
@@ -428,7 +428,7 @@ export default function BudgetSmartSheet({ editing, currentSpent, onSubmit, onCl
                 testID="bs-amount"
               />
             </View>
-            {amountError && <Text style={{ color: '#DC2626', fontSize: 12, fontWeight: '600', marginTop: 6 }}>{amountError}</Text>}
+            {amountError && <Text style={{ color: COLORS.state.danger, fontSize: 12, fontWeight: '600', marginTop: 6 }}>{amountError}</Text>}
             {/* Quick presets */}
             <View style={s.presetRow}>
               {presets.map(p => (
@@ -448,7 +448,7 @@ export default function BudgetSmartSheet({ editing, currentSpent, onSubmit, onCl
               onLayout={(e) => setSliderW(e.nativeEvent.layout.width)}
               {...panResponder.panHandlers}
             >
-              <LinearGradient colors={['#F59E0B', '#F56E1E']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={[s.sliderFill, { width: `${sliderPct}%` }]} />
+              <LinearGradient colors={[COLORS.accent.secondary, COLORS.accent.brand]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={[s.sliderFill, { width: `${sliderPct}%` }]} />
               <View style={[s.sliderThumb, { left: `${Math.max(0, Math.min(95, sliderPct - 2))}%` }]} />
             </View>
             <View style={s.sliderLblRow}>
@@ -471,7 +471,7 @@ export default function BudgetSmartSheet({ editing, currentSpent, onSubmit, onCl
                 </View>
                 <View style={s.impactCell}>
                   <Text style={s.impactK}>Savings</Text>
-                  <Text style={[s.impactV, { color: impact.savings > 0 ? '#10B981' : '#6B7280' }]}>
+                  <Text style={[s.impactV, { color: impact.savings > 0 ? COLORS.state.successAlt : COLORS.text.muted }]}>
                     ₹{fmt(impact.savings)}/mo
                   </Text>
                 </View>
@@ -490,7 +490,7 @@ export default function BudgetSmartSheet({ editing, currentSpent, onSubmit, onCl
           <View style={s.rolloverCard}>
             <View style={s.rolloverHead}>
               <View style={s.rolloverIcon}>
-                <Ionicons name="refresh" size={16} color="#F56E1E" />
+                <Ionicons name="refresh" size={16} color={COLORS.accent.brand} />
               </View>
               <View style={{ flex: 1 }}>
                 <Text style={s.rolloverTitle}>Smart Rollover 🔁</Text>
@@ -509,15 +509,15 @@ export default function BudgetSmartSheet({ editing, currentSpent, onSubmit, onCl
                 style={[s.rolloverOpt, !recurring && s.rolloverOptOn]}
                 onPress={() => { try { Haptics.selectionAsync(); } catch {} setRecurring(false); }}
               >
-                <Ionicons name={!recurring ? 'radio-button-on' : 'radio-button-off'} size={14} color={!recurring ? '#F56E1E' : '#9CA3AF'} />
-                <Text style={[s.rolloverOptTxt, !recurring && { color: '#111827', fontWeight: '800' }]}>Reset monthly</Text>
+                <Ionicons name={!recurring ? 'radio-button-on' : 'radio-button-off'} size={14} color={!recurring ? COLORS.accent.brand : COLORS.text.muted} />
+                <Text style={[s.rolloverOptTxt, !recurring && { color: COLORS.text.primary, fontWeight: '800' }]}>Reset monthly</Text>
               </TouchableOpacity>
               <TouchableOpacity
                 style={[s.rolloverOpt, recurring && s.rolloverOptOn]}
                 onPress={() => { try { Haptics.selectionAsync(); } catch {} setRecurring(true); }}
               >
-                <Ionicons name={recurring ? 'radio-button-on' : 'radio-button-off'} size={14} color={recurring ? '#F56E1E' : '#9CA3AF'} />
-                <Text style={[s.rolloverOptTxt, recurring && { color: '#111827', fontWeight: '800' }]}>Carry forward</Text>
+                <Ionicons name={recurring ? 'radio-button-on' : 'radio-button-off'} size={14} color={recurring ? COLORS.accent.brand : COLORS.text.muted} />
+                <Text style={[s.rolloverOptTxt, recurring && { color: COLORS.text.primary, fontWeight: '800' }]}>Carry forward</Text>
               </TouchableOpacity>
             </View>
           </View>
@@ -553,7 +553,7 @@ export default function BudgetSmartSheet({ editing, currentSpent, onSubmit, onCl
                 style={[s.scopeChip, scope === o.id && s.scopeChipOn]}
                 testID={`scope-${o.id}`}
               >
-                <Ionicons name={o.icon as any} size={14} color={scope === o.id ? '#FFFFFF' : '#6B7280'} />
+                <Ionicons name={o.icon as any} size={14} color={scope === o.id ? '#FFFFFF' : COLORS.text.muted} />
                 <Text style={[s.scopeTxt, scope === o.id && { color: '#FFFFFF' }]}>{o.label}</Text>
               </TouchableOpacity>
             ))}
@@ -585,8 +585,8 @@ export default function BudgetSmartSheet({ editing, currentSpent, onSubmit, onCl
               onPress={() => { try { Haptics.selectionAsync(); } catch {} setGoalId(null); }}
               testID="goal-none"
             >
-              <Ionicons name="close-circle-outline" size={13} color={!goalId ? '#111827' : '#9CA3AF'} />
-              <Text style={[s.goalTxt, !goalId && { color: '#111827', fontWeight: '800' }]}>No goal</Text>
+              <Ionicons name="close-circle-outline" size={13} color={!goalId ? COLORS.text.primary : COLORS.text.muted} />
+              <Text style={[s.goalTxt, !goalId && { color: COLORS.text.primary, fontWeight: '800' }]}>No goal</Text>
             </TouchableOpacity>
             {goals.map((g) => {
               const on = goalId === g.id;
@@ -594,13 +594,13 @@ export default function BudgetSmartSheet({ editing, currentSpent, onSubmit, onCl
               return (
                 <TouchableOpacity
                   key={g.id}
-                  style={[s.goalChip, on && { borderColor: g.color || '#F56E1E', backgroundColor: (g.color || '#F56E1E') + '14' }]}
+                  style={[s.goalChip, on && { borderColor: g.color || COLORS.accent.brand, backgroundColor: (g.color || COLORS.accent.brand) + '14' }]}
                   onPress={() => { try { Haptics.selectionAsync(); } catch {} setGoalId(g.id); }}
                   testID={`goal-${g.id}`}
                 >
                   <Text style={{ fontSize: 14 }}>{g.emoji || '🎯'}</Text>
                   <View>
-                    <Text style={[s.goalTxt, on && { color: g.color || '#F56E1E', fontWeight: '900' }]} numberOfLines={1}>{g.name}</Text>
+                    <Text style={[s.goalTxt, on && { color: g.color || COLORS.accent.brand, fontWeight: '900' }]} numberOfLines={1}>{g.name}</Text>
                     <Text style={s.goalProg}>{pct}% · ₹{fmtCompact(g.saved_amount)}/{fmtCompact(g.target_amount)}</Text>
                   </View>
                 </TouchableOpacity>
@@ -611,8 +611,8 @@ export default function BudgetSmartSheet({ editing, currentSpent, onSubmit, onCl
               onPress={() => { try { Haptics.selectionAsync(); } catch {} setShowNewGoal(v => !v); }}
               testID="goal-add"
             >
-              <Ionicons name="add-circle" size={14} color="#F56E1E" />
-              <Text style={[s.goalTxt, { color: '#F56E1E', fontWeight: '900' }]}>New goal</Text>
+              <Ionicons name="add-circle" size={14} color={COLORS.accent.brand} />
+              <Text style={[s.goalTxt, { color: COLORS.accent.brand, fontWeight: '900' }]}>New goal</Text>
             </TouchableOpacity>
           </View>
 
@@ -659,7 +659,7 @@ export default function BudgetSmartSheet({ editing, currentSpent, onSubmit, onCl
             style={{ marginTop: 24 }}
           >
             <LinearGradient
-              colors={canSubmit ? ['#F59E0B', '#F56E1E', '#DC2626'] : ['#D1D5DB', '#9CA3AF']}
+              colors={canSubmit ? [COLORS.accent.secondary, COLORS.accent.brand, COLORS.state.danger] : ['#D1D5DB', COLORS.text.muted]}
               start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}
               style={[s.cta, canSubmit && s.ctaGlow]}
             >

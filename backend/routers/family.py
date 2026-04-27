@@ -1,5 +1,5 @@
 """Family router — shared finance groups (family budgets + combined spending)."""
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from bson import ObjectId
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
@@ -49,7 +49,7 @@ async def create_family_group(group: FamilyGroupCreate, user_id: str = Depends(g
         "name": group.name,
         "owner_id": user_id,
         "members": [{"user_id": user_id, "name": user["name"], "phone": user["phone"], "role": "owner"}],
-        "created_at": datetime.utcnow(),
+        "created_at": datetime.now(timezone.utc),
     }
     result = await db.family_groups.insert_one(family)
     return {
@@ -104,7 +104,7 @@ async def create_family_budget(group_id: str, budget: FamilyBudgetCreate, user_i
         "amount": budget.amount,
         "period": budget.period,
         "created_by": user_id,
-        "created_at": datetime.utcnow(),
+        "created_at": datetime.now(timezone.utc),
     }
     result = await db.family_budgets.insert_one(doc)
     return {"id": str(result.inserted_id), **budget.dict()}
@@ -116,7 +116,7 @@ async def get_family_budgets(group_id: str, user_id: str = Depends(get_current_u
 
     budgets = await db.family_budgets.find({"group_id": group_id}).to_list(100)
     member_ids = [m["user_id"] for m in group["members"]]
-    thirty_days_ago = datetime.utcnow() - timedelta(days=30)
+    thirty_days_ago = datetime.now(timezone.utc) - timedelta(days=30)
 
     # Single query for all member transactions; filter in memory to avoid N+1
     all_txns = await db.transactions.find({
@@ -143,7 +143,7 @@ async def get_family_summary(group_id: str, user_id: str = Depends(get_current_u
     group = await _get_group_or_404(group_id, user_id)
 
     member_ids = [m["user_id"] for m in group["members"]]
-    thirty_days_ago = datetime.utcnow() - timedelta(days=30)
+    thirty_days_ago = datetime.now(timezone.utc) - timedelta(days=30)
     all_txns = await db.transactions.find({
         "user_id": {"$in": member_ids},
         "date": {"$gte": thirty_days_ago},

@@ -69,6 +69,7 @@ const LIGHT_PALETTE = {
   },
   state: {
     success:       '#059669',
+    successAlt:    '#10B981',
     successBg:     'rgba(5,150,105,0.10)',
     successBorder: 'rgba(5,150,105,0.30)',
     warning:       '#D97706',
@@ -121,6 +122,7 @@ const DARK_PALETTE = {
   },
   state: {
     success:       '#10E0A0',
+    successAlt:    '#10B981',
     successBg:     'rgba(16,224,160,0.12)',
     successBorder: 'rgba(16,224,160,0.35)',
     warning:       '#FFB020',
@@ -174,6 +176,7 @@ const AMOLED_PALETTE = {
   },
   state: {
     success:       '#10E0A0',
+    successAlt:    '#10B981',
     successBg:     'rgba(16,224,160,0.12)',
     successBorder: 'rgba(16,224,160,0.35)',
     warning:       '#FFB020',
@@ -244,6 +247,7 @@ export const COLORS = {
   // ── Semantic state colors — tuned for dark bg ───────────────
   state: {
     success:       '#10E0A0',
+    successAlt:    '#10B981',
     successBg:     'rgba(16,224,160,0.12)',
     successBorder: 'rgba(16,224,160,0.35)',
     warning:       '#FFB020',

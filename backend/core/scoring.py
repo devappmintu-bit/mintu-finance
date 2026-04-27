@@ -1,6 +1,6 @@
 """Money Score calculator — shared by multiple routes (transactions, stats)."""
 import logging
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 
 from core.db import db
 
@@ -8,7 +8,7 @@ from core.db import db
 async def calculate_money_score(user_id: str) -> int:
     """Calculate daily money score (0-100) based on spending patterns in the last 7 days."""
     try:
-        seven_days_ago = datetime.utcnow() - timedelta(days=7)
+        seven_days_ago = datetime.now(timezone.utc) - timedelta(days=7)
         transactions = await db.transactions.find(
             {"user_id": user_id, "date": {"$gte": seven_days_ago}}
         ).to_list(1000)

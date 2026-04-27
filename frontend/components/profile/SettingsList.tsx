@@ -10,6 +10,7 @@ import { View, Text, TouchableOpacity, StyleSheet, Platform } from 'react-native
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import { makeStyles } from '../../utils/makeStyles';
+import { COLORS } from '../../utils/theme';
 
 export type SettingsListItemProps = {
   icon: keyof typeof Ionicons.glyphMap;
@@ -35,10 +36,10 @@ export function SettingsListItem({ icon, label, value, danger, onPress, testID }
       <Ionicons
         name={icon}
         size={19}
-        color={danger ? '#EF4444' : styles.iconColor}
+        color={danger ? COLORS.state.danger : styles.iconColor}
         style={{ width: 22 }}
       />
-      <Text style={[s.label, danger && { color: '#EF4444' }]} numberOfLines={1}>{label}</Text>
+      <Text style={[s.label, danger && { color: COLORS.state.danger }]} numberOfLines={1}>{label}</Text>
       {value ? <Text style={s.value} numberOfLines={1}>{value}</Text> : null}
       <Ionicons
         name="chevron-forward"
@@ -65,7 +66,7 @@ export function SettingsList({ header, children }: { header: string; children: R
   );
 }
 
-const styles = { iconColor: '#6B7280' };
+const styles = { iconColor: COLORS.text.muted };
 
 const useStyles = makeStyles((c) => ({
   group: { marginBottom: 22 },

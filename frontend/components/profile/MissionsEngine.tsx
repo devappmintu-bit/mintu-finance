@@ -14,6 +14,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import * as Haptics from 'expo-haptics';
 import { makeStyles } from '../../utils/makeStyles';
+import { COLORS } from '../../utils/theme';
 
 export type Mission = {
   id: string;
@@ -96,7 +97,7 @@ function MissionsEngineBase({
               {m.done ? (
                 <Ionicons name="checkmark" size={14} color="#FFFFFF" />
               ) : (
-                <Ionicons name={m.icon} size={17} color={m.streak_saver ? '#FFFFFF' : '#6B7280'} />
+                <Ionicons name={m.icon} size={17} color={m.streak_saver ? '#FFFFFF' : COLORS.text.muted} />
               )}
             </View>
             <View style={{ flex: 1, minWidth: 0 }}>

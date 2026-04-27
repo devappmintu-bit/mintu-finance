@@ -9,7 +9,7 @@ Endpoints
 • GET  /split/activity                 — Emotional unified feed (settlements + expenses)
 • GET  /split/settlement-leaderboard   — Coin leaderboard + user's rank + badges
 """
-from datetime import datetime
+from datetime import datetime, timezone
 
 from bson import ObjectId
 from fastapi import Depends
@@ -128,7 +128,7 @@ async def split_activity(limit: int = 15, user_id: str = Depends(get_current_use
     for s in settlements:
         grp = group_map.get(s.get("group_id"), {"name": "a group", "emoji": "💰"})
         amt = s.get("amount", 0)
-        ts = s.get("created_at", datetime.utcnow())
+        ts = s.get("created_at", datetime.now(timezone.utc))
         if s.get("paid_by") == user_id:
             other = users.get(s.get("paid_to"), "friend")
             feed.append({
@@ -159,7 +159,7 @@ async def split_activity(limit: int = 15, user_id: str = Depends(get_current_use
         grp = group_map.get(str(e.get("group_id")), {"name": "a group", "emoji": "💰"})
         adder = users.get(e.get("paid_by"), my_name if e.get("paid_by") == user_id else "someone")
         is_me = e.get("paid_by") == user_id
-        ts = e.get("date", datetime.utcnow())
+        ts = e.get("date", datetime.now(timezone.utc))
         feed.append({
             "type": "expense_added",
             "emoji": "🛍️",
@@ -181,7 +181,7 @@ async def split_activity(limit: int = 15, user_id: str = Depends(get_current_use
     # Summary stats for emotional header
     settled_this_month_count = 0
     settled_this_month_amount = 0
-    now = datetime.utcnow()
+    now = datetime.now(timezone.utc)
     month_start = now.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
     for s in settlements:
         ts = s.get("created_at")

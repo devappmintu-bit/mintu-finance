@@ -14,6 +14,7 @@ import { View, Text, StyleSheet, Modal, TouchableOpacity, ScrollView, Pressable 
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { makeStyles } from '../../utils/makeStyles';
+import { COLORS } from '../../utils/theme';
 
 export interface TxnFilter {
   range: 'all' | 'this_month' | 'last_3m' | 'last_6m' | 'this_year';
@@ -51,10 +52,10 @@ const TYPE_OPTS: { id: TxnFilter['type']; label: string; icon: string }[] = [
 ];
 
 const STATUS_OPTS: { id: TxnFilter['status']; label: string; color: string }[] = [
-  { id: 'all', label: 'All', color: '#6B7280' },
-  { id: 'success', label: 'Success', color: '#10B981' },
-  { id: 'pending', label: 'Pending', color: '#F59E0B' },
-  { id: 'failed', label: 'Failed', color: '#EF4444' },
+  { id: 'all', label: 'All', color: COLORS.text.muted },
+  { id: 'success', label: 'Success', color: COLORS.state.successAlt },
+  { id: 'pending', label: 'Pending', color: COLORS.accent.secondary },
+  { id: 'failed', label: 'Failed', color: COLORS.state.danger },
 ];
 
 type Props = {
@@ -125,7 +126,7 @@ export default function TransactionFilterSheet({ visible, value, onClose, onAppl
                   onPress={() => setDraft({ ...draft, type: o.id })}
                   activeOpacity={0.85}
                 >
-                  <Ionicons name={o.icon as any} size={16} color={draft.type === o.id ? '#fff' : '#6B7280'} />
+                  <Ionicons name={o.icon as any} size={16} color={draft.type === o.id ? '#fff' : COLORS.text.muted} />
                   <Text style={[s.segTxt, draft.type === o.id && s.segTxtOn]}>{o.label}</Text>
                 </TouchableOpacity>
               ))}
@@ -156,7 +157,7 @@ export default function TransactionFilterSheet({ visible, value, onClose, onAppl
             <Text style={s.clearTxt}>Clear all</Text>
           </TouchableOpacity>
           <TouchableOpacity activeOpacity={0.85} onPress={apply} testID="filter-apply" style={{ flex: 1 }}>
-            <LinearGradient colors={['#F56E1E', '#C14A06']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={s.applyBtn}>
+            <LinearGradient colors={[COLORS.accent.brand, COLORS.accent.brandDark]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={s.applyBtn}>
               <Text style={s.applyTxt}>Apply filter</Text>
             </LinearGradient>
           </TouchableOpacity>
@@ -180,7 +181,7 @@ function Chip({ label, active, onPress, icon }: { label: string; active?: boolea
   const s = useStyles();
   return (
     <TouchableOpacity style={[s.chip, active && s.chipOn]} onPress={onPress} activeOpacity={0.8}>
-      {icon && <Ionicons name={icon} size={14} color={active ? '#7C2D12' : '#6B7280'} />}
+      {icon && <Ionicons name={icon} size={14} color={active ? '#7C2D12' : COLORS.text.muted} />}
       <Text style={[s.chipTxt, active && s.chipTxtOn]}>{label}</Text>
     </TouchableOpacity>
   );
@@ -236,16 +237,16 @@ const useStyles = makeStyles((c) => ({
   header: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, paddingTop: 8, paddingBottom: 4 },
   title: { flex: 1, fontSize: 18, fontWeight: '800', color: '#111' },
   closeBtn: { width: 32, height: 32, borderRadius: 16, backgroundColor: '#F3F4F6', alignItems: 'center', justifyContent: 'center' },
-  sectionTitle: { fontSize: 12, fontWeight: '800', color: '#9CA3AF', textTransform: 'uppercase', letterSpacing: 0.6, marginBottom: 10 },
+  sectionTitle: { fontSize: 12, fontWeight: '800', color: COLORS.text.muted, textTransform: 'uppercase', letterSpacing: 0.6, marginBottom: 10 },
   wrapRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
   chip: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 12, paddingVertical: 9, borderRadius: 999, backgroundColor: '#F3F4F6', borderWidth: 1, borderColor: '#E5E7EB' },
-  chipOn: { backgroundColor: '#FFF0E0', borderColor: '#F56E1E' },
-  chipTxt: { fontSize: 13, color: '#6B7280', fontWeight: '600' },
+  chipOn: { backgroundColor: '#FFF0E0', borderColor: COLORS.accent.brand },
+  chipTxt: { fontSize: 13, color: COLORS.text.muted, fontWeight: '600' },
   chipTxtOn: { color: '#7C2D12', fontWeight: '800' },
   segRow: { flexDirection: 'row', gap: 8, backgroundColor: '#F3F4F6', padding: 4, borderRadius: 14 },
   segBtn: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, paddingVertical: 11, borderRadius: 10 },
-  segBtnOn: { backgroundColor: '#F56E1E' },
-  segTxt: { fontSize: 13, fontWeight: '700', color: '#6B7280' },
+  segBtnOn: { backgroundColor: COLORS.accent.brand },
+  segTxt: { fontSize: 13, fontWeight: '700', color: COLORS.text.muted },
   segTxtOn: { color: '#fff' },
   statusChip: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 12, paddingVertical: 9, borderRadius: 999, borderWidth: 1, backgroundColor: '#fff' },
   statusDot: { width: 8, height: 8, borderRadius: 4 },

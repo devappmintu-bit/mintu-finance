@@ -24,6 +24,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { useHaptic } from '../../hooks/useHaptic';
 import { makeStyles } from '../../utils/makeStyles';
+import { COLORS } from '../../utils/theme';
 
 type Variant = 'solid' | 'ghost' | 'danger' | 'tonal';
 type Size = 'sm' | 'md' | 'lg';
@@ -108,7 +109,7 @@ export default function PrimaryButton({
         android_ripple={{ color: 'rgba(255,255,255,0.16)' }}
       >
         {variant === 'solid' && (
-          <LinearGradient colors={['#FF8C42', '#FF6B1A', '#E84A0C']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }}>
+          <LinearGradient colors={['#FF8C42', COLORS.accent.primaryLight, '#E84A0C']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }}>
             {content}
           </LinearGradient>
         )}
@@ -130,6 +131,6 @@ export default function PrimaryButton({
 
 const useStyles = makeStyles((c) => ({
   inner: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center' },
-  ghostBg: { backgroundColor: 'rgba(255,107,26,0.08)', borderWidth: 1.5, borderColor: '#FF6B1A', borderRadius: 14 },
+  ghostBg: { backgroundColor: 'rgba(255,107,26,0.08)', borderWidth: 1.5, borderColor: COLORS.accent.primaryLight, borderRadius: 14 },
   tonalBg: { backgroundColor: 'rgba(255,107,26,0.14)', borderWidth: 1, borderColor: 'rgba(255,107,26,0.35)', borderRadius: 14 },
 }));

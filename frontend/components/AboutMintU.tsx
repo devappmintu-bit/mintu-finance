@@ -24,7 +24,7 @@ export default function AboutMintU({ onClose }: { onClose: () => void }) {
 
       <ScrollView contentContainerStyle={s.scroll} showsVerticalScrollIndicator={false}>
         {/* Hero — emotional hook + "Built for India" */}
-        <LinearGradient colors={['#F56E1E', '#C14A06']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={s.hero}>
+        <LinearGradient colors={[COLORS.accent.brand, COLORS.accent.brandDark]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={s.hero}>
           <View style={s.heroBadge}>
             <Text style={s.heroFlag}>🇮🇳</Text>
             <Text style={s.heroBadgeTxt}>BUILT FOR INDIA</Text>
@@ -70,8 +70,8 @@ export default function AboutMintU({ onClose }: { onClose: () => void }) {
         <Text style={s.sectionLbl}>WHAT WE STAND FOR</Text>
         <View style={s.pillarList}>
           {[
-            { icon: 'shield-checkmark', tint: '#059669', bg: '#D1FAE5', t: 'Your data, your wallet', d: 'RBI-aligned · AES-256 encrypted · never shared.' },
-            { icon: 'flash', tint: '#F56E1E', bg: '#FFEDD5', t: 'AI that gets India', d: '5 specialised agents · UPI · SIP · splits · coaching.' },
+            { icon: 'shield-checkmark', tint: COLORS.state.success, bg: '#D1FAE5', t: 'Your data, your wallet', d: 'RBI-aligned · AES-256 encrypted · never shared.' },
+            { icon: 'flash', tint: COLORS.accent.brand, bg: '#FFEDD5', t: 'AI that gets India', d: '5 specialised agents · UPI · SIP · splits · coaching.' },
             { icon: 'heart', tint: '#DB2777', bg: '#FCE7F3', t: 'No dark patterns ever', d: 'Flat pricing · ₹150 cap · real unsubscribe.' },
           ].map((p, i) => (
             <View key={i} style={s.pillarRow}>

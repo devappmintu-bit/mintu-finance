@@ -177,7 +177,7 @@ export default function InsightsCard({ snapshot, onPressSparkline }: Props) {
         <View style={s.statDiv} />
         <View style={s.statCell}>
           <Text style={s.statLabel}>Savings</Text>
-          <Text style={[s.statVal, { color: savings_rate >= 20 ? '#10B981' : '#F59E0B' }]}>{savings_rate.toFixed(0)}%</Text>
+          <Text style={[s.statVal, { color: savings_rate >= 20 ? COLORS.state.successAlt : COLORS.accent.secondary }]}>{savings_rate.toFixed(0)}%</Text>
         </View>
         <View style={s.statDiv} />
         <View style={s.statCell}>

@@ -19,7 +19,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { router } from 'expo-router';
 import api from '../../utils/api';
 import { makeStyles } from '../../utils/makeStyles';
-import { useAppColors } from '../../utils/theme';
+import { COLORS, useAppColors } from '../../utils/theme';
 
 type Status = { is_premium?: boolean; tier?: string; plan?: string; premium_until?: string } | null;
 
@@ -57,7 +57,7 @@ function PremiumHomeCard() {
   const isPremium = !!status?.is_premium;
 
   // ── Header ─────────────────────────────────────────────────────────
-  const headerColors: [string, string] = isPremium ? ['#F56E1E', '#C14A06'] : ['#1F2937', '#0F172A'];
+  const headerColors: [string, string] = isPremium ? [COLORS.accent.brand, COLORS.accent.brandDark] : ['#1F2937', '#0F172A'];
   const header = (
     <TouchableOpacity
       activeOpacity={0.92}
@@ -66,7 +66,7 @@ function PremiumHomeCard() {
     >
       <LinearGradient colors={headerColors} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={s.header}>
         <View style={[s.iconBadge, isPremium ? s.iconBadgePremium : s.iconBadgeLocked]}>
-          <Ionicons name={isPremium ? 'diamond' : 'flash'} size={20} color={'#F56E1E'} />
+          <Ionicons name={isPremium ? 'diamond' : 'flash'} size={20} color={COLORS.accent.brand} />
         </View>
         <View style={{ flex: 1 }}>
           <Text style={s.headerTitle}>
@@ -97,7 +97,7 @@ function PremiumHomeCard() {
         {PERKS.map((p, i) => (
           <View key={p.title} style={[s.perkRow, i !== 0 && s.perkBorder]}>
             <View style={[s.perkIcon, isPremium ? s.perkIconOn : s.perkIconOff]}>
-              <Ionicons name={p.icon} size={16} color={isPremium ? '#F56E1E' : '#6B7280'} />
+              <Ionicons name={p.icon} size={16} color={isPremium ? COLORS.accent.brand : COLORS.text.muted} />
             </View>
             <View style={{ flex: 1 }}>
               <Text style={[s.perkTitle, !isPremium && s.lockedText]}>{p.title}</Text>
@@ -118,7 +118,7 @@ function PremiumHomeCard() {
               style={[s.primaryCta, { flex: 1 }]}
               testID="premium-home-hub"
             >
-              <LinearGradient colors={['#F56E1E', '#C14A06']} style={s.ctaGrad}>
+              <LinearGradient colors={[COLORS.accent.brand, COLORS.accent.brandDark]} style={s.ctaGrad}>
                 <Ionicons name="grid" size={16} color="#FFFFFF" />
                 <Text style={s.ctaText}>Open Premium Hub</Text>
                 <Ionicons name="arrow-forward" size={16} color="#FFFFFF" />
@@ -133,7 +133,7 @@ function PremiumHomeCard() {
               style={s.primaryCta}
               testID="premium-home-hub-locked"
             >
-              <LinearGradient colors={['#F56E1E', '#C14A06']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={s.ctaGrad}>
+              <LinearGradient colors={[COLORS.accent.brand, COLORS.accent.brandDark]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={s.ctaGrad}>
                 <Ionicons name="grid" size={16} color="#FFFFFF" />
                 <Text style={s.ctaText}>Open Premium Hub</Text>
                 <Ionicons name="arrow-forward" size={16} color="#FFFFFF" />

@@ -34,7 +34,7 @@ import os
 import hmac
 import hashlib
 import logging
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from fastapi import Depends, HTTPException, Request
 from pydantic import BaseModel
 from bson import ObjectId
@@ -120,7 +120,7 @@ async def create_subscription(body: CreateSubBody, user_id: str = Depends(get_cu
             "status": sub.get("status", "created"),
             "total_count": total_count,
             "short_url": sub.get("short_url"),
-            "created_at": datetime.utcnow(),
+            "created_at": datetime.now(timezone.utc),
         }},
         upsert=True,
     )
@@ -159,7 +159,7 @@ async def cancel_subscription(user_id: str = Depends(get_current_user)):
 
     await db.subscriptions.update_one(
         {"_id": sub["_id"]},
-        {"$set": {"status": res.get("status", "cancelled"), "cancelled_at": datetime.utcnow()}},
+        {"$set": {"status": res.get("status", "cancelled"), "cancelled_at": datetime.now(timezone.utc)}},
     )
     return {"status": res.get("status", "cancelled"), "ok": True}
 
@@ -241,7 +241,7 @@ async def razorpay_webhook(request: Request):
             "current_start": _epoch_to_dt(sub_entity.get("current_start")),
             "current_end":   _epoch_to_dt(sub_entity.get("current_end")),
             "next_charge_at": _epoch_to_dt(sub_entity.get("charge_at")),
-            "updated_at": datetime.utcnow(),
+            "updated_at": datetime.now(timezone.utc),
         }},
         upsert=True,
     )
@@ -259,7 +259,7 @@ async def razorpay_webhook(request: Request):
     uid_obj = _safe_oid(user_id)
     if event in ("subscription.activated", "subscription.charged", "subscription.resumed"):
         if uid_obj:
-            now = datetime.utcnow()
+            now = datetime.now(timezone.utc)
             await db.users.update_one(
                 {"_id": uid_obj},
                 {"$set": {

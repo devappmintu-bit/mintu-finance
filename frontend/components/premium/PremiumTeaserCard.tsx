@@ -19,6 +19,7 @@ import * as Haptics from 'expo-haptics';
 import { router } from 'expo-router';
 import PulseCTA from './PulseCTA';
 import { makeStyles } from '../../utils/makeStyles';
+import { COLORS } from '../../utils/theme';
 
 type Leak = { label: string; amount: number; emoji?: string };
 
@@ -123,7 +124,7 @@ function PremiumTeaserCard({ monthlyLoss = 0, topLeaks = [], hiddenInsightsCount
       {/* Primary CTA */}
       <PulseCTA intensity={0.025}>
         <TouchableOpacity onPress={handleReveal} activeOpacity={0.88} style={s.ctaBtn} testID="premium-reveal-cta">
-          <LinearGradient colors={['#F56E1E', '#C14A06']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={s.ctaGrad}>
+          <LinearGradient colors={[COLORS.accent.brand, COLORS.accent.brandDark]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={s.ctaGrad}>
             <Ionicons name="eye" size={15} color="#fff" />
             <Text style={s.ctaTxt}>Reveal full breakdown</Text>
             <Ionicons name="arrow-forward" size={14} color="#fff" />

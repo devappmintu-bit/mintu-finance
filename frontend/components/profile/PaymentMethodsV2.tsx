@@ -50,14 +50,14 @@ type Method = {
 
 // Color map for status tone — uses canonical theme state palette
 const TONE_COLOR: Record<NonNullable<Method['health']>['tone'], { fg: string; bg: string; border: string }> = {
-  success: { fg: '#10B981', bg: 'rgba(16,185,129,0.12)', border: 'rgba(16,185,129,0.35)' },
+  success: { fg: COLORS.state.successAlt, bg: 'rgba(16,185,129,0.12)', border: 'rgba(16,185,129,0.35)' },
   warning: { fg: '#D97706', bg: 'rgba(245,158,11,0.14)', border: 'rgba(245,158,11,0.4)' },
-  danger:  { fg: '#DC2626', bg: 'rgba(220,38,38,0.12)', border: 'rgba(220,38,38,0.4)' },
-  neutral: { fg: '#6B7280', bg: 'rgba(107,114,128,0.12)', border: 'rgba(107,114,128,0.35)' },
+  danger:  { fg: COLORS.state.danger, bg: 'rgba(220,38,38,0.12)', border: 'rgba(220,38,38,0.4)' },
+  neutral: { fg: COLORS.text.muted, bg: 'rgba(107,114,128,0.12)', border: 'rgba(107,114,128,0.35)' },
 };
 
 const TYPE_META: Record<Method['type'], { icon: string; color: string; label: string }> = {
-  upi:        { icon: 'flash',     color: '#F56E1E', label: 'UPI' },
+  upi:        { icon: 'flash',     color: COLORS.accent.brand, label: 'UPI' },
   card:       { icon: 'card',      color: '#0F766E', label: 'Card' },
   netbanking: { icon: 'business',  color: '#4338CA', label: 'Netbanking' },
   wallet:     { icon: 'wallet',    color: '#EA580C', label: 'Wallet' },

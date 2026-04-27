@@ -456,7 +456,7 @@ export default function AddExpenseScreen() {
             style={[s.ctaBtn, !canSubmit && s.ctaDisabled]}
             testID="ae-submit"
           >
-            <LinearGradient colors={canSubmit ? ['#F56E1E', '#C14A06'] : ['#D1D5DB', '#9CA3AF']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={s.ctaGrad}>
+            <LinearGradient colors={canSubmit ? [COLORS.accent.brand, COLORS.accent.brandDark] : ['#D1D5DB', COLORS.text.muted]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={s.ctaGrad}>
               {submitting ? <ActivityIndicator color="#FFFFFF" /> : (
                 <>
                   <Ionicons name="checkmark-circle" size={18} color="#FFFFFF" />

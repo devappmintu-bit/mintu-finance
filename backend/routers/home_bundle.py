@@ -15,7 +15,7 @@ The endpoint registers on a fresh `router` that server.py includes alongside
 analytics. No URL paths change.
 """
 import asyncio
-from datetime import datetime
+from datetime import datetime, timezone
 from fastapi import APIRouter, Depends
 
 from core import db, get_current_user
@@ -114,7 +114,7 @@ async def home_bundle(lang: str = "en", user_id: str = Depends(get_current_user)
         "fomo_feed": fomo,
         "ai_predict": pred,
         "coins": coins,
-        "cached_at": datetime.utcnow().isoformat(),
+        "cached_at": datetime.now(timezone.utc).isoformat(),
         "cache_ttl_s": 25,
     }
     cache_set(key, bundle, ttl_seconds=25)

@@ -28,11 +28,11 @@ import {
 // both light and dark themes.
 const ICONS: Record<NotifKind, { emoji: string; tint: string }> = {
   transaction:  { emoji: '💸', tint: '#E84A0C' },
-  streak:       { emoji: '🔥', tint: '#F59E0B' },
+  streak:       { emoji: '🔥', tint: COLORS.accent.secondary },
   reward:       { emoji: '🎁', tint: '#A21CAF' },
-  split:        { emoji: '👥', tint: '#10B981' },
+  split:        { emoji: '👥', tint: COLORS.state.successAlt },
   goal:         { emoji: '🎯', tint: '#3B82F6' },
-  budget_alert: { emoji: '⚠️', tint: '#DC2626' },
+  budget_alert: { emoji: '⚠️', tint: COLORS.state.danger },
 };
 
 export default function NotificationsScreen() {

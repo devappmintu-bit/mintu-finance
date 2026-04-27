@@ -9,6 +9,7 @@ import * as Haptics from 'expo-haptics';
 import { makeStyles } from '../../utils/makeStyles';
 import AnimatedStreak from '../AnimatedStreak';
 import AnimatedCoin from '../AnimatedCoin';
+import { COLORS } from '../../utils/theme';
 
 interface Props {
   streak: number;
@@ -48,7 +49,7 @@ export default function ProgressInline({
 
       <View style={s.linkRow}>
         <Text style={s.link}>View progress</Text>
-        <Ionicons name="arrow-forward" size={12} color={'#F56E1E'} />
+        <Ionicons name="arrow-forward" size={12} color={COLORS.accent.brand} />
       </View>
     </TouchableOpacity>
   );

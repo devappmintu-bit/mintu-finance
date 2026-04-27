@@ -56,7 +56,7 @@ function FinancialBrainCard({ snapshot, stats, predict }: Props) {
           onPress={() => router.push('/(tabs)/budget')}
           activeOpacity={0.75}
         >
-          <Ionicons name={a.severity === 'critical' ? 'alert-circle' : 'warning'} size={17} color={a.severity === 'critical' ? '#EF4444' : '#F59E0B'} />
+          <Ionicons name={a.severity === 'critical' ? 'alert-circle' : 'warning'} size={17} color={a.severity === 'critical' ? COLORS.state.danger : COLORS.accent.secondary} />
           <Text style={s.predictTxt} numberOfLines={2}>{a.message}</Text>
           <Ionicons name="chevron-forward" size={14} color={c.text.muted} />
         </TouchableOpacity>

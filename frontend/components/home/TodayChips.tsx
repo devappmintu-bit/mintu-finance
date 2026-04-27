@@ -6,6 +6,7 @@ import React, { memo, useMemo } from 'react';
 import { View, Text, ScrollView } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { makeStyles } from '../../utils/makeStyles';
+import { COLORS } from '../../utils/theme';
 
 type Props = { snapshot: any | null; stats: any | null };
 
@@ -32,7 +33,7 @@ function TodayChips({ snapshot, stats }: Props) {
     const spend  = Number(snapshot?.mtd_spend ?? snapshot?.total_spend_month ?? stats?.total_expense ?? 0);
     if (income > 0) {
       const left = Math.max(0, income - spend);
-      arr.push({ icon: 'wallet', color: '#059669', bg: '#D1FAE5', label: 'Left', value: fmt(left) });
+      arr.push({ icon: 'wallet', color: COLORS.state.success, bg: '#D1FAE5', label: 'Left', value: fmt(left) });
     }
 
     const top = snapshot?.top_category;
@@ -42,7 +43,7 @@ function TodayChips({ snapshot, stats }: Props) {
 
     const streak = Number(snapshot?.tier?.streak_days || 0);
     if (streak > 0 && arr.length < 4) {
-      arr.push({ icon: 'flame', color: '#DC2626', bg: '#FEE2E2', label: 'Streak', value: `${streak}d` });
+      arr.push({ icon: 'flame', color: COLORS.state.danger, bg: '#FEE2E2', label: 'Streak', value: `${streak}d` });
     }
 
     return arr;

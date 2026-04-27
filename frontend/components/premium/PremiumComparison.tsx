@@ -11,13 +11,14 @@ import { View, Text, StyleSheet, ScrollView, TouchableOpacity } from 'react-nati
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { makeStyles } from '../../utils/makeStyles';
+import { COLORS } from '../../utils/theme';
 
 type Plan = 'intro' | 'monthly' | 'yearly';
 type Row = { label: string; intro: boolean | string; monthly: boolean | string; yearly: boolean | string };
 
 const COLS: { id: Plan; title: string; price: string; sub: string; badge?: string; tint: string }[] = [
   { id: 'intro',   title: 'Micro',    price: '₹29',  sub: 'Why not?',            tint: '#FFB300' },
-  { id: 'monthly', title: 'Standard', price: '₹99',  sub: 'Useful',               badge: 'BEST VALUE', tint: '#F56E1E' },
+  { id: 'monthly', title: 'Standard', price: '₹99',  sub: 'Useful',               badge: 'BEST VALUE', tint: COLORS.accent.brand },
   { id: 'yearly',  title: 'Premium',  price: '₹149', sub: "Upgrade my life",      badge: 'TOP', tint: '#8B5CF6' },
 ];
 
@@ -46,7 +47,7 @@ export default function PremiumComparison({ onClose }: Props) {
   return (
     <View style={s.wrap}>
       {/* Hero */}
-      <LinearGradient colors={['#F56E1E', '#C14A06']} style={s.hero}>
+      <LinearGradient colors={[COLORS.accent.brand, COLORS.accent.brandDark]} style={s.hero}>
         <View style={s.heroTop}>
           <Ionicons name="diamond" size={18} color="#fff" />
           <Text style={s.heroTitle}>Pick your Premium plan</Text>
@@ -88,7 +89,7 @@ export default function PremiumComparison({ onClose }: Props) {
               {(['intro', 'monthly', 'yearly'] as const).map((p) => (
                 <View key={p} style={s.cell}>
                   {typeof f[p] === 'boolean'
-                    ? <Ionicons name={f[p] ? 'checkmark-circle' : 'close-circle'} size={18} color={f[p] ? '#10B981' : '#9CA3AF'} />
+                    ? <Ionicons name={f[p] ? 'checkmark-circle' : 'close-circle'} size={18} color={f[p] ? COLORS.state.successAlt : COLORS.text.muted} />
                     : <Text style={s.cellTxt} numberOfLines={1}>{String(f[p])}</Text>}
                 </View>
               ))}
@@ -115,7 +116,7 @@ const useStyles = makeStyles((c) => ({
 
   colScroll: { maxWidth: '100%' },
 
-  headRow: { flexDirection: 'row', backgroundColor: '#FFF7ED', borderBottomWidth: 2, borderBottomColor: '#F56E1E' },
+  headRow: { flexDirection: 'row', backgroundColor: '#FFF7ED', borderBottomWidth: 2, borderBottomColor: COLORS.accent.brand },
   rowLabelHead: { width: 120, padding: 12, justifyContent: 'center' },
   rowLabelHeadTxt: { fontSize: 10, fontWeight: '800', color: '#78350F', textTransform: 'uppercase', letterSpacing: 0.6 },
   colHead: { width: 110, padding: 12, alignItems: 'center', borderTopWidth: 3, position: 'relative' },
@@ -123,14 +124,14 @@ const useStyles = makeStyles((c) => ({
   planBadgeTxt: { color: '#fff', fontSize: 8, fontWeight: '800', letterSpacing: 0.5 },
   colTitle: { fontSize: 11, fontWeight: '800', color: '#111', textTransform: 'uppercase', letterSpacing: 0.5, marginTop: 10 },
   colPrice: { fontSize: 20, fontWeight: '800', marginTop: 4 },
-  colSub: { fontSize: 10, color: '#6B7280', fontWeight: '600', marginTop: 2 },
+  colSub: { fontSize: 10, color: COLORS.text.muted, fontWeight: '600', marginTop: 2 },
 
   featRow: { flexDirection: 'row', alignItems: 'center', paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: '#F3F4F6' },
   featRowAlt: { backgroundColor: '#FAFAF9' },
   rowLabel: { width: 120, paddingHorizontal: 12 },
   rowLabelTxt: { fontSize: 12, color: '#111', fontWeight: '600' },
   cell: { width: 110, alignItems: 'center', justifyContent: 'center' },
-  cellTxt: { fontSize: 11, fontWeight: '700', color: '#F56E1E' },
+  cellTxt: { fontSize: 11, fontWeight: '700', color: COLORS.accent.brand },
 
-  fineprint: { fontSize: 10, color: '#9CA3AF', textAlign: 'center', fontStyle: 'italic', padding: 12 },
+  fineprint: { fontSize: 10, color: COLORS.text.muted, textAlign: 'center', fontStyle: 'italic', padding: 12 },
 }));

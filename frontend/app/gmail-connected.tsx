@@ -29,11 +29,11 @@ export default function GmailConnected() {
   const ok = success === '1' && !error;
   return (
     <View style={s.wrap}>
-      <Ionicons name={ok ? 'checkmark-circle' : 'alert-circle'} size={64} color={ok ? '#10B981' : '#EF4444'} />
+      <Ionicons name={ok ? 'checkmark-circle' : 'alert-circle'} size={64} color={ok ? COLORS.state.successAlt : COLORS.state.danger} />
       <Text style={s.title}>{ok ? 'Gmail connected' : 'Connection failed'}</Text>
       {!!email && <Text style={s.sub}>{email}</Text>}
       {!!error && <Text style={s.err}>{error}</Text>}
-      <ActivityIndicator color="#F56E1E" size="small" style={{ marginTop: 18 }} />
+      <ActivityIndicator color={COLORS.accent.brand} size="small" style={{ marginTop: 18 }} />
       <Text style={s.hint}>Returning to app…</Text>
     </View>
   );

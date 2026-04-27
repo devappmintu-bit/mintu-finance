@@ -1,7 +1,7 @@
 """Referral router — invite codes, redemption, leaderboard, Pro-day rewards."""
 import logging
 import uuid as uuid_lib
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from bson import ObjectId
 from fastapi import APIRouter, Depends, HTTPException
 
@@ -85,7 +85,7 @@ async def apply_referral_code(code: dict, user_id: str = Depends(get_current_use
         "referrer_id": referrer_id,
         "referred_id": user_id,
         "code": referral_code,
-        "created_at": datetime.utcnow(),
+        "created_at": datetime.now(timezone.utc),
     })
 
     count = await db.referrals.count_documents({"referrer_id": referrer_id})
@@ -97,12 +97,12 @@ async def apply_referral_code(code: dict, user_id: str = Depends(get_current_use
     elif count >= 3:
         await db.users.update_one(
             {"_id": ObjectId(referrer_id)},
-            {"$set": {"premium_tier": "premium", "premium_until": datetime.utcnow() + timedelta(days=30)}},
+            {"$set": {"premium_tier": "premium", "premium_until": datetime.now(timezone.utc) + timedelta(days=30)}},
         )
     elif count >= 1:
         await db.users.update_one(
             {"_id": ObjectId(referrer_id)},
-            {"$set": {"premium_tier": "starter", "premium_until": datetime.utcnow() + timedelta(days=7)}},
+            {"$set": {"premium_tier": "starter", "premium_until": datetime.now(timezone.utc) + timedelta(days=7)}},
         )
 
     return {"message": "Referral applied! Welcome to MintU!", "referrer_name": referrer["name"]}
@@ -198,7 +198,7 @@ async def fomo_feed(user_id: str = Depends(get_current_user)):
         me = await db.users.find_one({"_id": ObjectId(user_id)})
         friend_phones = me.get("friends", []) if me else []
         if friend_phones:
-            month_start = datetime.utcnow().replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+            month_start = datetime.now(timezone.utc).replace(day=1, hour=0, minute=0, second=0, microsecond=0)
             friends = await db.users.find({"phone": {"$in": friend_phones}}).to_list(20)
             for f in friends[:3]:
                 # Compute friend's month saving (income - expenses in transactions)
@@ -225,7 +225,7 @@ async def fomo_feed(user_id: str = Depends(get_current_user)):
     # --- Anonymized community aggregates ---
     try:
         # Top-saver percentile (median of top 10% savings in last 30 days)
-        month_start = datetime.utcnow() - timedelta(days=30)
+        month_start = datetime.now(timezone.utc) - timedelta(days=30)
         pipeline = [
             {"$match": {"timestamp": {"$gte": month_start}, "type": "expense"}},
             {"$group": {"_id": "$user_id", "spent": {"$sum": "$amount"}}},
@@ -268,7 +268,7 @@ async def fomo_feed(user_id: str = Depends(get_current_user)):
         if me:
             last = me.get("last_login")
             if last and isinstance(last, datetime):
-                days_gap = (datetime.utcnow() - last).days
+                days_gap = (datetime.now(timezone.utc) - last).days
                 if days_gap >= 2:
                     items.append({
                         "id": "streak_break",

@@ -118,7 +118,7 @@ export default function BudgetAchievements({ refreshKey = 0, onBadgePress }: Pro
       {/* ── Streak hero card ── */}
       <LinearGradient
         colors={streak.current_days >= 3
-          ? ['#F56E1E', '#C14A06']  // active streak: saffron fire
+          ? [COLORS.accent.brand, COLORS.accent.brandDark]  // active streak: saffron fire
           : ['#2C1810', '#4A2F1F']} // cool state: deep espresso
         start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}
         style={s.hero}
@@ -164,7 +164,7 @@ export default function BudgetAchievements({ refreshKey = 0, onBadgePress }: Pro
             <Text style={s.chipLbl}>days under</Text>
           </View>
           <View style={s.chip}>
-            <Text style={[s.chipVal, { color: stats.categories_over === 0 ? '#10B981' : '#F56E1E' }]}>
+            <Text style={[s.chipVal, { color: stats.categories_over === 0 ? COLORS.state.successAlt : COLORS.accent.brand }]}>
               {stats.categories_under}/{stats.total_categories}
             </Text>
             <Text style={s.chipLbl}>cats on track</Text>

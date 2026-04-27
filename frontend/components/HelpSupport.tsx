@@ -72,7 +72,7 @@ export default function HelpSupport({ onClose }: { onClose: () => void }) {
             <Text style={s.aiTitle}>Ask AI Coach · instant answers</Text>
             <Text style={s.aiSub}>Specialised agents for budgets, splits, investments · 24/7</Text>
           </View>
-          <Ionicons name="arrow-forward" size={18} color="#C14A06" />
+          <Ionicons name="arrow-forward" size={18} color={COLORS.accent.brandDark} />
         </TouchableOpacity>
 
         {/* FAQs */}
@@ -109,11 +109,11 @@ export default function HelpSupport({ onClose }: { onClose: () => void }) {
             <Text style={s.contactTxt}>WhatsApp</Text>
           </TouchableOpacity>
           <TouchableOpacity style={s.contactChip} activeOpacity={0.85} onPress={() => Linking.openURL('mailto:support@mintu.app')}>
-            <Ionicons name="mail" size={16} color="#C14A06" />
+            <Ionicons name="mail" size={16} color={COLORS.accent.brandDark} />
             <Text style={s.contactTxt}>Email</Text>
           </TouchableOpacity>
           <TouchableOpacity style={s.contactChip} activeOpacity={0.85} onPress={() => Linking.openURL('mailto:bugs@mintu.app?subject=Bug%20Report')}>
-            <Ionicons name="bug" size={16} color="#EF4444" />
+            <Ionicons name="bug" size={16} color={COLORS.state.danger} />
             <Text style={s.contactTxt}>Report bug</Text>
           </TouchableOpacity>
         </View>
@@ -134,7 +134,7 @@ const useStyles = makeStyles((c) => ({
   searchInput: { flex: 1, paddingVertical: 12, fontSize: 14, color: c.text.primary },
 
   aiCard: { flexDirection: 'row', alignItems: 'center', gap: 12, padding: 14, borderRadius: 16, backgroundColor: '#FFF7ED', borderWidth: 1, borderColor: '#FED7AA' },
-  aiIconBubble: { width: 40, height: 40, borderRadius: 20, backgroundColor: '#C14A06', alignItems: 'center', justifyContent: 'center' },
+  aiIconBubble: { width: 40, height: 40, borderRadius: 20, backgroundColor: COLORS.accent.brandDark, alignItems: 'center', justifyContent: 'center' },
   aiTitle: { fontSize: 14, fontWeight: '900', color: '#7A2E0A', letterSpacing: -0.2 },
   aiSub: { fontSize: 11.5, color: '#92400E', marginTop: 2, fontWeight: '600' },
 

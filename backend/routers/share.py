@@ -1,5 +1,5 @@
 """share router — shareable score cards and stats cards for WhatsApp/Instagram."""
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from bson import ObjectId
 from fastapi import APIRouter, Depends, HTTPException
 
@@ -17,7 +17,7 @@ async def get_score_card_data(user_id: str = Depends(get_current_user)):
     user = await db.users.find_one({"_id": ObjectId(user_id)})
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
-    thirty_days_ago = datetime.utcnow() - timedelta(days=30)
+    thirty_days_ago = datetime.now(timezone.utc) - timedelta(days=30)
     txns = await db.transactions.find({"user_id": user_id, "date": {"$gte": thirty_days_ago}}).to_list(1000)
     
     total_saved = sum(t["amount"] for t in txns if t["type"] == "credit") - sum(t["amount"] for t in txns if t["type"] == "debit")
@@ -25,7 +25,7 @@ async def get_score_card_data(user_id: str = Depends(get_current_user)):
     
     # Calculate streak — Round 44 perf: was 365 sequential find_one calls.
     # Single aggregation bucketed by day, then walk in Python.
-    today = datetime.utcnow().replace(hour=0, minute=0, second=0, microsecond=0)
+    today = datetime.now(timezone.utc).replace(hour=0, minute=0, second=0, microsecond=0)
     earliest = today - timedelta(days=365)
     days_with_txn: set[str] = set()
     async for d in db.transactions.aggregate([
@@ -47,7 +47,7 @@ async def get_score_card_data(user_id: str = Depends(get_current_user)):
         "streak": streak,
         "total_saved": max(total_saved, 0),
         "transaction_count": len(txns),
-        "month": datetime.utcnow().strftime("%B %Y"),
+        "month": datetime.now(timezone.utc).strftime("%B %Y"),
     }
 
 
@@ -55,7 +55,7 @@ async def get_score_card_data(user_id: str = Depends(get_current_user)):
 async def shareable_stats_card(user_id: str = Depends(get_current_user)):
     """Generate shareable stats for WhatsApp/Instagram"""
     user = await db.users.find_one({"_id": ObjectId(user_id)})
-    now = datetime.utcnow()
+    now = datetime.now(timezone.utc)
     month_start = now.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
     
     # Monthly stats

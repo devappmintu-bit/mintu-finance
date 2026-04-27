@@ -88,7 +88,7 @@ export default function AIInsightCard({
       const gap = Math.round(monthlyIncome * (target - savingsRate) / 100);
       return {
         icon: '🎯',
-        tint: '#F59E0B',
+        tint: COLORS.accent.secondary,
         title: `Save ${fmtINR(gap)} more to hit ${target}%`,
         sub: `You're at ${savingsRate}%. The 50/30/20 rule recommends 20% savings.`,
         cta: 'Ask AI how',
@@ -100,7 +100,7 @@ export default function AIInsightCard({
     if (savingsRate >= 20) {
       return {
         icon: '🚀',
-        tint: '#10B981',
+        tint: COLORS.state.successAlt,
         title: `You're saving ${Math.round(savingsRate)}% — well done!`,
         sub: `Consider moving excess to an SIP for long-term compounding.`,
         cta: 'See investments',

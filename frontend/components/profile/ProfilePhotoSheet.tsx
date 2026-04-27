@@ -9,7 +9,7 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
 import * as Haptics from 'expo-haptics';
-import { useAppColors } from '../../utils/theme';
+import { COLORS, useAppColors } from '../../utils/theme';
 import { makeStyles } from '../../utils/makeStyles';
 
 interface Props {
@@ -112,7 +112,7 @@ export default function ProfilePhotoSheet({ visible, hasAvatar, onClose, onPicke
                 icon="trash-outline"
                 label="Remove Photo"
                 onPress={handleRemove}
-                accent="#EF4444"
+                accent={COLORS.state.danger}
                 mutedColor={c.text.muted}
                 styles={s}
                 destructive

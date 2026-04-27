@@ -127,14 +127,14 @@ const DEFAULT_ZERO_STATE: InsightCard[] = [
     emoji: '✨',
     title: 'Start splitting',
     subtitle: 'Create a group and add your first expense — we\'ll do the math',
-    color: '#F56E1E',
+    color: COLORS.accent.brand,
   },
   {
     id: 'how',
     emoji: '🪙',
     title: 'Earn coins',
     subtitle: 'Every settlement earns MintU coins you can redeem for vouchers',
-    color: '#10B981',
+    color: COLORS.state.successAlt,
   },
   {
     id: 'fun',

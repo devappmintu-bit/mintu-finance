@@ -7,6 +7,7 @@ import { Modal, View, Text, TouchableOpacity, StyleSheet, Platform } from 'react
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import { makeStyles } from '../../utils/makeStyles';
+import { COLORS } from '../../utils/theme';
 
 interface Props {
   visible: boolean;
@@ -31,7 +32,7 @@ export default function LogoutConfirmSheet({ visible, onCancel, onConfirm }: Pro
           <View style={s.sheet}>
             <View style={s.grip} />
             <View style={s.iconCircle}>
-              <Ionicons name="log-out-outline" size={24} color={'#6B7280'} />
+              <Ionicons name="log-out-outline" size={24} color={COLORS.text.muted} />
             </View>
             <Text style={s.title}>Log out?</Text>
             <Text style={s.sub}>You can sign back in anytime with your phone and PIN.</Text>

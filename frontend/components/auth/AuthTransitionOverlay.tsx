@@ -26,6 +26,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { Image } from 'expo-image';
 import { useAuthStore } from '../../store/authStore';
 import { makeStyles } from '../../utils/makeStyles';
+import { COLORS } from '../../utils/theme';
 
 export type AuthTransitionVariant = 'locking' | 'unlocking';
 
@@ -85,7 +86,7 @@ export default function AuthTransitionOverlay({ variant, onDone, durationMs = 15
   return (
     <Animated.View style={[s.wrap, { opacity: fade }]} pointerEvents="auto">
       <LinearGradient
-        colors={variant === 'locking' ? ['#2E1F1A', '#4A2F22'] : ['#F56E1E', '#C14A06']}
+        colors={variant === 'locking' ? ['#2E1F1A', '#4A2F22'] : [COLORS.accent.brand, COLORS.accent.brandDark]}
         style={StyleSheet.absoluteFillObject}
       />
 

@@ -1,5 +1,5 @@
 """budgets_ext router — AI-powered budget suggestions + live budget status."""
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from typing import Dict
 from fastapi import APIRouter, Depends
 
@@ -13,7 +13,7 @@ api_router = router  # extracted code uses @api_router.*
 @api_router.get("/budgets/smart-suggest")
 async def smart_budget_suggestions(user_id: str = Depends(get_current_user)):
     """AI-powered budget suggestions based on spending habits"""
-    now = datetime.utcnow()
+    now = datetime.now(timezone.utc)
     
     # Analyze last 60 days of spending
     sixty_days_ago = now - timedelta(days=60)
@@ -93,7 +93,7 @@ async def auto_apply_budgets(user_id: str = Depends(get_current_user)):
                 "amount": s["suggested_budget"],
                 "period": "monthly",
                 "auto_created": True,
-                "created_at": datetime.utcnow()
+                "created_at": datetime.now(timezone.utc)
             })
             applied += 1
     return {"applied_count": applied, "message": f"Auto-created {applied} smart budgets! 🎯"}
@@ -112,7 +112,7 @@ async def live_budget_status(user_id: str = Depends(get_current_user)):
     the Phase-1 overhaul — total_budget and total_spent returned by the
     summary MUST match the sum of individual category `spent` values.
     """
-    now = datetime.utcnow()
+    now = datetime.now(timezone.utc)
     budgets = await db.budgets.find({"user_id": user_id}).to_list(30)
 
     def period_bounds(period: str):
@@ -254,7 +254,7 @@ async def budget_ai_insights(category: str, user_id: str = Depends(get_current_u
         auto_apply: [{action, label, payload, delta}]
       }
     """
-    now = datetime.utcnow()
+    now = datetime.now(timezone.utc)
     start = now - timedelta(days=60)
     month_start = now.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
 
@@ -402,13 +402,13 @@ async def budget_ai_apply(category: str, data: dict, user_id: str = Depends(get_
         if existing:
             await db.budgets.update_one(
                 {"_id": existing["_id"]},
-                {"$set": {"amount": new_amt, "updated_at": datetime.utcnow()}},
+                {"$set": {"amount": new_amt, "updated_at": datetime.now(timezone.utc)}},
             )
             return {"ok": True, "applied": action, "new_amount": new_amt}
         await db.budgets.insert_one({
             "user_id": user_id, "category": category, "amount": new_amt,
             "period": "monthly", "recurring": True, "spent": 0,
-            "created_at": datetime.utcnow(),
+            "created_at": datetime.now(timezone.utc),
         })
         return {"ok": True, "applied": action, "new_amount": new_amt, "created": True}
     if action == "enable_alert":
@@ -417,7 +417,7 @@ async def budget_ai_apply(category: str, data: dict, user_id: str = Depends(get_
             {"user_id": user_id, "category": category},
             {"$set": {
                 "user_id": user_id, "category": category, "threshold": threshold,
-                "enabled": True, "updated_at": datetime.utcnow(),
+                "enabled": True, "updated_at": datetime.now(timezone.utc),
             }},
             upsert=True,
         )
@@ -444,7 +444,7 @@ async def budget_ai_apply(category: str, data: dict, user_id: str = Depends(get_
 @api_router.get("/budgets/achievements")
 async def budget_achievements(user_id: str = Depends(get_current_user)):
     """Gamification layer for the Budget screen — streaks + badges + progress."""
-    now = datetime.utcnow()
+    now = datetime.now(timezone.utc)
     budgets = await db.budgets.find({"user_id": user_id}).to_list(30)
 
     # Build monthly-budget map (daily equivalents used for streak calc)

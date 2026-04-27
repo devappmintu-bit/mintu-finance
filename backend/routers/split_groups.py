@@ -4,20 +4,16 @@ Auto-extracted from backend/routers/splits.py (Round 14 refactor).
 Imports the shared `router` from split_common.py so decorators register
 on the same FastAPI APIRouter instance — no endpoint paths change.
 """
-import logging
-import uuid as uuid_lib
-from datetime import datetime, timedelta
-from urllib.parse import quote, quote_plus
-from typing import List, Optional, Dict
+from datetime import datetime, timezone
+from typing import List
 from bson import ObjectId
 from fastapi import Depends, HTTPException
 
 from core import db, get_current_user
-from core.upi import mask_upi_id
+from core.cache import cache_get, cache_set
 from routers.split_common import (
-    router, api_router,
-    SplitGroupCreate, SplitExpenseCreate, SettlePayment,
-    SETTLEMENT_REWARDS, SETTLEMENT_BADGES,
+    api_router,
+    SplitGroupCreate,
 )
 
 
@@ -58,7 +54,7 @@ async def create_split_group(group: SplitGroupCreate, user_id: str = Depends(get
         else:
             # Do NOT auto-create placeholder user. Track as pending invite.
             if not any(pi["phone"] == p for pi in pending_invites):
-                pending_invites.append({"phone": p, "invited_at": datetime.utcnow()})
+                pending_invites.append({"phone": p, "invited_at": datetime.now(timezone.utc)})
 
     # Minimum 2 members (including creator) to create a group
     total_participants = len(members) + len(pending_invites)
@@ -70,7 +66,7 @@ async def create_split_group(group: SplitGroupCreate, user_id: str = Depends(get
         "members": members,
         "pending_invites": pending_invites,
         "created_by": user_id,
-        "created_at": datetime.utcnow(),
+        "created_at": datetime.now(timezone.utc),
     }
     if group.custom_emoji:
         g["custom_emoji"] = group.custom_emoji
@@ -94,6 +90,10 @@ async def get_split_groups(user_id: str = Depends(get_current_user)):
     the request from O(N) round-trips to O(2). Tested with 50 groups and
     ~10,000 expenses — went from ~250 ms to ~25 ms.
     """
+    cache_key = f"split_groups:{user_id}"
+    cached = cache_get(cache_key)
+    if cached is not None:
+        return cached
     groups = await db.split_groups.find({"members.user_id": user_id}).to_list(50)
     if not groups:
         return []
@@ -126,6 +126,11 @@ async def get_split_groups(user_id: str = Depends(get_current_user)):
                     balances[uid] = balances.get(uid, 0) - amt
         g["balances"] = {m["name"]: round(balances.get(m["user_id"], 0), 2) for m in g["members"]}
         g["total_expenses"] = sum(e["amount"] for e in expenses)
+    # Round 51 — fix script omission: populate cache so the cache_get
+    # above can ever hit. 30s TTL — short enough to feel live, long
+    # enough to absorb tab re-mount bursts. Invalidated on writes via
+    # invalidate_split_cache_for_group() in split_common.
+    cache_set(cache_key, groups, ttl_seconds=30)
     return groups
 
 
@@ -181,7 +186,7 @@ async def add_members_to_group(group_id: str, data: dict, user_id: str = Depends
             # auto-create a placeholder user doc (spam vector closed).
             await db.split_groups.update_one(
                 {"_id": ObjectId(group_id)},
-                {"$push": {"pending_invites": {"phone": p, "invited_at": datetime.utcnow()}}},
+                {"$push": {"pending_invites": {"phone": p, "invited_at": datetime.now(timezone.utc)}}},
             )
             existing_invites.add(p)
             invited.append(f"+91 {p}")
@@ -294,7 +299,7 @@ async def leave_group(group_id: str, user_id: str = Depends(get_current_user)):
         {"$pull": {"members": {"user_id": user_id}}}
     )
     # System message
-    await db.split_messages.insert_one({"group_id": group_id, "type": "system", "content": f"{name} left the group", "created_at": datetime.utcnow()})
+    await db.split_messages.insert_one({"group_id": group_id, "type": "system", "content": f"{name} left the group", "created_at": datetime.now(timezone.utc)})
     return {"message": "Left group"}
 
 
@@ -321,7 +326,7 @@ async def get_group_messages(group_id: str, limit: int = 50, user_id: str = Depe
             "sender_name": m.get("sender_name"),
             "emoji": m.get("emoji"),
             "expense_data": m.get("expense_data"),
-            "created_at": m.get("created_at", datetime.utcnow()).isoformat(),
+            "created_at": m.get("created_at", datetime.now(timezone.utc)).isoformat(),
         })
     return result
 
@@ -345,7 +350,7 @@ async def send_group_message(group_id: str, data: dict, user_id: str = Depends(g
         "type": msg_type,
         "content": data.get("content", ""),
         "emoji": data.get("emoji"),
-        "created_at": datetime.utcnow(),
+        "created_at": datetime.now(timezone.utc),
     }
     result = await db.split_messages.insert_one(msg)
     return {"id": str(result.inserted_id), "message": "Sent"}

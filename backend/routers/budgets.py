@@ -89,7 +89,7 @@ async def _ai_map_to_category(description: str) -> str:
     try:
         chat = LlmChat(
             api_key=os.environ["EMERGENT_LLM_KEY"],
-            session_id=f"budgetcat_{datetime.utcnow().timestamp()}",
+            session_id=f"budgetcat_{datetime.now(timezone.utc).timestamp()}",
             system_message=(
                 "You classify a user's budget description into ONE category. "
                 f"Respond with ONLY a JSON object: {{\"category\":\"<one-of: {', '.join(KNOWN_CATEGORIES)}>\"}}. "
@@ -245,7 +245,7 @@ async def create_budget(budget: BudgetCreate, user_id: str = Depends(get_current
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
     existing = await db.budgets.find_one({"user_id": user_id, "category": budget.category})
-    now = datetime.utcnow()
+    now = datetime.now(timezone.utc)
 
     if existing:
         await db.budgets.update_one(
@@ -300,7 +300,7 @@ async def update_budget(budget_id: str, data: dict, user_id: str = Depends(get_c
         updates["category"] = data["category"]
     if not updates:
         raise HTTPException(status_code=400, detail="No valid fields to update")
-    updates["updated_at"] = datetime.utcnow()
+    updates["updated_at"] = datetime.now(timezone.utc)
     result = await db.budgets.update_one(
         {"_id": ObjectId(budget_id), "user_id": user_id},
         {"$set": updates},
@@ -314,7 +314,7 @@ async def update_budget(budget_id: str, data: dict, user_id: str = Depends(get_c
 
 
 def _period_start(period: str) -> datetime:
-    now = datetime.utcnow()
+    now = datetime.now(timezone.utc)
     if period == "daily":
         return now.replace(hour=0, minute=0, second=0, microsecond=0)
     if period == "weekly":

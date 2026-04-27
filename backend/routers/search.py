@@ -4,7 +4,7 @@ Cross-collection text search for the app-wide ⌘K-style search screen.
 Returns up to 5 hits per entity kind.
 """
 import re
-from datetime import datetime
+from datetime import datetime, timezone
 from bson import ObjectId
 from fastapi import APIRouter, Depends
 
@@ -17,7 +17,7 @@ router = APIRouter(tags=["search"])
 async def unified_search(q: str = "", user_id: str = Depends(get_current_user)):
     """Return up to 5 matches per bucket: transactions, budgets, goals, groups.
 
-    Uses case-insensitive substring match (regex) rather than \$text search
+    Uses case-insensitive substring match (regex) rather than $text search
     so we don't require pre-created text indexes — fine for mobile scale
     (a single user's data), keeps deploy-time cost zero.
     """
@@ -43,7 +43,7 @@ async def unified_search(q: str = "", user_id: str = Depends(get_current_user)):
             "description": t.get("description", ""),
             "category": t.get("category", ""),
             "type": t.get("type", "debit"),
-            "date": (t.get("date") or datetime.utcnow()).isoformat() if hasattr(t.get("date"), "isoformat") else str(t.get("date", "")),
+            "date": (t.get("date") or datetime.now(timezone.utc)).isoformat() if hasattr(t.get("date"), "isoformat") else str(t.get("date", "")),
         })
 
     # ── Budgets: category match ────────────────────────────────────

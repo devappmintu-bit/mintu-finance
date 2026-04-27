@@ -135,7 +135,7 @@ export default function JoinGroupScreen() {
       <View style={s.scroll}>
         {/* Group hero card — signature orange gradient */}
         <LinearGradient
-          colors={['#F56E1E', '#C14A06']}
+          colors={[COLORS.accent.brand, COLORS.accent.brandDark]}
           start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}
           style={s.hero}
         >
@@ -221,7 +221,7 @@ const useStyles = makeStyles((c) => ({
 
   hero: {
     borderRadius: 24, padding: 24, alignItems: 'center', overflow: 'hidden',
-    shadowColor: '#C14A06', shadowOpacity: 0.2, shadowRadius: 18, shadowOffset: { width: 0, height: 8 }, elevation: 6,
+    shadowColor: COLORS.accent.brandDark, shadowOpacity: 0.2, shadowRadius: 18, shadowOffset: { width: 0, height: 8 }, elevation: 6,
   },
   heroEmoji: { fontSize: 44 },
   overline: { fontSize: 10.5, fontWeight: '900', color: 'rgba(255,255,255,0.78)', letterSpacing: 1.4, marginTop: 12 },
@@ -233,9 +233,9 @@ const useStyles = makeStyles((c) => ({
   stackAvatar: {
     width: 34, height: 34, borderRadius: 17,
     backgroundColor: '#fff', alignItems: 'center', justifyContent: 'center',
-    borderWidth: 2, borderColor: '#C14A06',
+    borderWidth: 2, borderColor: COLORS.accent.brandDark,
   },
-  stackInitials: { fontSize: 12, fontWeight: '900', color: '#C14A06' },
+  stackInitials: { fontSize: 12, fontWeight: '900', color: COLORS.accent.brandDark },
   stackMore: { backgroundColor: 'rgba(0,0,0,0.3)', borderColor: '#fff' },
   stackMoreTxt: { fontSize: 10.5, fontWeight: '900', color: '#fff' },
 

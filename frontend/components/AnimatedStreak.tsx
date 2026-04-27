@@ -19,6 +19,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { View, Text, Animated, Easing, StyleSheet, Platform } from 'react-native';
 import { makeStyles } from '../utils/makeStyles';
+import { COLORS } from '../utils/theme';
 
 type Size = 'xs' | 'sm' | 'md' | 'lg';
 
@@ -52,7 +53,7 @@ function tierOf(days: number): TierSpec {
   if (days >= 30)  return { tier: 3, color: '#A16207', flameColor: '#EAB308', pulseTo: 1.15, pulseMs: 900,  glow: true,  sparkles: 4 };
   if (days >= 7)   return { tier: 2, color: '#C2410C', flameColor: '#EA580C', pulseTo: 1.10, pulseMs: 1200, glow: true,  sparkles: 0 };
   if (days >= 1)   return { tier: 1, color: '#C2410C', flameColor: '#F97316', pulseTo: 1.05, pulseMs: 1800, glow: false, sparkles: 0 };
-  return             { tier: 0, color: '#9CA3AF', flameColor: '#9CA3AF', pulseTo: 1.0,  pulseMs: 0,    glow: false, sparkles: 0 };
+  return             { tier: 0, color: COLORS.text.muted, flameColor: COLORS.text.muted, pulseTo: 1.0,  pulseMs: 0,    glow: false, sparkles: 0 };
 }
 
 /** Day on which to show a celebratory milestone banner (once, ~3-5s). */
@@ -277,7 +278,7 @@ const useStyles = makeStyles(() => ({
   legendTxt: { fontSize: 9, fontWeight: '900', color: '#A16207', letterSpacing: 1 },
   milestone: {
     position: 'absolute', top: -24, alignSelf: 'center',
-    backgroundColor: '#111827', paddingHorizontal: 10, paddingVertical: 4, borderRadius: 10,
+    backgroundColor: COLORS.text.primary, paddingHorizontal: 10, paddingVertical: 4, borderRadius: 10,
   },
   milestoneTxt: { color: '#fff', fontSize: 11, fontWeight: '900', letterSpacing: 0.5 },
 }));

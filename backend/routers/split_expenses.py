@@ -6,7 +6,7 @@ on the same FastAPI APIRouter instance — no endpoint paths change.
 """
 import logging
 import uuid as uuid_lib
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from urllib.parse import quote, quote_plus
 from typing import List, Optional, Dict
 from bson import ObjectId
@@ -38,7 +38,7 @@ async def add_split_expense(expense: SplitExpenseCreate, user_id: str = Depends(
         "split_type": expense.split_type,
         "splits": splits,
         "created_by": user_id,
-        "created_at": datetime.utcnow()
+        "created_at": datetime.now(timezone.utc)
     }
     result = await db.split_expenses.insert_one(exp_doc)
     # Auto-insert chat message for the expense
@@ -57,7 +57,7 @@ async def add_split_expense(expense: SplitExpenseCreate, user_id: str = Depends(
             "member_names": split_member_names,
             "expense_id": str(result.inserted_id),
         },
-        "created_at": datetime.utcnow()
+        "created_at": datetime.now(timezone.utc)
     })
     return {"id": str(result.inserted_id), **{k: v for k, v in exp_doc.items() if k != "_id"}, "created_at": exp_doc["created_at"]}
 
@@ -315,7 +315,7 @@ async def edit_expense(expense_id: str, data: dict, user_id: str = Depends(get_c
         updates["splits"] = new_splits
 
     if updates:
-        updates["updated_at"] = datetime.utcnow()
+        updates["updated_at"] = datetime.now(timezone.utc)
         await db.split_expenses.update_one({"_id": ObjectId(expense_id)}, {"$set": updates})
     return {"message": "Expense updated", "splits": updates.get("splits", existing.get("splits", {}))}
 

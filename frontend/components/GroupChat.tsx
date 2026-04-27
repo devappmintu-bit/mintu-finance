@@ -221,9 +221,9 @@ export default function GroupChat({ group, onClose, onAddExpense, onManage, onEd
   }, [summary, user?.id]);
 
   const heroGradient: [string, string] =
-    netState === 'get' ? ['#10B981', '#047857']
-    : netState === 'owe' ? ['#F56E1E', '#C14A06']
-    : ['#6B7280', '#374151'];
+    netState === 'get' ? [COLORS.state.successAlt, '#047857']
+    : netState === 'owe' ? [COLORS.accent.brand, COLORS.accent.brandDark]
+    : [COLORS.text.muted, '#374151'];
 
   const haptic = () => { if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {}); };
 
@@ -272,7 +272,7 @@ export default function GroupChat({ group, onClose, onAddExpense, onManage, onEd
               style={s.settleChip}
               testID="gc-settle"
             >
-              <Ionicons name="flash" size={13} color="#C14A06" />
+              <Ionicons name="flash" size={13} color={COLORS.accent.brandDark} />
               <Text style={s.settleChipTxt}>Settle</Text>
             </TouchableOpacity>
           )}
@@ -397,7 +397,7 @@ const useStyles = makeStyles((c) => ({
   netEyebrow: { fontSize: 9.5, fontWeight: '900', letterSpacing: 1.1, color: 'rgba(255,255,255,0.85)' },
   netAmount: { fontSize: 30, fontWeight: '900', color: '#fff', letterSpacing: -1, marginTop: 2 },
   settleChip: { flexDirection: 'row', alignItems: 'center', gap: 5, paddingHorizontal: 12, paddingVertical: 8, borderRadius: 999, backgroundColor: '#fff' },
-  settleChipTxt: { fontSize: 12, fontWeight: '900', color: '#C14A06', letterSpacing: -0.1 },
+  settleChipTxt: { fontSize: 12, fontWeight: '900', color: COLORS.accent.brandDark, letterSpacing: -0.1 },
 
   // Legacy header (kept for reference)
   header: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingHorizontal: 16, paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: c.border.subtle },

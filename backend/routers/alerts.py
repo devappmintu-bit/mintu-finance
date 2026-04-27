@@ -8,7 +8,7 @@ Phase-2 Master UX Transformation:
     - style  (primary | secondary | danger)
     - icon   (ionicons glyph)
 """
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from urllib.parse import quote
 from bson import ObjectId
 from fastapi import APIRouter, Depends
@@ -33,7 +33,7 @@ def _budget_actions(category: str, severity: str):
 @api_router.get("/alerts/smart")
 async def smart_alerts(user_id: str = Depends(get_current_user)):
     """AI Smart Alerts — intelligent, non-annoying nudges with action CTAs."""
-    now = datetime.utcnow()
+    now = datetime.now(timezone.utc)
     today_start = now.replace(hour=0, minute=0, second=0, microsecond=0)
     month_start = now.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
 

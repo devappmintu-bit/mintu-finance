@@ -18,7 +18,7 @@ export default function ScoreCard({ name, score, streak, totalSaved, month }: Sc
   const s = useStyles();
   const cardRef = useRef<View>(null);
 
-  const scoreColor = score >= 75 ? '#10B981' : score >= 50 ? '#F59E0B' : '#EF4444';
+  const scoreColor = score >= 75 ? COLORS.state.successAlt : score >= 50 ? COLORS.accent.secondary : COLORS.state.danger;
   const scoreLabel = score >= 75 ? 'Excellent' : score >= 50 ? 'Good' : 'Needs Work';
 
   const handleShare = async () => {
@@ -32,7 +32,7 @@ export default function ScoreCard({ name, score, streak, totalSaved, month }: Sc
         Alert.alert('Sharing not available on this device');
       }
     } catch (e) {
-      console.error('Share error:', e);
+      if (__DEV__) console.error('Share error:', e);
       Alert.alert('Error', 'Could not share. Try again.');
     }
   };
@@ -66,12 +66,12 @@ export default function ScoreCard({ name, score, streak, totalSaved, month }: Sc
           {/* Stats */}
           <View style={s.statsRow}>
             <View style={s.stat}>
-              <Ionicons name="flame" size={18} color="#F59E0B" />
+              <Ionicons name="flame" size={18} color={COLORS.accent.secondary} />
               <Text style={s.statNum}>{streak}</Text>
               <Text style={s.statLabel}>Day Streak</Text>
             </View>
             <View style={[s.stat, s.statBorder]}>
-              <Ionicons name="cash" size={18} color="#10B981" />
+              <Ionicons name="cash" size={18} color={COLORS.state.successAlt} />
               <Text style={s.statNum}>{'\u20B9'}{totalSaved.toFixed(0)}</Text>
               <Text style={s.statLabel}>Saved</Text>
             </View>
@@ -107,7 +107,7 @@ const useStyles = makeStyles((c) => ({
   cardInner: { padding: SPACING.xxl },
   header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24 },
   logoRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  logoIcon: { width: 32, height: 32, borderRadius: 10, backgroundColor: '#10B981', justifyContent: 'center', alignItems: 'center' },
+  logoIcon: { width: 32, height: 32, borderRadius: 10, backgroundColor: COLORS.state.successAlt, justifyContent: 'center', alignItems: 'center' },
   logoText: { fontSize: 18, fontWeight: '800', color: '#0A0F1C' },
   appName: { fontSize: 20, fontWeight: '800', color: '#fff' },
   month: { fontSize: 13, color: 'rgba(255,255,255,0.5)' },

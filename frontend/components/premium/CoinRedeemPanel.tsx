@@ -16,6 +16,7 @@ import React, { useEffect, useState } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, ActivityIndicator } from 'react-native';
 import api from '../../utils/api';
 import { makeStyles } from '../../utils/makeStyles';
+import { COLORS } from '../../utils/theme';
 
 type Props = {
   /** For premium mode this is the plan key ('monthly'|'yearly'|'lifetime'). Unused for split mode. */
@@ -76,7 +77,7 @@ export default function CoinRedeemPanel({ plan, amount, listPrice, context = 'pr
   }, [apply, balance, plan, amount, listPrice, context]);
 
   if (balance == null) {
-    return <View style={[s.wrap, compact && s.wrapCompact]}><ActivityIndicator color="#F56E1E" size="small" /></View>;
+    return <View style={[s.wrap, compact && s.wrapCompact]}><ActivityIndicator color={COLORS.accent.brand} size="small" /></View>;
   }
 
   if (balance <= 0) {
@@ -117,7 +118,7 @@ export default function CoinRedeemPanel({ plan, amount, listPrice, context = 'pr
           disabled={loading}
         >
           {loading
-            ? <ActivityIndicator color={apply ? '#fff' : '#F56E1E'} size="small" />
+            ? <ActivityIndicator color={apply ? '#fff' : COLORS.accent.brand} size="small" />
             : <Text style={[s.segTxt, apply && s.segTxtOn]}>Apply all · ₹{savings} off</Text>}
         </TouchableOpacity>
       </View>
@@ -142,12 +143,12 @@ const useStyles = makeStyles((c) => ({
 
   segRow: { flexDirection: 'row', gap: 6, backgroundColor: '#FFEFDC', padding: 4, borderRadius: 12 },
   seg: { flex: 1, paddingVertical: 9, alignItems: 'center', justifyContent: 'center', borderRadius: 9 },
-  segOn: { backgroundColor: '#F56E1E' },
+  segOn: { backgroundColor: COLORS.accent.brand },
   segTxt: { fontSize: 12, fontWeight: '700', color: '#78350F' },
   segTxtOn: { color: '#fff' },
 
   priceRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 10, paddingTop: 10, borderTopWidth: 1, borderTopColor: '#FED7AA' },
   priceLbl: { fontSize: 11, color: '#78350F', fontWeight: '700', textTransform: 'uppercase', letterSpacing: 0.3 },
   priceVal: { fontSize: 18, fontWeight: '800', color: '#7C2D12' },
-  priceStrike: { fontSize: 13, color: '#9CA3AF', fontWeight: '600', textDecorationLine: 'line-through' },
+  priceStrike: { fontSize: 13, color: COLORS.text.muted, fontWeight: '600', textDecorationLine: 'line-through' },
 }));

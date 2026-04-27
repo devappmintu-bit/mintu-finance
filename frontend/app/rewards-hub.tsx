@@ -24,7 +24,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { router } from 'expo-router';
 import * as Haptics from 'expo-haptics';
 import Toast from 'react-native-toast-message';
-import { useAppColors } from '../utils/theme';
+import { COLORS, useAppColors } from '../utils/theme';
 import { makeStyles } from '../utils/makeStyles';
 import Confetti from '../components/Confetti';
 import RewardsHero from '../components/rewards/RewardsHero';
@@ -158,7 +158,7 @@ export default function RewardsHubScreen() {
   if (!data) {
     return (
       <SafeAreaView style={[s.container, { alignItems: 'center', justifyContent: 'center', padding: 20 }]}>
-        <Text style={{ fontSize: 14, color: '#6B7280' }}>Unable to load rewards. Pull to refresh.</Text>
+        <Text style={{ fontSize: 14, color: COLORS.text.muted }}>Unable to load rewards. Pull to refresh.</Text>
       </SafeAreaView>
     );
   }
@@ -281,7 +281,7 @@ export default function RewardsHubScreen() {
               <Text style={s.proSub}>Unlock ₹200+ premium rewards, boosted win probability, and exclusive vouchers.</Text>
               <View style={s.proCta}>
                 <Text style={s.proCtaTxt}>Upgrade Now</Text>
-                <Ionicons name="arrow-forward" size={14} color="#F59E0B" />
+                <Ionicons name="arrow-forward" size={14} color={COLORS.accent.secondary} />
               </View>
             </LinearGradient>
           </TouchableOpacity>
@@ -382,21 +382,21 @@ const useStyles = makeStyles((c) => ({
   section: { paddingHorizontal: 16, marginTop: 16 },
   wheelSection: { alignItems: 'center', marginTop: 20 },
   sectionHead: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 },
-  sectionTitle: { fontSize: 15, fontWeight: '900', color: '#111827', letterSpacing: -0.2 },
+  sectionTitle: { fontSize: 15, fontWeight: '900', color: COLORS.text.primary, letterSpacing: -0.2 },
   sectionEmoji: { fontSize: 16 },
-  sectionSub: { fontSize: 10.5, fontWeight: '800', color: '#6B7280', letterSpacing: 0.3 },
+  sectionSub: { fontSize: 10.5, fontWeight: '800', color: COLORS.text.muted, letterSpacing: 0.3 },
   proCard: { padding: 16, borderRadius: 20, gap: 8, overflow: 'hidden', position: 'relative' },
   proBlob: { position: 'absolute', top: -40, right: -40, width: 140, height: 140, borderRadius: 70, backgroundColor: 'rgba(245,158,11,0.15)' },
   proHeadRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-  proBadge: { flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: 9, paddingVertical: 4, borderRadius: 999, backgroundColor: '#F59E0B' },
+  proBadge: { flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: 9, paddingVertical: 4, borderRadius: 999, backgroundColor: COLORS.accent.secondary },
   proBadgeTxt: { fontSize: 9.5, fontWeight: '900', color: '#fff', letterSpacing: 1 },
   proPrice: { fontSize: 11, fontWeight: '800', color: '#FCD34D', letterSpacing: 0.3 },
   proTitle: { fontSize: 18, fontWeight: '900', color: '#fff', letterSpacing: -0.3, marginTop: 4 },
   proSub: { fontSize: 12, fontWeight: '600', color: 'rgba(255,255,255,0.8)', lineHeight: 17 },
   proCta: { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 6 },
-  proCtaTxt: { fontSize: 13, fontWeight: '900', color: '#F59E0B' },
+  proCtaTxt: { fontSize: 13, fontWeight: '900', color: COLORS.accent.secondary },
   winCard: { width: 120, padding: 12, backgroundColor: '#fff', borderRadius: 14, borderWidth: 1, borderColor: '#F3F4F6', alignItems: 'center', gap: 6, position: 'relative' },
   winLbl: { fontSize: 11, fontWeight: '800', color: '#374151', textAlign: 'center' },
-  winBadge: { position: 'absolute', top: 6, right: 6, paddingHorizontal: 6, paddingVertical: 2, borderRadius: 999, backgroundColor: '#10B981' },
+  winBadge: { position: 'absolute', top: 6, right: 6, paddingHorizontal: 6, paddingVertical: 2, borderRadius: 999, backgroundColor: COLORS.state.successAlt },
   winBadgeTxt: { fontSize: 8, fontWeight: '900', color: '#fff', letterSpacing: 0.4 },
 }));

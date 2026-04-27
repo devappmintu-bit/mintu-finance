@@ -12,7 +12,7 @@ import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import Toast from 'react-native-toast-message';
 import { makeStyles } from '../../utils/makeStyles';
-import { useAppColors } from '../../utils/theme';
+import { COLORS, useAppColors } from '../../utils/theme';
 
 type Product = {
   key: string;
@@ -49,7 +49,7 @@ function EmbeddedFinanceCard({ moneyScore = 0 }: { moneyScore?: number }) {
   products.push({
     key: 'health', badge: 'FAMILY PROTECT', emoji: '🏥',
     title: 'Health cover ₹5L @ ₹200/mo', sub: 'Tax-saving · cashless across 10,000+ hospitals',
-    cta: 'Compare plans', gradient: ['#059669', '#047857'], accent: '#A7F3D0',
+    cta: 'Compare plans', gradient: [COLORS.state.success, '#047857'], accent: '#A7F3D0',
   });
   products.push({
     key: 'mutual-fund', badge: 'WEALTH BUILDER', emoji: '📊',

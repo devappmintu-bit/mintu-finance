@@ -14,6 +14,7 @@ import React, { forwardRef } from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { makeStyles } from '../../utils/makeStyles';
+import { COLORS } from '../../utils/theme';
 
 type Summary = {
   name?: string;
@@ -34,7 +35,7 @@ const BudgetShareCard = forwardRef<View, { summary: Summary }>(function BudgetSh
   const pct = budget > 0 ? Math.min(100, Math.round((spent / budget) * 100)) : 0;
   return (
     <View ref={ref} collapsable={false} style={stl.card}>
-      <LinearGradient colors={['#F56E1E', '#C14A06']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={stl.bg}>
+      <LinearGradient colors={[COLORS.accent.brand, COLORS.accent.brandDark]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={stl.bg}>
         <View style={stl.headRow}>
           <Text style={stl.brand}>MintU</Text>
           <Text style={stl.month}>{s.month_label || 'This month'}</Text>

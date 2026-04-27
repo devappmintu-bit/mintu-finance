@@ -14,10 +14,10 @@ interface Props {
 
 const categoryColor = (cat: string) => {
   switch (cat) {
-    case 'alert': return '#EF4444';
-    case 'market': return '#10B981';
+    case 'alert': return COLORS.state.danger;
+    case 'market': return COLORS.state.successAlt;
     case 'scheme': return COLORS.accent.primary;
-    case 'tip': return '#F59E0B';
+    case 'tip': return COLORS.accent.secondary;
     default: return COLORS.accent.primary;
   }
 };

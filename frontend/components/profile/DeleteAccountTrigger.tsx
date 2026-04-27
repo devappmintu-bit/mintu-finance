@@ -20,7 +20,7 @@ import Toast from 'react-native-toast-message';
 import { router } from 'expo-router';
 import api from '../../utils/api';
 import { useAuthStore } from '../../store/authStore';
-import { useAppColors } from '../../utils/theme';
+import { COLORS, useAppColors } from '../../utils/theme';
 import { makeStyles } from '../../utils/makeStyles';
 
 type Mode = 'soft' | 'hard';
@@ -162,7 +162,7 @@ const DeleteAccountTrigger = forwardRef<DeleteAccountTriggerRef>((_props, ref) =
               <Text style={s.title}>Delete account permanently?</Text>
               <Text style={s.body}>
                 This wipes every trace of your data: transactions, budgets, splits, rewards, Gmail, push tokens, AI history.{' '}
-                <Text style={{ fontWeight: '900', color: '#EF4444' }}>Cannot be undone.</Text>
+                <Text style={{ fontWeight: '900', color: COLORS.state.danger }}>Cannot be undone.</Text>
               </Text>
               <Text style={s.typeHint}>Type <Text style={s.typeHintBold}>DELETE</Text> (all caps) to confirm</Text>
               <TextInput

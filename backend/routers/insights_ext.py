@@ -1,5 +1,5 @@
 """insights_ext router — weekly AI-analyzed spending report with category trends."""
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from fastapi import APIRouter, Depends
 
 from core import db, get_current_user
@@ -13,7 +13,7 @@ api_router = router  # extracted code uses @api_router.*
 @api_router.get("/insights/weekly")
 async def get_weekly_insights(user_id: str = Depends(get_current_user)):
     """Full weekly spending report with AI analysis"""
-    now = datetime.utcnow()
+    now = datetime.now(timezone.utc)
     seven_days_ago = now - timedelta(days=7)
     fourteen_days_ago = now - timedelta(days=14)
     

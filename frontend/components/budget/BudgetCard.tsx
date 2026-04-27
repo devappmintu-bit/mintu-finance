@@ -20,7 +20,7 @@ import { Swipeable, RectButton } from 'react-native-gesture-handler';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import * as Haptics from 'expo-haptics';
-import {  CATEGORIES, shadowStyle, useAppColors } from '../../utils/theme';
+import { COLORS,  CATEGORIES, shadowStyle, useAppColors } from '../../utils/theme';
 import { makeStyles } from '../../utils/makeStyles';
 
 type Props = {
@@ -52,7 +52,7 @@ const BudgetCard = memo(function BudgetCard({ item, onEdit, onDelete, onAddExpen
   const isWarn = !isOver && !isRisk && pct >= 80;
 
   // Color-psychology states
-  const statusColor = isOver ? '#EF4444' : isWarn ? '#F59E0B' : isRisk ? '#F97316' : '#10B981';
+  const statusColor = isOver ? COLORS.state.danger : isWarn ? COLORS.accent.secondary : isRisk ? '#F97316' : COLORS.state.successAlt;
   const bgTint = isOver ? '#FEF2F2' : isWarn ? '#FFFBEB' : isRisk ? '#FFF7ED' : '#F0FDF4';
   const cat = (CATEGORIES as any)[item.category] || (CATEGORIES as any).Other;
   const emoji = cat.emoji || '💰';

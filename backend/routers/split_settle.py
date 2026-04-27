@@ -7,7 +7,7 @@ on the same FastAPI APIRouter instance — no endpoint paths change.
 import logging
 import uuid as uuid_lib
 from contextlib import asynccontextmanager
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from urllib.parse import quote, quote_plus
 from typing import List, Optional, Dict, Any
 from bson import ObjectId
@@ -43,7 +43,7 @@ async def _settle_lock(user_id: str, target_user_id: str, group_id: Optional[str
     """
     key = _settle_lock_key(user_id, target_user_id, group_id)
     try:
-        await db.settle_locks.insert_one({"_id": key, "at": datetime.utcnow()})
+        await db.settle_locks.insert_one({"_id": key, "at": datetime.now(timezone.utc)})
     except DuplicateKeyError:
         raise HTTPException(status_code=429, detail="Another settlement is in progress, please retry")
     try:
@@ -64,7 +64,7 @@ async def dismiss_reminders_after_settle(payer_id: str, payee_id: str) -> int:
     try:
         r = await db.split_reminders.update_many(
             {"recipient_id": payer_id, "sender_id": payee_id, "status": "pending"},
-            {"$set": {"status": "settled", "dismissed_at": datetime.utcnow()}},
+            {"$set": {"status": "settled", "dismissed_at": datetime.now(timezone.utc)}},
         )
         return int(r.modified_count or 0)
     except Exception:
@@ -352,8 +352,8 @@ async def settle_payment(data: SettlePayment, user_id: str = Depends(get_current
             "txn_ref": data.txn_ref or f"MINTU{uuid_lib.uuid4().hex[:8].upper()}",
             "group_id": data.group_id,
             "status": "completed",
-            "settled_at": datetime.utcnow(),
-            "created_at": datetime.utcnow()
+            "settled_at": datetime.now(timezone.utc),
+            "created_at": datetime.now(timezone.utc)
         }
 
         result = await db.settlements.insert_one(settlement)
@@ -471,8 +471,8 @@ async def partial_settle(data: dict, user_id: str = Depends(get_current_user)):
             "note": note,
             "is_partial": True,
             "status": "completed",
-            "settled_at": datetime.utcnow(),
-            "created_at": datetime.utcnow(),
+            "settled_at": datetime.now(timezone.utc),
+            "created_at": datetime.now(timezone.utc),
         }
         result = await db.settlements.insert_one(settlement)
 
@@ -521,7 +521,7 @@ async def partial_settle(data: dict, user_id: str = Depends(get_current_user)):
                     "coins_applied": redemption["coins_applied"],
                     "coin_discount": redemption["discount"],
                 },
-                "created_at": datetime.utcnow(),
+                "created_at": datetime.now(timezone.utc),
             })
         except Exception as e:
             logging.warning(f"Could not post partial settlement message: {e}")
@@ -578,8 +578,8 @@ async def settle_with_rewards(data: SettlePayment, user_id: str = Depends(get_cu
             "status": "completed",
             "coins_earned": reward["coins"],
             "reward_label": reward["label"],
-            "settled_at": datetime.utcnow(),
-            "created_at": datetime.utcnow()
+            "settled_at": datetime.now(timezone.utc),
+            "created_at": datetime.now(timezone.utc)
         }
 
         result = await db.settlements.insert_one(settlement)
@@ -602,7 +602,7 @@ async def settle_with_rewards(data: SettlePayment, user_id: str = Depends(get_cu
         if settle_count >= badge["threshold"]:
             existing = await db.user_badges.find_one({"user_id": user_id, "badge_id": badge["id"]})
             if not existing:
-                await db.user_badges.insert_one({"user_id": user_id, "badge_id": badge["id"], "earned_at": datetime.utcnow()})
+                await db.user_badges.insert_one({"user_id": user_id, "badge_id": badge["id"], "earned_at": datetime.now(timezone.utc)})
                 new_badges.append(badge)
 
     # Calculate cashback (coins reduce future payments)
@@ -698,8 +698,8 @@ async def mark_paid_offline(data: dict, user_id: str = Depends(get_current_user)
             "note": note,
             "status": "completed",
             "is_offline": True,
-            "settled_at": datetime.utcnow(),
-            "created_at": datetime.utcnow(),
+            "settled_at": datetime.now(timezone.utc),
+            "created_at": datetime.now(timezone.utc),
         }
         result = await db.settlements.insert_one(settlement)
 
@@ -716,7 +716,7 @@ async def mark_paid_offline(data: dict, user_id: str = Depends(get_current_user)
     try:
         await db.split_reminders.update_many(
             {"recipient_id": user_id, "sender_id": target_user_id, "status": "pending"},
-            {"$set": {"status": "settled", "dismissed_at": datetime.utcnow()}}
+            {"$set": {"status": "settled", "dismissed_at": datetime.now(timezone.utc)}}
         )
     except Exception:
         pass
@@ -752,7 +752,7 @@ async def mark_paid_offline(data: dict, user_id: str = Depends(get_current_user)
                     "coins_applied": redemption["coins_applied"],
                     "coin_discount": redemption["discount"],
                 },
-                "created_at": datetime.utcnow(),
+                "created_at": datetime.now(timezone.utc),
             })
         except Exception as e:
             logging.warning(f"Could not post settlement system message: {e}")

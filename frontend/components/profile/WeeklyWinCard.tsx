@@ -18,6 +18,7 @@ import { View, Text, StyleSheet } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Image } from 'expo-image';
 import { Ionicons } from '@expo/vector-icons';
+import { COLORS } from '../../utils/theme';
 
 export type WinKind = 'saved_more' | 'cut_spend' | 'streak' | 'tier_up' | 'neutral';
 
@@ -75,7 +76,7 @@ export default function WeeklyWinCard({
 
   return (
     <LinearGradient
-      colors={['#F56E1E', '#C14A06']}
+      colors={[COLORS.accent.brand, COLORS.accent.brandDark]}
       start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}
       style={s.card}
     >
@@ -136,7 +137,7 @@ export default function WeeklyWinCard({
           ) : null}
         </View>
         <View style={s.ctaPill}>
-          <Ionicons name="sparkles" size={11} color="#C14A06" />
+          <Ionicons name="sparkles" size={11} color={COLORS.accent.brandDark} />
           <Text style={s.ctaTxt}>Try MintU free</Text>
         </View>
       </View>
@@ -148,7 +149,7 @@ const s = StyleSheet.create({
   card: {
     width: CARD_W, height: CARD_H,
     borderRadius: 28, padding: 22, overflow: 'hidden', position: 'relative',
-    backgroundColor: '#F56E1E',
+    backgroundColor: COLORS.accent.brand,
   },
   blob1: { position: 'absolute', top: -60, right: -50, width: 180, height: 180, borderRadius: 90, backgroundColor: 'rgba(255,255,255,0.10)' },
   blob2: { position: 'absolute', bottom: -70, left: -50, width: 200, height: 200, borderRadius: 100, backgroundColor: 'rgba(0,0,0,0.08)' },
@@ -183,7 +184,7 @@ const s = StyleSheet.create({
   footerHint: { fontSize: 11, fontWeight: '800', color: '#FFFFFF', letterSpacing: 0.2 },
   footerSmall: { fontSize: 10, fontWeight: '600', color: 'rgba(255,255,255,0.75)', marginTop: 1 },
   ctaPill: { flexDirection: 'row', alignItems: 'center', gap: 5, backgroundColor: '#FFFFFF', paddingHorizontal: 11, paddingVertical: 7, borderRadius: 999 },
-  ctaTxt: { fontSize: 11, fontWeight: '900', color: '#C14A06', letterSpacing: -0.1 },
+  ctaTxt: { fontSize: 11, fontWeight: '900', color: COLORS.accent.brandDark, letterSpacing: -0.1 },
 });
 
 /**

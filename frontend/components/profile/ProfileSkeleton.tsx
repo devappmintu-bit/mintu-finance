@@ -7,13 +7,14 @@ import { View, StyleSheet } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import Skeleton from '../ui/Skeleton';
 import { makeStyles } from '../../utils/makeStyles';
+import { COLORS } from '../../utils/theme';
 
 export default function ProfileSkeleton() {
   const s = useStyles();
   return (
     <View style={s.wrap} accessibilityLabel="Loading profile">
       <LinearGradient
-        colors={['#F56E1E', '#C14A06']}
+        colors={[COLORS.accent.brand, COLORS.accent.brandDark]}
         start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}
         style={s.hero}
       >

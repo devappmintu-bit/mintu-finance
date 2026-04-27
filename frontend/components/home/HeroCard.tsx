@@ -65,7 +65,7 @@ function computeHeroState({ snapshot, stats, user, txnCount }: Props): HeroState
       ctaLabel: 'Add first expense',
       ctaRoute: '/(tabs)/transactions',
       ctaIcon: 'add-circle',
-      gradient: ['#10B981', '#059669'],
+      gradient: [COLORS.state.successAlt, COLORS.state.success],
     };
   }
 
@@ -80,7 +80,7 @@ function computeHeroState({ snapshot, stats, user, txnCount }: Props): HeroState
       ctaLabel: 'Fix it now',
       ctaRoute: '/(tabs)/budget',
       ctaIcon: 'construct',
-      gradient: ['#EF4444', '#B91C1C'],
+      gradient: [COLORS.state.danger, '#B91C1C'],
     };
   }
 
@@ -95,7 +95,7 @@ function computeHeroState({ snapshot, stats, user, txnCount }: Props): HeroState
       ctaLabel: 'See breakdown',
       ctaRoute: '/(tabs)/budget',
       ctaIcon: 'pie-chart',
-      gradient: ['#F59E0B', '#D97706'],
+      gradient: [COLORS.accent.secondary, '#D97706'],
     };
   }
 
@@ -111,7 +111,7 @@ function computeHeroState({ snapshot, stats, user, txnCount }: Props): HeroState
       ctaLabel: 'Share this win',
       ctaRoute: '/profile',
       ctaIcon: 'share-social',
-      gradient: ['#10B981', '#047857'],
+      gradient: [COLORS.state.successAlt, '#047857'],
     };
   }
 
@@ -126,7 +126,7 @@ function computeHeroState({ snapshot, stats, user, txnCount }: Props): HeroState
       ctaLabel: 'Ask AI Coach',
       ctaRoute: '/(tabs)/ai-coach',
       ctaIcon: 'sparkles',
-      gradient: ['#F56E1E', '#C14A06'],
+      gradient: [COLORS.accent.brand, COLORS.accent.brandDark],
     };
   }
 
@@ -139,7 +139,7 @@ function computeHeroState({ snapshot, stats, user, txnCount }: Props): HeroState
     ctaLabel: 'Open AI Coach',
     ctaRoute: '/(tabs)/ai-coach',
     ctaIcon: 'sparkles',
-    gradient: ['#F56E1E', '#C14A06'],
+    gradient: [COLORS.accent.brand, COLORS.accent.brandDark],
   };
 }
 

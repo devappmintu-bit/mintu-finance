@@ -7,6 +7,7 @@ import { View, Text, TouchableOpacity, StyleSheet, Platform } from 'react-native
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import { makeStyles } from '../../utils/makeStyles';
+import { COLORS } from '../../utils/theme';
 
 interface Props {
   thisWeek: { saved: number; expense: number; txn_count: number } | null;
@@ -20,9 +21,9 @@ interface Props {
 }
 
 const TONE_COLOR = {
-  positive: '#059669',
-  neutral:  '#6B7280',
-  warn:     '#DC2626',
+  positive: COLORS.state.success,
+  neutral:  COLORS.text.muted,
+  warn:     COLORS.state.danger,
   info:     '#3B82F6',
 } as const;
 

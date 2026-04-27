@@ -8,6 +8,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import { makeStyles } from '../../utils/makeStyles';
+import { COLORS } from '../../utils/theme';
 
 type Props = {
   budgets: any[];
@@ -51,7 +52,7 @@ function BudgetHero({ budgets, onPressAdd, onPressShare, sharing }: Props) {
   const haptic = () => { if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {}); };
 
   return (
-    <LinearGradient colors={['#F56E1E', '#C14A06']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={s.card}>
+    <LinearGradient colors={[COLORS.accent.brand, COLORS.accent.brandDark]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={s.card}>
       <View style={s.blob1} />
       <View style={s.blob2} />
 
@@ -65,7 +66,7 @@ function BudgetHero({ budgets, onPressAdd, onPressShare, sharing }: Props) {
             {sharing ? <ActivityIndicator size="small" color="#FFFFFF" /> : <Ionicons name="share-social-outline" size={17} color="#FFFFFF" />}
           </TouchableOpacity>
           <TouchableOpacity style={s.addBtn} onPress={() => { haptic(); onPressAdd?.(); }} activeOpacity={0.88} testID="budget-hero-add">
-            <Ionicons name="add" size={20} color="#C14A06" />
+            <Ionicons name="add" size={20} color={COLORS.accent.brandDark} />
           </TouchableOpacity>
         </View>
       </View>

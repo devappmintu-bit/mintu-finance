@@ -45,8 +45,8 @@ function computeLevel(totalXp: number) {
 
 function streakMilestone(days: number) {
   if (days >= 100) return { emoji: '🥇', label: 'LEGEND', color: '#FBBF24' };
-  if (days >= 30)  return { emoji: '🥈', label: 'SILVER', color: '#9CA3AF' };
-  if (days >= 7)   return { emoji: '🥉', label: 'BRONZE', color: '#F59E0B' };
+  if (days >= 30)  return { emoji: '🥈', label: 'SILVER', color: COLORS.text.muted };
+  if (days >= 7)   return { emoji: '🥉', label: 'BRONZE', color: COLORS.accent.secondary };
   return null;
 }
 
@@ -77,7 +77,7 @@ function DailyQuestCard({ coinsStatus, onAction, userName }: Props) {
   // All quests complete → celebration card
   if (data.available.length === 0 && data.completedCount > 0) {
     return (
-      <LinearGradient colors={['#10B981', '#059669']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={s.allDoneCard}>
+      <LinearGradient colors={[COLORS.state.successAlt, COLORS.state.success]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={s.allDoneCard}>
         <View style={s.allDoneIcon}>
           <Ionicons name="trophy" size={22} color="#fff" />
         </View>
@@ -119,7 +119,7 @@ function DailyQuestCard({ coinsStatus, onAction, userName }: Props) {
       {/* XP bar */}
       <View style={s.xpRow}>
         <View style={s.xpTrack}>
-          <LinearGradient colors={['#F59E0B', '#DC6E0E']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={[s.xpFill, { width: `${data.xpPct}%` }]} />
+          <LinearGradient colors={[COLORS.accent.secondary, '#DC6E0E']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={[s.xpFill, { width: `${data.xpPct}%` }]} />
         </View>
         <Text style={s.xpTxt}>{data.xpInLevel}/100 XP</Text>
       </View>
@@ -140,7 +140,7 @@ function DailyQuestCard({ coinsStatus, onAction, userName }: Props) {
               }}
             >
               <View style={s.questIcon}>
-                <Ionicons name={meta.icon as any} size={16} color="#F59E0B" />
+                <Ionicons name={meta.icon as any} size={16} color={COLORS.accent.secondary} />
               </View>
               <Text style={s.questLabel} numberOfLines={1}>{q.label}</Text>
               <View style={s.rewardPill}>
@@ -195,14 +195,14 @@ const useStyles = makeStyles((c) => ({
     marginBottom: 14,
     borderWidth: 1,
     borderColor: '#F59E0B30',
-    ...shadowStyle('#F59E0B', 3, 12, 0.10, 3),
+    ...shadowStyle(COLORS.accent.secondary, 3, 12, 0.10, 3),
   },
   header: { flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 10 },
-  levelBadge: { backgroundColor: '#F59E0B', paddingHorizontal: 9, paddingVertical: 4, borderRadius: 8 },
+  levelBadge: { backgroundColor: COLORS.accent.secondary, paddingHorizontal: 9, paddingVertical: 4, borderRadius: 8 },
   levelNum: { fontSize: 11, fontWeight: '900', color: '#fff', letterSpacing: 0.2 },
-  label: { fontSize: 10, fontWeight: '800', color: '#F59E0B', letterSpacing: 1 },
+  label: { fontSize: 10, fontWeight: '800', color: COLORS.accent.secondary, letterSpacing: 1 },
   title: { fontSize: 15, fontWeight: '800', color: c.text.primary, marginTop: 2 },
-  todayGain: { fontSize: 12, color: '#10B981', fontWeight: '700' },
+  todayGain: { fontSize: 12, color: COLORS.state.successAlt, fontWeight: '700' },
   streakPill: { flexDirection: 'row', alignItems: 'center', gap: 3, backgroundColor: '#FEE2E2', borderRadius: 999, paddingHorizontal: 10, paddingVertical: 4, borderWidth: 1, borderColor: 'transparent' },
   streakEmoji: { fontSize: 12 },
   streakNum: { fontSize: 12, fontWeight: '900', color: '#B91C1C' },
@@ -223,7 +223,7 @@ const useStyles = makeStyles((c) => ({
   milestoneHint: { flexDirection: 'row', alignItems: 'center', gap: 5, marginTop: 10, paddingVertical: 7, paddingHorizontal: 10, borderRadius: 10, backgroundColor: '#FEF3C7', borderWidth: 1, borderColor: '#FDE68A' },
   milestoneTxt: { flex: 1, fontSize: 11, fontWeight: '800', color: '#92400E', letterSpacing: 0.1 },
   // All done state
-  allDoneCard: { flexDirection: 'row', alignItems: 'center', gap: 12, borderRadius: 18, padding: 14, marginBottom: 14, ...shadowStyle('#10B981', 3, 12, 0.2, 4) },
+  allDoneCard: { flexDirection: 'row', alignItems: 'center', gap: 12, borderRadius: 18, padding: 14, marginBottom: 14, ...shadowStyle(COLORS.state.successAlt, 3, 12, 0.2, 4) },
   allDoneIcon: { width: 40, height: 40, borderRadius: 20, backgroundColor: 'rgba(255,255,255,0.2)', alignItems: 'center', justifyContent: 'center' },
   allDoneTitle: { fontSize: 14, fontWeight: '800', color: '#fff' },
   allDoneSub: { fontSize: 11, fontWeight: '600', color: 'rgba(255,255,255,0.92)', marginTop: 2 },

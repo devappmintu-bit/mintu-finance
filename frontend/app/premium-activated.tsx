@@ -27,12 +27,12 @@ export default function PremiumActivated() {
 
   return (
     <View style={s.wrap}>
-      <Ionicons name={success ? 'diamond' : 'close-circle'} size={72} color={success ? '#F56E1E' : '#EF4444'} />
+      <Ionicons name={success ? 'diamond' : 'close-circle'} size={72} color={success ? COLORS.accent.brand : COLORS.state.danger} />
       <Text style={s.title}>{success ? 'Premium activated' : 'Payment cancelled'}</Text>
       <Text style={s.sub}>
         {success ? 'Welcome to MintU Premium 🎉' : (reason === 'cancelled' ? 'You closed the payment window' : 'Please try again')}
       </Text>
-      <ActivityIndicator color="#F56E1E" size="small" style={{ marginTop: 18 }} />
+      <ActivityIndicator color={COLORS.accent.brand} size="small" style={{ marginTop: 18 }} />
       <Text style={s.hint}>Returning to app…</Text>
     </View>
   );

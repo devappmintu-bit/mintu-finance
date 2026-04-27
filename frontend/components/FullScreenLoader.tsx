@@ -17,7 +17,7 @@
 import React, { useEffect, useRef } from 'react';
 import { View, Text, Animated, Easing } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useAppColors, SPACING } from '../utils/theme';
+import { COLORS, useAppColors, SPACING } from '../utils/theme';
 import { makeStyles } from '../utils/makeStyles';
 
 type Props = {
@@ -104,7 +104,7 @@ const useStyles = makeStyles((C) => ({
     width: 72,
     height: 72,
     borderRadius: 36,
-    shadowColor: '#F56E1E',
+    shadowColor: COLORS.accent.brand,
     shadowOffset: { width: 0, height: 6 },
     shadowOpacity: 0.35,
     shadowRadius: 18,

@@ -106,7 +106,7 @@ export default function LegalPage() {
         ))}
 
         <View style={s.footer}>
-          <Ionicons name="shield-checkmark" size={14} color="#10B981" />
+          <Ionicons name="shield-checkmark" size={14} color={COLORS.state.successAlt} />
           <Text style={s.footerText}>
             Aligned with RBI data localization · DPDPA 2023 · IT Act 2000 · GDPR principles
           </Text>
@@ -133,5 +133,5 @@ const useStyles = makeStyles((c) => ({
   sectionTitle: { fontSize: 14, fontWeight: '800', color: '#E65100', marginBottom: 6 },
   sectionBody: { fontSize: 13, color: c.text.primary, lineHeight: 20, fontWeight: '500' },
   footer: { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 18, padding: 12, backgroundColor: '#10B98110', borderRadius: 10, borderWidth: 1, borderColor: '#10B98125' },
-  footerText: { flex: 1, fontSize: 11, color: '#059669', fontWeight: '700', lineHeight: 15 },
+  footerText: { flex: 1, fontSize: 11, color: COLORS.state.success, fontWeight: '700', lineHeight: 15 },
 }));

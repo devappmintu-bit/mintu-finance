@@ -17,6 +17,7 @@ import { Image } from 'expo-image';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
+import { COLORS } from '../../utils/theme';
 
 /**
  * Round 51e — privacy-friendly phone masking.
@@ -119,7 +120,7 @@ export default function ProfileHeroV4({
 
   return (
     <LinearGradient
-      colors={['#F56E1E', '#C14A06']}
+      colors={[COLORS.accent.brand, COLORS.accent.brandDark]}
       start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}
       style={s.card}
     >
@@ -161,7 +162,7 @@ export default function ProfileHeroV4({
 
           {/* Camera edit badge — tight bottom-right, Samsung Health style */}
           <View style={s.cameraBadge}>
-            <Ionicons name="camera" size={14} color="#C14A06" />
+            <Ionicons name="camera" size={14} color={COLORS.accent.brandDark} />
           </View>
         </TouchableOpacity>
 
@@ -233,7 +234,7 @@ const AVATAR_SIZE = 96;
 const AVATAR_INNER = AVATAR_SIZE - 8;
 
 const s = StyleSheet.create({
-  card: { borderRadius: 24, padding: 20, overflow: 'hidden', position: 'relative', marginBottom: 16, shadowColor: '#C14A06', shadowOpacity: 0.2, shadowRadius: 18, shadowOffset: { width: 0, height: 8 }, elevation: 6 },
+  card: { borderRadius: 24, padding: 20, overflow: 'hidden', position: 'relative', marginBottom: 16, shadowColor: COLORS.accent.brandDark, shadowOpacity: 0.2, shadowRadius: 18, shadowOffset: { width: 0, height: 8 }, elevation: 6 },
   blob1: { position: 'absolute', top: -40, right: -40, width: 140, height: 140, borderRadius: 70, backgroundColor: 'rgba(255,255,255,0.08)' },
   blob2: { position: 'absolute', bottom: -50, left: -50, width: 160, height: 160, borderRadius: 80, backgroundColor: 'rgba(0,0,0,0.08)' },
   topRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
@@ -259,13 +260,13 @@ const s = StyleSheet.create({
     alignItems: 'center', justifyContent: 'center',
     backgroundColor: '#FFFFFF',
   },
-  avatarInitials: { fontSize: 32, fontWeight: '900', color: '#C14A06', letterSpacing: -0.5 },
+  avatarInitials: { fontSize: 32, fontWeight: '900', color: COLORS.accent.brandDark, letterSpacing: -0.5 },
   cameraBadge: {
     position: 'absolute', right: -2, bottom: -2,
     width: 30, height: 30, borderRadius: 15,
     backgroundColor: '#FFFFFF',
     alignItems: 'center', justifyContent: 'center',
-    borderWidth: 2, borderColor: '#C14A06',
+    borderWidth: 2, borderColor: COLORS.accent.brandDark,
     shadowColor: '#000000', shadowOpacity: 0.2, shadowRadius: 4, shadowOffset: { width: 0, height: 2 }, elevation: 3,
   },
 
@@ -281,7 +282,7 @@ const s = StyleSheet.create({
 
   rail: { height: 10, borderRadius: 5, backgroundColor: 'rgba(0,0,0,0.28)', position: 'relative', marginTop: 10, overflow: 'visible' },
   progressFill: { position: 'absolute', left: 0, top: 0, height: 10, borderRadius: 5, backgroundColor: 'rgba(255,255,255,0.92)' },
-  milestone: { position: 'absolute', top: 1, width: 8, height: 8, borderRadius: 4, backgroundColor: 'rgba(255,255,255,0.35)', marginLeft: -4, borderWidth: 1.5, borderColor: '#C14A06' },
+  milestone: { position: 'absolute', top: 1, width: 8, height: 8, borderRadius: 4, backgroundColor: 'rgba(255,255,255,0.35)', marginLeft: -4, borderWidth: 1.5, borderColor: COLORS.accent.brandDark },
   milestoneReached: { backgroundColor: '#FCD34D' },
 
   predictive: { flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 10 },

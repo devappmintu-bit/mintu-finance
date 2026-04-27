@@ -168,7 +168,7 @@ export default function GmailConnectScreen() {
 
       <ScrollView contentContainerStyle={{ padding: SPACING.lg, paddingBottom: 60 }} showsVerticalScrollIndicator={false}>
         {/* Hero — condensed copy (Phase 2 trust-first UX) */}
-        <LinearGradient colors={connected ? ['#047857', '#10B981'] : ['#F56E1E', '#C14A06']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={s.hero}>
+        <LinearGradient colors={connected ? ['#047857', COLORS.state.successAlt] : [COLORS.accent.brand, COLORS.accent.brandDark]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={s.hero}>
           <View style={s.heroIcon}>
             <Ionicons name={connected ? 'checkmark-circle' : 'mail-outline'} size={38} color="#FFFFFF" />
           </View>
@@ -214,7 +214,7 @@ export default function GmailConnectScreen() {
         {/* Actions */}
         {!connected ? (
           <TouchableOpacity style={[s.cta, connecting && { opacity: 0.6 }]} disabled={connecting} onPress={connect} activeOpacity={0.85}>
-            <LinearGradient colors={['#F56E1E', '#C14A06']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={s.ctaBg}>
+            <LinearGradient colors={[COLORS.accent.brand, COLORS.accent.brandDark]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={s.ctaBg}>
               {connecting
                 ? <ActivityIndicator color="#FFFFFF" />
                 : (
@@ -228,7 +228,7 @@ export default function GmailConnectScreen() {
         ) : (
           <View style={{ gap: 10 }}>
             <TouchableOpacity style={[s.cta, syncing && { opacity: 0.6 }]} disabled={syncing} onPress={syncNow} activeOpacity={0.85}>
-              <LinearGradient colors={['#F56E1E', '#C14A06']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={s.ctaBg}>
+              <LinearGradient colors={[COLORS.accent.brand, COLORS.accent.brandDark]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={s.ctaBg}>
                 {syncing
                   ? <ActivityIndicator color="#FFFFFF" />
                   : (

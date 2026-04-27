@@ -12,7 +12,7 @@
  *   • Accepts a predetermined winning prize id (so the backend's
  *     weighted pick stays server-authoritative).
  */
-import { useAppColors } from '../../utils/theme';
+import { COLORS, useAppColors } from '../../utils/theme';
 import React, { useEffect, useImperativeHandle, useRef, forwardRef, useState } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Animated, Easing, Platform } from 'react-native';
 import Svg, { G, Path, Circle, Defs, LinearGradient as SvgGradient, Stop, Text as SvgText } from 'react-native-svg';
@@ -243,7 +243,7 @@ const SpinWheel = forwardRef<SpinWheelHandle, Props>(function SpinWheel(
       <Animated.View style={{ transform: [{ scale: pulse }], marginTop: 18 }}>
         <TouchableOpacity onPress={handleSpin} disabled={disabled || spinning} activeOpacity={0.9} testID="spin-cta">
           <LinearGradient
-            colors={disabled ? ['#D1D5DB', '#9CA3AF'] : ['#F59E0B', '#F56E1E', '#C14A06']}
+            colors={disabled ? ['#D1D5DB', COLORS.text.muted] : [COLORS.accent.secondary, COLORS.accent.brand, COLORS.accent.brandDark]}
             start={{ x: 0, y: 0 }}
             end={{ x: 1, y: 1 }}
             style={s.cta}
@@ -277,11 +277,11 @@ function shade(hex: string, pct: number) {
 
 const s = StyleSheet.create({
   wrap: { alignItems: 'center', justifyContent: 'flex-start', paddingTop: 8 },
-  glow: { position: 'absolute', top: -6, backgroundColor: '#FCD34D', shadowColor: '#F59E0B', shadowOpacity: 0.8, shadowRadius: 28, shadowOffset: { width: 0, height: 0 }, elevation: 10 },
+  glow: { position: 'absolute', top: -6, backgroundColor: '#FCD34D', shadowColor: COLORS.accent.secondary, shadowOpacity: 0.8, shadowRadius: 28, shadowOffset: { width: 0, height: 0 }, elevation: 10 },
   pointerWrap: { position: 'absolute', zIndex: 4, alignItems: 'center' },
-  pointer: { width: 0, height: 0, borderLeftWidth: 14, borderRightWidth: 14, borderTopWidth: 22, borderLeftColor: 'transparent', borderRightColor: 'transparent', borderTopColor: '#EF4444' },
-  pointerDot: { width: 10, height: 10, borderRadius: 5, backgroundColor: '#FFFFFF', borderWidth: 2, borderColor: '#EF4444', marginTop: -4 },
-  cta: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 10, paddingHorizontal: 28, paddingVertical: 14, borderRadius: 999, minWidth: 220, shadowColor: '#F56E1E', shadowOpacity: 0.45, shadowRadius: 14, shadowOffset: { width: 0, height: 6 }, elevation: 6 },
+  pointer: { width: 0, height: 0, borderLeftWidth: 14, borderRightWidth: 14, borderTopWidth: 22, borderLeftColor: 'transparent', borderRightColor: 'transparent', borderTopColor: COLORS.state.danger },
+  pointerDot: { width: 10, height: 10, borderRadius: 5, backgroundColor: '#FFFFFF', borderWidth: 2, borderColor: COLORS.state.danger, marginTop: -4 },
+  cta: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 10, paddingHorizontal: 28, paddingVertical: 14, borderRadius: 999, minWidth: 220, shadowColor: COLORS.accent.brand, shadowOpacity: 0.45, shadowRadius: 14, shadowOffset: { width: 0, height: 6 }, elevation: 6 },
   ctaText: { fontSize: 15, fontWeight: '900', color: '#FFFFFF', letterSpacing: 0.3 },
   ctaSub: { fontSize: 10.5, fontWeight: '700', color: 'rgba(255,255,255,0.85)', marginTop: 1 },
 });

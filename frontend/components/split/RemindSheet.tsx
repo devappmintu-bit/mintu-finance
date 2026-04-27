@@ -107,7 +107,7 @@ export default function RemindSheet({ visible, onClose, target, onSend }: Props)
                 </LinearGradient>
               </TouchableOpacity>
               <TouchableOpacity onPress={() => onSend(note.trim())} activeOpacity={0.85} style={{ marginTop: 10 }}>
-                <LinearGradient colors={['#F59E0B', '#FB923C']} style={s.primaryBtn}>
+                <LinearGradient colors={[COLORS.accent.secondary, '#FB923C']} style={s.primaryBtn}>
                   <Ionicons name="notifications" size={18} color={C.inv} />
                   <Text style={s.primaryBtnText}> In-app Reminder</Text>
                 </LinearGradient>

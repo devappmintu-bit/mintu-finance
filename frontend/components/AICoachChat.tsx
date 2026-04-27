@@ -440,7 +440,7 @@ const useStyles = makeStyles((c) => ({
   aiAv: { width: 28, height: 28, borderRadius: 14, backgroundColor: c.accent.primary + '12', justifyContent: 'center', alignItems: 'center', marginRight: 8, marginTop: 18 },
   agentLabelRow: { flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 3, marginLeft: 4 },
   agentLabel: { fontSize: 10, fontWeight: '700', color: c.accent.primary },
-  offlinePill: { fontSize: 8, fontWeight: '800', color: '#fff', backgroundColor: '#9CA3AF', paddingHorizontal: 6, paddingVertical: 1, borderRadius: 999, letterSpacing: 0.5 },
+  offlinePill: { fontSize: 8, fontWeight: '800', color: '#fff', backgroundColor: COLORS.text.muted, paddingHorizontal: 6, paddingVertical: 1, borderRadius: 999, letterSpacing: 0.5 },
   bubble: { borderRadius: 18, paddingHorizontal: 14, paddingVertical: 10 },
   bubbleUser: { backgroundColor: c.accent.primary, borderBottomRightRadius: 4 },
   bubbleAi: { backgroundColor: c.bg.card, borderBottomLeftRadius: 4, borderWidth: 1, borderColor: c.border.card },

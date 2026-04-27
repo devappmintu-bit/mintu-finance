@@ -8,6 +8,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import { makeStyles } from '../../utils/makeStyles';
+import { COLORS } from '../../utils/theme';
 
 type Props = {
   balances: any;
@@ -39,10 +40,10 @@ function SplitHero({ balances, coins, groupCount, onAddGroup, onSettleUp }: Prop
 
   // Dynamic gradient colors by state
   const gradient: [string, string] = state === 'get'
-    ? ['#10B981', '#047857']          // green — you get
+    ? [COLORS.state.successAlt, '#047857']          // green — you get
     : state === 'owe'
-      ? ['#F56E1E', '#C14A06']        // saffron — you owe
-      : ['#6B7280', '#374151'];       // grey — settled
+      ? [COLORS.accent.brand, COLORS.accent.brandDark]        // saffron — you owe
+      : [COLORS.text.muted, '#374151'];       // grey — settled
 
   const haptic = () => { if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium).catch(() => {}); };
 
@@ -61,7 +62,7 @@ function SplitHero({ balances, coins, groupCount, onAddGroup, onSettleUp }: Prop
           <Text style={s.coinTxt}>{coins}</Text>
         </View>
         <TouchableOpacity style={s.addBtn} onPress={() => { haptic(); onAddGroup?.(); }} activeOpacity={0.85} testID="split-hero-add">
-          <Ionicons name="add" size={20} color={state === 'get' ? '#047857' : state === 'owe' ? '#C14A06' : '#374151'} />
+          <Ionicons name="add" size={20} color={state === 'get' ? '#047857' : state === 'owe' ? COLORS.accent.brandDark : '#374151'} />
         </TouchableOpacity>
       </View>
 
@@ -84,9 +85,9 @@ function SplitHero({ balances, coins, groupCount, onAddGroup, onSettleUp }: Prop
       {/* Settle CTA — only when owing */}
       {state === 'owe' && (
         <TouchableOpacity style={s.settleBtn} onPress={() => { haptic(); onSettleUp?.(); }} activeOpacity={0.88} testID="split-hero-settle">
-          <Ionicons name="flash" size={14} color="#C14A06" />
+          <Ionicons name="flash" size={14} color={COLORS.accent.brandDark} />
           <Text style={s.settleTxt}>Settle now</Text>
-          <Ionicons name="arrow-forward" size={13} color="#C14A06" />
+          <Ionicons name="arrow-forward" size={13} color={COLORS.accent.brandDark} />
         </TouchableOpacity>
       )}
 

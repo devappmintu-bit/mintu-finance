@@ -16,7 +16,7 @@ const STORY_DURATION_MS = 6000; // 6s per story
 
 const categoryGradient = (cat: string): [string, string] => {
   switch (cat) {
-    case 'alert':      return ['#DC2626', '#7F1D1D'];
+    case 'alert':      return [COLORS.state.danger, '#7F1D1D'];
     case 'market':     return ['#047857', '#064E3B'];
     case 'scheme':     return ['#B45309', '#78350F'];
     case 'tip':        return ['#B45309', '#92400E'];

@@ -156,7 +156,7 @@ export default function MoneySchoolScreen() {
         {/* Free-user lock banner */}
         {!isPremium && (
           <LinearGradient
-            colors={[COLORS.accent.primary, '#C14A06']}
+            colors={[COLORS.accent.primary, COLORS.accent.brandDark]}
             start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}
             style={s.lockBanner}
           >

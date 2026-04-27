@@ -17,7 +17,7 @@ Decorators register on the shared APIRouter from routers.ai_common.
 import os
 import logging
 import random
-from datetime import datetime, timedelta, date
+from datetime import datetime, timedelta, date, timezone
 from typing import List, Dict, Optional
 from bson import ObjectId
 from fastapi import Depends, HTTPException, UploadFile, File
@@ -67,7 +67,7 @@ async def get_daily_lesson(user_id: str = Depends(get_current_user), lang: str =
 
     # Get user's spending context for AI personalization
     try:
-        thirty_days_ago = datetime.utcnow() - timedelta(days=30)
+        thirty_days_ago = datetime.now(timezone.utc) - timedelta(days=30)
         txns = await db.transactions.find({"user_id": user_id, "type": "debit", "date": {"$gte": thirty_days_ago}}).to_list(500)
         total_spent = sum(t["amount"] for t in txns)
         top_cat = {}
@@ -78,7 +78,7 @@ async def get_daily_lesson(user_id: str = Depends(get_current_user), lang: str =
         lang_instr = get_lang_instruction(lang)
         chat = LlmChat(
             api_key=os.environ['EMERGENT_LLM_KEY'],
-            session_id=f"school_{user_id}_{datetime.utcnow().timestamp()}",
+            session_id=f"school_{user_id}_{datetime.now(timezone.utc).timestamp()}",
             system_message="You are MintU's financial literacy buddy. Give ONE short personalized tip (1-2 sentences) connecting the lesson topic to user's actual spending. Be warm and specific with numbers. Use ₹." + lang_instr
         ).with_model("openai", "gpt-5.2")
 
@@ -105,7 +105,7 @@ async def dynamic_money_school(user_id: str = Depends(get_current_user), lang: s
     """AI-generated daily finance school — trends, news, personalized teachings"""
     
     user = await db.users.find_one({"_id": ObjectId(user_id)})
-    now = datetime.utcnow()
+    now = datetime.now(timezone.utc)
     month_start = now.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
     
     # User spending context
@@ -256,7 +256,7 @@ async def complete_card(data: dict, user_id: str = Depends(get_current_user)):
     await db.school_progress.update_one(
         {"user_id": user_id},
         {
-            "$set": {"user_id": user_id, "last_activity": datetime.utcnow()},
+            "$set": {"user_id": user_id, "last_activity": datetime.now(timezone.utc)},
             "$inc": {"xp": xp_earned},
             "$addToSet": {"completed": card_id}
         },
@@ -285,7 +285,7 @@ async def complete_card(data: dict, user_id: str = Depends(get_current_user)):
 async def personalized_money_school(user_id: str = Depends(get_current_user), lang: str = "en"):
     """AI-personalized money school cards based on user's actual spending"""
 
-    now = datetime.utcnow()
+    now = datetime.now(timezone.utc)
     month_start = now.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
 
     # Get spending data

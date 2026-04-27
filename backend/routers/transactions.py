@@ -1,6 +1,6 @@
 """Transactions router — CRUD + SMS parsing for user spending records."""
 import math
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Optional, List, Dict
 from bson import ObjectId
 from fastapi import APIRouter, Depends, HTTPException, Query
@@ -63,6 +63,7 @@ async def _bump_money_score(user_id: str) -> None:
 def _invalidate_caches(user_id: str) -> None:
     cache_clear_prefix(f"waste:{user_id}")
     cache_clear_prefix(f"expense_report:{user_id}")
+    cache_clear_prefix(f"score_breakdown:{user_id}")
 
 
 # ---- Endpoints ---------------------------------------------------------------
@@ -80,8 +81,8 @@ async def create_transaction(transaction: TransactionCreate, user_id: str = Depe
     # Strip None idempotency_key so the partial-index filter remains sparse.
     idem_key = trans.pop("idempotency_key", None) or None
     trans["user_id"] = user_id
-    trans["date"] = transaction.date or datetime.utcnow()
-    trans["created_at"] = datetime.utcnow()
+    trans["date"] = transaction.date or datetime.now(timezone.utc)
+    trans["created_at"] = datetime.now(timezone.utc)
     if idem_key:
         trans["idempotency_key"] = idem_key
 
@@ -181,7 +182,7 @@ async def update_transaction(transaction_id: str, data: dict, user_id: str = Dep
                 raise ValueError
         except Exception:
             raise HTTPException(status_code=400, detail="amount must be a non-negative number")
-    updates["updated_at"] = datetime.utcnow()
+    updates["updated_at"] = datetime.now(timezone.utc)
     result = await db.transactions.update_one(
         {"_id": ObjectId(transaction_id), "user_id": user_id},
         {"$set": updates},
@@ -222,8 +223,8 @@ async def parse_sms(sms_data: SMSParseRequest, user_id: str = Depends(get_curren
         "category": parsed["category"],
         "description": parsed.get("description", parsed.get("merchant", "Transaction")),
         "type": parsed["type"],
-        "date": datetime.utcnow(),
-        "created_at": datetime.utcnow(),
+        "date": datetime.now(timezone.utc),
+        "created_at": datetime.now(timezone.utc),
     }
     result = await db.transactions.insert_one(trans)
     _invalidate_caches(user_id)

@@ -184,7 +184,7 @@ def verify_password(password: str, hashed: str) -> bool:
 
 
 def create_token(user_id: str) -> str:
-    expiration = datetime.utcnow() + timedelta(days=JWT_EXPIRATION_DAYS)
+    expiration = datetime.now(timezone.utc) + timedelta(days=JWT_EXPIRATION_DAYS)
     return jwt.encode({"user_id": user_id, "exp": expiration}, JWT_SECRET, algorithm=JWT_ALGORITHM)
 
 

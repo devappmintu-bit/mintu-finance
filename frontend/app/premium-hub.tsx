@@ -22,6 +22,7 @@ import api from '../utils/api';
 import FullScreenLoader from '../components/FullScreenLoader';
 import { fetchPremiumStatus } from '../services/premium';
 import { makeStyles } from '../utils/makeStyles';
+import { COLORS } from '../utils/theme';
 
 type Status = { is_premium?: boolean; tier?: string; plan?: string; premium_until?: string } | null;
 
@@ -56,11 +57,11 @@ export default function PremiumHubScreen() {
 
   // ── Tools available to premium users ──────────────────────────────
   const tools: Tool[] = [
-    { id: 'reports', title: 'Deep Reports', desc: 'Personalised analytics + downloadable PDF with graphs & tables.', icon: 'stats-chart', tint: '#F56E1E', action: () => router.push('/premium-reports' as any), badge: 'NEW' },
+    { id: 'reports', title: 'Deep Reports', desc: 'Personalised analytics + downloadable PDF with graphs & tables.', icon: 'stats-chart', tint: COLORS.accent.brand, action: () => router.push('/premium-reports' as any), badge: 'NEW' },
     { id: 'coach',   title: 'AI Smart Coach', desc: 'Unlimited GPT-5.2 chats · priority queue · personalised plans.', icon: 'chatbubbles', tint: '#8B5CF6', action: () => router.push('/(tabs)' as any), badge: 'AI' },
     { id: 'tax',     title: 'Tax Planner', desc: 'New vs Old regime · 80C/80D suggestions · ITR-ready export.', icon: 'receipt', tint: '#3B82F6', action: () => router.push('/tax-planner' as any) },
-    { id: 'invest',  title: 'Investment Planner', desc: 'SIP allocation · risk profile · fund recommendations.', icon: 'trending-up', tint: '#10B981', action: () => router.push('/invest-planner' as any) },
-    { id: 'school',  title: 'Money School', desc: 'Daily 60-second finance lessons, Indian context.', icon: 'school', tint: '#F59E0B', action: () => router.push('/money-school' as any) },
+    { id: 'invest',  title: 'Investment Planner', desc: 'SIP allocation · risk profile · fund recommendations.', icon: 'trending-up', tint: COLORS.state.successAlt, action: () => router.push('/invest-planner' as any) },
+    { id: 'school',  title: 'Money School', desc: 'Daily 60-second finance lessons, Indian context.', icon: 'school', tint: COLORS.accent.secondary, action: () => router.push('/money-school' as any) },
     { id: 'cat',     title: 'Auto-Categorise', desc: 'Budgets & txns sorted by AI — edit the taxonomy.', icon: 'sparkles', tint: '#EC4899', action: () => router.push('/(tabs)/budget' as any), badge: 'AI' },
     { id: 'badges',  title: 'Badges & Rewards', desc: 'Exclusive saffron badges, leaderboard ranks, share cards.', icon: 'trophy', tint: '#EAB308', action: () => router.push('/(tabs)/profile' as any) },
     { id: 'support', title: 'Priority Support', desc: 'Skip the queue · email & in-app chat.', icon: 'shield-checkmark', tint: '#14B8A6', action: () => router.push('/support' as any) },
@@ -79,15 +80,15 @@ export default function PremiumHubScreen() {
           <Text style={s.topTitle}>Premium Hub</Text>
           <Text style={s.topSub}>{isPremium ? 'All tools unlocked' : 'Locked — upgrade to access'}</Text>
         </View>
-        <View style={[s.statusPill, { backgroundColor: isPremium ? '#10B98118' : '#9CA3AF18', borderColor: isPremium ? '#10B981' : '#D1D5DB' }]}>
-          <Ionicons name={isPremium ? 'checkmark-circle' : 'lock-closed'} size={14} color={isPremium ? '#10B981' : '#6B7280'} />
+        <View style={[s.statusPill, { backgroundColor: isPremium ? '#10B98118' : '#9CA3AF18', borderColor: isPremium ? COLORS.state.successAlt : '#D1D5DB' }]}>
+          <Ionicons name={isPremium ? 'checkmark-circle' : 'lock-closed'} size={14} color={isPremium ? COLORS.state.successAlt : COLORS.text.muted} />
           <Text style={[s.statusTxt, { color: isPremium ? '#047857' : '#374151' }]}>{isPremium ? 'ACTIVE' : 'PREVIEW'}</Text>
         </View>
       </View>
 
       <ScrollView
         contentContainerStyle={{ padding: 16, paddingBottom: 40 }}
-        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#F56E1E" />}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={COLORS.accent.brand} />}
       >
         {/* Locked state — free users */}
         {!isPremium && (
@@ -96,9 +97,9 @@ export default function PremiumHubScreen() {
 
         {/* Active premium hero */}
         {isPremium && (
-          <LinearGradient colors={['#F56E1E', '#C14A06']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={s.activeHero}>
+          <LinearGradient colors={[COLORS.accent.brand, COLORS.accent.brandDark]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={s.activeHero}>
             <View style={s.activeHeroTop}>
-              <View style={s.diamondBox}><Ionicons name="diamond" size={22} color="#F56E1E" /></View>
+              <View style={s.diamondBox}><Ionicons name="diamond" size={22} color={COLORS.accent.brand} /></View>
               <View style={{ flex: 1 }}>
                 <Text style={s.activeTitle}>You're Premium ✨</Text>
                 <Text style={s.activeSub}>
@@ -123,7 +124,7 @@ export default function PremiumHubScreen() {
 
         {/* Perk strip */}
         <View style={s.perkStrip}>
-          <Ionicons name="shield-checkmark" size={18} color="#10B981" />
+          <Ionicons name="shield-checkmark" size={18} color={COLORS.state.successAlt} />
           <Text style={s.perkStripTxt}>Zero ads, priority AI queue, unlimited chats — always-on for premium members.</Text>
         </View>
       </ScrollView>
@@ -138,7 +139,7 @@ function LockedState({ onUnlock }: { onUnlock: () => void }) {
   return (
     <LinearGradient colors={['#1F2937', '#0F172A']} style={s.lockedHero}>
       <View style={s.lockBig}>
-        <Ionicons name="lock-closed" size={34} color="#F56E1E" />
+        <Ionicons name="lock-closed" size={34} color={COLORS.accent.brand} />
       </View>
       <Text style={s.lockedTitle}>Premium tools are locked</Text>
       <Text style={s.lockedBody}>
@@ -146,7 +147,7 @@ function LockedState({ onUnlock }: { onUnlock: () => void }) {
         Subscription lives in your Profile — pay once, access forever.
       </Text>
       <TouchableOpacity activeOpacity={0.9} onPress={onUnlock} style={s.unlockBtn} testID="premium-hub-unlock">
-        <LinearGradient colors={['#F56E1E', '#C14A06']} style={s.unlockGrad}>
+        <LinearGradient colors={[COLORS.accent.brand, COLORS.accent.brandDark]} style={s.unlockGrad}>
           <Ionicons name="lock-open" size={18} color="#fff" />
           <Text style={s.unlockTxt}>Go to Profile → Unlock</Text>
           <Ionicons name="arrow-forward" size={18} color="#fff" />
@@ -166,15 +167,15 @@ function ToolTile({ tool, locked, onLockedTap }: { tool: Tool; locked: boolean; 
       testID={`premium-tool-${tool.id}`}
     >
       <View style={[s.tileIcon, { backgroundColor: locked ? '#F3F4F6' : tool.tint + '18' }]}>
-        <Ionicons name={tool.icon} size={20} color={locked ? '#9CA3AF' : tool.tint} />
+        <Ionicons name={tool.icon} size={20} color={locked ? COLORS.text.muted : tool.tint} />
       </View>
 
-      <Text style={[s.tileTitle, locked && { color: '#6B7280' }]} numberOfLines={1}>{tool.title}</Text>
-      <Text style={[s.tileDesc, locked && { color: '#9CA3AF' }]} numberOfLines={3}>{tool.desc}</Text>
+      <Text style={[s.tileTitle, locked && { color: COLORS.text.muted }]} numberOfLines={1}>{tool.title}</Text>
+      <Text style={[s.tileDesc, locked && { color: COLORS.text.muted }]} numberOfLines={3}>{tool.desc}</Text>
 
       {/* Badge corner */}
       {!locked && tool.badge && (
-        <View style={[s.tileBadge, { backgroundColor: tool.badge === 'NEW' ? '#10B981' : tool.badge === 'AI' ? '#8B5CF6' : '#F56E1E' }]}>
+        <View style={[s.tileBadge, { backgroundColor: tool.badge === 'NEW' ? COLORS.state.successAlt : tool.badge === 'AI' ? '#8B5CF6' : COLORS.accent.brand }]}>
           <Text style={s.tileBadgeTxt}>{tool.badge}</Text>
         </View>
       )}
@@ -182,7 +183,7 @@ function ToolTile({ tool, locked, onLockedTap }: { tool: Tool; locked: boolean; 
       {/* Locked overlay */}
       {locked && (
         <View style={s.lockOverlay}>
-          <Ionicons name="lock-closed" size={14} color="#6B7280" />
+          <Ionicons name="lock-closed" size={14} color={COLORS.text.muted} />
         </View>
       )}
     </TouchableOpacity>

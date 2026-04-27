@@ -8,6 +8,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import * as Haptics from 'expo-haptics';
 import { makeStyles } from '../../utils/makeStyles';
+import { COLORS } from '../../utils/theme';
 
 type Stats = { monthlySpend: number; savingsRate: number; topCategory: { name: string; amount: number } | null; transactionCount: number; balance: number } | null;
 
@@ -52,7 +53,7 @@ export default function AICoachOneTap({ stats, score }: Props) {
           onPress={() => { haptic(); try { router.push(a.route as any); } catch {} }}
           activeOpacity={0.75}
         >
-          <Ionicons name={a.icon} size={17} color={'#6B7280'} style={{ width: 22 }} />
+          <Ionicons name={a.icon} size={17} color={COLORS.text.muted} style={{ width: 22 }} />
           <View style={{ flex: 1, minWidth: 0 }}>
             <Text style={s.actionTitle} numberOfLines={2}>{a.title}</Text>
             {a.saves ? <Text style={s.actionSaves}>Save ₹{a.saves.toLocaleString('en-IN')}/mo</Text> : null}

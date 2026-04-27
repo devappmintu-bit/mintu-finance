@@ -141,7 +141,7 @@ export default function PaySheet({ visible, onClose, target, onPayUPI, onPayCash
                 activeOpacity={0.88}
               >
                 <LinearGradient
-                  colors={['#F56E1E', '#C14A06']}
+                  colors={[COLORS.accent.brand, COLORS.accent.brandDark]}
                   start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }}
                   style={s.rzpInner}
                 >

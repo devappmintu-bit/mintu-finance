@@ -1,5 +1,5 @@
 """Analytics router — stats, weekly reports, savings leaderboard, friend comparison."""
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from typing import Dict
 from bson import ObjectId
 from fastapi import APIRouter, Depends
@@ -14,7 +14,7 @@ router = APIRouter(tags=["analytics"])
 @router.get("/analytics/summary")
 @router.get("/analytics/monthly")
 async def get_stats_overview(user_id: str = Depends(get_current_user)):
-    thirty_days_ago = datetime.utcnow() - timedelta(days=30)
+    thirty_days_ago = datetime.now(timezone.utc) - timedelta(days=30)
     txns = await db.transactions.find({
         "user_id": user_id,
         "date": {"$gte": thirty_days_ago},
@@ -41,7 +41,7 @@ async def get_stats_overview(user_id: str = Depends(get_current_user)):
 @router.get("/reports/weekly")
 async def weekly_report(user_id: str = Depends(get_current_user)):
     """Weekly Report — emotional + actionable summary."""
-    now = datetime.utcnow()
+    now = datetime.now(timezone.utc)
     week_start = (now - timedelta(days=now.weekday())).replace(hour=0, minute=0, second=0, microsecond=0)
     prev_week_start = week_start - timedelta(days=7)
 
@@ -102,7 +102,7 @@ async def weekly_report(user_id: str = Depends(get_current_user)):
 @router.get("/leaderboard/savings")
 async def savings_leaderboard(user_id: str = Depends(get_current_user)):
     """Global savings leaderboard with user's rank + percentile."""
-    now = datetime.utcnow()
+    now = datetime.now(timezone.utc)
     month_start = now.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
 
     all_users = await db.users.find(
@@ -316,7 +316,7 @@ async def award_coins(data: dict, user_id: str = Depends(get_current_user)):
         return {"awarded": 0, "reason": "invalid_action", "balance": 0}
 
     rule = COIN_RULES[action]
-    today_str = datetime.utcnow().strftime("%Y-%m-%d")
+    today_str = datetime.now(timezone.utc).strftime("%Y-%m-%d")
     counter_path = f"daily_coin_caps.{today_str}.{action}"
     cap = int(rule["daily_cap"])
     amount = int(rule["amount"])
@@ -364,7 +364,7 @@ async def award_coins(data: dict, user_id: str = Depends(get_current_user)):
     if dedupe_key:
         idem_key = f"action::{action}::{user_id}::{dedupe_key}"
     else:
-        minute_bucket = datetime.utcnow().strftime("%Y%m%d%H%M")
+        minute_bucket = datetime.now(timezone.utc).strftime("%Y%m%d%H%M")
         idem_key = f"action::{action}::{user_id}::{minute_bucket}"
 
     # ── LEDGER WRITE ──────────────────────────────────────────────────
@@ -398,7 +398,7 @@ async def coins_status(user_id: str = Depends(get_current_user)):
     """Return coin balance + today's earnings + next streakable actions."""
     user = await db.users.find_one({"_id": ObjectId(user_id)}) or {}
     balance = user.get("coins", 0)
-    today_start = datetime.utcnow().replace(hour=0, minute=0, second=0, microsecond=0)
+    today_start = datetime.now(timezone.utc).replace(hour=0, minute=0, second=0, microsecond=0)
 
     today_breakdown: dict = {}
     async for d in db.coin_ledger.aggregate([
@@ -451,12 +451,20 @@ async def friend_comparison(user_id: str = Depends(get_current_user)):
     user_score = user.get("money_score", 50)
     user_name = user.get("name", "You")
 
+    # Batch-fetch all friends in a single query (avoids N+1)
+    try:
+        friend_oids = [ObjectId(fid) for fid in friend_ids]
+    except Exception:
+        friend_oids = []
+    friend_docs = await db.users.find(
+        {"_id": {"$in": friend_oids}},
+        {"name": 1, "money_score": 1, "streak_days": 1},
+    ).to_list(len(friend_oids) + 1)
+    friend_map = {str(doc["_id"]): doc for doc in friend_docs}
+
     friends = []
     for fid in friend_ids:
-        try:
-            friend = await db.users.find_one({"_id": ObjectId(fid)})
-        except Exception:
-            continue
+        friend = friend_map.get(fid)
         if not friend:
             continue
 
@@ -497,7 +505,7 @@ async def friend_comparison(user_id: str = Depends(get_current_user)):
 @router.get("/home/snapshot")
 async def home_snapshot(user_id: str = Depends(get_current_user)):
     """Unified Home insights — sparkline, pace prediction, top category, score level."""
-    now = datetime.utcnow()
+    now = datetime.now(timezone.utc)
     today_start = now.replace(hour=0, minute=0, second=0, microsecond=0)
     month_start = now.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
     days_in_month = (now.replace(month=now.month % 12 + 1, day=1) - timedelta(days=1)).day if now.month < 12 else 31
@@ -625,7 +633,7 @@ async def home_snapshot(user_id: str = Depends(get_current_user)):
 @router.get("/ai/predict")
 async def ai_predict(user_id: str = Depends(get_current_user)):
     """Predictive insights: month-end projection, overspending alerts, relatable waste comparisons."""
-    now = datetime.utcnow()
+    now = datetime.now(timezone.utc)
     month_start = now.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
     day_of_month = now.day
     days_in_month = (now.replace(month=now.month % 12 + 1, day=1) - timedelta(days=1)).day if now.month < 12 else 31
@@ -730,7 +738,7 @@ async def analytics_yearly(year: int = 0, user_id: str = Depends(get_current_use
     """
     from calendar import monthrange
 
-    now = datetime.utcnow()
+    now = datetime.now(timezone.utc)
     if year == 0:
         # Trailing 12 months
         months = []

@@ -7,7 +7,7 @@ to the previous inline implementation — no functional changes.
 import random
 import string
 import logging
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from fastapi import APIRouter, HTTPException
 
 from core import db
@@ -68,7 +68,7 @@ async def register(user_data: UserCreate):
         "name": user_data.name,
         "password": _hash_password(user_data.password),
         "money_score": 50,
-        "created_at": datetime.utcnow(),
+        "created_at": datetime.now(timezone.utc),
     }
     result = await db.users.insert_one(user)
     user_id = str(result.inserted_id)
@@ -119,7 +119,7 @@ async def send_otp(request: OTPSendRequest):
 
     recent_otp = await db.otps.find_one({
         "phone": phone,
-        "created_at": {"$gte": datetime.utcnow() - timedelta(seconds=30)},
+        "created_at": {"$gte": datetime.now(timezone.utc) - timedelta(seconds=30)},
     })
     if recent_otp:
         raise HTTPException(status_code=429, detail="Please wait 30 seconds before requesting another OTP")
@@ -133,8 +133,8 @@ async def send_otp(request: OTPSendRequest):
         "otp_hash": otp_hash,
         "attempts": 0,
         "verified": False,
-        "expires_at": datetime.utcnow() + timedelta(minutes=OTP_EXPIRY_MINUTES),
-        "created_at": datetime.utcnow(),
+        "expires_at": datetime.now(timezone.utc) + timedelta(minutes=OTP_EXPIRY_MINUTES),
+        "created_at": datetime.now(timezone.utc),
     })
 
     sent = await send_otp_sms(phone, otp_code)
@@ -157,7 +157,7 @@ async def verify_otp(request: OTPVerifyRequest):
     otp_record = await db.otps.find_one({
         "phone": phone,
         "verified": False,
-        "expires_at": {"$gte": datetime.utcnow()},
+        "expires_at": {"$gte": datetime.now(timezone.utc)},
     })
     if not otp_record:
         raise HTTPException(status_code=400, detail="OTP expired or not found. Please request a new one.")
@@ -166,7 +166,7 @@ async def verify_otp(request: OTPVerifyRequest):
     # (attacker requests new OTP after each 5-attempt cap). Count all
     # wrong-OTP attempts against this phone in the last hour; lock if too
     # many. Resets when the user successfully verifies OR 1 hour passes.
-    hour_ago = datetime.utcnow() - timedelta(hours=1)
+    hour_ago = datetime.now(timezone.utc) - timedelta(hours=1)
     fail_count = await db.otp_audit.count_documents({
         "phone": phone,
         "success": False,
@@ -186,7 +186,7 @@ async def verify_otp(request: OTPVerifyRequest):
         await db.otp_audit.insert_one({
             "phone": phone,
             "success": False,
-            "created_at": datetime.utcnow(),
+            "created_at": datetime.now(timezone.utc),
         })
         remaining = MAX_OTP_ATTEMPTS - otp_record["attempts"] - 1
         raise HTTPException(status_code=400, detail=f"Invalid OTP. {remaining} attempts remaining.")
@@ -226,7 +226,7 @@ async def verify_otp(request: OTPVerifyRequest):
         "name": request.name.strip(),
         "password": _hash_password(''.join(random.choices(string.ascii_letters + string.digits, k=16))),
         "money_score": 50,
-        "created_at": datetime.utcnow(),
+        "created_at": datetime.now(timezone.utc),
     }
     result = await db.users.insert_one(new_user)
     user_id = str(result.inserted_id)

@@ -118,7 +118,7 @@ export default function SmartInsightsStrip({ transactions }: { transactions: Txn
         {insights.topDay && (
           <Card
             icon="calendar"
-            tint="#059669"
+            tint={COLORS.state.success}
             label="TOP DAY"
             value={insights.topDay.day}
             sub={`${fmtINR(insights.topDay.amount)} spent`}

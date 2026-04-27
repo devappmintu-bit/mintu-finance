@@ -57,7 +57,7 @@ export const HomeSkeleton = () => {
 
       {/* Balance hero — brand orange gradient placeholder with a fake score + CTA */}
       <LinearGradient
-        colors={['#F56E1E', '#C14A06']}
+        colors={[COLORS.accent.brand, COLORS.accent.brandDark]}
         start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}
         style={sk.hero}
       >
@@ -201,7 +201,7 @@ export const BudgetSkeleton = () => {
 
     {/* Overall gradient budget hero */}
     <LinearGradient
-      colors={['#F56E1E', '#C14A06']}
+      colors={[COLORS.accent.brand, COLORS.accent.brandDark]}
       start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}
       style={sk.hero}
     >
@@ -247,7 +247,7 @@ export const SplitSkeleton = () => {
 
     {/* Net balance hero (orange gradient) */}
     <LinearGradient
-      colors={['#F56E1E', '#C14A06']}
+      colors={[COLORS.accent.brand, COLORS.accent.brandDark]}
       start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}
       style={sk.hero}
     >

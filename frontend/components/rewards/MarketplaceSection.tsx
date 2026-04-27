@@ -14,7 +14,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import * as Haptics from 'expo-haptics';
 import { makeStyles } from '../../utils/makeStyles';
-import { useAppColors } from '../../utils/theme';
+import { COLORS, useAppColors } from '../../utils/theme';
 
 // Clearbit free brand logo API — falls back gracefully to emoji if image
 // fails to load (e.g. offline, rate-limited, or unknown domain).
@@ -57,8 +57,8 @@ type Props = {
 };
 
 const URGENCY_COPY: Record<string, { txt: string; color: string }> = {
-  limited:  { txt: 'Limited', color: '#EF4444' },
-  trending: { txt: 'Trending', color: '#F59E0B' },
+  limited:  { txt: 'Limited', color: COLORS.state.danger },
+  trending: { txt: 'Trending', color: COLORS.accent.secondary },
   pro:      { txt: 'PRO', color: '#7C3AED' },
 };
 
@@ -197,12 +197,12 @@ function RewardCard({ reward, userCoins, onClaim, testID }: { reward: Reward; us
             <Text style={s.popTxt} numberOfLines={1}>{reward.popularity_label}</Text>
           </View>
           <View style={[s.claimBtn, locked && { backgroundColor: '#E5E7EB' }, !locked && !canAfford && { backgroundColor: '#FEE2E2' }]}>
-            <Text style={[s.coinTxt, locked && { color: '#9CA3AF' }, !locked && !canAfford && { color: '#991B1B' }]} numberOfLines={1}>
+            <Text style={[s.coinTxt, locked && { color: COLORS.text.muted }, !locked && !canAfford && { color: '#991B1B' }]} numberOfLines={1}>
               {!locked && !canAfford
                 ? `Need ${reward.cost_coins - userCoins} more`
                 : `🪙 ${reward.cost_coins}`}
             </Text>
-            <Ionicons name={locked ? 'lock-closed' : (!canAfford ? 'alert-circle' : 'arrow-forward')} size={11} color={locked ? '#9CA3AF' : (!canAfford ? '#991B1B' : '#FFFFFF')} />
+            <Ionicons name={locked ? 'lock-closed' : (!canAfford ? 'alert-circle' : 'arrow-forward')} size={11} color={locked ? COLORS.text.muted : (!canAfford ? '#991B1B' : '#FFFFFF')} />
           </View>
         </View>
       </View>

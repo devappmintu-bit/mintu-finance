@@ -67,9 +67,9 @@ function WeeklyReport({ weeklyReport, snapshot, user }: Props) {
             <Ionicons
               name={weeklyReport.change_pct > 0 ? 'arrow-up' : 'arrow-down'}
               size={12}
-              color={weeklyReport.change_pct > 0 ? '#EF4444' : '#10B981'}
+              color={weeklyReport.change_pct > 0 ? COLORS.state.danger : COLORS.state.successAlt}
             />
-            <Text style={{ fontSize: 12, fontWeight: '700', color: weeklyReport.change_pct > 0 ? '#EF4444' : '#10B981' }}>
+            <Text style={{ fontSize: 12, fontWeight: '700', color: weeklyReport.change_pct > 0 ? COLORS.state.danger : COLORS.state.successAlt }}>
               {Math.abs(weeklyReport.change_pct).toFixed(0)}%
             </Text>
           </View>

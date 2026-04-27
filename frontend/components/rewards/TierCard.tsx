@@ -12,7 +12,7 @@ import { View, Text } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { makeStyles } from '../../utils/makeStyles';
-import { useAppColors } from '../../utils/theme';
+import { COLORS, useAppColors } from '../../utils/theme';
 
 type Tier = {
   id: string;
@@ -33,8 +33,8 @@ const TIER_EMOJI: Record<string, string> = {
 // colour for that tier (bronze → bronze in dark mode too).
 const TIER_GRADIENTS: Record<string, [string, string]> = {
   bronze:   ['#CD7F32', '#92400E'],
-  silver:   ['#E5E7EB', '#9CA3AF'],
-  gold:     ['#FCD34D', '#F59E0B'],
+  silver:   ['#E5E7EB', COLORS.text.muted],
+  gold:     ['#FCD34D', COLORS.accent.secondary],
   platinum: ['#C4B5FD', '#7C3AED'],
 };
 

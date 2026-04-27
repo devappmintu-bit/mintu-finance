@@ -23,7 +23,7 @@ import Confetti from '../components/Confetti';
 import EmptyState from '../components/ui/EmptyState';
 import { useIsOnline } from '../hooks/useIsOnline';
 import { makeStyles } from '../utils/makeStyles';
-import { useAppColors } from '../utils/theme';
+import { COLORS, useAppColors } from '../utils/theme';
 
 type Goal = {
   id: string;
@@ -37,7 +37,7 @@ type Goal = {
 };
 
 const EMOJI_OPTIONS = ['🎯', '🏠', '✈️', '🚗', '💻', '🎓', '💍', '🏝️', '👶', '💊', '📚', '🎁'];
-const COLOR_OPTIONS = ['#F56E1E', '#10B981', '#3B82F6', '#8B5CF6', '#EC4899', '#F59E0B', '#0EA5E9', '#EF4444'];
+const COLOR_OPTIONS = [COLORS.accent.brand, COLORS.state.successAlt, '#3B82F6', '#8B5CF6', '#EC4899', COLORS.accent.secondary, '#0EA5E9', COLORS.state.danger];
 
 function ProgressRing({ pct, color, size = 88, stroke = 8 }: { pct: number; color: string; size?: number; stroke?: number }) {
   const radius = (size - stroke) / 2;
@@ -106,7 +106,7 @@ export default function GoalsScreen() {
     if (Number.isFinite(tn) && tn > 0 && n > tn) { setSavedError('Cannot exceed target'); return; }
     setSavedError(null);
   };
-  const [color, setColor] = useState('#F56E1E');
+  const [color, setColor] = useState(COLORS.accent.brand);
   const [saving, setSaving] = useState(false);
   // Milestone celebration — fires a confetti burst + haptic the moment any
   // goal crosses 100% (previous snapshot of that goal was < 100%). Also
@@ -177,7 +177,7 @@ export default function GoalsScreen() {
   const openNew = () => {
     setEditingGoal(null);
     setName(''); setTarget(''); setSaved('');
-    setEmoji('🎯'); setColor('#F56E1E');
+    setEmoji('🎯'); setColor(COLORS.accent.brand);
     setFormVisible(true);
   };
 
@@ -187,7 +187,7 @@ export default function GoalsScreen() {
     setTarget(String(g.target_amount));
     setSaved(String(g.saved_amount));
     setEmoji(g.emoji || '🎯');
-    setColor(g.color || '#F56E1E');
+    setColor(g.color || COLORS.accent.brand);
     setFormVisible(true);
   };
 
@@ -285,7 +285,7 @@ export default function GoalsScreen() {
       {/* Header */}
       <View style={s.header}>
         <TouchableOpacity onPress={() => router.back()} hitSlop={10} style={s.backBtn}>
-          <Ionicons name="chevron-back" size={22} color="#111827" />
+          <Ionicons name="chevron-back" size={22} color={COLORS.text.primary} />
         </TouchableOpacity>
         <Text style={s.title}>My Goals</Text>
         <TouchableOpacity onPress={() => { haptic(); openNew(); }} hitSlop={10} style={s.addBtn}>
@@ -295,10 +295,10 @@ export default function GoalsScreen() {
 
       <ScrollView
         contentContainerStyle={s.scroll}
-        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); loadGoals(); }} tintColor="#F56E1E" />}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); loadGoals(); }} tintColor={COLORS.accent.brand} />}
       >
         {/* Overall summary */}
-        <LinearGradient colors={['#F56E1E', '#C14A06']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={s.summaryCard}>
+        <LinearGradient colors={[COLORS.accent.brand, COLORS.accent.brandDark]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={s.summaryCard}>
           <View style={{ flex: 1 }}>
             <Text style={s.sumLbl}>Total saved across goals</Text>
             <Text style={s.sumAmt}>₹{totalSaved.toLocaleString('en-IN', { maximumFractionDigits: 0 })}</Text>
@@ -329,7 +329,7 @@ export default function GoalsScreen() {
               return (
                 <TouchableOpacity key={g.id} style={s.goalCard} activeOpacity={0.9} onPress={() => openEdit(g)}>
                   <View style={s.ringWrap}>
-                    <ProgressRing pct={pct} color={g.color || '#F56E1E'} size={88} stroke={8} />
+                    <ProgressRing pct={pct} color={g.color || COLORS.accent.brand} size={88} stroke={8} />
                     <View style={s.ringCenter}>
                       <Text style={s.ringEmoji}>{g.emoji || '🎯'}</Text>
                     </View>
@@ -340,7 +340,7 @@ export default function GoalsScreen() {
                   <Text style={s.goalTarget}>of ₹{(g.target_amount || 0).toLocaleString('en-IN', { maximumFractionDigits: 0 })}</Text>
                   {g.linked_budget_id ? (
                     <View style={s.linkedChip}>
-                      <Ionicons name="link" size={9} color="#059669" />
+                      <Ionicons name="link" size={9} color={COLORS.state.success} />
                       <Text style={s.linkedChipTxt}>Linked to budget</Text>
                     </View>
                   ) : null}
@@ -351,7 +351,7 @@ export default function GoalsScreen() {
                       accessibilityRole="button"
                       accessibilityLabel={`Edit goal ${g.name}`}
                       onPress={(e) => { e.stopPropagation(); openEdit(g); }}>
-                      <Ionicons name="create-outline" size={13} color="#6B7280" />
+                      <Ionicons name="create-outline" size={13} color={COLORS.text.muted} />
                     </TouchableOpacity>
                     <TouchableOpacity
                       style={s.goalAct}
@@ -359,7 +359,7 @@ export default function GoalsScreen() {
                       accessibilityRole="button"
                       accessibilityLabel={`Delete goal ${g.name}`}
                       onPress={(e) => { e.stopPropagation(); confirmDelete(g); }}>
-                      <Ionicons name="trash-outline" size={13} color="#EF4444" />
+                      <Ionicons name="trash-outline" size={13} color={COLORS.state.danger} />
                     </TouchableOpacity>
                   </View>
                 </TouchableOpacity>
@@ -386,32 +386,32 @@ export default function GoalsScreen() {
                 value={name}
                 onChangeText={setName}
                 placeholder="e.g., Goa trip"
-                placeholderTextColor="#9CA3AF"
+                placeholderTextColor={COLORS.text.muted}
               />
 
               <Text style={s.fieldLbl}>Target amount</Text>
               <TextInput
-                style={[s.input, targetError && { borderColor: '#DC2626' }]}
+                style={[s.input, targetError && { borderColor: COLORS.state.danger }]}
                 value={target}
                 onChangeText={(v) => { setTarget(v); if (targetError) setTargetError(null); }}
                 onBlur={validateTargetOnBlur}
                 placeholder="25000"
                 keyboardType="numeric"
-                placeholderTextColor="#9CA3AF"
+                placeholderTextColor={COLORS.text.muted}
               />
-              {targetError && <Text style={{ color: '#DC2626', fontSize: 12, fontWeight: '600', marginTop: 4 }}>{targetError}</Text>}
+              {targetError && <Text style={{ color: COLORS.state.danger, fontSize: 12, fontWeight: '600', marginTop: 4 }}>{targetError}</Text>}
 
               <Text style={s.fieldLbl}>Already saved (optional)</Text>
               <TextInput
-                style={[s.input, savedError && { borderColor: '#DC2626' }]}
+                style={[s.input, savedError && { borderColor: COLORS.state.danger }]}
                 value={saved}
                 onChangeText={(v) => { setSaved(v); if (savedError) setSavedError(null); }}
                 onBlur={validateSavedOnBlur}
                 placeholder="0"
                 keyboardType="numeric"
-                placeholderTextColor="#9CA3AF"
+                placeholderTextColor={COLORS.text.muted}
               />
-              {savedError && <Text style={{ color: '#DC2626', fontSize: 12, fontWeight: '600', marginTop: 4 }}>{savedError}</Text>}
+              {savedError && <Text style={{ color: COLORS.state.danger, fontSize: 12, fontWeight: '600', marginTop: 4 }}>{savedError}</Text>}
 
               <Text style={s.fieldLbl}>Emoji</Text>
               <View style={s.emojiRow}>
@@ -449,7 +449,7 @@ export default function GoalsScreen() {
               )}
             </TouchableOpacity>
             <TouchableOpacity onPress={() => setFormVisible(false)} style={{ paddingVertical: 10, alignItems: 'center' }}>
-              <Text style={{ color: '#6B7280', fontWeight: '600' }}>Cancel</Text>
+              <Text style={{ color: COLORS.text.muted, fontWeight: '600' }}>Cancel</Text>
             </TouchableOpacity>
           </View>
         </View>

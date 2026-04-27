@@ -16,6 +16,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import * as Haptics from 'expo-haptics';
 import { makeStyles } from '../../utils/makeStyles';
+import { COLORS } from '../../utils/theme';
 
 type Props = { user: any | null; snapshot: any | null; stats: any | null };
 
@@ -70,7 +71,7 @@ function BalanceHero({ user, snapshot, stats }: Props) {
 
   return (
     <TouchableOpacity activeOpacity={0.92} onPress={onPress} style={s.shell}>
-      <LinearGradient colors={['#F56E1E', '#C14A06']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={s.card}>
+      <LinearGradient colors={[COLORS.accent.brand, COLORS.accent.brandDark]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={s.card}>
         <View style={s.blob1} />
         <View style={s.blob2} />
 

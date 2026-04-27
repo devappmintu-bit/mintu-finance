@@ -6,7 +6,7 @@ Also returns an AI-generated executive summary (GPT-4o via EMERGENT_LLM_KEY).
 """
 import os
 import logging
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from collections import defaultdict
 from bson import ObjectId
 from fastapi import APIRouter, Depends, HTTPException, Query
@@ -31,7 +31,9 @@ async def _is_premium(user_id: str) -> bool:
         return False
     tier = user.get("premium_tier", "free")
     until = user.get("premium_until")
-    return tier in ("premium", "legend") and (until is None or until > datetime.utcnow())
+    if isinstance(until, datetime) and until.tzinfo is None:
+        until = until.replace(tzinfo=timezone.utc)
+    return tier in ("premium", "legend") and (until is None or until > datetime.now(timezone.utc))
 
 
 @api_router.get("/premium/deep-report")
@@ -44,7 +46,7 @@ async def deep_report(
     if not await _is_premium(user_id):
         raise HTTPException(status_code=403, detail="Premium subscription required")
 
-    now = datetime.utcnow()
+    now = datetime.now(timezone.utc)
     since = now - timedelta(days=30 * months)
 
     cursor = db.transactions.find({

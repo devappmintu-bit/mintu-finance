@@ -10,6 +10,7 @@ import React from 'react';
 import { View, StyleSheet, ImageSourcePropType } from 'react-native';
 import { Image } from 'expo-image';
 import { makeStyles } from '../utils/makeStyles';
+import { COLORS } from '../utils/theme';
 
 interface Props {
   size?: number;
@@ -57,7 +58,7 @@ const useStyles = makeStyles((c) => ({
   wrap: { alignItems: 'center', justifyContent: 'center' },
   glow: {
     position: 'absolute',
-    backgroundColor: '#FF6B1A',
+    backgroundColor: COLORS.accent.primaryLight,
     opacity: 0.32,
     transform: [{ scale: 1.08 }],
   },

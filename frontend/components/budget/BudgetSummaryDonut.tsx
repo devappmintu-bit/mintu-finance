@@ -10,6 +10,7 @@ import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 import { PieChart } from 'react-native-gifted-charts';
 import { makeStyles } from '../../utils/makeStyles';
+import { COLORS } from '../../utils/theme';
 
 type Budget = {
   id: string;
@@ -19,12 +20,12 @@ type Budget = {
 };
 
 const CAT_COLORS: Record<string, string> = {
-  Food: '#F59E0B', Transport: '#3B82F6', Shopping: '#EC4899',
-  Bills: '#EF4444', Entertainment: '#8B5CF6', Healthcare: '#10B981',
+  Food: COLORS.accent.secondary, Transport: '#3B82F6', Shopping: '#EC4899',
+  Bills: COLORS.state.danger, Entertainment: '#8B5CF6', Healthcare: COLORS.state.successAlt,
   Education: '#14B8A6', Investment: '#6366F1', Groceries: '#84CC16',
-  Rent: '#F56E1E', Other: '#6B7280',
+  Rent: COLORS.accent.brand, Other: COLORS.text.muted,
 };
-const FALLBACK_COLORS = ['#F56E1E', '#10B981', '#3B82F6', '#8B5CF6', '#F59E0B', '#EF4444', '#14B8A6', '#EC4899'];
+const FALLBACK_COLORS = [COLORS.accent.brand, COLORS.state.successAlt, '#3B82F6', '#8B5CF6', COLORS.accent.secondary, COLORS.state.danger, '#14B8A6', '#EC4899'];
 
 const inr = (n: number) => `₹${Math.round(n).toLocaleString('en-IN')}`;
 

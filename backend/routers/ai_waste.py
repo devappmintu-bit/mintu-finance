@@ -13,7 +13,7 @@ Decorators register on the shared APIRouter from routers.ai_common.
 import os
 import asyncio
 import logging
-from datetime import datetime, timedelta, date
+from datetime import datetime, timedelta, date, timezone
 from typing import List, Dict, Optional
 from bson import ObjectId
 from fastapi import Depends, HTTPException, UploadFile, File
@@ -44,7 +44,7 @@ async def waste_detector(user_id: str = Depends(get_current_user)):
     cached = cache_get(cache_key)
     if cached:
         return cached
-    now = datetime.utcnow()
+    now = datetime.now(timezone.utc)
     month_start = now.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
     prev_month_start = (month_start - timedelta(days=1)).replace(day=1)
 

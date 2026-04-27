@@ -8,6 +8,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import * as Haptics from 'expo-haptics';
 import { makeStyles } from '../../utils/makeStyles';
+import { COLORS } from '../../utils/theme';
 
 type AlertAction = {
   label: string;
@@ -32,9 +33,9 @@ const THEME: Record<string, { bg: string; border: string; iconBg: string; title:
 };
 
 const BTN: Record<string, { bg: string; fg: string; border: string }> = {
-  primary:   { bg: '#111827', fg: '#FFFFFF', border: '#111827' },
+  primary:   { bg: COLORS.text.primary, fg: '#FFFFFF', border: COLORS.text.primary },
   secondary: { bg: '#FFFFFF', fg: '#1F2937', border: '#E5E7EB' },
-  danger:    { bg: '#DC2626', fg: '#FFFFFF', border: '#DC2626' },
+  danger:    { bg: COLORS.state.danger, fg: '#FFFFFF', border: COLORS.state.danger },
 };
 
 function ActionableAlertCard({ emoji, severity, title, message, actions }: Props) {
@@ -43,7 +44,7 @@ function ActionableAlertCard({ emoji, severity, title, message, actions }: Props
 
   const go = (a: AlertAction) => {
     if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
-    try { router.push(a.route as any); } catch (e) { console.warn('alert nav', e); }
+    try { router.push(a.route as any); } catch (e) { if (__DEV__) console.warn('alert nav', e); }
   };
 
   return (

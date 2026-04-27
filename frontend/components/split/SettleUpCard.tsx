@@ -52,7 +52,7 @@ export default function SettleUpCard({ rows, onPay, onRemind, onMarkPaid }: Prop
             </>
           ) : (
             <PressableGlass onPress={() => onRemind(row)} feedback="light" style={{ marginLeft: 8 }} hitSlop={8}>
-              <LinearGradient colors={['#F59E0B', '#FB923C']} style={s.settleBellBtn}>
+              <LinearGradient colors={[COLORS.accent.secondary, '#FB923C']} style={s.settleBellBtn}>
                 <Ionicons name="notifications" size={18} color={C.inv} />
               </LinearGradient>
             </PressableGlass>

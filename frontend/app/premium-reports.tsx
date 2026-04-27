@@ -49,7 +49,7 @@ interface Report {
 }
 
 const inr = (n: number) => `₹${Math.round(n).toLocaleString('en-IN')}`;
-const CHART_COLORS = ['#F56E1E', '#10B981', '#3B82F6', '#8B5CF6', '#F59E0B', '#EF4444', '#14B8A6', '#EC4899', '#6366F1', '#84CC16'];
+const CHART_COLORS = [COLORS.accent.brand, COLORS.state.successAlt, '#3B82F6', '#8B5CF6', COLORS.accent.secondary, COLORS.state.danger, '#14B8A6', '#EC4899', '#6366F1', '#84CC16'];
 
 export default function PremiumReportsScreen() {
   const s = useStyles();
@@ -86,8 +86,8 @@ export default function PremiumReportsScreen() {
     if (!data) return [];
     const arr: any[] = [];
     data.monthly_series.forEach((m) => {
-      arr.push({ value: m.income, label: m.month.slice(-2), frontColor: '#10B981', spacing: 2, labelWidth: 30 });
-      arr.push({ value: m.expense, frontColor: '#F56E1E' });
+      arr.push({ value: m.income, label: m.month.slice(-2), frontColor: COLORS.state.successAlt, spacing: 2, labelWidth: 30 });
+      arr.push({ value: m.expense, frontColor: COLORS.accent.brand });
     });
     return arr;
   }, [data]);
@@ -106,7 +106,7 @@ export default function PremiumReportsScreen() {
         <td>${m.month}</td>
         <td style="text-align:right">${inr(m.income)}</td>
         <td style="text-align:right">${inr(m.expense)}</td>
-        <td style="text-align:right;color:${m.net >= 0 ? '#059669' : '#DC2626'}">${inr(m.net)}</td>
+        <td style="text-align:right;color:${m.net >= 0 ? COLORS.state.success : COLORS.state.danger}">${inr(m.net)}</td>
       </tr>`).join('');
 
     return `<!doctype html><html><head><meta charset="utf-8" />
@@ -193,9 +193,9 @@ export default function PremiumReportsScreen() {
           <Text style={s.topSub}>Premium · {months} months</Text>
         </View>
         <TouchableOpacity onPress={onShareSummary} style={s.iconBtn}>
-          <Ionicons name="share-social-outline" size={20} color="#F56E1E" />
+          <Ionicons name="share-social-outline" size={20} color={COLORS.accent.brand} />
         </TouchableOpacity>
-        <TouchableOpacity onPress={onDownloadPdf} disabled={!data || sharing} style={[s.iconBtn, { backgroundColor: '#F56E1E' }]}>
+        <TouchableOpacity onPress={onDownloadPdf} disabled={!data || sharing} style={[s.iconBtn, { backgroundColor: COLORS.accent.brand }]}>
           {sharing ? <ActivityIndicator color="#fff" /> : <Ionicons name="download-outline" size={20} color="#fff" />}
         </TouchableOpacity>
       </View>
@@ -213,16 +213,16 @@ export default function PremiumReportsScreen() {
         {loading && (
           <View style={{ paddingVertical: 80, alignItems: 'center' }}>
             <ActivityIndicator color={COLORS.accent.primary} />
-            <Text style={{ color: '#6B7280', marginTop: 12 }}>Crunching your numbers…</Text>
+            <Text style={{ color: COLORS.text.muted, marginTop: 12 }}>Crunching your numbers…</Text>
           </View>
         )}
 
         {!!err && !loading && (
           <View style={s.errBox}>
-            <Ionicons name="lock-closed" size={32} color="#F56E1E" />
+            <Ionicons name="lock-closed" size={32} color={COLORS.accent.brand} />
             <Text style={s.errTitle}>{err}</Text>
             <TouchableOpacity style={s.ctaBtn} onPress={() => router.replace('/premium' as any)}>
-              <LinearGradient colors={['#F56E1E', '#C14A06']} style={s.ctaGrad}>
+              <LinearGradient colors={[COLORS.accent.brand, COLORS.accent.brandDark]} style={s.ctaGrad}>
                 <Text style={s.ctaText}>Start saving today</Text>
               </LinearGradient>
             </TouchableOpacity>
@@ -244,9 +244,9 @@ export default function PremiumReportsScreen() {
 
             {/* KPI grid */}
             <View style={s.kpiGrid}>
-              {kpi('Income', inr(data.totals.income), '#10B981')}
-              {kpi('Expense', inr(data.totals.expense), '#F56E1E')}
-              {kpi('Savings', inr(data.totals.savings), data.totals.savings >= 0 ? '#059669' : '#DC2626')}
+              {kpi('Income', inr(data.totals.income), COLORS.state.successAlt)}
+              {kpi('Expense', inr(data.totals.expense), COLORS.accent.brand)}
+              {kpi('Savings', inr(data.totals.savings), data.totals.savings >= 0 ? COLORS.state.success : COLORS.state.danger)}
               {kpi('Save rate', `${data.totals.savings_rate}%`, '#3B82F6')}
             </View>
 
@@ -261,14 +261,14 @@ export default function PremiumReportsScreen() {
                   noOfSections={4}
                   yAxisThickness={0}
                   xAxisThickness={0}
-                  xAxisLabelTextStyle={{ color: '#6B7280', fontSize: 10 }}
-                  yAxisTextStyle={{ color: '#6B7280', fontSize: 10 }}
+                  xAxisLabelTextStyle={{ color: COLORS.text.muted, fontSize: 10 }}
+                  yAxisTextStyle={{ color: COLORS.text.muted, fontSize: 10 }}
                   hideRules
                 />
               </View>
               <View style={s.legendRow}>
-                <View style={[s.legendDot, { backgroundColor: '#10B981' }]} /><Text style={s.legendTxt}>Income</Text>
-                <View style={[s.legendDot, { backgroundColor: '#F56E1E', marginLeft: 16 }]} /><Text style={s.legendTxt}>Expense</Text>
+                <View style={[s.legendDot, { backgroundColor: COLORS.state.successAlt }]} /><Text style={s.legendTxt}>Income</Text>
+                <View style={[s.legendDot, { backgroundColor: COLORS.accent.brand, marginLeft: 16 }]} /><Text style={s.legendTxt}>Expense</Text>
               </View>
             </View>
 
@@ -283,7 +283,7 @@ export default function PremiumReportsScreen() {
                   radius={90}
                   centerLabelComponent={() => (
                     <View style={{ alignItems: 'center' }}>
-                      <Text style={{ fontSize: 11, color: '#6B7280' }}>Total</Text>
+                      <Text style={{ fontSize: 11, color: COLORS.text.muted }}>Total</Text>
                       <Text style={{ fontSize: 14, fontWeight: '800', color: '#111' }}>{inr(data.totals.expense)}</Text>
                     </View>
                   )}
@@ -296,7 +296,7 @@ export default function PremiumReportsScreen() {
                     <View style={[s.pctDot, { backgroundColor: CHART_COLORS[i % CHART_COLORS.length] }]} />
                     <Text style={[s.td, { flex: 2 }]} numberOfLines={1}>{c.name}</Text>
                     <Text style={[s.td, s.tdRight]}>{inr(c.amount)}</Text>
-                    <Text style={[s.td, s.tdRight, { color: '#6B7280' }]}>{c.pct.toFixed(1)}%</Text>
+                    <Text style={[s.td, s.tdRight, { color: COLORS.text.muted }]}>{c.pct.toFixed(1)}%</Text>
                   </View>
                 ))}
               </View>
@@ -310,7 +310,7 @@ export default function PremiumReportsScreen() {
                 <View key={m.name} style={s.tr}>
                   <Text style={[s.td, { flex: 2 }]} numberOfLines={1}>{m.name}</Text>
                   <Text style={[s.td, s.tdRight]}>{inr(m.amount)}</Text>
-                  <Text style={[s.td, s.tdRight, { color: '#6B7280' }]}>{m.pct.toFixed(1)}%</Text>
+                  <Text style={[s.td, s.tdRight, { color: COLORS.text.muted }]}>{m.pct.toFixed(1)}%</Text>
                 </View>
               ))}
             </View>
@@ -321,21 +321,21 @@ export default function PremiumReportsScreen() {
               <View style={{ flexDirection: 'row', gap: 10, marginTop: 10 }}>
                 <View style={[s.projectionBox, { backgroundColor: '#FFF4E8', borderColor: '#F56E1E40' }]}>
                   <Text style={s.projLbl}>Expected spend</Text>
-                  <Text style={[s.projVal, { color: '#C14A06' }]}>{inr(data.predicted.year_expense)}</Text>
+                  <Text style={[s.projVal, { color: COLORS.accent.brandDark }]}>{inr(data.predicted.year_expense)}</Text>
                 </View>
                 <View style={[s.projectionBox, { backgroundColor: '#F0FDF4', borderColor: '#10B98140' }]}>
                   <Text style={s.projLbl}>Expected savings</Text>
-                  <Text style={[s.projVal, { color: '#059669' }]}>{inr(data.predicted.year_savings)}</Text>
+                  <Text style={[s.projVal, { color: COLORS.state.success }]}>{inr(data.predicted.year_savings)}</Text>
                 </View>
               </View>
               <View style={s.momBox}>
                 <Ionicons
                   name={data.averages.mom_expense_growth_pct >= 0 ? 'trending-up' : 'trending-down'}
                   size={16}
-                  color={data.averages.mom_expense_growth_pct >= 0 ? '#DC2626' : '#059669'}
+                  color={data.averages.mom_expense_growth_pct >= 0 ? COLORS.state.danger : COLORS.state.success}
                 />
                 <Text style={s.momTxt}>
-                  Month-over-month expense change: <Text style={{ fontWeight: '800', color: data.averages.mom_expense_growth_pct >= 0 ? '#DC2626' : '#059669' }}>{data.averages.mom_expense_growth_pct.toFixed(1)}%</Text>
+                  Month-over-month expense change: <Text style={{ fontWeight: '800', color: data.averages.mom_expense_growth_pct >= 0 ? COLORS.state.danger : COLORS.state.success }}>{data.averages.mom_expense_growth_pct.toFixed(1)}%</Text>
                 </Text>
               </View>
             </View>
@@ -346,7 +346,7 @@ export default function PremiumReportsScreen() {
                 <Ionicons name="share-social" size={18} color="#111" />
                 <Text style={s.actionTxt}>Share summary</Text>
               </TouchableOpacity>
-              <TouchableOpacity style={[s.actionBtn, { backgroundColor: '#F56E1E' }]} onPress={onDownloadPdf} disabled={sharing}>
+              <TouchableOpacity style={[s.actionBtn, { backgroundColor: COLORS.accent.brand }]} onPress={onDownloadPdf} disabled={sharing}>
                 {sharing
                   ? <ActivityIndicator color="#fff" />
                   : <Ionicons name="download" size={18} color="#fff" />}

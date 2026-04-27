@@ -146,7 +146,7 @@ const s = StyleSheet.create({
     borderWidth: 1.5, borderColor: '#FFDDC0', backgroundColor: '#FFFFFF',
     alignItems: 'center', justifyContent: 'center',
   },
-  checkboxDone: { backgroundColor: '#10B981', borderColor: '#10B981' },
+  checkboxDone: { backgroundColor: COLORS.state.successAlt, borderColor: COLORS.state.successAlt },
   stepEmoji: { fontSize: 14 },
   stepLbl: { flex: 1, fontSize: 14, fontWeight: '700', color: COLORS.text.primary },
   stepLblDone: { color: COLORS.text.muted, textDecorationLine: 'line-through' },

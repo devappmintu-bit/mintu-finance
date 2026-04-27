@@ -18,13 +18,14 @@ import * as Haptics from 'expo-haptics';
 import { useLangStore } from '../store/langStore';
 import { t } from '../utils/i18n';
 import ConfettiBurst from '../components/ConfettiBurst';
+import { COLORS } from '../utils/theme';
 
 const { width, height } = Dimensions.get('window');
 
 // Page-level tints — stays within MintU's saffron family but each slide has a shift.
 const SLIDE_BG = ['#FFEFDC', '#FFF7ED', '#FFE9CF'];
-const ACCENT = '#F56E1E';
-const ACCENT_DEEP = '#C14A06';
+const ACCENT = COLORS.accent.brand;
+const ACCENT_DEEP = COLORS.accent.brandDark;
 
 type Slide = { id: string; emoji: string; title: string; sub: string; doodles: string[] };
 

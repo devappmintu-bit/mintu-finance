@@ -88,7 +88,7 @@ function BudgetScreen() {
       // SWR refetch handles both endpoints; local state hydrated via the
       // effects above.
       await Promise.all([refetchLive(), refetchSug()]);
-    } catch (e) { console.error(e); }
+    } catch (e) { if (__DEV__) console.error(e); }
     finally { setRefreshing(false); }
   }, [refetchLive, refetchSug]);
 

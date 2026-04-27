@@ -41,9 +41,9 @@ const CATEGORIES: Array<{ key: string; label: string; desc: string; icon: string
   { key: 'budget_alerts',     label: 'Budget alerts',        desc: 'Over-budget warnings, weekly summaries',    icon: 'pie-chart',   color: '#E65100' },
   { key: 'bill_reminders',    label: 'Bill reminders',       desc: 'Upcoming rent, EMIs, subscriptions',         icon: 'calendar',    color: '#4338CA' },
   { key: 'split_updates',     label: 'Split updates',        desc: 'New expenses, friends settled up',           icon: 'people',      color: '#0F766E' },
-  { key: 'transaction_alerts',label: 'Transaction alerts',   desc: 'Large txns, duplicate detection',            icon: 'card',        color: '#F59E0B' },
-  { key: 'security',          label: 'Security',             desc: 'Sign-ins, PIN/biometric changes',            icon: 'shield-checkmark', color: '#10B981' },
-  { key: 'rewards',           label: 'Rewards',              desc: 'Coins, vouchers, achievements',              icon: 'gift',        color: '#F56E1E' },
+  { key: 'transaction_alerts',label: 'Transaction alerts',   desc: 'Large txns, duplicate detection',            icon: 'card',        color: COLORS.accent.secondary },
+  { key: 'security',          label: 'Security',             desc: 'Sign-ins, PIN/biometric changes',            icon: 'shield-checkmark', color: COLORS.state.successAlt },
+  { key: 'rewards',           label: 'Rewards',              desc: 'Coins, vouchers, achievements',              icon: 'gift',        color: COLORS.accent.brand },
   { key: 'tips_news',         label: 'Tips & finance news',  desc: 'Money School, India Finance Today',          icon: 'school',      color: '#06B6D4' },
   { key: 'marketing',         label: 'Offers & promos',      desc: 'Partner deals, referral bonuses',            icon: 'megaphone',   color: '#A855F7' },
 ];

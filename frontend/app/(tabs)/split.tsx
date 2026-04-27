@@ -111,7 +111,7 @@ function SplitScreen() {
       rows.sort((a, b) => b.amount - a.amount);
       setSettleRows(rows);
       settleRowsCacheKey.current = key;
-    } catch (e) { console.error('settleRows', e); }
+    } catch (e) { if (__DEV__) console.error('settleRows', e); }
   }, [user?.id]);
 
   const fetchData = useCallback(async () => {
@@ -139,10 +139,10 @@ function SplitScreen() {
           }
           // Use the freshest snapshot from swrGroups (set by the useEffect bridge above).
           fetchSettleRows(groups);
-        } catch (e) { console.error('split phase2', e); }
+        } catch (e) { if (__DEV__) console.error('split phase2', e); }
         finally { setRefreshing(false); }
       });
-    } catch (e) { console.error(e); setLoading(false); setRefreshing(false); }
+    } catch (e) { if (__DEV__) console.error(e); setLoading(false); setRefreshing(false); }
   }, [fetchSettleRows, refetchGroupsSwr, refetchBalancesSwr, groups]);
 
   useEffect(() => { fetchData(); }, []);

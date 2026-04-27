@@ -12,7 +12,7 @@ Endpoints:
 """
 import os
 import logging
-from datetime import datetime
+from datetime import datetime, timezone
 from bson import ObjectId
 from fastapi import Depends, HTTPException
 from fastapi.responses import HTMLResponse
@@ -193,7 +193,7 @@ async def split_razorpay_order(data: dict, user_id: str = Depends(get_current_us
             "payee_name": payee_name,
             "group_label": group_label,
             "status": "created",
-            "created_at": datetime.utcnow(),
+            "created_at": datetime.now(timezone.utc),
         })
         key_id = os.environ.get("RAZORPAY_KEY_ID", "")
         backend_base = os.environ.get("APP_DEEPLINK_BASE", "").rstrip("/")
@@ -332,8 +332,8 @@ async def split_verify_settle_payment(payment_data: dict):
         "razorpay_order_id": order_id,
         "group_id": group_id,
         "status": "completed",
-        "settled_at": datetime.utcnow(),
-        "created_at": datetime.utcnow(),
+        "settled_at": datetime.now(timezone.utc),
+        "created_at": datetime.now(timezone.utc),
     }
     result = await db.settlements.insert_one(settlement)
 
@@ -348,7 +348,7 @@ async def split_verify_settle_payment(payment_data: dict):
     try:
         await db.split_reminders.update_many(
             {"recipient_id": user_id, "sender_id": target_user_id, "status": "pending"},
-            {"$set": {"status": "settled", "dismissed_at": datetime.utcnow()}},
+            {"$set": {"status": "settled", "dismissed_at": datetime.now(timezone.utc)}},
         )
     except Exception:
         pass
@@ -380,14 +380,14 @@ async def split_verify_settle_payment(payment_data: dict):
                     "coins_applied": redemption["coins_applied"],
                     "coin_discount": redemption["discount"],
                 },
-                "created_at": datetime.utcnow(),
+                "created_at": datetime.now(timezone.utc),
             })
         except Exception as e:
             logging.warning(f"Could not post razorpay settlement message: {e}")
 
     await db.payment_orders.update_one(
         {"order_id": order_id},
-        {"$set": {"status": "paid", "payment_id": payment_id, "paid_at": datetime.utcnow()}},
+        {"$set": {"status": "paid", "payment_id": payment_id, "paid_at": datetime.now(timezone.utc)}},
     )
 
     return {

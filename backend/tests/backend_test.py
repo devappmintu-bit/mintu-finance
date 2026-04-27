@@ -8,7 +8,7 @@ import sys
 import json
 import time
 import requests
-from datetime import datetime
+from datetime import datetime, timezone
 
 # Backend URL from frontend .env
 BACKEND_URL = "https://mintu-finance.preview.emergentagent.com"
@@ -146,7 +146,7 @@ def test_module_1():
         for amt in (100, 200, 300):
             rr = requests.post(f"{API}/transactions", json={
                 "description": f"Audit {amt}", "amount": amt, "type": "debit",
-                "category": unique_cat, "date": datetime.utcnow().isoformat()
+                "category": unique_cat, "date": datetime.now(timezone.utc).isoformat()
             }, headers=headers, timeout=15)
             if rr.status_code == 200:
                 created.append(rr.json()["id"])
@@ -357,7 +357,7 @@ def test_module_3():
     for amt in (1000, 1500, 2000):
         rr = requests.post(f"{API}/transactions", json={
             "description": f"Track {amt}", "amount": amt, "type": "debit",
-            "category": track_cat, "date": datetime.utcnow().isoformat()
+            "category": track_cat, "date": datetime.now(timezone.utc).isoformat()
         }, headers=headers, timeout=15)
         if rr.status_code == 200:
             created.append(rr.json()["id"])
@@ -378,7 +378,7 @@ def test_module_3():
     # 4th expense (over budget)
     rr = requests.post(f"{API}/transactions", json={
         "description": "Over", "amount": 1000, "type": "debit",
-        "category": track_cat, "date": datetime.utcnow().isoformat()
+        "category": track_cat, "date": datetime.now(timezone.utc).isoformat()
     }, headers=headers, timeout=15)
     if rr.status_code == 200:
         created.append(rr.json()["id"])

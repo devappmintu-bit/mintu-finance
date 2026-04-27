@@ -99,7 +99,7 @@ function RewardsScreen() {
         <View style={s.streakCard}>
           <View style={s.streakRow}>
             <View style={s.streakCircle}>
-              <Ionicons name="flame" size={28} color="#F59E0B" />
+              <Ionicons name="flame" size={28} color={COLORS.accent.secondary} />
               <Text style={s.streakNum}>{streak}</Text>
             </View>
             <View style={s.streakInfo}>
@@ -131,7 +131,7 @@ function RewardsScreen() {
         {challenge && (
           <View style={s.challengeCard}>
             <View style={s.challengeHeader}>
-              <Ionicons name="trophy" size={18} color="#F59E0B" />
+              <Ionicons name="trophy" size={18} color={COLORS.accent.secondary} />
               <Text style={s.challengeOverline}>{t('weekly_challenge', lang).toUpperCase()}</Text>
             </View>
             <Text style={s.challengeTitle}>{challenge.title}</Text>
@@ -180,7 +180,7 @@ const useStyles = makeStyles((c) => ({
   streakCard: { backgroundColor: c.bg.card, borderRadius: RADIUS.card, padding: SPACING.xl, marginBottom: SPACING.lg, borderWidth: 1, borderColor: '#F59E0B25' },
   streakRow: { flexDirection: 'row', alignItems: 'center', marginBottom: SPACING.md },
   streakCircle: { width: 64, height: 64, borderRadius: 32, backgroundColor: '#F59E0B18', justifyContent: 'center', alignItems: 'center', marginRight: SPACING.lg },
-  streakNum: { fontSize: 18, fontWeight: '800', color: '#F59E0B', marginTop: -4 },
+  streakNum: { fontSize: 18, fontWeight: '800', color: COLORS.accent.secondary, marginTop: -4 },
   streakInfo: { flex: 1 },
   streakTitle: { fontSize: 20, fontWeight: '700', color: c.text.primary },
   streakSub: { fontSize: 13, color: c.text.muted, marginTop: 2 },
@@ -189,7 +189,7 @@ const useStyles = makeStyles((c) => ({
   // Challenge
   challengeCard: { backgroundColor: c.bg.card, borderRadius: RADIUS.card, padding: SPACING.xl, marginBottom: SPACING.lg, borderWidth: 1, borderColor: c.border.card },
   challengeHeader: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: SPACING.sm },
-  challengeOverline: { fontSize: 11, fontWeight: '700', color: '#F59E0B', letterSpacing: 1 },
+  challengeOverline: { fontSize: 11, fontWeight: '700', color: COLORS.accent.secondary, letterSpacing: 1 },
   challengeTitle: { fontSize: 18, fontWeight: '700', color: c.text.primary, marginBottom: 4 },
   challengeDesc: { fontSize: 14, color: c.text.secondary },
   // Badges
@@ -207,7 +207,7 @@ const useStyles = makeStyles((c) => ({
   leaderboardCard: { backgroundColor: c.bg.card, borderRadius: RADIUS.card, padding: SPACING.xl, borderWidth: 1, borderColor: '#F59E0B25' },
   rankHero: { flexDirection: 'row', alignItems: 'center', marginBottom: SPACING.lg },
   rankCircle: { width: 56, height: 56, borderRadius: 28, backgroundColor: '#F59E0B18', justifyContent: 'center', alignItems: 'center', marginRight: SPACING.md },
-  rankNum: { fontSize: 20, fontWeight: '800', color: '#F59E0B' },
+  rankNum: { fontSize: 20, fontWeight: '800', color: COLORS.accent.secondary },
   rankInfo: { flex: 1 },
   rankTitle: { fontSize: 13, color: c.text.muted },
   rankPercentile: { fontSize: 14, fontWeight: '700', color: c.text.primary },
@@ -220,7 +220,7 @@ const useStyles = makeStyles((c) => ({
   lbRank: { fontSize: 16, fontWeight: '700', width: 30, textAlign: 'center', color: c.text.secondary },
   lbName: { flex: 1, fontSize: 15, fontWeight: '500', color: c.text.primary },
   lbScore: { fontSize: 16, fontWeight: '700', color: c.accent.primary },
-  lbStreak: { fontSize: 12, color: '#F59E0B' },
+  lbStreak: { fontSize: 12, color: COLORS.accent.secondary },
   // Friend Comparison
 }));
 
