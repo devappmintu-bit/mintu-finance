@@ -3,24 +3,15 @@
 All domain logic lives in routers/*.py. Shared static data lives in core/constants.py.
 Pydantic schemas live in schemas.py. This file stays intentionally thin.
 """
-from fastapi import FastAPI, APIRouter, HTTPException, Depends, Header, Request, Response
+from fastapi import FastAPI, APIRouter, Header
 from dotenv import load_dotenv
 from starlette.middleware.cors import CORSMiddleware
-from starlette.middleware.base import BaseHTTPMiddleware
 from motor.motor_asyncio import AsyncIOMotorClient
 import os
 import logging
-import hashlib
 import time
-import json as json_module
 from pathlib import Path
 from typing import Dict, Optional, Any
-from datetime import datetime, timedelta, timezone
-import jwt
-import bcrypt
-import re
-import random
-import string
 
 ROOT_DIR = Path(__file__).parent
 load_dotenv(ROOT_DIR / '.env')
@@ -35,6 +26,17 @@ db = client[os.environ['DB_NAME']]
 JWT_SECRET = os.environ['JWT_SECRET']
 JWT_ALGORITHM = "HS256"
 JWT_EXPIRATION_DAYS = 30
+
+
+# ══════════════════════════════════════════════════════════════════════
+#  AUTH HELPERS — extracted to core/auth_helpers.py (Round 53h)
+#  Re-exported here so legacy callers that do
+#  ``from server import hash_password`` keep working unchanged.
+# ══════════════════════════════════════════════════════════════════════
+from core.auth_helpers import (  # noqa: E402,F401
+    hash_password, verify_password, create_token,
+)
+
 
 
 # ══════════════════════════════════════════════════════════════════════
@@ -95,6 +97,20 @@ api_router = APIRouter(prefix="/api")
 
 
 # ══════════════════════════════════════════════════════════════════════
+#  OBSERVABILITY — Round 53e
+#
+#  Sentry SDK init runs at import time (BEFORE any other middleware so
+#  the SDK can wrap all subsequent layers). When SENTRY_DSN_BACKEND is
+#  unset/empty, init_sentry() is a no-op — local dev stays silent.
+#  SentryContextMiddleware tags every request with request_id, endpoint,
+#  user_id, and a hashed Idempotency-Key for correlation.
+# ══════════════════════════════════════════════════════════════════════
+from core.observability import init_sentry, SentryContextMiddleware  # noqa: E402
+init_sentry()
+app.add_middleware(SentryContextMiddleware)
+
+
+# ══════════════════════════════════════════════════════════════════════
 #  HEALTH CHECK — Round 51f
 #  GET /api/health → { "status": "ok", "version": "1.0.0" }
 #
@@ -140,23 +156,9 @@ register_exception_handlers(app)
 
 
 # ══════════════════════════════════════════════════════════════════════
-#  INPUT SANITIZATION
+#  INPUT SANITIZATION (extracted to core/sanitize.py — Round 53h)
 # ══════════════════════════════════════════════════════════════════════
-def sanitize_string(value: str, max_length: int = 500) -> str:
-    """Remove HTML/null-bytes and cap length."""
-    if not value:
-        return value
-    value = re.sub(r'<[^>]+>', '', value)
-    value = value.replace('\x00', '')
-    return value[:max_length].strip()
-
-
-def sanitize_phone(phone: str) -> str:
-    """Ensure phone is exactly 10 digits."""
-    cleaned = re.sub(r'\D', '', phone)
-    if len(cleaned) > 10:
-        cleaned = cleaned[-10:]
-    return cleaned
+from core.sanitize import sanitize_string, sanitize_phone  # noqa: E402,F401
 
 
 # ══════════════════════════════════════════════════════════════════════
@@ -188,21 +190,8 @@ from core.content import APP_DOWNLOAD_LINK, DAILY_CARDS  # noqa: F401,E402
 
 
 # ══════════════════════════════════════════════════════════════════════
-#  AUTH HELPERS
+#  AUTH HELPERS — back-compat get_current_user delegation
 # ══════════════════════════════════════════════════════════════════════
-def hash_password(password: str) -> str:
-    return bcrypt.hashpw(password.encode('utf-8'), bcrypt.gensalt()).decode('utf-8')
-
-
-def verify_password(password: str, hashed: str) -> bool:
-    return bcrypt.checkpw(password.encode('utf-8'), hashed.encode('utf-8'))
-
-
-def create_token(user_id: str) -> str:
-    expiration = datetime.now(timezone.utc) + timedelta(days=JWT_EXPIRATION_DAYS)
-    return jwt.encode({"user_id": user_id, "exp": expiration}, JWT_SECRET, algorithm=JWT_ALGORITHM)
-
-
 async def get_current_user(authorization: str = Header(...)) -> str:
     """Back-compat shim — delegates to the single hardened implementation in
     core/auth.py. Previously this file had a duplicate that skipped the
@@ -230,12 +219,9 @@ from core.ai_helpers import (  # noqa: E402,F401
 
 
 # ══════════════════════════════════════════════════════════════════════
-#  RAZORPAY CLIENT (used by routers/premium.py via server module)
+#  RAZORPAY CLIENT — extracted to core/razorpay_client.py (Round 53h)
 # ══════════════════════════════════════════════════════════════════════
-import razorpay  # noqa: E402
-razorpay_client = razorpay.Client(
-    auth=(os.environ.get('RAZORPAY_KEY_ID', ''), os.environ.get('RAZORPAY_KEY_SECRET', ''))
-)
+from core.razorpay_client import razorpay_client  # noqa: E402,F401
 
 
 # ══════════════════════════════════════════════════════════════════════
@@ -261,61 +247,11 @@ async def send_otp_sms(phone: str, otp: str) -> bool:
 
 
 # ══════════════════════════════════════════════════════════════════════
-#  MOUNT DOMAIN ROUTERS (all share the /api prefix)
+#  MOUNT DOMAIN ROUTERS (extracted to core/router_registry.py — Round 53h)
+#  Adding a new router is now a one-line edit in router_registry.py.
 # ══════════════════════════════════════════════════════════════════════
-from routers import auth as auth_router  # noqa: E402
-from routers import (  # noqa: E402
-    news as news_router,
-    referral as referral_router,
-    gamification as gamification_router,
-    content as content_router,
-    transactions as transactions_router,
-    budgets as budgets_router,
-    family as family_router,
-    analytics as analytics_router,
-    user as user_router,
-    splits as splits_router,
-    ai as ai_router,
-    cash as cash_router,
-    notifications as notifications_router,
-    sms as sms_router,
-    premium as premium_router,
-    premium_reports as premium_reports_router,
-    premium_subscriptions as premium_subscriptions_router,
-    ab as ab_router,
-    share as share_router,
-    privacy as privacy_router,
-    budgets_ext as budgets_ext_router,
-    alerts as alerts_router,
-    upi as upi_router,
-    insights_ext as insights_ext_router,
-    gmail_oauth as gmail_oauth_router,
-    home_bundle as home_bundle_router,
-    rewards as rewards_router,
-    split_insights as split_insights_router,
-    goals as goals_router,
-    profile_identity as profile_identity_router,
-    profile_engine as profile_engine_router,
-    streak as streak_router,
-    search as search_router,
-    split_ws as split_ws_router,
-)
-
-for r in (
-    auth_router,
-    news_router, referral_router, gamification_router, content_router,
-    transactions_router, budgets_router, family_router, analytics_router,
-    user_router, splits_router, ai_router, cash_router, notifications_router,
-    sms_router, premium_router, premium_reports_router, premium_subscriptions_router,
-    ab_router, share_router, privacy_router,
-    budgets_ext_router, alerts_router, upi_router, insights_ext_router, gmail_oauth_router,
-    home_bundle_router, rewards_router, split_insights_router, goals_router,
-    profile_identity_router, profile_engine_router,
-    streak_router,
-    search_router,
-    split_ws_router,
-):
-    api_router.include_router(r.router)
+from core.router_registry import register_domain_routers  # noqa: E402
+register_domain_routers(api_router)
 
 app.include_router(api_router)
 

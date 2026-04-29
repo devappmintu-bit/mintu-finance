@@ -32,6 +32,11 @@ import { COLORS, FONT_FAMILY, GRADIENT, SPACING, useAppColors } from '../../util
 import { makeStyles } from '../../utils/makeStyles';
 import api from '../../utils/api';
 import { useIsOnline } from '../../hooks/useIsOnline';
+import TaxCalculator from '../../components/premium/TaxCalculator';
+import InvestmentSuggester from '../../components/premium/InvestmentSuggester';
+import PremiumUnlockTeaser from '../../components/premium/PremiumUnlockTeaser';
+import { useActivePlan, FEATURES, canAccess } from '../../utils/premium';
+import MascotMoment from '../../components/MascotMoment';
 
 type Pulse = {
   currency_week_total?: number;
@@ -57,6 +62,8 @@ function AICoachTab() {
   const s = useStyles();
   const c = useAppColors();
   const isOnline = useIsOnline();
+  const [activeTab, setActiveTab] = useState<'insights' | 'tax' | 'invest' | 'school'>('insights');
+  const [plan] = useActivePlan();
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [chatOpen, setChatOpen] = useState(false);
@@ -118,7 +125,122 @@ function AICoachTab() {
 
   return (
     <SafeAreaView style={s.safe} edges={['top']}>
-      <ScrollView
+      {/* Round 53l — MintU Personality burst on tab focus.
+          The coach surface gets the bigger, expressive moment
+          (vs the slim home variant). The mascot stays visible so
+          users feel an "assistant is awake" beat. */}
+      <View style={{ paddingHorizontal: SPACING.lg, paddingTop: 4, paddingBottom: 4 }}>
+        <MascotMoment mode="coach" autoDismissMs={0} />
+      </View>
+
+      {/* Tab strip — Insights / Tax / Invest / School */}
+      <View style={s.tabStrip}>
+        {([
+          { id: 'insights', emoji: '🧠', label: 'Insights', feature: undefined },
+          { id: 'tax',      emoji: '🧾', label: 'Tax',      feature: FEATURES.TAX_CALCULATOR },
+          { id: 'invest',   emoji: '💰', label: 'Invest',   feature: FEATURES.INVESTMENT_SUGGESTER },
+          { id: 'school',   emoji: '🎓', label: 'School',   feature: FEATURES.MONEY_SCHOOL },
+        ] as const).map(t => {
+          // top-right of the icon when the feature is gated and the
+          // user isn't on a qualifying plan. Keeps the row tight on
+          // 360-px viewports (no extra inline pill that would push
+          // the label off-screen).
+          const locked = !!t.feature && !canAccess(t.feature, plan);
+          return (
+          <TouchableOpacity
+            key={t.id}
+            onPress={() => setActiveTab(t.id)}
+            style={[s.tabItem, activeTab === t.id && s.tabItemActive]}
+            accessibilityRole="tab"
+            accessibilityState={{ selected: activeTab === t.id }}
+            accessibilityLabel={locked ? `${t.label} (Premium)` : t.label}
+          >
+            <View>
+              <Text style={s.tabEmoji}>{t.emoji}</Text>
+              {locked && <View style={s.tabLockDot} />}
+            </View>
+            <Text
+              style={[s.tabLabel, activeTab === t.id && s.tabLabelActive]}
+              numberOfLines={1}
+              allowFontScaling={false}
+            >
+              {t.label}
+            </Text>
+          </TouchableOpacity>
+          );
+        })}
+      </View>
+
+      {/* Non-insights tabs render their own scroll views */}
+      {activeTab === 'tax' && (
+        <View style={{ flex: 1 }}>
+          {canAccess(FEATURES.TAX_CALCULATOR, plan) ? (
+            <TaxCalculator />
+          ) : (
+            <View style={s.lockedWrap}>
+              <PremiumUnlockTeaser context="tax_calculator" />
+              <Text style={s.lockedHint}>Upgrade to unlock the Old vs New regime calculator and save up to ₹1.5 L every year.</Text>
+            </View>
+          )}
+        </View>
+      )}
+      {activeTab === 'invest' && (
+        <View style={{ flex: 1 }}>
+          {canAccess(FEATURES.INVESTMENT_SUGGESTER, plan) ? (
+            <InvestmentSuggester />
+          ) : (
+            <View style={s.lockedWrap}>
+              <PremiumUnlockTeaser context="investment_suggester" />
+              <Text style={s.lockedHint}>Upgrade for personalised SIP & mutual-fund picks based on your actual income and risk profile.</Text>
+            </View>
+          )}
+        </View>
+      )}
+      {activeTab === 'school' && (
+        <View style={{ flex: 1 }}>
+          {canAccess(FEATURES.MONEY_SCHOOL, plan) ? (
+            <TouchableOpacity
+              style={s.schoolCta}
+              onPress={() => router.push('/money-school' as any)}
+              activeOpacity={0.85}
+            >
+              <Text style={s.schoolCtaEmoji}>🎓</Text>
+              <View style={{ flex: 1 }}>
+                <Text style={s.schoolCtaTitle}>Money School</Text>
+                <Text style={s.schoolCtaSub}>Daily 60-second finance lessons in Indian context — SIPs, PPF, tax saving & more.</Text>
+              </View>
+              <Ionicons name="chevron-forward" size={18} color={COLORS.accent.primary} />
+            </TouchableOpacity>
+          ) : (
+            // Round 52b — Money School is yearly-tier only. Show the
+            // teaser + a hint instead of routing into a screen the
+            // user can't actually use. Keeps the upsell in flow.
+            <View style={s.lockedWrap}>
+              <TouchableOpacity
+                style={s.schoolCta}
+                onPress={() => router.push('/premium' as any)}
+                activeOpacity={0.85}
+              >
+                <Text style={s.schoolCtaEmoji}>🎓</Text>
+                <View style={{ flex: 1 }}>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                    <Text style={s.schoolCtaTitle}>Money School</Text>
+                    <View style={s.proPill}>
+                      <Ionicons name="diamond" size={9} color="#FFB020" />
+                      <Text style={s.proPillT}>PRO</Text>
+                    </View>
+                  </View>
+                  <Text style={s.schoolCtaSub}>Daily 60-second lessons — SIPs, PPF, tax saving & more. Unlock with Pro Yearly.</Text>
+                </View>
+                <Ionicons name="lock-closed" size={16} color={COLORS.accent.primary} />
+              </TouchableOpacity>
+              <Text style={s.lockedHint}>Money School is part of Pro Yearly. Tap above to compare plans.</Text>
+            </View>
+          )}
+        </View>
+      )}
+
+      {activeTab !== 'insights' ? null : <ScrollView
         contentContainerStyle={s.scroll}
         showsVerticalScrollIndicator={false}
         refreshControl={
@@ -294,7 +416,7 @@ function AICoachTab() {
         </View>
 
         <View style={{ height: 120 }} />
-      </ScrollView>
+      </ScrollView>}
 
       {/* Full-screen chat sheet */}
       <Modal
@@ -314,6 +436,61 @@ function AICoachTab() {
 const useStyles = makeStyles((c) => ({
   safe: { flex: 1, backgroundColor: c.bg.primary },
   scroll: { paddingHorizontal: SPACING.lg, paddingTop: SPACING.sm, paddingBottom: 120 },
+
+  tabStrip: {
+    flexDirection: 'row',
+    paddingHorizontal: SPACING.md,
+    paddingVertical: 8,
+    gap: 6,
+    borderBottomWidth: 1,
+    borderBottomColor: c.border.subtle,
+  },
+  tabItem: {
+    flex: 1,
+    flexDirection: 'column',
+    alignItems: 'center',
+    paddingVertical: 8,
+    borderRadius: 12,
+    gap: 3,
+  },
+  tabItemActive: {
+    backgroundColor: c.accent.primary + '18',
+    borderWidth: 1,
+    borderColor: c.accent.primary + '44',
+  },
+  tabEmoji: { fontSize: 16 },
+  tabLabel: { fontSize: 10.5, fontWeight: '700', color: c.text.muted, letterSpacing: 0.3 },
+  tabLabelActive: { color: c.accent.primary, fontWeight: '900' },
+
+  schoolCta: {
+    flexDirection: 'row', alignItems: 'center', gap: 14,
+    margin: SPACING.lg, padding: 18,
+    backgroundColor: c.bg.secondary,
+    borderRadius: 18, borderWidth: 1, borderColor: c.border.subtle,
+  },
+  schoolCtaEmoji: { fontSize: 32 },
+  schoolCtaTitle: { fontSize: 16, fontWeight: '900', color: c.text.primary, letterSpacing: -0.3 },
+  schoolCtaSub: { fontSize: 12.5, color: c.text.muted, marginTop: 4, lineHeight: 17 },
+
+  lockedWrap: { padding: SPACING.lg, gap: 14 },
+  lockedHint: { fontSize: 13, color: c.text.muted, lineHeight: 19, fontWeight: '600', textAlign: 'center', paddingHorizontal: 8 },
+
+  // Round 52b — locked-tab affordance: tiny dot at the top-right
+  // of the icon. 8 px diameter — visible at thumb-glance distance
+  // but never crowds the 360-px strip.
+  tabLockDot: {
+    position: 'absolute', top: -2, right: -6,
+    width: 8, height: 8, borderRadius: 4,
+    backgroundColor: '#FFB020',
+    borderWidth: 1.5, borderColor: c.bg.primary,
+  },
+  proPill: {
+    flexDirection: 'row', alignItems: 'center', gap: 3,
+    paddingHorizontal: 6, paddingVertical: 2, borderRadius: 999,
+    backgroundColor: 'rgba(255,176,32,0.15)',
+    borderWidth: 1, borderColor: 'rgba(255,176,32,0.45)',
+  },
+  proPillT: { fontSize: 9, fontWeight: '900', color: '#B45309', letterSpacing: 0.4 },
   header: {
     flexDirection: 'row',
     alignItems: 'flex-start',

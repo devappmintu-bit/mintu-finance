@@ -16,6 +16,7 @@ import React from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Platform } from 'react-native';
 import * as Clipboard from 'expo-clipboard';
 import { COLORS, SPACING } from '../utils/theme';
+import MascotErrorState from './MascotErrorState';
 
 type Variant = 'full' | 'tab';
 
@@ -78,16 +79,12 @@ export default class ErrorBoundary extends React.Component<Props, State> {
 
     const variant: Variant = this.props.variant || 'full';
     if (variant === 'tab') {
-      const label = this.props.tabName ? `the ${this.props.tabName} section` : 'this section';
+      // Round 53n — replace the legacy "🚧 isn't working right now"
+      // system-error UX with a mascot-led companion-tone recovery
+      // moment. Auto-retries once silently after 1500ms; user can
+      // also retry manually.
       return (
-        <View style={s.tabFallback}>
-          <Text style={s.tabEmoji}>🚧</Text>
-          <Text style={s.tabTitle}>{`${label.charAt(0).toUpperCase()}${label.slice(1)} isn't working right now`}</Text>
-          <Text style={s.tabSub}>It's not you — something went sideways on our end.</Text>
-          <TouchableOpacity onPress={this.reset} style={s.tabRetry} accessibilityRole="button" accessibilityLabel="Retry" activeOpacity={0.85}>
-            <Text style={s.tabRetryTxt}>Retry</Text>
-          </TouchableOpacity>
-        </View>
+        <MascotErrorState tabName={this.props.tabName} onRetry={this.reset} />
       );
     }
 

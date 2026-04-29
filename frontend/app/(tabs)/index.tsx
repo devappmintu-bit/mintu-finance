@@ -44,6 +44,7 @@ import NewsCarousel from '../../components/home/NewsCarousel';
 import WeeklyReport from '../../components/home/WeeklyReport';
 import BalanceHero from '../../components/home/BalanceHero';
 import GettingStartedCard from '../../components/home/GettingStartedCard';
+import MascotMoment from '../../components/MascotMoment';
 import QuickActionBar from '../../components/home/QuickActionBar';
 import TodayChips from '../../components/home/TodayChips';
 import ActionableAlertCard from '../../components/home/ActionableAlertCard';
@@ -315,6 +316,13 @@ function HomeScreen() {
             {/* Settings badge — white icon on saturated brand bg (theme-invariant per Round 50 audit). */}
             <View style={styles.avatarBadge}><Ionicons name="settings-sharp" size={10} color="#FFFFFF" /></View>
           </TapTile>
+        </View>
+
+        {/* Round 53l — MintU Personality Engine: a fresh mascot
+            "moment" appears on each app open. Tappable for a richer
+            "coach" burst. Auto-fades to never block scroll. */}
+        <View style={{ paddingHorizontal: SPACING.lg, marginTop: 4, marginBottom: 8 }}>
+          <MascotMoment mode="home" />
         </View>
 
         {/* 1.5 WELCOME — first-time registration banner. Self-hides when

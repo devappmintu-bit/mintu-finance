@@ -22,13 +22,14 @@
         "NSCameraUsageDescription": "Take a profile photo for your MintU account",
         "NSPhotoLibraryUsageDescription": "Choose a profile photo from your library",
         "NSFaceIDUsageDescription": "MintU uses Face ID to protect your financial data"
-      }
+      },
+      "icon": "./assets/images/icon.png"
     },
     "android": {
       "package": "com.mintu.finance",
       "adaptiveIcon": {
         "foregroundImage": "./assets/images/adaptive-icon.png",
-        "backgroundColor": "#0B0B12"
+        "backgroundColor": "#F56E1E"
       },
       "edgeToEdgeEnabled": true,
       "permissions": [
@@ -88,7 +89,9 @@
       ],
       "expo-secure-store",
       "expo-font",
-      "expo-web-browser"
+      "expo-web-browser",
+      "@sentry/react-native",
+      "sentry-expo"
     ],
     "experiments": {
       "typedRoutes": true

@@ -11,18 +11,83 @@ from datetime import datetime, timezone
 from urllib.parse import quote
 from typing import Optional, Dict, Any
 from bson import ObjectId
-from fastapi import Depends, HTTPException
+from fastapi import Depends, Header, HTTPException
 from pymongo.errors import DuplicateKeyError
 
 from core import db, get_current_user
 from core.cache import cache_clear_prefix
 from core.upi import mask_upi_id
+from core.money import coerce_to_paise, paise_from_doc, paise_to_rupees, splits_paise_from_doc
+from core.ledger_invariant import (
+    LedgerInvariantError,
+    assert_double_entry,
+    build_settlement_entries,
+)
+from core.idempotency import (
+    commit_idempotency,
+    replay_idempotency,
+    reserve_idempotency,
+)
+from core.transactions import with_atomic_ctx, PostCommitContext
+from core.settlement_planner import (
+    SettlementPlannerError, SettlementTransfer,
+    plan_settlements, my_transfers, transfer_summary,
+)
 from routers.split_common import (
     api_router,
     SettlePayment,
     SETTLEMENT_REWARDS, SETTLEMENT_BADGES,
     invalidate_split_cache_for_group,
 )
+
+
+# ── Round 53f: Idempotency front-door for every settle path ──────────
+async def _settle_idempotency_front_door(
+    user_id: str, idempotency_key: Optional[str], scope: str = "settle",
+) -> tuple[bool, Optional[Dict[str, Any]]]:
+    """Try to reserve / replay an Idempotency-Key for a settle request.
+
+    Returns ``(should_proceed, cached_response)``:
+      • (True, None)  → caller is the race winner; run the settle logic
+      • (False, dict) → cached response — return it as-is to the user
+      • (False, None) → in-flight duplicate; raise 409
+
+    Header is OPTIONAL: legacy clients that don't send it keep working
+    exactly as before (no idempotency, but still protected by the
+    advisory `_settle_lock`).
+    """
+    if not idempotency_key:
+        return True, None
+    cached = await replay_idempotency(user_id, scope, idempotency_key)
+    if cached is not None:
+        return False, cached
+    if not await reserve_idempotency(user_id, scope, idempotency_key):
+        # In-flight: the previous attempt reserved but hasn't committed.
+        raise HTTPException(status_code=409, detail="Idempotency key in flight; retry later")
+    return True, None
+
+
+async def _settle_idempotency_commit(
+    user_id: str, idempotency_key: Optional[str], response: Dict[str, Any],
+    scope: str = "settle",
+) -> None:
+    """Cache the response so future retries replay verbatim. Best-effort:
+    a cache failure must NEVER break the user's already-successful settle."""
+    if not idempotency_key:
+        return
+    try:
+        await commit_idempotency(user_id, scope, idempotency_key, response)
+    except Exception:
+        # Observability: tag this so we can spot cache-store regressions.
+        try:
+            from core.observability import capture_silenced
+            capture_silenced(
+                Exception("idempotency_commit_failed"),
+                tag="settle_idempotency_commit",
+                extras={"scope": scope},
+            )
+        except Exception:
+            pass
 
 
 # Round 51 — settlement cache invalidation helper.
@@ -39,6 +104,20 @@ async def _invalidate_settlement_caches(payer_id: str, payee_id: str, group_id: 
             pass
     cache_clear_prefix(f"split_groups:{payer_id}")
     cache_clear_prefix(f"split_groups:{payee_id}")
+
+
+# ── Round 53a: ledger-invariant guard for every settle path ──────────
+def _assert_settlement_invariant(payer_id: str, payee_id: str, amount_paise: int, *, context: str) -> None:
+    """Build the canonical 2-entry settlement journal and verify
+    sum(debits) == sum(credits) BEFORE we touch the DB. Raises a 400
+    HTTPException with the breakdown on violation — no side-effects."""
+    try:
+        entries = build_settlement_entries(
+            payer_id=payer_id, payee_id=payee_id, amount_paise=amount_paise,
+        )
+        assert_double_entry(entries, context=context)
+    except LedgerInvariantError as exc:
+        raise HTTPException(status_code=400, detail=f"Ledger invariant violation: {exc}")
 
 
 # ─── Debt-pair advisory lock (Round 30 race fix) ──────────────────────
@@ -340,21 +419,35 @@ async def generate_upi_pay_intent(target_user_id: str, amount: float, user_id: s
 
 
 @api_router.post("/split/settle")
-async def settle_payment(data: SettlePayment, user_id: str = Depends(get_current_user)):
+async def settle_payment(
+    data: SettlePayment,
+    user_id: str = Depends(get_current_user),
+    idempotency_key: Optional[str] = Header(default=None, alias="Idempotency-Key"),
+):
     """Mark a split payment as settled.
 
-    Hardened (Round 29):
+    Hardened (Round 29 → 53f):
       • Rejects phantom settles — verifies the caller actually owes the
         payee (via compute_outstanding_debt) and amount ≤ outstanding.
       • Atomic guard — inserts the settlement inside an ordered two-step:
         re-check outstanding, then insert. Concurrent calls will still
         race but each subsequent insert will see the prior settlement
         reflected in outstanding, which prevents over-payment.
+      • Idempotency-Key (Round 53f) — exactly-once semantics for retries.
+      • Post-commit hooks (Round 53f) — cache invalidation, event-bus
+        emit, and reminder dismissal fire AFTER the settlement insert,
+        never before. No phantom events on rollback / failure.
     """
     if not ObjectId.is_valid(data.target_user_id):
         raise HTTPException(status_code=400, detail="Invalid target_user_id")
     if data.amount is None or data.amount <= 0:
         raise HTTPException(status_code=400, detail="Amount must be positive")
+
+    # ── Round 53f — idempotency front door (no-op when header absent) ──
+    proceed, cached = await _settle_idempotency_front_door(user_id, idempotency_key)
+    if not proceed:
+        return cached
+
     async with _settle_lock(user_id, data.target_user_id, data.group_id):
         outstanding = await compute_outstanding_debt(user_id, data.target_user_id, data.group_id)
         if outstanding <= 0:
@@ -362,10 +455,18 @@ async def settle_payment(data: SettlePayment, user_id: str = Depends(get_current
         if data.amount > outstanding + 0.5:  # allow ₹0.50 rounding slack
             raise HTTPException(status_code=400, detail=f"Amount exceeds outstanding ₹{outstanding:.2f}")
 
+        # Round 53a — paise + invariant BEFORE the insert.
+        amount_paise = coerce_to_paise(data.amount)
+        _assert_settlement_invariant(
+            payer_id=user_id, payee_id=data.target_user_id,
+            amount_paise=amount_paise, context="settle_payment",
+        )
+
         settlement = {
             "payer_id": user_id,
             "payee_id": data.target_user_id,
             "amount": data.amount,
+            "amount_paise": amount_paise,
             "method": data.method,
             "txn_ref": data.txn_ref or f"MINTU{uuid_lib.uuid4().hex[:8].upper()}",
             "group_id": data.group_id,
@@ -374,26 +475,39 @@ async def settle_payment(data: SettlePayment, user_id: str = Depends(get_current
             "created_at": datetime.now(timezone.utc)
         }
 
-        result = await db.settlements.insert_one(settlement)
-        settlement["id"] = str(result.inserted_id)
+        # Round 53f — write inside with_atomic_ctx so the cache-invalidation
+        # + event emit fire ONLY on a durable insert. Single-doc insert means
+        # there's no rollback risk on Atlas, but the contract still applies:
+        # if the insert raises, NO side-effects.
+        async def _do(session, ctx: PostCommitContext):
+            result = await db.settlements.insert_one(settlement, session=session)
+            settlement["id"] = str(result.inserted_id)
 
-    # Auto-dismiss any pending reminders the payee had sent to the payer.
-    await dismiss_reminders_after_settle(user_id, data.target_user_id)
-    # Round 51 — invalidate /split/groups cache for both parties.
-    await _invalidate_settlement_caches(user_id, data.target_user_id, data.group_id)
+            # Reminders auto-dismissal: post-commit only.
+            ctx.on_commit(lambda: dismiss_reminders_after_settle(user_id, data.target_user_id))
+            # Cache invalidation: post-commit only.
+            ctx.on_commit(lambda: _invalidate_settlement_caches(user_id, data.target_user_id, data.group_id))
 
-    # Round 30e — emit declarative event for analytics/observability.
-    try:
-        from core.events import emit, Events
-        emit(Events.SETTLEMENT_COMPLETED,
-             payer_id=user_id,
-             payee_id=data.target_user_id,
-             amount=float(data.amount),
-             group_id=data.group_id,
-             method=data.method,
-             settlement_id=settlement["id"])
-    except Exception:
-        pass
+            # Event-bus emit: post-commit only. Captures "this settlement
+            # actually persisted" semantics — analytics never count
+            # phantom events.
+            def _emit_settlement_event():
+                try:
+                    from core.events import emit, Events
+                    emit(Events.SETTLEMENT_COMPLETED,
+                         payer_id=user_id,
+                         payee_id=data.target_user_id,
+                         amount=float(data.amount),
+                         group_id=data.group_id,
+                         method=data.method,
+                         settlement_id=settlement["id"])
+                except Exception:
+                    pass
+            ctx.on_commit(_emit_settlement_event)
+
+            return result
+
+        await with_atomic_ctx(db.client, _do, label="settle_payment")
 
     # Get names safely
     payee_name = "User"
@@ -402,13 +516,15 @@ async def settle_payment(data: SettlePayment, user_id: str = Depends(get_current
         if payee: payee_name = payee.get("name", "User")
     except Exception:
         pass
-    
-    return {
+
+    response_body = {
         "id": settlement["id"],
         "message": f"Payment of ₹{data.amount:,.0f} to {payee_name} marked as settled!",
         "txn_ref": settlement["txn_ref"],
         "status": "completed"
     }
+    await _settle_idempotency_commit(user_id, idempotency_key, response_body)
+    return response_body
 
 
 
@@ -450,12 +566,20 @@ async def get_settlements(user_id: str = Depends(get_current_user)):
 
 
 @api_router.post("/split/partial-settle")
-async def partial_settle(data: dict, user_id: str = Depends(get_current_user)):
+async def partial_settle(
+    data: dict,
+    user_id: str = Depends(get_current_user),
+    idempotency_key: Optional[str] = Header(default=None, alias="Idempotency-Key"),
+):
     """Record a partial payment toward a debt.
 
     Unlike /split/settle-with-rewards which assumes full settlement, this allows any amount
     less than or equal to the remaining debt. Multiple partials accumulate into a single
     conceptual 'settlement_amount' that reduces the balance in /summary calculations.
+
+    Round 53f — accepts optional ``Idempotency-Key`` header for retry safety.
+    Side-effects (cache invalidation, chat-card insert, reminder dismissal,
+    coin reward bump) all run as POST-COMMIT hooks — never on rollback.
     """
     target_user_id = data.get("target_user_id")
     amount = float(data.get("amount", 0))
@@ -468,6 +592,11 @@ async def partial_settle(data: dict, user_id: str = Depends(get_current_user)):
         raise HTTPException(status_code=400, detail="target_user_id and positive amount required")
     if not ObjectId.is_valid(target_user_id):
         raise HTTPException(status_code=400, detail="Invalid target_user_id")
+
+    proceed, cached = await _settle_idempotency_front_door(user_id, idempotency_key, scope="partial_settle")
+    if not proceed:
+        return cached
+
     async with _settle_lock(user_id, target_user_id, group_id):
         # Phantom-settle + double-settle guard (Round 29, locked Round 30)
         outstanding = await compute_outstanding_debt(user_id, target_user_id, group_id)
@@ -476,12 +605,24 @@ async def partial_settle(data: dict, user_id: str = Depends(get_current_user)):
         if amount > outstanding + 0.5:
             raise HTTPException(status_code=400, detail=f"Amount exceeds outstanding ₹{outstanding:.2f}")
 
+        # Round 53a — paise + invariant BEFORE coin redemption / DB write.
+        amount_paise = coerce_to_paise(amount)
+        _assert_settlement_invariant(
+            payer_id=user_id, payee_id=target_user_id,
+            amount_paise=amount_paise, context="partial_settle",
+        )
+
+        # Coin redemption is a state mutation (debits user's balance) but
+        # it's compensable and idempotency-keyed at the higher level.
+        # Keep it BEFORE the settle insert so the cash_paid/coin_discount
+        # values are correct on the persisted doc.
         redemption = await _apply_split_coin_redemption(user_id, amount, coins_to_use)
 
         settlement = {
             "payer_id": user_id,
             "payee_id": target_user_id,
             "amount": amount,
+            "amount_paise": amount_paise,
             "cash_paid": redemption["effective_amount"],
             "coin_discount": redemption["discount"],
             "coins_applied": redemption["coins_applied"],
@@ -494,62 +635,77 @@ async def partial_settle(data: dict, user_id: str = Depends(get_current_user)):
             "settled_at": datetime.now(timezone.utc),
             "created_at": datetime.now(timezone.utc),
         }
-        result = await db.settlements.insert_one(settlement)
 
-    # Auto-dismiss any pending reminders for this debt (Round 30 — mirrors
-    # mark-paid-offline behaviour so payments via any channel clear the banner).
-    await dismiss_reminders_after_settle(user_id, target_user_id)
-    # Round 51 — invalidate /split/groups cache for both parties.
-    await _invalidate_settlement_caches(user_id, target_user_id, group_id)
-
-    # Coin reward proportional to amount (max 5 coins for partial)
-    coins_earned = min(5, max(1, int(amount / 500)))
-    try:
-        await db.users.update_one(
-            {"_id": ObjectId(user_id)},
-            {"$inc": {"reward_coins": coins_earned, "settlement_count": 1}}
-        )
-    except Exception:
-        pass
-
-    # System chat message
-    payer_name = "User"
-    payee_name = "User"
-    try:
-        p = await db.users.find_one({"_id": ObjectId(user_id)}, {"name": 1})
-        if p: payer_name = p.get("name", "User")
-    except Exception:
-        pass
-    try:
-        pe = await db.users.find_one({"_id": ObjectId(target_user_id)}, {"name": 1})
-        if pe: payee_name = pe.get("name", "User")
-    except Exception:
-        pass
-
-    if group_id:
+        # Resolve names BEFORE the txn so we can pass them into hooks.
+        payer_name = "User"
+        payee_name = "User"
         try:
-            coin_tag = f" 🪙{redemption['coins_applied']} coins" if redemption["coins_applied"] > 0 else ""
-            await db.split_messages.insert_one({
-                "group_id": group_id,
-                "type": "system",
-                "content": f"💰 {payer_name} paid ₹{amount:,.0f} (partial) to {payee_name}{coin_tag}",
-                "sender_id": user_id,
-                "sender_name": payer_name,
-                "settlement_data": {
-                    "amount": amount,
-                    "method": method,
-                    "settlement_id": str(result.inserted_id),
-                    "is_partial": True,
-                    "coins_applied": redemption["coins_applied"],
-                    "coin_discount": redemption["discount"],
-                },
-                "created_at": datetime.now(timezone.utc),
-            })
-        except Exception as e:
-            logging.warning(f"Could not post partial settlement message: {e}")
+            p = await db.users.find_one({"_id": ObjectId(user_id)}, {"name": 1})
+            if p: payer_name = p.get("name", "User")
+        except Exception:
+            pass
+        try:
+            pe = await db.users.find_one({"_id": ObjectId(target_user_id)}, {"name": 1})
+            if pe: payee_name = pe.get("name", "User")
+        except Exception:
+            pass
 
-    return {
-        "id": str(result.inserted_id),
+        async def _do(session, ctx: PostCommitContext):
+            result = await db.settlements.insert_one(settlement, session=session)
+            settlement_id = str(result.inserted_id)
+            settlement["id"] = settlement_id
+
+            # Coins reward proportional to amount (max 5 coins for partial).
+            coins_earned = min(5, max(1, int(amount / 500)))
+
+            # Reminders dismissal — post-commit only.
+            ctx.on_commit(lambda: dismiss_reminders_after_settle(user_id, target_user_id))
+            # Cache invalidation — post-commit only.
+            ctx.on_commit(lambda: _invalidate_settlement_caches(user_id, target_user_id, group_id))
+
+            # Reward bump — best-effort, post-commit so we never grant
+            # coins for a settlement that didn't persist.
+            async def _bump_rewards():
+                try:
+                    await db.users.update_one(
+                        {"_id": ObjectId(user_id)},
+                        {"$inc": {"reward_coins": coins_earned, "settlement_count": 1}},
+                    )
+                except Exception:
+                    pass
+            ctx.on_commit(_bump_rewards)
+
+            # Group chat-card — post-commit only.
+            if group_id:
+                async def _post_chat_card():
+                    try:
+                        coin_tag = f" 🪙{redemption['coins_applied']} coins" if redemption["coins_applied"] > 0 else ""
+                        await db.split_messages.insert_one({
+                            "group_id": group_id,
+                            "type": "system",
+                            "content": f"💰 {payer_name} paid ₹{amount:,.0f} (partial) to {payee_name}{coin_tag}",
+                            "sender_id": user_id,
+                            "sender_name": payer_name,
+                            "settlement_data": {
+                                "amount": amount,
+                                "method": method,
+                                "settlement_id": settlement_id,
+                                "is_partial": True,
+                                "coins_applied": redemption["coins_applied"],
+                                "coin_discount": redemption["discount"],
+                            },
+                            "created_at": datetime.now(timezone.utc),
+                        })
+                    except Exception as e:
+                        logging.warning(f"Could not post partial settlement message: {e}")
+                ctx.on_commit(_post_chat_card)
+
+            return result, coins_earned
+
+        _, coins_earned = await with_atomic_ctx(db.client, _do, label="partial_settle")
+
+    response_body = {
+        "id": settlement["id"],
         "message": f"Partial ₹{amount:,.0f} to {payee_name} recorded ✅",
         "amount": amount,
         "coins_earned": coins_earned,
@@ -559,17 +715,33 @@ async def partial_settle(data: dict, user_id: str = Depends(get_current_user)):
         "txn_ref": settlement["txn_ref"],
         "is_partial": True,
     }
+    await _settle_idempotency_commit(user_id, idempotency_key, response_body, scope="partial_settle")
+    return response_body
 
 
 
 @api_router.post("/split/settle-with-rewards")
-async def settle_with_rewards(data: SettlePayment, user_id: str = Depends(get_current_user)):
-    """Settle payment and earn reward coins. Supports optional coin redemption via data.coins_to_use."""
+async def settle_with_rewards(
+    data: SettlePayment,
+    user_id: str = Depends(get_current_user),
+    idempotency_key: Optional[str] = Header(default=None, alias="Idempotency-Key"),
+):
+    """Settle payment and earn reward coins. Supports optional coin redemption via data.coins_to_use.
+
+    Round 53f — accepts ``Idempotency-Key`` header for retry safety.
+    Reward bump, badge insert, and cache invalidation now run as
+    POST-COMMIT hooks — never on rollback.
+    """
 
     if not ObjectId.is_valid(data.target_user_id):
         raise HTTPException(status_code=400, detail="Invalid target_user_id")
     if data.amount is None or data.amount <= 0:
         raise HTTPException(status_code=400, detail="Amount must be positive")
+
+    proceed, cached = await _settle_idempotency_front_door(user_id, idempotency_key, scope="settle_with_rewards")
+    if not proceed:
+        return cached
+
     async with _settle_lock(user_id, data.target_user_id, data.group_id):
         # Phantom-settle + double-settle guard (Round 29, locked Round 30)
         outstanding = await compute_outstanding_debt(user_id, data.target_user_id, data.group_id)
@@ -577,6 +749,13 @@ async def settle_with_rewards(data: SettlePayment, user_id: str = Depends(get_cu
             raise HTTPException(status_code=400, detail="No outstanding debt to settle")
         if data.amount > outstanding + 0.5:
             raise HTTPException(status_code=400, detail=f"Amount exceeds outstanding ₹{outstanding:.2f}")
+
+        # Round 53a — paise + invariant BEFORE coin redemption / DB write.
+        amount_paise = coerce_to_paise(data.amount)
+        _assert_settlement_invariant(
+            payer_id=user_id, payee_id=data.target_user_id,
+            amount_paise=amount_paise, context="settle_with_rewards",
+        )
 
         # Calculate reward tier
         reward = SETTLEMENT_REWARDS["on_time"]
@@ -591,6 +770,7 @@ async def settle_with_rewards(data: SettlePayment, user_id: str = Depends(get_cu
             "payer_id": user_id,
             "payee_id": data.target_user_id,
             "amount": data.amount,
+            "amount_paise": amount_paise,
             "cash_paid": redemption["effective_amount"],
             "coin_discount": redemption["discount"],
             "coins_applied": redemption["coins_applied"],
@@ -604,20 +784,31 @@ async def settle_with_rewards(data: SettlePayment, user_id: str = Depends(get_cu
             "created_at": datetime.now(timezone.utc)
         }
 
-        result = await db.settlements.insert_one(settlement)
+        async def _do(session, ctx: PostCommitContext):
+            result = await db.settlements.insert_one(settlement, session=session)
+            settlement["id"] = str(result.inserted_id)
 
-    # Auto-dismiss any pending reminders for this debt (Round 30)
-    await dismiss_reminders_after_settle(user_id, data.target_user_id)
-    # Round 51 — invalidate /split/groups cache for both parties.
-    await _invalidate_settlement_caches(user_id, data.target_user_id, data.group_id)
+            ctx.on_commit(lambda: dismiss_reminders_after_settle(user_id, data.target_user_id))
+            ctx.on_commit(lambda: _invalidate_settlement_caches(user_id, data.target_user_id, data.group_id))
 
-    # Update user's reward coins
-    await db.users.update_one(
-        {"_id": ObjectId(user_id)},
-        {"$inc": {"reward_coins": reward["coins"], "settlement_count": 1}}
-    )
+            async def _bump_rewards():
+                try:
+                    await db.users.update_one(
+                        {"_id": ObjectId(user_id)},
+                        {"$inc": {"reward_coins": reward["coins"], "settlement_count": 1}},
+                    )
+                except Exception:
+                    pass
+            ctx.on_commit(_bump_rewards)
 
-    # Check for new badges
+            return result
+
+        await with_atomic_ctx(db.client, _do, label="settle_with_rewards")
+
+    # Compute downstream values (badges, cashback) AFTER the commit.
+    # These are read-mostly and depend on the post-commit reward bump
+    # — but the bump fires synchronously inside _fire() above, so by the
+    # time we reach here the user doc is already updated.
     user = await db.users.find_one({"_id": ObjectId(user_id)})
     settle_count = user.get("settlement_count", 0) if user else 0
     total_coins = user.get("reward_coins", 0) if user else 0
@@ -639,8 +830,8 @@ async def settle_with_rewards(data: SettlePayment, user_id: str = Depends(get_cu
     except Exception:
         pass
 
-    return {
-        "id": str(result.inserted_id),
+    response_body = {
+        "id": settlement["id"],
         "message": f"₹{data.amount:,.0f} paid to {payee_name}! 🎉",
         "txn_ref": settlement["txn_ref"],
         "coins_applied": redemption["coins_applied"],
@@ -654,6 +845,8 @@ async def settle_with_rewards(data: SettlePayment, user_id: str = Depends(get_cu
             "new_badges": new_badges,
         }
     }
+    await _settle_idempotency_commit(user_id, idempotency_key, response_body, scope="settle_with_rewards")
+    return response_body
 
 
 
@@ -677,7 +870,11 @@ async def redeem_coins(data: dict, user_id: str = Depends(get_current_user)):
 
 
 @api_router.post("/split/mark-paid-offline")
-async def mark_paid_offline(data: dict, user_id: str = Depends(get_current_user)):
+async def mark_paid_offline(
+    data: dict,
+    user_id: str = Depends(get_current_user),
+    idempotency_key: Optional[str] = Header(default=None, alias="Idempotency-Key"),
+):
     """Mark a debt as paid offline (cash/bank transfer) without triggering UPI flow.
 
     Creates a settlement record + posts a system message in group chat.
@@ -685,6 +882,10 @@ async def mark_paid_offline(data: dict, user_id: str = Depends(get_current_user)
     Supports optional `coins_to_use` to apply a coin-based discount (debt is still
     fully settled — coins cover the discount portion; the payer only pays the
     remainder in cash/bank).
+
+    Round 53f — accepts ``Idempotency-Key`` header for retry safety. Reward
+    bump, reminder dismissal, cache invalidation, and chat-card insert all
+    run as POST-COMMIT hooks.
     """
     target_user_id = data.get("target_user_id")
     amount = float(data.get("amount", 0))
@@ -697,6 +898,11 @@ async def mark_paid_offline(data: dict, user_id: str = Depends(get_current_user)
         raise HTTPException(status_code=400, detail="target_user_id and positive amount required")
     if not ObjectId.is_valid(target_user_id):
         raise HTTPException(status_code=400, detail="Invalid target_user_id")
+
+    proceed, cached = await _settle_idempotency_front_door(user_id, idempotency_key, scope="mark_paid_offline")
+    if not proceed:
+        return cached
+
     async with _settle_lock(user_id, target_user_id, group_id):
         # Phantom-settle + double-settle guard (Round 29, locked Round 30)
         outstanding = await compute_outstanding_debt(user_id, target_user_id, group_id)
@@ -704,6 +910,13 @@ async def mark_paid_offline(data: dict, user_id: str = Depends(get_current_user)
             raise HTTPException(status_code=400, detail="No outstanding debt to settle")
         if amount > outstanding + 0.5:
             raise HTTPException(status_code=400, detail=f"Amount exceeds outstanding ₹{outstanding:.2f}")
+
+        # Round 53a — paise + invariant BEFORE coin redemption / DB write.
+        amount_paise = coerce_to_paise(amount)
+        _assert_settlement_invariant(
+            payer_id=user_id, payee_id=target_user_id,
+            amount_paise=amount_paise, context="mark_paid_offline",
+        )
 
         # Apply coin redemption (deducts coins from balance). Still settle the FULL
         # debt amount — coins cover a discount on the actual cash outflow.
@@ -713,6 +926,7 @@ async def mark_paid_offline(data: dict, user_id: str = Depends(get_current_user)
             "payer_id": user_id,
             "payee_id": target_user_id,
             "amount": amount,
+            "amount_paise": amount_paise,
             "cash_paid": redemption["effective_amount"],
             "coin_discount": redemption["discount"],
             "coins_applied": redemption["coins_applied"],
@@ -725,68 +939,83 @@ async def mark_paid_offline(data: dict, user_id: str = Depends(get_current_user)
             "settled_at": datetime.now(timezone.utc),
             "created_at": datetime.now(timezone.utc),
         }
-        result = await db.settlements.insert_one(settlement)
 
-    # Award smaller coin reward for offline settlements (1 coin, honor system)
-    try:
-        await db.users.update_one(
-            {"_id": ObjectId(user_id)},
-            {"$inc": {"reward_coins": 1, "settlement_count": 1}}
-        )
-    except Exception:
-        pass
-
-    # Auto-dismiss any pending reminders for this debt
-    try:
-        await db.split_reminders.update_many(
-            {"recipient_id": user_id, "sender_id": target_user_id, "status": "pending"},
-            {"$set": {"status": "settled", "dismissed_at": datetime.now(timezone.utc)}}
-        )
-    except Exception:
-        pass
-
-    # Round 51 — invalidate /split/groups cache for both parties.
-    await _invalidate_settlement_caches(user_id, target_user_id, group_id)
-
-    # System message in group chat
-    payer_name = "User"
-    payee_name = "User"
-    try:
-        p = await db.users.find_one({"_id": ObjectId(user_id)}, {"name": 1})
-        if p: payer_name = p.get("name", "User")
-    except Exception:
-        pass
-    try:
-        pe = await db.users.find_one({"_id": ObjectId(target_user_id)}, {"name": 1})
-        if pe: payee_name = pe.get("name", "User")
-    except Exception:
-        pass
-
-    if group_id:
+        # Resolve names BEFORE the txn so we can use them in hooks.
+        payer_name = "User"
+        payee_name = "User"
         try:
-            method_label = {"cash": "💵 cash", "bank_transfer": "🏦 bank transfer", "other": "✅"}.get(method, "offline")
-            coin_tag = f" (🪙{redemption['coins_applied']} coins applied — ₹{redemption['discount']} off)" if redemption["coins_applied"] > 0 else ""
-            await db.split_messages.insert_one({
-                "group_id": group_id,
-                "type": "system",
-                "content": f"✅ {payer_name} paid ₹{amount:,.0f} to {payee_name} ({method_label}){coin_tag}",
-                "sender_id": user_id,
-                "sender_name": payer_name,
-                "settlement_data": {
-                    "amount": amount,
-                    "method": method,
-                    "settlement_id": str(result.inserted_id),
-                    "coins_applied": redemption["coins_applied"],
-                    "coin_discount": redemption["discount"],
-                },
-                "created_at": datetime.now(timezone.utc),
-            })
-        except Exception as e:
-            logging.warning(f"Could not post settlement system message: {e}")
+            p = await db.users.find_one({"_id": ObjectId(user_id)}, {"name": 1})
+            if p: payer_name = p.get("name", "User")
+        except Exception:
+            pass
+        try:
+            pe = await db.users.find_one({"_id": ObjectId(target_user_id)}, {"name": 1})
+            if pe: payee_name = pe.get("name", "User")
+        except Exception:
+            pass
+
+        async def _do(session, ctx: PostCommitContext):
+            result = await db.settlements.insert_one(settlement, session=session)
+            settlement_id = str(result.inserted_id)
+            settlement["id"] = settlement_id
+
+            # Reward bump — post-commit only.
+            async def _bump_rewards():
+                try:
+                    await db.users.update_one(
+                        {"_id": ObjectId(user_id)},
+                        {"$inc": {"reward_coins": 1, "settlement_count": 1}},
+                    )
+                except Exception:
+                    pass
+            ctx.on_commit(_bump_rewards)
+
+            # Reminder dismissal — post-commit only.
+            async def _dismiss_reminders():
+                try:
+                    await db.split_reminders.update_many(
+                        {"recipient_id": user_id, "sender_id": target_user_id, "status": "pending"},
+                        {"$set": {"status": "settled", "dismissed_at": datetime.now(timezone.utc)}}
+                    )
+                except Exception:
+                    pass
+            ctx.on_commit(_dismiss_reminders)
+
+            # Cache invalidation — post-commit only.
+            ctx.on_commit(lambda: _invalidate_settlement_caches(user_id, target_user_id, group_id))
+
+            # Chat-card insert — post-commit only.
+            if group_id:
+                async def _post_chat_card():
+                    try:
+                        method_label = {"cash": "💵 cash", "bank_transfer": "🏦 bank transfer", "other": "✅"}.get(method, "offline")
+                        coin_tag = f" (🪙{redemption['coins_applied']} coins applied — ₹{redemption['discount']} off)" if redemption["coins_applied"] > 0 else ""
+                        await db.split_messages.insert_one({
+                            "group_id": group_id,
+                            "type": "system",
+                            "content": f"✅ {payer_name} paid ₹{amount:,.0f} to {payee_name} ({method_label}){coin_tag}",
+                            "sender_id": user_id,
+                            "sender_name": payer_name,
+                            "settlement_data": {
+                                "amount": amount,
+                                "method": method,
+                                "settlement_id": settlement_id,
+                                "coins_applied": redemption["coins_applied"],
+                                "coin_discount": redemption["discount"],
+                            },
+                            "created_at": datetime.now(timezone.utc),
+                        })
+                    except Exception as e:
+                        logging.warning(f"Could not post settlement system message: {e}")
+                ctx.on_commit(_post_chat_card)
+
+            return result
+
+        await with_atomic_ctx(db.client, _do, label="mark_paid_offline")
 
     coin_suffix = f" · 🪙{redemption['coins_applied']} coins applied" if redemption["coins_applied"] > 0 else ""
-    return {
-        "id": str(result.inserted_id),
+    response_body = {
+        "id": settlement["id"],
         "message": f"₹{amount:,.0f} marked as paid to {payee_name} ✅{coin_suffix}",
         "method": method,
         "txn_ref": settlement["txn_ref"],
@@ -794,8 +1023,381 @@ async def mark_paid_offline(data: dict, user_id: str = Depends(get_current_user)
         "coin_discount": redemption["discount"],
         "cash_paid": redemption["effective_amount"],
     }
+    await _settle_idempotency_commit(user_id, idempotency_key, response_body, scope="mark_paid_offline")
+    return response_body
 
 
+
+
+# ============== ROUND 53k: SMART SETTLEMENTS ==============
+# Greedy debt-simplification at the API boundary.
+# Two endpoints:
+#   GET  /split/groups/{group_id}/settle-plan      — read-only preview
+#   POST /split/groups/{group_id}/settle-my-part   — atomic batch execute (mine only)
+
+
+async def _net_balances_paise_for_group(group_id: str, group: Dict[str, Any]) -> Dict[str, int]:
+    """Compute net balances (signed paise) for every member of a group.
+
+    Positive  → creditor (the group owes this user money).
+    Negative  → debtor   (this user owes the group money).
+    Accounts for ALL expenses + settlements in this group, paise-canonical
+    via the dual-read helpers in core.money. Sum across members SHOULD be
+    zero modulo legacy float drift (caller passes drift_tolerance_paise
+    to the planner to absorb the residual).
+    """
+    members = group.get("members", [])
+    member_ids = {m["user_id"] for m in members}
+    balances: Dict[str, int] = {uid: 0 for uid in member_ids}
+
+    expenses = await db.split_expenses.find({"group_id": group_id}).to_list(2000)
+    for exp in expenses:
+        paid_by = exp.get("paid_by")
+        if not paid_by:
+            continue
+        amount_p = paise_from_doc(exp, "amount")
+        splits_p = splits_paise_from_doc(exp)
+        # Payer fronted the cash → +credit. Each split member owes their share → -debit.
+        if paid_by in balances:
+            balances[paid_by] += int(amount_p)
+        for uid, share_p in splits_p.items():
+            if uid in balances:
+                balances[uid] -= int(share_p)
+
+    settlements = await db.settlements.find({"group_id": group_id}).to_list(2000)
+    for st in settlements:
+        amt_p = paise_from_doc(st, "amount")
+        if amt_p <= 0:
+            continue
+        payer = st.get("payer_id")
+        payee = st.get("payee_id")
+        # Payer reduced their debt → balance goes up. Payee got paid → balance goes down.
+        if payer in balances:
+            balances[payer] += int(amt_p)
+        if payee in balances:
+            balances[payee] -= int(amt_p)
+
+    return balances
+
+
+@api_router.get("/split/groups/{group_id}/settle-plan")
+async def settle_plan(group_id: str, user_id: str = Depends(get_current_user)):
+    """Smart Settlements — read-only optimized plan preview.
+
+    Returns the minimum-transaction settlement plan for a group, plus
+    the subset of transfers where the caller is the payer (the rows the
+    UI should highlight + execute via /settle-my-part).
+
+    Caller must be a group member; non-members get 404.
+
+    Response:
+        {
+          "transfers": [{from, from_name, to, to_name, amount, amount_paise, is_mine}],
+          "my_transfers": [... subset where from == caller ...],
+          "my_total_outgoing": float,
+          "my_total_outgoing_paise": int,
+          "summary": {transfers, total_paise, debtors, creditors},
+          "members": {uid: name},
+          "drift_paise": int   // residual rounding (typically 0; |·| ≤ 100p tolerated)
+        }
+    """
+    if not ObjectId.is_valid(group_id):
+        raise HTTPException(status_code=400, detail="Invalid group_id")
+    group = await db.split_groups.find_one(
+        {"_id": ObjectId(group_id), "members.user_id": user_id}
+    )
+    if not group:
+        raise HTTPException(status_code=404, detail="Group not found")
+
+    member_names: Dict[str, str] = {
+        m["user_id"]: m.get("name", "User") for m in group.get("members", [])
+    }
+    balances = await _net_balances_paise_for_group(group_id, group)
+
+    # 100p (₹1) drift tolerance: legacy float-rupee expenses pre-paise
+    # migration can leave a few-paise residual. Anything larger is a
+    # real reconciliation bug — refuse to plan and surface 409.
+    try:
+        plan = plan_settlements(balances, drift_tolerance_paise=100)
+    except SettlementPlannerError as exc:
+        raise HTTPException(
+            status_code=409, detail=f"Cannot plan settlements: {exc}"
+        )
+
+    transfers_out: list = []
+    mine_out: list = []
+    my_total_paise = 0
+    for t in plan:
+        is_mine = (t.from_user == user_id)
+        item = {
+            "from": t.from_user,
+            "from_name": member_names.get(t.from_user, "User"),
+            "to": t.to_user,
+            "to_name": member_names.get(t.to_user, "User"),
+            "amount": paise_to_rupees(t.paise),
+            "amount_paise": t.paise,
+            "is_mine": is_mine,
+        }
+        transfers_out.append(item)
+        if is_mine:
+            mine_out.append(item)
+            my_total_paise += t.paise
+
+    return {
+        "group_id": group_id,
+        "group_name": group.get("name", ""),
+        "transfers": transfers_out,
+        "my_transfers": mine_out,
+        "my_total_outgoing": paise_to_rupees(my_total_paise),
+        "my_total_outgoing_paise": my_total_paise,
+        "summary": transfer_summary(plan),
+        "members": member_names,
+        "drift_paise": sum(balances.values()),
+    }
+
+
+@api_router.post("/split/groups/{group_id}/settle-my-part")
+async def settle_my_part(
+    group_id: str,
+    data: Optional[dict] = None,
+    user_id: str = Depends(get_current_user),
+    idempotency_key: Optional[str] = Header(default=None, alias="Idempotency-Key"),
+):
+    """Smart Settlements — atomic batch execute for the caller's outgoing legs only.
+
+    Re-runs the planner server-side (ignoring any client-supplied plan —
+    never trust the client with money math) and writes ONE settlement
+    per leg where ``from == current_user``. All inserts ride a single
+    `with_atomic_ctx` so cache invalidation, reminder dismissal, chat
+    cards and settlement events fire ONLY on a durable batch commit.
+
+    Body (optional dict):
+        method: str   — settlement method (default "upi")
+        expected_total_paise: int
+                      — defensive double-check. If provided and the
+                        recomputed plan disagrees, returns 409 so the
+                        UI can refresh + re-confirm. Prevents the
+                        "preview vs execute drift" footgun.
+
+    Idempotency-Key (header, optional): exactly-once for the entire batch.
+
+    Returns:
+        {
+          message, batch_ref, settled_count,
+          total_amount, total_paise,
+          settlement_ids: [...],
+          transfers: [{to, to_name, amount, amount_paise}, ...]
+        }
+    """
+    if not ObjectId.is_valid(group_id):
+        raise HTTPException(status_code=400, detail="Invalid group_id")
+
+    # ── idempotency front door (no-op if header absent) ──
+    proceed, cached = await _settle_idempotency_front_door(
+        user_id, idempotency_key, scope="settle_my_part"
+    )
+    if not proceed:
+        return cached
+
+    body = data or {}
+    method = (body.get("method") or "upi").strip() or "upi"
+    expected_total_paise = body.get("expected_total_paise")
+
+    group = await db.split_groups.find_one(
+        {"_id": ObjectId(group_id), "members.user_id": user_id}
+    )
+    if not group:
+        raise HTTPException(status_code=404, detail="Group not found")
+
+    member_names: Dict[str, str] = {
+        m["user_id"]: m.get("name", "User") for m in group.get("members", [])
+    }
+    balances = await _net_balances_paise_for_group(group_id, group)
+    try:
+        plan = plan_settlements(balances, drift_tolerance_paise=100)
+    except SettlementPlannerError as exc:
+        raise HTTPException(
+            status_code=409, detail=f"Cannot plan settlements: {exc}"
+        )
+
+    mine = my_transfers(plan, user_id)
+    if not mine:
+        raise HTTPException(
+            status_code=400,
+            detail="Nothing to settle — you have no outgoing transfers in this group",
+        )
+
+    total_paise = sum(t.paise for t in mine)
+
+    # Optional preview-vs-execute drift check.
+    if expected_total_paise is not None:
+        try:
+            expected = int(expected_total_paise)
+        except (TypeError, ValueError):
+            raise HTTPException(
+                status_code=400, detail="expected_total_paise must be an int"
+            )
+        if expected != total_paise:
+            raise HTTPException(
+                status_code=409,
+                detail=(
+                    f"Plan changed since preview "
+                    f"(expected {expected}p, got {total_paise}p). "
+                    "Refresh the plan and retry."
+                ),
+            )
+
+    # ── pre-commit ledger invariant on EVERY leg (fail-fast) ──
+    for t in mine:
+        _assert_settlement_invariant(
+            payer_id=t.from_user,
+            payee_id=t.to_user,
+            amount_paise=t.paise,
+            context="settle_my_part",
+        )
+
+    now = datetime.now(timezone.utc)
+    batch_ref = f"SMART{uuid_lib.uuid4().hex[:8].upper()}"
+    settlements_to_insert: list = []
+    for idx, t in enumerate(mine):
+        settlements_to_insert.append({
+            "payer_id": t.from_user,
+            "payee_id": t.to_user,
+            "amount": paise_to_rupees(t.paise),
+            "amount_paise": t.paise,
+            "method": method,
+            "txn_ref": f"{batch_ref}-{idx + 1}",
+            "group_id": group_id,
+            "status": "completed",
+            "is_smart_settle": True,
+            "smart_batch_ref": batch_ref,
+            "settled_at": now,
+            "created_at": now,
+        })
+
+    inserted_ids: list = []
+
+    async def _do(session, ctx: PostCommitContext):
+        for st in settlements_to_insert:
+            res = await db.settlements.insert_one(st, session=session)
+            sid = str(res.inserted_id)
+            st["id"] = sid
+            inserted_ids.append(sid)
+
+            payer_uid = st["payer_id"]
+            payee_uid = st["payee_id"]
+            amt_rupees = st["amount"]
+
+            # Per-leg post-commit hooks (reminder dismissal + cache).
+            ctx.on_commit(
+                lambda p=payer_uid, q=payee_uid: dismiss_reminders_after_settle(p, q)
+            )
+            ctx.on_commit(
+                lambda p=payer_uid, q=payee_uid: _invalidate_settlement_caches(p, q, group_id)
+            )
+
+            # Round 53m — auto-resolve the personality-driven nudge for
+            # this (user, group) so the "you owe X" beat flips to the
+            # celebratory beat next time the home/group surface loads.
+            def _resolve_nudge(payer=payer_uid, gid=group_id):
+                from routers.pending_nudges import resolve_nudge_after_settle
+                import asyncio as _aio
+                try:
+                    loop = _aio.get_event_loop()
+                    if loop.is_running():
+                        _aio.create_task(resolve_nudge_after_settle(payer, gid))
+                    else:
+                        loop.run_until_complete(resolve_nudge_after_settle(payer, gid))
+                except Exception:
+                    pass
+            ctx.on_commit(_resolve_nudge)
+
+            # Per-leg event emission — analytics never count phantom rows.
+            def _emit(payer=payer_uid, payee=payee_uid, amt=amt_rupees, sid_=sid):
+                try:
+                    from core.events import emit, Events
+                    emit(
+                        Events.SETTLEMENT_COMPLETED,
+                        payer_id=payer,
+                        payee_id=payee,
+                        amount=float(amt),
+                        group_id=group_id,
+                        method=method,
+                        settlement_id=sid_,
+                        smart_settle=True,
+                        smart_batch_ref=batch_ref,
+                    )
+                except Exception:
+                    pass
+            ctx.on_commit(_emit)
+
+        # ONE chat-card for the whole batch (reads better than N rows).
+        async def _post_chat_card():
+            try:
+                payer_name = member_names.get(user_id, "User")
+                lines = "\n".join([
+                    f"  → {member_names.get(t.to_user, 'User')}: ₹{paise_to_rupees(t.paise):,.2f}"
+                    for t in mine
+                ])
+                plural = "s" if len(mine) != 1 else ""
+                await db.split_messages.insert_one({
+                    "group_id": group_id,
+                    "type": "system",
+                    "content": (
+                        f"⚡ {payer_name} smart-settled "
+                        f"₹{paise_to_rupees(total_paise):,.2f} in {len(mine)} "
+                        f"optimized transfer{plural}\n{lines}"
+                    ),
+                    "sender_id": user_id,
+                    "sender_name": payer_name,
+                    "settlement_data": {
+                        "smart_batch_ref": batch_ref,
+                        "transfers": [
+                            {
+                                "to": t.to_user,
+                                "to_name": member_names.get(t.to_user, "User"),
+                                "amount": paise_to_rupees(t.paise),
+                                "amount_paise": t.paise,
+                            }
+                            for t in mine
+                        ],
+                        "total_paise": total_paise,
+                    },
+                    "created_at": datetime.now(timezone.utc),
+                })
+            except Exception as e:
+                logging.warning(f"Could not post smart-settle chat card: {e}")
+        ctx.on_commit(_post_chat_card)
+
+        return inserted_ids
+
+    await with_atomic_ctx(db.client, _do, label="settle_my_part")
+
+    plural = "s" if len(mine) != 1 else ""
+    response_body = {
+        "message": (
+            f"Smart-settled ₹{paise_to_rupees(total_paise):,.0f} across "
+            f"{len(mine)} optimized transfer{plural}"
+        ),
+        "batch_ref": batch_ref,
+        "settled_count": len(mine),
+        "total_amount": paise_to_rupees(total_paise),
+        "total_paise": total_paise,
+        "settlement_ids": inserted_ids,
+        "transfers": [
+            {
+                "to": t.to_user,
+                "to_name": member_names.get(t.to_user, "User"),
+                "amount": paise_to_rupees(t.paise),
+                "amount_paise": t.paise,
+            }
+            for t in mine
+        ],
+    }
+    await _settle_idempotency_commit(
+        user_id, idempotency_key, response_body, scope="settle_my_part"
+    )
+    return response_body
 
 
 # Activity feed & leaderboard moved to split_activity.py (Phase 6)

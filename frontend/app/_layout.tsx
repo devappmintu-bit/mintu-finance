@@ -27,6 +27,11 @@ import ErrorBoundary from '../components/ErrorBoundary';
 import OfflineBanner from '../components/OfflineBanner';
 import AppLockOverlay from '../components/AppLockOverlay';
 import { isExpoGo } from '../utils/lockManager';
+import { initSentry } from '../utils/observability';
+
+// Round 53e — Sentry init runs at import time so the SDK can wrap the
+// JS error path BEFORE any other code mounts. No-op when DSN unset.
+initSentry();
 
 // Silence noisy, non-actionable deprecation warnings from RN core + libs.
 // These warnings are informational for future RN versions and don't affect runtime.

@@ -5,6 +5,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import {  COLORS, useAppColors } from '../../utils/theme';
 import { makeStyles } from '../../utils/makeStyles';
 import { C, getGA } from './theme';
+import { NudgeBanner } from './NudgeUI';
 
 type Props = {
   visible: boolean;
@@ -20,10 +21,22 @@ type Props = {
   onRename?: () => void;
   onLeave?: () => void;
   hasOutstandingBalance?: boolean;
+  // Round 53k — optional smart-settle trigger. Shown as a primary CTA in
+  // the "Settle Up" section header when there are 2+ debts (i.e., when
+  // the optimizer can save the user round-trips).
+  onSmartSettle?: () => void;
+  // Round 53m — optional pending-settlement nudge for this group.
+  // When provided, a mascot-led banner renders at the top of the sheet.
+  nudge?: import('../../services/nudges').PendingNudge | null;
 };
 
-export default function GroupSummarySheet({ visible, onClose, summary, onAddExpense, onEditExpense, onDeleteExpense, onPay, onRemindLegacy, onRename, onLeave, hasOutstandingBalance }: Props) {
+export default function GroupSummarySheet({ visible, onClose, summary, onAddExpense, onEditExpense, onDeleteExpense, onPay, onRemindLegacy, onRename, onLeave, hasOutstandingBalance, onSmartSettle, nudge }: Props) {
   const s = useStyles();
+  // Round 53m — locally hide the nudge banner once the user dismisses
+  // (× tap) so the sheet doesn't re-render it on next mount until a
+  // fresh /list call brings it back.
+  const [nudgeHidden, setNudgeHidden] = React.useState(false);
+  React.useEffect(() => { setNudgeHidden(false); }, [nudge?.id, visible]);
   const c = useAppColors();
   return (
     <Modal visible={visible} animationType="slide" transparent>
@@ -79,9 +92,43 @@ export default function GroupSummarySheet({ visible, onClose, summary, onAddExpe
               <View style={s.sumStat}><Text style={s.sumV}>{summary?.total_expenses || 0}</Text><Text style={s.sumL}>Expenses</Text></View>
               <View style={s.sumStat}><Text style={s.sumV}>{summary?.member_count || 0}</Text><Text style={s.sumL}>Members</Text></View>
             </View>
+            {/* Round 53m — pending settlement nudge banner. Renders only
+                when caller wires a nudge for this group. Banner is
+                conversational + dismissable; tapping CTA hands off to
+                Smart Settle (which auto-resolves the nudge on commit). */}
+            {nudge && !nudgeHidden && onSmartSettle && (
+              <NudgeBanner
+                nudge={nudge}
+                onSettle={() => onSmartSettle()}
+                onDismissed={() => setNudgeHidden(true)}
+              />
+            )}
             {summary?.simplified_debts?.length > 0 && (
               <>
-                <Text style={s.sumSec}>Settle Up</Text>
+                <View style={s.settleHeaderRow}>
+                  <Text style={[s.sumSec, { marginBottom: 0, marginTop: 0, flex: 1 }]}>Settle Up</Text>
+                  {/* Round 53k — Smart Settle CTA, shown when 2+ legs exist
+                      AND the parent passed the handler. Saves the user
+                      from N individual taps. */}
+                  {onSmartSettle && summary.simplified_debts.length >= 2 && (
+                    <TouchableOpacity
+                      onPress={onSmartSettle}
+                      accessibilityRole="button"
+                      accessibilityLabel="Smart settle — optimized payment plan"
+                      activeOpacity={0.85}
+                    >
+                      <LinearGradient
+                        colors={[C.accent, C.accentLight]}
+                        start={{ x: 0, y: 0 }}
+                        end={{ x: 1, y: 0 }}
+                        style={s.smartBtn}
+                      >
+                        <Ionicons name="flash" size={13} color={C.inv} />
+                        <Text style={s.smartBtnT}>Smart settle</Text>
+                      </LinearGradient>
+                    </TouchableOpacity>
+                  )}
+                </View>
                 {summary.simplified_debts.map((d: any, i: number) => (
                   <View key={i} style={s.debtRow}>
                     <View style={s.debtInfo}>
@@ -191,4 +238,11 @@ const useStyles = makeStyles((c) => ({
     marginTop: 4, marginBottom: 8,
   },
   allSettledTxt: { fontSize: 14, fontWeight: '700', color: c.state.success },
+  // Round 53k — Smart Settle CTA in the Settle Up section header.
+  settleHeaderRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 10, marginTop: 12, gap: 8 },
+  smartBtn: {
+    flexDirection: 'row', alignItems: 'center', gap: 4,
+    paddingHorizontal: 12, paddingVertical: 7, borderRadius: 14,
+  },
+  smartBtnT: { fontSize: 12, fontWeight: '800', color: C.inv, letterSpacing: 0.2 },
 }));

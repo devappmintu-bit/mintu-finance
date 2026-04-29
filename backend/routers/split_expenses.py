@@ -7,9 +7,26 @@ on the same FastAPI APIRouter instance — no endpoint paths change.
 from datetime import datetime, timezone
 from typing import List, Optional, Dict
 from bson import ObjectId
-from fastapi import Depends, HTTPException
+from fastapi import Depends, Header, HTTPException
 
 from core import db, get_current_user
+from core.transactions import with_atomic, with_atomic_ctx
+from core.money import (
+    coerce_to_paise,
+    paise_to_rupees,
+    rupees_to_paise,
+    splits_to_rupees,
+)
+from core.ledger_invariant import (
+    LedgerInvariantError,
+    assert_balanced_event,
+    build_expense_entries,
+)
+from core.idempotency import (
+    commit_idempotency,
+    replay_idempotency,
+    reserve_idempotency,
+)
 from routers.split_common import (
     api_router,
     SplitExpenseCreate, invalidate_split_cache_for_group,
@@ -17,7 +34,22 @@ from routers.split_common import (
 
 
 @api_router.post("/split/expenses")
-async def add_split_expense(expense: SplitExpenseCreate, user_id: str = Depends(get_current_user)):
+async def add_split_expense(
+    expense: SplitExpenseCreate,
+    user_id: str = Depends(get_current_user),
+    idempotency_key: Optional[str] = Header(default=None, alias="Idempotency-Key"),
+):
+    # Round 53c — Idempotency-Key header makes retries safe.
+    # Header is OPTIONAL: legacy clients keep working unchanged.
+    if idempotency_key:
+        cached = await replay_idempotency(user_id, "split_expense", idempotency_key)
+        if cached is not None:
+            return cached
+        if not await reserve_idempotency(user_id, "split_expense", idempotency_key):
+            # A concurrent request reserved the same key but hasn't
+            # committed yet. Reject rather than serve a partial.
+            raise HTTPException(status_code=409, detail="Idempotency key in flight; retry later")
+
     # Round 51j — group_id is now Optional on the model (so the same
     # schema can be reused for drafts). Legacy endpoint still requires it.
     if not expense.group_id:
@@ -25,48 +57,87 @@ async def add_split_expense(expense: SplitExpenseCreate, user_id: str = Depends(
     group = await db.split_groups.find_one({"_id": ObjectId(expense.group_id), "members.user_id": user_id})
     if not group:
         raise HTTPException(status_code=404, detail="Group not found")
-    
+
     member_ids = [m["user_id"] for m in group["members"]]
     # Default paid_by to the current user if not specified
     paid_by = expense.paid_by or user_id
-    splits = _compute_splits(expense.amount, expense.split_type, member_ids, expense.splits)
-    
+
+    # ── Round 53a: integer-paise + double-entry invariant.
+    # All money math runs in paise. Convert RIGHT AT THE BOUNDARY.
+    amount_paise = coerce_to_paise(expense.amount)
+    raw_paise: Optional[Dict[str, int]] = None
+    if expense.splits:
+        if expense.split_type in ("shares", "percentage"):
+            raw_paise = {uid: int(v) for uid, v in expense.splits.items()}
+        else:
+            raw_paise = {uid: coerce_to_paise(v) for uid, v in expense.splits.items()}
+    splits_paise = _compute_splits_paise(amount_paise, expense.split_type, member_ids, raw_paise)
+
+    # ── INVARIANT: assert sum(debits) == sum(credits) BEFORE we touch the DB.
+    # If this fails the books would be corrupt → reject and abort, no writes.
+    try:
+        entries = build_expense_entries(
+            amount_paise=amount_paise, paid_by=paid_by, splits_paise=splits_paise,
+        )
+        assert_balanced_event(entries, expected_total_paise=amount_paise,
+                              context=f"split_expense:{expense.group_id}")
+    except LedgerInvariantError as exc:
+        raise HTTPException(status_code=400, detail=f"Ledger invariant violation: {exc}")
+
+    # Legacy API surface — splits in rupees floats.
+    splits = splits_to_rupees(splits_paise)
+
     exp_doc = {
         "group_id": expense.group_id,
         "description": expense.description,
+        # Dual-write: legacy float (rupees) + canonical int (paise).
         "amount": expense.amount,
+        "amount_paise": amount_paise,
         "paid_by": paid_by,
         "split_type": expense.split_type,
         "splits": splits,
+        "splits_paise": splits_paise,
         "created_by": user_id,
         "created_at": datetime.now(timezone.utc)
     }
-    result = await db.split_expenses.insert_one(exp_doc)
-    # Auto-insert chat message for the expense
+
+    # Round 52f \u2014 ATOMIC: expense insert + chat-card insert run as a
+    # single multi-document transaction on Atlas (or compensating-
+    # action mode on standalone Mongo). If the chat insert fails for
+    # any reason, the orphaned expense is rolled back / removed so
+    # users never see a phantom expense without its chat card.
     payer_name = next((m["name"] for m in group["members"] if m["user_id"] == paid_by), "Someone")
     member_count = len(splits)
-    # Collect display names for the avatar stack in the chat card
     split_member_names = [next((m["name"] for m in group["members"] if m["user_id"] == uid), "?") for uid in splits.keys()]
     _msg_now = datetime.now(timezone.utc)
-    _msg_doc = {
-        "group_id": expense.group_id, "type": "expense", "sender_id": user_id, "sender_name": payer_name,
-        "content": expense.description,
-        "expense_data": {
-            "amount": expense.amount,
-            "paid_by": payer_name,
-            "split_count": member_count,
-            "paid_count": 1,  # payer auto-counts as paid
-            "member_names": split_member_names,
-            "expense_id": str(result.inserted_id),
-        },
-        "created_at": _msg_now
-    }
-    msg_result = await db.split_messages.insert_one(_msg_doc)
-    # Round 51k — broadcast the expense card to live WS subscribers so
-    # the chat updates instantly without waiting for the 8s poll.
-    try:
-        from core.ws_manager import manager as _ws
-        await _ws.broadcast(expense.group_id, {
+
+    expense_id_holder: Dict[str, Optional[str]] = {"id": None}
+
+    async def _do_writes(session, ctx):
+        result = await db.split_expenses.insert_one(exp_doc, session=session)
+        expense_id_holder["id"] = str(result.inserted_id)
+        msg_doc = {
+            "group_id": expense.group_id, "type": "expense",
+            "sender_id": user_id, "sender_name": payer_name,
+            "content": expense.description,
+            "expense_data": {
+                "amount": expense.amount,
+                "amount_paise": amount_paise,
+                "paid_by": payer_name,
+                "split_count": member_count,
+                "paid_count": 1,
+                "member_names": split_member_names,
+                "expense_id": expense_id_holder["id"],
+            },
+            "created_at": _msg_now,
+        }
+        msg_result = await db.split_messages.insert_one(msg_doc, session=session)
+
+        # Round 53d — register POST-COMMIT side-effects. These fire ONLY
+        # if/after the transaction commits. If we crash or rollback,
+        # NO websocket emit and NO cache invalidation runs — preventing
+        # phantom UI updates.
+        ws_payload = {
             "type": "message",
             "data": {
                 "id": str(msg_result.inserted_id),
@@ -75,15 +146,38 @@ async def add_split_expense(expense: SplitExpenseCreate, user_id: str = Depends(
                 "sender_name": payer_name,
                 "type": "expense",
                 "content": expense.description,
-                "expense_data": _msg_doc["expense_data"],
+                "expense_data": msg_doc["expense_data"],
                 "created_at": _msg_now.isoformat(),
             },
-        })
-    except Exception:
-        pass
-    # Round 51 — invalidate /split/groups cache so balance changes appear immediately.
-    await invalidate_split_cache_for_group(expense.group_id, db)
-    return {"id": str(result.inserted_id), **{k: v for k, v in exp_doc.items() if k != "_id"}, "created_at": exp_doc["created_at"]}
+        }
+
+        async def _hook_broadcast():
+            from core.ws_manager import manager as _ws
+            await _ws.broadcast(expense.group_id, ws_payload)
+
+        async def _hook_invalidate_cache():
+            await invalidate_split_cache_for_group(expense.group_id, db)
+
+        ctx.on_commit(_hook_broadcast)
+        ctx.on_commit(_hook_invalidate_cache)
+        return msg_result, msg_doc
+
+    async def _compensate(_exc):
+        # Standalone-Mongo path only — remove the orphaned expense if
+        # the chat insert failed AFTER the expense was already written.
+        if expense_id_holder["id"]:
+            await db.split_expenses.delete_one({"_id": ObjectId(expense_id_holder["id"])})
+
+    msg_result, _msg_doc = await with_atomic_ctx(
+        db.client, _do_writes, _compensate, label="split_expense.create",
+    )
+    response_body = {"id": expense_id_holder["id"], **{k: v for k, v in exp_doc.items() if k != "_id"}, "created_at": exp_doc["created_at"].isoformat()}
+    if idempotency_key:
+        try:
+            await commit_idempotency(user_id, "split_expense", idempotency_key, response_body)
+        except Exception:  # never fail the user request because of caching
+            pass
+    return response_body
 
 
 # ══════════════════════════════════════════════════════════════════════
@@ -119,13 +213,24 @@ async def create_draft_expense(expense: SplitExpenseCreate, user_id: str = Depen
     except Exception:
         pass
     paid_by = expense.paid_by or user_id
+    # Round 53a — store paise canonically (still keep float for legacy reads).
+    amount_paise = coerce_to_paise(expense.amount)
+    splits_hint_paise: Dict[str, int] = {}
+    if expense.splits:
+        if expense.split_type in ("shares", "percentage"):
+            splits_hint_paise = {uid: int(v) for uid, v in expense.splits.items()}
+        else:
+            splits_hint_paise = {uid: coerce_to_paise(v) for uid, v in expense.splits.items()}
+
     doc = {
         "user_id": user_id,
         "description": expense.description,
         "amount": expense.amount,
+        "amount_paise": amount_paise,
         "paid_by": paid_by,
         "split_type": expense.split_type,
         "splits_hint": expense.splits or {},
+        "splits_hint_paise": splits_hint_paise,
         "created_at": datetime.now(timezone.utc),
     }
     result = await db.draft_expenses.insert_one(doc)
@@ -133,9 +238,11 @@ async def create_draft_expense(expense: SplitExpenseCreate, user_id: str = Depen
         "id": str(result.inserted_id),
         "description": doc["description"],
         "amount": doc["amount"],
+        "amount_paise": doc["amount_paise"],
         "paid_by": doc["paid_by"],
         "split_type": doc["split_type"],
         "splits_hint": doc["splits_hint"],
+        "splits_hint_paise": doc["splits_hint_paise"],
         "created_at": doc["created_at"],
     }
 
@@ -217,20 +324,38 @@ async def attach_draft_to_group(
     if isinstance(raw_splits, dict):
         raw_splits = {uid: v for uid, v in raw_splits.items() if uid in member_ids} or None
 
-    splits = _compute_splits(
-        float(draft["amount"]),
-        draft.get("split_type", "equal"),
-        member_ids,
-        raw_splits,
-    )
+    # Round 53a — paise-canonical math + invariant.
+    from core.money import paise_from_doc
+    amount_paise = paise_from_doc(draft, "amount")
+    split_type = draft.get("split_type", "equal")
+    raw_paise: Optional[Dict[str, int]] = None
+    if raw_splits:
+        if split_type in ("shares", "percentage"):
+            raw_paise = {uid: int(v) for uid, v in raw_splits.items()}
+        else:
+            raw_paise = {uid: coerce_to_paise(v) for uid, v in raw_splits.items()}
+
+    splits_paise = _compute_splits_paise(amount_paise, split_type, member_ids, raw_paise)
+    try:
+        entries = build_expense_entries(
+            amount_paise=amount_paise, paid_by=paid_by, splits_paise=splits_paise,
+        )
+        assert_balanced_event(entries, expected_total_paise=amount_paise,
+                              context=f"attach_draft:{draft_id}")
+    except LedgerInvariantError as exc:
+        raise HTTPException(status_code=400, detail=f"Ledger invariant violation: {exc}")
+
+    splits = splits_to_rupees(splits_paise)
 
     exp_doc = {
         "group_id": group_id,
         "description": draft["description"],
-        "amount": float(draft["amount"]),
+        "amount": paise_to_rupees(amount_paise),
+        "amount_paise": amount_paise,
         "paid_by": paid_by,
-        "split_type": draft.get("split_type", "equal"),
+        "split_type": split_type,
         "splits": splits,
+        "splits_paise": splits_paise,
         "created_by": user_id,
         "created_at": datetime.now(timezone.utc),
         "from_draft_id": draft_id,  # audit trail
@@ -244,7 +369,8 @@ async def attach_draft_to_group(
         "group_id": group_id, "type": "expense", "sender_id": user_id, "sender_name": payer_name,
         "content": draft["description"],
         "expense_data": {
-            "amount": float(draft["amount"]),
+            "amount": paise_to_rupees(amount_paise),
+            "amount_paise": amount_paise,
             "paid_by": payer_name,
             "split_count": len(splits),
             "paid_count": 1,
@@ -262,73 +388,105 @@ async def attach_draft_to_group(
         "group_id": group_id,
         "description": exp_doc["description"],
         "amount": exp_doc["amount"],
+        "amount_paise": exp_doc["amount_paise"],
         "paid_by": paid_by,
         "splits": splits,
+        "splits_paise": splits_paise,
         "attached_from_draft": draft_id,
     }
 
 
 
-def _compute_splits(amount: float, split_type: str, member_ids: List[str], raw_splits: Optional[Dict[str, float]] = None) -> Dict[str, float]:
-    """Largest-remainder method for split calculations. Guarantees sum(splits) == amount exactly.
-    All amounts are computed in paise (int) to avoid float rounding errors, then converted back to rupees.
+def _compute_splits_paise(
+    amount_paise: int,
+    split_type: str,
+    member_ids: List[str],
+    raw_splits_paise: Optional[Dict[str, int]] = None,
+) -> Dict[str, int]:
+    """Largest-remainder method for split calculations — pure paise (int).
+
+    Guarantees ``sum(splits.values()) == amount_paise`` exactly. This is
+    the canonical implementation; the float-returning ``_compute_splits``
+    is a thin wrapper that converts back to rupees for legacy callers.
     """
-    total_paise = round(amount * 100)
-    if total_paise <= 0:
-        return {mid: 0.0 for mid in member_ids}
+    if amount_paise <= 0:
+        return {mid: 0 for mid in member_ids}
 
     if split_type == "equal":
         n = len(member_ids) or 1
-        base = total_paise // n
-        remainder = total_paise - (base * n)
+        base = amount_paise // n
+        remainder = amount_paise - (base * n)
         out: Dict[str, int] = {mid: base for mid in member_ids}
-        # Distribute 1-paise remainders deterministically (by sorted user_id for stability)
+        # Distribute 1-paise remainders deterministically (sorted user_id).
         for mid in sorted(member_ids)[:remainder]:
             out[mid] += 1
-        return {mid: v / 100 for mid, v in out.items()}
+        return out
 
     if split_type == "shares":
-        share_ratios = raw_splits or {mid: 1 for mid in member_ids}
+        share_ratios = raw_splits_paise or {mid: 1 for mid in member_ids}
         total_shares = sum(share_ratios.values()) or 1
-        # First-pass floor division in paise
         allocated = 0
         out = {}
         for uid, share in share_ratios.items():
-            p = int((total_paise * share) // total_shares)
+            p = int((amount_paise * share) // total_shares)
             out[uid] = p
             allocated += p
-        remainder = total_paise - allocated
-        # Distribute leftover paise one-by-one to members with highest fractional share remainders
+        remainder = amount_paise - allocated
         if remainder > 0:
             frac = []
             for uid, share in share_ratios.items():
-                exact = (total_paise * share) / total_shares
+                exact = (amount_paise * share) / total_shares
                 frac.append((exact - out[uid], uid))
             frac.sort(reverse=True)
             for _, uid in frac[:remainder]:
                 out[uid] += 1
-        return {uid: v / 100 for uid, v in out.items()}
+        return out
 
     if split_type == "percentage":
-        pct = raw_splits or {}
+        pct = raw_splits_paise or {}
         allocated = 0
         out = {}
         for uid, p in pct.items():
-            paise = int((total_paise * p) // 100)
+            paise = int((amount_paise * p) // 100)
             out[uid] = paise
             allocated += paise
-        remainder = total_paise - allocated
+        remainder = amount_paise - allocated
         if remainder > 0:
-            frac = [((total_paise * pct.get(uid, 0) / 100) - out[uid], uid) for uid in out]
+            frac = [((amount_paise * pct.get(uid, 0) / 100) - out[uid], uid) for uid in out]
             frac.sort(reverse=True)
             for _, uid in frac[:remainder]:
                 out[uid] += 1
-        return {uid: v / 100 for uid, v in out.items()}
+        return out
 
-    # Custom / Unequal — splits are exact amounts; normalize to paise to avoid float noise
-    if raw_splits:
-        return {uid: round(v * 100) / 100 for uid, v in raw_splits.items()}
+    # Custom / Unequal — splits are exact paise amounts (already coerced upstream).
+    if raw_splits_paise:
+        return {uid: int(v) for uid, v in raw_splits_paise.items()}
     return {}
+
+
+def _compute_splits(amount: float, split_type: str, member_ids: List[str], raw_splits: Optional[Dict[str, float]] = None) -> Dict[str, float]:
+    """Backward-compat wrapper: rupees-in, rupees-out.
+
+    Delegates to ``_compute_splits_paise`` for the canonical math, then
+    converts back to rupees-floats for any legacy caller / API response.
+    All amounts are computed in paise (int) to avoid float rounding errors.
+    """
+    amount_paise = rupees_to_paise(float(amount)) if amount and amount > 0 else 0
+    if amount_paise <= 0:
+        return {mid: 0.0 for mid in member_ids}
+
+    raw_paise: Optional[Dict[str, int]] = None
+    if raw_splits:
+        if split_type in ("shares", "percentage"):
+            # `raw_splits` here are RATIOS / PERCENTAGES, not money — pass
+            # straight through as ints.
+            raw_paise = {uid: int(v) for uid, v in raw_splits.items()}
+        else:
+            # `unequal` / custom — values are rupee amounts; convert to paise.
+            raw_paise = {uid: rupees_to_paise(float(v or 0)) for uid, v in raw_splits.items()}
+
+    out_paise = _compute_splits_paise(amount_paise, split_type, member_ids, raw_paise)
+    return splits_to_rupees(out_paise)
 
 
 
@@ -517,10 +675,34 @@ async def edit_expense(expense_id: str, data: dict, user_id: str = Depends(get_c
             participant_ids = list(raw.keys()) if raw else member_ids
         else:
             participant_ids = list(raw.keys()) if raw else member_ids
-        new_splits = _compute_splits(new_amount, new_type, participant_ids, raw)
-        updates["amount"] = new_amount
+
+        # Round 53a — paise-canonical math + invariant.
+        new_amount_paise = coerce_to_paise(new_amount)
+        raw_paise: Optional[Dict[str, int]] = None
+        if raw:
+            if new_type in ("shares", "percentage"):
+                raw_paise = {uid: int(v) for uid, v in raw.items()}
+            else:
+                raw_paise = {uid: coerce_to_paise(v) for uid, v in raw.items()}
+        new_splits_paise = _compute_splits_paise(new_amount_paise, new_type, participant_ids, raw_paise)
+
+        # INVARIANT: must balance BEFORE we persist.
+        new_paid_by = updates.get("paid_by") or existing.get("paid_by") or user_id
+        try:
+            entries = build_expense_entries(
+                amount_paise=new_amount_paise, paid_by=new_paid_by, splits_paise=new_splits_paise,
+            )
+            assert_balanced_event(entries, expected_total_paise=new_amount_paise,
+                                  context=f"edit_expense:{expense_id}")
+        except LedgerInvariantError as exc:
+            raise HTTPException(status_code=400, detail=f"Ledger invariant violation: {exc}")
+
+        new_splits = splits_to_rupees(new_splits_paise)
+        updates["amount"] = paise_to_rupees(new_amount_paise)
+        updates["amount_paise"] = new_amount_paise
         updates["split_type"] = new_type
         updates["splits"] = new_splits
+        updates["splits_paise"] = new_splits_paise
 
     if updates:
         updates["updated_at"] = datetime.now(timezone.utc)

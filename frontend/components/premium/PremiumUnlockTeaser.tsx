@@ -21,14 +21,18 @@ type Context =
   | 'streak_boost'         // "2x streak bonuses with Premium"
   | 'budget_forecast'      // "See 90-day spending forecast"
   | 'split_insights'       // "Unlock group spending insights"
+  | 'tax_calculator'       // "Old vs New regime — pick the cheaper one"
+  | 'investment_suggester' // "Personalised SIP / mutual-fund picks"
   | 'ai_unlimited';        // "Unlimited AI Coach messages"
 
 const CONTEXT_META: Record<Context, { emoji: string; title: string; sub: string }> = {
-  leaderboard_global:  { emoji: '🏙️', title: 'See your city rank',        sub: 'Premium · India-wide & city-level boards' },
-  streak_boost:        { emoji: '⚡', title: '2× streak coin bonus',      sub: 'Premium · double your daily quest rewards' },
-  budget_forecast:     { emoji: '🔮', title: '90-day spending forecast',  sub: 'Premium · AI predicts your next 3 months' },
-  split_insights:      { emoji: '🔍', title: 'Group spending insights',   sub: 'Premium · who owes whom, trends, benchmarks' },
-  ai_unlimited:        { emoji: '♾️', title: 'Unlimited AI chats',         sub: 'Premium · no 5-msg daily cap' },
+  leaderboard_global:   { emoji: '🏙️', title: 'See your city rank',         sub: 'Premium · India-wide & city-level boards' },
+  streak_boost:         { emoji: '⚡', title: '2× streak coin bonus',       sub: 'Premium · double your daily quest rewards' },
+  budget_forecast:      { emoji: '🔮', title: '90-day spending forecast',   sub: 'Premium · AI predicts your next 3 months' },
+  split_insights:       { emoji: '🔍', title: 'Group spending insights',    sub: 'Premium · who owes whom, trends, benchmarks' },
+  tax_calculator:       { emoji: '🧾', title: 'Tax calculator (Old vs New)', sub: 'Premium · pick the cheaper regime in 1 tap' },
+  investment_suggester: { emoji: '💰', title: 'Personalised investments',   sub: 'Premium · SIP & mutual-fund picks for your income' },
+  ai_unlimited:         { emoji: '♾️', title: 'Unlimited AI chats',          sub: 'Premium · no 5-msg daily cap' },
 };
 
 type Props = {

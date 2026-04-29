@@ -35,6 +35,8 @@ import SplitInsightsHero from '../../components/split/SplitInsightsHero';
 import RemindersBanner from '../../components/split/RemindersBanner';
 import ContactPickerSheet from '../../components/split/ContactPickerSheet';
 import GroupSummarySheet from '../../components/split/GroupSummarySheet';
+import SmartSettleSheet from '../../components/split/SmartSettleSheet';
+import { fetchActiveNudges, resetNudgeForGroup, PendingNudge } from '../../services/nudges';
 import GroupManageSheet from '../../components/split/GroupManageSheet';
 import PaySheet from '../../components/split/PaySheet';
 import RemindSheet from '../../components/split/RemindSheet';
@@ -60,6 +62,12 @@ function SplitScreen() {
   const [selectedGroup, setSelectedGroup] = useState<any>(null);
   const [groupSummary, setGroupSummary] = useState<any>(null);
   const [groupManage, setGroupManage] = useState<any>(null);
+  // Round 53m — Pending Settlement Nudges (personality-driven self-reminders)
+  const [nudges, setNudges] = useState<PendingNudge[]>([]);
+  const reloadNudges = useCallback(async () => {
+    const list = await fetchActiveNudges();
+    setNudges(list);
+  }, []);
   const [payTarget, setPayTarget] = useState<any>(null);
   const [lastReward, setLastReward] = useState<any>(null);
   const [chatGroup, setChatGroup] = useState<any>(null);
@@ -146,7 +154,7 @@ function SplitScreen() {
     } catch (e) { if (__DEV__) console.error(e); setLoading(false); setRefreshing(false); }
   }, [fetchSettleRows, refetchGroupsSwr, refetchBalancesSwr, groups]);
 
-  useEffect(() => { fetchData(); }, []);
+  useEffect(() => { fetchData(); reloadNudges(); }, []);
   const close = () => { setModal(''); setRemindTarget(null); setEditingExpense(null); setPayTarget(null); };
 
   // GROUP CRUD
@@ -312,7 +320,16 @@ function SplitScreen() {
 
   // SUMMARY & MANAGE
   const openSummary = async (gr: any) => {
-    try { const d = await fetchGroupSummary(gr.id); setGroupSummary(d); setSelectedGroup(gr); setModal('summary'); }
+    try {
+      const d = await fetchGroupSummary(gr.id);
+      setGroupSummary(d);
+      setSelectedGroup(gr);
+      setModal('summary');
+      // Round 53m — re-engagement clears any prior nudge suppression so
+      // the user can be reminded again next time they open the group.
+      resetNudgeForGroup(gr.id).catch(() => {});
+      reloadNudges().catch(() => {});
+    }
     catch (e: any) {
       if (e?.response?.status === 404) {
         setGroups((prev) => prev.filter((g) => g.id !== gr.id));
@@ -676,6 +693,29 @@ function SplitScreen() {
           onDeleteExpense={deleteExpense}
           onPay={(d: any) => { setPayTarget({ to_id: d.to_id, to_name: d.to_name, amount: d.amount, group_id: selectedGroup?.id }); setModal('pay'); }}
           onRemindLegacy={remindLegacy}
+          onSmartSettle={() => setModal('smartSettle')}
+          nudge={nudges.find((n) => n.group_id === selectedGroup?.id) || null}
+        />
+      )}
+      {/* Round 53k — Smart Settlements bottom sheet. Triggered from the
+          group summary "Smart settle" CTA. Re-fetches plan, shows the
+          optimized graph with the user's rows highlighted, and runs
+          /settle-my-part atomically with idempotency on confirm. */}
+      {modal === 'smartSettle' && (
+        <SmartSettleSheet
+          visible={true}
+          groupId={selectedGroup?.id || null}
+          groupName={selectedGroup?.name || groupSummary?.group_name}
+          currentUserId={user?.id}
+          onClose={() => { setModal('summary'); }}
+          onSettled={() => {
+            // Refresh group summary + global lists so balances update.
+            setModal('');
+            setTimeout(() => fetchData(), 250);
+            // Round 53m — refresh nudges so the just-settled group's
+            // banner disappears (auto-resolved by post-commit hook).
+            setTimeout(() => reloadNudges(), 400);
+          }}
         />
       )}
       {modal === 'manage' && (

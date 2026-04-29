@@ -59,8 +59,10 @@ function BudgetScreen() {
   // Budget achievements moved to Profile — keep a single refresh handler
   const [deleteTarget, setDeleteTarget] = useState<any>(null);
   const lastDeletedRef = useRef<any>(null);
-  // Phase-2: AI insights + share
-  const [insightsCat, setInsightsCat] = useState<string | null>(null);
+  // Phase-2: AI insights + share — Round 53p, store full ctx (not just
+  // category) so the bottom sheet's local fallback engine gets fresh
+  // budget context (spent / amount / days_left) even if the API fails.
+  const [insightsCtx, setInsightsCtx] = useState<{ category: string; spent: number; amount: number; daysLeft: number } | null>(null);
   const [sharing, setSharing] = useState(false);
   const shareRef = useRef<View>(null);
 
@@ -210,7 +212,12 @@ function BudgetScreen() {
       onEdit={() => openEdit(item)}
       onDelete={() => requestDelete(item)}
       onAddExpense={() => addExpenseShortcut(item)}
-      onInsights={() => setInsightsCat(item.category)}
+      onInsights={() => setInsightsCtx({
+        category: item.category,
+        spent: Number(item.spent || 0),
+        amount: Number(item.amount || item.budget || 0),
+        daysLeft: Number(item.days_left ?? item.daysLeft ?? 0),
+      })}
     />
   ), [openEdit, requestDelete, addExpenseShortcut]);
 
@@ -361,9 +368,10 @@ function BudgetScreen() {
       />
 
       <BudgetInsightsSheet
-        visible={!!insightsCat}
-        category={insightsCat}
-        onClose={() => setInsightsCat(null)}
+        visible={!!insightsCtx}
+        category={insightsCtx?.category}
+        budgetCtx={insightsCtx ? { spent: insightsCtx.spent, amount: insightsCtx.amount, daysLeft: insightsCtx.daysLeft } : undefined}
+        onClose={() => setInsightsCtx(null)}
         onApplied={fetchAll}
       />
 

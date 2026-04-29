@@ -115,7 +115,7 @@ const BudgetCard = memo(function BudgetCard({ item, onEdit, onDelete, onAddExpen
             fillAnim={fillAnim} isOver={isOver} isWarn={isWarn} isRisk={isRisk} status={status} />
         </TouchableOpacity>
         {onInsights && (
-          <TouchableOpacity style={s.aiBtn} onPress={tap(onInsights, Haptics.ImpactFeedbackStyle.Medium)} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
+          <TouchableOpacity style={s.aiBtn_web} onPress={tap(onInsights, Haptics.ImpactFeedbackStyle.Medium)} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
             <Text style={{ fontSize: 14 }}>🧠</Text>
           </TouchableOpacity>
         )}
@@ -222,7 +222,7 @@ function CardContent({ item, emoji, catColor, statusColor, limit, spent, pct, ov
           <Text style={s.name} numberOfLines={1}>{item.category}</Text>
           <Text style={s.period}>{String(item.period || 'monthly').toUpperCase()}{item.recurring === false ? ' · ONE-TIME' : ''}</Text>
         </View>
-        <View style={{ alignItems: 'flex-end' }}>
+        <View style={{ alignItems: 'flex-end', paddingRight: 36 }}>
           <Text style={[s.amt, { color: statusColor }]}>{formatINR(spent)}</Text>
           <Text style={s.of}>of {formatINR(limit)}</Text>
         </View>
@@ -325,7 +325,8 @@ const useStyles = makeStyles((c) => ({
   actTxt: { color: c.bg.elevated, fontSize: 11, fontWeight: '800', marginTop: 3 },
 
   dotsBtn: { position: 'absolute', top: 10, right: 10, width: 28, height: 28, borderRadius: 14, backgroundColor: 'rgba(255,255,255,0.85)', alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: c.gray[200] },
-  aiBtn: { position: 'absolute', top: 10, right: 44, width: 28, height: 28, borderRadius: 14, backgroundColor: c.accent.brandSoft, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: c.accent.brandSoft },
+  aiBtn_web: { position: 'absolute', top: 10, right: 44, width: 28, height: 28, borderRadius: 14, backgroundColor: c.accent.brandSoft, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: c.accent.brandSoft },
+  aiBtn: { position: 'absolute', bottom: 10, right: 10, width: 28, height: 28, borderRadius: 14, backgroundColor: c.accent.brandSoft, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: c.accent.brandSoft },
   menu: { position: 'absolute', top: 42, right: 8, backgroundColor: c.bg.elevated, borderRadius: 12, paddingVertical: 6, paddingHorizontal: 4, borderWidth: 1, borderColor: c.gray[200], zIndex: 10, minWidth: 130, ...shadowStyle('#000000', 8, 14, 0.1, 10) },
   menuItem: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingHorizontal: 10, paddingVertical: 8, borderRadius: 8 },
   menuT: { fontSize: 13, fontWeight: '700' },

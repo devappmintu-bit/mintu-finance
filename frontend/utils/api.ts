@@ -13,10 +13,19 @@ const api = axios.create({
   timeout: 12000,
 });
 
-// Auth token interceptor
+// Auth token + device id interceptor
 api.interceptors.request.use(async (config) => {
   const token = await AsyncStorage.getItem('token');
   if (token) config.headers.Authorization = `Bearer ${token}`;
+  // Round 53g — attach a stable per-install UUID so the backend can
+  // apply device-scoped rate limits in addition to per-user limits.
+  // Multi-account abuse from a single device hits the device ceiling
+  // before draining the per-user quota.
+  try {
+    const { getDeviceId } = await import('./deviceId');
+    const did = await getDeviceId();
+    if (did) config.headers['X-Device-ID'] = did;
+  } catch { /* never fail a request because of device-id resolution */ }
   return config;
 });
 
@@ -125,6 +134,16 @@ api.interceptors.response.use(
   async (error) => {
     const config = error.config;
     const status = error.response?.status;
+    // Round 53e — observability breadcrumb. Captures URL, status, and
+    // request_id for correlation with backend Sentry events. NEVER
+    // emits the request body / auth header.
+    try {
+      const { breadcrumb } = require('./observability');
+      breadcrumb('api', `${config?.method?.toUpperCase() || 'REQ'} ${config?.url || '?'} → ${status ?? 'no-response'}`, {
+        status,
+        request_id: error.response?.headers?.['x-request-id'],
+      });
+    } catch { /* noop */ }
 
     // Auth expired — clear token + soft-lock
     if (status === 401) {
@@ -148,12 +167,14 @@ api.interceptors.response.use(
       return api(config);
     }
     if (!error.response) {
-      // Retries exhausted — surface the right toast for the situation.
-      // notifyTransportError differentiates real offline (NetInfo says no
-      // connection) from server-side timeout (NetInfo says connected, but
-      // axios got no response). Prevents false "You're offline" banners
-      // when the user is online but the request was just slow.
-      notifyTransportError(error);
+      // Retries exhausted — surface the right toast for the situation,
+      // unless the caller opted into silent mode (e.g. SWR background
+      // revalidations where cached data is already on screen — toasting
+      // there would create the "data visible + error visible" conflict
+      // that breaks user trust).
+      if (!config?.silent) {
+        notifyTransportError(error);
+      }
     }
     return Promise.reject(error);
   }

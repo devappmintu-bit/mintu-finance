@@ -1,9 +1,12 @@
 """budgets_ext router — AI-powered budget suggestions + live budget status."""
+import logging
 from datetime import datetime, timedelta, timezone
 from typing import Dict
 from fastapi import APIRouter, Depends
 
 from core import db, get_current_user
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter(tags=["budgets_ext"])
 api_router = router  # extracted code uses @api_router.*
@@ -247,146 +250,185 @@ async def budget_ai_insights(category: str, user_id: str = Depends(get_current_u
     """Return AI-style behaviour tags + specific tips + auto-apply suggestions
     for one budget category.
 
+    Round 53p hardening (Apr 29 2026):
+      • Coerce all transaction dates to UTC-aware on read (Mongo can store
+        a mix of tz-naive and tz-aware datetimes depending on the writer).
+        Without this, ``t["date"] >= month_start`` raises TypeError on the
+        first naive-vs-aware compare → endpoint returns 500 → frontend's
+        "Could not load insights" dead-end. Mostly bit "Other" because
+        its rows were imported by a legacy writer that omitted tzinfo.
+      • Wrap the whole body in try/except so even a future logic bug
+        degrades to a graceful neutral payload instead of a 500. The
+        frontend has its own fallback engine, but defending the API
+        boundary is cheap and means SonarCloud-grade resilience.
+
     Response:
       {
         category, tags: [{label, tone}],
         tips: [{text, save}],
-        auto_apply: [{action, label, payload, delta}]
+        auto_apply: [{action, label, payload, delta}],
+        stats: {...},
       }
     """
-    now = datetime.now(timezone.utc)
-    start = now - timedelta(days=60)
-    month_start = now.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+    try:
+        now = datetime.now(timezone.utc)
+        start = now - timedelta(days=60)
+        month_start = now.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
 
-    cursor = db.transactions.find({
-        "user_id": user_id,
-        "category": category,
-        "type": {"$in": ["expense", "debit"]},
-        "date": {"$gte": start},
-    })
-    txns = []
-    async for t in cursor:
-        txns.append(t)
+        cursor = db.transactions.find({
+            "user_id": user_id,
+            "category": category,
+            "type": {"$in": ["expense", "debit"]},
+            "date": {"$gte": start},
+        })
+        txns = []
+        async for t in cursor:
+            # Normalise any naive datetimes to UTC-aware so all downstream
+            # comparisons are well-defined.
+            d = t.get("date")
+            if d is not None and getattr(d, "tzinfo", None) is None:
+                t["date"] = d.replace(tzinfo=timezone.utc)
+            txns.append(t)
 
-    budget = await db.budgets.find_one({"user_id": user_id, "category": category})
-    budget_amt = float((budget or {}).get("amount", 0) or 0)
+        budget = await db.budgets.find_one({"user_id": user_id, "category": category})
+        budget_amt = float((budget or {}).get("amount", 0) or 0)
 
-    if not txns:
+        if not txns:
+            return {
+                "category": category,
+                "tags": [{"label": "No data yet", "tone": "neutral"}],
+                "tips": [{"text": f"Track {category} expenses for a week to unlock insights", "save": 0}],
+                "auto_apply": [],
+                "stats": None,
+            }
+
+        # ── Compute patterns ────────────────────────────────────────────────
+        amounts = [float(t.get("amount", 0) or 0) for t in txns]
+        total = sum(amounts)
+        count = len(amounts)
+        avg = total / count if count else 0
+        monthly_avg = total / 2  # 60 days → monthly projection
+
+        # Time-of-day buckets
+        night_count = sum(1 for t in txns if 21 <= t["date"].hour or t["date"].hour < 3)
+        weekend_count = sum(1 for t in txns if t["date"].weekday() >= 5)
+        # Big-ticket: any single txn > 3× avg
+        big_count = sum(1 for a in amounts if avg > 0 and a > 3 * avg)
+        night_pct = round(100 * night_count / count) if count else 0
+        weekend_pct = round(100 * weekend_count / count) if count else 0
+
+        # This-month vs prior-month delta
+        this_month_total = sum(a for t, a in zip(txns, amounts) if t["date"] >= month_start)
+        prev_start = (month_start - timedelta(days=1)).replace(day=1)
+        prev_total = sum(a for t, a in zip(txns, amounts) if prev_start <= t["date"] < month_start)
+        delta_pct = 0
+        if prev_total > 0:
+            delta_pct = round(100 * (this_month_total - prev_total) / prev_total)
+
+        # ── Behaviour tags ──────────────────────────────────────────────────
+        tags = []
+        if big_count >= 3:
+            tags.append({"label": "Impulse heavy", "tone": "warning"})
+        if night_pct >= 40:
+            tags.append({"label": f"{night_pct}% spending after 9 PM", "tone": "info"})
+        if weekend_pct >= 55:
+            tags.append({"label": "Weekend-heavy", "tone": "info"})
+        if delta_pct >= 25:
+            tags.append({"label": f"Up {delta_pct}% vs last month", "tone": "danger"})
+        elif delta_pct <= -20:
+            tags.append({"label": f"Down {abs(delta_pct)}% vs last month", "tone": "success"})
+        if budget_amt and this_month_total <= budget_amt * 0.6:
+            tags.append({"label": "Stable", "tone": "success"})
+        if budget_amt and this_month_total > budget_amt:
+            tags.append({"label": "Risk zone", "tone": "danger"})
+        if not tags:
+            tags = [{"label": "Steady", "tone": "success"}]
+
+        # ── Tips with savings estimates ────────────────────────────────────
+        tips = []
+        cat_lower = category.lower()
+        if "food" in cat_lower:
+            # Rough heuristic: avg ≈ per-order; suggest 2 fewer/week
+            potential = round(avg * 8)
+            if potential > 100:
+                tips.append({"text": f"Skip 2 food-delivery orders/week → save ≈ ₹{potential:,}/mo", "save": potential})
+        if "shopping" in cat_lower:
+            if monthly_avg > budget_amt * 1.3 and budget_amt > 0:
+                spike = round(monthly_avg - budget_amt)
+                tips.append({"text": f"You overspent by ₹{spike:,} — set an alert at 80% budget", "save": spike})
+            if night_pct >= 40:
+                tips.append({"text": "80% of shopping is after 9 PM — try a 24-hour cooling-off rule", "save": round(monthly_avg * 0.15)})
+        if "transport" in cat_lower:
+            if avg > 150:
+                tips.append({"text": "Switch 3 rides/week to metro → save ≈ ₹800/mo", "save": 800})
+        if "entertainment" in cat_lower:
+            tips.append({"text": "Audit recurring subs — cancel unused → avg ₹500/mo saved", "save": 500})
+        if not tips:
+            target = round(monthly_avg * 0.85 / 100) * 100
+            save = max(0, round(monthly_avg - target))
+            if save > 50:
+                tips.append({"text": f"A 15% cap (₹{target:,}/mo) would save ≈ ₹{save:,}", "save": save})
+        if not tips:
+            tips.append({"text": "Great pace — stay the course this month!", "save": 0})
+
+        # ── Auto-apply actions ─────────────────────────────────────────────
+        auto_apply = []
+        if budget_amt > 0 and monthly_avg > budget_amt * 1.1:
+            new_amt = int(max(monthly_avg * 0.9, budget_amt * 1.05) / 100) * 100
+            auto_apply.append({
+                "action": "adjust_budget",
+                "label": f"Raise budget to ₹{new_amt:,}",
+                "payload": {"amount": new_amt},
+                "delta": new_amt - int(budget_amt),
+            })
+        elif budget_amt > 0 and monthly_avg < budget_amt * 0.6:
+            new_amt = int(monthly_avg * 1.1 / 100) * 100 or 500
+            auto_apply.append({
+                "action": "adjust_budget",
+                "label": f"Tighten budget to ₹{new_amt:,}",
+                "payload": {"amount": new_amt},
+                "delta": new_amt - int(budget_amt),
+            })
+        auto_apply.append({
+            "action": "enable_alert",
+            "label": "Alert me at 80% of budget",
+            "payload": {"threshold": 0.8},
+            "delta": 0,
+        })
+
         return {
             "category": category,
-            "tags": [{"label": "No data yet", "tone": "neutral"}],
-            "tips": [{"text": f"Track {category} expenses for a week to unlock insights", "save": 0}],
-            "auto_apply": [],
+            "tags": tags[:4],
+            "tips": tips[:3],
+            "auto_apply": auto_apply,
+            "stats": {
+                "txn_count_60d": count,
+                "monthly_avg": round(monthly_avg, 2),
+                "this_month": round(this_month_total, 2),
+                "delta_pct": delta_pct,
+                "night_pct": night_pct,
+                "weekend_pct": weekend_pct,
+            },
         }
-
-    # ── Compute patterns ────────────────────────────────────────────────
-    amounts = [float(t.get("amount", 0) or 0) for t in txns]
-    total = sum(amounts)
-    count = len(amounts)
-    avg = total / count if count else 0
-    monthly_avg = total / 2  # 60 days → monthly projection
-
-    # Time-of-day buckets
-    night_count = sum(1 for t in txns if 21 <= t["date"].hour or t["date"].hour < 3)
-    weekend_count = sum(1 for t in txns if t["date"].weekday() >= 5)
-    # Big-ticket: any single txn > 3× avg
-    big_count = sum(1 for a in amounts if avg > 0 and a > 3 * avg)
-    night_pct = round(100 * night_count / count) if count else 0
-    weekend_pct = round(100 * weekend_count / count) if count else 0
-
-    # This-month vs prior-month delta
-    this_month_total = sum(a for t, a in zip(txns, amounts) if t["date"] >= month_start)
-    prev_start = (month_start - timedelta(days=1)).replace(day=1)
-    prev_total = sum(a for t, a in zip(txns, amounts) if prev_start <= t["date"] < month_start)
-    delta_pct = 0
-    if prev_total > 0:
-        delta_pct = round(100 * (this_month_total - prev_total) / prev_total)
-
-    # ── Behaviour tags ──────────────────────────────────────────────────
-    tags = []
-    if big_count >= 3:
-        tags.append({"label": "Impulse heavy", "tone": "warning"})
-    if night_pct >= 40:
-        tags.append({"label": f"{night_pct}% spending after 9 PM", "tone": "info"})
-    if weekend_pct >= 55:
-        tags.append({"label": "Weekend-heavy", "tone": "info"})
-    if delta_pct >= 25:
-        tags.append({"label": f"Up {delta_pct}% vs last month", "tone": "danger"})
-    elif delta_pct <= -20:
-        tags.append({"label": f"Down {abs(delta_pct)}% vs last month", "tone": "success"})
-    if budget_amt and this_month_total <= budget_amt * 0.6:
-        tags.append({"label": "Stable", "tone": "success"})
-    if budget_amt and this_month_total > budget_amt:
-        tags.append({"label": "Risk zone", "tone": "danger"})
-    if not tags:
-        tags = [{"label": "Steady", "tone": "success"}]
-
-    # ── Tips with savings estimates ────────────────────────────────────
-    tips = []
-    cat_lower = category.lower()
-    if "food" in cat_lower:
-        # Rough heuristic: avg ≈ per-order; suggest 2 fewer/week
-        potential = round(avg * 8)
-        if potential > 100:
-            tips.append({"text": f"Skip 2 food-delivery orders/week → save ≈ ₹{potential:,}/mo", "save": potential})
-    if "shopping" in cat_lower:
-        if monthly_avg > budget_amt * 1.3 and budget_amt > 0:
-            spike = round(monthly_avg - budget_amt)
-            tips.append({"text": f"You overspent by ₹{spike:,} — set an alert at 80% budget", "save": spike})
-        if night_pct >= 40:
-            tips.append({"text": "80% of shopping is after 9 PM — try a 24-hour cooling-off rule", "save": round(monthly_avg * 0.15)})
-    if "transport" in cat_lower:
-        if avg > 150:
-            tips.append({"text": "Switch 3 rides/week to metro → save ≈ ₹800/mo", "save": 800})
-    if "entertainment" in cat_lower:
-        tips.append({"text": "Audit recurring subs — cancel unused → avg ₹500/mo saved", "save": 500})
-    if not tips:
-        target = round(monthly_avg * 0.85 / 100) * 100
-        save = max(0, round(monthly_avg - target))
-        if save > 50:
-            tips.append({"text": f"A 15% cap (₹{target:,}/mo) would save ≈ ₹{save:,}", "save": save})
-    if not tips:
-        tips.append({"text": "Great pace — stay the course this month!", "save": 0})
-
-    # ── Auto-apply actions ─────────────────────────────────────────────
-    auto_apply = []
-    if budget_amt > 0 and monthly_avg > budget_amt * 1.1:
-        new_amt = int(max(monthly_avg * 0.9, budget_amt * 1.05) / 100) * 100
-        auto_apply.append({
-            "action": "adjust_budget",
-            "label": f"Raise budget to ₹{new_amt:,}",
-            "payload": {"amount": new_amt},
-            "delta": new_amt - int(budget_amt),
-        })
-    elif budget_amt > 0 and monthly_avg < budget_amt * 0.6:
-        new_amt = int(monthly_avg * 1.1 / 100) * 100 or 500
-        auto_apply.append({
-            "action": "adjust_budget",
-            "label": f"Tighten budget to ₹{new_amt:,}",
-            "payload": {"amount": new_amt},
-            "delta": new_amt - int(budget_amt),
-        })
-    auto_apply.append({
-        "action": "enable_alert",
-        "label": "Alert me at 80% of budget",
-        "payload": {"threshold": 0.8},
-        "delta": 0,
-    })
-
-    return {
-        "category": category,
-        "tags": tags[:4],
-        "tips": tips[:3],
-        "auto_apply": auto_apply,
-        "stats": {
-            "txn_count_60d": count,
-            "monthly_avg": round(monthly_avg, 2),
-            "this_month": round(this_month_total, 2),
-            "delta_pct": delta_pct,
-            "night_pct": night_pct,
-            "weekend_pct": weekend_pct,
-        },
-    }
+    except Exception as e:
+        # Round 53p — defensive fallback. Whatever went wrong, the user
+        # should NEVER see "Could not load insights". Return a neutral,
+        # category-aware payload so the frontend can render normally; the
+        # frontend's local rule-based engine will further enrich it.
+        logger.warning(f"budget_ai_insights({category}) failed: {e}")
+        return {
+            "category": category,
+            "tags": [{"label": "Insights warming up", "tone": "neutral"}],
+            "tips": [{"text": f"We're still learning your {category} pattern — check back soon", "save": 0}],
+            "auto_apply": [{
+                "action": "enable_alert",
+                "label": "Alert me at 80% of budget",
+                "payload": {"threshold": 0.8},
+                "delta": 0,
+            }],
+            "stats": None,
+            "degraded": True,
+        }
 
 
 @api_router.post("/budgets/ai-apply/{category}")

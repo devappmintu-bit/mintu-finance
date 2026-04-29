@@ -60,7 +60,17 @@ export async function swrGet<T = any>(url: string, opts: { ttlMs?: number; param
 
   const fetchPromise = (async () => {
     try {
-      const r = await api.get(url, { params: opts.params });
+      // Round 53n — pass `silent: true` whenever we already have a
+      // cached value on screen. The interceptor honours this flag and
+      // suppresses the global "Couldn't reach MintU" toast, which would
+      // otherwise create a confusing "data visible + error visible"
+      // state during background revalidation hiccups. First-load
+      // (cached === null) still toasts so users know the screen is
+      // genuinely empty.
+      const r = await api.get(url, {
+        params: opts.params,
+        ...(cached ? { silent: true } : {}),
+      } as any);
       await writeCache(cacheKey, r.data);
       return r.data as T;
     } catch {

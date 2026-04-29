@@ -1,0 +1,209 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01//EN" "http://www.w3.org/TR/html4/strict.dtd">
+<html>
+    <head>
+        <meta http-equiv='Content-Type' content='text/html; charset=utf-8'>
+        <title>Diff Coverage</title>
+        <style>
+            .src-snippet { margin-top: 2em; }
+            .src-name { font-weight: bold; }
+            .snippets {
+                border-top: 1px solid #bdbdbd;
+                border-bottom: 1px solid #bdbdbd;
+            }
+            pre { line-height: 125%; }
+td.linenos .normal { color: inherit; background-color: transparent; padding-left: 5px; padding-right: 5px; }
+span.linenos { color: inherit; background-color: transparent; padding-left: 5px; padding-right: 5px; }
+td.linenos .special { color: #000000; background-color: #ffffc0; padding-left: 5px; padding-right: 5px; }
+span.linenos.special { color: #000000; background-color: #ffffc0; padding-left: 5px; padding-right: 5px; }
+.hll { background-color: #ffcccc }
+.c { color: #3D7B7B; font-style: italic } /* Comment */
+.err { border: 1px solid #F00 } /* Error */
+.k { color: #008000; font-weight: bold } /* Keyword */
+.o { color: #666 } /* Operator */
+.ch { color: #3D7B7B; font-style: italic } /* Comment.Hashbang */
+.cm { color: #3D7B7B; font-style: italic } /* Comment.Multiline */
+.cp { color: #9C6500 } /* Comment.Preproc */
+.cpf { color: #3D7B7B; font-style: italic } /* Comment.PreprocFile */
+.c1 { color: #3D7B7B; font-style: italic } /* Comment.Single */
+.cs { color: #3D7B7B; font-style: italic } /* Comment.Special */
+.gd { color: #A00000 } /* Generic.Deleted */
+.ge { font-style: italic } /* Generic.Emph */
+.ges { font-weight: bold; font-style: italic } /* Generic.EmphStrong */
+.gr { color: #E40000 } /* Generic.Error */
+.gh { color: #000080; font-weight: bold } /* Generic.Heading */
+.gi { color: #008400 } /* Generic.Inserted */
+.go { color: #717171 } /* Generic.Output */
+.gp { color: #000080; font-weight: bold } /* Generic.Prompt */
+.gs { font-weight: bold } /* Generic.Strong */
+.gu { color: #800080; font-weight: bold } /* Generic.Subheading */
+.gt { color: #04D } /* Generic.Traceback */
+.kc { color: #008000; font-weight: bold } /* Keyword.Constant */
+.kd { color: #008000; font-weight: bold } /* Keyword.Declaration */
+.kn { color: #008000; font-weight: bold } /* Keyword.Namespace */
+.kp { color: #008000 } /* Keyword.Pseudo */
+.kr { color: #008000; font-weight: bold } /* Keyword.Reserved */
+.kt { color: #B00040 } /* Keyword.Type */
+.m { color: #666 } /* Literal.Number */
+.s { color: #BA2121 } /* Literal.String */
+.na { color: #687822 } /* Name.Attribute */
+.nb { color: #008000 } /* Name.Builtin */
+.nc { color: #00F; font-weight: bold } /* Name.Class */
+.no { color: #800 } /* Name.Constant */
+.nd { color: #A2F } /* Name.Decorator */
+.ni { color: #717171; font-weight: bold } /* Name.Entity */
+.ne { color: #CB3F38; font-weight: bold } /* Name.Exception */
+.nf { color: #00F } /* Name.Function */
+.nl { color: #767600 } /* Name.Label */
+.nn { color: #00F; font-weight: bold } /* Name.Namespace */
+.nt { color: #008000; font-weight: bold } /* Name.Tag */
+.nv { color: #19177C } /* Name.Variable */
+.ow { color: #A2F; font-weight: bold } /* Operator.Word */
+.w { color: #BBB } /* Text.Whitespace */
+.mb { color: #666 } /* Literal.Number.Bin */
+.mf { color: #666 } /* Literal.Number.Float */
+.mh { color: #666 } /* Literal.Number.Hex */
+.mi { color: #666 } /* Literal.Number.Integer */
+.mo { color: #666 } /* Literal.Number.Oct */
+.sa { color: #BA2121 } /* Literal.String.Affix */
+.sb { color: #BA2121 } /* Literal.String.Backtick */
+.sc { color: #BA2121 } /* Literal.String.Char */
+.dl { color: #BA2121 } /* Literal.String.Delimiter */
+.sd { color: #BA2121; font-style: italic } /* Literal.String.Doc */
+.s2 { color: #BA2121 } /* Literal.String.Double */
+.se { color: #AA5D1F; font-weight: bold } /* Literal.String.Escape */
+.sh { color: #BA2121 } /* Literal.String.Heredoc */
+.si { color: #A45A77; font-weight: bold } /* Literal.String.Interpol */
+.sx { color: #008000 } /* Literal.String.Other */
+.sr { color: #A45A77 } /* Literal.String.Regex */
+.s1 { color: #BA2121 } /* Literal.String.Single */
+.ss { color: #19177C } /* Literal.String.Symbol */
+.bp { color: #008000 } /* Name.Builtin.Pseudo */
+.fm { color: #00F } /* Name.Function.Magic */
+.vc { color: #19177C } /* Name.Variable.Class */
+.vg { color: #19177C } /* Name.Variable.Global */
+.vi { color: #19177C } /* Name.Variable.Instance */
+.vm { color: #19177C } /* Name.Variable.Magic */
+.il { color: #666 } /* Literal.Number.Integer.Long */
+        </style>
+    </head>
+    <body>
+        <h1>Diff Coverage</h1>
+        <p>Diff: HEAD~1...HEAD, staged and unstaged changes</p>
+        <ul>
+            <li><b>Total</b>: 123 lines</li>
+            <li><b>Missing</b>: 5 lines</li>
+            <li><b>Coverage</b>: 95%</li>
+        </ul>
+        <table border="1">
+            <tr>
+                <th>Source File</th>
+                <th>Diff Coverage (%)</th>
+                <th>Missing Lines</th>
+            </tr>
+            <tr>
+                <td>backend/core/ledger_invariant.py</td>
+                <td>96.8%</td>
+                <td>169,200</td>
+            </tr>
+            <tr>
+                <td>backend/core/money.py</td>
+                <td>95.1%</td>
+                <td>119,123,148</td>
+            </tr>
+        </table>
+        <div class="src-snippet">
+            <div class="src-name">backend/core/ledger_invariant.py</div>
+            <div class="snippets">
+            <div class="snippet"><table class="snippettable"><tr><td class="linenos"><div class="linenodiv"><pre><span class="normal">165</span>
+<span class="normal">166</span>
+<span class="normal">167</span>
+<span class="normal">168</span>
+<span class="normal">169</span>
+<span class="normal">170</span>
+<span class="normal">171</span>
+<span class="normal">172</span>
+<span class="normal">173</span></pre></div></td><td class="code"><div><pre><span></span><a id="backend/core/ledger_invariant.py-165" name="backend/core/ledger_invariant.py-165"></a>    <span class="k">for</span> <span class="n">uid</span><span class="p">,</span> <span class="n">p</span> <span class="ow">in</span> <span class="n">splits_paise</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+<a id="backend/core/ledger_invariant.py-166" name="backend/core/ledger_invariant.py-166"></a>        <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">p</span><span class="p">,</span> <span class="nb">int</span><span class="p">)</span> <span class="ow">or</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">p</span><span class="p">,</span> <span class="nb">bool</span><span class="p">):</span>
+<a id="backend/core/ledger_invariant.py-167" name="backend/core/ledger_invariant.py-167"></a>            <span class="k">raise</span> <span class="n">InvalidEntry</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;build_expense_entries: splits_paise[</span><span class="si">{</span><span class="n">uid</span><span class="si">!r}</span><span class="s2">] must be int, got </span><span class="si">{</span><span class="nb">type</span><span class="p">(</span><span class="n">p</span><span class="p">)</span><span class="o">.</span><span class="vm">__name__</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+<a id="backend/core/ledger_invariant.py-168" name="backend/core/ledger_invariant.py-168"></a>        <span class="k">if</span> <span class="n">p</span> <span class="o">&lt;</span> <span class="mi">0</span><span class="p">:</span>
+<a id="backend/core/ledger_invariant.py-169" name="backend/core/ledger_invariant.py-169"></a><span class="hll">            <span class="k">raise</span> <span class="n">InvalidEntry</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;build_expense_entries: splits_paise[</span><span class="si">{</span><span class="n">uid</span><span class="si">!r}</span><span class="s2">] must be non-negative, got </span><span class="si">{</span><span class="n">p</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+</span><a id="backend/core/ledger_invariant.py-170" name="backend/core/ledger_invariant.py-170"></a>
+<a id="backend/core/ledger_invariant.py-171" name="backend/core/ledger_invariant.py-171"></a>    <span class="n">entries</span><span class="p">:</span> <span class="n">List</span><span class="p">[</span><span class="n">LedgerEntry</span><span class="p">]</span> <span class="o">=</span> <span class="p">[</span>
+<a id="backend/core/ledger_invariant.py-172" name="backend/core/ledger_invariant.py-172"></a>        <span class="n">LedgerEntry</span><span class="p">(</span><span class="n">user_id</span><span class="o">=</span><span class="n">paid_by</span><span class="p">,</span> <span class="n">paise</span><span class="o">=</span><span class="nb">int</span><span class="p">(</span><span class="n">amount_paise</span><span class="p">),</span> <span class="n">side</span><span class="o">=</span><span class="s2">&quot;debit&quot;</span><span class="p">,</span> <span class="n">memo</span><span class="o">=</span><span class="s2">&quot;expense.payer&quot;</span><span class="p">),</span>
+<a id="backend/core/ledger_invariant.py-173" name="backend/core/ledger_invariant.py-173"></a>    <span class="p">]</span>
+</pre></div></td></tr></table></div>
+
+            <div class="snippet"><table class="snippettable"><tr><td class="linenos"><div class="linenodiv"><pre><span class="normal">196</span>
+<span class="normal">197</span>
+<span class="normal">198</span>
+<span class="normal">199</span>
+<span class="normal">200</span>
+<span class="normal">201</span>
+<span class="normal">202</span>
+<span class="normal">203</span>
+<span class="normal">204</span></pre></div></td><td class="code"><div><pre><span></span><a id="backend/core/ledger_invariant.py-196" name="backend/core/ledger_invariant.py-196"></a><span class="sd">    &quot;&quot;&quot;</span>
+<a id="backend/core/ledger_invariant.py-197" name="backend/core/ledger_invariant.py-197"></a>    <span class="k">if</span> <span class="n">amount_paise</span> <span class="o">&lt;=</span> <span class="mi">0</span><span class="p">:</span>
+<a id="backend/core/ledger_invariant.py-198" name="backend/core/ledger_invariant.py-198"></a>        <span class="k">raise</span> <span class="n">InvalidEntry</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;build_settlement_entries: amount_paise must be positive, got </span><span class="si">{</span><span class="n">amount_paise</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+<a id="backend/core/ledger_invariant.py-199" name="backend/core/ledger_invariant.py-199"></a>    <span class="k">if</span> <span class="ow">not</span> <span class="n">payer_id</span> <span class="ow">or</span> <span class="ow">not</span> <span class="n">payee_id</span><span class="p">:</span>
+<a id="backend/core/ledger_invariant.py-200" name="backend/core/ledger_invariant.py-200"></a><span class="hll">        <span class="k">raise</span> <span class="n">InvalidEntry</span><span class="p">(</span><span class="s2">&quot;build_settlement_entries: payer_id and payee_id are required&quot;</span><span class="p">)</span>
+</span><a id="backend/core/ledger_invariant.py-201" name="backend/core/ledger_invariant.py-201"></a>    <span class="k">if</span> <span class="n">payer_id</span> <span class="o">==</span> <span class="n">payee_id</span><span class="p">:</span>
+<a id="backend/core/ledger_invariant.py-202" name="backend/core/ledger_invariant.py-202"></a>        <span class="k">raise</span> <span class="n">InvalidEntry</span><span class="p">(</span><span class="s2">&quot;build_settlement_entries: payer and payee cannot be the same user&quot;</span><span class="p">)</span>
+<a id="backend/core/ledger_invariant.py-203" name="backend/core/ledger_invariant.py-203"></a>
+<a id="backend/core/ledger_invariant.py-204" name="backend/core/ledger_invariant.py-204"></a>    <span class="k">return</span> <span class="p">[</span>
+</pre></div></td></tr></table></div>
+
+            </div>
+        </div>
+        <div class="src-snippet">
+            <div class="src-name">backend/core/money.py</div>
+            <div class="snippets">
+            <div class="snippet"><table class="snippettable"><tr><td class="linenos"><div class="linenodiv"><pre><span class="normal">115</span>
+<span class="normal">116</span>
+<span class="normal">117</span>
+<span class="normal">118</span>
+<span class="normal">119</span>
+<span class="normal">120</span>
+<span class="normal">121</span>
+<span class="normal">122</span>
+<span class="normal">123</span>
+<span class="normal">124</span>
+<span class="normal">125</span>
+<span class="normal">126</span>
+<span class="normal">127</span></pre></div></td><td class="code"><div><pre><span></span><a id="backend/core/money.py-115" name="backend/core/money.py-115"></a>    <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">v</span><span class="p">,</span> <span class="nb">int</span><span class="p">):</span>
+<a id="backend/core/money.py-116" name="backend/core/money.py-116"></a>        <span class="k">if</span> <span class="n">v</span> <span class="o">&lt;</span> <span class="mi">0</span><span class="p">:</span>
+<a id="backend/core/money.py-117" name="backend/core/money.py-117"></a>            <span class="k">raise</span> <span class="n">MoneyError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;coerce_to_paise: negative amount not allowed: </span><span class="si">{</span><span class="n">v</span><span class="si">!r}</span><span class="s2">&quot;</span><span class="p">)</span>
+<a id="backend/core/money.py-118" name="backend/core/money.py-118"></a>        <span class="k">if</span> <span class="n">v</span> <span class="o">&gt;</span> <span class="n">_MAX_PAISE</span><span class="p">:</span>
+<a id="backend/core/money.py-119" name="backend/core/money.py-119"></a><span class="hll">            <span class="k">raise</span> <span class="n">MoneyError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;coerce_to_paise: amount exceeds sanity cap: </span><span class="si">{</span><span class="n">v</span><span class="si">!r}</span><span class="s2">&quot;</span><span class="p">)</span>
+</span><a id="backend/core/money.py-120" name="backend/core/money.py-120"></a>        <span class="k">return</span> <span class="n">v</span>
+<a id="backend/core/money.py-121" name="backend/core/money.py-121"></a>    <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">v</span><span class="p">,</span> <span class="nb">float</span><span class="p">):</span>
+<a id="backend/core/money.py-122" name="backend/core/money.py-122"></a>        <span class="k">return</span> <span class="n">rupees_to_paise</span><span class="p">(</span><span class="n">v</span><span class="p">)</span>
+<a id="backend/core/money.py-123" name="backend/core/money.py-123"></a><span class="hll">    <span class="k">raise</span> <span class="n">MoneyError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;coerce_to_paise: expected int|float, got </span><span class="si">{</span><span class="nb">type</span><span class="p">(</span><span class="n">v</span><span class="p">)</span><span class="o">.</span><span class="vm">__name__</span><span class="si">}</span><span class="s2">: </span><span class="si">{</span><span class="n">v</span><span class="si">!r}</span><span class="s2">&quot;</span><span class="p">)</span>
+</span><a id="backend/core/money.py-124" name="backend/core/money.py-124"></a>
+<a id="backend/core/money.py-125" name="backend/core/money.py-125"></a>
+<a id="backend/core/money.py-126" name="backend/core/money.py-126"></a><span class="c1"># ──────────────────────────────────────────────────────────────────────</span>
+<a id="backend/core/money.py-127" name="backend/core/money.py-127"></a><span class="c1">#  DUAL-READ HELPERS (read both legacy float field AND new paise field)</span>
+</pre></div></td></tr></table></div>
+
+            <div class="snippet"><table class="snippettable"><tr><td class="linenos"><div class="linenodiv"><pre><span class="normal">144</span>
+<span class="normal">145</span>
+<span class="normal">146</span>
+<span class="normal">147</span>
+<span class="normal">148</span>
+<span class="normal">149</span>
+<span class="normal">150</span>
+<span class="normal">151</span>
+<span class="normal">152</span></pre></div></td><td class="code"><div><pre><span></span><a id="backend/core/money.py-144" name="backend/core/money.py-144"></a>        <span class="n">v</span> <span class="o">=</span> <span class="n">doc</span><span class="p">[</span><span class="n">paise_key</span><span class="p">]</span>
+<a id="backend/core/money.py-145" name="backend/core/money.py-145"></a>        <span class="c1"># Defensive: if someone stored a float in the paise field (bug),</span>
+<a id="backend/core/money.py-146" name="backend/core/money.py-146"></a>        <span class="c1"># coerce it instead of corrupting the read.</span>
+<a id="backend/core/money.py-147" name="backend/core/money.py-147"></a>        <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">v</span><span class="p">,</span> <span class="nb">float</span><span class="p">):</span>
+<a id="backend/core/money.py-148" name="backend/core/money.py-148"></a><span class="hll">            <span class="k">return</span> <span class="n">rupees_to_paise</span><span class="p">(</span><span class="n">v</span> <span class="o">/</span> <span class="mf">100.0</span><span class="p">)</span>  <span class="c1"># already paise-as-float; treat as rupees*100 was bad</span>
+</span><a id="backend/core/money.py-149" name="backend/core/money.py-149"></a>        <span class="k">return</span> <span class="nb">int</span><span class="p">(</span><span class="n">v</span><span class="p">)</span>
+<a id="backend/core/money.py-150" name="backend/core/money.py-150"></a>    <span class="k">if</span> <span class="n">rupees_key</span> <span class="ow">in</span> <span class="n">doc</span> <span class="ow">and</span> <span class="n">doc</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">rupees_key</span><span class="p">)</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+<a id="backend/core/money.py-151" name="backend/core/money.py-151"></a>        <span class="n">v</span> <span class="o">=</span> <span class="n">doc</span><span class="p">[</span><span class="n">rupees_key</span><span class="p">]</span>
+<a id="backend/core/money.py-152" name="backend/core/money.py-152"></a>        <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">v</span><span class="p">,</span> <span class="p">(</span><span class="nb">int</span><span class="p">,</span> <span class="nb">float</span><span class="p">)):</span>
+</pre></div></td></tr></table></div>
+
+            </div>
+        </div>
+    </body>
+</html>

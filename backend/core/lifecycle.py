@@ -169,6 +169,16 @@ async def _ensure_indexes(db) -> None:
             name="draft_expenses_user_recent",
         )
 
+        # Round 53c — Idempotency keys for retry-safe write endpoints.
+        # _id is set to "user_id::scope::key" so uniqueness is built-in;
+        # we ALSO add a TTL index on created_at so the table self-prunes
+        # after 24h. Keeps replays cheap without unbounded growth.
+        await db.idempotency_keys.create_index(
+            "created_at",
+            expireAfterSeconds=24 * 60 * 60,
+            name="idempotency_ttl_24h",
+        )
+
         logger.info("✅ MongoDB indexes created for 1.46B-scale performance")
     except Exception as e:
         logger.warning(f"Index creation warning: {e}")

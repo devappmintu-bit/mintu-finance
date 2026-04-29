@@ -33,6 +33,7 @@ import Toast from 'react-native-toast-message';
 import {
   fetchGroupSummary, addGroupMember, fetchSplitGroups, fetchSplitBalances,
 } from '../../services/split';
+import { lookupUsersByPhones } from '../../services/users';
 import { usePhoneContacts } from '../../hooks/usePhoneContacts';
 import { makeStyles } from '../../utils/makeStyles';
 import { COLORS, SPACING } from '../../utils/theme';
@@ -56,7 +57,7 @@ type Section = { title: string; icon: string; data: Contact[] };
 
 // ───────────────────────────── Helpers ─────────────────────────────
 
-const SEARCH_DEBOUNCE_MS = 280;
+const SEARCH_DEBOUNCE_MS = 150;
 
 const normalizePhone = (p?: string) => (p || '').replace(/\D/g, '').slice(-10);
 
@@ -245,6 +246,10 @@ export default function AddMemberScreen() {
   const [inviteExpanded, setInviteExpanded] = useState(false);
   const [phoneInput, setPhoneInput] = useState('');
   const phoneContacts = usePhoneContacts();
+  // Round 51n — server-side reverse-lookup of phone-book contacts so we
+  // can render the "On MintU" badge correctly (vs the older heuristic
+  // which only flagged contacts that had touched a split before).
+  const [mintuMatches, setMintuMatches] = useState<Map<string, { user_id: string; name: string }>>(new Map());
   const chipsFade = useRef(new Animated.Value(0)).current;
 
   // Animate chip rail appearance
@@ -289,6 +294,34 @@ export default function AddMemberScreen() {
     })();
   }, [params.group_id]);
 
+  // Round 51n — when the device contact list resolves, batch-lookup
+  // their phones against the MintU user table so we render correct
+  // "On MintU" badges. Runs in parallel with the suggestion-pool
+  // build so it doesn't block first paint of the Suggested section.
+  useEffect(() => {
+    const phones = phoneContacts.contacts.map(c => c.phone).filter(Boolean);
+    if (phones.length === 0) return;
+    let alive = true;
+    (async () => {
+      try {
+        const matches = await lookupUsersByPhones(phones);
+        if (!alive) return;
+        const m = new Map<string, { user_id: string; name: string }>();
+        for (const it of matches) {
+          // Server normalises too — be defensive in case a future
+          // server change returns raw E.164.
+          const norm = normalizePhone(it.phone);
+          if (norm) m.set(norm, { user_id: it.user_id, name: it.name });
+        }
+        setMintuMatches(m);
+      } catch {
+        // Silent — UI gracefully falls back to "Invite" CTAs everywhere.
+      }
+    })();
+    return () => { alive = false; };
+  }, [phoneContacts.contacts]);
+
+
   // Invite link (stable per group) — lands on /join/[id] deeplink handler
   const inviteLink = useMemo(
     () => (group?.id ? `https://mintu.app/join/${group.id}` : 'https://mintu.app'),
@@ -310,12 +343,19 @@ export default function AddMemberScreen() {
     );
     const phoneBook: Contact[] = phoneContacts.contacts
       .filter(pc => !poolByPhone.has(pc.phone)) // not already in suggestion pool
-      .map(pc => ({
-        phone: pc.phone,
-        name: pc.name,
-        onMintU: false,
-        alreadyInGroup: memberPhones.has(pc.phone),
-      }));
+      .map(pc => {
+        const match = mintuMatches.get(pc.phone);
+        return {
+          phone: pc.phone,
+          // Prefer the server-canonical name (matches the user's MintU
+          // profile) when we have one — falls back to the device contact
+          // name otherwise.
+          name: match?.name || pc.name,
+          user_id: match?.user_id,
+          onMintU: !!match,
+          alreadyInGroup: memberPhones.has(pc.phone),
+        };
+      });
 
     const filtered = pool.filter(match);
     const suggested = filtered.filter(c => (c.score || 0) >= 2).slice(0, 8);
@@ -330,7 +370,7 @@ export default function AddMemberScreen() {
     if (phoneFiltered.length) result.push({ title: 'Phone contacts',    icon: 'phone-portrait',  data: phoneFiltered });
     if (others.length)        result.push({ title: 'Other contacts',    icon: 'person-outline',  data: others });
     return result;
-  }, [pool, debSearch, phoneContacts.contacts, group?.members]);
+  }, [pool, debSearch, phoneContacts.contacts, mintuMatches, group?.members]);
 
   // ─── Actions ─────────────────────────────
   const toggleContact = useCallback((c: Contact) => {
@@ -594,7 +634,16 @@ export default function AddMemberScreen() {
                 <TouchableOpacity
                   onPress={async () => {
                     if (phoneContacts.permission === 'denied') {
-                      Linking.openSettings?.();
+                      // iOS: Linking.openSettings() opens the app's settings page
+                      // Android: requires sending an intent to the app details screen
+                      if (Platform.OS === 'ios') {
+                        Linking.openURL('app-settings:').catch(() => Linking.openSettings());
+                      } else {
+                        // Android — open app-specific settings via intent
+                        Linking.openSettings().catch(() => {
+                          Linking.openURL('package:com.mintu.finance').catch(() => {});
+                        });
+                      }
                       return;
                     }
                     await phoneContacts.load();

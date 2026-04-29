@@ -1,31 +1,36 @@
-// Plans view — 3-tier pricing + feature comparison.
+// Plans view — decision-focused checkout.
 //
-// Round 51d — Tier selection hardening.
+// Round 53o (Apr 29 2026) — refactored from feature-heavy to
+// decision-focused per user spec:
 //
-// Real-device testing reported "tapping Micro/Standard/Premium does
-// nothing". Three independent reasons:
-//   1. The card tap opened an Alert.alert → many testers cancelled or
-//      didn't see the alert (autofill / OS overlay). With the alert
-//      cancelled, the card NEVER changed visually so it felt unresponsive.
-//   2. When the backend admin hadn't configured RAZORPAY_PLAN_ID_*, the
-//      first activation attempt would 503 and silently demo-activate.
-//      Subsequent taps still went through Alert.alert.
-//   3. There was no "selected" visual state — only `isActive(p)` (which
-//      requires a successful subscription change) drives the highlight.
+//   1. Hero (value + savings)
+//   2. Tier cards (selection)
+//   3. Comparison matrix (truth layer — driven by selection/active tier)
+//   4. Free fallback CTA
+//   5. Trust line
 //
-// Fixes here:
-//   • New `selectedTier` local state — set on EVERY tap, drives a clear
-//     border/glow highlight independent of the actual subscribed plan.
-//   • New `demoMode` flag — set the moment we get a 503 from the
-//     subscription API (or after the first mock activation). Once true,
-//     tier taps skip the Alert and demo-activate directly with a
-//     "Demo mode — preview" toast. No more dead-end tap.
-//   • Each card carries a "Demo mode · tap to preview" caption when
-//     `demoMode` is true so users understand why payment isn't required.
-//   • `buy()` short-circuits the "p === plan" no-op so re-tapping a
-//     currently-active card still gives haptic + visual feedback.
+// Removed:
+//   • Static payment-logo bar (GPay / PhonePe / Paytm / Cards / UPI pills) —
+//     decorative noise. Real method selection happens inside Razorpay's
+//     hosted page.
+//   • 3 stacked per-tier "What you get" cards — duplicated info already in
+//     the tier cards above. Replaced with a single comparison matrix.
+//
+// Added:
+//   • Scroll-to-comparison + brief column flash on tier card tap (reinforces
+//     decision instantly).
+//   • Comparison column highlight tied to `selectedTier` (pre-purchase) or
+//     `plan` (post-purchase) — user always knows "what I'm picking" vs
+//     "what I have".
+//   • Single intentional trust line ("Secure payments via Razorpay · UPI,
+//     Cards, Wallets supported").
+//
+// Round 51d hardening (kept):
+//   • Visual `selectedTier` independent of `plan` — every tap gives feedback.
+//   • `demoMode` short-circuit when Razorpay plan IDs aren't configured.
+//   • Re-tapping the active card still emits haptic + highlight feedback.
 import React, { useState, useRef } from 'react';
-import { View, Text, ScrollView, TouchableOpacity, Alert, Platform } from 'react-native';
+import { View, Text, ScrollView, TouchableOpacity, Alert, Platform, Animated } from 'react-native';
 import * as WebBrowser from 'expo-web-browser';
 import * as Haptics from 'expo-haptics';
 import { Ionicons } from '@expo/vector-icons';
@@ -35,6 +40,7 @@ import { useActivePlan, PLAN_META } from '../../utils/premium';
 import type { Plan } from '../../utils/premium';
 import { usePremiumStyles, fmtINR } from './styles';
 import api from '../../utils/api';
+import PremiumComparison from './PremiumComparison';
 
 // Frontend plan-key → backend subscription-tier ("lite"|"pro"|"elite")
 const PLAN_TO_TIER: Record<Plan, 'lite' | 'pro' | 'elite' | null> = {
@@ -47,15 +53,33 @@ export default function PlansView({ potentialSavings }: { potentialSavings: numb
   // Visual selection state — independent of active subscription.
   const [selectedTier, setSelectedTier] = useState<Plan | null>(plan || null);
   // Becomes true the first time the backend tells us plan IDs aren't
-  // configured (Razorpay 503), or after a manual mockActivate. Once true
-  // we skip the Alert.alert flow and demo-activate directly.
+  // configured (Razorpay 503), or after a manual mockActivate.
   const [demoMode, setDemoMode] = useState<boolean>(false);
   const inFlightRef = useRef(false);
 
-  // UPI AutoPay flow — creates a Razorpay subscription and opens the hosted
-  // mandate-authorisation page. If the admin hasn't configured plan_ids in
-  // Razorpay Dashboard (.env has empty RAZORPAY_PLAN_ID_*), the backend returns
-  // 503 and we silently fall back to demo-activate.
+  // Refs for scroll-to-comparison UX.
+  const scrollRef     = useRef<ScrollView>(null);
+  const comparisonY   = useRef(0);
+  const flashAnim     = useRef(new Animated.Value(0)).current;
+
+  // Reduced-motion fallback: if Animated isn't running smoothly we still
+  // get the highlight via prop; the flash is purely additive polish.
+  const triggerFlash = () => {
+    flashAnim.setValue(0);
+    Animated.sequence([
+      Animated.timing(flashAnim, { toValue: 1, duration: 220, useNativeDriver: false }),
+      Animated.timing(flashAnim, { toValue: 0, duration: 600, useNativeDriver: false }),
+    ]).start();
+  };
+
+  const scrollToComparison = () => {
+    if (!scrollRef.current) return;
+    // Scroll just before the comparison block so the user sees the column
+    // header animate into view.
+    scrollRef.current.scrollTo({ y: Math.max(0, comparisonY.current - 12), animated: true });
+  };
+
+  // UPI AutoPay flow — opens Razorpay's hosted mandate page.
   const startAutoPay = async (p: Plan) => {
     const tier = PLAN_TO_TIER[p];
     if (!tier) return false;
@@ -65,7 +89,7 @@ export default function PlansView({ potentialSavings }: { potentialSavings: numb
         await WebBrowser.openBrowserAsync(r.data.short_url);
         Toast.show({
           type: 'info',
-          text1: 'UPI AutoPay mandate opened',
+          text1: 'Razorpay opened',
           text2: 'Complete authorisation to activate ' + PLAN_META[p].label,
           position: 'bottom',
         });
@@ -74,14 +98,13 @@ export default function PlansView({ potentialSavings }: { potentialSavings: numb
     } catch (e: any) {
       const status = e?.response?.status;
       if (status === 503) {
-        // Plan not yet configured — silent fallback to demo activation
-        // and remember so future taps go straight to demo mode.
+        // Plan not yet configured — silent fallback to demo activation.
         setDemoMode(true);
         await mockActivate(p, /* silent */ false);
         return true;
       }
       const detail = e?.response?.data?.detail || '';
-      Toast.show({ type: 'error', text1: 'Could not start AutoPay', text2: detail || 'Please try again' });
+      Toast.show({ type: 'error', text1: 'Could not start payment', text2: detail || 'Please try again' });
       return false;
     }
     return false;
@@ -106,6 +129,13 @@ export default function PlansView({ potentialSavings }: { potentialSavings: numb
     // Always give immediate visual + haptic feedback so a tap is never
     // silent, even if the user re-taps the currently-active plan.
     setSelectedTier(p);
+    if (p !== 'free') {
+      // Reinforce decision: scroll to comparison + flash matching column.
+      requestAnimationFrame(() => {
+        scrollToComparison();
+        triggerFlash();
+      });
+    }
     if (Platform.OS !== 'web') {
       try { Haptics.selectionAsync(); } catch { /* noop */ }
     }
@@ -150,9 +180,13 @@ export default function PlansView({ potentialSavings }: { potentialSavings: numb
   const isActive   = (p: Plan) => plan === p;
   const isSelected = (p: Plan) => selectedTier === p && !isActive(p);
 
+  // Feed comparison columns: only paid tiers map. 'free' → null highlight.
+  const compActive   = (plan === 'free' ? null : (plan as Exclude<Plan, 'free'> | null)) || null;
+  const compSelected = (selectedTier && selectedTier !== 'free' ? selectedTier : null) as Exclude<Plan, 'free'> | null;
+
   return (
-    <ScrollView contentContainerStyle={{ paddingBottom: 40 }}>
-      {/* Hook */}
+    <ScrollView ref={scrollRef} contentContainerStyle={{ paddingBottom: 40 }}>
+      {/* 1. Hero */}
       <View style={styles.hookCard}>
         <Text style={styles.hookHeader}>
           You could have saved <Text style={{ color: COLORS.accent.moneyOut }}>{fmtINR(potentialSavings || 1275)}</Text> this month
@@ -160,9 +194,9 @@ export default function PlansView({ potentialSavings }: { potentialSavings: numb
         <Text style={styles.hookSub}>MintU Premium finds your hidden money leaks · All tiers ≤ ₹150/month</Text>
       </View>
 
-      {/* India-Hack 3-paid-tier pricing row (Free shown separately below) */}
+      {/* 2. Tier cards (selection) */}
       <View style={styles.plansRow}>
-        {/* Micro — ₹29 "Why not?" */}
+        {/* Micro — ₹29 */}
         <TouchableOpacity
           style={[
             styles.planCard,
@@ -184,7 +218,7 @@ export default function PlansView({ potentialSavings }: { potentialSavings: numb
           )}
         </TouchableOpacity>
 
-        {/* Standard — ₹99 "Useful" — highlighted as best-seller */}
+        {/* Standard — ₹99 — best-seller */}
         <TouchableOpacity
           style={[
             styles.planCardBest,
@@ -209,7 +243,7 @@ export default function PlansView({ potentialSavings }: { potentialSavings: numb
           )}
         </TouchableOpacity>
 
-        {/* Premium — ₹149 "Upgrade your life" */}
+        {/* Premium — ₹149 */}
         <TouchableOpacity
           style={[
             styles.planCard,
@@ -238,43 +272,39 @@ export default function PlansView({ potentialSavings }: { potentialSavings: numb
         </Text>
       ) : (
         <Text style={styles.mostPopular}>
-          💡 Most users pick <Text style={{ color: COLORS.accent.primary, fontWeight: '800' }}>Standard</Text> — best balance of features &amp; price
+          💡 Most users pick <Text style={{ color: COLORS.accent.primary, fontWeight: '800' }}>Standard</Text> — best balance of features & price
         </Text>
       )}
 
-      {/* Payment methods trust bar — India-first familiarity */}
-      <View style={styles.payTrust}>
-        <View style={styles.payTrustHeader}>
-          <Ionicons name="shield-checkmark" size={14} color={COLORS.accent.moneyIn} />
-          <Text style={styles.payTrustTitle}>Pay with what you already use</Text>
-        </View>
-        <View style={styles.payLogosRow}>
-          <View style={[styles.payPill, { backgroundColor: '#FFFFFF' }]}>
-            <Text style={[styles.payLogoTxt, { color: '#1A73E8' }]}>G</Text>
-            <Text style={[styles.payLogoTxt, { color: '#EA4335' }]}>P</Text>
-            <Text style={[styles.payLogoTxt, { color: '#FBBC04' }]}>a</Text>
-            <Text style={[styles.payLogoTxt, { color: '#34A853' }]}>y</Text>
-          </View>
-          <View style={[styles.payPill, { backgroundColor: '#5F259F' }]}>
-            <Text style={styles.payPillWhiteTxt}>PhonePe</Text>
-          </View>
-          <View style={[styles.payPill, { backgroundColor: '#02B9F1' }]}>
-            <Text style={styles.payPillWhiteTxt}>Paytm</Text>
-          </View>
-          <View style={[styles.payPill, { backgroundColor: '#0F1E36' }]}>
-            <Ionicons name="card-outline" size={12} color="#fff" />
-            <Text style={[styles.payPillWhiteTxt, { marginLeft: 3 }]}>Cards</Text>
-          </View>
-          <View style={[styles.payPill, { backgroundColor: '#E8F5E9', borderWidth: 1, borderColor: '#2E7D32' }]}>
-            <Ionicons name="phone-portrait-outline" size={12} color="#2E7D32" />
-            <Text style={[styles.payLogoTxt, { color: '#2E7D32', marginLeft: 3, fontSize: 11 }]}>UPI</Text>
-          </View>
-        </View>
-        <Text style={styles.payFootnote}>UPI AutoPay · Instant · Secured by Razorpay 🇮🇳</Text>
-      </View>
+      {/* 3. Comparison matrix — single source of truth, replaces the
+          old per-tier "What you get" stacked cards.
+          onLayout captures y so tier-card taps can scroll smoothly here. */}
+      <Animated.View
+        onLayout={(e) => { comparisonY.current = e.nativeEvent.layout.y; }}
+        style={{
+          marginHorizontal: 16,
+          marginTop: 16,
+          // Subtle global flash on the wrap when a tier is picked.
+          opacity: flashAnim.interpolate({ inputRange: [0, 1], outputRange: [1, 0.96] }),
+          transform: [{ scale: flashAnim.interpolate({ inputRange: [0, 1], outputRange: [1, 1.005] }) }],
+        }}
+      >
+        <PremiumComparison
+          activeTier={compActive}
+          selectedTier={compSelected}
+          onPickTier={(p) => buy(p)}
+        />
+      </Animated.View>
 
-      {/* Free tier banner */}
-      <TouchableOpacity style={[styles.freeBanner, isActive('free') && styles.freeBannerActive]} onPress={() => buy('free')} activeOpacity={0.8} testID="tier-free">
+      {/* 4. Free fallback CTA — explicit "Continue with Free plan" so the
+          downgrade path is obvious + non-pushy. */}
+      <Text style={styles.sectionTitle}>Continue with Free plan</Text>
+      <TouchableOpacity
+        style={[styles.freeBanner, isActive('free') && styles.freeBannerActive]}
+        onPress={() => buy('free')}
+        activeOpacity={0.8}
+        testID="tier-free"
+      >
         <View style={styles.freeBannerIcon}>
           <Text style={{ fontSize: 18 }}>🌱</Text>
         </View>
@@ -289,41 +319,18 @@ export default function PlansView({ potentialSavings }: { potentialSavings: numb
         )}
       </TouchableOpacity>
 
-      {/* Feature comparison — Micro / Standard / Premium */}
-      <Text style={styles.sectionTitle}>What you get</Text>
-      {(['intro', 'monthly', 'yearly'] as Plan[]).map((p) => {
-        const meta = PLAN_META[p];
-        const active = isActive(p);
-        return (
-          <View key={p} style={[styles.featureCard, active && styles.featureCardActive]}>
-            <View style={styles.featureHeader}>
-              <Text style={styles.featureEmoji}>{meta.emoji}</Text>
-              <View style={{ flex: 1 }}>
-                <Text style={styles.featureTitle}>{meta.label} · {meta.price} <Text style={styles.featureSub}>{meta.priceSub}</Text></Text>
-              </View>
-              {active && <View style={styles.activePill}><Text style={styles.activePillText}>YOUR PLAN</Text></View>}
-            </View>
-            {meta.features.map((f, i) => (
-              <View key={i} style={styles.featureRow}>
-                <Ionicons name="checkmark-circle" size={16} color={COLORS.accent.moneyIn} />
-                <Text style={styles.featureText}>{f}</Text>
-              </View>
-            ))}
-          </View>
-        );
-      })}
-
-      {/* Trust strip */}
-      <View style={styles.trustRow}>
-        <View style={styles.trustSig}><Text style={styles.trustSigEmoji}>🔒</Text><Text style={styles.trustSigText}>Cancel{'\n'}anytime</Text></View>
-        <View style={styles.trustSig}><Text style={styles.trustSigEmoji}>🇮🇳</Text><Text style={styles.trustSigText}>India{'\n'}servers</Text></View>
-        <View style={styles.trustSig}><Text style={styles.trustSigEmoji}>💳</Text><Text style={styles.trustSigText}>UPI /{'\n'}Card / NetB</Text></View>
+      {/* 5. Trust line — single intentional, non-cluttered */}
+      <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, paddingHorizontal: 16, paddingTop: 18, paddingBottom: 4 }}>
+        <Ionicons name="shield-checkmark" size={13} color={COLORS.accent.moneyIn} />
+        <Text style={{ fontSize: 11.5, color: COLORS.text.secondary, fontWeight: '600', textAlign: 'center' }}>
+          Secure payments via Razorpay · UPI, Cards, Wallets supported
+        </Text>
       </View>
-      <Text style={styles.disclaimer}>
-        {demoMode
-          ? '*Demo mode active: tier activates instantly without payment. Production billing engages once admin configures Razorpay plan IDs.'
-          : '*Demo mode: activates instantly without payment. Real billing coming soon.'}
-      </Text>
+      {demoMode && (
+        <Text style={styles.disclaimer}>
+          *Demo mode active: tier activates instantly without payment.
+        </Text>
+      )}
     </ScrollView>
   );
 }

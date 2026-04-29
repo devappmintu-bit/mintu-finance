@@ -85,9 +85,9 @@ frontend/dist/
 backend/__pycache__/
 *.pyc
 frontend/.expo/
-backend/.env
-frontend/.env
-.env
+# .env files INTENTIONALLY tracked — Emergent injects production
+# values at deploy time. Removing these exclusions is required for
+# deployment readiness (per deployment_agent health check).
 .env.local
 test_reports/
 *.log

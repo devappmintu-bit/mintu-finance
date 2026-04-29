@@ -178,6 +178,71 @@ export async function markPaidOffline(payload: {
   return r.data;
 }
 
+// ── Round 53k — Smart Settlements (auto-optimize who pays whom) ───────
+export type SmartSettleTransfer = {
+  from: string;
+  from_name: string;
+  to: string;
+  to_name: string;
+  amount: number;
+  amount_paise: number;
+  is_mine: boolean;
+};
+
+export type SmartSettlePlan = {
+  group_id: string;
+  group_name: string;
+  transfers: SmartSettleTransfer[];
+  my_transfers: SmartSettleTransfer[];
+  my_total_outgoing: number;
+  my_total_outgoing_paise: number;
+  summary: { transfers: number; total_paise: number; debtors: number; creditors: number };
+  members: Record<string, string>;
+  drift_paise: number;
+};
+
+export type SmartSettleResult = {
+  message: string;
+  batch_ref: string;
+  settled_count: number;
+  total_amount: number;
+  total_paise: number;
+  settlement_ids: string[];
+  transfers: { to: string; to_name: string; amount: number; amount_paise: number }[];
+};
+
+/** Read-only optimized settlement plan for a group. */
+export async function fetchSettlePlan(groupId: string): Promise<SmartSettlePlan> {
+  const r = await api.get(`/split/groups/${groupId}/settle-plan`);
+  return r.data as SmartSettlePlan;
+}
+
+/**
+ * Atomic batch-execute the caller's outgoing legs of the optimized plan.
+ *
+ * @param groupId Group whose books we're settling
+ * @param expectedTotalPaise Server-side drift guard. Pass the value from
+ *   the preview; if the recomputed plan disagrees the API returns 409
+ *   so the UI can refresh + re-confirm.
+ * @param idempotencyKey Caller-supplied UUID. Reuse on retries to get
+ *   the original response replayed verbatim (exactly-once semantics).
+ * @param method Payment method label persisted on each settlement doc.
+ */
+export async function settleMyPart(
+  groupId: string,
+  expectedTotalPaise: number,
+  idempotencyKey: string,
+  method: string = 'upi',
+): Promise<SmartSettleResult> {
+  const r = await api.post(
+    `/split/groups/${groupId}/settle-my-part`,
+    { method, expected_total_paise: expectedTotalPaise },
+    { headers: { 'Idempotency-Key': idempotencyKey } },
+  );
+  await invalidateAfter('split.settle');
+  return r.data as SmartSettleResult;
+}
+
 // ── Round 51j — Drafts (Solo / unattached expenses) ──────────────────
 // Lightweight helpers wrapping the 4 new backend endpoints. Drafts
 // don't belong to any group so we don't trigger split-cache

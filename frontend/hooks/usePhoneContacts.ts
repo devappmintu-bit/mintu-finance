@@ -87,9 +87,14 @@ export function usePhoneContacts() {
       setLoading(false);
       return { granted: true, count: out.length };
     } catch (e: any) {
-      setError(e?.message || 'Could not read contacts');
+      const msg = e?.message || '';
+      // On Android, 'user denied' vs 'permission never asked' need different UX
+      const isDenied = msg.toLowerCase().includes('denied') || msg.toLowerCase().includes('permission');
+      setError(isDenied
+        ? 'Contacts access was denied. Please enable it in your phone Settings > MintU > Contacts.'
+        : 'Could not read contacts. Please try again.');
       setLoading(false);
-      setPermission('denied');
+      setPermission(isDenied ? 'denied' : 'denied');
       return { granted: false, count: 0 };
     }
   }, []);

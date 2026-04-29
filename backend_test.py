@@ -1,335 +1,359 @@
-"""Round 36 post-frontend-audit backend smoke test.
+"""Round 53k Smart Settlements — backend integration tests.
 
-Confirms that:
-  1. POST /api/auth/send-otp + /api/auth/verify-otp still work (9876543210/123456).
-  2. GET /api/home/bundle returns 200 for authed user.
-  3. POST /api/goals accepts a valid payload.
-  4. POST /api/transactions works with a valid payload + idempotency_key
-     (repeat returns deduped=true, only one row in DB).
-  5. POST /api/split/groups accepts a valid payload.
-  6. POST /api/rewards/claim-marketplace is idempotent. Two calls with the
-     same reward_id for the same user → ledger has ONE debit, wallet has
-     ONE entry.
+Targets:
+  GET  /api/split/groups/{group_id}/settle-plan
+  POST /api/split/groups/{group_id}/settle-my-part
+
+Covers all 8 review-request scenarios.
 """
-from __future__ import annotations
-
 import os
 import sys
 import time
 import uuid
-from typing import Any, Dict, Optional
+import json
+from typing import Optional, Dict, Any
 
 import requests
-from motor.motor_asyncio import AsyncIOMotorClient
-import asyncio
+from bson import ObjectId
 
-BASE = os.environ.get("PUBLIC_BACKEND_URL", "https://mintu-finance.preview.emergentagent.com").rstrip("/")
-API = f"{BASE}/api"
-PHONE = "9876543210"
+BASE = os.environ.get("EXPO_PUBLIC_BACKEND_URL") or "https://mintu-finance.preview.emergentagent.com"
+API = f"{BASE.rstrip('/')}/api"
 OTP = "123456"
-MONGO_URL = os.environ.get("MONGO_URL", "mongodb://localhost:27017")
-DB_NAME = os.environ.get("DB_NAME", "mintu_database")
 
-TIMEOUT = 30
-
-results: list[tuple[str, bool, str]] = []
+PASS = []
+FAIL = []
 
 
-def record(name: str, ok: bool, info: str = "") -> None:
-    results.append((name, ok, info))
-    status = "PASS" if ok else "FAIL"
-    print(f"  [{status}] {name}{(' - ' + info) if info else ''}")
+def log(prefix: str, msg: str):
+    print(f"{prefix} {msg}")
 
 
-def h(title: str) -> None:
-    print(f"\n-- {title} --")
+def assertEq(name: str, got, expected):
+    ok = got == expected
+    if ok:
+        PASS.append(name)
+        log("✅", f"{name}: {got!r} == {expected!r}")
+    else:
+        FAIL.append((name, f"got={got!r} expected={expected!r}"))
+        log("❌", f"{name}: got={got!r} expected={expected!r}")
 
 
-def do_auth() -> Optional[str]:
-    h("1) Auth: send-otp + verify-otp")
-    try:
-        r = requests.post(f"{API}/auth/send-otp", json={"phone": PHONE}, timeout=TIMEOUT)
-        record("POST /auth/send-otp 200", r.status_code == 200, f"status={r.status_code}")
-    except Exception as e:
-        record("POST /auth/send-otp", False, str(e))
-        return None
-    try:
-        r = requests.post(f"{API}/auth/verify-otp", json={"phone": PHONE, "otp": OTP}, timeout=TIMEOUT)
-        ok = r.status_code == 200
-        token = None
-        if ok:
-            js = r.json()
-            token = js.get("token") or js.get("access_token") or js.get("jwt")
-            ok = bool(token)
-        record("POST /auth/verify-otp 200 + token", ok, f"status={r.status_code}")
-        if ok and token:
-            return token
-    except Exception as e:
-        record("POST /auth/verify-otp", False, str(e))
-    return None
+def assertTrue(name: str, cond, detail: str = ""):
+    if cond:
+        PASS.append(name)
+        log("✅", f"{name} {detail}")
+    else:
+        FAIL.append((name, detail or "condition false"))
+        log("❌", f"{name} {detail}")
 
 
-def do_bundle(token: str) -> None:
-    h("2) GET /home/bundle")
-    try:
-        r = requests.get(f"{API}/home/bundle",
-                         headers={"Authorization": f"Bearer {token}"}, timeout=TIMEOUT)
-        ok = r.status_code == 200
-        record("GET /home/bundle 200", ok, f"status={r.status_code}")
-        if ok:
-            js = r.json()
-            required = {"user", "stats", "recent_txns", "cached_at", "cache_ttl_s"}
-            missing = required - set(js.keys())
-            record("  bundle has required keys", not missing,
-                   f"missing={missing}" if missing else "")
-    except Exception as e:
-        record("GET /home/bundle", False, str(e))
+def post(path: str, json_body: Optional[dict] = None, token: Optional[str] = None,
+         headers: Optional[dict] = None, timeout: int = 30):
+    h = {"Content-Type": "application/json"}
+    if token:
+        h["Authorization"] = f"Bearer {token}"
+    if headers:
+        h.update(headers)
+    return requests.post(f"{API}{path}", json=json_body, headers=h, timeout=timeout)
 
 
-def do_goals(token: str) -> None:
-    h("3) POST /goals")
-    payload = {
-        "name": f"Round36 smoke goal {int(time.time())}",
-        "target_amount": 50000,
-        "saved_amount": 2500,
-        "target_date": "2026-12-31",
-        "color": "#F56E1E",
-        "emoji": "G",
+def get(path: str, token: Optional[str] = None, timeout: int = 30):
+    h = {}
+    if token:
+        h["Authorization"] = f"Bearer {token}"
+    return requests.get(f"{API}{path}", headers=h, timeout=timeout)
+
+
+def login_user(phone: str, name: Optional[str] = None) -> Dict[str, Any]:
+    """Send OTP + verify, returning {token, user_id, name, phone}.
+    Handles 30s rate limit by retrying after wait. Uses provided name for
+    new-user signup path.
+    """
+    for attempt in range(3):
+        r = post("/auth/send-otp", {"phone": phone})
+        if r.status_code == 200:
+            break
+        if r.status_code == 429:
+            log("⏳", f"rate-limit on send-otp for {phone}, sleeping 32s")
+            time.sleep(32)
+            continue
+        raise RuntimeError(f"send-otp failed for {phone}: {r.status_code} {r.text}")
+    else:
+        raise RuntimeError(f"send-otp persistently rate-limited for {phone}")
+
+    body = {"phone": phone, "otp": OTP}
+    if name:
+        body["name"] = name
+    r = post("/auth/verify-otp", body)
+    if r.status_code != 200:
+        # If new-user, name is required; if existing user but body included name, also OK.
+        raise RuntimeError(f"verify-otp failed for {phone}: {r.status_code} {r.text}")
+    j = r.json()
+    return {
+        "token": j["token"],
+        "user_id": j["user"]["id"],
+        "name": j["user"]["name"],
+        "phone": j["user"]["phone"],
+        "is_new_user": j.get("is_new_user", False),
     }
-    try:
-        r = requests.post(f"{API}/goals", json=payload,
-                          headers={"Authorization": f"Bearer {token}"}, timeout=TIMEOUT)
-        ok = r.status_code == 200
-        record("POST /goals valid payload 200", ok, f"status={r.status_code} body={r.text[:200]}")
-        if ok:
-            g = r.json().get("goal", {})
-            record("  goal has id + target_amount",
-                   "id" in g and g.get("target_amount") == 50000,
-                   f"id={g.get('id')}")
-    except Exception as e:
-        record("POST /goals", False, str(e))
 
 
-def do_transactions(token: str) -> None:
-    h("4) POST /transactions with idempotency_key")
-    idem = f"smoke-r36-{uuid.uuid4().hex[:12]}"
-    payload = {
-        "amount": 123.45,
-        "category": "Food",
-        "description": "Round36 smoke test latte",
-        "type": "debit",
-        "idempotency_key": idem,
-    }
-    id1: Optional[str] = None
-    try:
-        r = requests.post(f"{API}/transactions", json=payload,
-                          headers={"Authorization": f"Bearer {token}"}, timeout=TIMEOUT)
-        ok = r.status_code == 200
-        record("POST /transactions 1st call 200", ok, f"status={r.status_code} body={r.text[:160]}")
-        if ok:
-            id1 = r.json().get("id")
-            record("  1st call NOT deduped",
-                   r.json().get("deduped") in (None, False),
-                   f"deduped={r.json().get('deduped')}")
-    except Exception as e:
-        record("POST /transactions (1st)", False, str(e))
+def main():
+    # ── 0. Bootstrap: 3 users (A=caller, B, C) and a 4th for non-member tests.
+    print("\n══════ 0. Bootstrap users ══════")
+    A = login_user("9876543210", name="MintU Tester")
+    log("👤", f"A user_id={A['user_id']} name={A['name']}")
+    time.sleep(1)
+    B = login_user("9876543211", name="Riya Patel")
+    log("👤", f"B user_id={B['user_id']} name={B['name']}")
+    time.sleep(1)
+    C = login_user("9876543212", name="Aman Verma")
+    log("👤", f"C user_id={C['user_id']} name={C['name']}")
+    time.sleep(1)
+    D = login_user("9876543213", name="Outsider Dev")
+    log("👤", f"D (non-member) user_id={D['user_id']} name={D['name']}")
 
-    try:
-        r = requests.post(f"{API}/transactions", json=payload,
-                          headers={"Authorization": f"Bearer {token}"}, timeout=TIMEOUT)
-        ok = r.status_code == 200
-        record("POST /transactions 2nd call (same idem) 200", ok, f"status={r.status_code}")
-        if ok:
-            js = r.json()
-            record("  2nd call has deduped=true", js.get("deduped") is True,
-                   f"deduped={js.get('deduped')}")
-            record("  2nd call returns same id", js.get("id") == id1,
-                   f"id1={id1} id2={js.get('id')}")
-    except Exception as e:
-        record("POST /transactions (2nd)", False, str(e))
+    # ── 1. Auth boundary / 400 invalid id ──
+    print("\n══════ 1. Auth boundary (400 / 404) ══════")
+    r = get("/split/groups/abc123/settle-plan", token=A["token"])
+    assertEq("1.1 invalid group_id → 400 (settle-plan)", r.status_code, 400)
+    r = post("/split/groups/abc123/settle-my-part", {}, token=A["token"])
+    assertEq("1.2 invalid group_id → 400 (settle-my-part)", r.status_code, 400)
 
+    # Create a group between B and C only — A should be 404 on it.
+    r = post("/split/groups", {"name": "Riya+Aman duo", "members": [C["phone"]]}, token=B["token"])
+    assertEq("1.3 BC group create", r.status_code, 200)
+    bc_group_id = r.json()["id"]
 
-def do_split_group(token: str) -> None:
-    h("5) POST /split/groups")
-    payload = {
-        "name": f"Smoke Group {int(time.time())}",
-        "members": ["9999888877"],
-    }
-    try:
-        r = requests.post(f"{API}/split/groups", json=payload,
-                          headers={"Authorization": f"Bearer {token}"}, timeout=TIMEOUT)
-        ok = r.status_code == 200
-        record("POST /split/groups 200", ok, f"status={r.status_code} body={r.text[:200]}")
-        if ok:
-            js = r.json()
-            record("  response has id + >=2 members",
-                   bool(js.get("id")) and len(js.get("members", [])) >= 2,
-                   f"members={len(js.get('members', []))}")
-    except Exception as e:
-        record("POST /split/groups", False, str(e))
+    r = get(f"/split/groups/{bc_group_id}/settle-plan", token=A["token"])
+    assertEq("1.4 non-member → 404 (settle-plan)", r.status_code, 404)
+    r = post(f"/split/groups/{bc_group_id}/settle-my-part", {}, token=A["token"])
+    assertEq("1.5 non-member → 404 (settle-my-part)", r.status_code, 404)
 
+    # ── 2. Empty zero-balance group ──
+    print("\n══════ 2. Empty zero-balance group ══════")
+    r = post("/split/groups",
+             {"name": "Zero balance group", "members": [B["phone"], C["phone"]]},
+             token=A["token"])
+    assertEq("2.1 empty group create", r.status_code, 200)
+    empty_gid = r.json()["id"]
 
-REWARD_ID = "airtel_50"
+    r = get(f"/split/groups/{empty_gid}/settle-plan", token=A["token"])
+    assertEq("2.2 settle-plan empty → 200", r.status_code, 200)
+    plan = r.json()
+    assertEq("2.3 transfers == []", plan.get("transfers"), [])
+    assertEq("2.4 my_transfers == []", plan.get("my_transfers"), [])
+    assertEq("2.5 my_total_outgoing == 0", float(plan.get("my_total_outgoing", -1)), 0.0)
+    assertEq("2.6 summary.transfers == 0", plan.get("summary", {}).get("transfers"), 0)
+    assertTrue("2.7 group_id matches", plan.get("group_id") == empty_gid)
+    assertTrue("2.8 members dict has 3", len(plan.get("members", {})) == 3)
 
+    r = post(f"/split/groups/{empty_gid}/settle-my-part", {}, token=A["token"])
+    assertEq("2.9 settle-my-part empty → 400", r.status_code, 400)
+    assertTrue("2.10 detail mentions Nothing to settle",
+               "Nothing to settle" in (r.json().get("detail") or ""),
+               detail=str(r.json().get("detail")))
 
-async def _grant_coins_if_needed(user_id: str, needed: int = 200) -> int:
-    client = AsyncIOMotorClient(MONGO_URL)
-    db = client[DB_NAME]
-    from bson import ObjectId
-    try:
-        u = await db.users.find_one({"_id": ObjectId(user_id)})
-    except Exception:
-        u = None
-    current = int((u or {}).get("coins", 0) or 0)
-    current_balance = int((u or {}).get("coins_balance", 0) or 0)
-    pipeline = [{"$match": {"user_id": user_id}},
-                {"$group": {"_id": None, "sum": {"$sum": "$amount"}}}]
-    agg = await db.ledger_transactions.aggregate(pipeline).to_list(1)
-    ledger_sum = int(agg[0]["sum"]) if agg else 0
-    print(f"    coins (users.coins={current}, coins_balance={current_balance}, "
-          f"ledger_sum={ledger_sum}) -> target>= {needed}")
-    if ledger_sum < needed:
-        import datetime as _dt
-        top_up = needed - ledger_sum
-        idem = f"smoke-r36-topup::{user_id}::{uuid.uuid4().hex[:10]}"
-        await db.ledger_transactions.insert_one({
-            "user_id": user_id,
-            "amount": int(top_up),
-            "txn_type": "earn",
-            "source": "smoke:test-topup",
-            "idempotency_key": idem,
-            "created_at": _dt.datetime.utcnow(),
-        })
-        ledger_sum += top_up
+    # ── 3. Realistic 3-member plan ──
+    print("\n══════ 3. Realistic 3-member plan ══════")
+    r = post("/split/groups",
+             {"name": "Trip group", "members": [B["phone"], C["phone"]]},
+             token=A["token"])
+    assertEq("3.1 trip group create", r.status_code, 200)
+    trip_gid = r.json()["id"]
+    members = r.json()["members"]
+    log("👥", f"trip members = {[(m['name'], m['user_id']) for m in members]}")
 
-    # Force cached balances to match authoritative ledger sum. (The
-    # /rewards/claim-marketplace flow uses coins_balance via spend_coins,
-    # which must reflect the true ledger state.)
-    await db.users.update_one(
-        {"_id": ObjectId(user_id)},
-        {"$set": {
-            "coins": int(ledger_sum),
-            "coins_balance": int(ledger_sum),
-            "reward_coins": int(ledger_sum),
-        }},
-    )
-    client.close()
-    return ledger_sum
+    # B paid ₹150 for "Pizza" split equally (3 ways) → A owes B ₹50
+    r = post("/split/expenses", {
+        "group_id": trip_gid,
+        "description": "Pizza",
+        "amount": 150,
+        "paid_by": B["user_id"],
+        "split_type": "equal",
+    }, token=B["token"])
+    assertEq("3.2 expense Pizza by B", r.status_code, 200)
 
+    # C paid ₹150 for "Cab" split equally → A owes C ₹50
+    r = post("/split/expenses", {
+        "group_id": trip_gid,
+        "description": "Cab",
+        "amount": 150,
+        "paid_by": C["user_id"],
+        "split_type": "equal",
+    }, token=C["token"])
+    assertEq("3.3 expense Cab by C", r.status_code, 200)
 
-async def _count_claim_side_effects(user_id: str) -> Dict[str, int]:
-    client = AsyncIOMotorClient(MONGO_URL)
-    db = client[DB_NAME]
-    wallet_n = await db.rewards_wallet.count_documents({
-        "user_id": user_id, "source": "marketplace", "reward_id": REWARD_ID,
-    })
-    ledger_n = await db.ledger_transactions.count_documents({
-        "user_id": user_id,
-        "source": f"rewards:marketplace_claim:{REWARD_ID}",
-    })
-    client.close()
-    return {"wallet": wallet_n, "ledger": ledger_n}
+    # Plan preview
+    r = get(f"/split/groups/{trip_gid}/settle-plan", token=A["token"])
+    assertEq("3.4 settle-plan trip → 200", r.status_code, 200)
+    plan = r.json()
+    log("📋", f"plan.transfers={json.dumps(plan.get('transfers'), indent=0)[:300]}")
+    log("📋", f"my_transfers={plan.get('my_transfers')}")
+    log("📋", f"my_total_outgoing={plan.get('my_total_outgoing')}, paise={plan.get('my_total_outgoing_paise')}")
 
+    transfers = plan["transfers"]
+    my_transfers = plan["my_transfers"]
+    # Each split is 50 → A owes B 50, A owes C 50; optimal plan = 2 transfers from A
+    assertTrue("3.5 transfers count is 2 (optimal)", len(transfers) == 2,
+               detail=f"got {len(transfers)} transfers")
+    assertEq("3.6 my_transfers count == 2", len(my_transfers), 2)
+    for t in my_transfers:
+        assertEq("3.7 my_transfer.from == A", t["from"], A["user_id"])
+        assertTrue("3.8 my_transfer.is_mine == True", t.get("is_mine") is True)
+    sum_my = sum(t["amount_paise"] for t in my_transfers)
+    assertEq("3.9 my_total_outgoing_paise matches sum",
+             plan["my_total_outgoing_paise"], sum_my)
+    assertEq("3.10 my_total_outgoing_paise == 10000 (₹100)",
+             plan["my_total_outgoing_paise"], 10000)
+    assertEq("3.11 drift_paise == 0 on clean group", plan.get("drift_paise"), 0)
+    assertTrue("3.12 transfer recipients are B and C",
+               sorted([t["to"] for t in my_transfers]) == sorted([B["user_id"], C["user_id"]]),
+               detail=f"got {[t['to'] for t in my_transfers]}")
 
-async def _cleanup_prev_state(user_id: str) -> None:
-    client = AsyncIOMotorClient(MONGO_URL)
-    db = client[DB_NAME]
-    await db.rewards_wallet.delete_many({
-        "user_id": user_id, "source": "marketplace", "reward_id": REWARD_ID,
-    })
-    await db.ledger_transactions.delete_many({
-        "user_id": user_id,
-        "source": f"rewards:marketplace_claim:{REWARD_ID}",
-    })
-    client.close()
+    # ── 4. Happy path settle-my-part ──
+    print("\n══════ 4. Happy path /settle-my-part ══════")
+    expected_count = len(my_transfers)
+    expected_total_paise = plan["my_total_outgoing_paise"]
+    pre_settles = list(plan["my_transfers"])
 
+    r = post(f"/split/groups/{trip_gid}/settle-my-part",
+             {"method": "upi"}, token=A["token"])
+    assertEq("4.1 settle-my-part → 200", r.status_code, 200)
+    body = r.json()
+    log("💸", f"response = {json.dumps(body, indent=0)[:400]}")
+    assertEq("4.2 settled_count matches", body.get("settled_count"), expected_count)
+    assertEq("4.3 total_paise matches preview", body.get("total_paise"), expected_total_paise)
+    sids = body.get("settlement_ids") or []
+    assertEq("4.4 settlement_ids count == settled_count", len(sids), expected_count)
+    for sid in sids:
+        assertTrue("4.5 settlement_id is valid ObjectId hex",
+                   ObjectId.is_valid(sid), detail=f"sid={sid}")
+    assertTrue("4.6 batch_ref starts with SMART",
+               (body.get("batch_ref") or "").startswith("SMART"))
+    assertTrue("4.7 transfers list len matches", len(body.get("transfers") or []) == expected_count)
 
-def _decode_user_id(token: str) -> Optional[str]:
-    try:
-        import base64, json
-        payload_b64 = token.split(".")[1]
-        padded = payload_b64 + "=" * (4 - len(payload_b64) % 4)
-        data = json.loads(base64.urlsafe_b64decode(padded))
-        return data.get("user_id") or data.get("sub")
-    except Exception:
-        return None
+    batch_ref = body["batch_ref"]
 
+    # Verify settlement docs in DB via /split/settlements
+    time.sleep(0.5)
+    r = get("/split/settlements", token=A["token"])
+    assertEq("4.8 GET /split/settlements", r.status_code, 200)
+    all_setts = r.json()
+    matching = []
+    for s in all_setts:
+        if s["id"] in sids:
+            matching.append(s)
+    assertEq("4.9 all settlement_ids retrievable via /settlements", len(matching), expected_count)
+    for s in matching:
+        assertEq("4.10 payer_name resolved", s.get("payer_name") is not None, True)
+        assertTrue("4.11 amount > 0", float(s.get("amount", 0)) > 0)
+        assertEq("4.12 status completed", s.get("status"), "completed")
+        assertEq("4.13 is_payer True (A paid)", s.get("is_payer"), True)
 
-def do_rewards_idempotency(token: str) -> None:
-    h("6) POST /rewards/claim-marketplace idempotency")
-    user_id = _decode_user_id(token)
-    if not user_id:
-        record("decode user_id from JWT", False, "could not decode JWT payload")
-        return
-    record("decode user_id from JWT", True, f"user_id={user_id}")
+    # ── 5. No outgoing → 400 (B is creditor, not debtor) ──
+    print("\n══════ 5. No outgoing → 400 (creditor B) ══════")
+    r = post(f"/split/groups/{trip_gid}/settle-my-part", {}, token=B["token"])
+    # After A settles, B has no outgoing transfers (B was a creditor, now paid).
+    # Even if A hadn't settled, B has no outgoing transfers (creditor).
+    assertEq("5.1 B settle-my-part → 400", r.status_code, 400)
+    detail5 = (r.json().get("detail") or "")
+    assertTrue("5.2 detail mentions Nothing to settle",
+               "Nothing to settle" in detail5, detail=detail5)
 
-    loop = asyncio.new_event_loop()
-    try:
-        loop.run_until_complete(_cleanup_prev_state(user_id))
-        balance = loop.run_until_complete(_grant_coins_if_needed(user_id, 200))
-        record("pre-test balance adequate (>= 45 coins)", balance >= 45, f"balance={balance}")
+    # ── 6. Idempotency ──
+    print("\n══════ 6. Idempotency on settle-my-part ══════")
+    # Need a fresh group with new debt for A so we have something to settle.
+    r = post("/split/groups",
+             {"name": "Idem trip", "members": [B["phone"], C["phone"]]},
+             token=A["token"])
+    assertEq("6.1 idem group create", r.status_code, 200)
+    idem_gid = r.json()["id"]
+    # B paid ₹120 → A owes B ₹40
+    r = post("/split/expenses", {
+        "group_id": idem_gid, "description": "Snacks", "amount": 120,
+        "paid_by": B["user_id"], "split_type": "equal",
+    }, token=B["token"])
+    assertEq("6.2 expense Snacks", r.status_code, 200)
 
-        r1 = requests.post(f"{API}/rewards/claim-marketplace",
-                           json={"reward_id": REWARD_ID},
-                           headers={"Authorization": f"Bearer {token}"},
-                           timeout=TIMEOUT)
-        record("POST /rewards/claim-marketplace (1st) 200",
-               r1.status_code == 200, f"status={r1.status_code} body={r1.text[:220]}")
-        js1 = r1.json() if r1.status_code == 200 else {}
+    idem_key = str(uuid.uuid4())
+    r1 = post(f"/split/groups/{idem_gid}/settle-my-part", {},
+              token=A["token"], headers={"Idempotency-Key": idem_key})
+    assertEq("6.3 first call → 200", r1.status_code, 200)
+    body1 = r1.json()
 
-        r2 = requests.post(f"{API}/rewards/claim-marketplace",
-                           json={"reward_id": REWARD_ID},
-                           headers={"Authorization": f"Bearer {token}"},
-                           timeout=TIMEOUT)
-        record("POST /rewards/claim-marketplace (2nd) 200",
-               r2.status_code == 200, f"status={r2.status_code} body={r2.text[:220]}")
-        js2 = r2.json() if r2.status_code == 200 else {}
+    # Count settlement docs for A in this group BEFORE the duplicate call.
+    r = get("/split/settlements", token=A["token"])
+    pre_count = sum(1 for s in r.json()
+                    if s.get("is_payer") and s["id"] in (body1.get("settlement_ids") or []))
 
-        record("  2nd call reports deduped=true", js2.get("deduped") is True,
-               f"deduped={js2.get('deduped')}")
+    r2 = post(f"/split/groups/{idem_gid}/settle-my-part", {},
+              token=A["token"], headers={"Idempotency-Key": idem_key})
+    assertEq("6.4 second (idem) call → 200", r2.status_code, 200)
+    body2 = r2.json()
 
-        counts = loop.run_until_complete(_count_claim_side_effects(user_id))
-        record("  ledger_transactions has exactly 1 debit row",
-               counts["ledger"] == 1, f"count={counts['ledger']}")
-        record("  rewards_wallet has exactly 1 entry",
-               counts["wallet"] == 1, f"count={counts['wallet']}")
+    assertEq("6.5 batch_ref byte-identical", body2.get("batch_ref"), body1.get("batch_ref"))
+    assertEq("6.6 settlement_ids byte-identical",
+             body2.get("settlement_ids"), body1.get("settlement_ids"))
+    assertEq("6.7 total_paise byte-identical",
+             body2.get("total_paise"), body1.get("total_paise"))
+    # Full body equality check (excluding optional fields that might drift in time)
+    assertEq("6.8 full response byte-identical", body2, body1)
 
-        if "coins" in js1 and "coins" in js2:
-            record("  coin balance identical across the two calls",
-                   js1["coins"] == js2["coins"],
-                   f"1st={js1.get('coins')} 2nd={js2.get('coins')}")
+    # Verify no duplicate settlement rows in DB
+    r = get("/split/settlements", token=A["token"])
+    post_count = sum(1 for s in r.json()
+                     if s.get("is_payer") and s["id"] in (body1.get("settlement_ids") or []))
+    assertEq("6.9 NO duplicate settlements created (count unchanged)",
+             post_count, pre_count)
 
-        loop.run_until_complete(_cleanup_prev_state(user_id))
-    finally:
-        loop.close()
+    # ── 7. expected_total_paise drift detection ──
+    print("\n══════ 7. expected_total_paise drift detection ══════")
+    # Need a fresh group again with debt
+    r = post("/split/groups",
+             {"name": "Drift trip", "members": [B["phone"], C["phone"]]},
+             token=A["token"])
+    drift_gid = r.json()["id"]
+    r = post("/split/expenses", {
+        "group_id": drift_gid, "description": "Coffee", "amount": 90,
+        "paid_by": B["user_id"], "split_type": "equal",
+    }, token=B["token"])
+    assertEq("7.1 expense Coffee", r.status_code, 200)
 
+    r = post(f"/split/groups/{drift_gid}/settle-my-part",
+             {"expected_total_paise": 99999999}, token=A["token"])
+    assertEq("7.2 wrong expected_total_paise → 409", r.status_code, 409)
+    detail7 = (r.json().get("detail") or "")
+    assertTrue("7.3 detail mentions 'Plan changed since preview'",
+               "Plan changed since preview" in detail7, detail=detail7)
 
-def main() -> int:
-    print(f"Smoke-testing {API}")
-    token = do_auth()
-    if not token:
-        print("\nCould not authenticate; aborting.")
-        _summary()
-        return 1
-    do_bundle(token)
-    do_goals(token)
-    do_transactions(token)
-    do_split_group(token)
-    do_rewards_idempotency(token)
-    _summary()
-    return 0 if all(ok for _, ok, _ in results) else 1
+    # ── 8. Post-settle plan recomputation ──
+    print("\n══════ 8. Post-settle plan recomputation ══════")
+    # After /settle-my-part on the trip_gid (test #4), A should have my_transfers=[]
+    r = get(f"/split/groups/{trip_gid}/settle-plan", token=A["token"])
+    assertEq("8.1 settle-plan after settle → 200", r.status_code, 200)
+    plan = r.json()
+    log("📋", f"post-settle plan.my_transfers={plan.get('my_transfers')}")
+    log("📋", f"post-settle plan.my_total_outgoing={plan.get('my_total_outgoing')}")
+    assertEq("8.2 my_transfers empty post-settle", plan.get("my_transfers"), [])
+    assertEq("8.3 my_total_outgoing == 0 post-settle",
+             float(plan.get("my_total_outgoing", -1)), 0.0)
+    assertEq("8.4 my_total_outgoing_paise == 0 post-settle",
+             plan.get("my_total_outgoing_paise"), 0)
 
-
-def _summary() -> None:
-    print("\n" + "=" * 60)
-    passed = sum(1 for _, ok, _ in results if ok)
-    total = len(results)
-    print(f"TOTAL: {passed}/{total} passed")
-    for name, ok, info in results:
-        if not ok:
-            print(f"  FAIL: {name}  {info}")
-    print("=" * 60)
+    # ── Summary ──
+    print("\n══════════════ SUMMARY ══════════════")
+    print(f"PASSED: {len(PASS)}")
+    print(f"FAILED: {len(FAIL)}")
+    for n, why in FAIL:
+        print(f"  ❌ {n} — {why}")
+    return 0 if not FAIL else 1
 
 
 if __name__ == "__main__":
-    sys.exit(main())
+    try:
+        sys.exit(main())
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        sys.exit(2)

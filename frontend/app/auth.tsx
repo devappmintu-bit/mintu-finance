@@ -17,6 +17,7 @@ import { LANGUAGES, LangCode } from '../utils/i18n';
 import PinSetupModal from '../components/PinSetupModal';
 import AuthTransitionOverlay from '../components/auth/AuthTransitionOverlay';
 import Mascot from '../components/Mascot';
+import MascotMoment from '../components/MascotMoment';
 import { clearSessionState, recordCurrentUser } from '../utils/clearSessionState';
 
 type AuthStep = 'phone' | 'otp' | 'name';
@@ -151,12 +152,14 @@ export default function AuthScreen() {
       </TouchableOpacity>
 
       <View style={s.header}>
-        <View style={s.mascotWrap}>
-          <Mascot size={96} variant="auto" />
-        </View>
+        {/* Round 53l.2 — Login Personality Engine.
+            Replaces the static mascot with a live, contextual moment.
+            Renders the instant fallback at 0ms (offline-safe) and
+            upgrades with the LLM in the background. The engine's text
+            replaces the static "enter_phone / otp_subtitle" pair so
+            the screen feels alive on every open. */}
+        <MascotMoment mode="login" />
         <Text style={s.logoText}>MintU</Text>
-        <Text style={s.stepTitle}>{t('enter_phone', lang)}</Text>
-        <Text style={s.stepSubtitle}>{t('otp_subtitle', lang)}</Text>
       </View>
       <View style={s.phoneRow}>
         <View style={s.countryCode}><Text style={s.countryText}>+91</Text></View>
@@ -183,9 +186,9 @@ export default function AuthScreen() {
         {otp.map((digit, i) => (
           <TextInput key={i} ref={(ref) => { otpRefs.current[i] = ref; }} testID={`otp-input-${i}`}
             style={[s.otpBox, digit ? s.otpBoxFilled : null]} value={digit}
-            onChangeText={(text) => handleOtpChange(text.slice(-1), i)}
+            onChangeText={(text) => handleOtpChange(text, i)}
             onKeyPress={({ nativeEvent }) => handleOtpKeyPress(nativeEvent.key, i)}
-            keyboardType="number-pad" maxLength={1} selectTextOnFocus />
+            keyboardType="number-pad" maxLength={6} selectTextOnFocus />
         ))}
       </View>
       <TouchableOpacity testID="verify-otp-btn" style={[s.primaryBtn, loading && s.btnDisabled]} onPress={() => handleVerifyOTP()} disabled={loading}>

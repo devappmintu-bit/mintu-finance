@@ -30,6 +30,9 @@ export function useDailyCheckIn() {
   const fired = useRef(false);
   const lastTokenRef = useRef<string | null>(null);
   const token = useAuthStore((s) => s.token);
+  // Don't fire while the app-lock screen (/unlock) is active.
+  // The toast must only appear on the home screen after PIN/biometric passes.
+  const locked = useAuthStore((s) => s.locked);
 
   useEffect(() => {
     // Round 34 fix — reset the fire-guard whenever the JWT actually
@@ -41,7 +44,8 @@ export function useDailyCheckIn() {
       lastTokenRef.current = token;
     }
 
-    if (fired.current || !token) return;
+    // Wait until the user has passed the lock screen before showing any toast.
+    if (fired.current || !token || locked) return;
     fired.current = true;
 
     (async () => {
@@ -109,5 +113,5 @@ export function useDailyCheckIn() {
         // Silently swallow — don't block the app over a streak call.
       }
     })();
-  }, [token]);
+  }, [token, locked]);
 }
