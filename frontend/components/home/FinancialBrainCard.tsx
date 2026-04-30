@@ -3,13 +3,13 @@
  * Reduces doomscroll fatigue by consolidating 3 legacy cards into 1.
  */
 import React, { memo, useMemo, useState } from 'react';
-import { View, Text, TouchableOpacity, Platform } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, Platform } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import * as Haptics from 'expo-haptics';
 import AIInsightCard from './AIInsightCard';
 import { makeStyles } from '../../utils/makeStyles';
-import {  COLORS, useAppColors } from '../../utils/theme';
+import {  COLORS, useAppColors, GLASS } from '../../utils/theme';
 
 type Props = { snapshot: any | null; stats: any | null; predict: any | null };
 type TabKey = 'insight' | 'predict' | 'waste';
@@ -104,7 +104,12 @@ function FinancialBrainCard({ snapshot, stats, predict }: Props) {
 export default memo(FinancialBrainCard);
 
 const useStyles = makeStyles((c) => ({
-  card: { backgroundColor: c.bg.secondary, borderRadius: 18, padding: 14, marginBottom: 14, borderWidth: 1, borderColor: c.border.card },
+  // Round 56 — Glass card
+  card: {
+    backgroundColor: GLASS.solidBg,
+    borderRadius: 18, padding: 14, marginBottom: 14,
+    borderWidth: StyleSheet.hairlineWidth, borderColor: GLASS.borderLight,
+  },
   header: { flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 10 },
   heading: { flex: 1, fontSize: 11, fontWeight: '900', color: c.accent.primary, letterSpacing: 1.1 },
   aiPill: { backgroundColor: c.accent.primary, paddingHorizontal: 7, paddingVertical: 2, borderRadius: 5 },

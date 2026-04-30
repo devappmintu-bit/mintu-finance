@@ -179,6 +179,20 @@ async def _ensure_indexes(db) -> None:
             name="idempotency_ttl_24h",
         )
 
+        # Phase 3 — UNIQUE index on split_groups.group_code. Sparse so
+        # legacy groups without a code don't trip duplicate-null errors
+        # during the lazy-backfill window. The DB enforces uniqueness
+        # atomically; both the create flow (insert + DuplicateKeyError
+        # retry) and the read backfill (find_one_and_update on the
+        # `{"$exists": False}` filter + DuplicateKeyError retry) rely
+        # on this index for race-safe issuance.
+        await db.split_groups.create_index(
+            "group_code",
+            unique=True,
+            sparse=True,
+            name="split_groups_code_unique",
+        )
+
         logger.info("✅ MongoDB indexes created for 1.46B-scale performance")
     except Exception as e:
         logger.warning(f"Index creation warning: {e}")

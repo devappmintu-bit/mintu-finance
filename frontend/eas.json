@@ -11,21 +11,24 @@
       "distribution": "internal",
       "env": {
         "EXPO_NO_GIT_STATUS": "1",
-        "EAS_NO_VCS": "1"
+        "EAS_NO_VCS": "1",
+        "SENTRY_DISABLE_AUTO_UPLOAD": "true"
       }
     },
     "preview": {
       "distribution": "internal",
       "env": {
         "EXPO_NO_GIT_STATUS": "1",
-        "EAS_NO_VCS": "1"
+        "EAS_NO_VCS": "1",
+        "SENTRY_DISABLE_AUTO_UPLOAD": "true"
       }
     },
     "production": {
       "autoIncrement": true,
       "env": {
         "EXPO_NO_GIT_STATUS": "1",
-        "EAS_NO_VCS": "1"
+        "EAS_NO_VCS": "1",
+        "SENTRY_DISABLE_AUTO_UPLOAD": "true"
       }
     }
   },

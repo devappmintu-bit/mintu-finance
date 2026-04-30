@@ -89,178 +89,86 @@ const LIGHT_PALETTE = {
 };
 
 // ══════════════════════════════════════════════════════════════════════
-//  DARK PALETTE — futuristic, premium, AI-driven feel (default)
+//  LEGACY MODES — Round 56 — Light is now the only blessed palette.
+//  DARK_PALETTE and AMOLED_PALETTE are retained as ALIASES of
+//  LIGHT_PALETTE so existing applyTheme()/themeStore code keeps compiling
+//  and any residual toggle UI is a visual no-op. Net effect: ~200 lines
+//  of dead token pairs removed, app is guaranteed light-only.
 // ══════════════════════════════════════════════════════════════════════
-const DARK_PALETTE = {
-  bg: {
-    primary:   '#0B0B12',
-    secondary: '#14141C',
-    card:      '#1A1A24',
-    elevated:  '#20202C',
-    dark:      '#070710',
-  },
-  accent: {
-    primary:      '#FF6B1A',
-    primaryLight: '#FF8C42',
-    secondary:    '#FFB547',
-    tertiary:     '#C026D3',
-    moneyIn:      '#10E0A0',
-    moneyOut:     '#FF5470',
-    warning:      '#FFB020',
-  },
-  text: {
-    primary:   '#F5F5F7',
-    secondary: '#A1A1AA',
-    muted:     '#71717A',
-    tertiary:  '#71717A',
-    inverse:   '#0B0B12',
-  },
-  border: {
-    subtle: 'rgba(255,255,255,0.08)',
-    focus:  '#FF6B1A',
-    card:   'rgba(255,255,255,0.08)',
-  },
-  state: {
-    success:       '#10E0A0',
-    successAlt:    '#10B981',
-    successBg:     'rgba(16,224,160,0.12)',
-    successBorder: 'rgba(16,224,160,0.35)',
-    warning:       '#FFB020',
-    warningBg:     'rgba(255,176,32,0.14)',
-    warningBorder: 'rgba(255,176,32,0.4)',
-    danger:        '#FF5470',
-    dangerBg:      'rgba(255,84,112,0.14)',
-    dangerBorder:  'rgba(255,84,112,0.4)',
-    info:          '#60A5FA',
-    infoBg:        'rgba(96,165,250,0.14)',
-    infoBorder:    'rgba(96,165,250,0.4)',
-  },
-  gray: {
-    50: '#F9FAFB', 100: '#F3F4F6', 200: '#E5E7EB', 300: '#D1D5DB', 400: '#9CA3AF',
-    500: '#6B7280', 600: '#4B5563', 700: '#374151', 800: '#1F2937', 900: '#111827',
-  },
-};
-
-// ══════════════════════════════════════════════════════════════════════
-//  AMOLED PALETTE — pure-black variant of DARK for OLED screens
-//  (saves battery + deeper blacks blend into the bezel)
-// ══════════════════════════════════════════════════════════════════════
-const AMOLED_PALETTE = {
-  bg: {
-    primary:   '#000000',        // True black (screen pixels OFF)
-    secondary: '#060608',        // Slightly lifted for surface separation
-    card:      '#0B0B0F',
-    elevated:  '#121219',
-    dark:      '#000000',
-  },
-  accent: {
-    primary:      '#FF6B1A',
-    primaryLight: '#FF8C42',
-    secondary:    '#FFB547',
-    tertiary:     '#C026D3',
-    moneyIn:      '#10E0A0',
-    moneyOut:     '#FF5470',
-    warning:      '#FFB020',
-  },
-  text: {
-    primary:   '#FFFFFF',        // Pure white on pure black — max contrast
-    secondary: '#A1A1AA',
-    muted:     '#71717A',
-    tertiary:  '#71717A',
-    inverse:   '#000000',
-  },
-  border: {
-    subtle: 'rgba(255,255,255,0.08)',
-    focus:  '#FF6B1A',
-    card:   'rgba(255,255,255,0.08)',
-  },
-  state: {
-    success:       '#10E0A0',
-    successAlt:    '#10B981',
-    successBg:     'rgba(16,224,160,0.12)',
-    successBorder: 'rgba(16,224,160,0.35)',
-    warning:       '#FFB020',
-    warningBg:     'rgba(255,176,32,0.14)',
-    warningBorder: 'rgba(255,176,32,0.4)',
-    danger:        '#FF5470',
-    dangerBg:      'rgba(255,84,112,0.14)',
-    dangerBorder:  'rgba(255,84,112,0.4)',
-    info:          '#60A5FA',
-    infoBg:        'rgba(96,165,250,0.14)',
-    infoBorder:    'rgba(96,165,250,0.4)',
-  },
-  gray: {
-    50: '#F9FAFB', 100: '#F3F4F6', 200: '#E5E7EB', 300: '#D1D5DB', 400: '#9CA3AF',
-    500: '#6B7280', 600: '#4B5563', 700: '#374151', 800: '#1F2937', 900: '#111827',
-  },
-};
+const DARK_PALETTE = LIGHT_PALETTE;
+const AMOLED_PALETTE = LIGHT_PALETTE;
 
 export type ThemeMode = 'light' | 'dark' | 'amoled';
-export const PALETTES: Record<ThemeMode, typeof DARK_PALETTE> = {
+export const PALETTES: Record<ThemeMode, typeof LIGHT_PALETTE> = {
   light:  LIGHT_PALETTE,
-  dark:   DARK_PALETTE,
-  amoled: AMOLED_PALETTE,
+  dark:   LIGHT_PALETTE,
+  amoled: LIGHT_PALETTE,
 };
 
-// Current active mode (mutable). Defaults to dark on boot.
-let ACTIVE_MODE: ThemeMode = 'dark';
+// Current active mode (mutable). Round 55 — Light is now the default
+// and only blessed mode for the production app. Dark/amoled tokens are
+// retained in PALETTES so existing applyTheme() infrastructure keeps
+// compiling, but no boot path or settings UI flips to them anymore.
+let ACTIVE_MODE: ThemeMode = 'light';
 export const getActiveMode = (): ThemeMode => ACTIVE_MODE;
 
 // ══════════════════════════════════════════════════════════════════════
 //  CORE PALETTE — mutable proxy that always reflects the active theme
+//  Round 55 — Inlined values now come from LIGHT_PALETTE so initial
+//  StyleSheet.create() captures (which happen at module-load BEFORE
+//  applyTheme() ever runs) hold the correct light tokens.
 // ══════════════════════════════════════════════════════════════════════
 export const COLORS = {
   bg: {
-    primary:   '#0B0B12',        // Deep obsidian (app background)
-    secondary: '#14141C',        // Elevated surface
-    card:      '#1A1A24',        // Solid card fallback (when glass not used)
-    elevated:  '#20202C',        // Elevated card (modals/sheets)
-    dark:      '#070710',        // Darkest tier (splash, behind glass)
+    primary:   '#FAFAF9',        // Warm off-white canvas (matches LIGHT_PALETTE)
+    secondary: '#FFFFFF',        // Elevated surface
+    card:      '#FFFFFF',        // Solid card fallback (when glass not used)
+    elevated:  '#FFFFFF',        // Elevated card (modals/sheets)
+    dark:      '#F3F4F6',        // Darkest tier (legacy name kept for API)
   },
   accent: {
-    primary:      '#FF6B1A',     // Neon Orange — hero accent
-    primaryLight: '#FF8C42',     // Saffron highlight
-    primaryDark:  '#E55A0F',     // Round 50 — pressed/dark variant
-    secondary:    '#FFB547',     // Marigold glow
-    tertiary:     '#C026D3',     // Premium Magenta
-    moneyIn:      '#10E0A0',     // Neon Green (credits)
-    moneyOut:     '#FF5470',     // Neon Pink-Red (debits)
-    warning:      '#FFB020',     // Amber
-    // Round 50 — brand parity with light palette
-    brand:        '#FF6B1A',     // dark-mode brand (slightly hotter)
-    brandDark:    '#E55A0F',     // pressed
-    brandDeeper:  '#C14A06',     // deepest variant
-    brandSoft:    'rgba(255,107,26,0.12)', // warm-orange tint bg on dark
+    primary:      '#E84A0C',     // MintU Orange (light-bg tuned)
+    primaryLight: '#FF6B1A',     // Bright orange highlight
+    primaryDark:  '#B83A05',     // Pressed/dark variant
+    secondary:    '#F59E0B',     // Saffron
+    tertiary:     '#A21CAF',     // Premium magenta
+    moneyIn:      '#059669',     // Emerald (credits)
+    moneyOut:     '#DC2626',     // Crimson (debits)
+    warning:      '#D97706',     // Amber-orange
+    brand:        '#F56E1E',     // Bright orange — splash / onboarding CTA
+    brandDark:    '#C14A06',     // Deep orange — pressed / active state
+    brandDeeper:  '#E65100',     // Indigo-orange accent
+    brandSoft:    '#FFF7ED',     // Warm-orange tint bg
   },
   text: {
-    primary:   '#F5F5F7',        // Near-white (high contrast on dark bg)
-    secondary: '#A1A1AA',        // Slate gray
-    muted:     '#71717A',        // Captions
-    tertiary:  '#71717A',        // alias of muted (some components use this name)
-    inverse:   '#0B0B12',        // Dark on light chips
+    primary:   '#111827',        // Near-black
+    secondary: '#4B5563',        // Slate (WCAG AA on #FAFAF9 = 8.76:1)
+    muted:     '#6B7280',        // Captions
+    tertiary:  '#6B7280',        // alias of muted
+    inverse:   '#FFFFFF',        // Light text on dark accents (CTAs)
   },
   border: {
-    subtle: 'rgba(255,255,255,0.08)',
-    focus:  '#FF6B1A',
-    card:   'rgba(255,255,255,0.08)',
+    subtle: 'rgba(17,24,39,0.08)',
+    focus:  '#E84A0C',
+    card:   'rgba(17,24,39,0.08)',
   },
-  // ── Semantic state colors — tuned for dark bg ───────────────
+  // ── Semantic state colors — tuned for light bg ───────────────
   state: {
-    success:       '#10E0A0',
+    success:       '#059669',
     successAlt:    '#10B981',
-    successBg:     'rgba(16,224,160,0.12)',
-    successBorder: 'rgba(16,224,160,0.35)',
-    warning:       '#FFB020',
-    warningBg:     'rgba(255,176,32,0.14)',
-    warningBorder: 'rgba(255,176,32,0.4)',
-    danger:        '#FF5470',
-    dangerBg:      'rgba(255,84,112,0.14)',
-    dangerBorder:  'rgba(255,84,112,0.4)',
-    info:          '#60A5FA',
-    infoBg:        'rgba(96,165,250,0.14)',
-    infoBorder:    'rgba(96,165,250,0.4)',
+    successBg:     'rgba(5,150,105,0.10)',
+    successBorder: 'rgba(5,150,105,0.30)',
+    warning:       '#D97706',
+    warningBg:     'rgba(217,119,6,0.10)',
+    warningBorder: 'rgba(217,119,6,0.30)',
+    danger:        '#DC2626',
+    dangerBg:      'rgba(220,38,38,0.10)',
+    dangerBorder:  'rgba(220,38,38,0.30)',
+    info:          '#2563EB',
+    infoBg:        'rgba(37,99,235,0.10)',
+    infoBorder:    'rgba(37,99,235,0.30)',
   },
-  // ── Neutral grays — retained for chart/border drift ─────────
+  // ── Neutral grays ───────────────────────────────────────────
   gray: {
     50:  '#F9FAFB',
     100: '#F3F4F6',
@@ -273,30 +181,34 @@ export const COLORS = {
     800: '#1F2937',
     900: '#111827',
   },
-  // Round 50 — explicit shadow + skeleton tokens (dark)
+  // Round 55 — soft shadows for light theme (per spec: 0.05–0.1 opacity)
   shadow: {
-    primary: 'rgba(0,0,0,0.40)',
-    medium:  'rgba(0,0,0,0.55)',
-    strong:  'rgba(0,0,0,0.70)',
+    primary: 'rgba(0,0,0,0.06)',
+    medium:  'rgba(0,0,0,0.10)',
+    strong:  'rgba(0,0,0,0.16)',
   },
   skeleton: {
-    bg:      '#1A1A24',
-    shimmer: '#26262F',
+    bg:      '#F3F4F6',
+    shimmer: '#E5E7EB',
   },
 };
 
 // ══════════════════════════════════════════════════════════════════════
-//  GLASS — glassmorphism surface tokens
+//  GLASS — glassmorphism surface tokens (light, iOS Crystal style)
 //  Use with <BlurView tint={GLASS.tint} intensity={GLASS.intensity} …>
 // ══════════════════════════════════════════════════════════════════════
 export const GLASS = {
-  tint: 'dark' as 'dark' | 'light' | 'default',
-  intensity: 28,
-  // Solid fallback for Android (BlurView cheap there) or web
-  solidBg: 'rgba(26,26,36,0.72)',
-  borderLight: 'rgba(255,255,255,0.10)',   // top border glint
-  borderSoft:  'rgba(255,255,255,0.06)',   // subtle separator
-  innerShadow: 'rgba(0,0,0,0.35)',
+  tint: 'light' as 'dark' | 'light' | 'default',
+  intensity: 40,
+  // Solid fallback for Android pre-API-31 / web
+  solidBg: 'rgba(255,255,255,0.72)',
+  // Overlay tint to layer ON TOP of BlurView for the frosted milk look
+  overlay: 'rgba(255,255,255,0.55)',
+  // Border tokens — use borderHairline for cards, borderSoft for separators
+  borderHairline: 'rgba(255,255,255,0.65)',  // top inner highlight
+  borderLight:    'rgba(17,24,39,0.06)',     // card outline
+  borderSoft:     'rgba(17,24,39,0.04)',     // subtle separator
+  innerShadow:    'rgba(0,0,0,0.04)',
 };
 
 // ══════════════════════════════════════════════════════════════════════

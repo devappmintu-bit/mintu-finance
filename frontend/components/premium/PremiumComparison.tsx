@@ -24,6 +24,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { makeStyles } from '../../utils/makeStyles';
 import { COLORS } from '../../utils/theme';
+import PulseCTA from './PulseCTA';
 
 type Plan = 'intro' | 'monthly' | 'yearly';
 type Cell = boolean | string;
@@ -139,9 +140,11 @@ export default function PremiumComparison({ onClose, activeTier, selectedTier, o
             <Text style={[s.colPrice, { color: c.tint }]}>{c.price}</Text>
             <Text style={s.colSub} numberOfLines={1}>{c.sub}</Text>
             {isActive(c.id) && (
-              <View style={[s.yourPlanPill, { backgroundColor: c.tint }]}>
-                <Text style={s.yourPlanPillTxt}>YOUR PLAN</Text>
-              </View>
+              <PulseCTA intensity={0.04}>
+                <View style={[s.yourPlanPill, { backgroundColor: c.tint }]}>
+                  <Text style={s.yourPlanPillTxt}>YOUR PLAN</Text>
+                </View>
+              </PulseCTA>
             )}
           </TouchableOpacity>
         ))}

@@ -15,13 +15,13 @@ import { router, useFocusEffect } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
-import Svg, { Circle } from 'react-native-svg';
 import Toast from 'react-native-toast-message';
 import api from '../utils/api';
 import FullScreenLoader from '../components/FullScreenLoader';
 import { GoalsSkeleton } from '../components/SkeletonLoader';
 import Confetti from '../components/Confetti';
 import EmptyState from '../components/ui/EmptyState';
+import ProgressRing from '../components/ui/ProgressRing';
 import { useIsOnline } from '../hooks/useIsOnline';
 import { makeStyles } from '../utils/makeStyles';
 import { COLORS, useAppColors } from '../utils/theme';
@@ -40,40 +40,9 @@ type Goal = {
 const EMOJI_OPTIONS = ['🎯', '🏠', '✈️', '🚗', '💻', '🎓', '💍', '🏝️', '👶', '💊', '📚', '🎁'];
 const COLOR_OPTIONS = [COLORS.accent.brand, COLORS.state.successAlt, '#3B82F6', '#8B5CF6', '#EC4899', COLORS.accent.secondary, '#0EA5E9', COLORS.state.danger];
 
-function ProgressRing({ pct, color, size = 88, stroke = 8 }: { pct: number; color: string; size?: number; stroke?: number }) {
-  const radius = (size - stroke) / 2;
-  const circumference = 2 * Math.PI * radius;
-  const safePct = Math.min(100, Math.max(0, pct));
-  const dashOffset = circumference - (circumference * safePct) / 100;
-  return (
-    // Round 38 — wrap SVG so screen readers announce progress meaningfully
-    // ("47 percent of goal completed") rather than reading nothing.
-    <View
-      accessible
-      accessibilityRole="progressbar"
-      accessibilityLabel="Goal progress"
-      accessibilityValue={{ min: 0, max: 100, now: Math.round(safePct) }}
-    >
-      <Svg width={size} height={size}>
-        <Circle cx={size / 2} cy={size / 2} r={radius} stroke="#F3F4F6" strokeWidth={stroke} fill="none" />
-        <Circle
-          cx={size / 2}
-          cy={size / 2}
-          r={radius}
-          stroke={color}
-          strokeWidth={stroke}
-          fill="none"
-          strokeLinecap="round"
-          strokeDasharray={circumference}
-          strokeDashoffset={dashOffset}
-          transform={`rotate(-90 ${size / 2} ${size / 2})`}
-        />
-      </Svg>
-    </View>
-  );
-}
-
 export default function GoalsScreen() {
+  // Round 60 — uses shared animated ProgressRing from components/ui.
+  // The previous inline static SVG ring has been promoted/replaced.
   const s = useStyles();
   const c = useAppColors();
   const isOnline = useIsOnline();

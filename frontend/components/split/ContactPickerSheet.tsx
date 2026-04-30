@@ -15,7 +15,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import {
   View, Text, StyleSheet, Modal, TouchableOpacity, TextInput,
-  KeyboardAvoidingView, Platform, ScrollView, Alert,
+  KeyboardAvoidingView, Platform, ScrollView, Alert, Linking,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -24,11 +24,12 @@ import { FlashList } from '@shopify/flash-list';
 import Toast from 'react-native-toast-message';
 import PressableGlass from '../PressableGlass';
 import { haptic } from '../../utils/haptics';
-import {  COLORS, SHADOW, useAppColors } from '../../utils/theme';
+import { COLORS, SHADOW, useAppColors, GLASS } from '../../utils/theme';
 import { makeStyles } from '../../utils/makeStyles';
 import { C, MEMBER_COLORS, getGA } from './theme';
+import api from '../../utils/api';
 
-type Contact = { id: string; name: string; phone: string };
+type Contact = { id: string; name: string; phone: string; onMintu?: boolean };
 
 const EMOJI_CHOICES = ['🏠', '✈️', '🏖️', '🍕', '🎉', '💼', '🍺', '👨‍👩‍👧', '🎬', '💰', '🏋️', '✨'];
 
@@ -36,37 +37,71 @@ type Props = {
   visible: boolean;
   onClose: () => void;
   onCreate: (name: string, phones: string[], emoji?: string) => void;
+  /** Phase 1.2 — when present, the step-2 name input shows an inline
+   * warning when the typed name collides with an existing group. */
+  existingNames?: string[];
 };
 
-export default function ContactPickerSheet({ visible, onClose, onCreate }: Props) {
+export default function ContactPickerSheet({ visible, onClose, onCreate, existingNames = [] }: Props) {
   const s = useStyles();
   const c = useAppColors();
   const [step, setStep] = useState<1 | 2>(1);
   const [search, setSearch] = useState('');
+  // Phase 3.2 — debounced search to avoid filtering 1000+ contacts on
+  // every keystroke. 300ms is the sweet spot between responsiveness
+  // and avoiding redundant work mid-type.
+  const [debouncedSearch, setDebouncedSearch] = useState('');
   const [selected, setSelected] = useState<Contact[]>([]);
   const [contacts, setContacts] = useState<Contact[]>([]);
   const [manualPhone, setManualPhone] = useState('');
   const [contactsPermission, setContactsPermission] = useState<'granted' | 'denied' | 'unavailable' | 'loading'>('loading');
+  const [permissionPersistentlyDenied, setPermissionPersistentlyDenied] = useState(false);
   const [groupName, setGroupName] = useState('');
   const [chosenEmoji, setChosenEmoji] = useState<string | null>(null);
 
   useEffect(() => {
     if (!visible) {
       // Reset when closed
-      setStep(1); setSearch(''); setSelected([]); setManualPhone(''); setGroupName(''); setChosenEmoji(null);
+      setStep(1); setSearch(''); setDebouncedSearch(''); setSelected([]);
+      setManualPhone(''); setGroupName(''); setChosenEmoji(null);
       return;
     }
     loadContacts();
   }, [visible]);
 
+  // Phase 3.2 — Debounce the search input so filter() runs at most
+  // every 300ms, not on every keystroke. Critical when the contact
+  // list is 500+ entries.
+  useEffect(() => {
+    const handle = setTimeout(() => setDebouncedSearch(search), 300);
+    return () => clearTimeout(handle);
+  }, [search]);
+
   const loadContacts = async () => {
     if (Platform.OS === 'web') { setContactsPermission('unavailable'); return; }
     try {
-      const { status } = await Contacts.requestPermissionsAsync();
-      if (status !== 'granted') { setContactsPermission('denied'); return; }
+      // Read the current permission FIRST so we can detect the
+      // "permanently denied" state (user previously hit Don't Allow
+      // and the OS now refuses to re-prompt). On both iOS and Android
+      // this surfaces as canAskAgain === false.
+      const current = await Contacts.getPermissionsAsync();
+      let status = current.status;
+      let canAskAgain = current.canAskAgain;
+      if (status !== 'granted') {
+        const requested = await Contacts.requestPermissionsAsync();
+        status = requested.status;
+        canAskAgain = requested.canAskAgain;
+      }
+      if (status !== 'granted') {
+        setPermissionPersistentlyDenied(canAskAgain === false);
+        setContactsPermission('denied');
+        return;
+      }
+      // Phase 3.2 — Drop the 300-row cap. Users with 1000+ contacts
+      // were previously seeing a truncated list. Modern devices
+      // handle 5000 rows in <250ms via FlashList virtualisation.
       const { data } = await Contacts.getContactsAsync({
         fields: [Contacts.Fields.PhoneNumbers, Contacts.Fields.Name],
-        pageSize: 300,
       });
       const parsed: Contact[] = [];
       (data || []).forEach((c: any) => {
@@ -83,6 +118,27 @@ export default function ContactPickerSheet({ visible, onClose, onCreate }: Props
       unique.sort((a, b) => a.name.localeCompare(b.name));
       setContacts(unique);
       setContactsPermission('granted');
+
+      // Phase 3.3 — Detect which contacts are already on MintU.
+      // Backend cap is 100 phones / call so we batch in chunks. Failures
+      // are non-fatal — the UI just won't show the "On MintU" badge.
+      try {
+        const phones = unique.map((u) => u.phone);
+        const matched = new Set<string>();
+        for (let i = 0; i < phones.length; i += 100) {
+          const slice = phones.slice(i, i + 100);
+          // eslint-disable-next-line no-await-in-loop
+          const res = await api.post('/users/lookup-batch', { phones: slice });
+          for (const m of (res.data?.matches || [])) {
+            if (m?.phone) matched.add(m.phone);
+          }
+        }
+        if (matched.size > 0) {
+          setContacts((prev) => prev.map((c) => matched.has(c.phone) ? { ...c, onMintu: true } : c));
+        }
+      } catch {
+        // Silent — MintU badge is enhancement, not requirement.
+      }
     } catch {
       setContactsPermission('unavailable');
     }
@@ -104,10 +160,10 @@ export default function ContactPickerSheet({ visible, onClose, onCreate }: Props
   };
 
   const filtered = useMemo(() => {
-    const q = search.trim().toLowerCase();
+    const q = debouncedSearch.trim().toLowerCase();
     if (!q) return contacts;
     return contacts.filter((c) => c.name.toLowerCase().includes(q) || c.phone.includes(q));
-  }, [contacts, search]);
+  }, [contacts, debouncedSearch]);
 
   const goNext = () => {
     if (selected.length === 0) { Toast.show({ type: 'error', text1: 'Pick at least 1 person' }); return; }
@@ -203,7 +259,18 @@ export default function ContactPickerSheet({ visible, onClose, onCreate }: Props
                           <Text style={[s.contactInit, { color: MEMBER_COLORS[index % MEMBER_COLORS.length] }]}>{item.name[0].toUpperCase()}</Text>
                         </View>
                         <View style={{ flex: 1 }}>
-                          <Text style={s.contactName} numberOfLines={1}>{item.name}</Text>
+                          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                            <Text style={s.contactName} numberOfLines={1}>{item.name}</Text>
+                            {/* Phase 3.3 — On-MintU badge. Boosts invite
+                                conversion by surfacing existing users
+                                so the inviter knows the friction is low. */}
+                            {item.onMintu && (
+                              <View style={s.mintuBadge}>
+                                <Ionicons name="checkmark" size={10} color="#10B981" />
+                                <Text style={s.mintuBadgeT}>MintU</Text>
+                              </View>
+                            )}
+                          </View>
                           <Text style={s.contactPhone} numberOfLines={1}>{item.phone}</Text>
                         </View>
                         <Ionicons name={isSel ? 'checkmark-circle' : 'ellipse-outline'} size={24} color={isSel ? C.accent : C.text4} />
@@ -238,10 +305,32 @@ export default function ContactPickerSheet({ visible, onClose, onCreate }: Props
                     </>
                   ) : (
                     <>
-                      <Text style={s.hint}>Allow contacts to pick from your list.</Text>
+                      <Text style={s.hint}>
+                        {permissionPersistentlyDenied
+                          ? "Contacts permission was denied. Enable it in Settings to pick from your list."
+                          : "Allow contacts to pick from your list."}
+                      </Text>
                       {contactsPermission === 'denied' && (
-                        <TouchableOpacity onPress={loadContacts}>
-                          <Text style={s.grantT}>Grant permission</Text>
+                        <TouchableOpacity
+                          onPress={() => {
+                            if (permissionPersistentlyDenied) {
+                              // Phase 3.2 — Deep-link to OS settings page
+                              // when the user previously hit "Don't allow"
+                              // and the OS now blocks our prompt.
+                              Linking.openSettings().catch(() => {
+                                Alert.alert(
+                                  'Open Settings',
+                                  'Please enable Contacts permission for MintU in your device Settings.',
+                                );
+                              });
+                            } else {
+                              loadContacts();
+                            }
+                          }}
+                        >
+                          <Text style={s.grantT}>
+                            {permissionPersistentlyDenied ? 'Open Settings' : 'Grant permission'}
+                          </Text>
                         </TouchableOpacity>
                       )}
                     </>
@@ -296,6 +385,25 @@ export default function ContactPickerSheet({ visible, onClose, onCreate }: Props
                 onChangeText={setGroupName}
                 autoFocus
               />
+              {/* Phase 1.2 — Inline duplicate-name warning. Non-blocking;
+                  user can still proceed if they truly want the same name
+                  (the group list disambiguates by date / short-id). */}
+              {(() => {
+                const trimmed = groupName.trim().toLowerCase();
+                if (!trimmed) return null;
+                const collides = existingNames.some(
+                  (n) => (n || '').trim().toLowerCase() === trimmed,
+                );
+                if (!collides) return null;
+                return (
+                  <View style={s.dupWarn}>
+                    <Ionicons name="alert-circle" size={16} color="#F59E0B" />
+                    <Text style={s.dupWarnT} numberOfLines={2}>
+                      You already have a group called &quot;{groupName.trim()}&quot;. Tip: add a date or location to tell them apart.
+                    </Text>
+                  </View>
+                );
+              })()}
 
               {/* Emoji picker */}
               <Text style={s.label}>Pick an icon</Text>
@@ -362,4 +470,43 @@ const useStyles = makeStyles((c) => ({
   emojiGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 8 },
   emojiBtn: { width: 56, height: 56, borderRadius: 16, backgroundColor: c.bg.primary, justifyContent: 'center', alignItems: 'center', borderWidth: 2, borderColor: 'transparent' },
   emojiBtnOn: { backgroundColor: C.accentDim, borderColor: C.accent },
+  // Phase 1.2 — duplicate-name warning chip (amber, non-blocking)
+  dupWarn: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 8,
+    backgroundColor: 'rgba(245, 158, 11, 0.12)',
+    borderColor: 'rgba(245, 158, 11, 0.35)',
+    borderWidth: 1,
+    borderRadius: 12,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    marginTop: 8,
+    marginBottom: 4,
+  },
+  dupWarnT: {
+    flex: 1,
+    fontSize: 12.5,
+    color: '#FBBF24',
+    lineHeight: 17,
+    fontWeight: '600',
+  },
+  // Phase 3.3 — On-MintU badge for contacts already on the platform
+  mintuBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 2,
+    paddingHorizontal: 6,
+    paddingVertical: 1,
+    borderRadius: 6,
+    backgroundColor: 'rgba(16, 185, 129, 0.12)',
+    borderWidth: 1,
+    borderColor: 'rgba(16, 185, 129, 0.3)',
+  },
+  mintuBadgeT: {
+    fontSize: 10,
+    fontWeight: '800',
+    color: '#10B981',
+    letterSpacing: 0.3,
+  },
 }));

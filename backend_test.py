@@ -1,359 +1,391 @@
-"""Round 53k Smart Settlements — backend integration tests.
-
-Targets:
-  GET  /api/split/groups/{group_id}/settle-plan
-  POST /api/split/groups/{group_id}/settle-my-part
-
-Covers all 8 review-request scenarios.
 """
+Phase 3 Backend Validation Test
+================================
+Scope (strict):
+  - Group code generation on POST /api/split/groups (HSTL-7K2 format)
+  - Lazy backfill on GET /api/split/groups (legacy groups → atomic claim)
+  - Sparse UNIQUE index `split_groups_code_unique` enforcement
+  - Concurrent creation race safety
+  - POST /api/users/lookup-batch robustness
+
+Auth: phone 9876543210, OTP 123456
+"""
+import asyncio
 import os
+import re
 import sys
-import time
-import uuid
-import json
-from typing import Optional, Dict, Any
+from datetime import datetime, timezone
+from typing import Any, Dict, List, Optional
 
-import requests
+import httpx
+from motor.motor_asyncio import AsyncIOMotorClient
 from bson import ObjectId
+from pymongo.errors import DuplicateKeyError
 
-BASE = os.environ.get("EXPO_PUBLIC_BACKEND_URL") or "https://mintu-finance.preview.emergentagent.com"
-API = f"{BASE.rstrip('/')}/api"
+from dotenv import load_dotenv
+
+load_dotenv("/app/frontend/.env")
+load_dotenv("/app/backend/.env")
+
+BACKEND_URL = os.environ.get("EXPO_PUBLIC_BACKEND_URL", "https://mintu-finance.preview.emergentagent.com").rstrip("/")
+API = f"{BACKEND_URL}/api"
+MONGO_URL = os.environ.get("MONGO_URL", "mongodb://localhost:27017")
+DB_NAME = os.environ.get("DB_NAME", "mintu_database")
+
+PHONE = "9876543210"
 OTP = "123456"
 
-PASS = []
-FAIL = []
+results: List[tuple] = []
+created_group_ids: List[str] = []
 
 
-def log(prefix: str, msg: str):
-    print(f"{prefix} {msg}")
+def record(name: str, ok: bool, details: str = "") -> None:
+    results.append((name, ok, details))
+    icon = "✅" if ok else "❌"
+    print(f"  {icon} {name} {('— ' + details) if details else ''}")
 
 
-def assertEq(name: str, got, expected):
-    ok = got == expected
-    if ok:
-        PASS.append(name)
-        log("✅", f"{name}: {got!r} == {expected!r}")
-    else:
-        FAIL.append((name, f"got={got!r} expected={expected!r}"))
-        log("❌", f"{name}: got={got!r} expected={expected!r}")
-
-
-def assertTrue(name: str, cond, detail: str = ""):
-    if cond:
-        PASS.append(name)
-        log("✅", f"{name} {detail}")
-    else:
-        FAIL.append((name, detail or "condition false"))
-        log("❌", f"{name} {detail}")
-
-
-def post(path: str, json_body: Optional[dict] = None, token: Optional[str] = None,
-         headers: Optional[dict] = None, timeout: int = 30):
-    h = {"Content-Type": "application/json"}
-    if token:
-        h["Authorization"] = f"Bearer {token}"
-    if headers:
-        h.update(headers)
-    return requests.post(f"{API}{path}", json=json_body, headers=h, timeout=timeout)
-
-
-def get(path: str, token: Optional[str] = None, timeout: int = 30):
-    h = {}
-    if token:
-        h["Authorization"] = f"Bearer {token}"
-    return requests.get(f"{API}{path}", headers=h, timeout=timeout)
-
-
-def login_user(phone: str, name: Optional[str] = None) -> Dict[str, Any]:
-    """Send OTP + verify, returning {token, user_id, name, phone}.
-    Handles 30s rate limit by retrying after wait. Uses provided name for
-    new-user signup path.
-    """
-    for attempt in range(3):
-        r = post("/auth/send-otp", {"phone": phone})
-        if r.status_code == 200:
-            break
-        if r.status_code == 429:
-            log("⏳", f"rate-limit on send-otp for {phone}, sleeping 32s")
-            time.sleep(32)
-            continue
-        raise RuntimeError(f"send-otp failed for {phone}: {r.status_code} {r.text}")
-    else:
-        raise RuntimeError(f"send-otp persistently rate-limited for {phone}")
-
-    body = {"phone": phone, "otp": OTP}
-    if name:
-        body["name"] = name
-    r = post("/auth/verify-otp", body)
-    if r.status_code != 200:
-        # If new-user, name is required; if existing user but body included name, also OK.
-        raise RuntimeError(f"verify-otp failed for {phone}: {r.status_code} {r.text}")
-    j = r.json()
-    return {
-        "token": j["token"],
-        "user_id": j["user"]["id"],
-        "name": j["user"]["name"],
-        "phone": j["user"]["phone"],
-        "is_new_user": j.get("is_new_user", False),
-    }
-
-
-def main():
-    # ── 0. Bootstrap: 3 users (A=caller, B, C) and a 4th for non-member tests.
-    print("\n══════ 0. Bootstrap users ══════")
-    A = login_user("9876543210", name="MintU Tester")
-    log("👤", f"A user_id={A['user_id']} name={A['name']}")
-    time.sleep(1)
-    B = login_user("9876543211", name="Riya Patel")
-    log("👤", f"B user_id={B['user_id']} name={B['name']}")
-    time.sleep(1)
-    C = login_user("9876543212", name="Aman Verma")
-    log("👤", f"C user_id={C['user_id']} name={C['name']}")
-    time.sleep(1)
-    D = login_user("9876543213", name="Outsider Dev")
-    log("👤", f"D (non-member) user_id={D['user_id']} name={D['name']}")
-
-    # ── 1. Auth boundary / 400 invalid id ──
-    print("\n══════ 1. Auth boundary (400 / 404) ══════")
-    r = get("/split/groups/abc123/settle-plan", token=A["token"])
-    assertEq("1.1 invalid group_id → 400 (settle-plan)", r.status_code, 400)
-    r = post("/split/groups/abc123/settle-my-part", {}, token=A["token"])
-    assertEq("1.2 invalid group_id → 400 (settle-my-part)", r.status_code, 400)
-
-    # Create a group between B and C only — A should be 404 on it.
-    r = post("/split/groups", {"name": "Riya+Aman duo", "members": [C["phone"]]}, token=B["token"])
-    assertEq("1.3 BC group create", r.status_code, 200)
-    bc_group_id = r.json()["id"]
-
-    r = get(f"/split/groups/{bc_group_id}/settle-plan", token=A["token"])
-    assertEq("1.4 non-member → 404 (settle-plan)", r.status_code, 404)
-    r = post(f"/split/groups/{bc_group_id}/settle-my-part", {}, token=A["token"])
-    assertEq("1.5 non-member → 404 (settle-my-part)", r.status_code, 404)
-
-    # ── 2. Empty zero-balance group ──
-    print("\n══════ 2. Empty zero-balance group ══════")
-    r = post("/split/groups",
-             {"name": "Zero balance group", "members": [B["phone"], C["phone"]]},
-             token=A["token"])
-    assertEq("2.1 empty group create", r.status_code, 200)
-    empty_gid = r.json()["id"]
-
-    r = get(f"/split/groups/{empty_gid}/settle-plan", token=A["token"])
-    assertEq("2.2 settle-plan empty → 200", r.status_code, 200)
-    plan = r.json()
-    assertEq("2.3 transfers == []", plan.get("transfers"), [])
-    assertEq("2.4 my_transfers == []", plan.get("my_transfers"), [])
-    assertEq("2.5 my_total_outgoing == 0", float(plan.get("my_total_outgoing", -1)), 0.0)
-    assertEq("2.6 summary.transfers == 0", plan.get("summary", {}).get("transfers"), 0)
-    assertTrue("2.7 group_id matches", plan.get("group_id") == empty_gid)
-    assertTrue("2.8 members dict has 3", len(plan.get("members", {})) == 3)
-
-    r = post(f"/split/groups/{empty_gid}/settle-my-part", {}, token=A["token"])
-    assertEq("2.9 settle-my-part empty → 400", r.status_code, 400)
-    assertTrue("2.10 detail mentions Nothing to settle",
-               "Nothing to settle" in (r.json().get("detail") or ""),
-               detail=str(r.json().get("detail")))
-
-    # ── 3. Realistic 3-member plan ──
-    print("\n══════ 3. Realistic 3-member plan ══════")
-    r = post("/split/groups",
-             {"name": "Trip group", "members": [B["phone"], C["phone"]]},
-             token=A["token"])
-    assertEq("3.1 trip group create", r.status_code, 200)
-    trip_gid = r.json()["id"]
-    members = r.json()["members"]
-    log("👥", f"trip members = {[(m['name'], m['user_id']) for m in members]}")
-
-    # B paid ₹150 for "Pizza" split equally (3 ways) → A owes B ₹50
-    r = post("/split/expenses", {
-        "group_id": trip_gid,
-        "description": "Pizza",
-        "amount": 150,
-        "paid_by": B["user_id"],
-        "split_type": "equal",
-    }, token=B["token"])
-    assertEq("3.2 expense Pizza by B", r.status_code, 200)
-
-    # C paid ₹150 for "Cab" split equally → A owes C ₹50
-    r = post("/split/expenses", {
-        "group_id": trip_gid,
-        "description": "Cab",
-        "amount": 150,
-        "paid_by": C["user_id"],
-        "split_type": "equal",
-    }, token=C["token"])
-    assertEq("3.3 expense Cab by C", r.status_code, 200)
-
-    # Plan preview
-    r = get(f"/split/groups/{trip_gid}/settle-plan", token=A["token"])
-    assertEq("3.4 settle-plan trip → 200", r.status_code, 200)
-    plan = r.json()
-    log("📋", f"plan.transfers={json.dumps(plan.get('transfers'), indent=0)[:300]}")
-    log("📋", f"my_transfers={plan.get('my_transfers')}")
-    log("📋", f"my_total_outgoing={plan.get('my_total_outgoing')}, paise={plan.get('my_total_outgoing_paise')}")
-
-    transfers = plan["transfers"]
-    my_transfers = plan["my_transfers"]
-    # Each split is 50 → A owes B 50, A owes C 50; optimal plan = 2 transfers from A
-    assertTrue("3.5 transfers count is 2 (optimal)", len(transfers) == 2,
-               detail=f"got {len(transfers)} transfers")
-    assertEq("3.6 my_transfers count == 2", len(my_transfers), 2)
-    for t in my_transfers:
-        assertEq("3.7 my_transfer.from == A", t["from"], A["user_id"])
-        assertTrue("3.8 my_transfer.is_mine == True", t.get("is_mine") is True)
-    sum_my = sum(t["amount_paise"] for t in my_transfers)
-    assertEq("3.9 my_total_outgoing_paise matches sum",
-             plan["my_total_outgoing_paise"], sum_my)
-    assertEq("3.10 my_total_outgoing_paise == 10000 (₹100)",
-             plan["my_total_outgoing_paise"], 10000)
-    assertEq("3.11 drift_paise == 0 on clean group", plan.get("drift_paise"), 0)
-    assertTrue("3.12 transfer recipients are B and C",
-               sorted([t["to"] for t in my_transfers]) == sorted([B["user_id"], C["user_id"]]),
-               detail=f"got {[t['to'] for t in my_transfers]}")
-
-    # ── 4. Happy path settle-my-part ──
-    print("\n══════ 4. Happy path /settle-my-part ══════")
-    expected_count = len(my_transfers)
-    expected_total_paise = plan["my_total_outgoing_paise"]
-    pre_settles = list(plan["my_transfers"])
-
-    r = post(f"/split/groups/{trip_gid}/settle-my-part",
-             {"method": "upi"}, token=A["token"])
-    assertEq("4.1 settle-my-part → 200", r.status_code, 200)
+async def auth_token(client: httpx.AsyncClient):
+    r = await client.post(f"{API}/auth/send-otp", json={"phone": PHONE})
+    assert r.status_code == 200, f"send-otp: {r.status_code} {r.text}"
+    r = await client.post(f"{API}/auth/verify-otp", json={"phone": PHONE, "otp": OTP})
+    assert r.status_code == 200, f"verify-otp: {r.status_code} {r.text}"
     body = r.json()
-    log("💸", f"response = {json.dumps(body, indent=0)[:400]}")
-    assertEq("4.2 settled_count matches", body.get("settled_count"), expected_count)
-    assertEq("4.3 total_paise matches preview", body.get("total_paise"), expected_total_paise)
-    sids = body.get("settlement_ids") or []
-    assertEq("4.4 settlement_ids count == settled_count", len(sids), expected_count)
-    for sid in sids:
-        assertTrue("4.5 settlement_id is valid ObjectId hex",
-                   ObjectId.is_valid(sid), detail=f"sid={sid}")
-    assertTrue("4.6 batch_ref starts with SMART",
-               (body.get("batch_ref") or "").startswith("SMART"))
-    assertTrue("4.7 transfers list len matches", len(body.get("transfers") or []) == expected_count)
+    token = body.get("token") or body.get("access_token")
+    user_id = body.get("user", {}).get("id") or body.get("user_id")
+    if not user_id:
+        h = {"Authorization": f"Bearer {token}"}
+        r2 = await client.get(f"{API}/user/me", headers=h)
+        if r2.status_code == 200:
+            j = r2.json()
+            user_id = j.get("id") or j.get("user", {}).get("id") or j.get("_id")
+    return token, user_id
 
-    batch_ref = body["batch_ref"]
 
-    # Verify settlement docs in DB via /split/settlements
-    time.sleep(0.5)
-    r = get("/split/settlements", token=A["token"])
-    assertEq("4.8 GET /split/settlements", r.status_code, 200)
-    all_setts = r.json()
-    matching = []
-    for s in all_setts:
-        if s["id"] in sids:
-            matching.append(s)
-    assertEq("4.9 all settlement_ids retrievable via /settlements", len(matching), expected_count)
-    for s in matching:
-        assertEq("4.10 payer_name resolved", s.get("payer_name") is not None, True)
-        assertTrue("4.11 amount > 0", float(s.get("amount", 0)) > 0)
-        assertEq("4.12 status completed", s.get("status"), "completed")
-        assertEq("4.13 is_payer True (A paid)", s.get("is_payer"), True)
+async def cleanup_groups(client, headers, ids):
+    for gid in ids:
+        try:
+            await client.delete(f"{API}/split/groups/{gid}", headers=headers, timeout=10.0)
+        except Exception:
+            pass
 
-    # ── 5. No outgoing → 400 (B is creditor, not debtor) ──
-    print("\n══════ 5. No outgoing → 400 (creditor B) ══════")
-    r = post(f"/split/groups/{trip_gid}/settle-my-part", {}, token=B["token"])
-    # After A settles, B has no outgoing transfers (B was a creditor, now paid).
-    # Even if A hadn't settled, B has no outgoing transfers (creditor).
-    assertEq("5.1 B settle-my-part → 400", r.status_code, 400)
-    detail5 = (r.json().get("detail") or "")
-    assertTrue("5.2 detail mentions Nothing to settle",
-               "Nothing to settle" in detail5, detail=detail5)
 
-    # ── 6. Idempotency ──
-    print("\n══════ 6. Idempotency on settle-my-part ══════")
-    # Need a fresh group with new debt for A so we have something to settle.
-    r = post("/split/groups",
-             {"name": "Idem trip", "members": [B["phone"], C["phone"]]},
-             token=A["token"])
-    assertEq("6.1 idem group create", r.status_code, 200)
-    idem_gid = r.json()["id"]
-    # B paid ₹120 → A owes B ₹40
-    r = post("/split/expenses", {
-        "group_id": idem_gid, "description": "Snacks", "amount": 120,
-        "paid_by": B["user_id"], "split_type": "equal",
-    }, token=B["token"])
-    assertEq("6.2 expense Snacks", r.status_code, 200)
+# ── Scenarios ───────────────────────────────────────────────────────
+async def scenario_1(client, headers, db):
+    print("\n=== SCENARIO 1 — Group code format & stability ===")
+    payload = {"name": "Hostel", "members": ["9000000001"], "custom_emoji": "🏠"}
+    r = await client.post(f"{API}/split/groups", json=payload, headers=headers)
+    record("S1.1 POST /split/groups Hostel → 200", r.status_code == 200, f"status={r.status_code}")
+    if r.status_code != 200:
+        return
+    j = r.json()
+    gid = j["id"]
+    created_group_ids.append(gid)
+    # group_code may not be in create response — fetch from DB AND from GET
+    code_from_create = j.get("group_code")
+    doc = await db.split_groups.find_one({"_id": ObjectId(gid)})
+    code_db = doc.get("group_code") if doc else None
+    code = code_from_create or code_db
+    record("S1.2 group_code persisted in DB", bool(code_db), f"db_code={code_db} resp_code={code_from_create}")
+    if code:
+        record(
+            "S1.3 group_code matches ^[A-Z0-9]{4}-[A-Z2-9]{3}$",
+            bool(re.match(r"^[A-Z0-9]{4}-[A-Z2-9]{3}$", code)),
+            f"code={code}",
+        )
+        record("S1.4 prefix starts with HOST (deterministic from 'Hostel')", code.startswith("HOST"), f"code={code}")
 
-    idem_key = str(uuid.uuid4())
-    r1 = post(f"/split/groups/{idem_gid}/settle-my-part", {},
-              token=A["token"], headers={"Idempotency-Key": idem_key})
-    assertEq("6.3 first call → 200", r1.status_code, 200)
-    body1 = r1.json()
+    r2 = await client.get(f"{API}/split/groups", headers=headers)
+    record("S1.5 GET /split/groups → 200", r2.status_code == 200)
+    if r2.status_code != 200:
+        return
+    found = next((g for g in r2.json() if g["id"] == gid), None)
+    record(
+        "S1.6 GET returns same group_code as create",
+        bool(found and found.get("group_code") == code),
+        f"got={found.get('group_code') if found else None} expected={code}",
+    )
 
-    # Count settlement docs for A in this group BEFORE the duplicate call.
-    r = get("/split/settlements", token=A["token"])
-    pre_count = sum(1 for s in r.json()
-                    if s.get("is_payer") and s["id"] in (body1.get("settlement_ids") or []))
+    r3 = await client.get(f"{API}/split/groups", headers=headers)
+    g3 = next((g for g in r3.json() if g["id"] == gid), None)
+    record(
+        "S1.7 second GET returns SAME group_code (no regeneration)",
+        bool(g3 and g3.get("group_code") == code),
+        f"got={g3.get('group_code') if g3 else None}",
+    )
 
-    r2 = post(f"/split/groups/{idem_gid}/settle-my-part", {},
-              token=A["token"], headers={"Idempotency-Key": idem_key})
-    assertEq("6.4 second (idem) call → 200", r2.status_code, 200)
-    body2 = r2.json()
 
-    assertEq("6.5 batch_ref byte-identical", body2.get("batch_ref"), body1.get("batch_ref"))
-    assertEq("6.6 settlement_ids byte-identical",
-             body2.get("settlement_ids"), body1.get("settlement_ids"))
-    assertEq("6.7 total_paise byte-identical",
-             body2.get("total_paise"), body1.get("total_paise"))
-    # Full body equality check (excluding optional fields that might drift in time)
-    assertEq("6.8 full response byte-identical", body2, body1)
+async def scenario_2(client, headers, db):
+    print("\n=== SCENARIO 2 — Edge case names ===")
+    # Backend has min_length=1 on `name`, so "" / "   " may be rejected by pydantic.
+    # Spec says "no 500 errors", so 4xx for empty names is acceptable.
+    cases = [
+        ("Goa", "GOA", True),     # padded to 4
+        ("", None, False),        # likely 422
+        ("   ", None, False),     # likely 422 if .strip then ""
+        ("🍻🍕", None, True),      # all stripped → fallback
+        ("Café Munch", None, True),
+    ]
+    for name, _, expect_ok in cases:
+        payload = {"name": name, "members": ["9000000002"]}
+        r = await client.post(f"{API}/split/groups", json=payload, headers=headers)
+        if expect_ok:
+            ok_status = r.status_code == 200
+            record(f"S2 name={name!r} create → 200", ok_status, f"status={r.status_code}")
+            if ok_status:
+                gid = r.json()["id"]
+                created_group_ids.append(gid)
+                doc = await db.split_groups.find_one({"_id": ObjectId(gid)})
+                code = doc.get("group_code") if doc else None
+                ok_format = bool(code and re.match(r"^[A-Z2-9]{4}-[A-Z2-9]{3}$", code))
+                record(f"S2 name={name!r} code matches ^[A-Z2-9]4-[A-Z2-9]3$", ok_format, f"code={code}")
+        else:
+            # accept 200 OR 4xx (no 500)
+            no_500 = r.status_code < 500
+            record(f"S2 name={name!r} no 5xx", no_500, f"status={r.status_code}")
+            if r.status_code == 200:
+                gid = r.json()["id"]
+                created_group_ids.append(gid)
+                doc = await db.split_groups.find_one({"_id": ObjectId(gid)})
+                code = doc.get("group_code") if doc else None
+                ok_format = bool(code and re.match(r"^[A-Z2-9]{4}-[A-Z2-9]{3}$", code))
+                record(f"S2 name={name!r} code valid format (since accepted)", ok_format, f"code={code}")
 
-    # Verify no duplicate settlement rows in DB
-    r = get("/split/settlements", token=A["token"])
-    post_count = sum(1 for s in r.json()
-                     if s.get("is_payer") and s["id"] in (body1.get("settlement_ids") or []))
-    assertEq("6.9 NO duplicate settlements created (count unchanged)",
-             post_count, pre_count)
+    # Goa determinism check
+    r1 = await client.post(f"{API}/split/groups", json={"name": "Goa", "members": ["9000000003"]}, headers=headers)
+    r2 = await client.post(f"{API}/split/groups", json={"name": "Goa", "members": ["9000000004"]}, headers=headers)
+    if r1.status_code == 200 and r2.status_code == 200:
+        gid1, gid2 = r1.json()["id"], r2.json()["id"]
+        created_group_ids.extend([gid1, gid2])
+        d1 = await db.split_groups.find_one({"_id": ObjectId(gid1)})
+        d2 = await db.split_groups.find_one({"_id": ObjectId(gid2)})
+        c1, c2 = d1.get("group_code"), d2.get("group_code")
+        p1, p2 = c1.split("-")[0], c2.split("-")[0]
+        record("S2.det1 two 'Goa' groups: prefixes IDENTICAL", p1 == p2, f"{c1} vs {c2}")
+        record("S2.det2 two 'Goa' groups: full codes DIFFERENT", c1 != c2, f"{c1} vs {c2}")
+    else:
+        record("S2.det Goa double-create failed", False, f"r1={r1.status_code} r2={r2.status_code}")
 
-    # ── 7. expected_total_paise drift detection ──
-    print("\n══════ 7. expected_total_paise drift detection ══════")
-    # Need a fresh group again with debt
-    r = post("/split/groups",
-             {"name": "Drift trip", "members": [B["phone"], C["phone"]]},
-             token=A["token"])
-    drift_gid = r.json()["id"]
-    r = post("/split/expenses", {
-        "group_id": drift_gid, "description": "Coffee", "amount": 90,
-        "paid_by": B["user_id"], "split_type": "equal",
-    }, token=B["token"])
-    assertEq("7.1 expense Coffee", r.status_code, 200)
 
-    r = post(f"/split/groups/{drift_gid}/settle-my-part",
-             {"expected_total_paise": 99999999}, token=A["token"])
-    assertEq("7.2 wrong expected_total_paise → 409", r.status_code, 409)
-    detail7 = (r.json().get("detail") or "")
-    assertTrue("7.3 detail mentions 'Plan changed since preview'",
-               "Plan changed since preview" in detail7, detail=detail7)
+async def scenario_3(client, headers, db):
+    print("\n=== SCENARIO 3 — Concurrent creation (race-safe issuance) ===")
+    payload = {"name": "RaceTest", "members": ["9000000005"]}
 
-    # ── 8. Post-settle plan recomputation ──
-    print("\n══════ 8. Post-settle plan recomputation ══════")
-    # After /settle-my-part on the trip_gid (test #4), A should have my_transfers=[]
-    r = get(f"/split/groups/{trip_gid}/settle-plan", token=A["token"])
-    assertEq("8.1 settle-plan after settle → 200", r.status_code, 200)
-    plan = r.json()
-    log("📋", f"post-settle plan.my_transfers={plan.get('my_transfers')}")
-    log("📋", f"post-settle plan.my_total_outgoing={plan.get('my_total_outgoing')}")
-    assertEq("8.2 my_transfers empty post-settle", plan.get("my_transfers"), [])
-    assertEq("8.3 my_total_outgoing == 0 post-settle",
-             float(plan.get("my_total_outgoing", -1)), 0.0)
-    assertEq("8.4 my_total_outgoing_paise == 0 post-settle",
-             plan.get("my_total_outgoing_paise"), 0)
+    async def one_post():
+        try:
+            r = await client.post(f"{API}/split/groups", json=payload, headers=headers, timeout=30.0)
+            return r.status_code, (r.json() if r.status_code == 200 else r.text)
+        except Exception as e:
+            return 599, str(e)
 
-    # ── Summary ──
-    print("\n══════════════ SUMMARY ══════════════")
-    print(f"PASSED: {len(PASS)}")
-    print(f"FAILED: {len(FAIL)}")
-    for n, why in FAIL:
-        print(f"  ❌ {n} — {why}")
-    return 0 if not FAIL else 1
+    out = await asyncio.gather(*[one_post() for _ in range(10)])
+    statuses = [s for s, _ in out]
+    success = sum(1 for s in statuses if s == 200)
+    record("S3.1 All 10 concurrent POSTs → 200", success == 10, f"successes={success}/10")
+
+    codes = []
+    for s, b in out:
+        if s == 200 and isinstance(b, dict):
+            gid = b.get("id")
+            if gid:
+                created_group_ids.append(gid)
+                doc = await db.split_groups.find_one({"_id": ObjectId(gid)})
+                if doc and doc.get("group_code"):
+                    codes.append(doc["group_code"])
+
+    print(f"  📋 Returned group_codes (from DB):")
+    for c in codes:
+        print(f"     • {c}")
+    record("S3.2 All 10 codes UNIQUE", len(set(codes)) == 10 and len(codes) == 10, f"unique={len(set(codes))} total={len(codes)}")
+
+    db_groups = await db.split_groups.find({"name": "RaceTest"}).to_list(50)
+    db_codes = [g.get("group_code") for g in db_groups if g.get("group_code")]
+    record(
+        "S3.3 DB shows ≥10 RaceTest groups with distinct codes",
+        len(db_groups) >= 10 and len(set(db_codes)) == len(db_codes),
+        f"db_groups={len(db_groups)} unique_codes={len(set(db_codes))}",
+    )
+
+
+async def scenario_4(client, headers, db, user_id):
+    print("\n=== SCENARIO 4 — Lazy backfill atomicity ===")
+    user = await db.users.find_one({"_id": ObjectId(user_id)})
+    if not user:
+        record("S4.0 user lookup failed", False)
+        return
+
+    legacy_doc = {
+        "name": "Legacy Trip",
+        "members": [{"user_id": user_id, "name": user["name"], "phone": user["phone"]}],
+        "created_by": user_id,
+        "created_at": datetime.now(timezone.utc),
+    }
+    res = await db.split_groups.insert_one(legacy_doc)
+    legacy_id = str(res.inserted_id)
+    created_group_ids.append(legacy_id)
+    pre = await db.split_groups.find_one({"_id": res.inserted_id})
+    record("S4.0 Legacy group inserted WITHOUT group_code", "group_code" not in pre, f"keys={[k for k in pre.keys() if k != 'members']}")
+
+    # The 30s cache on /split/groups means previous GETs may have cached without this group.
+    # But cache is stamped at GET time AND legacy group was just inserted directly.
+    # If cache still hot from S1, the GETs may all return cached (without legacy).
+    # Wait briefly to age cache — 30s TTL... too long. Instead, let's INVALIDATE by triggering a write.
+    # Easier path: clear the in-process cache prefix. But we can't from here.
+    # Instead: the create_split_group calls in S1-S3 all called invalidate_split_cache_for_group, which clears
+    # the cache on EVERY call. So cache should be empty after S3.
+    # However, GETs in S1 may have re-cached. The last GET in S1 was after the last create which invalidated.
+    # Subsequent GETs in S1 cache. Fine — just sleep 31s? Too slow.
+    # Better: Force-clear the cache by explicitly creating a tiny dummy (which invalidates) then deleting.
+    dummy = await client.post(f"{API}/split/groups", json={"name": "CacheBuster", "members": ["9000000099"]}, headers=headers)
+    if dummy.status_code == 200:
+        created_group_ids.append(dummy.json()["id"])
+
+    async def one_get():
+        try:
+            r = await client.get(f"{API}/split/groups", headers=headers, timeout=30.0)
+            return r.status_code, (r.json() if r.status_code == 200 else r.text)
+        except Exception as e:
+            return 599, str(e)
+
+    out = await asyncio.gather(*[one_get() for _ in range(5)])
+    legacy_codes = []
+    for s, b in out:
+        if s == 200 and isinstance(b, list):
+            found = next((g for g in b if g.get("id") == legacy_id), None)
+            legacy_codes.append(found.get("group_code") if found else None)
+        else:
+            legacy_codes.append(f"ERR{s}")
+
+    print(f"  📋 5 concurrent GET responses for Legacy Trip:")
+    for c in legacy_codes:
+        print(f"     • {c}")
+    all_present = all(c and not str(c).startswith("ERR") for c in legacy_codes)
+    record("S4.1 All 5 concurrent GETs include legacy group with code", all_present, f"codes={legacy_codes}")
+    if all_present:
+        unique = set(legacy_codes)
+        record("S4.2 All 5 GETs return SAME group_code (atomic claim)", len(unique) == 1, f"unique={unique}")
+        winner = legacy_codes[0]
+    else:
+        winner = None
+
+    r_seq = await client.get(f"{API}/split/groups", headers=headers)
+    if r_seq.status_code == 200:
+        found = next((g for g in r_seq.json() if g.get("id") == legacy_id), None)
+        seq_code = found.get("group_code") if found else None
+        record("S4.3 Sequential GET returns same code (persistence)", winner is not None and seq_code == winner, f"seq={seq_code} winner={winner}")
+    else:
+        record("S4.3 Sequential GET", False, f"status={r_seq.status_code}")
+
+    db_doc = await db.split_groups.find_one({"_id": res.inserted_id})
+    record("S4.4 Mongo doc has group_code field", bool(db_doc.get("group_code")), f"code={db_doc.get('group_code')}")
+
+
+async def scenario_5(client, headers, db):
+    print("\n=== SCENARIO 5 — Unique-index DB enforcement ===")
+    info = await db.split_groups.index_information()
+    has_idx = "split_groups_code_unique" in info
+    record("S5.1 split_groups_code_unique index exists", has_idx, f"keys={list(info.keys())}")
+    if has_idx:
+        idx = info["split_groups_code_unique"]
+        record("S5.2 index unique=True", idx.get("unique") is True, f"unique={idx.get('unique')}")
+        record("S5.3 index sparse=True", idx.get("sparse") is True, f"sparse={idx.get('sparse')}")
+        record("S5.4 index key=[('group_code', 1)]", idx.get("key") == [("group_code", 1)], f"key={idx.get('key')}")
+
+    dup_code = "ZZZZ-Z9Z"
+    raised = False
+    inserted_id_1 = None
+    try:
+        r1 = await db.split_groups.insert_one({
+            "name": "DupTest1", "members": [], "created_at": datetime.now(timezone.utc), "group_code": dup_code,
+        })
+        inserted_id_1 = r1.inserted_id
+        await db.split_groups.insert_one({
+            "name": "DupTest2", "members": [], "created_at": datetime.now(timezone.utc), "group_code": dup_code,
+        })
+    except DuplicateKeyError:
+        raised = True
+    finally:
+        if inserted_id_1:
+            await db.split_groups.delete_one({"_id": inserted_id_1})
+        await db.split_groups.delete_many({"name": "DupTest2"})
+    record("S5.5 Duplicate group_code direct-insert raises DuplicateKeyError", raised)
+
+
+async def scenario_6(client, headers):
+    print("\n=== SCENARIO 6 — Lookup-batch robustness ===")
+    # 1 phone
+    r = await client.post(f"{API}/users/lookup-batch", json={"phones": ["9876543210"]}, headers=headers)
+    record("S6.1 1 phone → 200", r.status_code == 200, f"status={r.status_code}")
+    if r.status_code == 200:
+        record("S6.1.body has matches[]", "matches" in r.json() and isinstance(r.json()["matches"], list))
+
+    # 50 phones
+    phones50 = [f"90000{str(i).zfill(5)}" for i in range(50)]
+    r = await client.post(f"{API}/users/lookup-batch", json={"phones": phones50}, headers=headers)
+    record("S6.2 50 phones → 200", r.status_code == 200, f"status={r.status_code}")
+
+    # 100 phones (cap)
+    phones100 = [f"90000{str(i).zfill(5)}" for i in range(100)]
+    r = await client.post(f"{API}/users/lookup-batch", json={"phones": phones100}, headers=headers)
+    record("S6.3 100 phones (cap) → 200", r.status_code == 200, f"status={r.status_code}")
+
+    # 150 phones → 400
+    phones150 = [f"90000{str(i).zfill(5)}" for i in range(150)]
+    r = await client.post(f"{API}/users/lookup-batch", json={"phones": phones150}, headers=headers)
+    detail = ""
+    try:
+        detail = r.json().get("detail", "")
+    except Exception:
+        pass
+    record("S6.4 150 phones → 400 with 'Too many phones' detail", r.status_code == 400 and "Too many phones" in detail, f"status={r.status_code} detail={detail}")
+
+    # mixed valid/invalid
+    mixed = ["9876543210", "abc", "12345", "9999999999"]
+    r = await client.post(f"{API}/users/lookup-batch", json={"phones": mixed}, headers=headers)
+    record("S6.5 mixed valid/invalid → 200 (no crash)", r.status_code == 200, f"status={r.status_code} body={r.text[:160]}")
+
+
+async def main():
+    print(f"Backend: {API}")
+    print(f"Mongo:   {MONGO_URL}/{DB_NAME}")
+    mongo = AsyncIOMotorClient(MONGO_URL)
+    db = mongo[DB_NAME]
+
+    async with httpx.AsyncClient(timeout=30.0) as client:
+        token, user_id = await auth_token(client)
+        headers = {"Authorization": f"Bearer {token}"}
+        print(f"Auth OK — user_id={user_id}")
+
+        try:
+            # Pre-cleanup: remove leftover RaceTest/Legacy Trip/Hostel/Goa groups from prior runs
+            for n in ["RaceTest", "Legacy Trip", "Hostel", "Goa", "🍻🍕", "Café Munch", "CacheBuster", "DupTest1", "DupTest2"]:
+                await db.split_groups.delete_many({"name": n})
+
+            await scenario_1(client, headers, db)
+            await scenario_2(client, headers, db)
+            await scenario_3(client, headers, db)
+            await scenario_4(client, headers, db, user_id)
+            await scenario_5(client, headers, db)
+            await scenario_6(client, headers)
+        finally:
+            print(f"\n=== CLEANUP — Deleting {len(created_group_ids)} groups via DELETE endpoint ===")
+            await cleanup_groups(client, headers, created_group_ids)
+            # Also delete by name as fallback
+            for n in ["RaceTest", "Legacy Trip", "Hostel", "Goa", "🍻🍕", "Café Munch", "CacheBuster", "DupTest1", "DupTest2", ""]:
+                await db.split_groups.delete_many({"name": n})
+
+    print("\n" + "=" * 70)
+    passed = sum(1 for _, ok, _ in results if ok)
+    total = len(results)
+    print(f"RESULTS: {passed}/{total} passed")
+    print("=" * 70)
+    failed = [r for r in results if not r[1]]
+    if failed:
+        print("\nFAILED:")
+        for n, _, d in failed:
+            print(f"  ❌ {n} — {d}")
+    return 0 if not failed else 1
 
 
 if __name__ == "__main__":
-    try:
-        sys.exit(main())
-    except Exception as e:
-        import traceback
-        traceback.print_exc()
-        sys.exit(2)
+    sys.exit(asyncio.run(main()))

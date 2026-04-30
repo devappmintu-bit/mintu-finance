@@ -18,6 +18,7 @@ from fastapi import Depends, HTTPException
 from fastapi.responses import HTMLResponse
 
 from core import db, get_current_user
+from core.ids import safe_oid
 from routers.split_common import router, api_router  # noqa: F401 — register routes
 from routers.split_settle import (
     _get_user_coin_balance,
@@ -160,16 +161,16 @@ async def split_razorpay_order(data: dict, user_id: str = Depends(get_current_us
         pe = await db.users.find_one({"_id": ObjectId(target_user_id)}, {"name": 1})
         if pe:
             payee_name = pe.get("name", "Friend")
-    except Exception:
-        pass
+    except Exception as _exc:
+        logging.warning('split_razorpay L163 silent-except: %s', _exc)
     group_label = "Direct"
     if group_id:
         try:
-            g = await db.split_groups.find_one({"_id": ObjectId(group_id)}, {"name": 1})
+            g = await db.split_groups.find_one({"_id": safe_oid(group_id, field_name="group_id")}, {"name": 1})
             if g:
                 group_label = g.get("name", "Direct")
-        except Exception:
-            pass
+        except Exception as _exc:
+            logging.warning('split_razorpay L171 silent-except: %s', _exc)
 
     try:
         order = _rz.order.create({
@@ -343,15 +344,15 @@ async def split_verify_settle_payment(payment_data: dict):
             {"_id": ObjectId(user_id)},
             {"$inc": {"reward_coins": 2, "settlement_count": 1}},
         )
-    except Exception:
-        pass
+    except Exception as _exc:
+        logging.warning('split_razorpay L346 silent-except: %s', _exc)
     try:
         await db.split_reminders.update_many(
             {"recipient_id": user_id, "sender_id": target_user_id, "status": "pending"},
             {"$set": {"status": "settled", "dismissed_at": datetime.now(timezone.utc)}},
         )
-    except Exception:
-        pass
+    except Exception as _exc:
+        logging.warning('split_razorpay L353 silent-except: %s', _exc)
 
     # Post system message in group chat so everyone sees it
     payer_name = "User"
@@ -360,8 +361,8 @@ async def split_verify_settle_payment(payment_data: dict):
         p = await db.users.find_one({"_id": ObjectId(user_id)}, {"name": 1})
         if p:
             payer_name = p.get("name", "User")
-    except Exception:
-        pass
+    except Exception as _exc:
+        logging.warning('split_razorpay L363 silent-except: %s', _exc)
 
     if group_id:
         try:

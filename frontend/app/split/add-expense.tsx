@@ -21,6 +21,8 @@ import * as Haptics from 'expo-haptics';
 import Toast from 'react-native-toast-message';
 import { useAuthStore } from '../../store/authStore';
 import { fetchGroupSummary, createExpense, updateExpense } from '../../services/split';
+import { enqueueExpense, uuid } from '../../services/offlineQueue';
+import { triggerSync } from '../../services/syncEngine';
 import Confetti from '../../components/Confetti';
 import FullScreenLoader from '../../components/FullScreenLoader';
 import { makeStyles } from '../../utils/makeStyles';
@@ -163,7 +165,18 @@ export default function AddExpenseScreen() {
   const splitsValid = Math.abs(splitsSum - amountNum) < 0.5;
 
   // Validation
-  const canSubmit = amountNum > 0 && desc.trim().length > 0 && payerId && participants.size > 0 && splitsValid && !submitting && isOnline;
+  // Phase 2 — submit no longer requires online. New expenses are
+  // queued locally and synced in the background; only edits to
+  // existing server-side expenses still need a live connection.
+  const needsOnlineForEdit = !!editingExpenseId;
+  const canSubmit =
+    amountNum > 0 &&
+    desc.trim().length > 0 &&
+    payerId &&
+    participants.size > 0 &&
+    splitsValid &&
+    !submitting &&
+    (!needsOnlineForEdit || isOnline);
 
   const toggleParticipant = (id: string) => {
     if (Platform.OS !== 'web') Haptics.selectionAsync().catch(() => {});
@@ -196,31 +209,60 @@ export default function AddExpenseScreen() {
     setSubmitting(true);
     try {
       if (editingExpenseId) {
+        // Edits to server-side expenses still hit the network directly.
+        // Offline edit-queue is out of scope for Phase 2; we already
+        // gate the submit button on `isOnline` for this branch above.
         await updateExpense(editingExpenseId, {
           description: desc.trim(),
           amount: amountNum,
           split_type: splitType,
           splits: splitsMap,
         });
-      } else {
-        await createExpense({
+        if (Platform.OS !== 'web') Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
+        setShowConfetti(true);
+        setTimeout(() => {
+          Toast.show({ type: 'success', text1: 'Expense updated' });
+          router.back();
+        }, 800);
+        return;
+      }
+
+      // ── Phase 2 OFFLINE-FIRST CREATE ───────────────────────────────
+      // 1. Generate a stable client_expense_id (doubles as backend
+      //    Idempotency-Key on retries).
+      // 2. Persist to AsyncStorage queue → survives app kill / reboot.
+      // 3. Optimistically dismiss the screen.
+      // 4. Kick the sync engine; it'll drain the queue in the background.
+      const clientExpenseId = uuid();
+      await enqueueExpense({
+        client_expense_id: clientExpenseId,
+        group_id: group.id,
+        payload: {
           group_id: group.id,
           paid_by: payerId,
           description: desc.trim(),
           amount: amountNum,
           split_type: splitType,
           splits: splitsMap,
-        });
-      }
+        },
+      });
+      // Trigger immediately — if online, the expense ships in <500ms
+      // and the user sees the synced toast on the next refresh.
+      triggerSync('add_expense_submit');
+
       if (Platform.OS !== 'web') Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
       setShowConfetti(true);
       setTimeout(() => {
-        Toast.show({ type: 'success', text1: editingExpenseId ? 'Expense updated' : 'Expense added successfully' });
+        Toast.show({
+          type: 'success',
+          text1: isOnline ? 'Expense added' : 'Saved offline',
+          text2: isOnline ? 'Splitting now…' : "Will sync when you're back online",
+        });
         router.back();
       }, 800);
     } catch (e: any) {
       setSubmitting(false);
-      Toast.show({ type: 'error', text1: 'Error', text2: e?.response?.data?.detail || 'Failed' });
+      Toast.show({ type: 'error', text1: 'Error', text2: e?.response?.data?.detail || e?.message || 'Failed' });
     }
   };
 
@@ -461,7 +503,18 @@ export default function AddExpenseScreen() {
                 <>
                   <Ionicons name="checkmark-circle" size={18} color="#FFFFFF" />
                   <Text style={s.ctaTxt}>
-                    {!isOnline ? "Offline — can't save" : (amountNum > 0 ? `${editingExpenseId ? 'Update' : 'Split'} ${fmt(amountNum)}${desc ? ` for ${desc}` : ''}` : 'Enter amount')}
+                    {(() => {
+                      if (amountNum <= 0) return 'Enter amount';
+                      if (editingExpenseId && !isOnline) return "Offline — can't edit";
+                      const verb = editingExpenseId ? 'Update' : 'Split';
+                      const label = `${verb} ${fmt(amountNum)}${desc ? ` for ${desc}` : ''}`;
+                      // For new expenses we let the user submit even
+                      // when offline; the queue handles delivery.
+                      if (!editingExpenseId && !isOnline) {
+                        return `Save offline · ${fmt(amountNum)}`;
+                      }
+                      return label;
+                    })()}
                   </Text>
                 </>
               )}

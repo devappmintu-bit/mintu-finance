@@ -27,6 +27,7 @@ from core.idempotency import (
     replay_idempotency,
     reserve_idempotency,
 )
+from core.ids import safe_oid
 from routers.split_common import (
     api_router,
     SplitExpenseCreate, invalidate_split_cache_for_group,
@@ -307,7 +308,7 @@ async def attach_draft_to_group(
     if not draft:
         raise HTTPException(status_code=404, detail="Draft not found")
 
-    group = await db.split_groups.find_one({"_id": ObjectId(group_id), "members.user_id": user_id})
+    group = await db.split_groups.find_one({"_id": safe_oid(group_id, field_name="group_id"), "members.user_id": user_id})
     if not group:
         raise HTTPException(status_code=404, detail="Group not found or you're not a member")
 
@@ -494,7 +495,7 @@ def _compute_splits(amount: float, split_type: str, member_ids: List[str], raw_s
 async def get_group_expenses(group_id: str, user_id: str = Depends(get_current_user)):
     if not ObjectId.is_valid(group_id):
         raise HTTPException(status_code=400, detail="Invalid group_id")
-    group = await db.split_groups.find_one({"_id": ObjectId(group_id), "members.user_id": user_id})
+    group = await db.split_groups.find_one({"_id": safe_oid(group_id, field_name="group_id"), "members.user_id": user_id})
     if not group:
         raise HTTPException(status_code=404, detail="Group not found")
     expenses = await db.split_expenses.find({"group_id": group_id}).sort("created_at", -1).to_list(500)
@@ -511,7 +512,7 @@ async def group_expense_summary(group_id: str, user_id: str = Depends(get_curren
     if not ObjectId.is_valid(group_id):
         raise HTTPException(status_code=400, detail="Invalid group_id")
     """Get comprehensive group summary with simplified debts. Must be a group member."""
-    group = await db.split_groups.find_one({"_id": ObjectId(group_id), "members.user_id": user_id})
+    group = await db.split_groups.find_one({"_id": safe_oid(group_id, field_name="group_id"), "members.user_id": user_id})
     if not group:
         raise HTTPException(status_code=404, detail="Group not found")
     
@@ -609,7 +610,7 @@ async def delete_expense(expense_id: str, user_id: str = Depends(get_current_use
     """
     if not ObjectId.is_valid(expense_id):
         raise HTTPException(status_code=400, detail="Invalid expense_id")
-    existing = await db.split_expenses.find_one({"_id": ObjectId(expense_id)})
+    existing = await db.split_expenses.find_one({"_id": safe_oid(expense_id, field_name="expense_id")})
     if not existing:
         raise HTTPException(status_code=404, detail="Expense not found")
     group = await db.split_groups.find_one({
@@ -624,7 +625,7 @@ async def delete_expense(expense_id: str, user_id: str = Depends(get_current_use
     is_admin = group.get("created_by") == user_id
     if not (is_creator or is_payer or is_admin):
         raise HTTPException(status_code=403, detail="Only the expense creator, payer, or group admin can delete this expense")
-    await db.split_expenses.delete_one({"_id": ObjectId(expense_id)})
+    await db.split_expenses.delete_one({"_id": safe_oid(expense_id, field_name="expense_id")})
     # Round 51 — invalidate all members' /split/groups cache (balances changed).
     await invalidate_split_cache_for_group(str(existing.get("group_id") or ""), db)
     return {"message": "Expense deleted"}
@@ -641,7 +642,7 @@ async def edit_expense(expense_id: str, data: dict, user_id: str = Depends(get_c
     """
     if not ObjectId.is_valid(expense_id):
         raise HTTPException(status_code=400, detail="Invalid expense_id")
-    existing = await db.split_expenses.find_one({"_id": ObjectId(expense_id)})
+    existing = await db.split_expenses.find_one({"_id": safe_oid(expense_id, field_name="expense_id")})
     if not existing:
         raise HTTPException(status_code=404, detail="Expense not found")
     group = await db.split_groups.find_one({
@@ -706,7 +707,7 @@ async def edit_expense(expense_id: str, data: dict, user_id: str = Depends(get_c
 
     if updates:
         updates["updated_at"] = datetime.now(timezone.utc)
-        await db.split_expenses.update_one({"_id": ObjectId(expense_id)}, {"$set": updates})
+        await db.split_expenses.update_one({"_id": safe_oid(expense_id, field_name="expense_id")}, {"$set": updates})
         # Round 51 — invalidate when amount/splits/payer changed (balance-affecting fields).
         if any(k in updates for k in ("amount", "splits", "split_type", "paid_by")):
             await invalidate_split_cache_for_group(str(existing.get("group_id") or ""), db)

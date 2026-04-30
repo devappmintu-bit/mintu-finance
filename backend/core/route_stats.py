@@ -1,15 +1,20 @@
 """
-Round 51i — Route timing telemetry.
+Round 51i + Round 54a — Route timing & payload telemetry.
 
-In-memory ring buffer that records per-route response times for every
-request that hits the API. Exposed via GET /api/admin/route-stats so
-*future* fix decisions become data-driven instead of guess-driven.
+In-memory ring buffer that records per-route response times AND payload
+sizes for every request that hits the API. Exposed via
+GET /api/admin/route-stats so *future* fix decisions become data-driven
+instead of guess-driven.
 
 Design rationale (kept deliberately minimal — no Prometheus, no Redis):
   • A 4096-entry circular buffer per route gives us ~1-2 hours of headroom
     on the busiest endpoints without unbounded memory growth.
   • p50/p95/p99 are computed lazily on read using statistics.quantiles —
     no streaming sketch needed at our scale.
+  • Round 54a — Response bytes captured from `Content-Length` header
+    (set by FastAPI for non-streaming responses; ~0 for streams which
+    we mark explicitly). This surfaces "fat payload" endpoints without
+    consuming the response body.
   • The overhead per request is one timer + one O(1) deque append. We
     measured ~12 µs per record on Starter-tier infra — invisible.
   • Admin endpoint is gated by the existing auth dep + a list of admin
@@ -33,7 +38,7 @@ import time
 from collections import defaultdict, deque
 from typing import Deque, Dict
 
-from fastapi import APIRouter, Depends, HTTPException, Request
+from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.responses import Response
 
@@ -47,10 +52,10 @@ from core import db
 # acceptable since you wouldn't optimise for that endpoint anyway.
 BUFFER_SIZE = 4096
 
-# Per-route circular buffer of (timestamp, duration_ms, status_code) tuples.
-# Keyed by template path ("GET /api/transactions/{txn_id}") — the literal
-# path is normalised to the route template by FastAPI so we don't blow up
-# the key space on URLs with IDs.
+# Per-route circular buffer of (timestamp, duration_ms, status_code, response_bytes)
+# tuples. Keyed by template path ("GET /api/transactions/{txn_id}") — the
+# literal path is normalised to the route template by FastAPI so we don't
+# blow up the key space on URLs with IDs.
 _buf: Dict[str, Deque[tuple]] = defaultdict(lambda: deque(maxlen=BUFFER_SIZE))
 
 # Mark the moment recording started so the read endpoint can show the
@@ -64,22 +69,36 @@ class RouteStatsRecorder(BaseHTTPMiddleware):
     Notes:
       • We ignore non-/api/ traffic (static, openapi.json, docs) to keep
         the buffer focused on real product endpoints.
+      • The /api/admin/route-stats endpoint itself is excluded from
+        recording — looking at your own telemetry shouldn't pollute it.
       • If FastAPI couldn't resolve a route template (404, malformed),
         we record under the literal path — those rows are still useful
         for finding clients hitting nonexistent endpoints.
+      • Response bytes come from the Content-Length header. Streaming
+        responses (chunked encoding) report 0; that's correct — we
+        explicitly choose NOT to consume the body iterator just for
+        accounting because that doubles memory pressure.
     """
     async def dispatch(self, request: Request, call_next) -> Response:
         path = request.url.path
-        # Cheap fast-path: skip non-API traffic
-        if not path.startswith("/api/"):
+        # Cheap fast-path: skip non-API traffic AND the telemetry
+        # endpoint itself (avoid recursive accounting).
+        if not path.startswith("/api/") or path.startswith("/api/admin/route-stats"):
             return await call_next(request)
 
         start = time.perf_counter()
         response: Response
         status_code = 500
+        response_bytes = 0
         try:
             response = await call_next(request)
             status_code = response.status_code
+            # Round 54a — capture payload size cheaply via header.
+            # FastAPI's default JSONResponse sets Content-Length; only
+            # explicit StreamingResponse leaves it unset (we report 0).
+            cl = response.headers.get("content-length")
+            if cl and cl.isdigit():
+                response_bytes = int(cl)
             return response
         except Exception:
             # Don't swallow — re-raise after recording. The global
@@ -92,7 +111,9 @@ class RouteStatsRecorder(BaseHTTPMiddleware):
             route = request.scope.get("route")
             template = getattr(route, "path", None) or path
             key = f"{request.method} {template}"
-            _buf[key].append((time.time(), round(elapsed_ms, 2), status_code))
+            _buf[key].append(
+                (time.time(), round(elapsed_ms, 2), status_code, response_bytes)
+            )
 
 
 # ── Read endpoint(s) ──────────────────────────────────────────────────
@@ -138,10 +159,17 @@ def build_admin_router() -> APIRouter:
     r = APIRouter(prefix="/admin", tags=["admin"])
 
     @r.get("/route-stats")
-    async def route_stats(_user_id: str = Depends(_require_admin)):
+    async def route_stats(
+        sort_by: str = Query(
+            "p95_ms",
+            description="Sort key: p95_ms | p99_ms | bytes_p95 | bytes_max | error_rate | samples",
+        ),
+        limit: int = Query(50, ge=1, le=500),
+        _user_id: str = Depends(_require_admin),
+    ):
         """
-        Per-route latency summary. Returns an array sorted by p95
-        descending so the slowest endpoints surface first.
+        Per-route latency + payload-size summary. Sorted by `sort_by`
+        descending so the worst offenders surface first.
 
         Each row:
           {
@@ -151,10 +179,24 @@ def build_admin_router() -> APIRouter:
             "p95_ms": 84.1,
             "p99_ms": 312.0,
             "max_ms": 2104.0,
-            "error_rate": 0.012,        # 4xx+5xx fraction
-            "last_seen": 1733... (epoch)
+            "bytes_p50": 8120,           # Round 54a — payload size
+            "bytes_p95": 42180,
+            "bytes_max": 188400,
+            "error_rate": 0.012,         # 4xx+5xx fraction
+            "last_seen": 1733...          # epoch
           }
         """
+        valid_sort = {
+            "p95_ms", "p99_ms", "max_ms", "p50_ms",
+            "bytes_p50", "bytes_p95", "bytes_max",
+            "error_rate", "samples",
+        }
+        if sort_by not in valid_sort:
+            raise HTTPException(
+                status_code=400,
+                detail=f"sort_by must be one of {sorted(valid_sort)}",
+            )
+
         rows = []
         for key, buf in list(_buf.items()):
             samples = list(buf)
@@ -162,6 +204,9 @@ def build_admin_router() -> APIRouter:
                 continue
             durs = [s[1] for s in samples]
             statuses = [s[2] for s in samples]
+            # Round 54a — bytes is the 4th tuple slot. Defensive default
+            # for any legacy rows captured before the schema change.
+            byte_sizes = [s[3] if len(s) > 3 else 0 for s in samples]
             err_count = sum(1 for s in statuses if s >= 400)
             rows.append({
                 "route": key,
@@ -170,14 +215,19 @@ def build_admin_router() -> APIRouter:
                 "p95_ms": round(_percentile(durs, 95), 2),
                 "p99_ms": round(_percentile(durs, 99), 2),
                 "max_ms": round(max(durs), 2),
+                "bytes_p50": int(round(_percentile(byte_sizes, 50))),
+                "bytes_p95": int(round(_percentile(byte_sizes, 95))),
+                "bytes_max": max(byte_sizes) if byte_sizes else 0,
                 "error_rate": round(err_count / max(len(statuses), 1), 4),
                 "last_seen": samples[-1][0],
             })
-        rows.sort(key=lambda r: r["p95_ms"], reverse=True)
+        rows.sort(key=lambda row: row.get(sort_by, 0), reverse=True)
+        rows = rows[:limit]
         return {
             "window_started_at": _started_at,
             "window_seconds": round(time.time() - _started_at, 1),
             "buffer_size": BUFFER_SIZE,
+            "sort_by": sort_by,
             "total_routes": len(rows),
             "rows": rows,
         }

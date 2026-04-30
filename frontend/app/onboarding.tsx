@@ -67,7 +67,7 @@ export default function Onboarding() {
     router.replace('/auth' as any);
   };
 
-  const go = async () => {
+  const go = () => {
     try { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium); } catch {}
     if (idx < S.length - 1) {
       listRef.current?.scrollToOffset({ offset: (idx + 1) * width, animated: true });
@@ -78,7 +78,7 @@ export default function Onboarding() {
     }
   };
 
-  const skip = async () => { try { Haptics.selectionAsync(); } catch {} complete(); };
+  const skip = () => { try { Haptics.selectionAsync(); } catch {} complete(); };
 
   // Fire confetti the first time user reaches the final slide (3 of 3)
   useEffect(() => {

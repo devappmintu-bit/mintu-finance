@@ -15,9 +15,7 @@
  * 10. Weekly Report · Leaderboard · News
  */
 import React, { useState, useEffect, useCallback, useRef } from 'react';
-import {
-  View, Text, ScrollView, RefreshControl, InteractionManager, TouchableOpacity, AppState,
-} from 'react-native';
+import { StyleSheet, View, Text, ScrollView, RefreshControl, InteractionManager, TouchableOpacity, AppState } from 'react-native';
 import { Image } from 'expo-image';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -28,7 +26,7 @@ import api from '../../utils/api';
 import { fetchCurrentUser, fetchAvatar } from '../../services/user';
 import { awardCoins } from '../../services/premium';
 import { fetchStatsOverview, fetchTransactions } from '../../services/transactions';
-import { COLORS, RADIUS, SPACING, shadowStyle } from '../../utils/theme';
+import { COLORS, RADIUS, SPACING, shadowStyle, GLASS } from '../../utils/theme';
 import { makeStyles } from '../../utils/makeStyles';
 import TapTile from '../../components/ui/TapTile';
 import { router, useFocusEffect } from 'expo-router';
@@ -76,13 +74,26 @@ function HomeScreen() {
   const [loadError, setLoadError] = useState(false);
   // Round 37 — bell badge unread count, fetched independently so list-screen
   // interactions don't block notification refresh.
+  // Phase 2 fix (M-2/M-3): debounce concurrent triggers (mount + AppState +
+  // 60s interval) so we never fire >1 fetch within 5s, and skip the call
+  // entirely if we already know the device is offline.
   const [unread, setUnread] = useState(0);
+  const lastUnreadAtRef = useRef(0);
   const refreshUnread = useCallback(async () => {
+    const now = Date.now();
+    if (now - lastUnreadAtRef.current < 5000) return;   // 5s debounce
+    lastUnreadAtRef.current = now;
     try {
+      // Skip silently when we know the device is offline — saves a wasted
+      // request that would just hit the api.ts retry/toast path.
+      try {
+        const { isCurrentlyOnline } = await import('../../hooks/useIsOnline');
+        if (!(await isCurrentlyOnline())) return;
+      } catch { /* hook unavailable — proceed */ }
       const { fetchUnreadCount } = await import('../../services/notifications');
       const n = await fetchUnreadCount();
       setUnread(n);
-    } catch {}
+    } catch { /* noop */ }
   }, []);
   useEffect(() => { refreshUnread(); }, [refreshUnread]);
   // Round 37 — re-check unread count when app comes back to foreground so
@@ -499,8 +510,8 @@ const useStyles = makeStyles((c) => ({
   newUserAiCoachCard: {
     flexDirection: 'row', alignItems: 'center', gap: 14,
     padding: 18, borderRadius: 22, marginBottom: 14,
-    backgroundColor: c.bg.elevated,
-    borderWidth: 1, borderColor: c.accent.primary + '33',
+    backgroundColor: GLASS.solidBg,
+    borderWidth: StyleSheet.hairlineWidth, borderColor: GLASS.borderLight,
   },
   newUserAiCoachIcon: {
     width: 52, height: 52, borderRadius: 16,

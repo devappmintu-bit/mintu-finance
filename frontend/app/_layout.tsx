@@ -28,10 +28,17 @@ import OfflineBanner from '../components/OfflineBanner';
 import AppLockOverlay from '../components/AppLockOverlay';
 import { isExpoGo } from '../utils/lockManager';
 import { initSentry } from '../utils/observability';
+import { initSyncEngine } from '../services/syncEngine';
 
 // Round 53e — Sentry init runs at import time so the SDK can wrap the
 // JS error path BEFORE any other code mounts. No-op when DSN unset.
 initSentry();
+
+// Phase 2 — Boot the offline expense sync engine. Subscribes to
+// NetInfo + AppState so any pending offline expense in AsyncStorage
+// drains automatically when the device comes back online or when
+// the app is foregrounded. Idempotent — safe to call multiple times.
+initSyncEngine();
 
 // Silence noisy, non-actionable deprecation warnings from RN core + libs.
 // These warnings are informational for future RN versions and don't affect runtime.
@@ -210,7 +217,8 @@ export default function RootLayout() {
             preserves scroll position, in-flight network state, and keyboard
             focus across the entire app.
           */}
-          <StatusBar style={resolvedTheme === 'light' ? 'dark' : 'light'} />
+          {/* Round 56 — app is light-only; status bar ink is always dark. */}
+          <StatusBar style="dark" />
           <Stack
             screenOptions={{ headerShown: false, animation: 'fade', contentStyle: { backgroundColor: c.bg.primary } }}
           >

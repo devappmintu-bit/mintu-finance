@@ -7,7 +7,7 @@
 import React from 'react';
 import { View, Text, Modal, TouchableOpacity, FlatList, StyleSheet } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { useAppColors } from '../../utils/theme';
+import { useAppColors, GLASS } from '../../utils/theme';
 import { makeStyles } from '../../utils/makeStyles';
 import { LANGUAGES, t } from '../../utils/i18n';
 import { useLangStore } from '../../store/langStore';
@@ -62,8 +62,9 @@ export default function LanguageSheet({ visible, onClose }: Props) {
 const useStyles = makeStyles((c) => ({
   bg: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'flex-end' },
   sheet: {
-    backgroundColor: c.bg.secondary,
+    backgroundColor: GLASS.solidBg,
     borderTopLeftRadius: 24, borderTopRightRadius: 24,
+    borderTopWidth: StyleSheet.hairlineWidth, borderColor: GLASS.borderLight,
     paddingHorizontal: 20, paddingTop: 10, paddingBottom: 32,
     maxHeight: '70%',
   },

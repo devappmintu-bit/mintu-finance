@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useCallback, memo } from 'react';
+import React, { useState, useEffect, useRef, useCallback, useMemo, memo } from 'react';
 import {
   View, Text, StyleSheet, TouchableOpacity, ActivityIndicator,
   Modal, TextInput, KeyboardAvoidingView, Platform, Alert, ScrollView, Animated,
@@ -31,6 +31,7 @@ import TransactionFilterSheet, { DEFAULT_FILTER, TxnFilter, applyFilterToList, f
 import TransactionsHero from '../../components/transactions/TransactionsHero';
 import useSwr from '../../hooks/useSwr';
 import { useIsOnline } from '../../hooks/useIsOnline';
+import { groupTransactionsByDate, type TxnRowItem } from '../../utils/groupTransactionsByDate';
 
 // Pure, memoized row — prevents re-renders on unrelated parent state changes (e.g. modals).
 // Per UX spec: Transactions get DELETE-only swipe (no edit gesture).
@@ -70,6 +71,30 @@ const TxnRow = memo(function TxnRow({ item, lang, onEdit, onDelete }: { item: an
         </Text>
       </PressableGlass>
     </SwipeableRow>
+  );
+});
+
+// Section header — Today / Yesterday / This Week / <Month YYYY>.
+// Memoised to avoid re-renders when scrolling through unrelated rows.
+// Net total below the label is colored emerald (positive) / crimson (negative)
+// so users can glance the day's net at a single fixation point.
+const TxnSectionHeader = memo(function TxnSectionHeader({ label, count, total }: { label: string; count: number; total: number }) {
+  const styles = useStyles();
+  const c = useAppColors();
+  const isPositive = total >= 0;
+  const sign = total === 0 ? '' : (isPositive ? '+' : '-');
+  return (
+    <View style={styles.sectionHeader}>
+      <View style={{ flexDirection: 'row', alignItems: 'baseline', gap: 8 }}>
+        <Text style={styles.sectionHeaderLabel}>{label}</Text>
+        <Text style={styles.sectionHeaderCount}>{count} {count === 1 ? 'txn' : 'txns'}</Text>
+      </View>
+      {total !== 0 && (
+        <Text style={[styles.sectionHeaderTotal, { color: isPositive ? c.accent.moneyIn : c.accent.moneyOut }]}>
+          {sign}₹{Math.abs(total).toFixed(0)}
+        </Text>
+      )}
+    </View>
   );
 });
 
@@ -280,14 +305,27 @@ function TransactionsScreen() {
     ]);
   }, [lang, mutateTxns, refetchTxns]);
 
-  const renderTxn = useCallback(({ item }: { item: any }) => (
-    <TxnRow item={item} lang={lang} onEdit={openEdit} onDelete={handleDelete} />
-  ), [lang, openEdit, handleDelete]);
+  const renderTxn = useCallback(({ item }: { item: TxnRowItem }) => {
+    if (item.type === 'header') {
+      return <TxnSectionHeader label={item.label} count={item.count} total={item.total} />;
+    }
+    return <TxnRow item={item.data} lang={lang} onEdit={openEdit} onDelete={handleDelete} />;
+  }, [lang, openEdit, handleDelete]);
+
+  // Phase 2 fix — Memoise filter + grouping BEFORE the early loading-return
+  // so we don't violate Rules of Hooks. Recomputes only when the source
+  // transactions list, the filter object, or the grouping logic changes.
+  const filteredTransactions = useMemo(
+    () => applyFilterToList(transactions, filter),
+    [transactions, filter]
+  );
+  const activeFilterCount = filterActiveCount(filter);
+  const groupedItems = useMemo(
+    () => groupTransactionsByDate(filteredTransactions),
+    [filteredTransactions]
+  );
 
   if (loading) return <SafeAreaView style={styles.container}><TransactionsSkeleton /></SafeAreaView>;
-
-  const filteredTransactions = applyFilterToList(transactions, filter);
-  const activeFilterCount = filterActiveCount(filter);
 
   return (
     <SafeAreaView style={styles.container}>
@@ -336,9 +374,10 @@ function TransactionsScreen() {
       </View>
 
       <FlashList
-        data={filteredTransactions}
+        data={groupedItems}
         renderItem={renderTxn}
-        keyExtractor={(item) => item.id}
+        keyExtractor={(item: TxnRowItem) => item.key}
+        getItemType={(item: TxnRowItem) => item.type}
         contentContainerStyle={styles.listContent}
         ListHeaderComponent={
           <>
@@ -582,6 +621,33 @@ const useStyles = makeStyles((c) => ({
   cashBadge: { backgroundColor: c.accent.warning + '20', paddingHorizontal: 8, paddingVertical: 2, borderRadius: 6 },
   cashBadgeText: { fontSize: 10, fontWeight: '700', color: c.accent.warning },
   txnAmount: { fontSize: 17, fontWeight: '700' },
+  // Smart-grouping section header — Today / Yesterday / This Week / <Month>
+  sectionHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 4,
+    paddingTop: 12,
+    paddingBottom: 6,
+  },
+  sectionHeaderLabel: {
+    fontSize: 12,
+    fontWeight: '900',
+    letterSpacing: 1.4,
+    color: c.text.muted,
+    textTransform: 'uppercase',
+  },
+  sectionHeaderCount: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: c.text.muted,
+    opacity: 0.75,
+  },
+  sectionHeaderTotal: {
+    fontSize: 13,
+    fontWeight: '800',
+    letterSpacing: -0.2,
+  },
   empty: { alignItems: 'center', paddingVertical: 80 },
   emptyTitle: { fontSize: 18, fontWeight: '700', color: c.text.secondary, marginTop: 16 },
   emptyText: { fontSize: 14, color: c.text.muted, marginTop: 6 },

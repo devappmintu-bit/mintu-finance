@@ -131,7 +131,8 @@ async def _mission_progress(user_id: str, mission_id: str) -> int:
                 "user_id": user_id,
                 "created_at": {"$gte": day_start},
             })
-        except Exception:
+        except Exception as _exc:
+            logging.warning('rewards L134 default-return on except: %s', _exc)
             return 0
     if mission_id == "refer_friend":
         try:
@@ -140,7 +141,8 @@ async def _mission_progress(user_id: str, mission_id: str) -> int:
                 "created_at": {"$gte": day_start},
                 "status": {"$in": ["completed", "success", "verified"]},
             })
-        except Exception:
+        except Exception as _exc:
+            logging.warning('rewards L144 default-return on except: %s', _exc)
             return 0
     return 0
 
@@ -176,12 +178,16 @@ async def _get_lifetime_xp(user_id: str) -> int:
         cur = db.coin_ledger.aggregate(pipeline)
         rows = await cur.to_list(1)
         return int(rows[0]["total"]) if rows else 0
-    except Exception:
+    except Exception as _exc:
+        logging.warning('rewards L181 default-return on except: %s', _exc)
         return 0
 
 
-def _today_key() -> str:
-    return datetime.now(timezone.utc).strftime("%Y-%m-%d")
+# Phase 3 consolidation: _today_key used to be duplicated here and in
+# core/streak.py. Both functions produced the same "YYYY-MM-DD" UTC string.
+# Now `rewards` imports from `core.streak` (our canonical streak/time module)
+# via a module-level alias so existing call sites still work.
+from core.streak import _today_utc_date_str as _today_key  # noqa: F401
 
 
 async def _get_user_coins(user_id: str) -> int:
@@ -655,7 +661,8 @@ async def _top_user_categories(user_id: str) -> List[str]:
             if m and m not in out:
                 out.append(m)
         return out[:3] if out else ["food", "shopping"]
-    except Exception:
+    except Exception as _exc:
+        logging.warning('rewards L661 default-return on except: %s', _exc)
         return ["food", "shopping"]
 
 
@@ -677,8 +684,8 @@ async def rewards_marketplace(user_id: str = Depends(get_current_user)) -> Dict[
         u = await db.users.find_one({"_id": safe_oid(user_id)})
         plan = (u or {}).get("premium_plan") or (u or {}).get("plan")
         is_pro = plan in ("monthly", "yearly", "family", "pro")
-    except Exception:
-        pass
+    except Exception as _exc:
+        logging.warning('rewards L684 silent-except: %s', _exc)
 
     def _enrich(r: Dict[str, Any]) -> Dict[str, Any]:
         d = dict(r)
@@ -731,8 +738,8 @@ async def rewards_social_feed(user_id: str = Depends(get_current_user)) -> Dict[
         for r in rows:
             try:
                 spin_user_ids.append(safe_oid(str(r.get("user_id", ""))))
-            except Exception:
-                pass
+            except Exception as _exc:
+                logging.warning('rewards L738 silent-except: %s', _exc)
         spin_user_ids = [oid for oid in spin_user_ids if oid is not None]
         spin_user_map: dict[str, dict] = {}
         if spin_user_ids:
@@ -750,8 +757,8 @@ async def rewards_social_feed(user_id: str = Depends(get_current_user)) -> Dict[
                     "emoji": prize.get("emoji", "🎁"),
                     "ts": r.get("created_at").isoformat() if isinstance(r.get("created_at"), datetime) else None,
                 })
-    except Exception:
-        pass
+    except Exception as _exc:
+        logging.warning('rewards L757 silent-except: %s', _exc)
 
     # Seed demo entries if too few (keeps ticker vibrant for new installs)
     DEMO = [

@@ -1,8 +1,9 @@
 import React from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Linking, Share } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { router } from 'expo-router';
 import Toast from 'react-native-toast-message';
-import {  COLORS, RADIUS, SPACING, shadowStyle, useAppColors } from '../../utils/theme';
+import {  COLORS, RADIUS, SPACING, shadowStyle, useAppColors, GLASS } from '../../utils/theme';
 import { makeStyles } from '../../utils/makeStyles';
 
 import { APP_LINK } from '../../utils/brand';
@@ -80,12 +81,21 @@ function WeeklyReport({ weeklyReport, snapshot, user }: Props) {
         <Ionicons name="logo-whatsapp" size={16} color="#FFFFFF" />
         <Text style={s.shareBtnText}>Share Weekly Report</Text>
       </TouchableOpacity>
+      {/* Round 57 — entry point into the new Spending Insights retention screen. */}
+      <TouchableOpacity
+        style={s.insightsLink}
+        activeOpacity={0.7}
+        onPress={() => router.push('/spending-insights' as any)}
+      >
+        <Ionicons name="stats-chart" size={14} color={COLORS.accent.primary} />
+        <Text style={s.insightsLinkTxt}>See your full spending story →</Text>
+      </TouchableOpacity>
     </View>
   );
 }
 
 const useStyles = makeStyles((c) => ({
-  card: { backgroundColor: 'rgba(255,255,255,0.92)', borderRadius: RADIUS.card, padding: SPACING.xl, marginBottom: SPACING.lg, borderWidth: 1, borderColor: 'rgba(238,221,204,0.6)', ...shadowStyle('#2E1F1A', 2, 12, 0.04, 3) },
+  card: { backgroundColor: GLASS.solidBg, borderRadius: RADIUS.card, padding: SPACING.xl, marginBottom: SPACING.lg, borderWidth: StyleSheet.hairlineWidth, borderColor: GLASS.borderLight, ...shadowStyle('#111827', 2, 14, 0.05, 3) },
   header: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 6 },
   label: { fontSize: 11, fontWeight: '800', letterSpacing: 1, color: c.accent.secondary, flex: 1 },
   period: { fontSize: 10, fontWeight: '700', color: c.text.muted, letterSpacing: 0.5 },
@@ -98,6 +108,8 @@ const useStyles = makeStyles((c) => ({
   suggestion: { fontSize: 13, color: c.text.secondary, lineHeight: 18, marginTop: 4 },
   shareBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, backgroundColor: '#25D366', paddingVertical: 12, borderRadius: 999, marginTop: 12 },
   shareBtnText: { fontSize: 13, fontWeight: '800', color: c.bg.elevated },
+  insightsLink: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, paddingTop: 12, paddingBottom: 2 },
+  insightsLinkTxt: { fontSize: 12, fontWeight: '700', color: c.accent.primary, letterSpacing: 0.1 },
 }));
 
 // Round 43 perf — memoized so unrelated parent state changes don't re-render this widget.

@@ -14,7 +14,7 @@ import { View, Text, StyleSheet, Modal, TouchableOpacity, ScrollView, Pressable 
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { makeStyles } from '../../utils/makeStyles';
-import { COLORS } from '../../utils/theme';
+import { COLORS, GLASS } from '../../utils/theme';
 
 export interface TxnFilter {
   range: 'all' | 'this_month' | 'last_3m' | 'last_6m' | 'this_year';

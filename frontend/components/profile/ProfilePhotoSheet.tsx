@@ -9,7 +9,7 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
 import * as Haptics from 'expo-haptics';
-import { COLORS, useAppColors } from '../../utils/theme';
+import { COLORS, useAppColors, GLASS } from '../../utils/theme';
 import { makeStyles } from '../../utils/makeStyles';
 
 interface Props {
@@ -154,8 +154,9 @@ function Action({
 const useStyles = makeStyles((c) => ({
   backdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.55)', justifyContent: 'flex-end' },
   sheet: {
-    backgroundColor: c.bg.secondary,
+    backgroundColor: GLASS.solidBg,
     borderTopLeftRadius: 28, borderTopRightRadius: 28,
+    borderTopWidth: StyleSheet.hairlineWidth, borderColor: GLASS.borderLight,
     paddingHorizontal: 20, paddingTop: 10, paddingBottom: Platform.OS === 'ios' ? 32 : 20,
   },
   handle: { width: 40, height: 4, borderRadius: 2, backgroundColor: c.border.subtle, alignSelf: 'center', marginBottom: 14 },

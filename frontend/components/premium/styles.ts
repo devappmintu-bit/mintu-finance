@@ -21,13 +21,35 @@ export const usePremiumStyles = makeStyles((c) => ({
   chipTextActive: { color: c.accent.primary },
 
   // PLANS VIEW
+  // Round 55 — `hookCard` style retained for backward compat but the
+  // PlansView now wraps in <GlassCard/> instead. Kept for any callers
+  // that still reference styles.hookCard directly.
   hookCard: { margin: 16, padding: 18, backgroundColor: c.accent.moneyOut + '14', borderRadius: 16, borderWidth: 1, borderColor: c.accent.moneyOut + '40' },
   hookHeader: { fontSize: 20, fontWeight: '800', color: c.text.primary, lineHeight: 26 },
   hookSub: { fontSize: 13, color: c.text.secondary, marginTop: 6 },
-  plansRow: { flexDirection: 'row', gap: 10, paddingHorizontal: 16 },
-  planCard: { flex: 1, alignItems: 'center', paddingVertical: 20, paddingHorizontal: 10, backgroundColor: c.bg.secondary, borderRadius: 16, borderWidth: 1, borderColor: c.border.subtle, position: 'relative', minHeight: 140 },
-  planCardActive: { borderColor: c.accent.primary, borderWidth: 2, backgroundColor: c.accent.primary + '10' },
-  planCardBest: { flex: 1.15, alignItems: 'center', paddingVertical: 20, paddingHorizontal: 10, backgroundColor: c.accent.primary, borderRadius: 16, position: 'relative', minHeight: 140, ...shadowStyle(c.accent.primary, 4, 14, 0.35, 6) },
+  plansRow: { flexDirection: 'row', gap: 10, paddingHorizontal: 16, marginTop: 18 },
+  // Round 55 — Light-glass plan tier (Micro / Premium). Uses
+  // semi-translucent white with a subtle hairline border and
+  // soft shadow for the iOS Crystal feel without nesting an extra
+  // BlurView inside a touchable (which would slow the press feedback).
+  planCard: {
+    flex: 1,
+    alignItems: 'center',
+    paddingVertical: 20,
+    paddingHorizontal: 10,
+    backgroundColor: 'rgba(255,255,255,0.78)',
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: 'rgba(17,24,39,0.06)',
+    position: 'relative',
+    minHeight: 140,
+    ...shadowStyle('#000', 4, 14, 0.06, 2),
+  },
+  planCardActive: { borderColor: c.accent.primary, borderWidth: 2, backgroundColor: c.accent.primary + '12' },
+  // The "Best Value" tier stays as the hero orange surface — the
+  // intentional contrast against the surrounding glass cards is what
+  // makes the comparison legible. Slightly bumped radius for parity.
+  planCardBest: { flex: 1.15, alignItems: 'center', paddingVertical: 20, paddingHorizontal: 10, backgroundColor: c.accent.primary, borderRadius: 20, position: 'relative', minHeight: 140, ...shadowStyle(c.accent.primary, 4, 14, 0.35, 6) },
   planCardBestActive: { borderColor: '#FCD34D', borderWidth: 2 },
   planLabel: { fontSize: 14, fontWeight: '800', color: c.text.primary },
   planLabelWhite: { fontSize: 14, fontWeight: '800', color: '#fff', marginTop: 6 },
@@ -142,4 +164,7 @@ export const usePremiumStyles = makeStyles((c) => ({
 }));
 
 // INR formatter helper — used by tax & invest views.
-export const fmtINR = (n: number) => `₹${Math.round(n).toLocaleString('en-IN')}`;
+// Phase 3 consolidation: fmtINR now lives in utils/format.ts as the
+// single source of truth. Re-exported here for backwards compat so
+// existing `import { fmtINR } from '../premium/styles'` still works.
+export { fmtINR } from '../../utils/format';

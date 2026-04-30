@@ -89,9 +89,7 @@
       ],
       "expo-secure-store",
       "expo-font",
-      "expo-web-browser",
-      "@sentry/react-native",
-      "sentry-expo"
+      "expo-web-browser"
     ],
     "experiments": {
       "typedRoutes": true

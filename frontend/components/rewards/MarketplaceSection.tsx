@@ -15,6 +15,7 @@ import { router } from 'expo-router';
 import * as Haptics from 'expo-haptics';
 import { makeStyles } from '../../utils/makeStyles';
 import { COLORS, useAppColors } from '../../utils/theme';
+import { shade } from '../../utils/color';
 
 // Clearbit free brand logo API — falls back gracefully to emoji if image
 // fails to load (e.g. offline, rate-limited, or unknown domain).
@@ -210,16 +211,6 @@ function RewardCard({ reward, userCoins, onClaim, testID }: { reward: Reward; us
   );
 }
 
-function shade(hex: string, pct: number) {
-  try {
-    const c = hex.replace('#', '');
-    const r = parseInt(c.substring(0, 2), 16);
-    const g = parseInt(c.substring(2, 4), 16);
-    const b = parseInt(c.substring(4, 6), 16);
-    const adj = (v: number) => Math.max(0, Math.min(255, Math.round(v + (pct < 0 ? v * pct : (255 - v) * pct))));
-    return `#${[adj(r), adj(g), adj(b)].map(v => v.toString(16).padStart(2, '0')).join('')}`;
-  } catch { return hex; }
-}
 
 const useStyles = makeStyles((c) => ({
   laneHead: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 16, marginBottom: 10 },

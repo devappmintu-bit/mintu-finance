@@ -8,13 +8,17 @@ from datetime import datetime, timezone
 from typing import List
 from bson import ObjectId
 from fastapi import Depends, HTTPException
+from pymongo import ReturnDocument
+from pymongo.errors import DuplicateKeyError
 
 from core import db, get_current_user
 from core.cache import cache_get, cache_set, cache_clear_prefix
+from core.ids import safe_oid
 from routers.split_common import (
     api_router,
     SplitGroupCreate,
     invalidate_split_cache_for_group,
+    generate_group_code,
 )
 
 
@@ -71,7 +75,24 @@ async def create_split_group(group: SplitGroupCreate, user_id: str = Depends(get
     }
     if group.custom_emoji:
         g["custom_emoji"] = group.custom_emoji
-    result = await db.split_groups.insert_one(g)
+    # Phase 3 + Hardening — Insert with a candidate group_code; the
+    # DB-level UNIQUE index on `group_code` is the atomic guarantee.
+    # On collision the insert raises DuplicateKeyError; we generate a
+    # fresh candidate and retry. After 8 attempts (probability of all-
+    # collision: ~1e-32 even with a saturated prefix), fall back to a
+    # 4-char suffix so creation never fails purely due to randomness.
+    result = None
+    for attempt in range(8):
+        g["group_code"] = generate_group_code(g["name"])
+        try:
+            result = await db.split_groups.insert_one(g)
+            break
+        except DuplicateKeyError:
+            continue
+    if result is None:
+        # Last-resort: 4-char suffix is 32× larger than 3-char.
+        g["group_code"] = generate_group_code(g["name"], suffix_len=4)
+        result = await db.split_groups.insert_one(g)
     # Round 51 — invalidate cache for every member so the new group
     # appears in their /split/groups list immediately.
     await invalidate_split_cache_for_group(str(result.inserted_id), db)
@@ -81,6 +102,8 @@ async def create_split_group(group: SplitGroupCreate, user_id: str = Depends(get
         "members": members,
         "pending_invites": pending_invites,
         "custom_emoji": g.get("custom_emoji"),
+        "group_code": g.get("group_code"),
+        "created_at": g["created_at"].isoformat() if g.get("created_at") else None,
     }
 
 
@@ -104,9 +127,47 @@ async def get_split_groups(user_id: str = Depends(get_current_user)):
 
     # Stamp string ids and collect them for the batch query
     group_ids = []
+    # Phase 3 + Hardening — Atomic lazy-backfill of group_code on
+    # legacy groups. Using `find_one_and_update` with the
+    # `{"$exists": False}` filter guarantees only one writer ever
+    # sets the field; a concurrent reader who lost the race gets
+    # `None` back and falls through to a re-read of the now-populated
+    # doc. The DB unique index on `group_code` rejects collisions at
+    # the storage level via DuplicateKeyError, which we retry with a
+    # fresh candidate.
     for g in groups:
         g["id"] = str(g["_id"]); del g["_id"]
         group_ids.append(g["id"])
+        if not g.get("group_code"):
+            claimed: str | None = None
+            for _ in range(8):
+                candidate = generate_group_code(g.get("name", ""))
+                try:
+                    updated = await db.split_groups.find_one_and_update(
+                        {
+                            "_id": ObjectId(g["id"]),
+                            "group_code": {"$exists": False},
+                        },
+                        {"$set": {"group_code": candidate}},
+                        return_document=ReturnDocument.AFTER,
+                        projection={"group_code": 1},
+                    )
+                except DuplicateKeyError:
+                    # Code collision on unique index — retry candidate.
+                    continue
+                if updated and updated.get("group_code"):
+                    claimed = updated["group_code"]
+                    break
+                # Filter didn't match → another worker already set it.
+                # Re-read to surface whatever was persisted.
+                existing = await db.split_groups.find_one(
+                    {"_id": ObjectId(g["id"])}, {"group_code": 1}
+                )
+                if existing and existing.get("group_code"):
+                    claimed = existing["group_code"]
+                    break
+            if claimed:
+                g["group_code"] = claimed
 
     # ── ONE round-trip for every expense across every group ──────────
     all_expenses = await db.split_expenses.find(
@@ -156,7 +217,7 @@ async def add_members_to_group(group_id: str, data: dict, user_id: str = Depends
     if not phones:
         raise HTTPException(status_code=400, detail="Provide phone numbers to add")
 
-    group = await db.split_groups.find_one({"_id": ObjectId(group_id), "members.user_id": user_id})
+    group = await db.split_groups.find_one({"_id": safe_oid(group_id, field_name="group_id"), "members.user_id": user_id})
     if not group:
         raise HTTPException(status_code=404, detail="Group not found")
 
@@ -180,7 +241,7 @@ async def add_members_to_group(group_id: str, data: dict, user_id: str = Depends
                 "phone": p,
             }
             await db.split_groups.update_one(
-                {"_id": ObjectId(group_id)},
+                {"_id": safe_oid(group_id, field_name="group_id")},
                 {"$push": {"members": new_member}},
             )
             existing_phones.add(p)
@@ -189,7 +250,7 @@ async def add_members_to_group(group_id: str, data: dict, user_id: str = Depends
             # Not a registered user yet — queue as pending invite, do NOT
             # auto-create a placeholder user doc (spam vector closed).
             await db.split_groups.update_one(
-                {"_id": ObjectId(group_id)},
+                {"_id": safe_oid(group_id, field_name="group_id")},
                 {"$push": {"pending_invites": {"phone": p, "invited_at": datetime.now(timezone.utc)}}},
             )
             existing_invites.add(p)
@@ -218,7 +279,7 @@ async def get_group_management(group_id: str, user_id: str = Depends(get_current
     if not ObjectId.is_valid(group_id):
         raise HTTPException(status_code=400, detail="Invalid group_id")
     """Get group management data (GPay-style). Must be a group member."""
-    group = await db.split_groups.find_one({"_id": ObjectId(group_id), "members.user_id": user_id})
+    group = await db.split_groups.find_one({"_id": safe_oid(group_id, field_name="group_id"), "members.user_id": user_id})
     if not group:
         raise HTTPException(status_code=404, detail="Group not found")
     
@@ -254,7 +315,7 @@ async def rename_group(group_id: str, data: dict, user_id: str = Depends(get_cur
     if not name:
         raise HTTPException(status_code=400, detail="Name required")
     result = await db.split_groups.update_one(
-        {"_id": ObjectId(group_id), "members.user_id": user_id},
+        {"_id": safe_oid(group_id, field_name="group_id"), "members.user_id": user_id},
         {"$set": {"name": name}},
     )
     if result.matched_count == 0:
@@ -270,7 +331,7 @@ async def remove_member(group_id: str, member_id: str, user_id: str = Depends(ge
     if not ObjectId.is_valid(group_id):
         raise HTTPException(status_code=400, detail="Invalid group_id")
     """Remove a member from group. Only the group admin (creator) can do this."""
-    group = await db.split_groups.find_one({"_id": ObjectId(group_id), "created_by": user_id})
+    group = await db.split_groups.find_one({"_id": safe_oid(group_id, field_name="group_id"), "created_by": user_id})
     if not group:
         raise HTTPException(status_code=403, detail="Only the group admin can remove members")
     # Round 51 — invalidate BEFORE the $pull so the removed member is
@@ -278,7 +339,7 @@ async def remove_member(group_id: str, member_id: str, user_id: str = Depends(ge
     # the members list to find whose caches to clear).
     await invalidate_split_cache_for_group(group_id, db)
     await db.split_groups.update_one(
-        {"_id": ObjectId(group_id)},
+        {"_id": safe_oid(group_id, field_name="group_id")},
         {"$pull": {"members": {"user_id": member_id}}},
     )
     # Also clear the removed member's cache directly (they're gone from
@@ -294,12 +355,12 @@ async def delete_group(group_id: str, user_id: str = Depends(get_current_user)):
     if not ObjectId.is_valid(group_id):
         raise HTTPException(status_code=400, detail="Invalid group_id")
     """Delete a split group. Only the group admin (creator) can do this."""
-    group = await db.split_groups.find_one({"_id": ObjectId(group_id), "created_by": user_id})
+    group = await db.split_groups.find_one({"_id": safe_oid(group_id, field_name="group_id"), "created_by": user_id})
     if not group:
         raise HTTPException(status_code=403, detail="Only the group admin can delete the group")
     # Round 51 — invalidate BEFORE delete so the helper can read members.
     await invalidate_split_cache_for_group(group_id, db)
-    await db.split_groups.delete_one({"_id": ObjectId(group_id)})
+    await db.split_groups.delete_one({"_id": safe_oid(group_id, field_name="group_id")})
     await db.split_expenses.delete_many({"group_id": group_id})
     return {"message": "Group deleted"}
 
@@ -315,7 +376,7 @@ async def leave_group(group_id: str, user_id: str = Depends(get_current_user)):
     # Round 51 — invalidate BEFORE the $pull so the leaver's cache also clears.
     await invalidate_split_cache_for_group(group_id, db)
     await db.split_groups.update_one(
-        {"_id": ObjectId(group_id)},
+        {"_id": safe_oid(group_id, field_name="group_id")},
         {"$pull": {"members": {"user_id": user_id}}}
     )
     cache_clear_prefix(f"split_groups:{user_id}")
@@ -330,7 +391,7 @@ async def get_group_messages(group_id: str, limit: int = 50, user_id: str = Depe
     if not ObjectId.is_valid(group_id):
         raise HTTPException(status_code=400, detail="Invalid group_id")
     """Get chat messages for a group. Must be a group member."""
-    group = await db.split_groups.find_one({"_id": ObjectId(group_id), "members.user_id": user_id})
+    group = await db.split_groups.find_one({"_id": safe_oid(group_id, field_name="group_id"), "members.user_id": user_id})
     if not group:
         raise HTTPException(status_code=404, detail="Group not found")
     messages = await db.split_messages.find(
@@ -358,7 +419,7 @@ async def send_group_message(group_id: str, data: dict, user_id: str = Depends(g
     if not ObjectId.is_valid(group_id):
         raise HTTPException(status_code=400, detail="Invalid group_id")
     """Send a chat message to a group. Must be a group member."""
-    group = await db.split_groups.find_one({"_id": ObjectId(group_id), "members.user_id": user_id})
+    group = await db.split_groups.find_one({"_id": safe_oid(group_id, field_name="group_id"), "members.user_id": user_id})
     if not group:
         raise HTTPException(status_code=404, detail="Group not found")
     user = await db.users.find_one({"_id": ObjectId(user_id)}) if ObjectId.is_valid(user_id) else await db.users.find_one({"phone": user_id})
@@ -412,7 +473,7 @@ async def preview_group_for_join(group_id: str, user_id: str = Depends(get_curre
     """
     if not ObjectId.is_valid(group_id):
         raise HTTPException(status_code=400, detail="Invalid group_id")
-    group = await db.split_groups.find_one({"_id": ObjectId(group_id)})
+    group = await db.split_groups.find_one({"_id": safe_oid(group_id, field_name="group_id")})
     if not group:
         raise HTTPException(status_code=404, detail="Group not found")
 
@@ -451,7 +512,7 @@ async def self_join_group(group_id: str, user_id: str = Depends(get_current_user
     """
     if not ObjectId.is_valid(group_id):
         raise HTTPException(status_code=400, detail="Invalid group_id")
-    group = await db.split_groups.find_one({"_id": ObjectId(group_id)})
+    group = await db.split_groups.find_one({"_id": safe_oid(group_id, field_name="group_id")})
     if not group:
         raise HTTPException(status_code=404, detail="Group not found")
 
@@ -470,7 +531,7 @@ async def self_join_group(group_id: str, user_id: str = Depends(get_current_user
         "avatar": user.get("avatar"),
     }
     await db.split_groups.update_one(
-        {"_id": ObjectId(group_id)},
+        {"_id": safe_oid(group_id, field_name="group_id")},
         {
             "$push": {"members": new_member},
             # Remove any matching pending invite by phone (best-effort)

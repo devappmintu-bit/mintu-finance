@@ -161,8 +161,8 @@ async def smart_budget_setup(user_id: str = Depends(get_current_user)):
         async for tx in cursor:
             cat = tx.get("category") or "Other"
             last_month_map[cat] = last_month_map.get(cat, 0.0) + float(tx.get("amount", 0) or 0)
-    except Exception:
-        pass
+    except Exception as _exc:
+        logging.warning('budgets L164 silent-except: %s', _exc)
 
     # 3-month-avg spending per category
     three_mo_map: Dict[str, float] = {}
@@ -176,8 +176,8 @@ async def smart_budget_setup(user_id: str = Depends(get_current_user)):
         async for tx in cursor:
             cat = tx.get("category") or "Other"
             three_mo_map[cat] = three_mo_map.get(cat, 0.0) + float(tx.get("amount", 0) or 0)
-    except Exception:
-        pass
+    except Exception as _exc:
+        logging.warning('budgets L179 silent-except: %s', _exc)
 
     # Existing budgets (so UI can prefill for edit)
     existing: Dict[str, Dict[str, Any]] = {}
@@ -189,8 +189,8 @@ async def smart_budget_setup(user_id: str = Depends(get_current_user)):
                 "period": b.get("period", "monthly"),
                 "recurring": b.get("recurring", True),
             }
-    except Exception:
-        pass
+    except Exception as _exc:
+        logging.warning('budgets L192 silent-except: %s', _exc)
 
     categories = ["Food", "Transport", "Shopping", "Entertainment", "Bills", "Health", "Travel", "Groceries", "Education", "Other"]
 
@@ -302,12 +302,12 @@ async def update_budget(budget_id: str, data: dict, user_id: str = Depends(get_c
         raise HTTPException(status_code=400, detail="No valid fields to update")
     updates["updated_at"] = datetime.now(timezone.utc)
     result = await db.budgets.update_one(
-        {"_id": ObjectId(budget_id), "user_id": user_id},
+        {"_id": safe_oid(budget_id, field_name="budget_id"), "user_id": user_id},
         {"$set": updates},
     )
     if result.matched_count == 0:
         raise HTTPException(status_code=404, detail="Budget not found")
-    doc = await db.budgets.find_one({"_id": ObjectId(budget_id)})
+    doc = await db.budgets.find_one({"_id": safe_oid(budget_id, field_name="budget_id")})
     if doc:
         doc["id"] = str(doc["_id"]); del doc["_id"]
     return doc or {"id": budget_id, **updates}
@@ -363,7 +363,7 @@ async def get_budgets(user_id: str = Depends(get_current_user)):
 
 @router.delete("/{budget_id}")
 async def delete_budget(budget_id: str, user_id: str = Depends(get_current_user)):
-    result = await db.budgets.delete_one({"_id": ObjectId(budget_id), "user_id": user_id})
+    result = await db.budgets.delete_one({"_id": safe_oid(budget_id, field_name="budget_id"), "user_id": user_id})
     if result.deleted_count == 0:
         raise HTTPException(status_code=404, detail="Budget not found")
     return {"message": "Budget deleted"}

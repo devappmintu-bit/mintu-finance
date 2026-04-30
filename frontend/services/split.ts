@@ -135,8 +135,23 @@ export async function deleteGroup(groupId: string): Promise<void> {
 }
 
 // ── Expenses ─────────────────────────────────────────────────────────────
-export async function createExpense(payload: any): Promise<any> {
-  const r = await api.post('/split/expenses', payload);
+/**
+ * Create a split expense.
+ *
+ * Phase 2 (offline queue): when the caller passes `opts.client_expense_id`
+ * we forward it as the backend `Idempotency-Key` header. Replays of the
+ * same uuid return the original record verbatim, so retrying after a
+ * timeout / reconnect can never insert a duplicate.
+ */
+export async function createExpense(
+  payload: any,
+  opts?: { client_expense_id?: string },
+): Promise<any> {
+  const headers: Record<string, string> = {};
+  if (opts?.client_expense_id) {
+    headers['Idempotency-Key'] = opts.client_expense_id;
+  }
+  const r = await api.post('/split/expenses', payload, { headers });
   await invalidateAfter('split.expense');
   return r.data;
 }

@@ -33,6 +33,7 @@ from core.settlement_planner import (
     SettlementPlannerError, SettlementTransfer,
     plan_settlements, my_transfers, transfer_summary,
 )
+from core.ids import safe_oid
 from routers.split_common import (
     api_router,
     SettlePayment,
@@ -86,8 +87,8 @@ async def _settle_idempotency_commit(
                 tag="settle_idempotency_commit",
                 extras={"scope": scope},
             )
-        except Exception:
-            pass
+        except Exception as _exc:
+            logging.warning('split_settle L89 silent-except: %s', _exc)
 
 
 # Round 51 — settlement cache invalidation helper.
@@ -100,8 +101,8 @@ async def _invalidate_settlement_caches(payer_id: str, payee_id: str, group_id: 
     if group_id:
         try:
             await invalidate_split_cache_for_group(group_id, db)
-        except Exception:
-            pass
+        except Exception as _exc:
+            logging.warning('split_settle L103 silent-except: %s', _exc)
     cache_clear_prefix(f"split_groups:{payer_id}")
     cache_clear_prefix(f"split_groups:{payee_id}")
 
@@ -148,8 +149,8 @@ async def _settle_lock(user_id: str, target_user_id: str, group_id: Optional[str
     finally:
         try:
             await db.settle_locks.delete_one({"_id": key})
-        except Exception:
-            pass
+        except Exception as _exc:
+            logging.warning('split_settle L151 silent-except: %s', _exc)
 
 
 async def dismiss_reminders_after_settle(payer_id: str, payee_id: str) -> int:
@@ -164,7 +165,8 @@ async def dismiss_reminders_after_settle(payer_id: str, payee_id: str) -> int:
             {"$set": {"status": "settled", "dismissed_at": datetime.now(timezone.utc)}},
         )
         return int(r.modified_count or 0)
-    except Exception:
+    except Exception as _exc:
+        logging.warning('split_settle L167 default-return on except: %s', _exc)
         return 0
 
 
@@ -177,7 +179,8 @@ SPLIT_MAX_DISCOUNT_PCT = 0.50  # Cap redemption at 50% of the debt amount
 async def _get_user_coin_balance(user_id: str) -> int:
     try:
         u = await db.users.find_one({"_id": ObjectId(user_id)})
-    except Exception:
+    except Exception as _exc:
+        logging.warning('split_settle L181 default-return on except: %s', _exc)
         return 0
     if not u:
         return 0
@@ -351,8 +354,9 @@ async def compute_outstanding_debt(user_id: str, target_user_id: str, group_id: 
     groups_q = {"members.user_id": {"$all": [user_id, target_user_id]}}
     if group_id:
         try:
-            groups_q["_id"] = ObjectId(group_id)
-        except Exception:
+            groups_q["_id"] = safe_oid(group_id, field_name="group_id")
+        except Exception as _exc:
+            logging.warning('split_settle L357 default-return on except: %s', _exc)
             return 0.0
     groups = await db.split_groups.find(groups_q).to_list(50)
     if not groups:
@@ -501,8 +505,8 @@ async def settle_payment(
                          group_id=data.group_id,
                          method=data.method,
                          settlement_id=settlement["id"])
-                except Exception:
-                    pass
+                except Exception as _exc:
+                    logging.warning('split_settle L507 silent-except: %s', _exc)
             ctx.on_commit(_emit_settlement_event)
 
             return result
@@ -514,8 +518,8 @@ async def settle_payment(
     try:
         payee = await db.users.find_one({"_id": ObjectId(data.target_user_id)}, {"name": 1})
         if payee: payee_name = payee.get("name", "User")
-    except Exception:
-        pass
+    except Exception as _exc:
+        logging.warning('split_settle L520 silent-except: %s', _exc)
 
     response_body = {
         "id": settlement["id"],
@@ -543,13 +547,13 @@ async def get_settlements(user_id: str = Depends(get_current_user)):
         try:
             payer = await db.users.find_one({"_id": ObjectId(s["payer_id"])}, {"name": 1})
             if payer: payer_name = payer.get("name", "User")
-        except Exception:
-            pass
+        except Exception as _exc:
+            logging.warning('split_settle L549 silent-except: %s', _exc)
         try:
             payee = await db.users.find_one({"_id": ObjectId(s["payee_id"])}, {"name": 1})
             if payee: payee_name = payee.get("name", "User")
-        except Exception:
-            pass
+        except Exception as _exc:
+            logging.warning('split_settle L554 silent-except: %s', _exc)
         result.append({
             "id": str(s["_id"]),
             "payer_name": payer_name,
@@ -642,13 +646,13 @@ async def partial_settle(
         try:
             p = await db.users.find_one({"_id": ObjectId(user_id)}, {"name": 1})
             if p: payer_name = p.get("name", "User")
-        except Exception:
-            pass
+        except Exception as _exc:
+            logging.warning('split_settle L648 silent-except: %s', _exc)
         try:
             pe = await db.users.find_one({"_id": ObjectId(target_user_id)}, {"name": 1})
             if pe: payee_name = pe.get("name", "User")
-        except Exception:
-            pass
+        except Exception as _exc:
+            logging.warning('split_settle L653 silent-except: %s', _exc)
 
         async def _do(session, ctx: PostCommitContext):
             result = await db.settlements.insert_one(settlement, session=session)
@@ -671,8 +675,8 @@ async def partial_settle(
                         {"_id": ObjectId(user_id)},
                         {"$inc": {"reward_coins": coins_earned, "settlement_count": 1}},
                     )
-                except Exception:
-                    pass
+                except Exception as _exc:
+                    logging.warning('split_settle L677 silent-except: %s', _exc)
             ctx.on_commit(_bump_rewards)
 
             # Group chat-card — post-commit only.
@@ -797,8 +801,8 @@ async def settle_with_rewards(
                         {"_id": ObjectId(user_id)},
                         {"$inc": {"reward_coins": reward["coins"], "settlement_count": 1}},
                     )
-                except Exception:
-                    pass
+                except Exception as _exc:
+                    logging.warning('split_settle L803 silent-except: %s', _exc)
             ctx.on_commit(_bump_rewards)
 
             return result
@@ -827,8 +831,8 @@ async def settle_with_rewards(
     try:
         payee = await db.users.find_one({"_id": ObjectId(data.target_user_id)}, {"name": 1})
         if payee: payee_name = payee.get("name", "User")
-    except Exception:
-        pass
+    except Exception as _exc:
+        logging.warning('split_settle L833 silent-except: %s', _exc)
 
     response_body = {
         "id": settlement["id"],
@@ -946,13 +950,13 @@ async def mark_paid_offline(
         try:
             p = await db.users.find_one({"_id": ObjectId(user_id)}, {"name": 1})
             if p: payer_name = p.get("name", "User")
-        except Exception:
-            pass
+        except Exception as _exc:
+            logging.warning('split_settle L952 silent-except: %s', _exc)
         try:
             pe = await db.users.find_one({"_id": ObjectId(target_user_id)}, {"name": 1})
             if pe: payee_name = pe.get("name", "User")
-        except Exception:
-            pass
+        except Exception as _exc:
+            logging.warning('split_settle L957 silent-except: %s', _exc)
 
         async def _do(session, ctx: PostCommitContext):
             result = await db.settlements.insert_one(settlement, session=session)
@@ -966,8 +970,8 @@ async def mark_paid_offline(
                         {"_id": ObjectId(user_id)},
                         {"$inc": {"reward_coins": 1, "settlement_count": 1}},
                     )
-                except Exception:
-                    pass
+                except Exception as _exc:
+                    logging.warning('split_settle L972 silent-except: %s', _exc)
             ctx.on_commit(_bump_rewards)
 
             # Reminder dismissal — post-commit only.
@@ -977,8 +981,8 @@ async def mark_paid_offline(
                         {"recipient_id": user_id, "sender_id": target_user_id, "status": "pending"},
                         {"$set": {"status": "settled", "dismissed_at": datetime.now(timezone.utc)}}
                     )
-                except Exception:
-                    pass
+                except Exception as _exc:
+                    logging.warning('split_settle L983 silent-except: %s', _exc)
             ctx.on_commit(_dismiss_reminders)
 
             # Cache invalidation — post-commit only.
@@ -1104,7 +1108,7 @@ async def settle_plan(group_id: str, user_id: str = Depends(get_current_user)):
     if not ObjectId.is_valid(group_id):
         raise HTTPException(status_code=400, detail="Invalid group_id")
     group = await db.split_groups.find_one(
-        {"_id": ObjectId(group_id), "members.user_id": user_id}
+        {"_id": safe_oid(group_id, field_name="group_id"), "members.user_id": user_id}
     )
     if not group:
         raise HTTPException(status_code=404, detail="Group not found")
@@ -1204,7 +1208,7 @@ async def settle_my_part(
     expected_total_paise = body.get("expected_total_paise")
 
     group = await db.split_groups.find_one(
-        {"_id": ObjectId(group_id), "members.user_id": user_id}
+        {"_id": safe_oid(group_id, field_name="group_id"), "members.user_id": user_id}
     )
     if not group:
         raise HTTPException(status_code=404, detail="Group not found")
@@ -1308,8 +1312,8 @@ async def settle_my_part(
                         _aio.create_task(resolve_nudge_after_settle(payer, gid))
                     else:
                         loop.run_until_complete(resolve_nudge_after_settle(payer, gid))
-                except Exception:
-                    pass
+                except Exception as _exc:
+                    logging.warning('split_settle L1314 silent-except: %s', _exc)
             ctx.on_commit(_resolve_nudge)
 
             # Per-leg event emission — analytics never count phantom rows.
@@ -1327,8 +1331,8 @@ async def settle_my_part(
                         smart_settle=True,
                         smart_batch_ref=batch_ref,
                     )
-                except Exception:
-                    pass
+                except Exception as _exc:
+                    logging.warning('split_settle L1333 silent-except: %s', _exc)
             ctx.on_commit(_emit)
 
         # ONE chat-card for the whole batch (reads better than N rows).

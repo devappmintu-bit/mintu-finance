@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, ActivityIndicator, Linking } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import {  COLORS, SPACING, useAppColors } from '../../utils/theme';
+import {  COLORS, SPACING, useAppColors, GLASS } from '../../utils/theme';
 import { makeStyles } from '../../utils/makeStyles';
 import NewsStoryViewer from './NewsStoryViewer';
 
@@ -135,7 +135,7 @@ const useStyles = makeStyles((c) => ({
   refreshBtn: { width: 28, height: 28, borderRadius: 14, backgroundColor: c.accent.primary + '15', justifyContent: 'center', alignItems: 'center' },
   empty: { alignItems: 'center', paddingVertical: 30 },
   emptyText: { fontSize: 12, color: c.text.muted, marginTop: 8 },
-  card: { width: 260, backgroundColor: c.bg.elevated, borderRadius: 16, padding: 16, borderWidth: 1, borderColor: c.border.card, borderTopWidth: 3 },
+  card: { width: 260, backgroundColor: GLASS.solidBg, borderRadius: 16, padding: 16, borderWidth: StyleSheet.hairlineWidth, borderColor: GLASS.borderLight, borderTopWidth: 3 },
   catRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 },
   catDot: { width: 6, height: 6, borderRadius: 3 },
   cat: { fontSize: 10, fontWeight: '800', letterSpacing: 1, textTransform: 'uppercase' },

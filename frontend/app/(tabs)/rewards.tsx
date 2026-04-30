@@ -65,7 +65,8 @@ function RewardsScreen() {
 
   const shareReferral = () => { if (referral?.share_text) shareWhatsApp(referral.share_text); };
 
-  const trackABEvent = async (event: string) => {
+  // Phase 2 fix (L-2): no awaited Promise inside, async keyword was redundant.
+  const trackABEvent = (event: string) => {
     trackAbEvent(event, abGroup?.group, abGroup?.placement);
   };
 

@@ -41,6 +41,7 @@ import type { Plan } from '../../utils/premium';
 import { usePremiumStyles, fmtINR } from './styles';
 import api from '../../utils/api';
 import PremiumComparison from './PremiumComparison';
+import { GlassCard } from '../glass';
 
 // Frontend plan-key → backend subscription-tier ("lite"|"pro"|"elite")
 const PLAN_TO_TIER: Record<Plan, 'lite' | 'pro' | 'elite' | null> = {
@@ -186,13 +187,19 @@ export default function PlansView({ potentialSavings }: { potentialSavings: numb
 
   return (
     <ScrollView ref={scrollRef} contentContainerStyle={{ paddingBottom: 40 }}>
-      {/* 1. Hero */}
-      <View style={styles.hookCard}>
+      {/* 1. Hero — Round 55 GlassCard wrapper for iOS Crystal aesthetic.
+          Inner padding/typography retained from styles.hookCard so the
+          existing layout tests don't drift. */}
+      <GlassCard
+        radius={20}
+        intensity={45}
+        style={{ marginHorizontal: 16, marginTop: 16, padding: 18 }}
+      >
         <Text style={styles.hookHeader}>
           You could have saved <Text style={{ color: COLORS.accent.moneyOut }}>{fmtINR(potentialSavings || 1275)}</Text> this month
         </Text>
         <Text style={styles.hookSub}>MintU Premium finds your hidden money leaks · All tiers ≤ ₹150/month</Text>
-      </View>
+      </GlassCard>
 
       {/* 2. Tier cards (selection) */}
       <View style={styles.plansRow}>

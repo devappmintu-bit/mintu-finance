@@ -7,7 +7,7 @@ import { Modal, View, Text, TouchableOpacity, StyleSheet, Platform } from 'react
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import { makeStyles } from '../../utils/makeStyles';
-import { COLORS } from '../../utils/theme';
+import { COLORS, GLASS } from '../../utils/theme';
 
 interface Props {
   visible: boolean;
@@ -61,7 +61,7 @@ export default function LogoutConfirmSheet({ visible, onCancel, onConfirm }: Pro
 
 const useStyles = makeStyles((c) => ({
   backdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.55)', justifyContent: 'flex-end' },
-  sheet: { backgroundColor: c.bg.secondary, borderTopLeftRadius: 24, borderTopRightRadius: 24, padding: 20, paddingBottom: 32, alignItems: 'center' },
+  sheet: { backgroundColor: GLASS.solidBg, borderTopLeftRadius: 24, borderTopRightRadius: 24, borderTopWidth: StyleSheet.hairlineWidth, borderColor: GLASS.borderLight, padding: 20, paddingBottom: 32, alignItems: 'center' },
   grip: { width: 40, height: 4, borderRadius: 2, backgroundColor: c.border.subtle, marginBottom: 16 },
   iconCircle: { width: 56, height: 56, borderRadius: 28, backgroundColor: c.bg.primary, alignItems: 'center', justifyContent: 'center', marginBottom: 12 },
   title: { fontSize: 18, fontWeight: '700', color: c.text.primary, textAlign: 'center', letterSpacing: -0.3 },

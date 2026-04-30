@@ -27,7 +27,7 @@ export async function fetchUnreadCount(): Promise<number> {
 }
 
 export async function markRead(id: string): Promise<void> {
-  try { await api.post('/notifications/mark-read', { notification_id: id }); } catch {}
+  try { await api.post('/notifications/mark-read', { notification_id: id }); } catch (e) { if (__DEV__) console.warn('[notifications] silent-catch', e); }
 }
 
 export async function markAllRead(): Promise<number> {
@@ -39,7 +39,7 @@ export async function markAllRead(): Promise<number> {
 
 // Dev helper — seeds a handful of sample notifications if the feed is empty.
 export async function seedSampleNotifications(): Promise<void> {
-  try { await api.post('/notifications/seed-sample'); } catch {}
+  try { await api.post('/notifications/seed-sample'); } catch (e) { if (__DEV__) console.warn('[notifications] silent-catch', e); }
 }
 
 // Map notification kind → deep link route. Used on tap.

@@ -9,6 +9,7 @@ from pymongo.errors import DuplicateKeyError
 
 from core import db, get_current_user, cache_clear_prefix
 from core.scoring import calculate_money_score
+from core.ids import safe_oid
 
 router = APIRouter(prefix="/transactions", tags=["transactions"])
 
@@ -184,13 +185,13 @@ async def update_transaction(transaction_id: str, data: dict, user_id: str = Dep
             raise HTTPException(status_code=400, detail="amount must be a non-negative number")
     updates["updated_at"] = datetime.now(timezone.utc)
     result = await db.transactions.update_one(
-        {"_id": ObjectId(transaction_id), "user_id": user_id},
+        {"_id": safe_oid(transaction_id, field_name="transaction_id"), "user_id": user_id},
         {"$set": updates},
     )
     if result.matched_count == 0:
         raise HTTPException(status_code=404, detail="Transaction not found")
     _invalidate_caches(user_id)
-    row = await db.transactions.find_one({"_id": ObjectId(transaction_id)})
+    row = await db.transactions.find_one({"_id": safe_oid(transaction_id, field_name="transaction_id")})
     if row:
         row["id"] = str(row["_id"]); del row["_id"]
     return row or {"id": transaction_id, **updates}
@@ -199,7 +200,7 @@ async def update_transaction(transaction_id: str, data: dict, user_id: str = Dep
 @router.delete("/{transaction_id}")
 async def delete_transaction(transaction_id: str, user_id: str = Depends(get_current_user)):
     result = await db.transactions.delete_one(
-        {"_id": ObjectId(transaction_id), "user_id": user_id}
+        {"_id": safe_oid(transaction_id, field_name="transaction_id"), "user_id": user_id}
     )
     if result.deleted_count == 0:
         raise HTTPException(status_code=404, detail="Transaction not found")

@@ -27,6 +27,7 @@ import Svg, { Path, Defs, LinearGradient as SvgLG, Stop } from 'react-native-svg
 import { BottomTabBarProps } from '@react-navigation/bottom-tabs';
 import { BlurView } from 'expo-blur';
 import Mascot from '../../components/Mascot';
+import AIQuickSheet from '../../components/AIQuickSheet';
 import { COLORS, FONT_FAMILY, GLOW, useAppColors, getActiveMode } from '../../utils/theme';
 import { makeStyles } from '../../utils/makeStyles';
 import { useLangStore } from '../../store/langStore';
@@ -78,6 +79,10 @@ function SideTab({ icon, iconFilled, label, focused, onPress, testID }:
   const scale = React.useRef(new Animated.Value(focused ? 1 : 0.92)).current;
   const halo  = React.useRef(new Animated.Value(focused ? 1 : 0)).current;
   const lift  = React.useRef(new Animated.Value(focused ? -2 : 0)).current;
+  // Round 60 — soft outer-glow pulse behind the active chip. Loops only
+  // while focused, stopping the moment another tab takes focus so we
+  // never run a wasted Animated loop on inactive tabs.
+  const glowPulse = React.useRef(new Animated.Value(0)).current;
 
   React.useEffect(() => {
     Animated.parallel([
@@ -85,23 +90,54 @@ function SideTab({ icon, iconFilled, label, focused, onPress, testID }:
       Animated.timing(halo,  { toValue: focused ? 1 : 0, duration: 220, useNativeDriver: true }),
       Animated.spring(lift,  { toValue: focused ? -2 : 0, friction: 7, tension: 140, useNativeDriver: true }),
     ]).start();
-  }, [focused, scale, halo, lift]);
+
+    if (focused) {
+      // Looping breathing pulse: 0 → 1 → 0 over 1.6s.
+      const loop = Animated.loop(
+        Animated.sequence([
+          Animated.timing(glowPulse, { toValue: 1, duration: 800, useNativeDriver: true }),
+          Animated.timing(glowPulse, { toValue: 0, duration: 800, useNativeDriver: true }),
+        ])
+      );
+      loop.start();
+      return () => loop.stop();
+    } else {
+      glowPulse.setValue(0);
+    }
+  }, [focused, scale, halo, lift, glowPulse]);
+
+  // Halo glow scales 1 → 1.35 and fades 0.55 → 0 — a soft breathing aura.
+  const glowScale   = glowPulse.interpolate({ inputRange: [0, 1], outputRange: [1, 1.35] });
+  const glowOpacity = glowPulse.interpolate({ inputRange: [0, 1], outputRange: [0.55, 0] });
 
   return (
     <TouchableOpacity testID={testID} style={st.sideTab} onPress={onPress} activeOpacity={0.7}>
-      <Animated.View
-        style={[
-          st.sideIconWrap,
-          focused && st.sideIconWrapOn,
-          { transform: [{ scale }, { translateY: lift }] },
-        ]}
-      >
-        <Ionicons
-          name={(focused ? iconFilled : icon) as any}
-          size={focused ? 22 : 20}
-          color={focused ? '#FFFFFF' : 'rgba(255,255,255,0.75)'}
-        />
-      </Animated.View>
+      <View style={st.sideIconStack}>
+        {/* Round 60 — animated pulse halo for the active tab. Renders
+            ONLY when focused so unfocused tabs don't paint dead pixels. */}
+        {focused && (
+          <Animated.View
+            pointerEvents="none"
+            style={[
+              st.sideHalo,
+              { transform: [{ scale: glowScale }], opacity: glowOpacity },
+            ]}
+          />
+        )}
+        <Animated.View
+          style={[
+            st.sideIconWrap,
+            focused && st.sideIconWrapOn,
+            { transform: [{ scale }, { translateY: lift }] },
+          ]}
+        >
+          <Ionicons
+            name={(focused ? iconFilled : icon) as any}
+            size={focused ? 22 : 20}
+            color={focused ? '#FFFFFF' : 'rgba(255,255,255,0.75)'}
+          />
+        </Animated.View>
+      </View>
       <Animated.Text
         style={[
           st.sideLabel,
@@ -123,10 +159,16 @@ function MintUTabBar({ state, navigation }: BottomTabBarProps) {
   const screenW = Dimensions.get('window').width;
   // Round 50 — light/dark detection via theme engine (was hex-equality check).
   const isLight = getActiveMode() === 'light';
-  // Floating capsule palette — bespoke surface colors (kept as literals
-  // because the dark pill is a custom obsidian shade, not c.bg.elevated).
-  const pillBg = isLight ? '#FFFFFF' : '#14151B';
-  const pillBorder = isLight ? 'rgba(17,24,39,0.06)' : 'rgba(255,255,255,0.08)';
+  // Round 59 — AI Quick Prompt sheet visibility (mascot short-tap).
+  const [aiSheetVisible, setAiSheetVisible] = React.useState(false);
+  // Round 55 — Glass surface on the pill. On native we layer a
+  // BlurView (intensity 40, light tint) underneath a soft translucent
+  // white for the iOS Crystal look. On web we fall back to an opaque
+  // surface because BlurView isn't supported. The `pillBg` variable
+  // is now the fallback color, used both on web and as the backdrop
+  // tint that sits over the BlurView on native.
+  const pillBg = isLight ? 'rgba(255,255,255,0.70)' : '#14151B';
+  const pillBorder = isLight ? 'rgba(255,255,255,0.85)' : 'rgba(255,255,255,0.08)';
 
   const visible = state.routes.filter(r => TAB_META[r.name]);
   const left = visible.slice(0, 2);
@@ -138,14 +180,58 @@ function MintUTabBar({ state, navigation }: BottomTabBarProps) {
   };
 
   const openAiCoach = () => navigation.navigate('ai-coach' as never);
+  // Round 59 — short-tap on mascot opens the AI Quick Sheet (curated
+  // prompts + free-text). Long-press still goes straight to the chat
+  // for power users. Haptic medium on open for the deliberate feel.
+  const onMascotPress = () => {
+    try { require('expo-haptics').impactAsync('medium'); } catch { /* noop */ }
+    setAiSheetVisible(true);
+  };
 
   const pillW = screenW - BAR_INSET_X * 2;
   const barH = BAR_HEIGHT;
 
   return (
     <View style={st.wrap} pointerEvents="box-none">
-      {/* Floating pill silhouette */}
-      <View style={[st.barContainer, { width: pillW, height: barH, backgroundColor: pillBg, borderColor: pillBorder }]} pointerEvents="none" />
+      {/* Round 55 — Floating pill with layered glass:
+            native → BlurView backdrop + translucent white overlay
+            web    → solid translucent white fallback                  */}
+      <View
+        style={[
+          st.barContainer,
+          {
+            width: pillW,
+            height: barH,
+            borderColor: pillBorder,
+            backgroundColor: Platform.OS === 'web' ? 'rgba(255,255,255,0.92)' : 'transparent',
+          },
+        ]}
+        pointerEvents="none"
+      >
+        {isLight && Platform.OS !== 'web' && (
+          <BlurView
+            intensity={40}
+            tint="light"
+            style={[StyleSheet.absoluteFill, { borderRadius: TOP_RADIUS, overflow: 'hidden' }]}
+          />
+        )}
+        {isLight && Platform.OS !== 'web' && (
+          <View
+            style={[
+              StyleSheet.absoluteFill,
+              { backgroundColor: pillBg, borderRadius: TOP_RADIUS },
+            ]}
+          />
+        )}
+        {!isLight && (
+          <View
+            style={[
+              StyleSheet.absoluteFill,
+              { backgroundColor: pillBg, borderRadius: TOP_RADIUS },
+            ]}
+          />
+        )}
+      </View>
 
       {/* Tab icons sit inside the pill with a gap in the middle for the raised button */}
       <View style={[st.iconsRow, { width: pillW, height: barH }]}>
@@ -190,7 +276,9 @@ function MintUTabBar({ state, navigation }: BottomTabBarProps) {
       {/* Raised ROUNDED-SQUARE AI Coach button — floats above the pill */}
       <TouchableOpacity
         testID="tab-ai-coach"
-        onPress={openAiCoach}
+        onPress={onMascotPress}
+        onLongPress={openAiCoach}
+        delayLongPress={350}
         activeOpacity={0.88}
         style={st.raisedWrap}
         accessibilityLabel="Open MintU AI"
@@ -202,6 +290,12 @@ function MintUTabBar({ state, navigation }: BottomTabBarProps) {
         </View>
         <Text style={st.raisedLabel}>MintU-AI</Text>
       </TouchableOpacity>
+      {/* Round 59 — AI Quick Prompt sheet. Mounted at the tab-bar level
+          so it's accessible from every screen. */}
+      <AIQuickSheet
+        visible={aiSheetVisible}
+        onClose={() => setAiSheetVisible(false)}
+      />
     </View>
   );
 }
@@ -272,6 +366,35 @@ const useStyles = makeStyles((c) => {
       flex: 1,
       paddingVertical: 4,
       gap: 4,
+    },
+    // Round 60 — wrapper that lets the halo render BEHIND the icon chip
+    // without affecting layout flow. Both children sit on top of each
+    // other; halo is absolute-positioned to the centre.
+    sideIconStack: {
+      width: 42,
+      height: 42,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    // The pulsing glow ring behind the active icon. Uses brand orange
+    // at low opacity so it reads as a soft aura, not a hard halo.
+    sideHalo: {
+      position: 'absolute',
+      width: 42,
+      height: 42,
+      borderRadius: 21,
+      backgroundColor: c.accent.primary,
+      // Cross-platform soft outer glow: web boxShadow + native shadow*.
+      ...Platform.select({
+        ios: {
+          shadowColor: c.accent.primary,
+          shadowOpacity: 0.6,
+          shadowRadius: 14,
+          shadowOffset: { width: 0, height: 0 },
+        },
+        android: { elevation: 12 },
+        web: { boxShadow: `0 0 18px ${c.accent.primary}` as any },
+      }),
     },
     // Dark circular chip holding the icon (Paytm-style prominent chip)
     sideIconWrap: {

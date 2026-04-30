@@ -1,22 +1,29 @@
 /**
- * BalanceHero — MintU 2.0 home redesign primary card.
+ * BalanceHero — MintU Home redesign primary card.
  *
- * Shows the user's headline money story in ONE glance:
- *   • Tier pill + streak chip header
- *   • Big "Saved" or "Spent" amount (based on sign)
- *   • Contextual sub-line (daily avg, projected, or "let's start")
- *   • Tap → jumps to Transactions
+ * Round 58b — Design parity pass with the Profile revamp.
+ *   • Replaces full saffron flood with a glass-card surface that
+ *     matches the new app design language (#FAFAF9 canvas + iOS
+ *     crystal cards on Profile + Spending Insights).
+ *   • Brand presence is preserved via a TWO-STOP accent strip at
+ *     the top of the card (LinearGradient) and via the amount
+ *     color on a positive-savings month.
+ *   • Negative months render the amount in danger ink so the
+ *     emotional cue isn't drowned by the brand color.
+ *   • Tier + streak pills now use color-tinted glass like the
+ *     identity card pill on Profile.
  *
- * Uses saffron brand gradient with decorative blobs.
+ * Data: same one-glance "money story" as before — tier emoji,
+ * streak, headline amount, contextual sub-line, breakdown CTA.
  */
 import React, { memo, useMemo } from 'react';
-import { View, Text, TouchableOpacity, Platform } from 'react-native';
+import { View, Text, TouchableOpacity, Platform, StyleSheet } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import * as Haptics from 'expo-haptics';
 import { makeStyles } from '../../utils/makeStyles';
-import { COLORS } from '../../utils/theme';
+import { COLORS, GLASS, shadowStyle } from '../../utils/theme';
 
 type Props = { user: any | null; snapshot: any | null; stats: any | null };
 
@@ -62,6 +69,7 @@ function BalanceHero({ user, snapshot, stats }: Props) {
   const name = (user?.name || '').split(' ')[0] || 'there';
   const tierEmoji = snapshot?.tier?.current?.emoji || '🌱';
   const tierName = snapshot?.tier?.current?.name || 'Starter';
+  const tierColor = snapshot?.tier?.current?.color || COLORS.accent.brand;
   const streak = Number(snapshot?.tier?.streak_days || user?.streak_days || 0);
 
   const onPress = () => {
@@ -69,34 +77,55 @@ function BalanceHero({ user, snapshot, stats }: Props) {
     try { router.push('/(tabs)/transactions' as any); } catch {}
   };
 
+  const amountColor = data.primary.positive ? COLORS.accent.brand : COLORS.state.danger;
+
   return (
-    <TouchableOpacity activeOpacity={0.92} onPress={onPress} style={s.shell}>
-      <LinearGradient colors={[COLORS.accent.brand, COLORS.accent.brandDark]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={s.card}>
-        <View style={s.blob1} />
-        <View style={s.blob2} />
+    <TouchableOpacity activeOpacity={0.9} onPress={onPress} style={s.shell}>
+      <View style={s.card}>
+        {/* Brand accent strip — the only orange flood on the card. 4px tall,
+            spans the top edge. Gradient anchors brand-light → brand for warmth. */}
+        <LinearGradient
+          colors={[COLORS.accent.brand, COLORS.accent.brandDark]}
+          start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }}
+          style={s.accentStrip}
+        />
 
         <View style={s.headerRow}>
-          <View style={s.tierPill}>
+          <View style={[s.tierPill, { backgroundColor: tierColor + '14', borderColor: tierColor + '33' }]}>
             <Text style={s.tierEmoji}>{tierEmoji}</Text>
-            <Text style={s.tierTxt}>{String(tierName).toUpperCase()}</Text>
+            <Text style={[s.tierTxt, { color: tierColor }]}>{String(tierName).toUpperCase()}</Text>
           </View>
           {streak > 0 && (
             <View style={s.streakPill}>
               <Text style={s.streakEmoji}>🔥</Text>
-              <Text style={s.streakTxt}>{streak}d</Text>
+              <Text style={s.streakTxt}>{streak}d streak</Text>
             </View>
           )}
         </View>
 
         <Text style={s.greet}>Hi {name}</Text>
-
         <Text style={s.label}>{data.primary.label}</Text>
+
         <View style={s.amountRow}>
-          <Text style={s.amount} numberOfLines={1}>{fmt(data.primary.amount)}</Text>
+          <Text style={[s.amount, { color: amountColor }]} numberOfLines={1}>
+            {fmt(data.primary.amount)}
+          </Text>
           {data.hasData && data.savingsRate !== 0 && (
-            <View style={[s.rateChip, { backgroundColor: data.primary.positive ? 'rgba(16,185,129,0.3)' : 'rgba(239,68,68,0.3)' }]}>
-              <Ionicons name={data.primary.positive ? 'trending-up' : 'trending-down'} size={11} color={'#FFFFFF'} />
-              <Text style={s.rateTxt}>{Math.abs(data.savingsRate).toFixed(0)}%</Text>
+            <View style={[
+              s.rateChip,
+              data.primary.positive ? s.ratePositive : s.rateNegative,
+            ]}>
+              <Ionicons
+                name={data.primary.positive ? 'trending-up' : 'trending-down'}
+                size={11}
+                color={data.primary.positive ? COLORS.state.success : COLORS.state.danger}
+              />
+              <Text style={[
+                s.rateTxt,
+                { color: data.primary.positive ? COLORS.state.success : COLORS.state.danger },
+              ]}>
+                {Math.abs(data.savingsRate).toFixed(0)}%
+              </Text>
             </View>
           )}
         </View>
@@ -104,10 +133,10 @@ function BalanceHero({ user, snapshot, stats }: Props) {
         <Text style={s.sub} numberOfLines={2}>{data.sub}</Text>
 
         <View style={s.ctaRow}>
-          <Ionicons name="arrow-forward-circle" size={16} color="#FFFFFF" />
           <Text style={s.ctaTxt}>Tap for full breakdown</Text>
+          <Ionicons name="arrow-forward" size={14} color={COLORS.accent.brand} />
         </View>
-      </LinearGradient>
+      </View>
     </TouchableOpacity>
   );
 }
@@ -117,28 +146,53 @@ export default memo(BalanceHero);
 const useStyles = makeStyles((c) => ({
   shell: { marginTop: 6, marginBottom: 14 },
   card: {
-    borderRadius: 24,
-    padding: 20,
+    backgroundColor: GLASS.solidBg,
+    borderRadius: 24, padding: 20, paddingTop: 22,
+    borderWidth: StyleSheet.hairlineWidth, borderColor: GLASS.borderLight,
     overflow: 'hidden',
-    position: 'relative',
-    shadowColor: c.accent.brandDark, shadowOpacity: 0.2, shadowRadius: 18, shadowOffset: { width: 0, height: 8 }, elevation: 6,
+    ...shadowStyle('#111827', 6, 24, 0.06, 4),
   },
-  blob1: { position: 'absolute', top: -40, right: -40, width: 140, height: 140, borderRadius: 70, backgroundColor: 'rgba(255,255,255,0.08)' },
-  blob2: { position: 'absolute', bottom: -50, left: -50, width: 160, height: 160, borderRadius: 80, backgroundColor: 'rgba(0,0,0,0.08)' },
-  headerRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14 },
-  tierPill: { flexDirection: 'row', alignItems: 'center', gap: 5, backgroundColor: 'rgba(255,255,255,0.18)', paddingHorizontal: 10, paddingVertical: 4, borderRadius: 999 },
-  tierEmoji: { fontSize: 12 },
-  tierTxt: { fontSize: 10, fontWeight: '900', color: c.bg.elevated, letterSpacing: 0.8 },
-  streakPill: { flexDirection: 'row', alignItems: 'center', gap: 3, backgroundColor: 'rgba(0,0,0,0.22)', paddingHorizontal: 10, paddingVertical: 4, borderRadius: 999 },
-  streakEmoji: { fontSize: 12 },
-  streakTxt: { fontSize: 11, fontWeight: '900', color: c.bg.elevated, letterSpacing: 0.4 },
-  greet: { fontSize: 13, fontWeight: '700', color: 'rgba(255,255,255,0.82)', letterSpacing: 0.2 },
-  label: { fontSize: 11, fontWeight: '800', color: 'rgba(255,255,255,0.8)', letterSpacing: 1, marginTop: 10, textTransform: 'uppercase' },
-  amountRow: { flexDirection: 'row', alignItems: 'center', gap: 10, marginTop: 2 },
-  amount: { fontSize: 44, fontWeight: '900', color: c.bg.elevated, letterSpacing: -1.5 },
-  rateChip: { flexDirection: 'row', alignItems: 'center', gap: 3, paddingHorizontal: 8, paddingVertical: 3, borderRadius: 999, marginBottom: 6 },
-  rateTxt: { fontSize: 11, fontWeight: '900', color: c.bg.elevated },
-  sub: { fontSize: 12.5, fontWeight: '600', color: 'rgba(255,255,255,0.88)', marginTop: 8, lineHeight: 17 },
-  ctaRow: { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 14, alignSelf: 'flex-start', backgroundColor: 'rgba(0,0,0,0.18)', paddingVertical: 7, paddingHorizontal: 12, borderRadius: 999 },
-  ctaTxt: { fontSize: 11.5, fontWeight: '800', color: c.bg.elevated, letterSpacing: 0.2 },
+  // Round 58b — single 4px brand strip at the top edge replaces the
+  // full-flood gradient. Massive de-clutter while keeping brand DNA.
+  accentStrip: {
+    position: 'absolute', top: 0, left: 0, right: 0, height: 4,
+  },
+  headerRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 },
+  tierPill: {
+    flexDirection: 'row', alignItems: 'center', gap: 5,
+    paddingHorizontal: 10, paddingVertical: 4, borderRadius: 12, borderWidth: 1,
+  },
+  tierEmoji: { fontSize: 11 },
+  tierTxt: { fontSize: 10, fontWeight: '900', letterSpacing: 0.8 },
+  streakPill: {
+    flexDirection: 'row', alignItems: 'center', gap: 4,
+    backgroundColor: c.accent.primary + '14',
+    paddingHorizontal: 10, paddingVertical: 4, borderRadius: 12,
+    borderWidth: 1, borderColor: c.accent.primary + '33',
+  },
+  streakEmoji: { fontSize: 11 },
+  streakTxt: { fontSize: 10, fontWeight: '900', color: c.accent.primary, letterSpacing: 0.4 },
+  greet: { fontSize: 13, fontWeight: '700', color: c.text.muted, letterSpacing: 0.2 },
+  label: {
+    fontSize: 11, fontWeight: '800', color: c.text.muted,
+    letterSpacing: 1, marginTop: 8, textTransform: 'uppercase',
+  },
+  amountRow: { flexDirection: 'row', alignItems: 'baseline', gap: 10, marginTop: 4 },
+  amount: { fontSize: 44, fontWeight: '900', letterSpacing: -1.5 },
+  rateChip: {
+    flexDirection: 'row', alignItems: 'center', gap: 3,
+    paddingHorizontal: 8, paddingVertical: 3, borderRadius: 12,
+    borderWidth: 1, marginBottom: 6,
+  },
+  ratePositive: { backgroundColor: c.state.successBg, borderColor: c.state.successBorder },
+  rateNegative: { backgroundColor: c.state.dangerBg, borderColor: c.state.dangerBorder },
+  rateTxt: { fontSize: 11, fontWeight: '900' },
+  sub: { fontSize: 13, fontWeight: '500', color: c.text.secondary, marginTop: 10, lineHeight: 18 },
+  ctaRow: {
+    flexDirection: 'row', alignItems: 'center', gap: 5, marginTop: 14, alignSelf: 'flex-start',
+    backgroundColor: c.accent.primary + '12',
+    borderWidth: 1, borderColor: c.accent.primary + '2A',
+    paddingVertical: 7, paddingHorizontal: 12, borderRadius: 999,
+  },
+  ctaTxt: { fontSize: 12, fontWeight: '800', color: c.accent.primary, letterSpacing: 0.2 },
 }));

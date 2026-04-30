@@ -16,7 +16,7 @@ import React from 'react';
 import { Text, StyleSheet, View, ViewStyle, StyleProp } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
-import GlassCard from './GlassCard';
+import GlassCard from './TintedGlassCard';
 import GlowPill from './GlowPill';
 import NeonButton from './NeonButton';
 import { COLORS, FONT_FAMILY, GRADIENT, SPACING } from '../../utils/theme';

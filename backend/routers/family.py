@@ -5,6 +5,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 
 from core import db, get_current_user
+from core.ids import safe_oid
 
 router = APIRouter(prefix="/family", tags=["family"])
 
@@ -27,7 +28,7 @@ class FamilyBudgetCreate(BaseModel):
 # ---- Helpers ------------------------------------------------------------------
 async def _get_group_or_404(group_id: str, user_id: str, owner_only: bool = False) -> dict:
     """Fetch the group iff the user is a member (or owner when required)."""
-    filt = {"_id": ObjectId(group_id)}
+    filt = {"_id": safe_oid(group_id, field_name="group_id")}
     filt["owner_id" if owner_only else "members.user_id"] = user_id
     group = await db.family_groups.find_one(filt)
     if not group:
@@ -74,7 +75,7 @@ async def add_family_member(group_id: str, member: FamilyMemberAdd, user_id: str
         raise HTTPException(status_code=400, detail="Already a member")
 
     new_member = {"user_id": member_id, "name": member_user["name"], "phone": member_user["phone"], "role": "member"}
-    await db.family_groups.update_one({"_id": ObjectId(group_id)}, {"$push": {"members": new_member}})
+    await db.family_groups.update_one({"_id": safe_oid(group_id, field_name="group_id")}, {"$push": {"members": new_member}})
     return {"message": "Member added", "member": new_member}
 
 

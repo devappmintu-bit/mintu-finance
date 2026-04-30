@@ -39,6 +39,7 @@ from fastapi import APIRouter, Query, WebSocket, WebSocketDisconnect
 
 from core.auth import JWT_ALGORITHM, JWT_SECRET
 from core.ws_manager import manager
+from core.ids import safe_oid
 
 logger = logging.getLogger("split.ws")
 router = APIRouter()
@@ -71,7 +72,7 @@ async def ws_split_group(
     # ── 2. Validate group membership (deferred import: server.db) ──
     from server import db  # noqa: E402
     g = await db.split_groups.find_one(
-        {"_id": ObjectId(group_id), "members.user_id": uid},
+        {"_id": safe_oid(group_id, field_name="group_id"), "members.user_id": uid},
         {"_id": 1},
     )
     if not g:

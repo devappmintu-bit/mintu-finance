@@ -1,14 +1,16 @@
 /**
  * ProfileScreen — MintU Financial Identity + Progress Engine.
  *
- * Top-to-bottom structure:
- *   1. Hero (ProfileHeroV4)          — Samsung-Health avatar, score ring, predictive insight
- *   2. Missions Engine               — daily gamified tasks (refresh timer, XP/coin totals)
- *   3. Progress row                  — streak · badges · coins
- *   4. Beat Last Week (+ Share)      — viral shareable weekly win
- *   5. AI Coach 1-tap                — contextual nudge to /ai-coach
- *   6. Premium funnel                — MintU Pro upsell
- *   7. Settings (list-style)         — Financial / App / Support / Account
+ * Top-to-bottom structure (Round 58 redesign):
+ *   1. ProfileIdentityCard           — glass identity (avatar/name/tier/delta)
+ *   2. MoneyScoreCard                — dominant 64pt score + segmented bar
+ *   3. BoostCarousel                 — 3-pillar swipeable boost cards
+ *   4. Missions Engine               — daily gamified tasks (refresh timer, XP/coin totals)
+ *   5. Progress row                  — streak · badges · coins
+ *   6. Beat Last Week (+ Share)      — viral shareable weekly win
+ *   7. AI Coach 1-tap                — contextual nudge to /ai-coach
+ *   8. Premium funnel                — MintU Pro upsell
+ *   9. Settings (list-style)         — Financial / App / Support / Account
  *
  * Sheets:
  *   • ProfilePhotoSheet  — avatar CUD (take / gallery / remove)
@@ -37,8 +39,12 @@ import Toast from 'react-native-toast-message';
 import { shareSmart } from '../../utils/share';
 import HelpSupport from '../../components/HelpSupport';
 
-// New minimal profile components
-import ProfileHeroV4 from '../../components/profile/ProfileHeroV4';
+// Round 58 — Profile Revamp: hero split into three glass cards
+// (Identity / MoneyScore / BoostCarousel) for clearer hierarchy and a
+// premium iOS-Wallet feel without introducing new design tokens.
+import ProfileIdentityCard from '../../components/profile/ProfileIdentityCard';
+import MoneyScoreCard from '../../components/profile/MoneyScoreCard';
+import BoostCarousel from '../../components/profile/BoostCarousel';
 import MissionsEngine, { type Mission } from '../../components/profile/MissionsEngine';
 import ProgressInline from '../../components/profile/ProgressInline';
 import BeatLastWeek from '../../components/profile/BeatLastWeek';
@@ -61,7 +67,7 @@ import ProfileSkeleton from '../../components/profile/ProfileSkeleton';
 import BudgetAchievements from '../../components/budget/BudgetAchievements';
 import PaymentMethodsV2 from '../../components/profile/PaymentMethodsV2';
 import NotificationSettings from '../../components/profile/NotificationSettings';
-import ThemeToggle from '../../components/profile/ThemeToggle';
+// Round 56 — ThemeToggle deleted (Round 60 cleanup); app is light-only.
 import AuthTransitionOverlay from '../../components/auth/AuthTransitionOverlay';
 import StreakCoinsHealthCard from '../../components/profile/StreakCoinsHealthCard';
 import { sendTestPush } from '../../hooks/usePushNotifications';
@@ -212,7 +218,11 @@ function ProfileScreen() {
     }
   }, [setAvatar]);
 
-  useEffect(() => { loadData(); }, [loadData]);
+  // Phase 2 fix (H-1): useFocusEffect already covers initial mount (focus
+  // event always fires the first time a tab becomes active), so keeping a
+  // separate useEffect here caused 9 endpoints × 2 = 18 redundant API
+  // requests on first profile open. The single useFocusEffect below is
+  // sufficient for both mount + every tab re-focus.
   useFocusEffect(React.useCallback(() => { loadData(); }, [loadData]));
 
   const realStats = React.useMemo(() => {
@@ -323,18 +333,32 @@ function ProfileScreen() {
           <ProfileSkeleton />
         ) : (
         <>
-        {/* 1. HERO — Living Financial Identity */}
-        <ProfileHeroV4
-          user={user}
-          avatar={avatar}
-          statusRing={breakdown?.status_ring}
-          predictiveInsight={breakdown?.predictive_insight}
-          nextReward={breakdown?.next_tier ? { label: breakdown.next_tier, at: (identity?.money_score || 0) + (breakdown.points_to_next || 0) } : null}
-          onEditName={() => setEditNameVisible(true)}
+        {/* Round 58 — Profile Revamp.
+             Hero replaced by THREE focused glass cards:
+              1. Identity (avatar/name/tier)
+              2. Money Score (dominant) + Boost-my-score CTA
+              3. Boost Carousel (3 pillar levers) */}
+        <ProfileIdentityCard
+          name={user?.name}
+          phone={user?.phone}
+          avatarUri={avatar}
+          score={identity?.money_score || user?.money_score || 0}
+          weeklyDelta={typeof weekly?.score_delta === 'number' ? weekly.score_delta : null}
           onEditAvatar={() => setPhotoSheetVisible(true)}
-          onLevelUp={() => setScoreBoostVisible(true)}
-          onTapScore={() => setScoreBreakdownVisible(true)}
+          onEditName={() => setEditNameVisible(true)}
         />
+        <MoneyScoreCard
+          score={identity?.money_score || user?.money_score || 0}
+          predictiveInsight={breakdown?.predictive_insight}
+          percentile={typeof identity?.percentile === 'number' ? identity.percentile : null}
+          nextTier={breakdown?.next_tier}
+          pointsToNext={breakdown?.points_to_next}
+          onTap={() => setScoreBreakdownVisible(true)}
+          onLevelUp={() => setScoreBoostVisible(true)}
+        />
+        {breakdown?.pillars && breakdown.pillars.length > 0 ? (
+          <BoostCarousel pillars={breakdown.pillars} />
+        ) : null}
 
         {/* 2. MISSIONS ENGINE */}
         {missionsData ? (
@@ -518,11 +542,9 @@ function ProfileScreen() {
 
       <SubScreenModal
         visible={preferencesVisible}
-        title="Theme & language"
+        title="Language"
         onClose={() => setPreferencesVisible(false)}
       >
-        <ThemeToggle />
-        <View style={{ height: 16 }} />
         <SettingsList header="Language">
           <SettingsListItem
             icon="language-outline"

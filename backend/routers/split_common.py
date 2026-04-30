@@ -1,11 +1,61 @@
 """Shared primitives for the split-* routers (schemas, constants, router)."""
+import hashlib
 import math
+import random
+import re
+import string
 from typing import List, Optional, Dict
 from fastapi import APIRouter
 from pydantic import BaseModel, Field, field_validator
 
 router = APIRouter(tags=["splits"])
 api_router = router
+
+
+# ── Phase 3 — Group code helper ─────────────────────────────────────
+# Short, human-readable group identifier of the form `HSTL-7K2`. The
+# 4-char prefix is derived from the group name's first alphanumeric
+# letters (uppercased); the 3-char suffix is random — drawn from a
+# Crockford-style alphabet that excludes confusable glyphs (0/O, 1/I).
+# Collision rate at 32^3 ≈ 33k combinations per prefix; we still rely
+# on a UNIQUE index on `group_code` plus DuplicateKeyError retry on
+# create / find_one_and_update on backfill for race-safe issuance.
+_GROUP_CODE_ALPHABET = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"  # no 0,O,1,I
+# Hardening B — deterministic padding: consonants only, no vowels, no
+# confusable digits. Lets short names like "Goa" pad to "GOAB" (or
+# similar) reproducibly so a given name always produces the same prefix.
+_PAD_ALPHABET = "BCDFGHJKLMNPQRSTVWXYZ23456789"
+
+
+def _prefix_from_name(name: str) -> str:
+    """Take up to 4 uppercase alphanumeric chars from the name; if the
+    result is shorter than 4, pad deterministically with consonants
+    derived from a stable hash of the original name. Pure function —
+    same input always returns same prefix."""
+    cleaned = re.sub(r"[^A-Za-z0-9]", "", name or "").upper()
+    if not cleaned:
+        cleaned = "GRP"
+    prefix = cleaned[:4]
+    if len(prefix) < 4:
+        # Deterministic padding driven by md5 of the raw name; converted
+        # to indices into the consonant alphabet so the result is also
+        # human-readable and never produces vowels (avoids accidental
+        # rude/profane words in the prefix).
+        digest = hashlib.md5((name or "").encode("utf-8")).digest()
+        pad = "".join(_PAD_ALPHABET[b % len(_PAD_ALPHABET)] for b in digest)
+        prefix = (prefix + pad)[:4]
+    return prefix
+
+
+def generate_group_code(name: str, suffix_len: int = 3) -> str:
+    """Generate a fresh `HSTL-7K2`-style group code. Caller is
+    responsible for collision-checking against the DB. Pass
+    `suffix_len=4` as a fallback if the 3-char namespace is exhausted
+    for a given prefix (33K combos × 8 retries should never run dry in
+    practice, but the option exists)."""
+    prefix = _prefix_from_name(name)
+    suffix = "".join(random.choices(_GROUP_CODE_ALPHABET, k=suffix_len))
+    return f"{prefix}-{suffix}"
 
 
 async def invalidate_split_cache_for_group(group_id: str, db) -> None:

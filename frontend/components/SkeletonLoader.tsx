@@ -55,22 +55,25 @@ export const HomeSkeleton = () => {
         <Skeleton width={44} height={44} borderRadius={22} />
       </View>
 
-      {/* Balance hero — brand orange gradient placeholder with a fake score + CTA */}
-      <LinearGradient
-        colors={[COLORS.accent.brand, COLORS.accent.brandDark]}
-        start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}
-        style={sk.hero}
-      >
-        <Skeleton width={80} height={18} borderRadius={10} onHero />
-        <View style={{ height: 12 }} />
-        <Skeleton width={120} height={10} onHero />
-        <View style={{ height: 6 }} />
-        <Skeleton width={160} height={36} borderRadius={8} onHero />
-        <View style={{ height: 12 }} />
-        <Skeleton width={'90%' as any} height={12} onHero />
+      {/* Round 58b — Balance hero placeholder upgraded to glass to
+          match the new BalanceHero. Single 4px brand strip at top, dark
+          ink placeholders on translucent white. */}
+      <View style={sk.heroGlass}>
+        <View style={sk.heroAccentStrip} />
+        <View style={sk.row}>
+          <Skeleton width={90} height={20} borderRadius={10} />
+          <View style={{ flex: 1 }} />
+          <Skeleton width={70} height={20} borderRadius={10} />
+        </View>
         <View style={{ height: 14 }} />
-        <Skeleton width={150} height={36} borderRadius={999} onHero />
-      </LinearGradient>
+        <Skeleton width={80} height={10} />
+        <View style={{ height: 6 }} />
+        <Skeleton width={180} height={42} borderRadius={8} />
+        <View style={{ height: 12 }} />
+        <Skeleton width={'90%' as any} height={12} />
+        <View style={{ height: 14 }} />
+        <Skeleton width={170} height={32} borderRadius={999} />
+      </View>
 
       {/* Quick action bar — 5 icons */}
       <View style={[sk.row, { marginTop: 14, gap: 8 }]}>
@@ -113,6 +116,17 @@ const useStyles = makeStyles((c) => ({
   bar: { backgroundColor: c.bg.card },
   barHero: { backgroundColor: 'rgba(255,255,255,0.35)' },
   hero: { marginTop: 16, borderRadius: RADIUS.card, padding: 18, overflow: 'hidden' },
+  heroGlass: {
+    marginTop: 16, borderRadius: 24, padding: 18, paddingTop: 22,
+    backgroundColor: 'rgba(255,255,255,0.72)',
+    borderWidth: StyleSheet.hairlineWidth, borderColor: 'rgba(15,23,42,0.06)',
+    overflow: 'hidden',
+    position: 'relative',
+  },
+  heroAccentStrip: {
+    position: 'absolute', top: 0, left: 0, right: 0, height: 4,
+    backgroundColor: c.accent.primary,
+  },
   txItem: { flexDirection: 'row', alignItems: 'center', padding: SPACING.md, borderRadius: RADIUS.xl, backgroundColor: c.bg.secondary, marginBottom: SPACING.sm },
   budgetCard: {
     marginTop: SPACING.md, padding: SPACING.md,

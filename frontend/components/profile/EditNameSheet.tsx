@@ -7,7 +7,7 @@ import {
   View, Text, Modal, TouchableOpacity, TextInput, Platform, KeyboardAvoidingView,
 } from 'react-native';
 import Toast from 'react-native-toast-message';
-import { useAppColors } from '../../utils/theme';
+import { useAppColors, GLASS } from '../../utils/theme';
 import { makeStyles } from '../../utils/makeStyles';
 import { updateProfile } from '../../services/user';
 import { useAuthStore } from '../../store/authStore';

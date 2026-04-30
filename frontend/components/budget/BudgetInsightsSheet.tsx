@@ -36,7 +36,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import Toast from 'react-native-toast-message';
 import api from '../../utils/api';
 import { makeStyles } from '../../utils/makeStyles';
-import { COLORS, useAppColors } from '../../utils/theme';
+import { COLORS, useAppColors, GLASS } from '../../utils/theme';
 
 const TONE_COLOR: Record<string, { bg: string; fg: string; border: string }> = {
   success: { bg: '#DCFCE7', fg: '#065F46', border: '#86EFAC' },
@@ -468,7 +468,7 @@ export default function BudgetInsightsSheet({ visible, category, budgetCtx, onCl
 const useStyles = makeStyles((c) => ({
   backdrop: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(15,23,42,0.55)' },
   wrap: { flex: 1, justifyContent: 'flex-end' },
-  sheet: { backgroundColor: c.bg.elevated, borderTopLeftRadius: 28, borderTopRightRadius: 28, paddingHorizontal: 20, paddingTop: 8, paddingBottom: 24, maxHeight: '90%' },
+  sheet: { backgroundColor: GLASS.solidBg, borderTopLeftRadius: 28, borderTopRightRadius: 28, borderTopWidth: StyleSheet.hairlineWidth, borderColor: GLASS.borderLight, paddingHorizontal: 20, paddingTop: 8, paddingBottom: 24, maxHeight: '90%' },
   handle: { width: 40, height: 4, borderRadius: 2, backgroundColor: c.gray[200], alignSelf: 'center', marginVertical: 8 },
   header: { flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 14 },
   aiBadge: { width: 40, height: 40, borderRadius: 20, backgroundColor: c.accent.brandSoft, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: '#FED7AA' },

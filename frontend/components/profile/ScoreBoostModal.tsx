@@ -4,7 +4,7 @@
  * Fetches 3 personalised boost suggestions from /api/profile/score-boosts
  * and lets the user tap through to the relevant route.
  */
-import { COLORS, useAppColors } from '../../utils/theme';
+import { COLORS, useAppColors, GLASS } from '../../utils/theme';
 import React, { useEffect, useMemo, useState } from 'react';
 import {
   View, Text, StyleSheet, TouchableOpacity, Modal, ScrollView,

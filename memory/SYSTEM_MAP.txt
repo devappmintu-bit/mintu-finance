@@ -1,0 +1,816 @@
+======================================================================
+1. FRONTEND ROUTES (Expo file-based)
+======================================================================
+  /                                 → app/(tabs)/index.tsx
+  /                                 → app/index.tsx
+  /+html                            → app/+html.tsx
+  /about                            → app/about.tsx
+  /ai-coach                         → app/(tabs)/ai-coach.tsx
+  /auth                             → app/auth.tsx
+  /budget                           → app/(tabs)/budget.tsx
+  /coin-ledger                      → app/coin-ledger.tsx
+  /gmail                            → app/gmail.tsx
+  /gmail-connected                  → app/gmail-connected.tsx
+  /goals                            → app/goals.tsx
+  /insights                         → app/(tabs)/insights.tsx
+  /join/[id]                        → app/join/[id].tsx
+  /leaderboard                      → app/leaderboard.tsx
+  /legal/[page]                     → app/legal/[page].tsx
+  /money-school                     → app/money-school.tsx
+  /mystery-box                      → app/mystery-box.tsx
+  /notifications                    → app/notifications.tsx
+  /onboarding                       → app/onboarding.tsx
+  /premium                          → app/premium.tsx
+  /premium-activated                → app/premium-activated.tsx
+  /premium-hub                      → app/premium-hub.tsx
+  /premium-reports                  → app/premium-reports.tsx
+  /profile                          → app/(tabs)/profile.tsx
+  /profile/delete-account           → app/profile/delete-account.tsx
+  /rewards                          → app/(tabs)/rewards.tsx
+  /rewards-hub                      → app/rewards-hub.tsx
+  /search                           → app/search.tsx
+  /spending-insights                → app/spending-insights.tsx
+  /split                            → app/(tabs)/split.tsx
+  /split/add-expense                → app/split/add-expense.tsx
+  /split/add-member                 → app/split/add-member.tsx
+  /split/drafts                     → app/split/drafts.tsx
+  /split/quick-add                  → app/split/quick-add.tsx
+  /transactions                     → app/(tabs)/transactions.tsx
+  /unlock                           → app/unlock.tsx
+  /yearly                           → app/yearly.tsx
+
+  Total: 37 routes
+  Tab routes: 8 (/, /ai-coach, /budget, /insights, /profile, /rewards, /split, /transactions)
+
+======================================================================
+2. FRONTEND COMPONENTS BY DOMAIN
+======================================================================
+
+  auth/ (1 components)
+    • AuthTransitionOverlay
+
+  budget/ (8 components)
+    • BudgetAchievements
+    • BudgetCard
+    • BudgetHero
+    • BudgetInsightsSheet
+    • BudgetShareCard
+    • BudgetSmartSheet
+    • BudgetSummaryDonut
+    • DeleteBudgetSheet
+
+  glass/ (3 components)
+    • GlassButton
+    • GlassCard
+    • GlassSheet
+
+  home/ (15 components)
+    • AIInsightCard
+    • ActionableAlertCard
+    • BalanceHero
+    • EmbeddedFinanceCard
+    • FinancialBrainCard
+    • GettingStartedCard
+    • InsightsCard
+    • MoneySchoolCard
+    • NewsCarousel
+    • NewsStoryViewer
+    • PremiumHomeCard
+    • QuickActionBar
+    • TodayChips
+    • WeeklyReport
+    • WelcomeNewUserCard
+
+  leaderboard/ (1 components)
+    • UnifiedLeaderboard
+
+  premium/ (10 components)
+    • CoinRedeemPanel
+    • InvestmentSuggester
+    • PlansView
+    • PremiumComparison
+    • PremiumTeaserCard
+    • PremiumUnlockTeaser
+    • PulseCTA
+    • Shared
+    • SoftPaywall
+    • TaxCalculator
+
+  profile/ (24 components)
+    • AICoachOneTap
+    • BeatLastWeek
+    • BoostCarousel
+    • EditNameSheet
+    • LanguageSheet
+    • LogoutConfirmSheet
+    • MissionsEngine
+    • MoneyScoreCard
+    • NotificationSettings
+    • PaymentMethodsV2
+    • PremiumConversionFunnel
+    • ProfileHeroV4
+    • ProfileIdentityCard
+    • ProfilePhotoSheet
+    • ProfileSkeleton
+    • ProgressInline
+    • ScoreBoostModal
+    • ScoreBreakdownModal
+    • SettingsList
+    • ShareWeeklyWinModal
+    • SmartStatusRow
+    • StreakCoinsHealthCard
+    • SubScreenModal
+    • WeeklyWinCard
+
+  rewards/ (8 components)
+    • EnergyBar
+    • EventsBanner
+    • MarketplaceSection
+    • MissionCard
+    • RewardsHero
+    • SocialFeedTicker
+    • SpinWheel
+    • TierCard
+
+  shared/ (24 components)
+    • AICoachChat
+    • AIQuickSheet
+    • AnimatedCoin
+    • AnimatedStreak
+    • AppLockOverlay
+    • Confetti
+    • ConfettiBurst
+    • DailyQuestCard
+    • ErrorBoundary
+    • FullScreenLoader
+    • GroupChat
+    • HelpSupport
+    • Mascot
+    • MascotErrorState
+    • MascotMoment
+    • MintULogo
+    • OfflineBanner
+    • PinSetupModal
+    • PressableGlass
+    • ScoreCard
+    • SkeletonLoader
+    • SwipeableRow
+    • ToastConfig
+    • withTabBoundary
+
+  split/ (17 components)
+    • ContactPickerSheet
+    • DraftsPill
+    • ExpenseMessage
+    • ExpensesTab
+    • GroupManageSheet
+    • GroupSummarySheet
+    • InviteGroupSheet
+    • NudgeUI
+    • PaySheet
+    • PendingSyncBanner
+    • RemindSheet
+    • RemindersBanner
+    • RewardModal
+    • SettleUpCard
+    • SmartSettleSheet
+    • SplitHero
+    • SplitInsightsHero
+
+  transactions/ (4 components)
+    • GmailConnectCard
+    • SmartInsightsStrip
+    • TransactionFilterSheet
+    • TransactionsHero
+
+  ui/ (12 components)
+    • EmptyState
+    • GlassCard
+    • GlassSheet
+    • GlowPill
+    • InsightCard
+    • NeonButton
+    • PrimaryButton
+    • SheetHeader
+    • Skeleton
+    • TapTile
+    • ThemeTransitionOverlay
+    • ThinkingDots
+
+======================================================================
+3. STATE MANAGEMENT (zustand stores)
+======================================================================
+
+  store/aiPromptStore.ts
+    State: AIPromptState
+      - pending
+      - set
+      - consume
+
+  store/authStore.ts
+    State: AuthState
+      - user
+      - token
+      - avatar
+      - isNewUser
+      - locked
+      - isLoading
+      - setUser
+      - setToken
+      - setAvatar
+      - setIsNewUserFlag
+
+  store/langStore.ts
+    State: LangState
+      - lang
+      - setLang
+      - loadLang
+
+  store/themeStore.ts
+    State: ThemeState
+      - mode
+      - amoled
+      - ready
+      - resolved
+      - setMode
+      - setAmoled
+      - loadFromStorage
+
+======================================================================
+4. UTILITIES
+======================================================================
+  utils/api.ts  → deduplicatedGet, cachedGet, clearCache, apiSlow
+  utils/brand.ts  → APP_LINK, SUPPORT_URL, WEBSITE_URL, SPLIT_INVITE_BASE
+  utils/cacheGraph.ts  → invalidateAfter, invalidateAll, invalidateRaw, CACHE_GRAPH
+  utils/clearSessionState.ts  → clearSessionState, recordCurrentUser, getCurrentDeviceUserId
+  utils/deviceId.ts  → getDeviceId, _resetDeviceIdCache
+  utils/format.ts  → fmtINR, fmtINRDecimal, fmtCount
+  utils/haptics.ts  → haptic
+  utils/i18n.ts  → LANGUAGES, t
+  utils/lockManager.ts  → isExpoGo, hasPin, setPin, verifyPin, clearPin, biometricAvailable...
+  utils/makeStyles.ts  → makeStyles
+  utils/mascotAnimations.ts  → createMascotAnimValues, resetMascotAnimValues, playMascotAnimation, rotateToDeg
+  utils/messageDedup.ts  → createMessageDedup
+  utils/observability.ts  → isSentryEnabled, initSentry, setUserSafe, tagSafe, breadcrumb, SentryRoot
+  utils/premium.ts  → PLAN_META, FEATURES, getActivePlan, getActivePlanSync, setActivePlan, clearPlan...
+  utils/share.ts  → shareSmart, copyToClipboard, shareImageSmart
+  utils/swrGet.ts  → swrGet, invalidate, subscribeInvalidation, clearSwrCache
+  utils/theme.ts  → PALETTES, getActiveMode, COLORS, GLASS, GRADIENT, GLOW...
+  utils/time.ts  → timeAgo
+  utils/version.ts  → APP_VERSION, APP_VERSION_SHORT, APP_VERSION_LONG
+
+======================================================================
+5. FRONTEND SERVICES
+======================================================================
+  services/budgets.ts  → fetchBudgets, fetchLiveBudgets, createBudget, updateBudget, deleteBudget, fetchBudgetSuggestions...
+  services/coinLedger.ts  → fetchLedgerPage, sourceEmoji
+  services/gmail.ts  → fetchGmailStatus, startGmailOAuth, syncGmailNow, disconnectGmail
+  services/goals.ts  → fetchGoals, createGoal, updateGoal, deleteGoal
+  services/index.ts  → 
+  services/mascot.ts  → getInstantFallback, fetchMascotMoment, clearMascotCache
+  services/notifications.ts  → fetchNotifications, fetchUnreadCount, markRead, markAllRead, seedSampleNotifications, deeplinkFor
+  services/nudges.ts  → fetchActiveNudges, dismissNudge, resetNudgeForGroup, pickHeroNudge, strengthHints
+  services/offlineQueue.ts  → QUEUE_KEY, uuid, subscribeQueue, getQueue, getPendingByGroup, enqueueExpense...
+  services/premium.ts  → fetchPremiumStatus, createPremiumOrder, verifyPremiumPayment, awardCoins, fetchLeaderboard
+  services/rewards.ts  → fetchReferralCode, fetchReferralStatus, fetchReferralScoreCard, fetchGamificationStatus, fetchPaywallTrigger, fetchShareScoreCard...
+  services/search.ts  → runSearch, getRecentSearches, pushRecentSearch, clearRecentSearches
+  services/split.ts  → fetchSplitGroups, createSplitGroup, fetchGroupSummary, fetchGroupManage, fetchSplitBalances, fetchSplitActivity...
+  services/syncEngine.ts  → subscribeSync, triggerSync, retryItem, initSyncEngine, teardownSyncEngine, isSyncing
+  services/transactions.ts  → fetchTransactions, addTransaction, updateTransaction, deleteTransaction, parseSmsTransaction, fetchStatsOverview...
+  services/types.ts  → 
+  services/user.ts  → fetchCurrentUser, updateProfile, fetchAvatar, uploadAvatar, deleteAvatar, fetchUpi...
+  services/users.ts  → lookupUsersByPhones
+======================================================================
+6. BACKEND ROUTERS — ALL ENDPOINTS
+======================================================================
+
+  routers/analytics.py  (prefix=/)
+    GET    /stats/overview
+    GET    /analytics/summary
+    GET    /analytics/monthly
+    GET    /reports/weekly
+    GET    /leaderboard/savings
+    GET    /leaderboard/unified
+    POST   /coins/award
+    GET    /coins/status
+    GET    /leaderboard/friends
+    GET    /home/snapshot
+    GET    /ai/predict
+    GET    /analytics/yearly
+
+  routers/auth.py  (prefix=/)
+    POST   /auth/register
+    POST   /auth/login
+    POST   /auth/send-otp
+    POST   /auth/verify-otp
+    POST   /auth/resend-otp
+
+  routers/budgets.py  (prefix=/budgets)
+    POST   /budgets/categorize
+    GET    /budgets/smart-setup
+    POST   /budgets
+    PUT    /budgets/{budget_id}
+    GET    /budgets
+    DELETE /budgets/{budget_id}
+
+  routers/content.py  (prefix=/)
+    GET    /card-of-the-day
+
+  routers/family.py  (prefix=/family)
+    POST   /family/create
+    POST   /family/{group_id}/add-member
+    GET    /family/my-groups
+    POST   /family/{group_id}/budget
+    GET    /family/{group_id}/budgets
+    GET    /family/{group_id}/summary
+
+  routers/gamification.py  (prefix=/gamification)
+    GET    /gamification/status
+
+  routers/gmail_oauth.py  (prefix=/)
+    GET    /oauth/gmail/start
+    GET    /oauth/gmail/callback
+    GET    /gmail/status
+    DELETE /gmail/disconnect
+    POST   /gmail/sync-now
+
+  routers/goals.py  (prefix=/goals)
+    GET    /goals
+    POST   /goals
+    PATCH  /goals/{goal_id}
+    DELETE /goals/{goal_id}
+
+  routers/home_bundle.py  (prefix=/)
+    GET    /home/bundle
+
+  routers/mascot.py  (prefix=/mascot)
+    POST   /mascot/moment
+
+  routers/news.py  (prefix=/news)
+    GET    /news/india-finance
+
+  routers/pending_nudges.py  (prefix=/nudges)
+    GET    /nudges/list
+    POST   /nudges/{nudge_id}/dismiss
+    POST   /nudges/{nudge_id}/reset
+    POST   /nudges/group/{group_id}/reset
+
+  routers/premium.py  (prefix=/)
+    GET    /premium/features-catalog
+
+  routers/premium_invest.py  (prefix=/)
+    POST   /premium/investment-suggest
+
+  routers/premium_tax.py  (prefix=/)
+    POST   /premium/tax-calculator
+
+  routers/profile_engine.py  (prefix=/)
+    GET    /profile/score-breakdown
+    GET    /profile/weekly-comparison
+    GET    /profile/missions
+
+  routers/profile_identity.py  (prefix=/)
+    GET    /profile/identity
+    GET    /profile/score-boosts
+
+  routers/referral.py  (prefix=/referral)
+    GET    /referral/my-code
+    POST   /referral/apply
+    GET    /referral/leaderboard
+    GET    /referral/enhanced-status
+    GET    /referral/fomo-feed
+    GET    /referral/money-score-card
+
+  routers/rewards.py  (prefix=/)
+    GET    /rewards/summary
+    POST   /rewards/spin
+    GET    /rewards/missions
+    POST   /rewards/missions/claim
+    GET    /rewards/tier
+    POST   /rewards/claim-marketplace
+    GET    /rewards/marketplace
+    GET    /rewards/social-feed
+    GET    /rewards/events
+    GET    /rewards/vouchers
+    POST   /rewards/claim-voucher
+    GET    /rewards/wallet
+
+  routers/search.py  (prefix=/)
+    GET    /search
+
+  routers/streak.py  (prefix=/)
+    POST   /streak/check-in
+    GET    /streak/status
+    GET    /streak/leaderboard
+    GET    /streak/health
+    GET    /coins/balance
+    GET    /coins/history
+    GET    /coins/ledger
+
+  routers/transactions.py  (prefix=/transactions)
+    POST   /transactions
+    GET    /transactions
+    PUT    /transactions/{transaction_id}
+    DELETE /transactions/{transaction_id}
+    POST   /transactions/parse-sms
+
+  routers/user.py  (prefix=/user)
+    GET    /user/me
+    PUT    /user/profile
+    PUT    /user/me
+    POST   /user/avatar
+    DELETE /user/avatar
+    GET    /user/avatar
+    POST   /user/upi
+    GET    /user/upi
+    PUT    /user/biometric
+    GET    /user/biometric
+    GET    /user/notification-prefs
+    PUT    /user/notification-prefs
+    GET    /user/payment-methods
+    POST   /user/payment-methods
+    PUT    /user/payment-methods/{pm_id}/default
+    DELETE /user/payment-methods/{pm_id}
+    POST   /user/payment-methods/{pm_id}/verify
+    POST   /user/delete-account
+
+  routers/users.py  (prefix=/)
+    POST   /users/lookup-batch
+
+  TOTAL: 105 endpoints across 24 routers
+
+======================================================================
+7. DATABASE — MONGO COLLECTIONS
+======================================================================
+    • ab_events
+    • agent_memory
+    • audit_logs
+    • budget_alerts
+    • budgets
+    • cash_entries
+    • coin_ledger
+    • coins_wallet
+    • draft_expenses
+    • family_budgets
+    • family_groups
+    • gmail_tokens
+    • goals
+    • idempotency_keys
+    • ledger_transactions
+    • mission_claims
+    • news_cache
+    • notifications_feed
+    • oauth_states
+    • otp_audit
+    • otps
+    • payment_orders
+    • pending_settlement_nudges
+    • rate_limits
+    • recurring_expenses
+    • recurring_splits
+    • referrals
+    • reward_spins
+    • rewards_wallet
+    • school_progress
+    • score_history
+    • sent_notifications
+    • settle_locks
+    • settlements
+    • split_expenses
+    • split_groups
+    • split_messages
+    • split_reminders
+    • split_settlements
+    • streak_freeze_events
+    • subscriptions
+    • things
+    • transactions
+    • user_badges
+    • users
+
+  TOTAL: 45 collections
+
+======================================================================
+8. EXTERNAL API INTEGRATIONS
+======================================================================
+
+  External hosts referenced (top 20):
+    • accounts.google.com
+    • checkout.razorpay.com
+    • economictimes.indiatimes.com
+    • exp.host
+    • in.bookmyshow.com
+    • news.google.com
+    • oauth2.googleapis.com
+    • pib.gov.in
+    • real-published-article-url-on-the-source-domain-or-empty-string
+    • wa.me
+    • www.amazon.in
+    • www.amfiindia.com
+    • www.bigbasket.com
+    • www.business-standard.com
+    • www.cnbctv18.com
+    • www.flipkart.com
+    • www.googleapis.com
+    • www.livemint.com
+    • www.makemytrip.com
+    • www.moneycontrol.com
+
+  External SDK libs imported:
+    • emergentintegrations
+    • google
+    • google_auth_oauthlib
+    • googleapiclient
+    • razorpay
+    • sentry_sdk
+
+======================================================================
+9. CORE / MIDDLEWARE / SERVICES
+======================================================================
+
+  core/
+    • ai_helpers.py                  (3 funcs)
+    • auth.py                        (1 funcs)
+    • auth_helpers.py                (3 funcs)
+    • cache.py                       (3 funcs)
+    • constants.py                   (3 funcs)
+    • content.py                     (0 funcs)
+    • db.py                          (0 funcs)
+    • event_handlers.py              (2 funcs)
+    • events.py                      (5 funcs)
+    • idempotency.py                 (4 funcs)
+    • ids.py                         (2 funcs)
+    • ledger.py                      (8 funcs)
+    • ledger_invariant.py            (4 funcs)
+    • lifecycle.py                   (4 funcs)
+    • middleware.py                  (0 funcs)
+    • money.py                       (6 funcs)
+    • observability.py               (5 funcs)
+    • rate_limit.py                  (6 funcs)
+    • razorpay_client.py             (0 funcs)
+    • responses.py                   (2 funcs)
+    • route_stats.py                 (4 funcs)
+    • router_registry.py             (1 funcs)
+    • sanitize.py                    (2 funcs)
+    • scoring.py                     (1 funcs)
+    • settlement_planner.py          (3 funcs)
+    • streak.py                      (14 funcs)
+    • transactions.py                (3 funcs)
+    • upi.py                         (2 funcs)
+    • ws_manager.py                  (0 funcs)
+======================================================================
+10. THIRD-PARTY LIBRARIES
+======================================================================
+
+  FRONTEND (58 runtime deps):
+
+    data:
+      - axios
+
+    expo:
+      - expo
+      - expo-application
+      - expo-av
+      - expo-blur
+      - expo-clipboard
+      - expo-constants
+      - expo-contacts
+      - expo-device
+      - expo-font
+      - expo-haptics
+      - expo-image
+      - expo-image-picker
+      - expo-linear-gradient
+      - expo-linking
+      - expo-local-authentication
+      - expo-notifications
+      - expo-print
+      - expo-router
+      - expo-secure-store
+      - expo-sharing
+      - expo-splash-screen
+      - expo-status-bar
+      - expo-symbols
+      - expo-system-ui
+      - expo-web-browser
+
+    monitoring:
+      - @sentry/react-native
+
+    navigation:
+      - @react-navigation/bottom-tabs
+      - @react-navigation/elements
+      - @react-navigation/native
+      - @react-navigation/native-stack
+
+    other:
+      - @babel/runtime
+      - @expo-google-fonts/inter
+      - @expo/metro-runtime
+      - @expo/ngrok
+      - @gorhom/bottom-sheet
+      - @shopify/flash-list
+      - date-fns
+
+    react:
+      - react
+      - react-dom
+      - react-native
+      - react-native-dotenv
+      - react-native-gesture-handler
+      - react-native-gifted-charts
+      - react-native-qrcode-svg
+      - react-native-reanimated
+      - react-native-safe-area-context
+      - react-native-screens
+      - react-native-svg
+      - react-native-toast-message
+      - react-native-view-shot
+      - react-native-web
+      - react-native-webview
+      - react-native-worklets
+
+    react-native:
+      - @react-native-async-storage/async-storage
+      - @react-native-community/netinfo
+
+    state:
+      - zustand
+
+    ui-effects:
+      - @expo/vector-icons
+
+  BACKEND (136 deps):
+    - Jinja2
+    - MarkupSafe
+    - PyJWT
+    - PyYAML
+    - Pygments
+    - aiohappyeyeballs
+    - aiohttp
+    - aiosignal
+    - annotated-doc
+    - annotated-types
+    - anyio
+    - attrs
+    - bcrypt
+    - black
+    - boto3
+    - botocore
+    - certifi
+    - cffi
+    - chardet
+    - charset-normalizer
+    - click
+    - coverage
+    - cryptography
+    - diff_cover
+    - distro
+    - dnspython
+    - ecdsa
+    - email-validator
+    - emergentintegrations
+    - fastapi
+    - fastuuid
+    - filelock
+    - flake8
+    - frozenlist
+    - fsspec
+    - google-ai-generativelanguage
+    - google-api-core
+    - google-api-python-client
+    - google-auth
+    - google-auth-httplib2
+
+======================================================================
+11. FRONTEND DEPENDENCY GRAPH (high-fan-in modules)
+======================================================================
+
+  Total internal edges: 758
+
+  TOP 15 most-depended-on files (fan-in):
+    158× utils/theme.ts
+    136× utils/makeStyles.ts
+     56× utils/api.ts
+     22× store/authStore.ts
+     14× utils/i18n.ts
+     14× store/langStore.ts
+     14× components/split/theme.ts
+     11× services/split.ts
+      9× components/SkeletonLoader.tsx
+      9× utils/premium.ts
+      9× hooks/useIsOnline.ts
+      8× services/types.ts
+      8× components/withTabBoundary.tsx
+      7× utils/lockManager.ts
+      7× components/ui/EmptyState.tsx
+
+======================================================================
+12. CIRCULAR DEPENDENCY DETECTION
+======================================================================
+
+  Found 2 unique circular dependency clusters:
+    • utils/share.ts
+    • utils/cacheGraph.ts
+
+======================================================================
+13. HIGH-FAN-OUT FILES (pull from many internal modules)
+======================================================================
+
+  TOP 10:
+     38→ app/(tabs)/profile.tsx
+     31→ app/(tabs)/split.tsx
+     31→ app/(tabs)/index.tsx
+     22→ app/(tabs)/budget.tsx
+     20→ app/(tabs)/transactions.tsx
+     16→ app/(tabs)/ai-coach.tsx
+     15→ app/_layout.tsx
+     13→ app/rewards-hub.tsx
+     12→ app/auth.tsx
+     11→ app/(tabs)/rewards.tsx
+======================================================================
+14. BACKGROUND JOBS, SCHEDULERS, LISTENERS
+======================================================================
+  • server.py                                      [lifespan]
+  • scripts/migrate_ledger.py                      [lifespan]
+  • core/ledger_invariant.py                       [WebSocket]
+  • core/observability.py                          [lifespan]
+  • core/ws_manager.py                             [WebSocket]
+  • core/transactions.py                           [WebSocket]
+  • core/events.py                                 [lifespan]
+  • core/lifecycle.py                              [periodic, lifespan, asyncio task]
+  • core/ledger.py                                 [lifespan]
+  • routers/split_settle.py                        [lifespan]
+  • routers/premium_common.py                      [lifespan]
+  • routers/notifications.py                       [periodic]
+  • routers/privacy.py                             [periodic]
+  • routers/transactions.py                        [lifespan]
+  • routers/news.py                                [periodic, lifespan, FastAPI BackgroundTasks, asyncio task]
+  • routers/gmail_oauth.py                         [lifespan, asyncio task]
+  • routers/split_ws.py                            [WebSocket]
+  • routers/ai_waste.py                            [asyncio task]
+  • routers/user.py                                [lifespan]
+  • routers/split_expenses.py                      [lifespan, WebSocket]
+
+======================================================================
+15. WEBSOCKET ENDPOINTS
+======================================================================
+  • /ws/split/{group_id}                ← routers/split_ws.py
+
+======================================================================
+16. FRONTEND PERSISTENT STORAGE KEYS
+======================================================================
+
+  AsyncStorage keys (3):
+    • app_lang
+    • onboarding_seen
+    • token
+
+  SecureStore keys (1):
+    • app_lock_enabled
+
+======================================================================
+17. API CALL SITE INVENTORY (frontend → backend endpoints invoked)
+======================================================================
+
+  TOTAL: 151 unique API call sites
+  Top 25 most-used by call-site count:
+    GET    /analytics/summary                        (4 callers)
+    GET    /gamification/status                      (3 callers)
+    GET    /user/me                                  (2 callers)
+    GET    /money-school/daily                       (2 callers)
+    GET    /analytics/yearly                         (2 callers)
+    POST   /auth/verify-otp                          (2 callers)
+    GET    /goals                                    (2 callers)
+    POST   /goals                                    (2 callers)
+    GET    /home/snapshot                            (2 callers)
+    GET    /leaderboard/friends                      (2 callers)
+    GET    /stats/overview                           (2 callers)
+    GET    /budgets/live                             (2 callers)
+    POST   /transactions/parse-sms                   (2 callers)
+    GET    /rewards/summary                          (2 callers)
+    GET    /profile/score-breakdown                  (2 callers)
+    GET    /gmail/status                             (2 callers)
+    GET    /coins/status                             (2 callers)
+    POST   /split/coin-redeem-preview                (2 callers)
+    GET    /budgets                                  (2 callers)
+    POST   /users/lookup-batch                       (2 callers)
+    GET    /premium/status                           (2 callers)
+    POST   /transactions                             (2 callers)
+    POST   /budgets/ai-apply/${encodeURIComponent(category)}  (2 callers)
+    GET    /budgets/achievements                     (2 callers)
+    GET    /money-school/cards                       (1 caller)
+
+======================================================================
+18. BACKEND MIDDLEWARE STACK
+======================================================================
+
+  app.add_middleware (in order):
+    • SentryContextMiddleware
+    • RouteStatsRecorder
+    • SecurityHeadersMiddleware
+    • RateLimitMiddleware
+    • AuditLogMiddleware
+    • CORSMiddleware
+
+  Lifespan events: (uses contextmanager lifespan)

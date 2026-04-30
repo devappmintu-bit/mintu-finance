@@ -14,6 +14,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import { makeStyles } from '../../utils/makeStyles';
+import { shade } from '../../utils/color';
 
 type Event = {
   id: string;
@@ -97,16 +98,6 @@ export default function EventsBanner({ events, onPress }: { events: Event[]; onP
 
 const evMountedAt = Date.now();
 
-function shade(hex: string, pct: number) {
-  try {
-    const c = hex.replace('#', '');
-    const r = parseInt(c.substring(0, 2), 16);
-    const g = parseInt(c.substring(2, 4), 16);
-    const b = parseInt(c.substring(4, 6), 16);
-    const adj = (v: number) => Math.max(0, Math.min(255, Math.round(v + (pct < 0 ? v * pct : (255 - v) * pct))));
-    return `#${[adj(r), adj(g), adj(b)].map(v => v.toString(16).padStart(2, '0')).join('')}`;
-  } catch { return hex; }
-}
 
 const useStyles = makeStyles((c) => ({
   card: { width: 240, padding: 12, borderRadius: 16, gap: 12, overflow: 'hidden', position: 'relative', shadowColor: c.shadow.medium, shadowOpacity: 1, shadowRadius: 8, shadowOffset: { width: 0, height: 4 }, elevation: 3 },

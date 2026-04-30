@@ -1,0 +1,45 @@
+# ─── Round 54b: EAS upload exclusions ─────────────────────────────
+# Files NOT to bundle into the tarball that EAS uploads to its build
+# servers. Each excluded path saves upload bandwidth, build queue
+# time, and (in some cases) avoids triggering false-positive checks
+# by expo-doctor on artifact directories.
+#
+# Format identical to .gitignore. Anything matching is excluded.
+
+# Local-only metro / babel caches. Regenerated on the EAS builder.
+.metro-cache/
+.expo/
+.expo-shared/
+
+# Web export — only relevant to localhost:3000 preview, never to a
+# native EAS Android/iOS build. Including it bloated previous uploads
+# by ~2-3 MB.
+dist/
+web-build/
+
+# Test / coverage output
+coverage/
+.nyc_output/
+__tests__/__snapshots__/
+*.tsbuildinfo
+
+# IDE / OS noise
+.vscode/
+.idea/
+.DS_Store
+*.swp
+
+# Logs and editor backups
+*.log
+yarn-error.log
+npm-debug.log*
+
+# Memory bank / agent scratch (Emergent-specific, not part of the
+# build).
+memory/
+
+# Local sandbox env files. Production env vars come from the EAS
+# secrets store, NOT bundled into the build.
+.env.local
+.env.development.local
+.env.test.local

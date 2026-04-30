@@ -6,6 +6,7 @@ from pydantic import BaseModel
 
 from core import db, get_current_user
 from core.cache import cache_get, cache_set
+import logging
 
 
 def _send_expo_push(token, title, body, data=None):
@@ -245,8 +246,8 @@ async def cron_check_notifications():
                         body=notification["body"],
                         metadata={"source": "cron"},
                     )
-                except Exception:
-                    pass
+                except Exception as _exc:
+                    logging.warning('notifications L249 silent-except: %s', _exc)
                 sent_count += 1
 
     return {"users_checked": len(users), "notifications_sent": sent_count}

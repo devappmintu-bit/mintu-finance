@@ -5,6 +5,7 @@ from pydantic import BaseModel
 
 from core import db, get_current_user
 from core.upi import validate_upi_id, mask_upi_id
+import logging
 
 router = APIRouter(prefix="/user", tags=["user"])
 
@@ -245,7 +246,8 @@ async def list_payment_methods(user_id: str = Depends(get_current_user)):
         try:
             s = ts if isinstance(ts, str) else ts.isoformat()
             return _dt.fromisoformat(s.replace("Z", "").split("+")[0])
-        except Exception:
+        except Exception as _exc:
+            logging.warning('user L249 default-return on except: %s', _exc)
             return None
 
     def _days(ts):
@@ -521,16 +523,16 @@ async def _hard_purge_user(user_id: str) -> dict:
         try:
             r = await db[col].delete_many({"user_id": user_id})
             total_deleted += r.deleted_count
-        except Exception:
-            pass
+        except Exception as _exc:
+            logging.warning('user L526 silent-except: %s', _exc)
     # Phone-keyed collections
     if user_phone:
         for col in ("otps", "otp_audit"):
             try:
                 r = await db[col].delete_many({"phone": user_phone})
                 total_deleted += r.deleted_count
-            except Exception:
-                pass
+            except Exception as _exc:
+                logging.warning('user L534 silent-except: %s', _exc)
 
     # Settlements — user can be payer OR payee; wipe both sides so orphaned
     # debts don't haunt the other party's balance summary.
@@ -539,8 +541,8 @@ async def _hard_purge_user(user_id: str) -> dict:
             "$or": [{"payer_id": user_id}, {"payee_id": user_id}],
         })
         total_deleted += r.deleted_count
-    except Exception:
-        pass
+    except Exception as _exc:
+        logging.warning('user L544 silent-except: %s', _exc)
 
     # Reminders — user can be sender OR recipient
     try:
@@ -548,16 +550,16 @@ async def _hard_purge_user(user_id: str) -> dict:
             "$or": [{"sender_id": user_id}, {"recipient_id": user_id}],
         })
         total_deleted += r.deleted_count
-    except Exception:
-        pass
+    except Exception as _exc:
+        logging.warning('user L553 silent-except: %s', _exc)
 
     # Split messages — authored by the user. Keep system messages (sender_id=None)
     # for historical context in groups that still exist.
     try:
         r = await db.split_messages.delete_many({"sender_id": user_id})
         total_deleted += r.deleted_count
-    except Exception:
-        pass
+    except Exception as _exc:
+        logging.warning('user L561 silent-except: %s', _exc)
 
     # Split groups — delete groups the user created (cascade expenses in those
     # groups), and REMOVE the user from `members` of any other groups they were
@@ -580,8 +582,8 @@ async def _hard_purge_user(user_id: str) -> dict:
                     total_deleted += r2.deleted_count
                     r3 = await db.split_messages.delete_many({"group_id": gid})
                     total_deleted += r3.deleted_count
-                except Exception:
-                    pass
+                except Exception as _exc:
+                    logging.warning('user L585 silent-except: %s', _exc)
         # 2) Groups the user is a member of (but did NOT create) → pull them out.
         await db.split_groups.update_many(
             {"members.user_id": user_id},
@@ -593,8 +595,8 @@ async def _hard_purge_user(user_id: str) -> dict:
                 {"pending_invites.phone": user_phone},
                 {"$pull": {"pending_invites": {"phone": user_phone}}},
             )
-    except Exception:
-        pass
+    except Exception as _exc:
+        logging.warning('user L598 silent-except: %s', _exc)
 
     # Expenses where the user is the payer but in a group that survives —
     # leave them (other members' balance math still needs them). Only purge

@@ -28,6 +28,7 @@ import { router } from 'expo-router';
 import api, { apiSlow } from '../utils/api';
 import MintULogo from './MintULogo';
 import { useAuthStore } from '../store/authStore';
+import { useAIPrompt } from '../store/aiPromptStore';
 import { useLangStore } from '../store/langStore';
 import { COLORS } from '../utils/theme';
 import { makeStyles } from '../utils/makeStyles';
@@ -172,6 +173,23 @@ export default function AICoachChat({ onClose }: { onClose?: () => void }) {
       agent: 'AI Money Coach', agentEmoji: '✨', ts: Date.now(),
     }]);
   }, [user?.name]);
+
+  // Round 59 — Auto-send any prompt parked in the AI Quick Sheet store.
+  // Runs once after the welcome banner mounts so the user sees the
+  // greeting → their question → AI reply in the right order.
+  useEffect(() => {
+    const pending = useAIPrompt.getState().consume();
+    if (pending) {
+      // Defer so the welcome message renders first, giving a natural
+      // pacing instead of two messages flashing simultaneously.
+      const t = setTimeout(() => sendMessage(pending), 250);
+      return () => clearTimeout(t);
+    }
+    // Intentionally not listing sendMessage in deps — we ONLY want to
+    // pull the parked prompt at mount time. Subsequent prompts come
+    // through the input field in the normal way.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const sendMessage = useCallback(async (text: string) => {
     if (!text.trim() || chatLoading) return;

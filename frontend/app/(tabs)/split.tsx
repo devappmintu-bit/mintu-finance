@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import {
   View, Text, StyleSheet, ScrollView, TouchableOpacity, Modal,
   Alert, Platform, Linking, Share, RefreshControl, InteractionManager,
@@ -42,6 +42,8 @@ import PaySheet from '../../components/split/PaySheet';
 import RemindSheet from '../../components/split/RemindSheet';
 import RewardModal from '../../components/split/RewardModal';
 import DraftsPill from '../../components/split/DraftsPill';
+import PendingSyncBanner from '../../components/split/PendingSyncBanner';
+import InviteGroupSheet from '../../components/split/InviteGroupSheet';
 import EmptyState from '../../components/ui/EmptyState';
 import useSwr from '../../hooks/useSwr';
 import PremiumUnlockTeaser from '../../components/premium/PremiumUnlockTeaser';
@@ -154,6 +156,30 @@ function SplitScreen() {
     } catch (e) { if (__DEV__) console.error(e); setLoading(false); setRefreshing(false); }
   }, [fetchSettleRows, refetchGroupsSwr, refetchBalancesSwr, groups]);
 
+  // Phase 2 fix (M-5): debounced fetchData scheduler.
+  // Many sheet-close handlers used `setTimeout(() => fetchData(), 300)`
+  // independently — when two sheets closed within the same 300ms tick this
+  // produced two overlapping refetches. The shared scheduler collapses any
+  // burst into a single trailing fetch.
+  const fetchTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const scheduleFetchData = useCallback((delay = 300) => {
+    if (fetchTimerRef.current) clearTimeout(fetchTimerRef.current);
+    fetchTimerRef.current = setTimeout(() => {
+      fetchTimerRef.current = null;
+      fetchData();
+    }, delay);
+  }, [fetchData]);
+  // Cleanup on unmount so we never fire after the component is gone.
+  useEffect(() => () => {
+    if (fetchTimerRef.current) clearTimeout(fetchTimerRef.current);
+  }, []);
+
+  // Phase 2 fix (M-4): wrap fetchData/reloadNudges in stable refs to make
+  // the empty-deps useEffect intentional. Both callbacks already use their
+  // own internal stable deps so a stale-closure here is benign, but
+  // expressing the intent explicitly silences exhaustive-deps and prevents
+  // accidental refetch loops if a future refactor adds non-stable deps.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => { fetchData(); reloadNudges(); }, []);
   const close = () => { setModal(''); setRemindTarget(null); setEditingExpense(null); setPayTarget(null); };
 
@@ -213,7 +239,7 @@ function SplitScreen() {
     } catch (e: any) {
       Toast.show({ type: 'error', text1: 'Error', text2: e?.response?.data?.detail || 'Could not delete' });
     }
-    close(); setTimeout(() => fetchData(), 300);
+    close(); scheduleFetchData(300);
   };
 
   const renameGroup = async (newName: string) => {
@@ -247,7 +273,7 @@ function SplitScreen() {
       await removeGroupMember(selectedGroup.id, mid);
       Toast.show({ type: 'success', text1: 'Member Removed' });
     } catch {}
-    openManage(selectedGroup); setTimeout(() => fetchData(), 300);
+    openManage(selectedGroup); scheduleFetchData(300);
   };
 
   const leaveGroup = async () => {
@@ -260,7 +286,7 @@ function SplitScreen() {
     } catch (e: any) {
       Toast.show({ type: 'error', text1: 'Error', text2: e?.response?.data?.detail || 'Could not leave' });
     }
-    close(); setTimeout(() => fetchData(), 300);
+    close(); scheduleFetchData(300);
   };
 
   // EXPENSE CRUD
@@ -541,6 +567,36 @@ function SplitScreen() {
     <SafeAreaView style={s.bg}><SplitSkeleton /></SafeAreaView>
   );
 
+  // ── Phase 1.1 — Group-name disambiguation ──────────────────────────
+  // When a user has 2+ groups sharing the same name (e.g. two "Hostel"
+  // groups), the meta line is augmented with a short date — and falls
+  // back to a 4-char short-id slug if the dates also collide. Computed
+  // once per render; cost is O(N) over a list capped at 50 groups.
+  const dupNameCounts: Record<string, number> = {};
+  for (const g of groups) {
+    const k = (g?.name || '').trim().toLowerCase();
+    if (!k) continue;
+    dupNameCounts[k] = (dupNameCounts[k] || 0) + 1;
+  }
+  const duplicateNames = new Set(
+    Object.keys(dupNameCounts).filter((k) => dupNameCounts[k] > 1),
+  );
+  const fmtShortDate = (iso?: string): string => {
+    if (!iso) return '';
+    try {
+      const d = new Date(iso);
+      if (Number.isNaN(d.getTime())) return '';
+      return d.toLocaleDateString('en-US', { day: 'numeric', month: 'short' });
+    } catch { return ''; }
+  };
+  const shortIdOf = (id?: string): string =>
+    id ? `#${String(id).slice(-4).toUpperCase()}` : '';
+  // Phase 3 — Prefer the backend-issued group_code when present;
+  // fall back to last-4 of the ObjectId so legacy groups still show
+  // *something* until they're backfilled on the next list-fetch.
+  const codeOf = (gr: any): string =>
+    gr?.group_code || shortIdOf(gr?.id);
+
   return (
     <SafeAreaView style={s.bg}>
       <ScrollView contentContainerStyle={s.scroll} refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); fetchData(); }} tintColor={C.accent} />}>
@@ -558,6 +614,12 @@ function SplitScreen() {
             capture and group-assignment. Uses lazy-fetch so we don't
             slow the Split tab cold-load. */}
         <DraftsPill />
+
+        {/* Phase 2 — Pending offline expense queue banner.
+            Auto-hides when the queue is empty. Shows pending count
+            (informational) or failed count (with tap-to-retry) so
+            users always know the state of their offline submissions. */}
+        <PendingSyncBanner />
 
         <RemindersBanner received={reminders.received} onDismiss={dismissReminder} />
 
@@ -586,6 +648,17 @@ function SplitScreen() {
         ) : groups.map((gr: any) => {
           const av = getGA(gr.name);
           const displayEmoji = gr.custom_emoji || av.emoji;
+          // Phase 1.1 + 3 — Disambiguate same-named groups by prefixing
+          // the creation date; fall back to the backend-issued group_code
+          // when even the date is identical.
+          const memberCount = gr.members?.length || 0;
+          const memberLabel = `${memberCount} ${t('members', lang)}`;
+          const isDup = duplicateNames.has((gr?.name || '').trim().toLowerCase());
+          const datePart = fmtShortDate(gr.created_at);
+          const code = codeOf(gr);
+          const metaLine = isDup
+            ? `${datePart || code} · ${memberLabel}`
+            : memberLabel;
           return (
             <PressableGlass
               key={gr.id}
@@ -597,8 +670,18 @@ function SplitScreen() {
                 <Text style={s.groupEmoji}>{displayEmoji}</Text>
               </LinearGradient>
               <View style={s.groupInfo}>
-                <Text style={s.groupName} numberOfLines={1}>{gr.name}</Text>
-                <Text style={s.groupMeta} numberOfLines={1}>{`${gr.members?.length || 0} ${t('members', lang)}`}</Text>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                  <Text style={s.groupName} numberOfLines={1}>{gr.name}</Text>
+                  {/* Phase 3 — Group code chip. Always shown so users
+                      have an unambiguous reference for sharing /
+                      disambiguation. Tap-to-copy via parent press. */}
+                  {!!code && (
+                    <View style={s.groupCodeChip}>
+                      <Text style={s.groupCodeChipT}>{code}</Text>
+                    </View>
+                  )}
+                </View>
+                <Text style={s.groupMeta} numberOfLines={1}>{metaLine}</Text>
               </View>
               <PressableGlass onPress={() => openAddExpense(gr)} feedback="light" hitSlop={12}>
                 <Ionicons name="add-circle" size={30} color={C.accent} />
@@ -614,75 +697,27 @@ function SplitScreen() {
       </ScrollView>
 
       {/* === SHEETS — lazy-mounted (only the active one renders) === */}
-      {modal === 'create' && <ContactPickerSheet visible={true} onClose={close} onCreate={createGroup} />}
-
-      {/* Post-creation invite sheet — WhatsApp / Copy link CTAs */}
-      {inviteGroup && (
-        <Modal visible={!!inviteGroup} animationType="slide" transparent onRequestClose={() => setInviteGroup(null)}>
-          <View style={{ flex: 1, justifyContent: 'flex-end', backgroundColor: 'rgba(0,0,0,0.5)' }}>
-            <View style={{ backgroundColor: COLORS.bg.elevated, borderTopLeftRadius: 28, borderTopRightRadius: 28, padding: 24, paddingBottom: 36, gap: 14, borderTopWidth: 1, borderColor: 'rgba(255,255,255,0.08)' }}>
-              <View style={{ width: 40, height: 4, borderRadius: 2, backgroundColor: COLORS.border.subtle, alignSelf: 'center', marginBottom: 8 }} />
-
-              <View style={{ alignItems: 'center', marginBottom: 4 }}>
-                <View style={{ width: 64, height: 64, borderRadius: 32, backgroundColor: COLORS.accent.moneyIn + '15', justifyContent: 'center', alignItems: 'center', marginBottom: 10 }}>
-                  <Ionicons name="checkmark-circle" size={38} color={COLORS.accent.moneyIn} />
-                </View>
-                <Text style={{ fontSize: 19, fontWeight: '800', color: COLORS.text.primary }}>Group Created! 🎉</Text>
-                <Text style={{ fontSize: 13, color: COLORS.text.secondary, marginTop: 3, textAlign: 'center' }}>
-                  {inviteGroup.name} · {inviteGroup.memberCount} member{inviteGroup.memberCount === 1 ? '' : 's'}
-                </Text>
-              </View>
-
-              <Text style={{ fontSize: 13, color: COLORS.text.muted, textAlign: 'center', marginTop: 4, marginBottom: 4 }}>
-                Invite friends so they can log expenses with you
-              </Text>
-
-              <TouchableOpacity
-                /* WhatsApp brand green (#25D366) + white-on-saturated-bg —
-                   intentional brand literals per Round 50 audit. */
-                style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 10, backgroundColor: '#25D366', paddingVertical: 14, borderRadius: 999 }}
-                onPress={async () => {
-                  const url = `https://mintu.app/split/invite/${inviteGroup.id}`;
-                  const msg = `Hey! I made a "${inviteGroup.name}" group on MintU to track our shared expenses 💸\n\nJoin here → ${url}`;
-                  await shareSmart({ message: msg, title: 'Join my MintU group' });
-                }}
-                activeOpacity={0.85}
-              >
-                <Ionicons name="logo-whatsapp" size={20} color="#FFFFFF" />
-                <Text style={{ fontSize: 15, fontWeight: '800', color: '#FFFFFF' }}>Invite via WhatsApp</Text>
-              </TouchableOpacity>
-
-              <TouchableOpacity
-                style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 10, backgroundColor: COLORS.bg.card, paddingVertical: 14, borderRadius: 999, borderWidth: 1, borderColor: COLORS.border.card }}
-                onPress={async () => {
-                  const url = `https://mintu.app/split/invite/${inviteGroup.id}`;
-                  await copyToClipboard(url, '🔗 Invite link copied');
-                }}
-                activeOpacity={0.85}
-              >
-                <Ionicons name="copy-outline" size={18} color={COLORS.text.primary} />
-                <Text style={{ fontSize: 14, fontWeight: '700', color: COLORS.text.primary }}>Copy invite link</Text>
-              </TouchableOpacity>
-
-              <TouchableOpacity
-                onPress={() => {
-                  // Round 36 — after invite sheet closes, auto-open the new
-                  // group's summary so the user lands INSIDE their new group
-                  // rather than being dropped back at the group list and
-                  // having to hunt for what they just created.
-                  const g = { id: inviteGroup.id, name: inviteGroup.name };
-                  setInviteGroup(null);
-                  openSummary(g);
-                }}
-                style={{ paddingVertical: 10, alignItems: 'center', marginTop: 2 }}
-                activeOpacity={0.7}
-              >
-                <Text style={{ fontSize: 13, fontWeight: '700', color: COLORS.text.muted }}>Do it later</Text>
-              </TouchableOpacity>
-            </View>
-          </View>
-        </Modal>
+      {modal === 'create' && (
+        <ContactPickerSheet
+          visible={true}
+          onClose={close}
+          onCreate={createGroup}
+          existingNames={groups.map((g: any) => g?.name || '').filter(Boolean)}
+        />
       )}
+
+      {/* Round 57d — extracted into InviteGroupSheet (was 65 LOC inline). */}
+      <InviteGroupSheet
+        group={inviteGroup}
+        onClose={() => setInviteGroup(null)}
+        onSkip={(g) => {
+          // Round 36 — after invite sheet closes, auto-open the new group's
+          // summary so the user lands inside their new group rather than
+          // being dropped back at the group list.
+          setInviteGroup(null);
+          openSummary(g);
+        }}
+      />
       {modal === 'summary' && (
         <GroupSummarySheet
           visible={true}
@@ -711,7 +746,7 @@ function SplitScreen() {
           onSettled={() => {
             // Refresh group summary + global lists so balances update.
             setModal('');
-            setTimeout(() => fetchData(), 250);
+            scheduleFetchData(250);
             // Round 53m — refresh nudges so the just-settled group's
             // banner disappears (auto-resolved by post-commit hook).
             setTimeout(() => reloadNudges(), 400);
@@ -829,6 +864,21 @@ const useStyles = makeStyles((c) => ({
   groupInfo: { flex: 1 },
   groupName: { fontSize: 16, fontWeight: '700', color: C.text1 },
   groupMeta: { fontSize: 12, color: C.text3, marginTop: 2 },
+  // Phase 3 — Group code chip (HSTL-7K2 style)
+  groupCodeChip: {
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 6,
+    backgroundColor: 'rgba(255, 107, 26, 0.12)',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 107, 26, 0.28)',
+  },
+  groupCodeChipT: {
+    fontSize: 10,
+    fontWeight: '800',
+    color: C.accent,
+    letterSpacing: 0.5,
+  },
 }));
 
 

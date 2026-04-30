@@ -9,9 +9,7 @@ from starlette.middleware.cors import CORSMiddleware
 from motor.motor_asyncio import AsyncIOMotorClient
 import os
 import logging
-import time
 from pathlib import Path
-from typing import Dict, Optional, Any
 
 ROOT_DIR = Path(__file__).parent
 load_dotenv(ROOT_DIR / '.env')
@@ -40,30 +38,18 @@ from core.auth_helpers import (  # noqa: E402,F401
 
 
 # ══════════════════════════════════════════════════════════════════════
-#  IN-MEMORY TTL CACHE (for hot AI endpoints) — back-compat re-exports
+#  IN-MEMORY TTL CACHE — re-exports from core.cache for backwards compat
 # ══════════════════════════════════════════════════════════════════════
-_CACHE: Dict[str, tuple] = {}
-
-
-def cache_get(key: str) -> Optional[Any]:
-    v = _CACHE.get(key)
-    if not v:
-        return None
-    value, expires = v
-    if time.time() > expires:
-        _CACHE.pop(key, None)
-        return None
-    return value
-
-
-def cache_set(key: str, value: Any, ttl_seconds: int = 300) -> None:
-    _CACHE[key] = (value, time.time() + ttl_seconds)
-
-
-def cache_clear_prefix(prefix: str) -> None:
-    for k in list(_CACHE.keys()):
-        if k.startswith(prefix):
-            _CACHE.pop(k, None)
+# Phase 3 consolidation: previously server.py carried its own _CACHE +
+# duplicate functions. That split the cache across two modules — imports
+# from `server.cache_*` and `core.cache.cache_*` used DIFFERENT dicts,
+# which silently broke invalidation for any router that mixed them.
+# All cache ops now flow through core.cache as the single source of truth.
+from core.cache import (  # noqa: E402,F401
+    cache_get,
+    cache_set,
+    cache_clear_prefix,
+)
 
 
 # ══════════════════════════════════════════════════════════════════════

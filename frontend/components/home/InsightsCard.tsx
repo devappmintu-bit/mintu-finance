@@ -11,7 +11,7 @@ import React, { useMemo } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import Svg, { Polyline, Circle, Defs, LinearGradient, Stop, Polygon } from 'react-native-svg';
 import { Ionicons } from '@expo/vector-icons';
-import {  COLORS, RADIUS, SPACING, shadowStyle, useAppColors } from '../../utils/theme';
+import {  COLORS, RADIUS, SPACING, shadowStyle, useAppColors, GLASS } from '../../utils/theme';
 import { makeStyles } from '../../utils/makeStyles';
 
 type SparkPoint = { day: string; date: string; amount: number };
@@ -192,14 +192,17 @@ export default function InsightsCard({ snapshot, onPressSparkline }: Props) {
 }
 
 const useStyles = makeStyles((c) => ({
+  // Round 56 — Glassmorphic card. Translucent white on the warm canvas
+  // (#FAFAF9) with a hairline border for the iOS-Crystal effect. Falls
+  // back gracefully on Android (opacity handled by alpha channel).
   card: {
-    backgroundColor: c.bg.secondary,
+    backgroundColor: GLASS.solidBg,
     borderRadius: 20,
     padding: 18,
     marginBottom: 14,
-    borderWidth: 1,
-    borderColor: c.border.card,
-    ...shadowStyle('#2E1F1A', 4, 14, 0.07, 4),
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: GLASS.borderLight,
+    ...shadowStyle('#111827', 4, 18, 0.05, 3),
   },
   tierRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 },
   tierBadge: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 12, paddingVertical: 6, borderRadius: 999, borderWidth: 1 },

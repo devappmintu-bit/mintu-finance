@@ -19,6 +19,7 @@ import Svg, { G, Path, Circle, Defs, LinearGradient as SvgGradient, Stop, Text a
 import * as Haptics from 'expo-haptics';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
+import { shade } from '../../utils/color';
 
 export type Prize = {
   id: string;
@@ -264,16 +265,6 @@ export default SpinWheel;
 
 // ————— helpers —————
 function trunc(str: string, n: number) { return str.length > n ? str.slice(0, n - 1) + '…' : str; }
-function shade(hex: string, pct: number) {
-  try {
-    const c = hex.replace('#', '');
-    const r = parseInt(c.substring(0, 2), 16);
-    const g = parseInt(c.substring(2, 4), 16);
-    const b = parseInt(c.substring(4, 6), 16);
-    const adj = (v: number) => Math.max(0, Math.min(255, Math.round(v + (pct < 0 ? v * pct : (255 - v) * pct))));
-    return `#${[adj(r), adj(g), adj(b)].map(v => v.toString(16).padStart(2, '0')).join('')}`;
-  } catch { return hex; }
-}
 
 const s = StyleSheet.create({
   wrap: { alignItems: 'center', justifyContent: 'flex-start', paddingTop: 8 },

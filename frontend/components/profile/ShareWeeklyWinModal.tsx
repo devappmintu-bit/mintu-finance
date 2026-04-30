@@ -22,7 +22,7 @@ import * as Haptics from 'expo-haptics';
 import Toast from 'react-native-toast-message';
 import WeeklyWinCard, { type WeeklyWinCardProps } from './WeeklyWinCard';
 import { shareImageSmart, copyToClipboard } from '../../utils/share';
-import { useAppColors } from '../../utils/theme';
+import { useAppColors, GLASS } from '../../utils/theme';
 import { makeStyles } from '../../utils/makeStyles';
 
 interface Props {

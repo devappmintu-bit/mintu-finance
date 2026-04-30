@@ -38,9 +38,9 @@ export async function pushRecentSearch(q: string): Promise<void> {
     const curr = await getRecentSearches();
     const next = [term, ...curr.filter((x) => x.toLowerCase() !== term.toLowerCase())].slice(0, RECENT_MAX);
     await AsyncStorage.setItem(RECENT_KEY, JSON.stringify(next));
-  } catch {}
+  } catch (e) { if (__DEV__) console.warn('[search] silent-catch', e); }
 }
 
 export async function clearRecentSearches(): Promise<void> {
-  try { await AsyncStorage.removeItem(RECENT_KEY); } catch {}
+  try { await AsyncStorage.removeItem(RECENT_KEY); } catch (e) { if (__DEV__) console.warn('[search] silent-catch', e); }
 }

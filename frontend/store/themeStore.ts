@@ -1,23 +1,20 @@
 /**
- * useThemePref — user's theme-mode preference with AMOLED escalation.
+ * useThemePref — Round 56 LIGHT-ONLY THEME.
  *
- * Modes:
- *   • `light`  — white fintech palette
- *   • `dark`   — obsidian + neon orange (default)
- *   • `system` — follows OS appearance
+ * The app has fully committed to the Glassmorphic Light design system.
+ * This store is retained as a THIN COMPATIBILITY SHIM so any legacy
+ * import in the codebase (e.g. `useResolvedTheme()` in _layout.tsx,
+ * `useThemePref` in ThemeTransitionOverlay) keeps compiling. All modes
+ * resolve to `'light'` and mutators are no-ops.
  *
- * AMOLED is NOT a separate mode — instead, we expose an `amoled: boolean`
- * preference. When `amoled=true` AND the resolved theme is `dark`, the engine
- * uses the true-black AMOLED palette instead of the regular obsidian.
- * This avoids cluttering the main toggle with 4 pills.
+ * Do NOT add new consumers here — prefer `useAppColors()` / `GLASS` from
+ * utils/theme.ts directly.
  */
 import { create } from 'zustand';
-import AsyncStorage from '@react-native-async-storage/async-storage';
-import { Appearance } from 'react-native';
 import { applyTheme as applyEngineTheme, ThemeMode as EngineMode } from '../utils/theme';
 
 export type ThemeMode = 'light' | 'dark' | 'system';
-export type ResolvedTheme = EngineMode;   // 'light' | 'dark' | 'amoled'
+export type ResolvedTheme = EngineMode;   // narrowed to 'light' at runtime
 
 type ThemeState = {
   mode: ThemeMode;
@@ -29,61 +26,25 @@ type ThemeState = {
   loadFromStorage: () => Promise<void>;
 };
 
-const KEY_MODE   = '@mintu:theme_mode';
-const KEY_AMOLED = '@mintu:theme_amoled';
-
-const resolveTheme = (pref: ThemeMode, amoled: boolean): ResolvedTheme => {
-  let base: 'light' | 'dark';
-  if (pref === 'light') base = 'light';
-  else if (pref === 'dark') base = 'dark';
-  else base = Appearance.getColorScheme() === 'light' ? 'light' : 'dark';
-  if (base === 'dark' && amoled) return 'amoled';
-  return base;
-};
-
-export const useThemePref = create<ThemeState>((set, get) => ({
-  mode: 'system',
+export const useThemePref = create<ThemeState>((set) => ({
+  mode: 'light',
   amoled: false,
-  ready: false,
-  resolved: 'dark',
-  setMode: async (m) => {
-    const { amoled } = get();
-    const resolved = resolveTheme(m, amoled);
-    set({ mode: m, resolved });
-    applyEngineTheme(resolved);
-    try { await AsyncStorage.setItem(KEY_MODE, m); } catch {}
+  ready: true,
+  resolved: 'light',
+  setMode: async () => {
+    // No-op: light-only. Keep tokens synced just in case.
+    applyEngineTheme('light');
   },
-  setAmoled: async (v) => {
-    const { mode } = get();
-    const resolved = resolveTheme(mode, v);
-    set({ amoled: v, resolved });
-    applyEngineTheme(resolved);
-    try { await AsyncStorage.setItem(KEY_AMOLED, v ? '1' : '0'); } catch {}
+  setAmoled: async () => {
+    // No-op: light-only.
   },
   loadFromStorage: async () => {
-    let stored: ThemeMode = 'system';
-    let amoledStored = false;
-    try {
-      const v = await AsyncStorage.getItem(KEY_MODE);
-      if (v === 'light' || v === 'dark' || v === 'system') stored = v;
-      const a = await AsyncStorage.getItem(KEY_AMOLED);
-      amoledStored = a === '1';
-    } catch {}
-    const resolved = resolveTheme(stored, amoledStored);
-    set({ mode: stored, amoled: amoledStored, resolved, ready: true });
-    applyEngineTheme(resolved);
+    // Guarantee the engine is pinned to light on boot.
+    applyEngineTheme('light');
+    set({ ready: true, mode: 'light', amoled: false, resolved: 'light' });
   },
 }));
 
-// React to OS-level appearance changes (when user has 'system' set).
-Appearance.addChangeListener(({ colorScheme }) => {
-  const state = useThemePref.getState();
-  if (state.mode !== 'system') return;
-  const resolved = resolveTheme('system', state.amoled);
-  useThemePref.setState({ resolved });
-  applyEngineTheme(resolved);
-});
-
 export function useResolvedTheme(): ResolvedTheme {
-  return useThemePref((s) => s.resolved);
+  return 'light';
 }

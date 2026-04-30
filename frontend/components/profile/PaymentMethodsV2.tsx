@@ -21,7 +21,7 @@ import { Ionicons } from '@expo/vector-icons';
 import Toast from 'react-native-toast-message';
 import api from '../../utils/api';
 import useFocusRefresh from '../../hooks/useFocusRefresh';
-import { shadowStyle, COLORS } from '../../utils/theme';
+import { shadowStyle, COLORS, GLASS } from '../../utils/theme';
 import { useAppColors } from '../../utils/theme';
 import { makeStyles } from '../../utils/makeStyles';
 
@@ -497,7 +497,7 @@ const useSStyles = makeStyles((c) => ({
 
 const useMStyles = makeStyles((c) => ({
   backdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.45)', justifyContent: 'flex-end' },
-  sheet: { backgroundColor: c.bg.secondary, borderTopLeftRadius: 24, borderTopRightRadius: 24, padding: 20, paddingBottom: 28 },
+  sheet: { backgroundColor: GLASS.solidBg, borderTopLeftRadius: 24, borderTopRightRadius: 24, borderTopWidth: StyleSheet.hairlineWidth, borderColor: GLASS.borderLight, padding: 20, paddingBottom: 28 },
   grip: { width: 40, height: 4, borderRadius: 2, backgroundColor: c.border.subtle, alignSelf: 'center', marginBottom: 12 },
   title: { fontSize: 18, fontWeight: '900', color: c.text.primary, marginBottom: 4 },
   subtitle: { fontSize: 12, color: c.text.secondary, marginBottom: 10, fontWeight: '600' },

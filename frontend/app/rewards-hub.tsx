@@ -62,24 +62,37 @@ export default function RewardsHubScreen() {
   const c = useAppColors();
   const s = useStyles();
 
+  const [loadErr, setLoadErr] = useState<string | null>(null);
+
   const load = useCallback(async () => {
-    try {
-      const [d, m, f, e] = await Promise.all([
-        fetchRewardsSummary(),
-        fetchMarketplace().catch(() => null),
-        fetchSocialFeed().catch(() => null),
-        fetchEvents().catch(() => null),
-      ]);
-      setData(d);
-      setMarket(m);
-      setFeed(f);
-      setEvents(e);
-    } catch (e: any) {
-      Toast.show({ type: 'error', text1: 'Could not load rewards', text2: e?.message || '' });
-    } finally {
-      setLoading(false);
-      setRefreshing(false);
+    setLoadErr(null);
+    // Round 57 — resilient load: allSettled so a failing primary endpoint
+    // never leaves the screen stuck. Secondary endpoints (market / feed /
+    // events) were already catch-null'd — now the primary (summary) is too
+    // so we can surface a proper Retry affordance instead of an infinite
+    // skeleton when it's the one that 5xx's.
+    const results = await Promise.allSettled([
+      fetchRewardsSummary(),
+      fetchMarketplace(),
+      fetchSocialFeed(),
+      fetchEvents(),
+    ]);
+    const [d, m, f, e] = results;
+    if (d.status === 'fulfilled') {
+      setData(d.value);
+    } else {
+      // Primary failed — expose a retryable error state.
+      const msg = (d.reason as any)?.response?.data?.detail
+        || (d.reason as any)?.message
+        || 'Something went wrong';
+      setLoadErr(msg);
+      Toast.show({ type: 'error', text1: 'Could not load rewards', text2: msg });
     }
+    setMarket(m.status === 'fulfilled' ? m.value : null);
+    setFeed(f.status === 'fulfilled' ? f.value : null);
+    setEvents(e.status === 'fulfilled' ? e.value : null);
+    setLoading(false);
+    setRefreshing(false);
   }, []);
 
   useEffect(() => { load(); }, [load]);
@@ -156,9 +169,28 @@ export default function RewardsHubScreen() {
   }
 
   if (!data) {
+    // Round 57 — proper 4-state error surface. Instead of a dead-end
+    // "Pull to refresh" line, show the actual cause + a Retry button so
+    // users aren't stranded when the rewards summary call 5xx's.
     return (
-      <SafeAreaView style={[s.container, { alignItems: 'center', justifyContent: 'center', padding: 20 }]}>
-        <Text style={{ fontSize: 14, color: COLORS.text.muted }}>Unable to load rewards. Pull to refresh.</Text>
+      <SafeAreaView style={[s.container, { alignItems: 'center', justifyContent: 'center', padding: 24 }]}>
+        <Ionicons name="cloud-offline-outline" size={56} color={COLORS.text.muted} />
+        <Text style={{ fontSize: 16, fontWeight: '800', color: COLORS.text.primary, marginTop: 14, textAlign: 'center' }}>
+          Couldn't load rewards
+        </Text>
+        <Text style={{ fontSize: 13, color: COLORS.text.muted, marginTop: 8, textAlign: 'center', lineHeight: 19 }}>
+          {loadErr || 'Check your connection and try again.'}
+        </Text>
+        <TouchableOpacity
+          style={{
+            marginTop: 18, paddingHorizontal: 24, paddingVertical: 12,
+            backgroundColor: c.accent.primary, borderRadius: 12,
+          }}
+          onPress={() => { setLoading(true); load(); }}
+          activeOpacity={0.85}
+        >
+          <Text style={{ color: '#FFFFFF', fontWeight: '800', fontSize: 14 }}>Retry</Text>
+        </TouchableOpacity>
       </SafeAreaView>
     );
   }
@@ -315,10 +347,10 @@ export default function RewardsHubScreen() {
                 // updates instantly; load() will reconcile with the server
                 // response a moment later.
                 const prevCoins = coins;
-                // TODO: runtime fix needed (Round 49) — `setCoins` was undefined,
-                // optimistic decrement never worked. Now uses `setData` so the
-                // top-level destructure picks up the optimistic value until
-                // load() reconciles with the server.
+                // Round 49 — `setCoins` was undefined, so optimistic
+                // decrement never worked. Now uses `setData` so the
+                // top-level destructure picks up the optimistic value
+                // until load() reconciles with the server.
                 setData((d: any) => d ? { ...d, coins: Math.max(0, coins - r.cost_coins) } : d);
                 try {
                   const res = await claimMarketplaceReward(r.id);
