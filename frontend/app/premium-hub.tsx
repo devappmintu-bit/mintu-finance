@@ -24,6 +24,8 @@ import { PremiumHubSkeleton } from '../components/SkeletonLoader';
 import { fetchPremiumStatus } from '../services/premium';
 import { makeStyles } from '../utils/makeStyles';
 import { COLORS } from '../utils/theme';
+import PremiumCardStack from '../components/premium/PremiumCardStack';
+import { StaggeredEntrance } from '../components/primitives';
 
 type Status = { is_premium?: boolean; tier?: string; plan?: string; premium_until?: string } | null;
 
@@ -95,6 +97,7 @@ export default function PremiumHubScreen() {
         contentContainerStyle={{ padding: 16, paddingBottom: 40 }}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={COLORS.accent.brand} />}
       >
+        <StaggeredEntrance delayMs={70} duration={420} distance={14}>
         {/* Locked state — free users */}
         {!isPremium && (
           <LockedState onUnlock={() => router.push('/(tabs)/profile' as any)} />
@@ -127,11 +130,20 @@ export default function PremiumHubScreen() {
           ))}
         </View>
 
+        {/* Wave 5.8 — Featured premium card stack (auto-cycling hero tiles) */}
+        {isPremium ? (
+          <>
+            <Text style={[s.sectionTitle, { marginTop: 18 }]}>Featured</Text>
+            <PremiumCardStack />
+          </>
+        ) : null}
+
         {/* Perk strip */}
         <View style={s.perkStrip}>
           <Ionicons name="shield-checkmark" size={18} color={COLORS.state.successAlt} />
           <Text style={s.perkStripTxt}>Zero ads, priority AI queue, unlimited chats — always-on for premium members.</Text>
         </View>
+        </StaggeredEntrance>
       </ScrollView>
     </SafeAreaView>
   );

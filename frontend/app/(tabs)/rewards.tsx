@@ -15,6 +15,7 @@ import Skeleton from '../../components/ui/Skeleton';
 import ScoreCard from '../../components/ScoreCard';
 import { t } from '../../utils/i18n';
 import useSwr from '../../hooks/useSwr';
+import { StaggeredEntrance } from '../../components/primitives';
 
 // Push notification handler + registration now live in /hooks/usePushNotifications.ts
 // (set up once globally in app/_layout.tsx).
@@ -96,6 +97,7 @@ function RewardsScreen() {
       >
         <Text style={s.pageTitle}>{t('rewards', lang)}</Text>
 
+        <StaggeredEntrance delayMs={65} duration={420} distance={14}>
         {/* Streak */}
         <View style={s.streakCard}>
           <View style={s.streakRow}>
@@ -165,6 +167,7 @@ function RewardsScreen() {
             </ScrollView>
           </>
         )}
+        </StaggeredEntrance>
 
         <View style={{ height: 32 }} />
       </ScrollView>

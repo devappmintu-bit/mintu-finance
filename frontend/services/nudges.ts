@@ -12,6 +12,7 @@
  * the chip/banner with the strength the server reports.
  */
 import api from '../utils/api';
+import { invalidateAfter } from '../utils/cacheGraph';
 
 export type NudgeStrength = 'soft' | 'medium' | 'strong';
 export type NudgeStatus = 'active' | 'dismissed' | 'resolved';
@@ -44,6 +45,7 @@ export async function fetchActiveNudges(): Promise<PendingNudge[]> {
 export async function dismissNudge(id: string, snoozeHours?: number): Promise<PendingNudge | null> {
   try {
     const r = await api.post(`/nudges/${id}/dismiss`, snoozeHours ? { snooze_hours: snoozeHours } : {});
+    await invalidateAfter('nudge');  // Round 59 — list + home hero refresh
     return (r.data?.nudge as PendingNudge) || null;
   } catch {
     return null;
@@ -53,6 +55,7 @@ export async function dismissNudge(id: string, snoozeHours?: number): Promise<Pe
 export async function resetNudgeForGroup(groupId: string): Promise<void> {
   try {
     await api.post(`/nudges/group/${groupId}/reset`, {});
+    await invalidateAfter('nudge');  // Round 59 — re-engagement clears suppress
   } catch {
     /* best-effort — re-engagement is a soft signal */
   }

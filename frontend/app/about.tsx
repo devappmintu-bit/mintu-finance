@@ -11,6 +11,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { TouchableOpacity } from 'react-native';
 import { COLORS } from '../utils/theme';
 import { makeStyles } from '../utils/makeStyles';
+import { StaggeredEntrance } from '../components/primitives';
 
 export default function AboutScreen() {
   const s = useStyles();
@@ -26,6 +27,7 @@ export default function AboutScreen() {
       </View>
 
       <ScrollView contentContainerStyle={s.body} showsVerticalScrollIndicator={false}>
+        <StaggeredEntrance delayMs={70} duration={420} distance={14}>
         {/* Hero */}
         <View style={s.hero}>
           <Image
@@ -67,6 +69,7 @@ export default function AboutScreen() {
         </View>
 
         <Text style={s.ver}>v1.0.0</Text>
+        </StaggeredEntrance>
       </ScrollView>
     </SafeAreaView>
   );

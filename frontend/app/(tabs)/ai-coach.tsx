@@ -28,6 +28,7 @@ import NeonButton from '../../components/ui/NeonButton';
 import GlowPill from '../../components/ui/GlowPill';
 import Skeleton from '../../components/ui/Skeleton';
 import ThinkingDots from '../../components/ui/ThinkingDots';
+import MintuMascot from '../../components/MintuMascot';
 import { COLORS, FONT_FAMILY, GRADIENT, SPACING, useAppColors } from '../../utils/theme';
 import { makeStyles } from '../../utils/makeStyles';
 import api from '../../utils/api';
@@ -38,6 +39,8 @@ import InvestmentSuggester from '../../components/premium/InvestmentSuggester';
 import PremiumUnlockTeaser from '../../components/premium/PremiumUnlockTeaser';
 import { useActivePlan, FEATURES, canAccess } from '../../utils/premium';
 import MascotMoment from '../../components/MascotMoment';
+import AskMintuPill from '../../components/ai-coach/AskMintuPill';
+import { StaggeredEntrance } from '../../components/primitives';
 import { ROUTES } from '../../constants/routes';
 
 type Pulse = {
@@ -160,6 +163,16 @@ function AICoachTab() {
       <View style={{ paddingHorizontal: SPACING.lg, paddingTop: 4, paddingBottom: 4 }}>
         <MascotMoment mode="coach" autoDismissMs={0} />
       </View>
+
+      {/* Wave 5.4 — Ask Mintu pill. PRIMARY CTA for the AI Coach tab.
+          Previously the "Ask" action lived in an obscure NeonButton row
+          at the bottom of the insights hero — users tapped into Tax /
+          Invest / School far more often than the open-ended chat, even
+          though chat is the product's flagship feature. This pill is
+          full-width, shimmers subtly at idle, and surfaces 3 quick
+          prompts so first-time users can kick off a useful conversation
+          without typing. Tapping any element opens the chat modal. */}
+      <AskMintuPill onAsk={onAskMintu} disabled={!isOnline} />
 
       {/* Tab strip — Insights / Tax / Invest / School */}
       <View style={s.tabStrip}>
@@ -323,9 +336,15 @@ function AICoachTab() {
           </View>
         )}
 
-        {/* Loading skeleton */}
+        {/* Loading skeleton — mascot does the visible "thinking" work
+            while three placeholder bars hint at the layout below. The
+            mascot's faster breath cadence in `thinking` state is a
+            stronger affordance than the static spinner used to be. */}
         {loading && (
           <View style={{ gap: 14, marginTop: SPACING.md }}>
+            <View style={{ alignItems: 'center', paddingVertical: 8 }}>
+              <MintuMascot size={96} state="thinking" />
+            </View>
             <Skeleton.Box h={160} radius={24} />
             <Skeleton.Box h={140} radius={24} />
             <Skeleton.Box h={140} radius={24} />
@@ -334,6 +353,7 @@ function AICoachTab() {
 
         {!loading && (
           <View style={{ gap: 14, marginTop: SPACING.md }}>
+            <StaggeredEntrance delayMs={70} duration={420} distance={14}>
             {/* Pulse — hero insight */}
             <InsightCard
               icon="pulse"
@@ -426,6 +446,7 @@ function AICoachTab() {
                 body="Your money is behaving. Ask me anything below — I'm bored."
               />
             )}
+            </StaggeredEntrance>
           </View>
         )}
 

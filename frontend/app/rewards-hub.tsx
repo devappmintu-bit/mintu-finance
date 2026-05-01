@@ -41,6 +41,7 @@ import {
   claimMarketplaceReward,
 } from '../services/rewards';
 import { useIsOnline } from '../hooks/useIsOnline';
+import { StaggeredEntrance } from '../components/primitives';
 
 export default function RewardsHubScreen() {
   const isOnline = useIsOnline();
@@ -216,6 +217,7 @@ export default function RewardsHubScreen() {
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={c.accent.primary} />}
         showsVerticalScrollIndicator={false}
       >
+        <StaggeredEntrance delayMs={70} duration={420} distance={14}>
         <RewardsHero
           coins={coins}
           freeSpinsLeft={free_spins_left}
@@ -396,6 +398,7 @@ export default function RewardsHubScreen() {
         )}
 
         <View style={{ height: 40 }} />
+        </StaggeredEntrance>
       </ScrollView>
     </SafeAreaView>
   );

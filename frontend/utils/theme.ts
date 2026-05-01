@@ -254,6 +254,158 @@ export const SEMANTIC = {
 export type SemanticToken = keyof typeof SEMANTIC;
 
 // ══════════════════════════════════════════════════════════════════════
+//  SPACE — 8-pt grid spacing tokens (Wave 5.0 · 01 May 2026)
+//  Canonical spacing scale. Use instead of magic numbers.
+//
+//  Scale: 0, 4, 8, 12, 16, 20, 24, 32, 48, 64 (pt)
+//  Aliases: xs/sm/md/lg/xl/2xl/3xl/4xl/5xl for ergonomic names
+// ══════════════════════════════════════════════════════════════════════
+export const SPACE = {
+  0:  0,
+  1:  4,
+  2:  8,
+  3:  12,
+  4:  16,
+  5:  20,
+  6:  24,
+  7:  32,
+  8:  48,
+  9:  64,
+  // Ergonomic aliases — prefer these in new code
+  xs:  4,
+  sm:  8,
+  md: 12,
+  lg: 16,
+  xl: 20,
+  '2xl': 24,
+  '3xl': 32,
+  '4xl': 48,
+  '5xl': 64,
+} as const;
+
+// ══════════════════════════════════════════════════════════════════════
+//  RADIUS — unified corner language
+//  xs (chips/pills) → sm (buttons) → md (cards) → lg (sheets/modals)
+//  → xl (hero cards) → 2xl (glass overlays) → pill (fully rounded)
+// ══════════════════════════════════════════════════════════════════════
+export const RADIUS = {
+  xs:   4,
+  sm:   8,
+  md:  12,
+  lg:  16,
+  xl:  20,
+  xxl: 24,
+  card: 28,        // legacy card corner — KEEP (used in 30+ places)
+  '2xl': 24,
+  '3xl': 32,
+  pill: 999,
+  full: 9999,
+} as const;
+
+// ══════════════════════════════════════════════════════════════════════
+//  ELEVATION — consistent depth tiers. Use as a style spread:
+//    style={[styles.card, ELEVATION.z2]}
+//  z0 = flat, z1 = subtle (default cards), z2 = elevated (modals),
+//  z3 = floating (FABs), z4 = overlay (sheets), z5 = above-all (toasts)
+// ══════════════════════════════════════════════════════════════════════
+export const ELEVATION = {
+  z0: { shadowOpacity: 0, elevation: 0 },
+  z1: {
+    shadowColor: '#0F172A',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.06,
+    shadowRadius: 2,
+    elevation: 1,
+  },
+  z2: {
+    shadowColor: '#0F172A',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.08,
+    shadowRadius: 12,
+    elevation: 3,
+  },
+  z3: {
+    shadowColor: '#0F172A',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.12,
+    shadowRadius: 20,
+    elevation: 6,
+  },
+  z4: {
+    shadowColor: '#0F172A',
+    shadowOffset: { width: 0, height: 16 },
+    shadowOpacity: 0.18,
+    shadowRadius: 32,
+    elevation: 10,
+  },
+  z5: {
+    shadowColor: '#0F172A',
+    shadowOffset: { width: 0, height: 24 },
+    shadowOpacity: 0.22,
+    shadowRadius: 40,
+    elevation: 14,
+  },
+} as const;
+
+// ══════════════════════════════════════════════════════════════════════
+//  TYPO — type-scale presets (font family + size + weight + line-height)
+//  Spread into <Text style={…}>. Reads from Inter ladder.
+//
+//  Named `TYPO` (not `TYPE`) because the legacy `TYPE` export below is a
+//  number-only font-size map used across 150+ call sites — this family
+//  complements it without colliding.
+// ══════════════════════════════════════════════════════════════════════
+export const TYPO = {
+  // Display — hero numbers (home money score, budget total)
+  display: { fontFamily: 'Inter_900Black', fontSize: 48, lineHeight: 52, letterSpacing: -1.2 },
+  // Titles — section headers
+  h0:    { fontFamily: 'Inter_700Bold',    fontSize: 32, lineHeight: 36, letterSpacing: -0.6 },
+  h1:    { fontFamily: 'Inter_700Bold',    fontSize: 24, lineHeight: 28, letterSpacing: -0.4 },
+  h2:    { fontFamily: 'Inter_600SemiBold', fontSize: 20, lineHeight: 24, letterSpacing: -0.3 },
+  h3:    { fontFamily: 'Inter_600SemiBold', fontSize: 17, lineHeight: 22, letterSpacing: -0.2 },
+  // Body + supporting
+  body:  { fontFamily: 'Inter_500Medium',   fontSize: 15, lineHeight: 20, letterSpacing: -0.1 },
+  bodySm:{ fontFamily: 'Inter_500Medium',   fontSize: 13, lineHeight: 18 },
+  caption:{ fontFamily: 'Inter_500Medium',  fontSize: 12, lineHeight: 16, letterSpacing: 0.2 },
+  micro: { fontFamily: 'Inter_600SemiBold', fontSize: 10, lineHeight: 12, letterSpacing: 0.8, textTransform: 'uppercase' as const },
+  // Monospace-ish — used for numbers that tabulate
+  mono:  { fontFamily: 'Inter_600SemiBold', fontSize: 15, lineHeight: 20, fontVariant: ['tabular-nums' as const] },
+} as const;
+
+// ══════════════════════════════════════════════════════════════════════
+//  PRESSURE — standard press-feedback presets for TouchableOpacity /
+//  Pressable. Use as spreads on <Touchable …{...PRESSURE.tap}>
+// ══════════════════════════════════════════════════════════════════════
+export const PRESSURE = {
+  // Default: small inward scale + opacity
+  tap: { activeOpacity: 0.85 },
+  // Bouncy: used for primary CTAs with added haptic
+  bouncy: { activeOpacity: 0.75 },
+  // Ghost: for text links / low-emphasis buttons
+  ghost: { activeOpacity: 0.6 },
+  // Card: for full-card taps that should be subtle
+  card: { activeOpacity: 0.92 },
+  // Scale values for use with useAnimatedStyle / withSpring
+  scale: { idle: 1, pressed: 0.96, bouncyPressed: 0.92 },
+} as const;
+
+// ══════════════════════════════════════════════════════════════════════
+//  HAPTIC_INTENT — semantic haptic names that map to expo-haptics.
+//  Use with utils/haptics.ts::haptic(HAPTIC_INTENT.selection).
+//  Centralising this prevents drift (e.g. half the app using `Light`
+//  and the other half using `Medium` for the same action).
+// ══════════════════════════════════════════════════════════════════════
+export const HAPTIC_INTENT = {
+  selection: 'selection',         // tab/chip select
+  tap: 'impactLight',             // button press
+  confirm: 'impactMedium',        // destructive confirm
+  reward: 'impactHeavy',          // unlock, achievement
+  success: 'notificationSuccess', // write success
+  warning: 'notificationWarning', // over-budget banner
+  error: 'notificationError',     // write fail, wrong PIN
+} as const;
+
+// ══════════════════════════════════════════════════════════════════════
 //  GLASS — glassmorphism surface tokens (light, iOS Crystal style)
 //  Use with <BlurView tint={GLASS.tint} intensity={GLASS.intensity} …>
 // ══════════════════════════════════════════════════════════════════════
@@ -353,15 +505,9 @@ export const SPACING = {
   xxxl: 32,
 };
 
-export const RADIUS = {
-  sm:   8,
-  md:   12,
-  lg:   16,
-  xl:   20,
-  xxl:  24,
-  card: 28,
-  full: 999,
-};
+// Legacy RADIUS definition removed — merged into the top-level
+// RADIUS export above (Wave 5.0). The `card: 28` + `xxl: 24` + `full: 999`
+// tokens are now part of the canonical scale so no migration is needed.
 
 // ══════════════════════════════════════════════════════════════════════
 //  TYPOGRAPHY — Inter-powered (loaded in _layout.tsx via useFonts)

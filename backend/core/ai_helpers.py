@@ -27,6 +27,9 @@ try:
 except Exception:  # pragma: no cover
     LlmChat = UserMessage = None  # type: ignore
 
+# Round 62 — global LLM-call timeout wrapper. See core/llm_safe.py.
+from core.llm_safe import safe_send  # noqa: E402
+
 logger = logging.getLogger(__name__)
 
 
@@ -51,8 +54,14 @@ async def parse_sms_with_ai(sms_text: str) -> Optional[Dict]:
             """,
         ).with_model("openai", "gpt-5.2")
 
-        response = await chat.send_message(UserMessage(text=f"Parse this SMS and return JSON: {sms_text}"))
-
+        response = await safe_send(
+            chat,
+            UserMessage(text=f"Parse this SMS and return JSON: {sms_text}"),
+            timeout=8.0,
+            label="parse_sms_with_ai",
+        )
+        if response is None:
+            return None
         response_text = response.strip()
         if response_text.startswith("```"):
             response_text = response_text.split("```")[1]
@@ -186,7 +195,32 @@ Generate personalized insights based on this data."""
             session_id=f"insights_v2_{user_id}_{now.timestamp()}",
             system_message=system_prompt,
         ).with_model("openai", "gpt-5.2")
-        response = await chat.send_message(UserMessage(text=user_prompt))
+        # Round 62 — global LLM-call timeout. The legacy unbounded
+        # send_message was the smoking gun behind the 30-57 s
+        # `/api/profile/identity` and `/api/rewards/summary` traces
+        # we saw in production access logs.
+        response = await safe_send(
+            chat,
+            UserMessage(text=user_prompt),
+            timeout=10.0,    # generous — heavy synthesis, ~6s P99
+            label="generate_insights",
+        )
+        if response is None:
+            # Fall back to a minimal "soft" insights payload so the UI
+            # still renders something useful instead of erroring out.
+            return {
+                "insight_text": "Keep tracking your expenses.",
+                "weekly_summary": "",
+                "recommendations": [
+                    "Track all your expenses",
+                    "Set category budgets",
+                    "Review spending weekly",
+                ],
+                "savings_tip": "",
+                "mood": "good",
+                "alerts": alerts,
+                "trends": {},
+            }
 
         response_text = response.strip()
         if response_text.startswith("```"):

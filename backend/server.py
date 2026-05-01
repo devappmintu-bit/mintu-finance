@@ -97,23 +97,73 @@ app.add_middleware(SentryContextMiddleware)
 
 
 # ══════════════════════════════════════════════════════════════════════
-#  HEALTH CHECK — Round 51f
-#  GET /api/health → { "status": "ok", "version": "1.0.0" }
+#  STRUCTURED JSON LOGGING — Round 54b
 #
-#  Pure ping. No auth dependency, no database call, no third-party
-#  side-effects. Always returns 200 OK as long as the FastAPI process
-#  is responsive. Used by:
-#    • Kubernetes liveness/readiness probes
-#    • External uptime monitors (UptimeRobot, BetterStack, etc.)
-#    • Load balancers / ingress health checks
-#    • CI smoke tests
-#  Mounted on the main `api_router` so the standard `/api` prefix
-#  applies, BUT since it has no `Depends(get_current_user)` it sits
-#  outside the auth boundary by design.
+#  Switch stdout to JSON when LOG_FORMAT=json (default = text for dev).
+#  Adds a per-request `access` log line with method, route, status,
+#  latency_ms, request_id, user_id, and bytes_out — exactly what
+#  Loki/ELK/CloudWatch expect for SLO dashboards.
+#
+#  Health endpoints are skipped to keep the access log signal-rich
+#  (k8s probes hit /api/health/live every second).
+# ══════════════════════════════════════════════════════════════════════
+from core.logging_config import setup_logging, RequestLogMiddleware  # noqa: E402
+setup_logging()
+app.add_middleware(RequestLogMiddleware)
+
+
+# ══════════════════════════════════════════════════════════════════════
+#  HEALTH CHECK — Round 51f + Production Readiness Audit
+#
+#  Three endpoints exposing the canonical Kubernetes liveness/readiness
+#  contract:
+#    GET /api/health        → legacy alias for /health/live
+#    GET /api/health/live   → process is responsive (no DB call)
+#    GET /api/health/ready  → process AND every critical dependency
+#                              (MongoDB) are reachable within 1500 ms.
+#
+#  The ready-probe deliberately fails closed: a slow Mongo means the
+#  pod should NOT receive traffic. The live-probe always returns 200
+#  unless the event-loop itself is dead — Kubernetes will then SIGKILL.
 # ══════════════════════════════════════════════════════════════════════
 @api_router.get("/health")
 def health_check() -> dict:
+    """Legacy ping — kept for backward compatibility with existing
+    monitors and the old test suite. New consumers SHOULD use
+    /health/live or /health/ready instead."""
     return {"status": "ok", "version": "1.0.0"}
+
+
+@api_router.get("/health/live")
+def health_live() -> dict:
+    """Liveness probe — only checks the FastAPI event-loop is alive.
+    Kubernetes uses this to decide if the pod should be restarted."""
+    return {"status": "alive", "version": "1.0.0"}
+
+
+@api_router.get("/health/ready")
+async def health_ready() -> dict:
+    """Readiness probe — pod is healthy AND every critical dependency
+    (MongoDB) responds within 1.5 s. Returns 503 if any dependency
+    is degraded so K8s removes the pod from the service rotation."""
+    import asyncio
+    from fastapi import HTTPException
+    deps: dict = {"mongo": "unknown"}
+    try:
+        from core.db import db  # local import — avoid boot-time cycles
+        # Cheap admin-level ping with a hard timeout so a slow Mongo
+        # never blocks the probe.
+        await asyncio.wait_for(db.command("ping"), timeout=1.5)
+        deps["mongo"] = "ok"
+    except asyncio.TimeoutError:
+        deps["mongo"] = "timeout"
+    except Exception as exc:  # noqa: BLE001 — capture anything Mongo throws
+        deps["mongo"] = f"down: {type(exc).__name__}"
+
+    overall_ok = all(v == "ok" for v in deps.values())
+    if not overall_ok:
+        raise HTTPException(status_code=503, detail={"status": "degraded", "deps": deps})
+    return {"status": "ready", "version": "1.0.0", "deps": deps}
 
 
 # ══════════════════════════════════════════════════════════════════════
@@ -248,10 +298,41 @@ app.include_router(api_router)
 app.add_middleware(SecurityHeadersMiddleware)
 app.add_middleware(RateLimitMiddleware)
 app.add_middleware(AuditLogMiddleware)
+# ── CORS — production-safe allowlist ─────────────────────────────────
+# Production audit fix: never ship `allow_origins=["*"]` alongside
+# `allow_credentials=True`. The combo is rejected by every modern
+# browser AND opens the API to drive-by hits from any malicious site.
+#
+# We read the allowlist from env at boot. Local dev keeps the
+# permissive default; production sets ALLOWED_ORIGINS to the actual
+# frontend domains (comma-separated, no trailing slashes).
+#   ALLOWED_ORIGINS="https://app.mintu.in,https://*.emergentagent.com"
+#
+# `allow_origin_regex` covers wildcard subdomains (Emergent preview
+# URLs) without using the literal "*" hole.
+import os as _os
+_raw_origins = _os.getenv("ALLOWED_ORIGINS", "").strip()
+if _raw_origins:
+    _allow_origins = [o.strip() for o in _raw_origins.split(",") if o.strip()]
+    _allow_origin_regex = _os.getenv("ALLOWED_ORIGIN_REGEX") or None
+else:
+    # Dev fallback: allow Expo packager + localhost so the existing
+    # local workflow (yarn web, Expo Go via tunnel) keeps working.
+    _allow_origins = [
+        "http://localhost:3000",
+        "http://localhost:8081",
+        "http://localhost:19006",
+    ]
+    # Default regex covers every emergentagent.com preview deployment,
+    # so deploys on the Emergent platform Just Work without needing a
+    # post-deploy env-var change.
+    _allow_origin_regex = r"^https://([a-z0-9-]+\.)*emergentagent\.com$"
+
 app.add_middleware(
     CORSMiddleware,
     allow_credentials=True,
-    allow_origins=["*"],
+    allow_origins=_allow_origins,
+    allow_origin_regex=_allow_origin_regex,
     allow_methods=["*"],
     allow_headers=["*"],
 )

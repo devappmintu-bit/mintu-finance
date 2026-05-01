@@ -2,7 +2,7 @@
 import os
 import re
 import jwt
-from fastapi import Header, HTTPException
+from fastapi import Header, HTTPException, Request
 from dotenv import load_dotenv
 from pathlib import Path
 from bson import ObjectId
@@ -16,7 +16,10 @@ JWT_EXPIRATION_DAYS = 30
 _HEX24 = re.compile(r"^[0-9a-fA-F]{24}$")
 
 
-async def get_current_user(authorization: str = Header(None)) -> str:
+async def get_current_user(
+    request: Request = None,  # type: ignore[assignment]
+    authorization: str = Header(None),
+) -> str:
     """FastAPI dependency — returns the user_id from the Bearer JWT.
 
     Hardened:
@@ -32,6 +35,12 @@ async def get_current_user(authorization: str = Header(None)) -> str:
         hard-deleted user's JWT would still pass auth on /transactions,
         /home/bundle, /split/*, /leaderboard/*, /user/payment-methods
         (only /user/me was safe because it did its own DB lookup).
+      • Round 54b — populates ``request.state.user_id`` so the
+        RequestLogMiddleware access-log line can carry the resolved
+        user identity (the middleware runs *before* this dependency so
+        it can't grab the value itself; we stash it on request.state
+        from inside the dep instead — Starlette finalises the response
+        AFTER all deps return, so the access logger sees the value).
     """
     if not authorization:
         raise HTTPException(status_code=401, detail="Missing authorization header")
@@ -59,6 +68,14 @@ async def get_current_user(authorization: str = Header(None)) -> str:
         # 30-day restore window lapses.
         if exists.get("deleted_at"):
             raise HTTPException(status_code=401, detail="Account scheduled for deletion")
+        # Stash on request.state for the access-log middleware (Round 54b).
+        # Best-effort: if `request` is None (legacy callers, tests) we just
+        # skip — the dep still returns the user_id.
+        if request is not None:
+            try:
+                request.state.user_id = uid
+            except Exception:
+                pass
         return uid
     except jwt.ExpiredSignatureError:
         raise HTTPException(status_code=401, detail="Token expired")

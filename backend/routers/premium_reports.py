@@ -17,6 +17,8 @@ from core.time import utc_now
 
 try:
     from emergentintegrations.llm.chat import LlmChat, UserMessage
+    # Round 62 — global LLM-call timeout wrapper.
+    from core.llm_safe import safe_send
 except Exception:  # pragma: no cover
     LlmChat = UserMessage = None  # type: ignore
 
@@ -139,7 +141,7 @@ async def deep_report(
                 session_id=f"deep_report_{user_id}_{now.timestamp()}",
                 system_message="You are a CFA coaching an Indian user. Write 4 lines max, no markdown.",
             ).with_model("openai", "gpt-4o")
-            resp = await chat.send_message(UserMessage(text=prompt))
+            resp = (await safe_send(chat, UserMessage(text=prompt), timeout=15.0, label='premium_reports') or "")
             exec_summary = (getattr(resp, "content", None) or str(resp) or "").strip()
     except Exception as e:
         logging.warning("deep_report summary failed: %s", e)

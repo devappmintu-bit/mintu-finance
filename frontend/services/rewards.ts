@@ -2,6 +2,7 @@
  * services/rewards.ts — Referrals, A/B, gamification, share-card wrappers.
  */
 import api from '../utils/api';
+import { invalidateAfter } from '../utils/cacheGraph';
 
 export async function fetchReferralCode(): Promise<any> {
   const r = await api.get('/referral/my-code');
@@ -40,6 +41,7 @@ export async function fetchPaywallGroup(): Promise<any> {
 
 export async function trackAbEvent(event: string, group?: string, placement?: string): Promise<void> {
   try { await api.post('/ab/track-event', { event, group, placement }); } catch { /* silent */ }
+  // Note: /ab/track-event is a fire-and-forget telemetry write — no UI cache to invalidate.
 }
 
 export async function fetchSavingsLeaderboard(): Promise<any> {
@@ -64,6 +66,7 @@ export async function fetchRewardsSummary(): Promise<any> {
 
 export async function spinWheel(): Promise<any> {
   const r = await api.post('/rewards/spin');
+  await invalidateAfter('reward.claim');  // Round 59 — coins/streak/board
   return r.data;
 }
 
@@ -74,6 +77,7 @@ export async function fetchMissions(): Promise<any> {
 
 export async function claimMission(mission_id: string): Promise<any> {
   const r = await api.post('/rewards/missions/claim', { mission_id });
+  await invalidateAfter('reward.claim');  // Round 59 — coins land
   return r.data;
 }
 
@@ -89,6 +93,7 @@ export async function fetchRewardsVouchers(category: string = 'food'): Promise<a
 
 export async function claimVoucher(voucher_id: string): Promise<any> {
   const r = await api.post('/rewards/claim-voucher', { voucher_id });
+  await invalidateAfter('reward.claim');  // Round 59 — wallet/marketplace refresh
   return r.data;
 }
 
@@ -109,6 +114,7 @@ export async function fetchEvents(): Promise<any> {
 
 export async function claimMarketplaceReward(reward_id: string): Promise<any> {
   const r = await api.post('/rewards/claim-marketplace', { reward_id });
+  await invalidateAfter('reward.claim');  // Round 59 — marketplace + wallet
   return r.data;
 }
 

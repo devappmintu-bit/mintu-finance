@@ -4,10 +4,12 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import * as WebBrowser from 'expo-web-browser';
+import * as AuthSession from 'expo-auth-session';
 import { router } from 'expo-router';
 import Toast from 'react-native-toast-message';
 import api from '../utils/api';
 import { fetchGmailStatus, startGmailOAuth, syncGmailNow, disconnectGmail } from '../services/gmail';
+import { StaggeredEntrance } from '../components/primitives';
 import { COLORS, SPACING, RADIUS, useAppColors } from '../utils/theme';
 import { makeStyles } from '../utils/makeStyles';
 import { showError, showSuccess } from '../utils/toast';
@@ -50,11 +52,43 @@ const BANKS = [
 //   ('mintu://gmail-connected'), declared in app.json. `expo-web-browser`
 //   intercepts this scheme and closes the auth session once the OAuth
 //   provider redirects to it.
-const RETURN_URL = Platform.OS === 'web'
-  ? (typeof window !== 'undefined' && window.location?.origin
-      ? window.location.origin + '/gmail-connected'
-      : '/gmail-connected')
-  : 'mintu://gmail-connected';
+// ─────────────────────────────────────────────────────────────────────
+//  REDIRECT URI — runtime-aware via expo-auth-session
+//
+//  Different Expo runtimes need different OAuth callback URLs:
+//    • Web preview          → window.location.origin + '/gmail-connected'
+//    • Standalone iOS / APK → 'mintu://gmail-connected'
+//    • Expo Go              → 'exp://<lan-ip>:port/--/gmail-connected'
+//
+//  AuthSession.makeRedirectUri() handles ALL three correctly. We pass
+//  this URI to:
+//    1. expo-web-browser as the second arg (so it knows when to close
+//       the in-app browser)
+//    2. (optionally) the backend so its callback redirects to the
+//       *current* runtime's URI instead of a hardcoded scheme.
+//
+//  Production caveat: the Google OAuth Console must whitelist
+//  `https://api.<your-domain>/api/oauth/gmail/callback` (the *backend*
+//  callback, not the deep link). The backend then redirects to the
+//  deep link below — Google never sees the deep-link URL.
+// ─────────────────────────────────────────────────────────────────────
+function computeReturnUrl(): string {
+  if (Platform.OS === 'web') {
+    if (typeof window !== 'undefined' && window.location?.origin) {
+      return window.location.origin + '/gmail-connected';
+    }
+    return '/gmail-connected';
+  }
+  // expo-auth-session figures out the right scheme for Expo Go vs
+  // standalone vs dev-client at runtime.
+  return AuthSession.makeRedirectUri({
+    scheme: 'mintu',
+    path: 'gmail-connected',
+    // In Expo Go, fall back to the legacy proxy so OAuth still works
+    // even if the dev hasn't run a custom dev-client build yet.
+    preferLocalhost: false,
+  });
+}
 
 export default function GmailConnectScreen() {
   const s = useStyles();
@@ -80,7 +114,10 @@ export default function GmailConnectScreen() {
   const connect = async () => {
     setConnecting(true);
     try {
-      const r = { data: await startGmailOAuth() };
+      const returnUrl = computeReturnUrl();
+      // Pass our deep-link to the backend so it can redirect back to the
+      // *current* runtime (web preview, dev-client, or standalone).
+      const r = { data: await startGmailOAuth(Platform.OS === 'web' ? undefined : returnUrl) };
       const authUrl: string = r.data.auth_url;
       if (!authUrl) throw new Error('no auth url');
       if (Platform.OS === 'web') {
@@ -97,7 +134,7 @@ export default function GmailConnectScreen() {
         tick();
         return;
       }
-      const result = await WebBrowser.openAuthSessionAsync(authUrl, RETURN_URL, { showInRecents: true });
+      const result = await WebBrowser.openAuthSessionAsync(authUrl, returnUrl, { showInRecents: true });
       if (result.type === 'success' || result.type === 'dismiss') {
         await fetchStatus();
       }
@@ -168,6 +205,7 @@ export default function GmailConnectScreen() {
       </View>
 
       <ScrollView contentContainerStyle={{ padding: SPACING.lg, paddingBottom: 60 }} showsVerticalScrollIndicator={false}>
+        <StaggeredEntrance delayMs={70} duration={420} distance={14}>
         {/* Hero — condensed copy (Phase 2 trust-first UX) */}
         <LinearGradient colors={connected ? ['#047857', COLORS.state.successAlt] : [COLORS.accent.brand, COLORS.accent.brandDark]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={s.hero}>
           <View style={s.heroIcon}>
@@ -267,6 +305,7 @@ export default function GmailConnectScreen() {
             </Text>
           </View>
         </View>
+        </StaggeredEntrance>
       </ScrollView>
     </SafeAreaView>
   );

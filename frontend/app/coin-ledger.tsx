@@ -19,6 +19,7 @@ import { FlashList } from '@shopify/flash-list';
 import * as Haptics from 'expo-haptics';
 import EmptyState from '../components/ui/EmptyState';
 import Skeleton from '../components/ui/Skeleton';
+import { StaggeredListItem } from '../components/primitives';
 import { COLORS, SPACING, useAppColors } from '../utils/theme';
 import {
   fetchLedgerPage, sourceEmoji, timeAgo,
@@ -91,35 +92,37 @@ export default function CoinLedgerScreen() {
 
   const fmt = (n: number) => Math.round(n).toLocaleString('en-IN');
 
-  const renderRow = useCallback(({ item }: { item: LedgerEntry }) => {
+  const renderRow = useCallback(({ item, index }: { item: LedgerEntry; index: number }) => {
     const isEarn = item.type === 'earn';
     const tint = isEarn ? c.state.success : c.state.danger;
     return (
-      <View
-        style={s.row}
-        accessibilityRole="text"
-        accessibilityLabel={`${isEarn ? 'Earned' : 'Spent'} ${item.amount} coins, ${item.description}, balance after ${item.balance_after}`}
-      >
-        <View style={[s.iconWrap, { backgroundColor: tint + '18' }]}>
-          <Text style={s.iconEmoji}>{sourceEmoji(item.source)}</Text>
-          <View style={[s.iconDot, { backgroundColor: tint }]}>
-            {/* White arrow on saturated state-tint dot — intentional per Round 50 audit. */}
-            <Ionicons name={isEarn ? 'arrow-up' : 'arrow-down'} size={9} color="#FFFFFF" />
+      <StaggeredListItem index={index}>
+        <View
+          style={s.row}
+          accessibilityRole="text"
+          accessibilityLabel={`${isEarn ? 'Earned' : 'Spent'} ${item.amount} coins, ${item.description}, balance after ${item.balance_after}`}
+        >
+          <View style={[s.iconWrap, { backgroundColor: tint + '18' }]}>
+            <Text style={s.iconEmoji}>{sourceEmoji(item.source)}</Text>
+            <View style={[s.iconDot, { backgroundColor: tint }]}>
+              {/* White arrow on saturated state-tint dot — intentional per Round 50 audit. */}
+              <Ionicons name={isEarn ? 'arrow-up' : 'arrow-down'} size={9} color="#FFFFFF" />
+            </View>
+          </View>
+          <View style={{ flex: 1 }}>
+            <Text style={s.rowDesc} numberOfLines={1} ellipsizeMode="tail">{item.description}</Text>
+            <Text style={s.rowMeta}>{timeAgo(item.created_at)}</Text>
+          </View>
+          <View style={{ alignItems: 'flex-end' }}>
+            <Text style={[s.rowAmt, { color: tint }]}>
+              {isEarn ? '+' : '−'}{fmt(item.amount)}
+            </Text>
+            <Text style={s.rowBal}>Balance: {fmt(item.balance_after)}</Text>
           </View>
         </View>
-        <View style={{ flex: 1 }}>
-          <Text style={s.rowDesc} numberOfLines={1} ellipsizeMode="tail">{item.description}</Text>
-          <Text style={s.rowMeta}>{timeAgo(item.created_at)}</Text>
-        </View>
-        <View style={{ alignItems: 'flex-end' }}>
-          <Text style={[s.rowAmt, { color: tint }]}>
-            {isEarn ? '+' : '−'}{fmt(item.amount)}
-          </Text>
-          <Text style={s.rowBal}>Balance: {fmt(item.balance_after)}</Text>
-        </View>
-      </View>
+      </StaggeredListItem>
     );
-  }, []);
+  }, [c.state.danger, c.state.success, s]);
 
   // Empty-state copy depends on the active filter.
   const emptyCopy = (() => {
@@ -200,7 +203,7 @@ export default function CoinLedgerScreen() {
                 onCta={() => loadFirstPage(filter)}
               />
             ) : (
-              <EmptyState emoji="🪙" title={emptyCopy.title} subtitle={emptyCopy.sub} />
+              <EmptyState mascot title={emptyCopy.title} subtitle={emptyCopy.sub} />
             )
           }
           ListFooterComponent={

@@ -15,6 +15,8 @@ from core.time import utc_now
 
 try:
     from emergentintegrations.llm.chat import LlmChat, UserMessage
+    # Round 62 — global LLM-call timeout wrapper.
+    from core.llm_safe import safe_send
 except Exception:  # pragma: no cover
     LlmChat = UserMessage = None  # type: ignore
 
@@ -97,7 +99,7 @@ async def _ai_map_to_category(description: str) -> str:
                 "Pick 'Other' only if NONE of the others fit. No prose, no markdown."
             ),
         ).with_model("openai", "gpt-4o")
-        resp = await chat.send_message(UserMessage(text=f"Description: {desc}"))
+        resp = (await safe_send(chat, UserMessage(text=f"Description: {desc}"), timeout=15.0, label='budgets') or "")
         raw = (getattr(resp, "content", None) or str(resp) or "").strip()
         if raw.startswith("```"):
             raw = raw.split("```", 2)[1]

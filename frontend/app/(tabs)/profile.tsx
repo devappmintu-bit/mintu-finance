@@ -49,6 +49,7 @@ import MoneyScoreCard from '../../components/profile/MoneyScoreCard';
 import BoostCarousel from '../../components/profile/BoostCarousel';
 import MissionsEngine, { type Mission } from '../../components/profile/MissionsEngine';
 import ProgressInline from '../../components/profile/ProgressInline';
+import StreakMeter from '../../components/rewards/StreakMeter';
 import BeatLastWeek from '../../components/profile/BeatLastWeek';
 import AICoachOneTap from '../../components/profile/AICoachOneTap';
 import PremiumConversionFunnel from '../../components/profile/PremiumConversionFunnel';
@@ -65,6 +66,7 @@ import SubScreenModal from '../../components/profile/SubScreenModal';
 import EditNameSheet from '../../components/profile/EditNameSheet';
 import LanguageSheet from '../../components/profile/LanguageSheet';
 import ProfileSkeleton from '../../components/profile/ProfileSkeleton';
+import { StaggeredEntrance } from '../../components/primitives';
 
 // Retained sub-screens (opened only via explicit settings tap)
 import BudgetAchievements from '../../components/budget/BudgetAchievements';
@@ -393,7 +395,7 @@ function ProfileScreen() {
         {initialLoading && !identity ? (
           <ProfileSkeleton />
         ) : (
-        <>
+        <StaggeredEntrance delayMs={55} duration={420} distance={14}>
         {/* Round 58 — Profile Revamp.
              Hero replaced by THREE focused glass cards:
               1. Identity (avatar/name/tier)
@@ -441,6 +443,26 @@ function ProfileScreen() {
           coins={coinsBalance}
           onPressViewProgress={goRewards}
         />
+
+        {/* Wave 5.5 — 7-day weekly streak meter (M T W T F S S) */}
+        {streak > 0 ? (
+          <StreakMeter
+            streak={streak}
+            todayIdx={(() => {
+              const js = new Date().getDay();     // 0=Sun..6=Sat
+              return (js + 6) % 7;                 // convert to 0=Mon..6=Sun
+            })()}
+            days={(() => {
+              // Fill the last `streak` days up to (and including) today.
+              const js = new Date().getDay();
+              const todayIdx = (js + 6) % 7;
+              const filled = Math.min(streak, 7);
+              return Array.from({ length: 7 }, (_, i) =>
+                i <= todayIdx && i > todayIdx - filled
+              );
+            })()}
+          />
+        ) : null}
 
         {/* 3b. STREAK & COINS HEALTH — expandable observability card */}
         <StreakCoinsHealthCard
@@ -545,7 +567,7 @@ function ProfileScreen() {
         </View>
         <Text style={s.version}>v1.0.0</Text>
         <View style={{ height: 40 }} />
-        </>
+        </StaggeredEntrance>
         )}
       </ScrollView>
 

@@ -42,6 +42,7 @@ import { fetchGoals, createGoal, Goal } from '../../services/goals';
 import { useIsOnline } from '../../hooks/useIsOnline';
 import { makeStyles } from '../../utils/makeStyles';
 import { COLORS, useAppColors } from '../../utils/theme';
+import { InputAssistantHeader } from '../primitives';
 
 const CATEGORY_META: Record<string, { icon: string; color: string; emoji: string }> = {
   Food:           { icon: 'fast-food',       color: COLORS.accent.brand, emoji: '🍔' },
@@ -319,11 +320,18 @@ export default function BudgetSmartSheet({ editing, currentSpent, onSubmit, onCl
 
   return (
     <View style={s.container}>
-      {/* Header */}
+      {/* Round 57 — Conversational header replaces the flat
+          "Create Budget / Plan smarter" title. The mascot reflects
+          entry progress: idle while the user is selecting category,
+          success once an amount is in place. */}
       <View style={s.header}>
         <View style={{ flex: 1 }}>
-          <Text style={s.title}>{editing ? 'Edit Budget' : 'Create Budget'}</Text>
-          <Text style={s.subtitle}>Plan smarter, save better</Text>
+          <InputAssistantHeader
+            prompt={editing ? 'Editing this budget' : "What's your budget?"}
+            hint="Pick a category, choose an amount, hit save"
+            phase={amount > 0 ? 'success' : 'idle'}
+            mascotSize={48}
+          />
         </View>
         <TouchableOpacity onPress={onClose} hitSlop={14} style={s.closeBtn} testID="bs-close">
           <Ionicons name="close" size={20} color={c.text.muted} />

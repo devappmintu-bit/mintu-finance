@@ -16,6 +16,7 @@ import * as Haptics from 'expo-haptics';
 import Toast from 'react-native-toast-message';
 import EmptyState from '../components/ui/EmptyState';
 import Skeleton from '../components/ui/Skeleton';
+import { StaggeredListItem } from '../components/primitives';
 import { COLORS, SPACING } from '../utils/theme';
 import {
   fetchNotifications, markRead, markAllRead, seedSampleNotifications,
@@ -97,28 +98,30 @@ export default function NotificationsScreen() {
 
   const unreadCount = (items || []).filter((x) => !x.read).length;
 
-  const renderItem = useCallback(({ item }: { item: NotifItem }) => {
+  const renderItem = useCallback(({ item, index }: { item: NotifItem; index: number }) => {
     const icon = ICONS[item.kind] || ICONS.transaction;
     return (
-      <TouchableOpacity
-        onPress={() => onPressItem(item)}
-        style={[s.row, !item.read && s.rowUnread]}
-        accessibilityRole="button"
-        accessibilityLabel={`${item.read ? 'Read' : 'Unread'} notification: ${item.title}`}
-        activeOpacity={0.7}
-      >
-        <View style={[s.iconWrap, { backgroundColor: icon.tint + '18' }]}>
-          <Text style={s.iconEmoji}>{icon.emoji}</Text>
-        </View>
-        <View style={{ flex: 1 }}>
-          <View style={s.rowHead}>
-            <Text numberOfLines={1} style={[s.title, !item.read && s.titleUnread]}>{item.title}</Text>
-            {!item.read && <View style={s.dot} />}
+      <StaggeredListItem index={index}>
+        <TouchableOpacity
+          onPress={() => onPressItem(item)}
+          style={[s.row, !item.read && s.rowUnread]}
+          accessibilityRole="button"
+          accessibilityLabel={`${item.read ? 'Read' : 'Unread'} notification: ${item.title}`}
+          activeOpacity={0.7}
+        >
+          <View style={[s.iconWrap, { backgroundColor: icon.tint + '18' }]}>
+            <Text style={s.iconEmoji}>{icon.emoji}</Text>
           </View>
-          <Text numberOfLines={2} style={s.body}>{item.body}</Text>
-          <Text style={s.time}>{timeAgo(item.created_at)}</Text>
-        </View>
-      </TouchableOpacity>
+          <View style={{ flex: 1 }}>
+            <View style={s.rowHead}>
+              <Text numberOfLines={1} style={[s.title, !item.read && s.titleUnread]}>{item.title}</Text>
+              {!item.read && <View style={s.dot} />}
+            </View>
+            <Text numberOfLines={2} style={s.body}>{item.body}</Text>
+            <Text style={s.time}>{timeAgo(item.created_at)}</Text>
+          </View>
+        </TouchableOpacity>
+      </StaggeredListItem>
     );
   }, [onPressItem]);
 
@@ -161,7 +164,7 @@ export default function NotificationsScreen() {
               />
             ) : (
               <EmptyState
-                emoji="🎉"
+                mascot
                 title="You're all caught up"
                 subtitle="New nudges, alerts, and rewards will show up here."
               />

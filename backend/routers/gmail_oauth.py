@@ -40,7 +40,23 @@ logger = logging.getLogger("gmail_oauth")
 GOOGLE_CLIENT_ID = os.getenv("GOOGLE_CLIENT_ID", "").strip()
 GOOGLE_CLIENT_SECRET = os.getenv("GOOGLE_CLIENT_SECRET", "").strip()
 REDIRECT_URI = os.getenv("GOOGLE_REDIRECT_URI", "").strip()
-APP_DEEPLINK_BASE = os.getenv("APP_DEEPLINK_BASE", "").strip() or "mintu://"
+# Default deep-link base — frontend's expo-auth-session generates `mintu://gmail-connected`
+# via makeRedirectUri({ scheme: 'mintu', path: 'gmail-connected' }).
+# We intentionally store WITHOUT the path so callers can append it cleanly.
+APP_DEEPLINK_BASE = (os.getenv("APP_DEEPLINK_BASE", "").strip().rstrip("/")) or "mintu:/"
+
+
+def _deeplink(path: str, **params) -> str:
+    """Compose a clean deep-link URL — guards against double-slash issues
+    from various APP_DEEPLINK_BASE conventions (`mintu://`, `mintu:/`,
+    `https://app.example.com`)."""
+    p = path.lstrip("/")
+    base = APP_DEEPLINK_BASE.rstrip("/")
+    qs = "&".join(f"{k}={v}" for k, v in params.items() if v is not None)
+    url = f"{base}/{p}"
+    if qs:
+        url += f"?{qs}"
+    return url
 
 SCOPES = [
     "https://www.googleapis.com/auth/gmail.readonly",
@@ -62,23 +78,24 @@ def _client_config() -> dict:
     }
 
 
-async def _save_state(state: str, user_id: str) -> None:
+async def _save_state(state: str, user_id: str, return_uri: Optional[str] = None) -> None:
     await db.oauth_states.insert_one({
         "state": state,
         "user_id": user_id,
+        "return_uri": return_uri,
         "created_at": utc_now(),
         "expires_at": utc_now() + timedelta(minutes=10),
     })
 
 
-async def _consume_state(state: str) -> Optional[str]:
+async def _consume_state(state: str) -> Optional[dict]:
     rec = await db.oauth_states.find_one({"state": state})
     if not rec:
         return None
     await db.oauth_states.delete_one({"_id": rec["_id"]})
     if rec["expires_at"] < utc_now():
         return None
-    return rec["user_id"]
+    return {"user_id": rec["user_id"], "return_uri": rec.get("return_uri")}
 
 
 def _creds_from_doc(doc: dict) -> Credentials:
@@ -124,17 +141,41 @@ async def _get_refreshed_creds(user_id: str) -> Optional[Credentials]:
 #  OAUTH ENDPOINTS
 # ══════════════════════════════════════════════════════════════════════
 @router.get("/oauth/gmail/start")
-async def gmail_oauth_start(user_id: str = Depends(get_current_user)):
-    """Return the Google consent URL. Frontend opens it in a webview."""
+async def gmail_oauth_start(
+    request: Request,
+    return_uri: Optional[str] = None,
+    user_id: str = Depends(get_current_user),
+):
+    """Return the Google consent URL. Frontend opens it in a webview.
+
+    `return_uri` is the deep-link the frontend's WebBrowser is listening on
+    (e.g. `mintu://gmail-connected` for native, or `https://app/gmail-connected`
+    for web). The backend stores it tied to the OAuth `state` and redirects
+    to it after the Google callback succeeds. This makes the same backend
+    work for web preview, dev-client, and standalone iOS/Android — no env
+    var change required per platform.
+
+    SECURITY: only allow URIs that match our app's scheme or known web
+    origin to prevent open-redirect abuse.
+    """
     if not GOOGLE_CLIENT_ID or not GOOGLE_CLIENT_SECRET:
         raise HTTPException(status_code=503, detail="Gmail integration not configured on server")
+
+    # Validate return_uri against allowlist (scheme `mintu:` or our APP_DEEPLINK_BASE host).
+    safe_return_uri: Optional[str] = None
+    if return_uri:
+        if return_uri.startswith("mintu:") or return_uri.startswith(APP_DEEPLINK_BASE):
+            safe_return_uri = return_uri
+        else:
+            logger.warning(f"Rejected return_uri (not in allowlist): {return_uri[:120]}")
+
     flow = Flow.from_client_config(_client_config(), scopes=SCOPES, redirect_uri=REDIRECT_URI)
     url, state = flow.authorization_url(
         access_type="offline",
         prompt="consent",
         include_granted_scopes="true",
     )
-    await _save_state(state, user_id)
+    await _save_state(state, user_id, return_uri=safe_return_uri)
     return {"auth_url": url}
 
 
@@ -142,12 +183,21 @@ async def gmail_oauth_start(user_id: str = Depends(get_current_user)):
 async def gmail_oauth_callback(request: Request, code: Optional[str] = None, state: Optional[str] = None, error: Optional[str] = None):
     """Exchange the auth code for tokens and store them per user."""
     if error:
-        return RedirectResponse(url=f"{APP_DEEPLINK_BASE}/gmail-connected?success=0&error={error}")
+        # We don't have state if Google omitted it, so fall back to default deep-link.
+        if state:
+            consumed = await _consume_state(state)
+            override = (consumed or {}).get("return_uri") if consumed else None
+            if override:
+                sep = "&" if "?" in override else "?"
+                return RedirectResponse(url=f"{override}{sep}success=0&error={error}")
+        return RedirectResponse(url=_deeplink("gmail-connected", success=0, error=error))
     if not code or not state:
         raise HTTPException(status_code=400, detail="Missing code or state")
-    user_id = await _consume_state(state)
-    if not user_id:
+    consumed = await _consume_state(state)
+    if not consumed:
         raise HTTPException(status_code=400, detail="Invalid or expired state")
+    user_id = consumed["user_id"]
+    return_uri_override = consumed.get("return_uri")
 
     flow = Flow.from_client_config(_client_config(), scopes=SCOPES, redirect_uri=REDIRECT_URI)
     with warnings.catch_warnings():
@@ -189,7 +239,11 @@ async def gmail_oauth_callback(request: Request, code: Optional[str] = None, sta
     except Exception:
         pass
 
-    return RedirectResponse(url=f"{APP_DEEPLINK_BASE}/gmail-connected?success=1&email={email or ''}")
+    return RedirectResponse(url=(
+        f"{return_uri_override}{'&' if '?' in return_uri_override else '?'}success=1&email={email or ''}"
+        if return_uri_override
+        else _deeplink("gmail-connected", success=1, email=email or "")
+    ))
 
 
 @router.get("/gmail/status")

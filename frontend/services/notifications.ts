@@ -1,6 +1,7 @@
 // Round 37 — in-app notifications feed client.
 // Surfaces the persistent notifications_feed collection to the UI.
 import api from '../utils/api';
+import { invalidateAfter } from '../utils/cacheGraph';
 
 export type NotifKind = 'transaction' | 'streak' | 'reward' | 'split' | 'goal' | 'budget_alert';
 
@@ -27,19 +28,28 @@ export async function fetchUnreadCount(): Promise<number> {
 }
 
 export async function markRead(id: string): Promise<void> {
-  try { await api.post('/notifications/mark-read', { notification_id: id }); } catch (e) { if (__DEV__) console.warn('[notifications] silent-catch', e); }
+  try {
+    await api.post('/notifications/mark-read', { notification_id: id });
+    // Round 59 — invalidate the notif feed + unread badge so the bell
+    // count drops instantly (was previously stale until next focus).
+    await invalidateAfter('notification');
+  } catch (e) { if (__DEV__) console.warn('[notifications] silent-catch', e); }
 }
 
 export async function markAllRead(): Promise<number> {
   try {
     const r = await api.post('/notifications/mark-all-read');
+    await invalidateAfter('notification');
     return Number(r.data?.updated || 0);
   } catch { return 0; }
 }
 
 // Dev helper — seeds a handful of sample notifications if the feed is empty.
 export async function seedSampleNotifications(): Promise<void> {
-  try { await api.post('/notifications/seed-sample'); } catch (e) { if (__DEV__) console.warn('[notifications] silent-catch', e); }
+  try {
+    await api.post('/notifications/seed-sample');
+    await invalidateAfter('notification');
+  } catch (e) { if (__DEV__) console.warn('[notifications] silent-catch', e); }
 }
 
 // Map notification kind → deep link route. Used on tap.

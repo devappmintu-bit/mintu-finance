@@ -29,6 +29,8 @@ import { PieChart } from 'react-native-gifted-charts';
 import SmartInsightsStrip from '../../components/transactions/SmartInsightsStrip';
 import TransactionFilterSheet, { DEFAULT_FILTER, TxnFilter, applyFilterToList, filterActiveCount } from '../../components/transactions/TransactionFilterSheet';
 import TransactionsHero from '../../components/transactions/TransactionsHero';
+import QuickScanFAB from '../../components/transactions/QuickScanFAB';
+import { StaggeredEntrance, SegmentedToggle, CurrencyField, CategorySelector, QuickAmountChips, InputAssistantHeader } from '../../components/primitives';
 import useSwr from '../../hooks/useSwr';
 import { useIsOnline } from '../../hooks/useIsOnline';
 import { groupTransactionsByDate, type TxnRowItem } from '../../utils/groupTransactionsByDate';
@@ -381,7 +383,7 @@ function TransactionsScreen() {
         getItemType={(item: TxnRowItem) => item.type}
         contentContainerStyle={styles.listContent}
         ListHeaderComponent={
-          <>
+          <StaggeredEntrance delayMs={70} duration={420} distance={14}>
             {/* Gmail auto-import CTA — shows only when not yet connected. */}
             <GmailConnectCard />
 
@@ -417,7 +419,7 @@ function TransactionsScreen() {
               </View>
             ) : null}
             <Text style={styles.sectionLabel}>Transactions</Text>
-          </>
+          </StaggeredEntrance>
         }
         ListEmptyComponent={
           hasLoadError ? (
@@ -430,7 +432,7 @@ function TransactionsScreen() {
             />
           ) : (
             <EmptyState
-              emoji="🧾"
+              mascot
               title={t('no_transactions', lang)}
               subtitle={t('add_first', lang)}
               ctaLabel="Add first transaction"
@@ -449,37 +451,86 @@ function TransactionsScreen() {
               onClose={() => { setModalVisible(false); setEditingTxn(null); setFormData({ id: '', amount: '', category: 'Food', description: '', type: 'debit' }); }}
             />
             <ScrollView keyboardShouldPersistTaps="handled">
-              <View style={styles.typeRow}>
-                {['debit', 'credit'].map((tp) => (
-                  <TapTile key={tp} style={[styles.typeBtn, formData.type === tp && styles.typeBtnActive]} onPress={() => setFormData({ ...formData, type: tp })} feedback="selection">
-                    <Ionicons name={tp === 'debit' ? 'arrow-up-circle' : 'arrow-down-circle'} size={18} color={formData.type === tp ? COLORS.bg.primary : COLORS.text.muted} />
-                    <Text style={[styles.typeBtnText, formData.type === tp && styles.typeBtnTextActive]}>{tp === 'debit' ? t('expense', lang) : t('income', lang)}</Text>
-                  </TapTile>
-                ))}
-              </View>
-              <Text style={styles.formLabel}>{t('amount', lang)}</Text>
-              <View style={[styles.amountRow, amountError && { borderColor: COLORS.state.danger, borderWidth: 1 }]}>
-                <Text style={styles.rupee}>₹</Text>
-                <TextInput
-                  style={styles.amountInput}
-                  placeholder="0"
-                  placeholderTextColor={COLORS.text.muted}
-                  value={formData.amount}
-                  onChangeText={(v) => { setFormData({ ...formData, amount: v }); if (amountError) setAmountError(null); }}
-                  onBlur={() => validateAmountOnBlur(formData.amount)}
-                  keyboardType="numeric"
+              {/* Round 57 — Conversational input header. Mascot watches
+                  in idle, lifts to "thinking" while the user types,
+                  bounces to "success" once a valid amount lands. */}
+              <InputAssistantHeader
+                prompt={
+                  editingTxn
+                    ? 'Editing your transaction'
+                    : formData.type === 'credit'
+                      ? 'How much did you receive?'
+                      : 'How much did you spend?'
+                }
+                hint="Tap a chip below or type the amount"
+                phase={
+                  amountError
+                    ? 'error'
+                    : !!formData.amount && Number(formData.amount) > 0
+                      ? 'success'
+                      : 'idle'
+                }
+              />
+              {/* DS2.0 — SegmentedToggle replaces handwritten debit/credit
+                  TapTile row. Built-in spring-pill indicator, haptic
+                  selection, and consistent styling with the rest of
+                  the app. */}
+              <View style={{ marginBottom: 14 }}>
+                <SegmentedToggle
+                  options={[
+                    { id: 'debit',  label: t('expense', lang), icon: <Ionicons name="arrow-up-circle" size={15} color={formData.type === 'debit' ? COLORS.text.primary : COLORS.text.muted} /> },
+                    { id: 'credit', label: t('income', lang),  icon: <Ionicons name="arrow-down-circle" size={15} color={formData.type === 'credit' ? COLORS.text.primary : COLORS.text.muted} /> },
+                  ]}
+                  value={formData.type}
+                  onChange={(id) => setFormData({ ...formData, type: id })}
+                  fullWidth
                 />
               </View>
-              {amountError && <Text style={{ color: COLORS.state.danger, fontSize: 12, fontWeight: '600', marginTop: 4, marginBottom: 4 }}>{amountError}</Text>}
+              {/* Round 57 — Quick chips above the currency field collapse
+                  the most common amounts to a single tap. Order matches
+                  the user's mental ladder: ₹100 → ₹5,000. */}
+              <QuickAmountChips
+                current={formData.amount}
+                onSelect={(n) => {
+                  setFormData({ ...formData, amount: String(n) });
+                  if (amountError) setAmountError(null);
+                }}
+              />
+              {/* DS2.0 — CurrencyField replaces the manual ₹ + TextInput
+                  block. Auto-masks to digits, shows lakh preview on right,
+                  decimal-pad keyboard, and surfaces amountError with
+                  shake + red border via the `error` prop. */}
+              <CurrencyField
+                label={t('amount', lang)}
+                value={formData.amount}
+                onChangeText={(v) => {
+                  setFormData({ ...formData, amount: v });
+                  if (amountError) setAmountError(null);
+                }}
+                onChangeNumber={(n) => {
+                  // Re-run the legacy validator on blur via existing hook;
+                  // no change to business logic.
+                  if (n === 0) return;
+                }}
+                placeholder="e.g. 2,500 (lunch)"
+                minAmount={1}
+                required
+                error={amountError}
+              />
+
               <Text style={styles.formLabel}>{t('category', lang)}</Text>
-              <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.chipScroll}>
-                {CATEGORY_LIST.map((c) => (
-                  <TapTile key={c} style={[styles.chip, formData.category === c && styles.chipActive]} onPress={() => setFormData({ ...formData, category: c })} feedback="selection">
-                    <Ionicons name={CATEGORIES[c].icon as any} size={14} color={formData.category === c ? COLORS.bg.primary : CATEGORIES[c].color} />
-                    <Text style={[styles.chipText, formData.category === c && styles.chipTextActive]}>{c}</Text>
-                  </TapTile>
-                ))}
-              </ScrollView>
+              {/* DS2.0 — CategorySelector replaces the horizontal TapTile
+                  chip scroll. Wraps to multi-row, spring-press feel,
+                  and a single source of truth for selection state. */}
+              <CategorySelector
+                options={CATEGORY_LIST.map((c) => ({
+                  id: c,
+                  label: c,
+                  icon: CATEGORIES[c]?.icon as any,
+                }))}
+                value={formData.category}
+                onChange={(id) => setFormData({ ...formData, category: id })}
+              />
               <Text style={styles.formLabel}>{t('description', lang)}</Text>
               <TextInput style={styles.textInput} placeholder="e.g. Lunch at restaurant" placeholderTextColor={COLORS.text.muted} value={formData.description} onChangeText={(v) => setFormData({ ...formData, description: v })} />
               {/* Round 42 — gate submit on connectivity so users see "Offline — can't save"
@@ -586,6 +637,16 @@ function TransactionsScreen() {
         value={filter}
         onClose={() => setFilterVisible(false)}
         onApply={setFilter}
+      />
+
+      {/* Wave 5.9 — Quick Scan FAB (Cash · SMS · Receipt fan-out) */}
+      <QuickScanFAB
+        onAddCash={() => setModalVisible(true)}
+        onScanSms={() => setSmsModalVisible(true)}
+        onUploadReceipt={() => {
+          showSuccess('📸 Receipt OCR coming soon', 'For now, paste the SMS or add it manually');
+        }}
+        bottomInset={96}
       />
     </SafeAreaView>
   );

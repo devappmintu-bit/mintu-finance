@@ -11,6 +11,8 @@ Auto-extracted from backend/routers/ai.py (Round 14 refactor).
 Decorators register on the shared APIRouter from routers.ai_common.
 """
 import os
+# Round 62 — global LLM-call timeout wrapper.
+from core.llm_safe import safe_send
 import asyncio
 import logging
 from datetime import datetime, timedelta, date, timezone
@@ -166,7 +168,7 @@ Be specific, actionable, use Indian context. Sound like a smart friend, not a bo
                 session_id=f"waste_{user_id}_{now.timestamp()}",
                 system_message="You are a witty Indian personal finance advisor. Keep it short and punchy."
             ).with_model("openai", "gpt-5.2")
-            ai_resp = await chat.send_message(UserMessage(text=ai_prompt))
+            ai_resp = (await safe_send(chat, UserMessage(text=ai_prompt), timeout=15.0, label='ai_waste') or "")
             txt = ai_resp.strip() if isinstance(ai_resp, str) else str(ai_resp)
             cache_set(f"waste_ai:{user_id}", txt, ttl_seconds=900)
         except Exception as e:

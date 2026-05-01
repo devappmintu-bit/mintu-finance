@@ -29,6 +29,7 @@ import { makeStyles } from '../../utils/makeStyles';
 import { COLORS, SPACING, useAppColors } from '../../utils/theme';
 import { useIsOnline } from '../../hooks/useIsOnline';
 import { showError, showSuccess } from '../../utils/toast';
+import { InputAssistantHeader, QuickAmountChips } from '../../components/primitives';
 
 type Member = { id: string; name: string; phone?: string };
 type SplitType = 'equal' | 'exact' | 'shares';
@@ -328,6 +329,26 @@ export default function AddExpenseScreen() {
 
       <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={{ flex: 1 }}>
         <ScrollView contentContainerStyle={s.scroll} keyboardShouldPersistTaps="handled">
+
+          {/* Round 57 — Conversational input header. Adapts microcopy
+              to the user's intent (new vs. edit) and reacts to amount
+              entry. Mascot lifts to "success" the moment a positive
+              amount lands. */}
+          <InputAssistantHeader
+            prompt={editingExpenseId ? 'Editing this split' : 'How much was the bill?'}
+            hint="Tap a chip below or type the amount"
+            phase={!!amount && Number(amount) > 0 ? 'success' : 'idle'}
+          />
+
+          {/* Round 57 — Quick chips above the amount card. Split-bill
+              presets skew larger than personal txns: ₹200 / ₹500 /
+              ₹1k / ₹2k / ₹5k / ₹10k covers ~85 % of restaurant tabs
+              and trip-share cases. */}
+          <QuickAmountChips
+            current={amount}
+            presets={[200, 500, 1000, 2000, 5000, 10000]}
+            onSelect={(n) => setAmount(String(n))}
+          />
 
           {/* 1. AMOUNT */}
           <View style={s.amountCard}>

@@ -31,7 +31,14 @@ export type WriteKey =
   | 'split.member'
   | 'split.reminder'
   | 'coin.reward'
-  | 'profile';
+  | 'profile'
+  // Round 59 — added to fix stale UI bugs in 4 services that wrote
+  // without invalidating their caches (notifications.ts, rewards.ts,
+  // premium.ts, nudges.ts). See round59 audit in test_result.md.
+  | 'notification'
+  | 'reward.claim'
+  | 'premium.tier'
+  | 'nudge';
 
 // Cache prefixes for each write-key. These are matched with startsWith()
 // against any live useSwr URL so callers don't have to enumerate every
@@ -109,6 +116,31 @@ const GRAPH: Record<WriteKey, string[]> = {
     '/user/me',
     '/user/payment-methods',
     '/home/bundle',
+  ],
+  // Round 59 — fixed-stale-ui write keys.
+  notification: [
+    '/notifications',
+    '/notifications/unread-count',
+    '/home/bundle',           // unread badge surface in greeting card
+  ],
+  'reward.claim': [
+    '/rewards/wallet',
+    '/rewards/marketplace',
+    '/rewards/redemptions',
+    '/coin-ledger',
+    '/gamification/status',
+    '/leaderboard',
+    '/home/bundle',
+    '/user/me',               // reward_coins is on user doc
+  ],
+  'premium.tier': [
+    '/premium/status',
+    '/user/me',
+    '/home/bundle',
+  ],
+  nudge: [
+    '/nudges',                // covers /nudges/list, /nudges/active
+    '/home/bundle',           // home shows top nudge
   ],
 };
 

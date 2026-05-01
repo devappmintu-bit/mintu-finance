@@ -3,6 +3,7 @@
  */
 import api from '../utils/api';
 import type { PremiumStatus } from './types';
+import { invalidateAfter } from '../utils/cacheGraph';
 
 export async function fetchPremiumStatus(): Promise<PremiumStatus> {
   const r = await api.get('/premium/status');
@@ -16,6 +17,9 @@ export async function createPremiumOrder(payload: { plan: 'monthly' | 'yearly' |
 
 export async function verifyPremiumPayment(payload: { order_id: string; payment_id: string; signature: string }): Promise<any> {
   const r = await api.post('/premium/verify-payment', payload);
+  // Round 59 — successful payment flips premium status; refresh the
+  // gates everywhere (paywall, premium-only screens, home upsell).
+  await invalidateAfter('premium.tier');
   return r.data;
 }
 
@@ -29,6 +33,9 @@ export async function awardCoins(action: string, amount: number = 1, dedupeKey?:
   const body: any = { action, amount };
   if (dedupeKey) body.dedupe_key = dedupeKey;
   const r = await api.post('/coins/award', body);
+  // Round 59 — coin balance + ledger refresh so the wallet sticker on
+  // home + the coin-ledger screen update immediately.
+  await invalidateAfter('reward.claim');
   return r.data;
 }
 

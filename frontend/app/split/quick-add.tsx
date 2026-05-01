@@ -28,6 +28,7 @@ import { createDraftExpense } from '../../services/split';
 import { useAppColors, COLORS, SPACING } from '../../utils/theme';
 import { makeStyles } from '../../utils/makeStyles';
 import { fmtINR } from '../../utils/format';
+import { InputAssistantHeader, QuickAmountChips } from '../../components/primitives';
 
 const SUGGESTIONS = [
   { label: 'Food', emoji: '🍔' },
@@ -85,6 +86,20 @@ export default function QuickAddDraft() {
 
       <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={{ flex: 1 }}>
         <ScrollView contentContainerStyle={s.scroll} keyboardShouldPersistTaps="handled">
+
+          {/* Round 57 — Conversational header. Same pattern as
+              add-expense; mascot reflects entry progress. */}
+          <InputAssistantHeader
+            prompt="How much did you spend?"
+            hint="Tap a chip or type below"
+            phase={!!amount && Number(amount) > 0 ? 'success' : 'idle'}
+          />
+
+          <QuickAmountChips
+            current={amount}
+            presets={[100, 250, 500, 1000, 2000, 5000]}
+            onSelect={(n) => setAmount(String(n))}
+          />
 
           <View style={s.amountCard}>
             <Text style={s.rupee}>₹</Text>

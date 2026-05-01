@@ -22,6 +22,7 @@ import DeleteBudgetSheet from '../../components/budget/DeleteBudgetSheet';
 import BudgetInsightsSheet from '../../components/budget/BudgetInsightsSheet';
 import BudgetShareCard from '../../components/budget/BudgetShareCard';
 import BudgetSummaryDonut from '../../components/budget/BudgetSummaryDonut';
+import BudgetHealthRing from '../../components/budget/BudgetHealthRing';
 import BudgetSmartSheet from '../../components/budget/BudgetSmartSheet';
 // BudgetAchievements moved to Profile tab
 import EmptyState from '../../components/ui/EmptyState';
@@ -35,6 +36,7 @@ import { t } from '../../utils/i18n';
 import Toast from 'react-native-toast-message';
 import { BudgetSkeleton } from '../../components/SkeletonLoader';
 import { showError, showInfo, showSuccess } from '../../utils/toast';
+import { StaggeredEntrance } from '../../components/primitives';
 
 const PERIODS = ['daily', 'weekly', 'monthly'];
 
@@ -291,8 +293,33 @@ function BudgetScreen() {
         contentContainerStyle={s.list}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={COLORS.accent.primary} />}
         ListHeaderComponent={
-          <>
+          <StaggeredEntrance delayMs={75} duration={440} distance={14}>
             {/* Budget streak/achievements moved to Profile tab per design ask */}
+            {/* Wave 5.3 — Radial Health Ring (animated %, emerald→saffron→crimson) */}
+            {totalBudget > 0 ? (
+              <BudgetHealthRing
+                totalSpent={totalSpent}
+                totalBudget={totalBudget}
+                subtitle={
+                  totalSpent > totalBudget
+                    ? `Over by ₹${(totalSpent - totalBudget).toLocaleString('en-IN')}`
+                    : `₹${(totalBudget - totalSpent).toLocaleString('en-IN')} left`
+                }
+                onPress={() => {
+                  const over = budgets
+                    .filter((b: any) => (b.spent || 0) > (b.amount || 0))
+                    .sort((a: any, b: any) => (b.spent - b.amount) - (a.spent - a.amount))[0];
+                  if (over) {
+                    setInsightsCtx({
+                      category: over.category,
+                      spent: Number(over.spent || 0),
+                      amount: Number(over.amount || over.budget || 0),
+                      daysLeft: Number(over.days_left ?? over.daysLeft ?? 0),
+                    });
+                  }
+                }}
+              />
+            ) : null}
             {/* Donut chart + legend — primary summary per design ask.
                 "Budget Health" + "Watching" cards were removed. */}
             <BudgetSummaryDonut budgets={budgets} />
@@ -319,11 +346,11 @@ function BudgetScreen() {
                 </TouchableOpacity>
               </View>
             )}
-          </>
+          </StaggeredEntrance>
         }
         ListEmptyComponent={
           <EmptyState
-            emoji="💰"
+            mascot
             title={t('no_budgets', lang)}
             subtitle="Set your first budget and start tracking spending by category."
             ctaLabel={t('create_budget', lang)}

@@ -4,6 +4,8 @@ Auto-extracted from backend/routers/ai.py (Round 14 refactor).
 Decorators register on the shared APIRouter from routers.ai_common.
 """
 import os
+# Round 62 — global LLM-call timeout wrapper.
+from core.llm_safe import safe_send
 import logging
 from datetime import datetime, timedelta, date, timezone
 from typing import List, Dict, Optional
@@ -107,7 +109,7 @@ Generate a JSON report with these EXACT keys:
 {{"headline": "catchy 5-word summary", "health_grade": "A/B/C/D/F", "health_color": "green/yellow/red", "savings_rate": {savings_rate}, "top_insight": "1 sentence key finding", "highlights": ["3-4 bullet point insights"], "recommendations": ["2-3 actionable tips"], "comparison_text": "vs last month comparison"}}
 Return ONLY valid JSON."""
         chat = LlmChat(api_key=os.environ.get("EMERGENT_LLM_KEY", ""), session_id=f"report_{user_id}_{now.timestamp()}", system_message="You are a certified financial planner analyzing an Indian user's expenses.").with_model("openai", "gpt-5.2")
-        resp = await chat.send_message(UserMessage(text=prompt))
+        resp = (await safe_send(chat, UserMessage(text=prompt), timeout=15.0, label='ai_insights') or "")
         resp_text = resp.strip() if isinstance(resp, str) else str(resp)
         import json as json_mod
         report = json_mod.loads(resp_text) if resp_text.startswith("{") else json_mod.loads(resp_text[resp_text.index("{"):resp_text.rindex("}")+1])

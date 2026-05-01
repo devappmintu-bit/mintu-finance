@@ -23,6 +23,7 @@ import { fetchPremiumStatus } from '../services/premium';
 import { COLORS } from '../utils/theme';
 import { makeStyles } from '../utils/makeStyles';
 import FullScreenLoader from '../components/FullScreenLoader';
+import { StaggeredEntrance } from '../components/primitives';
 
 type Card = { id?: string; type?: string; emoji?: string; title?: string; body?: string; xp?: number; color?: string; completed?: boolean };
 type Progress = {
@@ -153,6 +154,7 @@ export default function MoneySchoolScreen() {
         contentContainerStyle={{ padding: 16, paddingBottom: 40 }}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={COLORS.accent.primary} />}
       >
+        <StaggeredEntrance delayMs={65} duration={420} distance={14}>
         {/* Free-user lock banner */}
         {!isPremium && (
           <LinearGradient
@@ -287,6 +289,7 @@ export default function MoneySchoolScreen() {
           <Ionicons name="arrow-back" size={13} color={COLORS.accent.primary} />
           <Text style={s.bottomLinkT}>Back to Premium Hub</Text>
         </TouchableOpacity>
+        </StaggeredEntrance>
       </ScrollView>
     </SafeAreaView>
   );

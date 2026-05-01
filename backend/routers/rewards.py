@@ -881,6 +881,8 @@ async def _fetch_live_vouchers(category: str) -> List[Dict[str, Any]]:
     """Use GPT-5.2 to return 8 Indian coupon codes for the category."""
     try:
         from emergentintegrations.llm.chat import LlmChat, UserMessage
+        # Round 62 — global LLM-call timeout wrapper.
+        from core.llm_safe import safe_send
 
         api_key = os.environ.get("EMERGENT_LLM_KEY", "")
         if not api_key:
@@ -906,7 +908,7 @@ async def _fetch_live_vouchers(category: str) -> List[Dict[str, Any]]:
             system_message=system,
         ).with_model("openai", "gpt-5.2")
 
-        resp = await chat.send_message(UserMessage(text=f"Category: {category}. Give me 8 current Indian coupon codes."))
+        resp = (await safe_send(chat, UserMessage(text=f"Category: {category}. Give me 8 current Indian coupon codes."), timeout=15.0, label='rewards') or "")
         text = resp.strip() if isinstance(resp, str) else str(resp)
         # Strip any markdown
         start = text.find('[')

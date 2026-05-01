@@ -34,6 +34,8 @@ from core import db, get_current_user
 
 try:
     from emergentintegrations.llm.chat import LlmChat, UserMessage
+    # Round 62 — global LLM-call timeout wrapper.
+    from core.llm_safe import safe_send
 except Exception:  # pragma: no cover
     LlmChat = UserMessage = None  # type: ignore
 
@@ -479,7 +481,7 @@ async def mascot_moment(
                 session_id=f"mascot_{user_id}_{utc_now().timestamp()}",
                 system_message=system,
             ).with_model("anthropic", model_id)
-            raw = await chat.send_message(UserMessage(text=user_msg))
+            raw = (await safe_send(chat, UserMessage(text=user_msg), timeout=15.0, label='mascot') or "")
             parsed = _extract_json(raw if isinstance(raw, str) else str(raw))
             cleaned = _validate_moment(parsed, mode=mode, ctx=ctx) if parsed else None
             if cleaned and cleaned["tag"] not in last_tags:

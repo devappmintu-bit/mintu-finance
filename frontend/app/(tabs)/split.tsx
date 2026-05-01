@@ -47,6 +47,8 @@ import InviteGroupSheet from '../../components/split/InviteGroupSheet';
 import EmptyState from '../../components/ui/EmptyState';
 import useSwr from '../../hooks/useSwr';
 import PremiumUnlockTeaser from '../../components/premium/PremiumUnlockTeaser';
+import SplitGroupsList from '../../components/split/SplitGroupsList';
+import { StaggeredEntrance } from '../../components/primitives';
 import { showError, showInfo, showSuccess } from '../../utils/toast';
 
 function SplitScreen() {
@@ -568,39 +570,13 @@ function SplitScreen() {
     <SafeAreaView style={s.bg}><SplitSkeleton /></SafeAreaView>
   );
 
-  // ── Phase 1.1 — Group-name disambiguation ──────────────────────────
-  // When a user has 2+ groups sharing the same name (e.g. two "Hostel"
-  // groups), the meta line is augmented with a short date — and falls
-  // back to a 4-char short-id slug if the dates also collide. Computed
-  // once per render; cost is O(N) over a list capped at 50 groups.
-  const dupNameCounts: Record<string, number> = {};
-  for (const g of groups) {
-    const k = (g?.name || '').trim().toLowerCase();
-    if (!k) continue;
-    dupNameCounts[k] = (dupNameCounts[k] || 0) + 1;
-  }
-  const duplicateNames = new Set(
-    Object.keys(dupNameCounts).filter((k) => dupNameCounts[k] > 1),
-  );
-  const fmtShortDate = (iso?: string): string => {
-    if (!iso) return '';
-    try {
-      const d = new Date(iso);
-      if (Number.isNaN(d.getTime())) return '';
-      return d.toLocaleDateString('en-US', { day: 'numeric', month: 'short' });
-    } catch { return ''; }
-  };
-  const shortIdOf = (id?: string): string =>
-    id ? `#${String(id).slice(-4).toUpperCase()}` : '';
-  // Phase 3 — Prefer the backend-issued group_code when present;
-  // fall back to last-4 of the ObjectId so legacy groups still show
-  // *something* until they're backfilled on the next list-fetch.
-  const codeOf = (gr: any): string =>
-    gr?.group_code || shortIdOf(gr?.id);
+  // Duplicate-name detection, date/code fallbacks, and the group-list
+  // render have all been extracted to SplitGroupsList.tsx (Wave R2).
 
   return (
     <SafeAreaView style={s.bg}>
       <ScrollView contentContainerStyle={s.scroll} refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); fetchData(); }} tintColor={C.accent} />}>
+        <StaggeredEntrance delayMs={65} duration={420} distance={14}>
         {/* HERO — saffron summary card (Phase 2 redesign) */}
         <SplitHero
           balances={balances}
@@ -636,65 +612,20 @@ function SplitScreen() {
           onMarkPaid={markPaidOffline}
         />
 
-        {/* GROUPS */}
-        <Text style={s.section}>{t('groups', lang)}</Text>
-        {groups.length === 0 ? (
-          <EmptyState
-            emoji="👥"
-            title={t('no_groups', lang)}
-            subtitle={t('create_first_group', lang)}
-            ctaLabel="Create group"
-            onCta={() => setModal('create')}
-          />
-        ) : groups.map((gr: any) => {
-          const av = getGA(gr.name);
-          const displayEmoji = gr.custom_emoji || av.emoji;
-          // Phase 1.1 + 3 — Disambiguate same-named groups by prefixing
-          // the creation date; fall back to the backend-issued group_code
-          // when even the date is identical.
-          const memberCount = gr.members?.length || 0;
-          const memberLabel = `${memberCount} ${t('members', lang)}`;
-          const isDup = duplicateNames.has((gr?.name || '').trim().toLowerCase());
-          const datePart = fmtShortDate(gr.created_at);
-          const code = codeOf(gr);
-          const metaLine = isDup
-            ? `${datePart || code} · ${memberLabel}`
-            : memberLabel;
-          return (
-            <PressableGlass
-              key={gr.id}
-              onPress={() => setChatGroup(gr)}
-              feedback="light"
-              style={s.groupCard}
-            >
-              <LinearGradient colors={av.colors.map(c => c + '20') as any} style={s.groupAv}>
-                <Text style={s.groupEmoji}>{displayEmoji}</Text>
-              </LinearGradient>
-              <View style={s.groupInfo}>
-                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-                  <Text style={s.groupName} numberOfLines={1}>{gr.name}</Text>
-                  {/* Phase 3 — Group code chip. Always shown so users
-                      have an unambiguous reference for sharing /
-                      disambiguation. Tap-to-copy via parent press. */}
-                  {!!code && (
-                    <View style={s.groupCodeChip}>
-                      <Text style={s.groupCodeChipT}>{code}</Text>
-                    </View>
-                  )}
-                </View>
-                <Text style={s.groupMeta} numberOfLines={1}>{metaLine}</Text>
-              </View>
-              <PressableGlass onPress={() => openAddExpense(gr)} feedback="light" hitSlop={12}>
-                <Ionicons name="add-circle" size={30} color={C.accent} />
-              </PressableGlass>
-              <PressableGlass onPress={() => openManage(gr)} feedback="light" hitSlop={12} style={{ marginLeft: 8 }}>
-                <Ionicons name="ellipsis-vertical" size={20} color={C.text3} />
-              </PressableGlass>
-            </PressableGlass>
-          );
-        })}
+        {/* Wave R2 refactor — the entire groups list render block
+            (including duplicate-name detection, empty state, and
+            per-group card rendering) lives in SplitGroupsList. */}
+        <SplitGroupsList
+          groups={groups}
+          lang={lang}
+          onPressGroup={setChatGroup}
+          onAddExpense={openAddExpense}
+          onManage={openManage}
+          onCreateGroup={() => setModal('create')}
+        />
 
         <View style={{ height: 30 }} />
+        </StaggeredEntrance>
       </ScrollView>
 
       {/* === SHEETS — lazy-mounted (only the active one renders) === */}
@@ -853,33 +784,8 @@ const useStyles = makeStyles((c) => ({
   },
   emptyTitle: { fontSize: 16, fontWeight: '700', color: C.text3 },
   emptyText: { fontSize: 13, color: C.text4 },
-  groupCard: {
-    flexDirection: 'row', alignItems: 'center',
-    backgroundColor: C.card,
-    borderRadius: 20, padding: 14, marginBottom: 10,
-    borderWidth: 1, borderColor: C.cardBorder,
-    ...SHADOW.sm,
-  },
-  groupAv: { width: 44, height: 44, borderRadius: 14, justifyContent: 'center', alignItems: 'center', marginRight: 12 },
-  groupEmoji: { fontSize: 20 },
-  groupInfo: { flex: 1 },
-  groupName: { fontSize: 16, fontWeight: '700', color: C.text1 },
-  groupMeta: { fontSize: 12, color: C.text3, marginTop: 2 },
-  // Phase 3 — Group code chip (HSTL-7K2 style)
-  groupCodeChip: {
-    paddingHorizontal: 6,
-    paddingVertical: 2,
-    borderRadius: 6,
-    backgroundColor: 'rgba(255, 107, 26, 0.12)',
-    borderWidth: 1,
-    borderColor: 'rgba(255, 107, 26, 0.28)',
-  },
-  groupCodeChipT: {
-    fontSize: 10,
-    fontWeight: '800',
-    color: C.accent,
-    letterSpacing: 0.5,
-  },
+  // groupCard / groupAv / groupEmoji / groupInfo / groupName / groupMeta /
+  // groupCodeChip / groupCodeChipT — all moved to SplitGroupsList.tsx (Wave R2).
 }));
 
 

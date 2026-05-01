@@ -31,6 +31,7 @@ import { makeStyles } from '../utils/makeStyles';
 import { useAuthStore } from '../store/authStore';
 import Toast from 'react-native-toast-message';
 import { shareSmart } from '../utils/share';
+import { StaggeredEntrance } from '../components/primitives';
 
 type Cat = { name: string; amount: number; pct: number };
 type Merch = { name: string; amount: number; pct: number };
@@ -230,7 +231,7 @@ export default function PremiumReportsScreen() {
         )}
 
         {!!data && !loading && (
-          <>
+          <StaggeredEntrance delayMs={65} duration={420} distance={14}>
             {/* Exec summary */}
             {!!data.exec_summary && (
               <View style={s.summaryCard}>
@@ -353,7 +354,7 @@ export default function PremiumReportsScreen() {
                 <Text style={[s.actionTxt, { color: '#fff' }]}>Download PDF</Text>
               </TouchableOpacity>
             </View>
-          </>
+          </StaggeredEntrance>
         )}
       </ScrollView>
     </SafeAreaView>

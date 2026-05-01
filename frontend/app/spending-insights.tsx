@@ -31,6 +31,7 @@ import { COLORS, GLASS, shadowStyle } from '../utils/theme';
 import { makeStyles } from '../utils/makeStyles';
 import { APP_LINK } from '../utils/brand';
 import MascotMoment from '../components/MascotMoment';
+import { StaggeredEntrance } from '../components/primitives';
 
 // Round 57d — first-open mascot moment storage key. Versioned so we can
 // invalidate it later if the welcome copy changes meaningfully.
@@ -218,6 +219,7 @@ export default function SpendingInsightsScreen() {
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={COLORS.accent.brand} />}
         showsVerticalScrollIndicator={false}
       >
+        <StaggeredEntrance delayMs={65} duration={420} distance={14}>
         {errorCount > 0 && (
           <View style={s.warningBar}>
             <Ionicons name="information-circle" size={16} color={COLORS.state.warning} />
@@ -362,6 +364,7 @@ export default function SpendingInsightsScreen() {
           <Ionicons name="share-social" size={18} color="#FFFFFF" />
           <Text style={s.shareBtnTxt}>Share my spending story</Text>
         </TouchableOpacity>
+        </StaggeredEntrance>
       </ScrollView>
     </SafeAreaView>
   );

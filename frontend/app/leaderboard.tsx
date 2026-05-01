@@ -22,6 +22,7 @@ import { makeStyles } from '../utils/makeStyles';
 import { shareImageSmart } from '../utils/share';
 import PremiumUnlockTeaser from '../components/premium/PremiumUnlockTeaser';
 import { LeaderboardSkeleton } from '../components/SkeletonLoader';
+import { StaggeredEntrance } from '../components/primitives';
 import useSwr from '../hooks/useSwr';
 import { showSuccess } from '../utils/toast';
 
@@ -194,6 +195,7 @@ export default function LeaderboardScreen() {
           contentContainerStyle={{ paddingBottom: 40 }}
           refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={c.accent.primary} />}
         >
+          <StaggeredEntrance delayMs={70} duration={420} distance={14}>
           {/* Your Rank Hero Card — wrapped in ViewShot for sharing */}
           {data.you && (
             <ViewShot ref={shareRef} options={{ format: 'png', quality: 0.92 }} style={styles.shareContainer}>
@@ -293,6 +295,7 @@ export default function LeaderboardScreen() {
           <Text style={styles.footerNote}>
             Pull to refresh · Scores update every few minutes
           </Text>
+          </StaggeredEntrance>
         </ScrollView>
       )}
     </SafeAreaView>

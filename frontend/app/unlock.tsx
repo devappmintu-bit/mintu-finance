@@ -25,6 +25,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
+import PinDot from '../components/primitives/PinDot';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Image } from 'expo-image';
 import { router } from 'expo-router';
@@ -310,22 +311,19 @@ export default function UnlockScreen() {
       {/* ── mPIN title + dots ───────────────────────────────────── */}
       <Text style={s.pinTitle}>Enter your mPIN</Text>
       <Animated.View style={[s.pinBoxes, { transform: [{ translateX: shake }] }]}>
-        {[0, 1, 2, 3].map((i) => {
-          const filled = pin.length > i;
-          const errored = !!error;
-          return (
-            <View
-              key={i}
-              style={[
-                s.pinBox,
-                filled && s.pinBoxFilled,
-                errored && s.pinBoxErr,
-              ]}
-            >
-              {filled && <View style={[s.pinCenterDot, errored && { backgroundColor: COLORS.state.danger }]} />}
-            </View>
-          );
-        })}
+        {/* Wave 5.7 — PinDot primitive with ink-pop animation:
+            each dot scales from 0 → 1.25 → 1 spring when the digit
+            lands, and the surrounding box gives a subtle bounce (5%).
+            Error state paints both box border and inner dot crimson
+            while the parent shake animation keeps running. */}
+        {[0, 1, 2, 3].map((i) => (
+          <PinDot
+            key={i}
+            filled={pin.length > i}
+            errored={!!error}
+            testID={`unlock-pin-dot-${i}`}
+          />
+        ))}
       </Animated.View>
       <Text style={[s.errText, { opacity: error ? 1 : 0 }]}>{error || ' '}</Text>
 

@@ -11,6 +11,8 @@ Auto-extracted from backend/routers/ai.py (Round 14 refactor).
 Decorators register on the shared APIRouter from routers.ai_common.
 """
 import os
+# Round 62 — global LLM-call timeout wrapper.
+from core.llm_safe import safe_send
 import logging
 from datetime import datetime, timedelta, date, timezone
 from typing import List, Dict, Optional
@@ -277,7 +279,7 @@ CONTENT RULES:
             system_message=system_prompt
         ).with_model("openai", "gpt-5.2")
         
-        response = await chat.send_message(UserMessage(text=message))
+        response = (await safe_send(chat, UserMessage(text=message), timeout=15.0, label='ai_agent') or "")
         reply = response.strip() if isinstance(response, str) else str(response)
         
         # Store interaction in agent memory

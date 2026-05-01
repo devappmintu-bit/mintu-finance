@@ -25,15 +25,47 @@ from core.time import utc_now
 router = APIRouter(tags=["home_bundle"])
 
 
-async def _safe(coro):
-    """Wrap a coroutine so that failures return None instead of raising.
+# ────────────────────────────────────────────────────────────────────
+#  Per-slice budget (seconds). When a slice exceeds this, we drop it
+#  silently and let the frontend render the fallback UI for that
+#  section. Without this, ONE slow LLM-bound slice (smart_alerts,
+#  weekly_report, ai_predict, card_of_the_day, fomo_feed) drags the
+#  whole bundle to 30 s — exactly what production access logs were
+#  showing on 2026-05-01 (latency_ms=27,295 for /api/home/bundle when
+#  one upstream completion took 27 s).
+#
+# Budgets are tuned so the bundle returns in < 4 s P99 even when
+# every LLM slice is slow:
+#   • Mongo-only slices (recent, stats, snapshot, coins, gamification)
+#     get 1.5 s — they're routinely sub-100 ms; 1.5 s is the alarm
+#     threshold for "DB is sad".
+#   • LLM-bound slices (alerts, weekly_report, ai_predict, cotd, fomo)
+#     get 3.5 s — long enough for a cached completion, short enough
+#     that we drop to fallback before the user notices a lag spike.
+# ────────────────────────────────────────────────────────────────────
+_BUDGET_FAST = 1.5     # mongo / cache
+_BUDGET_LLM  = 3.5     # LLM-backed
 
-    Keeps `/home/bundle` partial-success — one slow/broken upstream won't
-    poison the whole bundle. Frontend has fallback UI for each missing slice.
+
+async def _safe(coro, *, budget: float = _BUDGET_FAST):
+    """Run a coroutine with a hard timeout AND swallow any exception.
+
+    Returns None when:
+      • The coroutine raises (any exception).
+      • The coroutine doesn't complete within `budget` seconds.
+
+    The frontend has fallback UI for every nullable slice in the
+    bundle so a missing slice degrades gracefully instead of breaking
+    the home tab.
     """
     try:
-        return await coro
-    except Exception:  # noqa: BLE001 — swallowed on purpose
+        return await asyncio.wait_for(coro, timeout=budget)
+    except asyncio.TimeoutError:
+        # Important: the underlying coroutine is cancelled when wait_for
+        # times out, so we don't leak its work. The next bundle hit
+        # will re-issue the call (likely against a warmed cache).
+        return None
+    except Exception:  # noqa: BLE001 — partial-success by design
         return None
 
 
@@ -86,19 +118,22 @@ async def home_bundle(lang: str = "en", user_id: str = Depends(get_current_user)
         alerts, weekly_rep, lb, game,
         cotd, fomo, pred, coins,
     ) = await asyncio.gather(
+        # Mongo-only slices — fast, tight budget.
         _safe(get_user_profile(user_id=user_id)),
         _safe(get_stats_overview(user_id=user_id)),
         _safe(_recent()),
         _safe(get_avatar(user_id=user_id)),
         _safe(home_snapshot(user_id=user_id)),
-        _safe(smart_alerts(user_id=user_id)),
-        _safe(weekly_report(user_id=user_id)),
-        _safe(savings_leaderboard(user_id=user_id)),
-        _safe(get_gamification_status(user_id=user_id)),
-        _safe(card_of_the_day(refresh=False, user_id=user_id)),
-        _safe(fomo_feed(user_id=user_id)),
-        _safe(ai_predict(user_id=user_id)),
-        _safe(coins_status(user_id=user_id)),
+        # LLM-bound slices — generous budget that still degrades
+        # gracefully via the frontend's per-section fallback UI.
+        _safe(smart_alerts(user_id=user_id),                         budget=_BUDGET_LLM),
+        _safe(weekly_report(user_id=user_id),                        budget=_BUDGET_LLM),
+        _safe(savings_leaderboard(user_id=user_id),                  budget=_BUDGET_FAST),
+        _safe(get_gamification_status(user_id=user_id),              budget=_BUDGET_FAST),
+        _safe(card_of_the_day(refresh=False, user_id=user_id),       budget=_BUDGET_LLM),
+        _safe(fomo_feed(user_id=user_id),                            budget=_BUDGET_LLM),
+        _safe(ai_predict(user_id=user_id),                           budget=_BUDGET_LLM),
+        _safe(coins_status(user_id=user_id),                         budget=_BUDGET_FAST),
     )
 
     bundle = {

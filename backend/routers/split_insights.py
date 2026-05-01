@@ -246,6 +246,8 @@ async def _fun_fact_for_user(user_id: str, stats: Dict[str, Any]) -> str:
 
     try:
         from emergentintegrations.llm.chat import LlmChat, UserMessage
+        # Round 62 — global LLM-call timeout wrapper.
+        from core.llm_safe import safe_send
         api_key = os.environ.get("EMERGENT_LLM_KEY", "")
         if not api_key:
             return _fallback_fact(stats)
@@ -269,7 +271,7 @@ async def _fun_fact_for_user(user_id: str, stats: Dict[str, Any]) -> str:
             session_id=f"split_fact_{user_id}_{today_key}",
             system_message=sys_msg,
         ).with_model("openai", "gpt-5.2")
-        resp = await chat.send_message(UserMessage(text=prompt))
+        resp = (await safe_send(chat, UserMessage(text=prompt), timeout=15.0, label='split_insights') or "")
         fact = (resp or "").strip().strip('"').strip("'")[:110]
         if not fact:
             fact = _fallback_fact(stats)

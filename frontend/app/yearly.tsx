@@ -16,6 +16,7 @@ import { COLORS, shadowStyle, useAppColors } from '../utils/theme';
 import { makeStyles } from '../utils/makeStyles';
 import { useActivePlan, FEATURES, canAccess } from '../utils/premium';
 import { YearlySkeleton } from '../components/SkeletonLoader';
+import { StaggeredEntrance } from '../components/primitives';
 
 const CHART_H = 180;
 const BAR_WIDTH = 22;
@@ -235,6 +236,7 @@ export default function YearlyDashboard() {
       <ScrollView
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); load(); }} tintColor={tc.accent.brandDeeper} />}
       >
+        <StaggeredEntrance delayMs={65} duration={420} distance={14}>
         {/* Hero headline */}
         {/* Hero — yearly brand gradient (deep indigo-orange, intentional brand identity per Round 50). */}
         <LinearGradient colors={[tc.accent.brandDeeper, tc.accent.brandDeeper]} style={s.hero}>
@@ -362,6 +364,7 @@ export default function YearlyDashboard() {
         </View>
 
         <View style={{ height: 40 }} />
+        </StaggeredEntrance>
       </ScrollView>
     </SafeAreaView>
   );

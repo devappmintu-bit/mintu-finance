@@ -167,7 +167,7 @@ export default function SearchScreen() {
       if (recent.length === 0) {
         return (
           <EmptyState
-            emoji="🔍"
+            mascot
             title="Search your finances"
             subtitle="Find transactions, budgets, goals, or split groups — all in one place."
           />

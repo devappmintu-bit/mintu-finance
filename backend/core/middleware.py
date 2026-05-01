@@ -32,9 +32,13 @@ logger = logging.getLogger(__name__)
 # ══════════════════════════════════════════════════════════════════════
 #  SECURITY CONFIG (can be overridden by server.py; these are defaults)
 # ══════════════════════════════════════════════════════════════════════
-RATE_LIMIT_WINDOW = 60                      # seconds
-RATE_LIMIT_MAX_REQUESTS = 1000              # per window — generous for SPA parallel calls
-AUTH_RATE_LIMIT_MAX = 30                    # stricter for /auth/*
+# ── Rate-limit knobs (env-overridable per the production-readiness audit) ─
+# Production can tune these without a code change. Defaults shown are
+# the values shipped by the original RateLimitMiddleware design.
+import os as _os_rl
+RATE_LIMIT_WINDOW = int(_os_rl.getenv("RATE_LIMIT_WINDOW", "60"))               # seconds
+RATE_LIMIT_MAX_REQUESTS = int(_os_rl.getenv("RATE_LIMIT_MAX_REQUESTS", "1000")) # per window — generous for SPA parallel calls
+AUTH_RATE_LIMIT_MAX = int(_os_rl.getenv("AUTH_RATE_LIMIT_MAX", "30"))           # stricter for /auth/*
 BRUTE_FORCE_LOCKOUT_MINUTES = 15
 BRUTE_FORCE_MAX_FAILURES = 5
 SENSITIVE_FIELDS = ["password", "otp_hash", "_id", "otp"]

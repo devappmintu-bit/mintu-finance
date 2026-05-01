@@ -9,6 +9,8 @@ dedicated sibling modules that decorate on the same shared APIRouter:
     - premium_reports.py (deep-report for paying users)
 """
 import os
+# Round 62 — global LLM-call timeout wrapper.
+from core.llm_safe import safe_send
 import json as json_mod
 import logging
 from datetime import datetime, timedelta, timezone
@@ -479,11 +481,11 @@ async def ai_smart_coach(user_id: str = Depends(get_current_user)):
             ),
         ).with_model("openai", "gpt-5.2")
 
-        response = await chat.send_message(UserMessage(text=(
+        response = (await safe_send(chat, UserMessage(text=(
             f"Income: ₹{total_income:.0f}, Expenses: ₹{total_expense:.0f}. "
             f"Categories: {cat_text}. Score: {user.get('money_score', 50)}. "
             "What should I do with my money this week?"
-        )))
+        )), timeout=15.0, label='premium') or "")
 
         resp_text = str(response).strip()
         if resp_text.startswith("```"):

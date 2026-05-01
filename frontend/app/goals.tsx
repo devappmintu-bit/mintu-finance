@@ -22,6 +22,8 @@ import { GoalsSkeleton } from '../components/SkeletonLoader';
 import Confetti from '../components/Confetti';
 import EmptyState from '../components/ui/EmptyState';
 import ProgressRing from '../components/ui/ProgressRing';
+import GoalsImpactCard from '../components/goals/GoalsImpactCard';
+import { StaggeredEntrance, CurrencyField, InputAssistantHeader, QuickAmountChips } from '../components/primitives';
 import { useIsOnline } from '../hooks/useIsOnline';
 import { makeStyles } from '../utils/makeStyles';
 import { COLORS, useAppColors } from '../utils/theme';
@@ -272,6 +274,7 @@ export default function GoalsScreen() {
         contentContainerStyle={s.scroll}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); loadGoals(); }} tintColor={COLORS.accent.brand} />}
       >
+        <StaggeredEntrance delayMs={65} duration={420} distance={14}>
         {/* Overall summary */}
         <LinearGradient colors={[COLORS.accent.brand, COLORS.accent.brandDark]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={s.summaryCard}>
           <View style={{ flex: 1 }}>
@@ -290,14 +293,26 @@ export default function GoalsScreen() {
 
         {goals.length === 0 ? (
           <EmptyState
-            emoji="🎯"
+            mascot
             title="No goals yet"
             subtitle="Set savings goals — vacation, emergency fund, gadgets — and watch them grow"
             ctaLabel="Create your first goal"
             onCta={openNew}
           />
         ) : (
-          <View style={s.grid}>
+          <>
+            {/* Wave 5.6 — Opinionated impact headline. First glance
+                lands on a celebratory truth (goal smashed / ahead of
+                pace / keep momentum) instead of a to-do list. */}
+            <GoalsImpactCard
+              goals={goals}
+              onPressGoal={(id: string) => {
+                const g = goals.find(x => x.id === id);
+                if (g) openEdit(g);
+              }}
+            />
+
+            <View style={s.grid}>
             {goals.map((g) => {
               const pct = g.target_amount > 0 ? (g.saved_amount / g.target_amount) * 100 : 0;
               const done = pct >= 100;
@@ -341,7 +356,9 @@ export default function GoalsScreen() {
               );
             })}
           </View>
+          </>
         )}
+        </StaggeredEntrance>
 
         <View style={{ height: 40 }} />
       </ScrollView>
@@ -352,7 +369,20 @@ export default function GoalsScreen() {
           <TouchableOpacity activeOpacity={1} onPress={() => setFormVisible(false)} style={s.sheetBgTap} />
           <View style={s.sheet}>
             <View style={s.sheetHandle} />
-            <Text style={s.sheetTitle}>{editingGoal ? 'Edit goal' : 'New goal'}</Text>
+            {/* Round 57 — Conversational input header. Mascot watches
+                idle, lifts to "success" once a target amount lands.
+                Replaces the flat "New goal / Edit goal" title above. */}
+            <InputAssistantHeader
+              prompt={editingGoal ? 'Editing your goal' : "What are you saving for?"}
+              hint="Pick an amount chip or type your target"
+              phase={
+                targetError
+                  ? 'error'
+                  : !!target && Number(target) > 0
+                    ? 'success'
+                    : 'idle'
+              }
+            />
 
             <ScrollView showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
               <Text style={s.fieldLbl}>Name</Text>
@@ -364,29 +394,40 @@ export default function GoalsScreen() {
                 placeholderTextColor={COLORS.text.muted}
               />
 
-              <Text style={s.fieldLbl}>Target amount</Text>
-              <TextInput
-                style={[s.input, targetError && { borderColor: COLORS.state.danger }]}
+              {/* Round 57 — Quick chips above the target field. Goals
+                  span a wider amount range than transactions so we
+                  surface ₹10k → ₹5L. */}
+              <QuickAmountChips
+                current={target}
+                presets={[10000, 25000, 50000, 100000, 250000, 500000]}
+                onSelect={(n) => {
+                  setTarget(String(n));
+                  if (targetError) setTargetError(null);
+                }}
+              />
+
+              {/* DS2.0 — CurrencyField replaces handwritten TextInput
+                  for goal target. Automatic digit masking + lakh preview
+                  + shake-on-error + built-in min validation. */}
+              <CurrencyField
+                label="Target amount"
                 value={target}
                 onChangeText={(v) => { setTarget(v); if (targetError) setTargetError(null); }}
-                onBlur={validateTargetOnBlur}
-                placeholder="25000"
-                keyboardType="numeric"
-                placeholderTextColor={COLORS.text.muted}
+                placeholder="e.g. 25,000 (emergency fund)"
+                minAmount={100}
+                required
+                error={targetError}
               />
-              {targetError && <Text style={{ color: COLORS.state.danger, fontSize: 12, fontWeight: '600', marginTop: 4 }}>{targetError}</Text>}
 
-              <Text style={s.fieldLbl}>Already saved (optional)</Text>
-              <TextInput
-                style={[s.input, savedError && { borderColor: COLORS.state.danger }]}
+              {/* DS2.0 — CurrencyField for optional "already saved" amount.
+                  No `required`, no `minAmount` — user may genuinely start at ₹0. */}
+              <CurrencyField
+                label="Already saved (optional)"
                 value={saved}
                 onChangeText={(v) => { setSaved(v); if (savedError) setSavedError(null); }}
-                onBlur={validateSavedOnBlur}
                 placeholder="0"
-                keyboardType="numeric"
-                placeholderTextColor={COLORS.text.muted}
+                error={savedError}
               />
-              {savedError && <Text style={{ color: COLORS.state.danger, fontSize: 12, fontWeight: '600', marginTop: 4 }}>{savedError}</Text>}
 
               <Text style={s.fieldLbl}>Emoji</Text>
               <View style={s.emojiRow}>

@@ -15,6 +15,8 @@ Auto-extracted from backend/routers/ai.py (Round 14 refactor).
 Decorators register on the shared APIRouter from routers.ai_common.
 """
 import os
+# Round 62 — global LLM-call timeout wrapper.
+from core.llm_safe import safe_send
 import logging
 import random
 from datetime import datetime, timedelta, date, timezone
@@ -85,7 +87,7 @@ async def get_daily_lesson(user_id: str = Depends(get_current_user), lang: str =
         ).with_model("openai", "gpt-5.2")
 
         msg = f"Lesson: {lesson['title']}. User spent ₹{total_spent:.0f} this month, top category: {top_category}."
-        response = await chat.send_message(UserMessage(text=msg))
+        response = (await safe_send(chat, UserMessage(text=msg), timeout=15.0, label='ai_money_school') or "")
         personal_tip = response.strip()
     except Exception as e:
         logging.error(f"Money school AI error: {e}")
@@ -160,7 +162,7 @@ RULES:
 {lang_instr}"""
         ).with_model("openai", "gpt-5.2")
         
-        response = await chat.send_message(UserMessage(text=context))
+        response = (await safe_send(chat, UserMessage(text=context), timeout=15.0, label='ai_money_school') or "")
         response_text = response.strip() if isinstance(response, str) else str(response)
         
         import json as json_mod
@@ -325,7 +327,7 @@ Use REAL numbers from their data. Reference Indian products (Zerodha, SBI, HDFC,
 Make it FUN, specific, and actionable. Not generic boring advice.{lang_instr}"""
         ).with_model("openai", "gpt-5.2")
 
-        response = await chat.send_message(UserMessage(text=context))
+        response = (await safe_send(chat, UserMessage(text=context), timeout=15.0, label='ai_money_school') or "")
         response_text = response.strip() if isinstance(response, str) else str(response)
 
         import json as json_mod

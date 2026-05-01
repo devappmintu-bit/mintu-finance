@@ -17,6 +17,10 @@ from datetime import date, datetime, timezone
 from fastapi import APIRouter, Depends
 from core.time import utc_now
 from emergentintegrations.llm.chat import LlmChat, UserMessage
+# Round 62 — global LLM-call timeout. Caps the previously-unbounded
+# news-regen call that was the smoking gun behind 27 s
+# /api/news/india-finance traces in production access logs.
+from core.llm_safe import safe_send
 
 from core import db, get_current_user
 
@@ -124,7 +128,13 @@ async def _refresh_news_in_background(today: str) -> None:
             session_id=f"news_{today}",
             system_message=f"You are an Indian financial news editor. Today is {today}. Generate realistic, timely news.",
         ).with_model("openai", "gpt-5.2")
-        resp = await chat.send_message(UserMessage(text=prompt))
+        # Round 62 — bounded LLM call. News is always cached for 24h
+        # so missing a regen is fine; the worst case is showing
+        # yesterday's news for a few minutes until the next regen
+        # opportunity.
+        resp = await safe_send(chat, UserMessage(text=prompt), timeout=12.0, label="news_regen")
+        if resp is None:
+            return  # falls through `finally` cleanup
         resp_text = resp.strip() if isinstance(resp, str) else str(resp)
         articles = (
             json.loads(resp_text)
