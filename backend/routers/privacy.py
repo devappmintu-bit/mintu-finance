@@ -3,6 +3,10 @@ import time
 from datetime import datetime, timedelta, timezone
 from bson import ObjectId
 from fastapi import APIRouter, Depends, HTTPException
+from core.time import utc_now
+from core.errors import (
+    raise_user_not_found,
+)
 
 from core import db, get_current_user
 
@@ -20,7 +24,7 @@ async def export_user_data(user_id: str = Depends(get_current_user)):
     """Export all user data in portable JSON format (GDPR Art. 20 / DPDP Sec. 11)"""
     user = await db.users.find_one({"_id": ObjectId(user_id)}, {"password": 0, "_id": 0})
     if not user:
-        raise HTTPException(status_code=404, detail="User not found")
+        raise_user_not_found()
 
     transactions = await db.transactions.find({"user_id": user_id}, {"_id": 0}).to_list(10000)
     budgets = await db.budgets.find({"user_id": user_id}, {"_id": 0}).to_list(100)
@@ -34,7 +38,7 @@ async def export_user_data(user_id: str = Depends(get_current_user)):
     export_data = {
         "export_info": {
             "app": "MintU",
-            "exported_at": datetime.now(timezone.utc).isoformat(),
+            "exported_at": utc_now().isoformat(),
             "format_version": "1.0",
             "legal_basis": "GDPR Art. 20 / India DPDP Act 2023 Sec. 11"
         },
@@ -50,7 +54,7 @@ async def export_user_data(user_id: str = Depends(get_current_user)):
 
     # Audit log
     await db.audit_logs.insert_one({
-        "timestamp": datetime.now(timezone.utc),
+        "timestamp": utc_now(),
         "action": "DATA_EXPORT",
         "user_id": user_id,
         "details": "User requested full data export"
@@ -65,7 +69,7 @@ async def delete_user_account(user_id: str = Depends(get_current_user)):
 
     # Audit BEFORE deletion
     await db.audit_logs.insert_one({
-        "timestamp": datetime.now(timezone.utc),
+        "timestamp": utc_now(),
         "action": "ACCOUNT_DELETION",
         "user_id": user_id,
         "details": "User requested account deletion — all data erased"
@@ -80,7 +84,7 @@ async def delete_user_account(user_id: str = Depends(get_current_user)):
     return {
         "message": "Account and all associated data permanently deleted",
         "legal_basis": "GDPR Art. 17 / India DPDP Act 2023 Sec. 12",
-        "deleted_at": datetime.now(timezone.utc).isoformat()
+        "deleted_at": utc_now().isoformat()
     }
 
 
@@ -144,7 +148,7 @@ async def get_privacy_policy():
 @api_router.post("/privacy/cleanup-expired")
 async def cleanup_expired_data():
     """Remove expired OTPs and rate limit entries — called by cron"""
-    now = datetime.now(timezone.utc)
+    now = utc_now()
 
     # Clean expired OTPs
     otp_result = await db.otps.delete_many({"expires_at": {"$lt": now}})

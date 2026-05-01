@@ -11,6 +11,7 @@ import { useAppColors, GLASS } from '../../utils/theme';
 import { makeStyles } from '../../utils/makeStyles';
 import { updateProfile } from '../../services/user';
 import { useAuthStore } from '../../store/authStore';
+import { showError, showSuccess } from '../../utils/toast';
 
 interface Props {
   visible: boolean;
@@ -36,11 +37,11 @@ export default function EditNameSheet({ visible, currentName, onClose, onSaved }
     try {
       await updateProfile({ name });
       if (user) setUser({ ...user, name });
-      Toast.show({ type: 'success', text1: 'Name updated' });
+      showSuccess('Name updated');
       onSaved?.(name);
       onClose();
     } catch {
-      Toast.show({ type: 'error', text1: 'Could not save', text2: 'Please try again.' });
+      showError('Could not save', 'Please try again.');
     } finally {
       setSaving(false);
     }

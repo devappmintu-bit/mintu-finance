@@ -7,6 +7,7 @@ import { COLORS, ONBOARDING_IMAGES, shadowStyle } from '../utils/theme';
 import { makeStyles } from '../utils/makeStyles';
 import { hasPin, biometricAvailable } from '../utils/lockManager';
 import MintULogo from '../components/MintULogo';
+import { STORAGE } from '../constants/storage';
 
 export default function SplashIndex() {
   const styles = useStyles();
@@ -31,7 +32,7 @@ export default function SplashIndex() {
         const needsUnlock = (await hasPin()) || (await biometricAvailable());
         router.replace(needsUnlock ? '/unlock' : '/(tabs)');
       } else {
-        const seen = await AsyncStorage.getItem('onboarding_seen');
+        const seen = await AsyncStorage.getItem(STORAGE.ONBOARDING_SEEN);
         router.replace(seen ? '/auth' : '/onboarding');
       }
     }, 2200);

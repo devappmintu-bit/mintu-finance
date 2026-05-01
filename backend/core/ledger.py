@@ -56,6 +56,7 @@ from pymongo.errors import DuplicateKeyError
 
 from core.db import db
 from core.ids import safe_oid
+from core.time import utc_now
 
 logger = logging.getLogger(__name__)
 
@@ -87,7 +88,7 @@ async def _update_cached_balance(user_id: str, new_balance: int) -> None:
             "coins_balance": int(new_balance),
             "coins": int(new_balance),         # legacy — rewards.py, analytics.py
             "reward_coins": int(new_balance),  # legacy — split_settle.py, analytics.py
-            "coins_updated_at": datetime.now(timezone.utc),
+            "coins_updated_at": utc_now(),
         }},
     )
 
@@ -123,7 +124,7 @@ async def award_coins(
     if not idempotency_key:
         raise ValueError("idempotency_key is required for award_coins")
 
-    now = datetime.now(timezone.utc)
+    now = utc_now()
     # Compute current balance so we can stamp balance_after atomically.
     balance_before = await _sum_ledger(user_id)
     balance_after = balance_before + amount
@@ -222,7 +223,7 @@ async def spend_coins(
 
     balance_after = int(reserved.get("coins_balance", 0))
     balance_before = balance_after + amount
-    now = datetime.now(timezone.utc)
+    now = utc_now()
 
     # ── STEP 3: Insert the ledger doc. If the idempotency_key is a dup,
     # roll back the reservation so we don't silently eat the coins.

@@ -18,6 +18,11 @@ from pydantic import BaseModel
 
 from core import db, get_current_user
 from core.constants import PREMIUM_FEATURES, PRICING
+from core.users import get_user_by_id
+from core.time import utc_now
+from core.errors import (
+    raise_order_not_found,
+)
 
 try:
     from emergentintegrations.llm.chat import LlmChat, UserMessage
@@ -211,7 +216,7 @@ async def mock_activate_premium(req: MockActivateRequest, user_id: str = Depends
         effective_price = redeem["effective_price"]
         coins_applied = redeem["coins_applied"]
 
-    now = datetime.now(timezone.utc)
+    now = utc_now()
     meta = PRICING[req.plan]
     # India-Hack ladder: all 3 paid tiers are monthly-billed (intro=Micro, monthly=Standard, yearly=Premium).
     # Lifetime tier removed — old ₹2999 exceeded the ₹150 cap.
@@ -241,12 +246,12 @@ async def mock_activate_premium(req: MockActivateRequest, user_id: str = Depends
 @api_router.get("/premium/status")
 async def get_premium_status(user_id: str = Depends(get_current_user)):
     """Return current premium status + full pricing catalog."""
-    user = await db.users.find_one({"_id": ObjectId(user_id)}) or {}
+    user = await get_user_by_id(user_id) or {}
     tier = user.get("premium_tier", "free")
     until = user.get("premium_until")
     if isinstance(until, datetime) and until.tzinfo is None:
         until = until.replace(tzinfo=timezone.utc)
-    is_premium = tier in ("premium", "legend") and (until is None or until > datetime.now(timezone.utc))
+    is_premium = tier in ("premium", "legend") and (until is None or until > utc_now())
     return {
         "is_premium": is_premium,
         "tier": tier,
@@ -260,7 +265,7 @@ async def get_premium_status(user_id: str = Depends(get_current_user)):
 @api_router.get("/premium/paywall-trigger")
 async def get_paywall_trigger(user_id: str = Depends(get_current_user)):
     """Personalised paywall: estimate monthly waste and surface upsell copy."""
-    thirty_days_ago = datetime.now(timezone.utc) - timedelta(days=30)
+    thirty_days_ago = utc_now() - timedelta(days=30)
     txns = await db.transactions.find({
         "user_id": user_id, "type": "debit", "date": {"$gte": thirty_days_ago}
     }).to_list(1000)
@@ -319,7 +324,7 @@ async def create_razorpay_order(req: CreateOrderRequest, user_id: str = Depends(
             "user_id": user_id, "order_id": order["id"], "plan": req.plan,
             "list_price": list_price, "amount": effective_price,
             "coins_to_use": applied_coins, "coin_discount": coin_discount,
-            "status": "created", "created_at": datetime.now(timezone.utc),
+            "status": "created", "created_at": utc_now(),
         })
         key_id = os.environ.get("RAZORPAY_KEY_ID", "")
         backend_base = os.environ.get("APP_DEEPLINK_BASE", "").rstrip("/")
@@ -349,7 +354,7 @@ async def razorpay_checkout_page(order_id: str):
     from fastapi.responses import HTMLResponse
     order = await db.payment_orders.find_one({"order_id": order_id})
     if not order:
-        raise HTTPException(status_code=404, detail="Order not found")
+        raise_order_not_found()
     key_id = os.environ.get("RAZORPAY_KEY_ID", "")
     base = os.environ.get("APP_DEEPLINK_BASE", "").rstrip("/")
     amount_paise = int(order["amount"]) * 100
@@ -402,7 +407,7 @@ async def verify_razorpay_payment(payment_data: dict):
 
     order = await db.payment_orders.find_one({"order_id": order_id})
     if not order:
-        raise HTTPException(status_code=404, detail="Order not found")
+        raise_order_not_found()
     user_id = str(order.get("user_id", ""))
     if not user_id:
         raise HTTPException(status_code=400, detail="Order missing user linkage")
@@ -426,16 +431,16 @@ async def verify_razorpay_payment(payment_data: dict):
         {"$set": {
             "premium_tier": "premium",
             "premium_plan": plan,
-            "premium_until": datetime.now(timezone.utc) + timedelta(days=days),
+            "premium_until": utc_now() + timedelta(days=days),
         }},
     )
     await db.payment_orders.update_one(
         {"order_id": order_id},
-        {"$set": {"status": "paid", "payment_id": payment_id, "paid_at": datetime.now(timezone.utc)}},
+        {"$set": {"status": "paid", "payment_id": payment_id, "paid_at": utc_now()}},
     )
     return {
         "message": "Premium activated!",
-        "premium_until": (datetime.now(timezone.utc) + timedelta(days=days)).isoformat(),
+        "premium_until": (utc_now() + timedelta(days=days)).isoformat(),
         "plan": plan,
         "coins_applied": coins_to_use,
         "coin_discount": coin_discount,
@@ -447,12 +452,12 @@ async def verify_razorpay_payment(payment_data: dict):
 @api_router.post("/premium/ai-coach")
 async def ai_smart_coach(user_id: str = Depends(get_current_user)):
     """AI Smart Coach — personalised weekly advice (premium only)."""
-    user = await db.users.find_one({"_id": ObjectId(user_id)}) or {}
+    user = await get_user_by_id(user_id) or {}
     tier = user.get("premium_tier", "free")
     if tier not in ("premium", "legend", "starter"):
         raise HTTPException(status_code=403, detail="Premium feature. Upgrade to access AI Smart Coach.")
 
-    thirty_days_ago = datetime.now(timezone.utc) - timedelta(days=30)
+    thirty_days_ago = utc_now() - timedelta(days=30)
     txns = await db.transactions.find({"user_id": user_id, "date": {"$gte": thirty_days_ago}}).to_list(1000)
 
     total_income = sum(t["amount"] for t in txns if t.get("type") == "credit")
@@ -466,7 +471,7 @@ async def ai_smart_coach(user_id: str = Depends(get_current_user)):
     try:
         chat = LlmChat(
             api_key=os.environ["EMERGENT_LLM_KEY"],
-            session_id=f"coach_{user_id}_{datetime.now(timezone.utc).timestamp()}",
+            session_id=f"coach_{user_id}_{utc_now().timestamp()}",
             system_message=(
                 "You are MintU AI Smart Coach — a personal financial advisor for Indian users.\n"
                 "Give a detailed, actionable weekly plan. Be specific with ₹ amounts. Reference Indian services.\n"
@@ -501,7 +506,7 @@ async def ai_smart_coach(user_id: str = Depends(get_current_user)):
 @router.get("/premium/features-catalog")
 async def premium_features_catalog(user_id: str = Depends(get_current_user)):
     """Return the full MintU Premium features catalog (for upsell UI)."""
-    user = await db.users.find_one({"_id": ObjectId(user_id)}) or {}
+    user = await get_user_by_id(user_id) or {}
     is_premium = bool(user.get("is_premium", False))
     return {
         "is_premium": is_premium,

@@ -12,6 +12,7 @@ import logging
 from datetime import datetime, timezone
 
 from core.events import on, Events
+from core.time import utc_now
 
 logger = logging.getLogger("mintu.event_handlers")
 
@@ -45,7 +46,7 @@ async def _check_budget_breach(event: dict) -> None:
         return
 
     # Sum this month's debits in this category.
-    month_start = datetime.now(timezone.utc).replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+    month_start = utc_now().replace(day=1, hour=0, minute=0, second=0, microsecond=0)
     pipeline = [
         {"$match": {"user_id": user_id, "category": category, "type": "debit",
                     "date": {"$gte": month_start}}},
@@ -87,7 +88,7 @@ async def _check_budget_breach(event: dict) -> None:
         "month": month_start.strftime("%Y-%m"),
         "used": round(used, 2),
         "cap": round(cap, 2),
-        "created_at": datetime.now(timezone.utc),
+        "created_at": utc_now(),
         "dismissed": False,
     })
 

@@ -26,6 +26,7 @@ import { previewGroupForJoin, joinGroup } from '../../services/split';
 import { useAuthStore } from '../../store/authStore';
 import { makeStyles } from '../../utils/makeStyles';
 import { COLORS, SPACING } from '../../utils/theme';
+import { showError } from '../../utils/toast';
 
 const getInitials = (n?: string) => {
   if (!n) return '?';
@@ -82,7 +83,7 @@ export default function JoinGroupScreen() {
       // Navigate to the group detail or Split tab
       router.replace(`/split/group/${gid}` as any);
     } catch {
-      Toast.show({ type: 'error', text1: 'Could not join group', text2: 'Please try again.' });
+      showError('Could not join group', 'Please try again.');
     } finally { setJoining(false); }
   };
 

@@ -27,6 +27,7 @@ from datetime import datetime, timezone
 from typing import Optional
 
 from fastapi import APIRouter, Depends, Header, HTTPException
+from core.time import utc_now
 from pydantic import BaseModel, Field
 
 from core import db, get_current_user
@@ -204,7 +205,7 @@ def _time_of_day(now: Optional[datetime] = None) -> str:
     take the user's TZ from the client — the LLM only uses this as a
     flavor hint and the static library is TZ-agnostic.
     """
-    n = now or datetime.now(timezone.utc)
+    n = now or utc_now()
     ist_hour = (n.hour + 5) % 24  # rough IST proxy (ignore the 30 min)
     if 5 <= ist_hour < 12:
         return "morning"
@@ -475,7 +476,7 @@ async def mascot_moment(
             model_id = COACH_LLM_MODEL if mode == "coach" else HOME_LLM_MODEL
             chat = LlmChat(
                 api_key=os.environ["EMERGENT_LLM_KEY"],
-                session_id=f"mascot_{user_id}_{datetime.now(timezone.utc).timestamp()}",
+                session_id=f"mascot_{user_id}_{utc_now().timestamp()}",
                 system_message=system,
             ).with_model("anthropic", model_id)
             raw = await chat.send_message(UserMessage(text=user_msg))

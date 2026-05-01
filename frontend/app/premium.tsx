@@ -25,6 +25,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import api from '../utils/api';
+import { fetchAnalyticsSummary } from '../services/transactions';
 import { COLORS } from '../utils/theme';
 import { usePremiumStyles } from '../components/premium/styles';
 import PlansView from '../components/premium/PlansView';
@@ -34,8 +35,10 @@ export default function PremiumHub() {
   const [savings, setSavings] = useState(1275);
 
   useEffect(() => {
-    api.get('/analytics/summary').then((r) => {
-      const total = Number(r.data?.total_expense || 0);
+    // Phase 3 consolidation: route through services/transactions layer
+    // instead of calling api.get('/analytics/summary') directly.
+    fetchAnalyticsSummary().then((data) => {
+      const total = Number((data || {})?.total_expense || 0);
       const guess = Math.max(500, Math.min(10000, Math.round(total * 0.1)));
       setSavings(guess || 1275);
     }).catch(() => {});

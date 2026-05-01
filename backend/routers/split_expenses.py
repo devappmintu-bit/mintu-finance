@@ -28,6 +28,12 @@ from core.idempotency import (
     reserve_idempotency,
 )
 from core.ids import safe_oid
+from core.time import utc_now
+from core.errors import (
+    raise_expense_not_found,
+    raise_group_not_found,
+    raise_invalid_id,
+)
 from routers.split_common import (
     api_router,
     SplitExpenseCreate, invalidate_split_cache_for_group,
@@ -57,7 +63,7 @@ async def add_split_expense(
         raise HTTPException(status_code=400, detail="group_id is required for /split/expenses. Use /split/expenses/draft for unattached expenses.")
     group = await db.split_groups.find_one({"_id": ObjectId(expense.group_id), "members.user_id": user_id})
     if not group:
-        raise HTTPException(status_code=404, detail="Group not found")
+        raise_group_not_found()
 
     member_ids = [m["user_id"] for m in group["members"]]
     # Default paid_by to the current user if not specified
@@ -99,7 +105,7 @@ async def add_split_expense(
         "splits": splits,
         "splits_paise": splits_paise,
         "created_by": user_id,
-        "created_at": datetime.now(timezone.utc)
+        "created_at": utc_now()
     }
 
     # Round 52f \u2014 ATOMIC: expense insert + chat-card insert run as a
@@ -110,7 +116,7 @@ async def add_split_expense(
     payer_name = next((m["name"] for m in group["members"] if m["user_id"] == paid_by), "Someone")
     member_count = len(splits)
     split_member_names = [next((m["name"] for m in group["members"] if m["user_id"] == uid), "?") for uid in splits.keys()]
-    _msg_now = datetime.now(timezone.utc)
+    _msg_now = utc_now()
 
     expense_id_holder: Dict[str, Optional[str]] = {"id": None}
 
@@ -232,7 +238,7 @@ async def create_draft_expense(expense: SplitExpenseCreate, user_id: str = Depen
         "split_type": expense.split_type,
         "splits_hint": expense.splits or {},
         "splits_hint_paise": splits_hint_paise,
-        "created_at": datetime.now(timezone.utc),
+        "created_at": utc_now(),
     }
     result = await db.draft_expenses.insert_one(doc)
     return {
@@ -358,7 +364,7 @@ async def attach_draft_to_group(
         "splits": splits,
         "splits_paise": splits_paise,
         "created_by": user_id,
-        "created_at": datetime.now(timezone.utc),
+        "created_at": utc_now(),
         "from_draft_id": draft_id,  # audit trail
     }
     result = await db.split_expenses.insert_one(exp_doc)
@@ -378,7 +384,7 @@ async def attach_draft_to_group(
             "member_names": split_member_names,
             "expense_id": str(result.inserted_id),
         },
-        "created_at": datetime.now(timezone.utc)
+        "created_at": utc_now()
     })
 
     # Only delete the draft after the real expense is durably written.
@@ -494,10 +500,10 @@ def _compute_splits(amount: float, split_type: str, member_ids: List[str], raw_s
 @api_router.get("/split/groups/{group_id}/expenses")
 async def get_group_expenses(group_id: str, user_id: str = Depends(get_current_user)):
     if not ObjectId.is_valid(group_id):
-        raise HTTPException(status_code=400, detail="Invalid group_id")
+        raise_invalid_id("group_id")
     group = await db.split_groups.find_one({"_id": safe_oid(group_id, field_name="group_id"), "members.user_id": user_id})
     if not group:
-        raise HTTPException(status_code=404, detail="Group not found")
+        raise_group_not_found()
     expenses = await db.split_expenses.find({"group_id": group_id}).sort("created_at", -1).to_list(500)
     for e in expenses:
         e["id"] = str(e["_id"]); del e["_id"]
@@ -510,11 +516,11 @@ async def get_group_expenses(group_id: str, user_id: str = Depends(get_current_u
 @api_router.get("/split/groups/{group_id}/summary")
 async def group_expense_summary(group_id: str, user_id: str = Depends(get_current_user)):
     if not ObjectId.is_valid(group_id):
-        raise HTTPException(status_code=400, detail="Invalid group_id")
+        raise_invalid_id("group_id")
     """Get comprehensive group summary with simplified debts. Must be a group member."""
     group = await db.split_groups.find_one({"_id": safe_oid(group_id, field_name="group_id"), "members.user_id": user_id})
     if not group:
-        raise HTTPException(status_code=404, detail="Group not found")
+        raise_group_not_found()
     
     expenses = await db.split_expenses.find({"group_id": group_id}).sort("created_at", -1).to_list(200)
     settlements = await db.settlements.find({"group_id": group_id}).to_list(200)
@@ -612,14 +618,14 @@ async def delete_expense(expense_id: str, user_id: str = Depends(get_current_use
         raise HTTPException(status_code=400, detail="Invalid expense_id")
     existing = await db.split_expenses.find_one({"_id": safe_oid(expense_id, field_name="expense_id")})
     if not existing:
-        raise HTTPException(status_code=404, detail="Expense not found")
+        raise_expense_not_found()
     group = await db.split_groups.find_one({
         "_id": ObjectId(existing["group_id"]),
         "members.user_id": user_id,
     }) if ObjectId.is_valid(str(existing.get("group_id") or "")) else None
     if not group:
         # Caller is not a group member — treat as not-found to avoid enumeration.
-        raise HTTPException(status_code=404, detail="Expense not found")
+        raise_expense_not_found()
     is_creator = existing.get("created_by") == user_id
     is_payer = existing.get("paid_by") == user_id
     is_admin = group.get("created_by") == user_id
@@ -644,13 +650,13 @@ async def edit_expense(expense_id: str, data: dict, user_id: str = Depends(get_c
         raise HTTPException(status_code=400, detail="Invalid expense_id")
     existing = await db.split_expenses.find_one({"_id": safe_oid(expense_id, field_name="expense_id")})
     if not existing:
-        raise HTTPException(status_code=404, detail="Expense not found")
+        raise_expense_not_found()
     group = await db.split_groups.find_one({
         "_id": ObjectId(existing["group_id"]),
         "members.user_id": user_id,
     }) if ObjectId.is_valid(str(existing.get("group_id") or "")) else None
     if not group:
-        raise HTTPException(status_code=404, detail="Expense not found")
+        raise_expense_not_found()
     is_creator = existing.get("created_by") == user_id
     is_payer = existing.get("paid_by") == user_id
     is_admin = group.get("created_by") == user_id
@@ -706,7 +712,7 @@ async def edit_expense(expense_id: str, data: dict, user_id: str = Depends(get_c
         updates["splits_paise"] = new_splits_paise
 
     if updates:
-        updates["updated_at"] = datetime.now(timezone.utc)
+        updates["updated_at"] = utc_now()
         await db.split_expenses.update_one({"_id": safe_oid(expense_id, field_name="expense_id")}, {"$set": updates})
         # Round 51 — invalidate when amount/splits/payer changed (balance-affecting fields).
         if any(k in updates for k in ("amount", "splits", "split_type", "paid_by")):

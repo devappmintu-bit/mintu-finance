@@ -21,6 +21,7 @@ from __future__ import annotations
 
 import os
 from datetime import datetime, timedelta, timezone
+from core.time import utc_now
 
 import bcrypt
 import jwt
@@ -45,7 +46,7 @@ def verify_password(password: str, hashed: str) -> bool:
 
 def create_token(user_id: str) -> str:
     """Issue a 30-day JWT for ``user_id`` (``user_id`` claim)."""
-    expiration = datetime.now(timezone.utc) + timedelta(days=JWT_EXPIRATION_DAYS)
+    expiration = utc_now() + timedelta(days=JWT_EXPIRATION_DAYS)
     return jwt.encode(
         {"user_id": user_id, "exp": expiration},
         JWT_SECRET,

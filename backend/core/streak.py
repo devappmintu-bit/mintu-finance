@@ -36,16 +36,17 @@ from bson import ObjectId
 from core.db import db
 from core.ids import safe_oid
 from core.ledger import award_coins
+from core.time import utc_now
 
 logger = logging.getLogger(__name__)
 
 
 def _today_utc_date_str() -> str:
-    return datetime.now(timezone.utc).strftime("%Y-%m-%d")
+    return utc_now().strftime("%Y-%m-%d")
 
 
 def _yesterday_utc_date_str() -> str:
-    return (datetime.now(timezone.utc) - timedelta(days=1)).strftime("%Y-%m-%d")
+    return (utc_now() - timedelta(days=1)).strftime("%Y-%m-%d")
 
 
 def _streak_reward_for(day: int) -> int:
@@ -89,7 +90,7 @@ def _user_is_premium(u: Dict[str, Any]) -> bool:
     try:
         if isinstance(until, str):
             until = datetime.fromisoformat(until.replace("Z", "+00:00"))
-        now = datetime.now(timezone.utc)
+        now = utc_now()
         # Normalize naive to UTC
         if until.tzinfo is None:
             until = until.replace(tzinfo=timezone.utc)
@@ -151,7 +152,7 @@ async def _try_consume_freeze(user_id: str, today: str) -> bool:
         {"_id": oid, "streak_freezes_available": {"$gt": 0}},
         {
             "$inc": {"streak_freezes_available": -1},
-            "$set": {"streak_freeze_last_used_at": datetime.now(timezone.utc)},
+            "$set": {"streak_freeze_last_used_at": utc_now()},
         },
         projection={"streak_freezes_available": 1},
     )
@@ -163,7 +164,7 @@ async def _try_consume_freeze(user_id: str, today: str) -> bool:
         await db.streak_freeze_events.insert_one({
             "user_id": user_id,
             "used_on_date": today,
-            "created_at": datetime.now(timezone.utc),
+            "created_at": utc_now(),
             "remaining_after": max(0, int(result.get("streak_freezes_available", 1)) - 1),
         })
     except Exception:
@@ -221,7 +222,7 @@ async def check_in(user_id: str) -> Dict[str, Any]:
 
     today = _today_utc_date_str()
     yesterday = _yesterday_utc_date_str()
-    now = datetime.now(timezone.utc)
+    now = utc_now()
 
     # Atomic read of the current streak state. We do the compare-and-set
     # in Python after this fetch, but then use a conditional update that
@@ -604,7 +605,7 @@ async def get_health(user_id: str) -> Dict[str, Any]:
 
     # ── Coin aggregates via ledger.
     ledger_balance = await get_balance(user_id)
-    now = datetime.now(timezone.utc)
+    now = utc_now()
     seven_days_ago = now - timedelta(days=7)
     thirty_days_ago = now - timedelta(days=30)
 

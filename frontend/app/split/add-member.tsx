@@ -38,6 +38,7 @@ import { usePhoneContacts } from '../../hooks/usePhoneContacts';
 import { makeStyles } from '../../utils/makeStyles';
 import { COLORS, SPACING } from '../../utils/theme';
 import FullScreenLoader from '../../components/FullScreenLoader';
+import { showError, showInfo, showSuccess } from '../../utils/toast';
 
 // ───────────────────────────── Types ─────────────────────────────
 
@@ -288,7 +289,7 @@ export default function AddMemberScreen() {
           setPoolError(true);
         }
       } catch {
-        Toast.show({ type: 'error', text1: 'Could not load group' });
+        showError('Could not load group');
         router.back();
       } finally { setLoading(false); }
     })();
@@ -398,7 +399,7 @@ export default function AddMemberScreen() {
     // De-dupe: if already in group
     const memberPhones = new Set<string>((group?.members || []).map((m: any) => normalizePhone(m.phone || '')));
     if (memberPhones.has(phone)) {
-      Toast.show({ type: 'info', text1: 'This number is already in the group' });
+      showInfo('This number is already in the group');
       return;
     }
     const existing = pool.find(c => c.phone === phone);
@@ -480,7 +481,7 @@ export default function AddMemberScreen() {
     if (Platform.OS !== 'web') Haptics.selectionAsync().catch(() => {});
     try {
       await Clipboard.setStringAsync(inviteLink);
-      Toast.show({ type: 'success', text1: 'Invite link copied' });
+      showSuccess('Invite link copied');
     } catch { /* noop */ }
   };
 

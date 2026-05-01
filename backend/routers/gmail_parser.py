@@ -8,6 +8,7 @@ Design: one or two permissive master regexes that cover the 90% common
 patterns, then category inference via merchant keywords.
 """
 from __future__ import annotations
+from core.time import utc_now
 import re
 from datetime import datetime, timezone
 from typing import Optional, Dict
@@ -140,7 +141,7 @@ def parse_bank_body(body: str, subject: str = "", received_at: Optional[datetime
         merchant = merchant[:48]
 
     # Date
-    date = _parse_date(b) or received_at or datetime.now(timezone.utc)
+    date = _parse_date(b) or received_at or utc_now()
 
     category = _infer_category(merchant, b)
 

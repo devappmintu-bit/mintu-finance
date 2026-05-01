@@ -14,7 +14,7 @@
  *  9. Premium + Money School       (compact)
  * 10. Weekly Report · Leaderboard · News
  */
-import React, { useState, useEffect, useCallback, useRef } from 'react';
+import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { StyleSheet, View, Text, ScrollView, RefreshControl, InteractionManager, TouchableOpacity, AppState } from 'react-native';
 import { Image } from 'expo-image';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -50,6 +50,7 @@ import FinancialBrainCard from '../../components/home/FinancialBrainCard';
 import EmbeddedFinanceCard from '../../components/home/EmbeddedFinanceCard';
 import WelcomeNewUserCard from '../../components/home/WelcomeNewUserCard';
 import Confetti from '../../components/Confetti';
+import { ROUTES } from '../../constants/routes';
 
 function HomeScreen() {
   const styles = useStyles();
@@ -212,7 +213,54 @@ function HomeScreen() {
   }, [lang]);
 
   useEffect(() => { fetchData(); }, [fetchData]);
-  const onRefresh = () => { setRefreshing(true); fetchData(); };
+  const onRefresh = useCallback(() => { setRefreshing(true); fetchData(); }, [fetchData]);
+
+  // Phase 5 Wave 2B — Stable callbacks for header / section actions so heavy
+  // child components (TapTile/UnifiedLeaderboard/InsightsCard/NewsCarousel)
+  // don't see a fresh onPress identity on every home re-render.
+  const goSearch = useCallback(() => router.push('/search' as any), []);
+  const goNotifications = useCallback(() => router.push('/notifications' as any), []);
+  const goCoinLedger = useCallback(() => router.push('/coin-ledger' as any), []);
+  const goProfile = useCallback(() => router.push(ROUTES.PROFILE), []);
+  const goLeaderboard = useCallback(() => router.push('/leaderboard' as any), []);
+  const goTransactions = useCallback(() => router.push(ROUTES.TRANSACTIONS), []);
+  const onConfettiDone = useCallback(() => setShowConfetti(false), []);
+
+  // Phase 5 Wave 2B — memoized derived values previously recomputed on
+  // every render (e.g. when scroll-triggered AppState/news refresh fires).
+  const gettingStartedCounts = useMemo(() => {
+    if (!stats) return null;
+    return {
+      transactions: Number(stats?.month?.transaction_count || stats?.transaction_count || stats?.transactions_count || 0),
+      budgets: Number(stats?.budget_count || (stats?.budgets || []).length || 0),
+      goals: Number(stats?.goal_count || (stats?.goals || []).length || 0),
+      groups: Number(stats?.group_count || (stats?.groups || []).length || 0),
+    };
+  }, [stats]);
+
+  const txnCount = useMemo(() => Number(
+    stats?.transaction_count
+    ?? stats?.txn_count
+    ?? stats?.total_transactions
+    ?? snapshot?.transaction_count
+    ?? snapshot?.txn_count
+    ?? 0
+  ), [stats, snapshot]);
+
+  const topLeaks = useMemo(
+    () => (predict?.waste_comparisons || []).slice(0, 3).map((w: any) => ({
+      label: w.title || w.category || 'Spending leak',
+      amount: Number(w.amount || 0),
+      emoji: w.emoji || '💸',
+    })),
+    [predict]
+  );
+
+  const monthlyLoss = Number(predict?.monthly_waste || predict?.overspend_total || 0);
+
+  const leaderboardTitle = useMemo(() => t('leaderboard', lang).toUpperCase(), [lang]);
+  const welcomeGreeting = useMemo(() => t('welcome_back', lang).toUpperCase(), [lang]);
+  const moneyScore = Number(user?.money_score || 0);
 
   // Round 30h — subscribe to the R2 cache invalidation graph so the home
   // tab auto-refreshes whenever a mutation elsewhere marks /home/bundle
@@ -249,15 +297,29 @@ function HomeScreen() {
   const fetchNews = useCallback(async (refresh = false) => {
     setNewsLoading(true);
     try {
-      const res = await api.get(`/news/india-finance${refresh ? '?refresh=1' : ''}`);
+      // Phase 5 Wave 4 — explicit short timeout for the upstream
+      // news feed. Google News can take 3-5 s cold; anything past 4 s
+      // is wasted user time — better to show cached/fallback content
+      // and move on. Errors NEVER fire a global toast — they surface
+      // as an inline "Latest news unavailable" in the NewsCarousel
+      // (which already renders last-known cached articles when empty).
+      const res = await api.get(
+        `/news/india-finance${refresh ? '?refresh=1' : ''}`,
+        { timeout: 4000 },
+      );
       setNews(res.data?.articles || []);
       setNewsUpdatedAt(res.data?.updated_at || null);
     } catch (e) {
-      // fallback handled server-side
+      // Silent failure — UI shows the inline fallback via <NewsCarousel
+      // news={[]} /> which surfaces a muted "Latest news unavailable"
+      // state without stealing focus from the rest of home. No toast.
+      if (__DEV__) console.warn('[home] news fetch failed', e);
     } finally {
       setNewsLoading(false);
     }
   }, []);
+
+  const onRefreshNews = useCallback(() => fetchNews(true), [fetchNews]);
 
   useFocusEffect(
     useCallback(() => { fetchNews(true); }, [fetchNews])
@@ -271,7 +333,7 @@ function HomeScreen() {
 
   return (
     <SafeAreaView style={styles.container}>
-      <Confetti trigger={showConfetti} onDone={() => setShowConfetti(false)} />
+      <Confetti trigger={showConfetti} onDone={onConfettiDone} />
       <ScrollView
         showsVerticalScrollIndicator={false}
         contentContainerStyle={styles.scroll}
@@ -281,12 +343,12 @@ function HomeScreen() {
         {/* 1. HEADER — slim greeting + search + bell + coin chip + avatar */}
         <View style={styles.header}>
           <View style={{ flex: 1 }}>
-            <Text style={styles.greeting}>{t('welcome_back', lang).toUpperCase()}</Text>
+            <Text style={styles.greeting}>{welcomeGreeting}</Text>
             <Text style={styles.name}>{user?.name || 'User'} 👋</Text>
           </View>
           {/* Round 37 — search icon, always visible */}
           <TouchableOpacity
-            onPress={() => router.push('/search' as any)}
+            onPress={goSearch}
             style={styles.headerIconBtn}
             accessibilityRole="button"
             accessibilityLabel="Search"
@@ -296,7 +358,7 @@ function HomeScreen() {
           </TouchableOpacity>
           {/* Round 37 — notifications bell with unread badge */}
           <TouchableOpacity
-            onPress={() => router.push('/notifications' as any)}
+            onPress={goNotifications}
             style={styles.headerIconBtn}
             accessibilityRole="button"
             accessibilityLabel={unread > 0 ? `Notifications, ${unread} unread` : 'Notifications'}
@@ -310,11 +372,11 @@ function HomeScreen() {
             )}
           </TouchableOpacity>
           {coinsStatus && (
-            <TapTile onPress={() => router.push('/coin-ledger' as any)} style={styles.coinsChip} feedback="light" testID="header-coins-chip" accessibilityLabel="Coin balance, view history">
+            <TapTile onPress={goCoinLedger} style={styles.coinsChip} feedback="light" testID="header-coins-chip" accessibilityLabel="Coin balance, view history">
               <AnimatedCoin value={Number(coinsStatus.balance || 0)} size="sm" />
             </TapTile>
           )}
-          <TapTile onPress={() => router.push('/(tabs)/profile')} style={styles.avatarWrap} feedback="selection">
+          <TapTile onPress={goProfile} style={styles.avatarWrap} feedback="selection">
             <View style={styles.avatarRing}>
               {avatar ? (
                 <Image source={{ uri: avatar }} style={styles.avatarImg} />
@@ -348,12 +410,7 @@ function HomeScreen() {
             persisted in AsyncStorage. Counts derived from `stats` (which the
             home bundle already returns) — no extra fetch. */}
         <GettingStartedCard
-          counts={stats ? {
-            transactions: Number(stats?.month?.transaction_count || stats?.transaction_count || stats?.transactions_count || 0),
-            budgets: Number(stats?.budget_count || (stats?.budgets || []).length || 0),
-            goals: Number(stats?.goal_count || (stats?.goals || []).length || 0),
-            groups: Number(stats?.group_count || (stats?.groups || []).length || 0),
-          } : null}
+          counts={gettingStartedCounts}
         />
 
         {/* 3. QUICK ACTION BAR */}
@@ -371,23 +428,11 @@ function HomeScreen() {
             transaction so the framing is data-grounded. New users see
             an empty-state hint instead. */}
         {(() => {
-          const txnCount = Number(
-            stats?.transaction_count
-            ?? stats?.txn_count
-            ?? stats?.total_transactions
-            ?? snapshot?.transaction_count
-            ?? snapshot?.txn_count
-            ?? 0
-          );
           if (txnCount > 0) {
             return (
               <PremiumTeaserCard
-                monthlyLoss={Number(predict?.monthly_waste || predict?.overspend_total || 0)}
-                topLeaks={(predict?.waste_comparisons || []).slice(0, 3).map((w: any) => ({
-                  label: w.title || w.category || 'Spending leak',
-                  amount: Number(w.amount || 0),
-                  emoji: w.emoji || '💸',
-                }))}
+                monthlyLoss={monthlyLoss}
+                topLeaks={topLeaks}
                 hiddenInsightsCount={5}
                 ctaRoute="/premium"
               />
@@ -434,7 +479,7 @@ function HomeScreen() {
 
         {/* 6. PULSE GRAPH — slim 7-day sparkline + tier progress */}
         {snapshot && (
-          <InsightsCard snapshot={snapshot} onPressSparkline={() => router.push('/(tabs)/transactions')} />
+          <InsightsCard snapshot={snapshot} onPressSparkline={goTransactions} />
         )}
 
         {/* 7. FINANCIAL BRAIN — tabbed AI insights */}
@@ -452,13 +497,13 @@ function HomeScreen() {
         <WeeklyReport weeklyReport={weeklyReport} snapshot={snapshot} user={user} />
 
         {/* 11. LEADERBOARD compact */}
-        <UnifiedLeaderboard compact title={t('leaderboard', lang).toUpperCase()} onPressMore={() => router.push('/leaderboard' as any)} />
+        <UnifiedLeaderboard compact title={leaderboardTitle} onPressMore={goLeaderboard} />
 
         {/* 12. EMBEDDED FINANCE — curated credit / insurance / SIP products */}
-        <EmbeddedFinanceCard moneyScore={user?.money_score || 0} />
+        <EmbeddedFinanceCard moneyScore={moneyScore} />
 
         {/* 13. NEWS */}
-        <NewsCarousel news={news} newsUpdatedAt={newsUpdatedAt} newsLoading={newsLoading} onRefresh={() => fetchNews(true)} />
+        <NewsCarousel news={news} newsUpdatedAt={newsUpdatedAt} newsLoading={newsLoading} onRefresh={onRefreshNews} />
 
         {/* 13. FINANCIAL SUPERPOWERS — Premium upsell, end-of-feed so users
                reach it after consuming all other value. */}

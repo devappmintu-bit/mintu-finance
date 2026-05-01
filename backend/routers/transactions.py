@@ -10,6 +10,7 @@ from pymongo.errors import DuplicateKeyError
 from core import db, get_current_user, cache_clear_prefix
 from core.scoring import calculate_money_score
 from core.ids import safe_oid
+from core.time import utc_now
 
 router = APIRouter(prefix="/transactions", tags=["transactions"])
 
@@ -65,6 +66,17 @@ def _invalidate_caches(user_id: str) -> None:
     cache_clear_prefix(f"waste:{user_id}")
     cache_clear_prefix(f"expense_report:{user_id}")
     cache_clear_prefix(f"score_breakdown:{user_id}")
+    # Phase 5 Wave 2 — also drop alerts + analytics caches so the user
+    # sees an accurate reflection of their brand-new transaction
+    # immediately on the next home/profile paint.
+    cache_clear_prefix(f"alerts_smart:{user_id}")
+    cache_clear_prefix(f"analytics_summary:{user_id}")
+    # Phase 5 Wave 3 — home snapshot, ai/predict, coins/status are
+    # also derived from the same underlying txn collection and must
+    # reflect the new data immediately.
+    cache_clear_prefix(f"home_snapshot:{user_id}")
+    cache_clear_prefix(f"ai_predict:{user_id}")
+    cache_clear_prefix(f"coins_status:{user_id}")
 
 
 # ---- Endpoints ---------------------------------------------------------------
@@ -82,8 +94,8 @@ async def create_transaction(transaction: TransactionCreate, user_id: str = Depe
     # Strip None idempotency_key so the partial-index filter remains sparse.
     idem_key = trans.pop("idempotency_key", None) or None
     trans["user_id"] = user_id
-    trans["date"] = transaction.date or datetime.now(timezone.utc)
-    trans["created_at"] = datetime.now(timezone.utc)
+    trans["date"] = transaction.date or utc_now()
+    trans["created_at"] = utc_now()
     if idem_key:
         trans["idempotency_key"] = idem_key
 
@@ -183,7 +195,7 @@ async def update_transaction(transaction_id: str, data: dict, user_id: str = Dep
                 raise ValueError
         except Exception:
             raise HTTPException(status_code=400, detail="amount must be a non-negative number")
-    updates["updated_at"] = datetime.now(timezone.utc)
+    updates["updated_at"] = utc_now()
     result = await db.transactions.update_one(
         {"_id": safe_oid(transaction_id, field_name="transaction_id"), "user_id": user_id},
         {"$set": updates},
@@ -224,8 +236,8 @@ async def parse_sms(sms_data: SMSParseRequest, user_id: str = Depends(get_curren
         "category": parsed["category"],
         "description": parsed.get("description", parsed.get("merchant", "Transaction")),
         "type": parsed["type"],
-        "date": datetime.now(timezone.utc),
-        "created_at": datetime.now(timezone.utc),
+        "date": utc_now(),
+        "created_at": utc_now(),
     }
     result = await db.transactions.insert_one(trans)
     _invalidate_caches(user_id)

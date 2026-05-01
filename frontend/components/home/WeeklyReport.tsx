@@ -7,6 +7,7 @@ import {  COLORS, RADIUS, SPACING, shadowStyle, useAppColors, GLASS } from '../.
 import { makeStyles } from '../../utils/makeStyles';
 
 import { APP_LINK } from '../../utils/brand';
+import { showError } from '../../utils/toast';
 
 interface Props {
   weeklyReport: any;
@@ -40,7 +41,7 @@ function WeeklyReport({ weeklyReport, snapshot, user }: Props) {
       if (canWA) { Linking.openURL(wa); return; }
       await Share.share({ message: txt });
     } catch {
-      Toast.show({ type: 'error', text1: 'Could not share' });
+      showError('Could not share');
     }
   };
 

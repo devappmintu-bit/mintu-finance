@@ -11,7 +11,7 @@
  * Tone caps + suppression are server-side; the client just renders
  * the chip/banner with the strength the server reports.
  */
-import { api } from '../utils/api';
+import api from '../utils/api';
 
 export type NudgeStrength = 'soft' | 'medium' | 'strong';
 export type NudgeStatus = 'active' | 'dismissed' | 'resolved';

@@ -6,7 +6,7 @@
  * per spec this is a personality layer, not a system.
  */
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { api } from '../utils/api';
+import api from '../utils/api';
 
 export type MascotAction =
   | 'peek' | 'juggle' | 'float' | 'stretch' | 'sip' | 'spin'

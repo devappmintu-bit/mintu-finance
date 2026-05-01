@@ -16,6 +16,7 @@ from typing import Any, Dict, List
 
 from fastapi import APIRouter, Depends
 from bson import ObjectId
+from core.time import utc_now
 
 from core import db, get_current_user
 
@@ -31,7 +32,7 @@ async def split_insights(user_id: str = Depends(get_current_user)) -> Dict[str, 
     Keeps DB queries tight (one aggregate per dimension) so the tab stays snappy.
     """
     # Current calendar month window
-    now = datetime.now(timezone.utc)
+    now = utc_now()
     month_start = now.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
 
     # --- 1) Total amount split this month (sum of expenses where user is a participant)
@@ -233,10 +234,10 @@ async def _fun_fact_for_user(user_id: str, stats: Dict[str, Any]) -> str:
 
     Cached per-user for 6 hours. Graceful fallback if LLM fails.
     """
-    today_key = datetime.now(timezone.utc).strftime("%Y-%m-%d")
+    today_key = utc_now().strftime("%Y-%m-%d")
     cache_key = f"{user_id}:{today_key}"
     hit = _FACT_CACHE.get(cache_key)
-    if hit and (datetime.now(timezone.utc) - hit["ts"]).seconds < 21600:
+    if hit and (utc_now() - hit["ts"]).seconds < 21600:
         return hit["fact"]
 
     # Skip LLM if zero activity — nothing interesting to say
@@ -272,7 +273,7 @@ async def _fun_fact_for_user(user_id: str, stats: Dict[str, Any]) -> str:
         fact = (resp or "").strip().strip('"').strip("'")[:110]
         if not fact:
             fact = _fallback_fact(stats)
-        _FACT_CACHE[cache_key] = {"ts": datetime.now(timezone.utc), "fact": fact}
+        _FACT_CACHE[cache_key] = {"ts": utc_now(), "fact": fact}
         return fact
     except Exception as e:
         log.warning(f"split fun_fact failed: {e}")

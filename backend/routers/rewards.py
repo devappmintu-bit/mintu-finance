@@ -121,7 +121,7 @@ DAILY_MISSIONS = [
 
 
 async def _mission_progress(user_id: str, mission_id: str) -> int:
-    day_start = datetime.now(timezone.utc).replace(hour=0, minute=0, second=0, microsecond=0)
+    day_start = utc_now().replace(hour=0, minute=0, second=0, microsecond=0)
     if mission_id == "open_app":
         # Always 1 — hitting /rewards/summary today is proof of opening.
         return 1
@@ -188,6 +188,7 @@ async def _get_lifetime_xp(user_id: str) -> int:
 # Now `rewards` imports from `core.streak` (our canonical streak/time module)
 # via a module-level alias so existing call sites still work.
 from core.streak import _today_utc_date_str as _today_key  # noqa: F401
+from core.time import utc_now
 
 
 async def _get_user_coins(user_id: str) -> int:
@@ -379,8 +380,8 @@ async def rewards_spin(user_id: str = Depends(get_current_user)) -> Dict[str, An
             "emoji": resolved_prize.get("emoji", "🎁"),
             "label": resolved_prize.get("label", prize["label"]),
             "source": "spin_wheel",
-            "created_at": datetime.now(timezone.utc),
-            "expires_at": datetime.now(timezone.utc) + timedelta(days=30),
+            "created_at": utc_now(),
+            "expires_at": utc_now() + timedelta(days=30),
             "claimed": False,
         }
         ins = await db.rewards_wallet.insert_one(wallet_entry)
@@ -396,7 +397,7 @@ async def rewards_spin(user_id: str = Depends(get_current_user)) -> Dict[str, An
             "emoji": resolved_prize.get("emoji", "💸"),
             "label": resolved_prize.get("label", prize["label"]),
             "source": "spin_wheel",
-            "created_at": datetime.now(timezone.utc),
+            "created_at": utc_now(),
         }
         ins = await db.rewards_wallet.insert_one(wallet_entry)
         wallet_entry["_id"] = str(ins.inserted_id)
@@ -408,7 +409,7 @@ async def rewards_spin(user_id: str = Depends(get_current_user)) -> Dict[str, An
         "date_key": _today_key(),
         "prize_id": prize["id"],
         "used_free": used_free,
-        "created_at": datetime.now(timezone.utc),
+        "created_at": utc_now(),
     })
 
     # Recompute post-spin state
@@ -465,7 +466,7 @@ async def rewards_claim_mission(body: ClaimMissionBody, user_id: str = Depends(g
         "key": key,
         "mission_id": body.mission_id,
         "date_key": _today_key(),
-        "created_at": datetime.now(timezone.utc),
+        "created_at": utc_now(),
     })
 
     new_balance = await _add_user_coins(user_id, int(mission["reward_coins"]), f"mission_claim:{body.mission_id}")
@@ -526,7 +527,7 @@ def _active_event_multiplier_now() -> float:
     Double Rewards Hour (14–15 or 20–21 UTC) → 2.0×
     Stacking is capped at 2.0 to avoid runaway payouts.
     """
-    now = datetime.now(timezone.utc)
+    now = utc_now()
     wday = now.weekday()
     hour = now.hour
     mult = 1.0
@@ -623,8 +624,8 @@ async def rewards_claim_marketplace(body: ClaimMarketplaceBody, user_id: str = D
         "label": f"{reward['brand']} · {reward['discount']}",
         "source": "marketplace",
         "reward_id": body.reward_id,
-        "created_at": datetime.now(timezone.utc),
-        "expires_at": datetime.now(timezone.utc) + timedelta(days=30),
+        "created_at": utc_now(),
+        "expires_at": utc_now() + timedelta(days=30),
         "claimed": False,
     }
     ins = await db.rewards_wallet.insert_one(wallet_entry)
@@ -784,7 +785,7 @@ async def rewards_events(user_id: str = Depends(get_current_user)) -> Dict[str, 
     Returns a list of events with an optional countdown timer in seconds.
     The frontend renders an EventBanner at the top of the wheel.
     """
-    now = datetime.now(timezone.utc)
+    now = utc_now()
     wday = now.weekday()  # 0=Mon .. 6=Sun
     hour = now.hour
 
@@ -867,12 +868,12 @@ async def rewards_vouchers(category: str = "food", user_id: str = Depends(get_cu
     # Cache check
     cache_key = f"vouchers:{category}"
     cached = _VOUCHER_CACHE.get(cache_key)
-    if cached and (datetime.now(timezone.utc) - cached["ts"]) < CACHE_TTL:
+    if cached and (utc_now() - cached["ts"]) < CACHE_TTL:
         return {"category": category, "vouchers": cached["data"], "cached": True}
 
     vouchers = await _fetch_live_vouchers(category)
 
-    _VOUCHER_CACHE[cache_key] = {"ts": datetime.now(timezone.utc), "data": vouchers}
+    _VOUCHER_CACHE[cache_key] = {"ts": utc_now(), "data": vouchers}
     return {"category": category, "vouchers": vouchers, "cached": False}
 
 
@@ -977,8 +978,8 @@ async def claim_voucher(body: ClaimVoucherBody, user_id: str = Depends(get_curre
         "url": body.url,
         "emoji": body.emoji,
         "source": "voucher_feed",
-        "created_at": datetime.now(timezone.utc),
-        "expires_at": datetime.now(timezone.utc) + timedelta(days=60),
+        "created_at": utc_now(),
+        "expires_at": utc_now() + timedelta(days=60),
         "claimed": False,
     }
     ins = await db.rewards_wallet.insert_one(entry)

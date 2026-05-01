@@ -37,6 +37,7 @@ import Toast from 'react-native-toast-message';
 import api from '../../utils/api';
 import { makeStyles } from '../../utils/makeStyles';
 import { COLORS, useAppColors, GLASS } from '../../utils/theme';
+import { showInfo, showSuccess } from '../../utils/toast';
 
 const TONE_COLOR: Record<string, { bg: string; fg: string; border: string }> = {
   success: { bg: '#DCFCE7', fg: '#065F46', border: '#86EFAC' },
@@ -271,7 +272,7 @@ export default function BudgetInsightsSheet({ visible, category, budgetCtx, onCl
       // The "enable_alert" action is purely client-side — even if the
       // server is down it should still feel applied.
       if (state === 'error' && action.action === 'enable_alert') {
-        Toast.show({ type: 'success', text1: 'Alert noted ✨', text2: 'Will sync when back online' });
+        showSuccess('Alert noted ✨', 'Will sync when back online');
         setApplying(null);
         return;
       }
@@ -281,7 +282,7 @@ export default function BudgetInsightsSheet({ visible, category, budgetCtx, onCl
         onApplied?.();
         onClose();
       } else {
-        Toast.show({ type: 'info', text1: 'Saved locally', text2: 'Will sync when reconnected' });
+        showInfo('Saved locally', 'Will sync when reconnected');
       }
     } catch {
       // Soft failure — never red error toast.

@@ -21,6 +21,7 @@ import useFocusRefresh from '../../hooks/useFocusRefresh';
 import {  COLORS, shadowStyle, useAppColors } from '../../utils/theme';
 import { makeStyles } from '../../utils/makeStyles';
 import { sendTestPush } from '../../hooks/usePushNotifications';
+import { showError, showSuccess } from '../../utils/toast';
 
 type Prefs = {
   master_enabled: boolean;
@@ -81,7 +82,7 @@ export default function NotificationSettings() {
     setSaving(true);
     try {
       await api.put('/user/notification-prefs', next);
-    } catch { Toast.show({ type: 'error', text1: 'Save failed' }); }
+    } catch { showError('Save failed'); }
     finally { setSaving(false); }
   };
 
@@ -97,7 +98,7 @@ export default function NotificationSettings() {
   const testPush = async () => {
     setTesting(true);
     const r = await sendTestPush();
-    if (r.sent) Toast.show({ type: 'success', text1: 'Test push sent' });
+    if (r.sent) showSuccess('Test push sent');
     else        Toast.show({ type: 'info', text1: r.message || 'Push not configured' });
     setTesting(false);
   };

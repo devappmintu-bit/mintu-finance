@@ -26,6 +26,7 @@ from datetime import datetime, timezone
 
 import pytest
 from bson import ObjectId
+from core.time import utc_now
 from dotenv import load_dotenv
 from motor.motor_asyncio import AsyncIOMotorClient
 
@@ -61,7 +62,7 @@ async def fresh_user(fresh_db):
         "name": f"LedgerTest-{uid[-6:]}",
         "phone": f"99999{uid[-5:]}",
         "coins_balance": 0, "coins": 0, "reward_coins": 0,
-        "created_at": datetime.now(timezone.utc),
+        "created_at": utc_now(),
     })
     yield uid
     # Teardown: wipe ledger entries + user doc.

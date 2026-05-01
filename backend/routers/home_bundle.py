@@ -20,6 +20,7 @@ from fastapi import APIRouter, Depends
 
 from core import db, get_current_user
 from core.cache import cache_get, cache_set
+from core.time import utc_now
 
 router = APIRouter(tags=["home_bundle"])
 
@@ -114,7 +115,7 @@ async def home_bundle(lang: str = "en", user_id: str = Depends(get_current_user)
         "fomo_feed": fomo,
         "ai_predict": pred,
         "coins": coins,
-        "cached_at": datetime.now(timezone.utc).isoformat(),
+        "cached_at": utc_now().isoformat(),
         "cache_ttl_s": 25,
     }
     cache_set(key, bundle, ttl_seconds=25)

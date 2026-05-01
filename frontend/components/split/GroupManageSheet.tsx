@@ -13,6 +13,7 @@ import Toast from 'react-native-toast-message';
 import { COLORS, useAppColors, GLASS } from '../../utils/theme';
 import { makeStyles } from '../../utils/makeStyles';
 import { C, MEMBER_COLORS } from './theme';
+import { showError } from '../../utils/toast';
 
 // Cross-platform confirmation — native Alert is unreliable on react-native-web.
 function confirmThen(title: string, msg: string, onYes: () => void, yesLabel = 'Confirm', destructive = false) {
@@ -64,7 +65,7 @@ export default function GroupManageSheet({ visible, onClose, manage, currentUser
 
   const handleAddMember = () => {
     const p = addPhoneVal.replace(/\D/g, '').slice(-10);
-    if (p.length !== 10) { Toast.show({ type: 'error', text1: 'Error', text2: 'Enter a valid 10-digit number' }); return; }
+    if (p.length !== 10) { showError('Error', 'Enter a valid 10-digit number'); return; }
     onAddMember(p);
     setAddPhoneVal('');
     setShowAddMember(false);

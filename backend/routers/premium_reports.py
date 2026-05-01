@@ -12,6 +12,8 @@ from bson import ObjectId
 from fastapi import APIRouter, Depends, HTTPException, Query
 
 from core import db, get_current_user
+from core.users import get_user_by_id
+from core.time import utc_now
 
 try:
     from emergentintegrations.llm.chat import LlmChat, UserMessage
@@ -24,7 +26,7 @@ api_router = router
 
 async def _is_premium(user_id: str) -> bool:
     try:
-        user = await db.users.find_one({"_id": ObjectId(user_id)})
+        user = await get_user_by_id(user_id)
     except Exception:
         return False
     if not user:
@@ -33,7 +35,7 @@ async def _is_premium(user_id: str) -> bool:
     until = user.get("premium_until")
     if isinstance(until, datetime) and until.tzinfo is None:
         until = until.replace(tzinfo=timezone.utc)
-    return tier in ("premium", "legend") and (until is None or until > datetime.now(timezone.utc))
+    return tier in ("premium", "legend") and (until is None or until > utc_now())
 
 
 @api_router.get("/premium/deep-report")
@@ -46,7 +48,7 @@ async def deep_report(
     if not await _is_premium(user_id):
         raise HTTPException(status_code=403, detail="Premium subscription required")
 
-    now = datetime.now(timezone.utc)
+    now = utc_now()
     since = now - timedelta(days=30 * months)
 
     cursor = db.transactions.find({

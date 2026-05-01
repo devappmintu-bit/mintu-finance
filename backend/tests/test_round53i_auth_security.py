@@ -36,6 +36,7 @@ import httpx
 import jwt as pyjwt
 import pytest
 from bson import ObjectId
+from core.time import utc_now
 
 pytestmark = pytest.mark.integration
 
@@ -102,7 +103,7 @@ class TestSignatureIntegrity:
         # Valid shape, signed with the WRONG secret.
         token = pyjwt.encode(
             {"user_id": "5fa2b7d4d4a01f8d12345678",
-             "exp": datetime.now(timezone.utc) + timedelta(hours=1)},
+             "exp": utc_now() + timedelta(hours=1)},
             "this-is-not-the-real-secret",
             algorithm="HS256",
         )
@@ -114,7 +115,7 @@ class TestSignatureIntegrity:
         # Create a legit token, then flip the last char of its payload segment.
         legit = pyjwt.encode(
             {"user_id": "5fa2b7d4d4a01f8d12345678",
-             "exp": datetime.now(timezone.utc) + timedelta(hours=1)},
+             "exp": utc_now() + timedelta(hours=1)},
             _jwt_secret(), algorithm="HS256",
         )
         header, payload, sig = legit.split(".")
@@ -127,7 +128,7 @@ class TestSignatureIntegrity:
         # even though the secret is correct.
         token = pyjwt.encode(
             {"user_id": "5fa2b7d4d4a01f8d12345678",
-             "exp": datetime.now(timezone.utc) + timedelta(hours=1)},
+             "exp": utc_now() + timedelta(hours=1)},
             _jwt_secret(), algorithm="HS512",
         )
         r = await _hit(http, {"Authorization": f"Bearer {token}"})
@@ -155,7 +156,7 @@ class TestExpiration:
     async def test_expired_token_is_rejected(self, http):
         token = pyjwt.encode(
             {"user_id": "5fa2b7d4d4a01f8d12345678",
-             "exp": datetime.now(timezone.utc) - timedelta(seconds=1)},
+             "exp": utc_now() - timedelta(seconds=1)},
             _jwt_secret(), algorithm="HS256",
         )
         r = await _hit(http, {"Authorization": f"Bearer {token}"})
@@ -169,7 +170,7 @@ class TestExpiration:
 class TestClaimShape:
     async def test_missing_user_id_claim(self, http):
         token = pyjwt.encode(
-            {"sub": "alice", "exp": datetime.now(timezone.utc) + timedelta(hours=1)},
+            {"sub": "alice", "exp": utc_now() + timedelta(hours=1)},
             _jwt_secret(), algorithm="HS256",
         )
         r = await _hit(http, {"Authorization": f"Bearer {token}"})
@@ -178,7 +179,7 @@ class TestClaimShape:
     async def test_user_id_is_int_rejected(self, http):
         token = pyjwt.encode(
             {"user_id": 12345,
-             "exp": datetime.now(timezone.utc) + timedelta(hours=1)},
+             "exp": utc_now() + timedelta(hours=1)},
             _jwt_secret(), algorithm="HS256",
         )
         r = await _hit(http, {"Authorization": f"Bearer {token}"})
@@ -187,7 +188,7 @@ class TestClaimShape:
     async def test_user_id_empty_string_rejected(self, http):
         token = pyjwt.encode(
             {"user_id": "",
-             "exp": datetime.now(timezone.utc) + timedelta(hours=1)},
+             "exp": utc_now() + timedelta(hours=1)},
             _jwt_secret(), algorithm="HS256",
         )
         r = await _hit(http, {"Authorization": f"Bearer {token}"})
@@ -196,7 +197,7 @@ class TestClaimShape:
     async def test_user_id_not_24hex(self, http):
         token = pyjwt.encode(
             {"user_id": "definitely-not-an-objectid",
-             "exp": datetime.now(timezone.utc) + timedelta(hours=1)},
+             "exp": utc_now() + timedelta(hours=1)},
             _jwt_secret(), algorithm="HS256",
         )
         r = await _hit(http, {"Authorization": f"Bearer {token}"})
@@ -212,7 +213,7 @@ class TestDeadTokenGuard:
         fake_uid = str(ObjectId())  # valid 24-hex but doesn't resolve in DB
         token = pyjwt.encode(
             {"user_id": fake_uid,
-             "exp": datetime.now(timezone.utc) + timedelta(hours=1)},
+             "exp": utc_now() + timedelta(hours=1)},
             _jwt_secret(), algorithm="HS256",
         )
         r = await _hit(http, {"Authorization": f"Bearer {token}"})

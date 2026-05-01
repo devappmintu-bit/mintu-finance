@@ -29,6 +29,7 @@ import { spinWheel, fetchRewardsSummary } from '../services/rewards';
 import { makeStyles } from '../utils/makeStyles';
 import { COLORS, useAppColors } from '../utils/theme';
 import { MysteryBoxSkeleton } from '../components/SkeletonLoader';
+import { showError } from '../utils/toast';
 
 type Stage = 'idle' | 'opening' | 'revealed';
 
@@ -62,7 +63,7 @@ export default function MysteryBoxScreen() {
         setFreeLeft(d.free_spins_left || 0);
         setCanSpin(!!(d.can_spin_with_free || d.can_spin_with_coins));
       } catch (e) {
-        Toast.show({ type: 'error', text1: 'Could not load your coins' });
+        showError('Could not load your coins');
       } finally {
         setLoadingSummary(false);
       }

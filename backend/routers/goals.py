@@ -9,6 +9,10 @@ from typing import Any, Dict, List, Optional
 
 from bson import ObjectId
 from fastapi import APIRouter, Depends, HTTPException
+from core.time import utc_now
+from core.errors import (
+    raise_goal_not_found,
+)
 from pydantic import BaseModel, Field, field_validator
 
 from core import db, get_current_user
@@ -97,7 +101,7 @@ async def create_goal(body: GoalCreate, user_id: str = Depends(get_current_user)
     # Cross-field: saved_amount cannot exceed target_amount
     if body.saved_amount > body.target_amount:
         raise HTTPException(status_code=400, detail="saved_amount cannot exceed target_amount")
-    now = datetime.now(timezone.utc)
+    now = utc_now()
     doc: Dict[str, Any] = {
         "user_id": user_id,
         "name": body.name.strip(),
@@ -119,7 +123,7 @@ async def create_goal(body: GoalCreate, user_id: str = Depends(get_current_user)
 async def update_goal(goal_id: str, body: GoalUpdate, user_id: str = Depends(get_current_user)) -> Dict[str, Any]:
     oid = _safe_oid(goal_id)
     if not oid:
-        raise HTTPException(status_code=404, detail="Goal not found")
+        raise_invalid_id("goal_id")
     updates: Dict[str, Any] = {}
     for field in ("name", "target_amount", "saved_amount", "color", "emoji", "linked_budget_id"):
         v = getattr(body, field)
@@ -127,10 +131,10 @@ async def update_goal(goal_id: str, body: GoalUpdate, user_id: str = Depends(get
             updates[field] = v
     if body.target_date is not None:
         updates["target_date"] = _parse_date(body.target_date)
-    updates["updated_at"] = datetime.now(timezone.utc)
+    updates["updated_at"] = utc_now()
     r = await db.goals.update_one({"_id": oid, "user_id": user_id}, {"$set": updates})
     if r.matched_count == 0:
-        raise HTTPException(status_code=404, detail="Goal not found")
+        raise_goal_not_found()
     doc = await db.goals.find_one({"_id": oid, "user_id": user_id})
     return {"ok": True, "goal": _doc_out(doc) if doc else None}
 
@@ -139,10 +143,10 @@ async def update_goal(goal_id: str, body: GoalUpdate, user_id: str = Depends(get
 async def delete_goal(goal_id: str, user_id: str = Depends(get_current_user)) -> Dict[str, Any]:
     oid = _safe_oid(goal_id)
     if not oid:
-        raise HTTPException(status_code=404, detail="Goal not found")
+        raise_invalid_id("goal_id")
     r = await db.goals.delete_one({"_id": oid, "user_id": user_id})
     if r.deleted_count == 0:
-        raise HTTPException(status_code=404, detail="Goal not found")
+        raise_goal_not_found()
     # Unlink any budgets that referenced this goal
     await db.budgets.update_many({"user_id": user_id, "goal_id": goal_id}, {"$unset": {"goal_id": ""}})
     return {"ok": True}

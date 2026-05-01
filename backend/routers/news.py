@@ -15,6 +15,7 @@ import json
 import logging
 from datetime import date, datetime, timezone
 from fastapi import APIRouter, Depends
+from core.time import utc_now
 from emergentintegrations.llm.chat import LlmChat, UserMessage
 
 from core import db, get_current_user
@@ -133,7 +134,7 @@ async def _refresh_news_in_background(today: str) -> None:
         if articles:
             await db.news_cache.update_one(
                 {"date": today},
-                {"$set": {"date": today, "articles": articles, "updated_at": datetime.now(timezone.utc).isoformat()}},
+                {"$set": {"date": today, "articles": articles, "updated_at": utc_now().isoformat()}},
                 upsert=True,
             )
             logging.info(f"News cache refreshed for {today} with {len(articles)} items")

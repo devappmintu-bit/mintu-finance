@@ -3,12 +3,13 @@ import logging
 from datetime import datetime, timedelta, timezone
 
 from core.db import db
+from core.time import utc_now
 
 
 async def calculate_money_score(user_id: str) -> int:
     """Calculate daily money score (0-100) based on spending patterns in the last 7 days."""
     try:
-        seven_days_ago = datetime.now(timezone.utc) - timedelta(days=7)
+        seven_days_ago = utc_now() - timedelta(days=7)
         transactions = await db.transactions.find(
             {"user_id": user_id, "date": {"$gte": seven_days_ago}}
         ).to_list(1000)

@@ -17,6 +17,7 @@ from datetime import datetime, timedelta, date, timezone
 from typing import List, Dict, Optional
 from bson import ObjectId
 from fastapi import Depends, HTTPException, UploadFile, File
+from core.time import utc_now
 from routers.ai_common import (
     router, api_router, ChatMessage, db, get_current_user,
     _lazy_server_attr, cache_get, cache_set, calculate_money_score,
@@ -44,7 +45,7 @@ async def waste_detector(user_id: str = Depends(get_current_user)):
     cached = cache_get(cache_key)
     if cached:
         return cached
-    now = datetime.now(timezone.utc)
+    now = utc_now()
     month_start = now.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
     prev_month_start = (month_start - timedelta(days=1)).replace(day=1)
 
@@ -126,9 +127,21 @@ async def waste_detector(user_id: str = Depends(get_current_user)):
     # Overall trend
     overall_trend_pct = ((total_expense - prev_total) / max(prev_total, 1)) * 100 if prev_total > 0 else 0
     
-    # Percentile comparison
-    user_count = await db.users.count_documents({})
-    users_with_less = await db.users.count_documents({"money_score": {"$lt": 50}})
+    # Percentile comparison — Phase 5 Wave 4: cache the two
+    # count_documents calls on `db.users` for 5 min. They only change
+    # on new registrations/score flips, so stale-by-up-to-5-min is
+    # imperceptible and eliminates ~200-300 ms from the cold per-user
+    # /waste-detector path.
+    pct_cache = cache_get("waste:pct_counts")
+    if pct_cache is None:
+        user_count, users_with_less = await asyncio.gather(
+            db.users.count_documents({}),
+            db.users.count_documents({"money_score": {"$lt": 50}}),
+        )
+        cache_set("waste:pct_counts", {"user_count": user_count, "users_with_less": users_with_less}, ttl_seconds=300)
+    else:
+        user_count = pct_cache["user_count"]
+        users_with_less = pct_cache["users_with_less"]
     percentile = min(95, max(5, int((1 - (users_with_less / max(user_count, 1))) * 100)))
     
     # Round 43 perf — AI text is now strictly OPT-IN side data. Return the

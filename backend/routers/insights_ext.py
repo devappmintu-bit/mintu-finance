@@ -4,6 +4,7 @@ from fastapi import APIRouter, Depends
 
 from core import db, get_current_user
 from core.scoring import calculate_money_score
+from core.time import utc_now
 
 router = APIRouter(tags=["insights_ext"])
 api_router = router  # extracted code uses @api_router.*
@@ -13,7 +14,7 @@ api_router = router  # extracted code uses @api_router.*
 @api_router.get("/insights/weekly")
 async def get_weekly_insights(user_id: str = Depends(get_current_user)):
     """Full weekly spending report with AI analysis"""
-    now = datetime.now(timezone.utc)
+    now = utc_now()
     seven_days_ago = now - timedelta(days=7)
     fourteen_days_ago = now - timedelta(days=14)
     

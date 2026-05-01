@@ -42,6 +42,7 @@ from typing import Any, Dict, Optional
 from pymongo.errors import DuplicateKeyError
 
 from core.db import db
+from core.time import utc_now
 
 logger = logging.getLogger(__name__)
 
@@ -74,7 +75,7 @@ async def reserve_idempotency(user_id: str, scope: str, key: str) -> bool:
             "key": key,
             "status": "reserved",
             "response": None,
-            "created_at": datetime.now(timezone.utc),
+            "created_at": utc_now(),
         })
         return True
     except DuplicateKeyError:
@@ -98,7 +99,7 @@ async def commit_idempotency(
         {"$set": {
             "status": "committed",
             "response": response,
-            "committed_at": datetime.now(timezone.utc),
+            "committed_at": utc_now(),
         }},
     )
 

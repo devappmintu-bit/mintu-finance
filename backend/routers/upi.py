@@ -4,6 +4,7 @@ from fastapi import APIRouter, Depends, HTTPException
 
 from core import db, get_current_user
 from core.constants import UPI_APPS
+from core.users import get_user_by_id
 
 router = APIRouter(tags=["upi"])
 api_router = router  # extracted code uses @api_router.*
@@ -19,7 +20,7 @@ async def get_upi_apps(user_id: str = Depends(get_current_user)):
 @api_router.post("/upi/generate-qr")
 async def generate_upi_qr(data: dict, user_id: str = Depends(get_current_user)):
     """Generate UPI QR code data for receiving payments"""
-    user = await db.users.find_one({"_id": ObjectId(user_id)})
+    user = await get_user_by_id(user_id)
     upi_id = user.get("upi_id", "") if user else ""
     if not upi_id:
         raise HTTPException(status_code=400, detail="Set your UPI ID first in Profile")

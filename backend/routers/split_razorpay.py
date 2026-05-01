@@ -19,6 +19,11 @@ from fastapi.responses import HTMLResponse
 
 from core import db, get_current_user
 from core.ids import safe_oid
+from core.time import utc_now
+from core.errors import (
+    raise_no_outstanding_debt,
+    raise_order_not_found,
+)
 from routers.split_common import router, api_router  # noqa: F401 — register routes
 from routers.split_settle import (
     _get_user_coin_balance,
@@ -194,7 +199,7 @@ async def split_razorpay_order(data: dict, user_id: str = Depends(get_current_us
             "payee_name": payee_name,
             "group_label": group_label,
             "status": "created",
-            "created_at": datetime.now(timezone.utc),
+            "created_at": utc_now(),
         })
         key_id = os.environ.get("RAZORPAY_KEY_ID", "")
         backend_base = os.environ.get("APP_DEEPLINK_BASE", "").rstrip("/")
@@ -220,7 +225,7 @@ async def split_razorpay_checkout_page(order_id: str):
     """Hosted Razorpay Checkout page for a split settlement."""
     order = await db.payment_orders.find_one({"order_id": order_id, "kind": "split_settle"})
     if not order:
-        raise HTTPException(status_code=404, detail="Order not found")
+        raise_order_not_found()
     key_id = os.environ.get("RAZORPAY_KEY_ID", "")
     base = os.environ.get("APP_DEEPLINK_BASE", "").rstrip("/")
     effective = float(order.get("effective_amount", order.get("amount", 0)))
@@ -288,7 +293,7 @@ async def split_verify_settle_payment(payment_data: dict):
 
     order = await db.payment_orders.find_one({"order_id": order_id, "kind": "split_settle"})
     if not order:
-        raise HTTPException(status_code=404, detail="Order not found")
+        raise_order_not_found()
 
     # Idempotency — if we've already recorded a settlement for this razorpay
     # order, return the existing one instead of inserting a duplicate.
@@ -313,7 +318,7 @@ async def split_verify_settle_payment(payment_data: dict):
     # (e.g. user paid via another method between order creation and webhook).
     outstanding = await compute_outstanding_debt(user_id, target_user_id, group_id)
     if outstanding <= 0:
-        raise HTTPException(status_code=400, detail="No outstanding debt to settle")
+        raise_no_outstanding_debt()
     if amount > outstanding + 0.5:
         raise HTTPException(status_code=400, detail=f"Amount exceeds outstanding ₹{outstanding:.2f}")
 
@@ -333,8 +338,8 @@ async def split_verify_settle_payment(payment_data: dict):
         "razorpay_order_id": order_id,
         "group_id": group_id,
         "status": "completed",
-        "settled_at": datetime.now(timezone.utc),
-        "created_at": datetime.now(timezone.utc),
+        "settled_at": utc_now(),
+        "created_at": utc_now(),
     }
     result = await db.settlements.insert_one(settlement)
 
@@ -349,7 +354,7 @@ async def split_verify_settle_payment(payment_data: dict):
     try:
         await db.split_reminders.update_many(
             {"recipient_id": user_id, "sender_id": target_user_id, "status": "pending"},
-            {"$set": {"status": "settled", "dismissed_at": datetime.now(timezone.utc)}},
+            {"$set": {"status": "settled", "dismissed_at": utc_now()}},
         )
     except Exception as _exc:
         logging.warning('split_razorpay L353 silent-except: %s', _exc)
@@ -381,14 +386,14 @@ async def split_verify_settle_payment(payment_data: dict):
                     "coins_applied": redemption["coins_applied"],
                     "coin_discount": redemption["discount"],
                 },
-                "created_at": datetime.now(timezone.utc),
+                "created_at": utc_now(),
             })
         except Exception as e:
             logging.warning(f"Could not post razorpay settlement message: {e}")
 
     await db.payment_orders.update_one(
         {"order_id": order_id},
-        {"$set": {"status": "paid", "payment_id": payment_id, "paid_at": datetime.now(timezone.utc)}},
+        {"$set": {"status": "paid", "payment_id": payment_id, "paid_at": utc_now()}},
     )
 
     return {

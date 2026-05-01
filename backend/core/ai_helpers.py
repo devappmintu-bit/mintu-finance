@@ -13,6 +13,7 @@ from __future__ import annotations
 import os
 import json as _json
 import logging
+from core.time import utc_now
 from datetime import datetime, timedelta, timezone
 from typing import Dict, Optional
 
@@ -39,7 +40,7 @@ async def parse_sms_with_ai(sms_text: str) -> Optional[Dict]:
     try:
         chat = LlmChat(
             api_key=os.environ['EMERGENT_LLM_KEY'],
-            session_id=f"sms_parse_{datetime.now(timezone.utc).timestamp()}",
+            session_id=f"sms_parse_{utc_now().timestamp()}",
             system_message="""You are an expert at parsing Indian bank and payment app SMS messages.
             Extract transaction details and return ONLY a valid JSON object with these exact keys:
             {"amount": float, "category": string, "description": string, "type": "debit" or "credit", "merchant": string}
@@ -82,7 +83,7 @@ async def generate_insights_with_ai(
     from core.constants import get_lang_instruction
 
     try:
-        now = datetime.now(timezone.utc)
+        now = utc_now()
         this_week_start = now - timedelta(days=now.weekday())
         last_week_start = this_week_start - timedelta(days=7)
 

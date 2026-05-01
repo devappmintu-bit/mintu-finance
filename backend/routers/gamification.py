@@ -4,6 +4,8 @@ from bson import ObjectId
 from fastapi import APIRouter, Depends
 
 from core import db, get_current_user
+from core.users import get_user_by_id
+from core.time import utc_now
 
 router = APIRouter(prefix="/gamification", tags=["gamification"])
 
@@ -40,7 +42,7 @@ async def _compute_streak(user_id: str) -> int:
     the result set in Python. Drops the cost from O(365 round-trips) to
     O(1 round-trip).
     """
-    today = datetime.now(timezone.utc).replace(hour=0, minute=0, second=0, microsecond=0)
+    today = utc_now().replace(hour=0, minute=0, second=0, microsecond=0)
     earliest = today - timedelta(days=365)
     pipeline = [
         {"$match": {"user_id": user_id, "date": {"$gte": earliest}}},
@@ -86,7 +88,7 @@ async def _award_new_badges(user_id: str, existing: list, streak: int, score: in
 @router.get("/status")
 async def get_gamification_status(user_id: str = Depends(get_current_user)):
     """Get user's streak, badges, and active weekly challenge."""
-    user = await db.users.find_one({"_id": ObjectId(user_id)}) or {}
+    user = await get_user_by_id(user_id) or {}
     streak = await _compute_streak(user_id)
     user_badges = list(user.get("badges", []))
     new_badges = await _award_new_badges(

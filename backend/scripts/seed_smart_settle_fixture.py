@@ -9,6 +9,7 @@ safe (always creates a uniquely-named group).
 Usage:
     cd /app/backend && python scripts/seed_smart_settle_fixture.py
 """
+from core.time import utc_now
 import asyncio
 import os
 import sys
@@ -54,7 +55,7 @@ async def main() -> int:
 
         # 2) Seed user creates a group with the other three.
         # The backend SplitGroupCreate.members expects `string[]` (phone numbers).
-        gname = f"SmartSettle Demo · {datetime.now(timezone.utc).strftime('%H%M%S')}"
+        gname = f"SmartSettle Demo · {utc_now().strftime('%H%M%S')}"
         r = await client.post(
             f"{BASE}/split/groups",
             json={"name": gname, "members": [c["phone"] for c in creds[1:]]},

@@ -22,6 +22,11 @@ from bson import ObjectId
 from fastapi import Depends, HTTPException
 
 from core import db, get_current_user
+from core.users import get_user_by_id
+from core.time import utc_now
+from core.errors import (
+    raise_positive_amount_required,
+)
 from routers.split_common import api_router
 
 
@@ -48,7 +53,7 @@ async def send_payment_reminder(data: dict, user_id: str = Depends(get_current_u
         raise HTTPException(status_code=400, detail="target_user_id and positive amount required")
 
     # Anti-spam: 1 reminder/hour per pair
-    one_hour_ago = datetime.now(timezone.utc) - timedelta(hours=1)
+    one_hour_ago = utc_now() - timedelta(hours=1)
     recent = await db.split_reminders.find_one({
         "sender_id": user_id,
         "recipient_id": target_user_id,
@@ -83,7 +88,7 @@ async def send_payment_reminder(data: dict, user_id: str = Depends(get_current_u
         "group_id": group_id,
         "note": note,
         "status": "pending",
-        "created_at": datetime.now(timezone.utc),
+        "created_at": utc_now(),
     }
     result = await db.split_reminders.insert_one(reminder)
     reminder_id = str(result.inserted_id)
@@ -108,7 +113,7 @@ async def send_payment_reminder(data: dict, user_id: str = Depends(get_current_u
                     "recipient_id": target_user_id,
                     "reminder_id": reminder_id,
                 },
-                "created_at": datetime.now(timezone.utc),
+                "created_at": utc_now(),
             })
         except Exception as e:
             logging.warning(f"Could not post reminder system message: {e}")
@@ -168,7 +173,7 @@ async def get_my_reminders(user_id: str = Depends(get_current_user)):
             "note": r.get("note", ""),
             "status": r.get("status", "pending"),
             "created_at": (
-                r.get("created_at", datetime.now(timezone.utc)).isoformat()
+                r.get("created_at", utc_now()).isoformat()
                 if hasattr(r.get("created_at"), "isoformat")
                 else str(r.get("created_at", ""))
             ),
@@ -187,7 +192,7 @@ async def dismiss_reminder(reminder_id: str, user_id: str = Depends(get_current_
     try:
         await db.split_reminders.update_one(
             {"_id": ObjectId(reminder_id), "recipient_id": user_id},
-            {"$set": {"status": "dismissed", "dismissed_at": datetime.now(timezone.utc)}},
+            {"$set": {"status": "dismissed", "dismissed_at": utc_now()}},
         )
     except Exception:
         raise HTTPException(status_code=404, detail="Reminder not found")
@@ -214,19 +219,19 @@ async def invite_to_settle(data: dict, user_id: str = Depends(get_current_user))
     note = data.get("note", "")
 
     if amount <= 0:
-        raise HTTPException(status_code=400, detail="Amount must be positive")
+        raise_positive_amount_required()
 
     # Resolve payee UPI ID (if registered user)
     payee_upi = None
     payee_name = target_name
     if target_user_id and ObjectId.is_valid(target_user_id):
-        target_user = await db.users.find_one({"_id": ObjectId(target_user_id)})
+        target_user = await get_user_by_id(target_user_id)
         if target_user:
             payee_upi = target_user.get("upi_id")
             payee_name = target_user.get("name", target_name)
 
     # Resolve payer info (me)
-    me = await db.users.find_one({"_id": ObjectId(user_id)}) or {}
+    me = await get_user_by_id(user_id) or {}
     my_name = me.get("name", "a MintU user")
     my_upi = me.get("upi_id", "")
 

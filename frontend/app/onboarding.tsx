@@ -19,6 +19,7 @@ import { useLangStore } from '../store/langStore';
 import { t } from '../utils/i18n';
 import ConfettiBurst from '../components/ConfettiBurst';
 import { COLORS } from '../utils/theme';
+import { STORAGE } from '../constants/storage';
 
 const { width, height } = Dimensions.get('window');
 
@@ -63,7 +64,7 @@ export default function Onboarding() {
   const listRef = useRef<FlatList>(null);
 
   const complete = async () => {
-    await AsyncStorage.setItem('onboarding_seen', 'true');
+    await AsyncStorage.setItem(STORAGE.ONBOARDING_SEEN, 'true');
     router.replace('/auth' as any);
   };
 

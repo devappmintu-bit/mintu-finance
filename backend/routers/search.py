@@ -7,6 +7,7 @@ import re
 from datetime import datetime, timezone
 from bson import ObjectId
 from fastapi import APIRouter, Depends
+from core.time import utc_now
 
 from core import db, get_current_user
 
@@ -43,7 +44,7 @@ async def unified_search(q: str = "", user_id: str = Depends(get_current_user)):
             "description": t.get("description", ""),
             "category": t.get("category", ""),
             "type": t.get("type", "debit"),
-            "date": (t.get("date") or datetime.now(timezone.utc)).isoformat() if hasattr(t.get("date"), "isoformat") else str(t.get("date", "")),
+            "date": (t.get("date") or utc_now()).isoformat() if hasattr(t.get("date"), "isoformat") else str(t.get("date", "")),
         })
 
     # ── Budgets: category match ────────────────────────────────────

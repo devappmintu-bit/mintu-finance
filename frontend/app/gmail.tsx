@@ -10,6 +10,7 @@ import api from '../utils/api';
 import { fetchGmailStatus, startGmailOAuth, syncGmailNow, disconnectGmail } from '../services/gmail';
 import { COLORS, SPACING, RADIUS, useAppColors } from '../utils/theme';
 import { makeStyles } from '../utils/makeStyles';
+import { showError, showSuccess } from '../utils/toast';
 
 type Status = {
   connected: boolean;
@@ -127,10 +128,10 @@ export default function GmailConnectScreen() {
   const disconnect = async () => {
     try {
       await disconnectGmail();
-      Toast.show({ type: 'success', text1: 'Disconnected' });
+      showSuccess('Disconnected');
       await fetchStatus();
     } catch {
-      Toast.show({ type: 'error', text1: 'Could not disconnect' });
+      showError('Could not disconnect');
     }
   };
 

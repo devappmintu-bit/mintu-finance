@@ -25,6 +25,7 @@ import ProgressRing from '../components/ui/ProgressRing';
 import { useIsOnline } from '../hooks/useIsOnline';
 import { makeStyles } from '../utils/makeStyles';
 import { COLORS, useAppColors } from '../utils/theme';
+import { showError, showSuccess } from '../utils/toast';
 
 type Goal = {
   id: string;
@@ -196,11 +197,11 @@ export default function GoalsScreen() {
       if (editingGoal) {
         await api.patch(`/goals/${editingGoal.id}`, payload);
         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
-        Toast.show({ type: 'success', text1: 'Goal updated!' });
+        showSuccess('Goal updated!');
       } else {
         await api.post('/goals', payload);
         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
-        Toast.show({ type: 'success', text1: 'Goal created 🎉' });
+        showSuccess('Goal created 🎉');
       }
       setFormVisible(false);
       loadGoals();
@@ -224,10 +225,10 @@ export default function GoalsScreen() {
     const doDelete = async () => {
       try {
         await api.delete(`/goals/${g.id}`);
-        Toast.show({ type: 'success', text1: 'Goal deleted' });
+        showSuccess('Goal deleted');
         loadGoals();
       } catch {
-        Toast.show({ type: 'error', text1: 'Could not delete' });
+        showError('Could not delete');
       }
     };
     if (Platform.OS === 'web') {

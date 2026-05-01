@@ -28,6 +28,7 @@ import { COLORS, SHADOW, useAppColors, GLASS } from '../../utils/theme';
 import { makeStyles } from '../../utils/makeStyles';
 import { C, MEMBER_COLORS, getGA } from './theme';
 import api from '../../utils/api';
+import { showError, showInfo } from '../../utils/toast';
 
 type Contact = { id: string; name: string; phone: string; onMintu?: boolean };
 
@@ -151,8 +152,8 @@ export default function ContactPickerSheet({ visible, onClose, onCreate, existin
 
   const addManual = () => {
     const digits = manualPhone.replace(/\D/g, '').slice(-10);
-    if (digits.length !== 10) { Toast.show({ type: 'error', text1: 'Enter valid 10-digit phone' }); return; }
-    if (selected.some((s) => s.phone === digits)) { Toast.show({ type: 'info', text1: 'Already added' }); return; }
+    if (digits.length !== 10) { showError('Enter valid 10-digit phone'); return; }
+    if (selected.some((s) => s.phone === digits)) { showInfo('Already added'); return; }
     const c: Contact = { id: `manual_${digits}`, name: `+91 ${digits}`, phone: digits };
     setSelected((prev) => [...prev, c]);
     setManualPhone('');
@@ -166,13 +167,13 @@ export default function ContactPickerSheet({ visible, onClose, onCreate, existin
   }, [contacts, debouncedSearch]);
 
   const goNext = () => {
-    if (selected.length === 0) { Toast.show({ type: 'error', text1: 'Pick at least 1 person' }); return; }
+    if (selected.length === 0) { showError('Pick at least 1 person'); return; }
     haptic.medium();
     setStep(2);
   };
 
   const handleCreate = () => {
-    if (!groupName.trim()) { Toast.show({ type: 'error', text1: 'Enter group name' }); return; }
+    if (!groupName.trim()) { showError('Enter group name'); return; }
     haptic.success();
     onCreate(groupName.trim(), selected.map((s) => s.phone), chosenEmoji || undefined);
   };

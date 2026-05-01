@@ -23,6 +23,7 @@ import { shareImageSmart } from '../utils/share';
 import PremiumUnlockTeaser from '../components/premium/PremiumUnlockTeaser';
 import { LeaderboardSkeleton } from '../components/SkeletonLoader';
 import useSwr from '../hooks/useSwr';
+import { showSuccess } from '../utils/toast';
 
 type Scope = 'contacts' | 'global' | 'streak';
 
@@ -124,7 +125,7 @@ export default function LeaderboardScreen() {
         ? `🏆 I'm #${rank} on MintU's ${scope === 'contacts' ? 'friends' : scope === 'streak' ? '🔥 streak' : 'global'} leaderboard! Join me: https://mintu.app`
         : `Climbing the MintU leaderboard · rank #${rank} (top ${100 - (data.you.percentile ?? 0)}%). Join me: https://mintu.app`;
       await shareImageSmart({ uri, fallbackText: caption, filename: `mintu-rank-${rank}.png` });
-      Toast.show({ type: 'success', text1: '✓ Share sheet opened' });
+      showSuccess('✓ Share sheet opened');
     } catch (e: any) {
       Toast.show({ type: 'error', text1: 'Could not share', text2: e?.message || 'Try again' });
     } finally {

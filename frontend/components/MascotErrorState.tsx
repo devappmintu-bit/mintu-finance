@@ -30,7 +30,7 @@ import { Animated, Pressable, StyleSheet, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { COLORS, SPACING } from '../utils/theme';
-import { haptics } from '../utils/haptics';
+import { haptic as haptics } from '../utils/haptics';
 import {
   createMascotAnimValues,
   playMascotAnimation,

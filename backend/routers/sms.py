@@ -6,6 +6,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from core import db, get_current_user
 from core.scoring import calculate_money_score
 from core.constants import SAMPLE_INDIAN_SMS
+from core.time import utc_now
 
 
 def parse_sms_with_ai(sms_text):
@@ -47,8 +48,8 @@ async def bulk_parse_sms(data: dict, user_id: str = Depends(get_current_user)):
                     "description": parsed.get("description", parsed.get("merchant", "Transaction")),
                     "type": parsed["type"],
                     "source": "sms_import",
-                    "date": datetime.now(timezone.utc),
-                    "created_at": datetime.now(timezone.utc)
+                    "date": utc_now(),
+                    "created_at": utc_now()
                 })
                 parsed_count += 1
             else:

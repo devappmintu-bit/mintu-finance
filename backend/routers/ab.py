@@ -5,6 +5,8 @@ from bson import ObjectId
 from fastapi import APIRouter, Depends
 
 from core import db, get_current_user
+from core.users import get_user_by_id
+from core.time import utc_now
 
 router = APIRouter(tags=["ab"])
 api_router = router  # extracted code uses @api_router.*
@@ -14,7 +16,7 @@ api_router = router  # extracted code uses @api_router.*
 @api_router.get("/ab/paywall-group")
 async def get_ab_group(user_id: str = Depends(get_current_user)):
     """Assign user to A/B test group for paywall placement"""
-    user = await db.users.find_one({"_id": ObjectId(user_id)})
+    user = await get_user_by_id(user_id)
     
     group = user.get("ab_paywall_group")
     if not group:
@@ -38,7 +40,7 @@ async def track_ab_event(event: dict, user_id: str = Depends(get_current_user)):
         "event": event.get("event", "view"),  # "view", "click", "convert"
         "group": event.get("group", ""),
         "placement": event.get("placement", ""),
-        "created_at": datetime.now(timezone.utc)
+        "created_at": utc_now()
     })
     return {"tracked": True}
 

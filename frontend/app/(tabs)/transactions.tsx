@@ -7,7 +7,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useLocalSearchParams, router } from 'expo-router';
 import api from '../../utils/api';
-import { format } from 'date-fns';
+import { format } from 'date-fns/format';
 import { useLangStore } from '../../store/langStore';
 import { t, type LangCode } from '../../utils/i18n';
 import { COLORS, RADIUS, SPACING, CATEGORIES, CATEGORY_LIST, SHADOW, shadowStyle, useAppColors } from '../../utils/theme';
@@ -32,6 +32,7 @@ import TransactionsHero from '../../components/transactions/TransactionsHero';
 import useSwr from '../../hooks/useSwr';
 import { useIsOnline } from '../../hooks/useIsOnline';
 import { groupTransactionsByDate, type TxnRowItem } from '../../utils/groupTransactionsByDate';
+import { showSuccess } from '../../utils/toast';
 
 // Pure, memoized row — prevents re-renders on unrelated parent state changes (e.g. modals).
 // Per UX spec: Transactions get DELETE-only swipe (no edit gesture).
@@ -251,7 +252,7 @@ function TransactionsScreen() {
         // Single message
         await api.post('/transactions/parse-sms', { sms_text: raw });
         setSmsModalVisible(false); setSmsText(''); fetchTransactions();
-        Toast.show({ type: 'success', text1: 'Done!', text2: 'Transaction added from SMS!' });
+        showSuccess('Done!', 'Transaction added from SMS!');
       }
     } catch (e: any) { Alert.alert(t('error', lang), e.response?.data?.detail || 'Could not parse'); }
     finally { setSmsLoading(false); }
@@ -264,7 +265,7 @@ function TransactionsScreen() {
     try {
       await api.post('/transactions/parse-sms', { sms_text: notifText });
       setNotifText(''); setNotifExpanded(false); fetchTransactions();
-      Toast.show({ type: 'success', text1: 'Done!', text2: 'Expense added from notification!' });
+      showSuccess('Done!', 'Expense added from notification!');
     } catch (e: any) { Alert.alert('Error', e.response?.data?.detail || 'Could not parse notification'); }
     finally { setNotifLoading(false); }
   };

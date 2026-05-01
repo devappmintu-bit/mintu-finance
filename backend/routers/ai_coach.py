@@ -10,6 +10,11 @@ from datetime import datetime, timedelta, date, timezone
 from typing import List, Dict, Optional
 from bson import ObjectId
 from fastapi import Depends, HTTPException, UploadFile, File
+from core.users import get_user_by_id
+from core.time import utc_now
+from core.errors import (
+    raise_user_not_found,
+)
 from routers.ai_common import (
     router, api_router, ChatMessage, db, get_current_user,
     _lazy_server_attr, LlmChat, UserMessage, OpenAISpeechToText,
@@ -36,11 +41,11 @@ async def ai_financial_coach(msg: ChatMessage, user_id: str = Depends(get_curren
     """AI Financial Coach — structured, data-aware, actionable (mirrors /ai/agent-chat format)."""
     
     # Gather user's financial context
-    user = await db.users.find_one({"_id": ObjectId(user_id)})
+    user = await get_user_by_id(user_id)
     if not user:
-        raise HTTPException(status_code=404, detail="User not found")
+        raise_user_not_found()
     
-    now = datetime.now(timezone.utc)
+    now = utc_now()
     month_start = now.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
     
     # Aggregate spending
@@ -167,7 +172,7 @@ RULES:
         llm_key = os.environ.get("EMERGENT_LLM_KEY", "")
         chat = LlmChat(
             api_key=llm_key,
-            session_id=f"coach_{user_id}_{datetime.now(timezone.utc).timestamp()}",
+            session_id=f"coach_{user_id}_{utc_now().timestamp()}",
             system_message=system_prompt
         ).with_model("openai", "gpt-5.2")
         response = await chat.send_message(UserMessage(text=msg.message))
@@ -244,7 +249,7 @@ async def save_agent_memory(data: dict, user_id: str = Depends(get_current_user)
                 "user_id": user_id,
                 "preferences": prefs,
                 "habits": habits,
-                "updated_at": datetime.now(timezone.utc)
+                "updated_at": utc_now()
             }
         },
         upsert=True

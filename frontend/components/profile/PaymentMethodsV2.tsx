@@ -24,6 +24,7 @@ import useFocusRefresh from '../../hooks/useFocusRefresh';
 import { shadowStyle, COLORS, GLASS } from '../../utils/theme';
 import { useAppColors } from '../../utils/theme';
 import { makeStyles } from '../../utils/makeStyles';
+import { showError, showSuccess as toastSuccess } from '../../utils/toast';
 
 type Method = {
   id: string;
@@ -92,7 +93,7 @@ export default function PaymentMethodsV2() {
   const setDefault = async (id: string) => {
     try {
       await api.put(`/user/payment-methods/${id}/default`);
-      Toast.show({ type: 'success', text1: 'Default updated' });
+      toastSuccess('Default updated');
       load();
     } catch { Toast.show({ type: 'error', text1: 'Couldn\'t update default' }); }
   };
@@ -114,7 +115,7 @@ export default function PaymentMethodsV2() {
 
   const remove = (m: Method) => {
     const go = async () => {
-      try { await api.delete(`/user/payment-methods/${m.id}`); Toast.show({ type: 'success', text1: 'Removed' }); load(); }
+      try { await api.delete(`/user/payment-methods/${m.id}`); toastSuccess('Removed'); load(); }
       catch { Toast.show({ type: 'error', text1: 'Couldn\'t remove' }); }
     };
     if (Platform.OS === 'web') {
@@ -291,10 +292,10 @@ function AddMethodModal({ visible, onClose, onSaved }: { visible: boolean; onClo
   const save = async () => {
     const body: any = { type, is_default: isDefault };
     if (type === 'upi') {
-      if (upiStatus !== 'valid') { Toast.show({ type: 'error', text1: 'Enter valid UPI (name@bank)' }); return; }
+      if (upiStatus !== 'valid') { showError('Enter valid UPI (name@bank)'); return; }
       body.upi_id = upiId.trim();
     } else if (type === 'card') {
-      if (!/^\d{4}$/.test(cardLast4)) { Toast.show({ type: 'error', text1: 'Enter last 4 digits' }); return; }
+      if (!/^\d{4}$/.test(cardLast4)) { showError('Enter last 4 digits'); return; }
       body.card_last4 = cardLast4;
       body.card_brand = cardBrand.toLowerCase();
     } else if (type === 'netbanking') {
@@ -308,7 +309,7 @@ function AddMethodModal({ visible, onClose, onSaved }: { visible: boolean; onClo
       // Phase 2 — Show inline success animation, then close
       setShowSuccess(true);
       setTimeout(() => {
-        Toast.show({ type: 'success', text1: 'Payment method added · Secured' });
+        toastSuccess('Payment method added · Secured');
         reset();
         onSaved();
       }, 900);

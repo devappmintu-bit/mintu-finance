@@ -21,7 +21,7 @@
  *   (passed through `getItemType`) and a stable `key`. We pre-compute both
  *   so the render path stays branch-free.
  */
-import { format } from 'date-fns';
+import { format } from 'date-fns/format';
 
 export type TxnRowItem = { type: 'header'; key: string; label: string; count: number; total: number }
                        | { type: 'txn'; key: string; data: any };

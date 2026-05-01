@@ -37,6 +37,7 @@ import type { SplitGroup } from '../../services/types';
 import { COLORS, useAppColors } from '../../utils/theme';
 import { makeStyles } from '../../utils/makeStyles';
 import { fmtINR } from '../../utils/format';
+import { showError, showInfo } from '../../utils/toast';
 
 export default function DraftsScreen() {
   const c = useAppColors();
@@ -102,9 +103,9 @@ export default function DraftsScreen() {
           try {
             await deleteDraftExpense(draft.id);
             setDrafts(prev => prev.filter(d => d.id !== draft.id));
-            Toast.show({ type: 'info', text1: 'Draft discarded' });
+            showInfo('Draft discarded');
           } catch {
-            Toast.show({ type: 'error', text1: 'Could not discard' });
+            showError('Could not discard');
           }
         }},
       ],

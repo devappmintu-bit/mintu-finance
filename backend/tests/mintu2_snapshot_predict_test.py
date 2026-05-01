@@ -8,6 +8,7 @@ PHONE = "9876543210"
 PW = "test123"
 
 results = []
+from core.time import utc_now
 
 
 def check(name, cond, detail=""):
@@ -107,7 +108,7 @@ def t2_sparkline(d):
         # last entry date should be today or yesterday
         try:
             last_date_str = sp[-1]["date"]  # e.g. "Apr 18"
-            now = datetime.now(timezone.utc)
+            now = utc_now()
             expected_today = now.strftime("%b %d")
             from datetime import timedelta
             expected_yesterday = (now - timedelta(days=1)).strftime("%b %d")

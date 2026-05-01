@@ -4,11 +4,74 @@ Focused on the adversarial regression suite — clears the
 `rate_limits` collection before each test so OTP brute-force
 tests (F4) don't poison subsequent tests (F5) with stale 429
 counters on the same IP.
+
+Phase 3 consolidation: the shared `http`, `auth_token`, and
+`_user_id_from_jwt` helpers that were previously re-declared in
+8+ individual test files are now defined here as pytest fixtures.
+Individual tests just declare `http` (or `authed_http`) as a
+function parameter to receive the shared httpx.AsyncClient.
 """
 import os
+import base64
+import json
 import pytest
 import pytest_asyncio
+import httpx
 from motor.motor_asyncio import AsyncIOMotorClient
+
+
+# ──────────────────────────────────────────────────────────────────
+# SHARED CONSTANTS — used across the whole test suite
+# ──────────────────────────────────────────────────────────────────
+BASE_URL = os.environ.get("MINTU_TEST_BASE", "http://localhost:8001/api")
+TEST_PHONE = "9876543210"
+TEST_OTP = "123456"
+
+
+# ──────────────────────────────────────────────────────────────────
+# SHARED HTTP CLIENT FIXTURES — move out of 8 test files
+# ──────────────────────────────────────────────────────────────────
+@pytest_asyncio.fixture
+async def http():
+    """Unauthenticated httpx.AsyncClient pointed at the live backend."""
+    async with httpx.AsyncClient(base_url=BASE_URL, timeout=10.0) as c:
+        yield c
+
+
+@pytest_asyncio.fixture
+async def auth_token():
+    """One-shot login → returns a bearer JWT string."""
+    async with httpx.AsyncClient(base_url=BASE_URL, timeout=10.0) as c:
+        await c.post("/auth/send-otp", json={"phone": TEST_PHONE})
+        r = await c.post("/auth/verify-otp",
+                         json={"phone": TEST_PHONE, "otp": TEST_OTP})
+        assert r.status_code == 200, r.text
+        return r.json()["token"]
+
+
+@pytest_asyncio.fixture
+async def authed_http(auth_token):
+    """HTTP client with Authorization header already set."""
+    async with httpx.AsyncClient(
+        base_url=BASE_URL,
+        timeout=10.0,
+        headers={"Authorization": f"Bearer {auth_token}"},
+    ) as c:
+        yield c
+
+
+def _user_id_from_jwt(token: str) -> str:
+    """Parse the `sub` claim out of a JWT without verifying the signature.
+    Used by tests that need to assert on user_id-scoped DB state.
+    Relocated here from test_round52f_rate_limit.py + test_round53c_concurrency.py
+    + 2 other test files (Phase 3 consolidation).
+    """
+    parts = token.split(".")
+    if len(parts) != 3:
+        raise ValueError(f"Not a JWT: {token[:40]}…")
+    payload_b64 = parts[1] + "=" * (-len(parts[1]) % 4)
+    payload = json.loads(base64.urlsafe_b64decode(payload_b64))
+    return payload.get("sub") or payload.get("user_id") or payload.get("id")
 
 
 @pytest_asyncio.fixture(autouse=True)

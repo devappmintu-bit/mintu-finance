@@ -34,6 +34,7 @@ import { useLangStore } from '../../store/langStore';
 import { t } from '../../utils/i18n';
 import Toast from 'react-native-toast-message';
 import { BudgetSkeleton } from '../../components/SkeletonLoader';
+import { showError, showInfo, showSuccess } from '../../utils/toast';
 
 const PERIODS = ['daily', 'weekly', 'monthly'];
 
@@ -103,7 +104,7 @@ function BudgetScreen() {
       const res = await api.post('/budgets/auto-apply');
       Toast.show({ type: 'success', text1: 'Smart Budgets Applied!', text2: res.data.message });
       fetchAll();
-    } catch { Toast.show({ type: 'error', text1: 'Error', text2: 'Could not apply budgets' }); }
+    } catch { showError('Error', 'Could not apply budgets'); }
   };
 
   const openAdd = useCallback(() => { setEditingBudget(null); setFormData({ category: 'Food', amount: '', period: 'monthly', recurring: true, description: '' }); setModalVisible(true); }, []);
@@ -183,11 +184,11 @@ function BudgetScreen() {
               description: restore.description || '',
             });
             setBudgets(curr => [{ ...restore, id: (created as any).id }, ...curr]);
-            Toast.show({ type: 'success', text1: 'Budget restored' });
+            showSuccess('Budget restored');
             lastDeletedRef.current = null;
             fetchAll();
           } catch {
-            Toast.show({ type: 'error', text1: 'Could not restore' });
+            showError('Could not restore');
           }
         },
       });
@@ -223,7 +224,7 @@ function BudgetScreen() {
 
   const shareBudgetSnapshot = async () => {
     if (budgets.length === 0) {
-      Toast.show({ type: 'info', text1: 'Create a budget first 📊' });
+      showInfo('Create a budget first 📊');
       return;
     }
     setSharing(true);
@@ -255,10 +256,10 @@ function BudgetScreen() {
       if (Platform.OS === 'web') {
         if ((navigator as any)?.share) {
           try { await (navigator as any).share({ title: 'MintU Budget', text: msg }); }
-          catch { await (navigator as any).clipboard?.writeText(msg); Toast.show({ type: 'success', text1: 'Copied to clipboard' }); }
+          catch { await (navigator as any).clipboard?.writeText(msg); showSuccess('Copied to clipboard'); }
         } else {
           await (navigator as any).clipboard?.writeText(msg);
-          Toast.show({ type: 'success', text1: 'Copied to clipboard' });
+          showSuccess('Copied to clipboard');
         }
       } else {
         const RN = await import('react-native');

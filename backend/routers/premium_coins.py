@@ -11,6 +11,7 @@ from pydantic import BaseModel
 
 from core import db, get_current_user
 from core.constants import PRICING
+from core.users import get_user_by_id
 from routers.premium_common import router, api_router  # noqa: F401
 
 COINS_PER_RUPEE = 10     # 10 coins = ₹1
@@ -23,7 +24,7 @@ class RedeemPreviewBody(BaseModel):
 
 
 async def _get_coin_balance(user_id: str) -> int:
-    u = await db.users.find_one({"_id": ObjectId(user_id)})
+    u = await get_user_by_id(user_id)
     if not u:
         return 0
     return int(u.get("coins", 0) or 0)

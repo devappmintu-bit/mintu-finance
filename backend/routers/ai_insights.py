@@ -9,6 +9,8 @@ from datetime import datetime, timedelta, date, timezone
 from typing import List, Dict, Optional
 from bson import ObjectId
 from fastapi import Depends, HTTPException, UploadFile, File
+from core.users import get_user_by_id
+from core.time import utc_now
 from routers.ai_common import (
     router, api_router, ChatMessage, db, get_current_user,
     _lazy_server_attr, cache_get, cache_set, calculate_money_score,
@@ -33,7 +35,7 @@ async def get_daily_insights(user_id: str = Depends(get_current_user), lang: str
     money_score = await calculate_money_score(user_id)
     
     # Get spending summary by category
-    seven_days_ago = datetime.now(timezone.utc) - timedelta(days=7)
+    seven_days_ago = utc_now() - timedelta(days=7)
     transactions = await db.transactions.find({
         "user_id": user_id,
         "type": "debit",
@@ -58,7 +60,7 @@ async def get_daily_insights(user_id: str = Depends(get_current_user), lang: str
         "mood": ai_insights.get("mood", "good"),
         "alerts": ai_insights.get("alerts", []),
         "trends": ai_insights.get("trends", {}),
-        "generated_at": datetime.now(timezone.utc)
+        "generated_at": utc_now()
     }
 
 
@@ -70,7 +72,7 @@ async def ai_expense_report(user_id: str = Depends(get_current_user)):
     cached = cache_get(cache_key)
     if cached:
         return cached
-    now = datetime.now(timezone.utc)
+    now = utc_now()
     month_start = now.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
     prev_month_start = (month_start - timedelta(days=1)).replace(day=1)
     # Current month data
@@ -124,8 +126,8 @@ Return ONLY valid JSON."""
 async def get_proactive_nudges(user_id: str = Depends(get_current_user)):
     """Generate proactive AI nudges based on user's financial behavior"""
     
-    user = await db.users.find_one({"_id": ObjectId(user_id)})
-    now = datetime.now(timezone.utc)
+    user = await get_user_by_id(user_id)
+    now = utc_now()
     month_start = now.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
     today_start = now.replace(hour=0, minute=0, second=0, microsecond=0)
     

@@ -14,11 +14,13 @@ This avoids the client making 4-5 parallel calls on mount.
 """
 from __future__ import annotations
 
+import asyncio
 from datetime import datetime, timezone, timedelta
 from typing import Any, Dict
 
 from bson import ObjectId
 from fastapi import APIRouter, Depends
+from core.time import utc_now
 
 from core import db, get_current_user
 
@@ -48,7 +50,19 @@ async def _get_coins(user_id: str) -> int:
 async def _get_top_percent(user_id: str, score: int) -> int:
     """Percentile rank — % of users with a LOWER score than me.
     Returns 'top N%' i.e. (1 - pct_below) * 100 rounded down to a known bucket.
+
+    Phase 5 optimisation: wrap in a 5-minute cache. The percentile only
+    shifts meaningfully on new user registrations and score bumps, so
+    fresh-every-5-minutes is visually indistinguishable from live.
+    Previously two full-collection count_documents() calls per Profile
+    open — O(users) × 2. Now O(1) on cache hit.
     """
+    from core.cache import cache_get, cache_set
+    _ck = f"profile_identity:top_pct:{score}"
+    cached = cache_get(_ck)
+    if cached is not None:
+        return int(cached)
+
     try:
         total = await db.users.count_documents({})
         if total <= 1:
@@ -58,16 +72,19 @@ async def _get_top_percent(user_id: str, score: int) -> int:
         top_pct = int(round(((higher + 1) / total) * 100))
         # Clamp / bucket to readable values
         if top_pct <= 1:
-            return 1
-        if top_pct <= 5:
-            return 5
-        if top_pct <= 10:
-            return 10
-        if top_pct <= 25:
-            return 25
-        if top_pct <= 50:
-            return 50
-        return 75
+            result = 1
+        elif top_pct <= 5:
+            result = 5
+        elif top_pct <= 10:
+            result = 10
+        elif top_pct <= 25:
+            result = 25
+        elif top_pct <= 50:
+            result = 50
+        else:
+            result = 75
+        cache_set(_ck, result, ttl_seconds=300)   # 5 min TTL
+        return result
     except Exception:
         # Heuristic fallback using the score itself
         if score >= 90:
@@ -88,7 +105,7 @@ async def _get_monthly_delta(user_id: str, current_score: int) -> int:
     ~30 days ago in the `score_history` collection. Falls back to 0
     if no history exists (new account)."""
     try:
-        cutoff = datetime.now(timezone.utc) - timedelta(days=30)
+        cutoff = utc_now() - timedelta(days=30)
         snap = await db.score_history.find_one(
             {"user_id": user_id, "snapshot_at": {"$lte": cutoff}},
             sort=[("snapshot_at", -1)],
@@ -103,14 +120,14 @@ async def _get_monthly_delta(user_id: str, current_score: int) -> int:
 async def _record_score_snapshot(user_id: str, score: int) -> None:
     """Record a score snapshot at most once per day for delta calc."""
     try:
-        today_key = datetime.now(timezone.utc).strftime("%Y-%m-%d")
+        today_key = utc_now().strftime("%Y-%m-%d")
         existing = await db.score_history.find_one({"user_id": user_id, "date_key": today_key})
         if not existing:
             await db.score_history.insert_one({
                 "user_id": user_id,
                 "money_score": int(score),
                 "date_key": today_key,
-                "snapshot_at": datetime.now(timezone.utc),
+                "snapshot_at": utc_now(),
             })
     except Exception:
         # Non-critical
@@ -144,12 +161,17 @@ async def profile_identity(user_id: str = Depends(get_current_user)) -> Dict[str
 
     score = int(user.get("money_score", 0) or 0)
 
-    coins = await _get_coins(user_id)
-    top_pct = await _get_top_percent(user_id, score)
-    monthly_delta = await _get_monthly_delta(user_id, score)
-    badges = await _get_badges(user_id)
+    # Phase 5 fix: parallelize 4 independent DB roundtrips via asyncio.gather.
+    # Previously these ran sequentially (~200-400ms total on cold paths).
+    # With gather they run concurrently → ~50-100ms total (the slowest wins).
+    coins, top_pct, monthly_delta, badges = await asyncio.gather(
+        _get_coins(user_id),
+        _get_top_percent(user_id, score),
+        _get_monthly_delta(user_id, score),
+        _get_badges(user_id),
+    )
 
-    # Fire-and-forget snapshot
+    # Fire-and-forget snapshot (keep serial — ordering matters for same-day dedup)
     await _record_score_snapshot(user_id, score)
 
     # Tier derivation — mirror frontend

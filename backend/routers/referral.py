@@ -6,6 +6,11 @@ from bson import ObjectId
 from fastapi import APIRouter, Depends, HTTPException
 
 from core import db, get_current_user
+from core.users import get_user_by_id
+from core.time import utc_now
+from core.errors import (
+    raise_user_not_found,
+)
 
 router = APIRouter(prefix="/referral", tags=["referral"])
 
@@ -36,9 +41,9 @@ async def _ensure_code(user) -> str:
 @router.get("/my-code")
 async def get_referral_code(user_id: str = Depends(get_current_user)):
     """Get or generate user's unique referral code (legacy, kept for back-compat)."""
-    user = await db.users.find_one({"_id": ObjectId(user_id)})
+    user = await get_user_by_id(user_id)
     if not user:
-        raise HTTPException(status_code=404, detail="User not found")
+        raise_user_not_found()
 
     code = await _ensure_code(user)
     referral_count = await db.referrals.count_documents({"referrer_id": user_id})
@@ -85,7 +90,7 @@ async def apply_referral_code(code: dict, user_id: str = Depends(get_current_use
         "referrer_id": referrer_id,
         "referred_id": user_id,
         "code": referral_code,
-        "created_at": datetime.now(timezone.utc),
+        "created_at": utc_now(),
     })
 
     count = await db.referrals.count_documents({"referrer_id": referrer_id})
@@ -97,12 +102,12 @@ async def apply_referral_code(code: dict, user_id: str = Depends(get_current_use
     elif count >= 3:
         await db.users.update_one(
             {"_id": ObjectId(referrer_id)},
-            {"$set": {"premium_tier": "premium", "premium_until": datetime.now(timezone.utc) + timedelta(days=30)}},
+            {"$set": {"premium_tier": "premium", "premium_until": utc_now() + timedelta(days=30)}},
         )
     elif count >= 1:
         await db.users.update_one(
             {"_id": ObjectId(referrer_id)},
-            {"$set": {"premium_tier": "starter", "premium_until": datetime.now(timezone.utc) + timedelta(days=7)}},
+            {"$set": {"premium_tier": "starter", "premium_until": utc_now() + timedelta(days=7)}},
         )
 
     return {"message": "Referral applied! Welcome to MintU!", "referrer_name": referrer["name"]}
@@ -134,9 +139,9 @@ async def referral_leaderboard():
 @router.get("/enhanced-status")
 async def enhanced_referral_status(user_id: str = Depends(get_current_user)):
     """Enhanced referral status with Pro-day rewards, tiers, next milestone, recent referrals."""
-    user = await db.users.find_one({"_id": ObjectId(user_id)})
+    user = await get_user_by_id(user_id)
     if not user:
-        raise HTTPException(status_code=404, detail="User not found")
+        raise_user_not_found()
 
     code = await _ensure_code(user)
     referrals = await db.referrals.find({"referrer_id": user_id}).sort("created_at", -1).to_list(50)
@@ -195,10 +200,10 @@ async def fomo_feed(user_id: str = Depends(get_current_user)):
 
     # --- Real friends data (anonymized names if private) ---
     try:
-        me = await db.users.find_one({"_id": ObjectId(user_id)})
+        me = await get_user_by_id(user_id)
         friend_phones = me.get("friends", []) if me else []
         if friend_phones:
-            month_start = datetime.now(timezone.utc).replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+            month_start = utc_now().replace(day=1, hour=0, minute=0, second=0, microsecond=0)
             friends = await db.users.find({"phone": {"$in": friend_phones}}).to_list(20)
             for f in friends[:3]:
                 # Compute friend's month saving (income - expenses in transactions)
@@ -225,7 +230,7 @@ async def fomo_feed(user_id: str = Depends(get_current_user)):
     # --- Anonymized community aggregates ---
     try:
         # Top-saver percentile (median of top 10% savings in last 30 days)
-        month_start = datetime.now(timezone.utc) - timedelta(days=30)
+        month_start = utc_now() - timedelta(days=30)
         pipeline = [
             {"$match": {"timestamp": {"$gte": month_start}, "type": "expense"}},
             {"$group": {"_id": "$user_id", "spent": {"$sum": "$amount"}}},
@@ -268,7 +273,7 @@ async def fomo_feed(user_id: str = Depends(get_current_user)):
         if me:
             last = me.get("last_login")
             if last and isinstance(last, datetime):
-                days_gap = (datetime.now(timezone.utc) - last).days
+                days_gap = (utc_now() - last).days
                 if days_gap >= 2:
                     items.append({
                         "id": "streak_break",
@@ -300,7 +305,7 @@ async def share_money_score_card(user_id: str = Depends(get_current_user)):
     The frontend combines this text with a gradient card and triggers Share.share().
     """
     from bson import ObjectId
-    user = await db.users.find_one({"_id": ObjectId(user_id)})
+    user = await get_user_by_id(user_id)
     score = user.get("money_score", 72) if user else 72
     badges_count = len(user.get("badges", []) if user else [])
     code = await _ensure_code(user) if user else "MINTU"

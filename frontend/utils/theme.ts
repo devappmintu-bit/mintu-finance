@@ -194,6 +194,66 @@ export const COLORS = {
 };
 
 // ══════════════════════════════════════════════════════════════════════
+//  SEMANTIC — shared color tokens for re-used hexes across the app
+//  Phase 3 consolidation: ~25 hex codes previously copy-pasted into 10+
+//  files each. This module names them so future code reaches for a
+//  token instead of duplicating a hex. Legacy call sites continue to
+//  work; migration is opt-in and can happen screen-by-screen.
+//
+//  Naming convention: palette-neutral semantic roles (success/warning/
+//  info/danger/gold). For brand orange variants use `COLORS.accent.*`.
+//
+//  Usage:
+//    import { SEMANTIC } from '@/utils/theme';
+//    backgroundColor: SEMANTIC.success,   // = '#10B981'
+// ══════════════════════════════════════════════════════════════════════
+export const SEMANTIC = {
+  // --- Success / growth / positive delta (36 prior hits) ---
+  success:     '#10B981',
+  successDark: '#059669',      // pressed / text-on-bg variant (17 hits)
+  successBg:   '#ECFDF5',      // soft mint background
+  successTxt:  '#065F46',      // AA-contrast text on success bg (13 hits)
+
+  // --- Warning / amber (28 hits) ---
+  warning:     '#F59E0B',
+  warningDark: '#D97706',
+  warningBg:   '#FEF3C7',      // soft amber background (18 hits)
+  warningTxt:  '#92400E',      // text on warning bg (23 hits)
+
+  // --- Info / blue (24 hits) ---
+  info:        '#3B82F6',
+  infoDark:    '#2563EB',
+  infoBg:      '#EFF6FF',
+
+  // --- Danger / red (16 hits) ---
+  danger:      '#EF4444',
+  dangerDark:  '#DC2626',      // 12 hits
+  dangerBg:    '#FEE2E2',
+
+  // --- Gold / XP / premium (25 hits for gold, 14 for goldSoft) ---
+  gold:        '#FCD34D',
+  goldSoft:    '#FDE68A',
+  goldDark:    '#B45309',
+
+  // --- Purple / premium accents ---
+  purple:      '#7C3AED',      // 21 hits
+  violet:      '#8B5CF6',      // 18 hits
+  purpleBg:    '#F5F3FF',
+
+  // --- Neutral surfaces / text (grayscale ramp) ---
+  ink:         '#111827',      // primary text (17 hits)
+  inkMuted:    '#374151',      // secondary text (16 hits)
+  textSlate:   '#4B5563',
+  textGray:    '#6B7280',      // 15 hits
+  textSubtle:  '#9CA3AF',      // 15 hits
+  surfaceBg:   '#F3F4F6',      // light gray fill (24 hits)
+  surfaceGray: '#D1D5DB',      // 20 hits
+  divider:     '#E5E7EB',      // 14 hits
+} as const;
+
+export type SemanticToken = keyof typeof SEMANTIC;
+
+// ══════════════════════════════════════════════════════════════════════
 //  GLASS — glassmorphism surface tokens (light, iOS Crystal style)
 //  Use with <BlurView tint={GLASS.tint} intensity={GLASS.intensity} …>
 // ══════════════════════════════════════════════════════════════════════

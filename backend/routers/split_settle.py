@@ -34,6 +34,9 @@ from core.settlement_planner import (
     plan_settlements, my_transfers, transfer_summary,
 )
 from core.ids import safe_oid
+from core.users import get_user_by_id
+from core.time import utc_now
+from core.errors import (raise_group_not_found, raise_user_not_found, raise_invalid_id, raise_no_outstanding_debt, raise_positive_amount_required)
 from routers.split_common import (
     api_router,
     SettlePayment,
@@ -141,7 +144,7 @@ async def _settle_lock(user_id: str, target_user_id: str, group_id: Optional[str
     """
     key = _settle_lock_key(user_id, target_user_id, group_id)
     try:
-        await db.settle_locks.insert_one({"_id": key, "at": datetime.now(timezone.utc)})
+        await db.settle_locks.insert_one({"_id": key, "at": utc_now()})
     except DuplicateKeyError:
         raise HTTPException(status_code=429, detail="Another settlement is in progress, please retry")
     try:
@@ -162,7 +165,7 @@ async def dismiss_reminders_after_settle(payer_id: str, payee_id: str) -> int:
     try:
         r = await db.split_reminders.update_many(
             {"recipient_id": payer_id, "sender_id": payee_id, "status": "pending"},
-            {"$set": {"status": "settled", "dismissed_at": datetime.now(timezone.utc)}},
+            {"$set": {"status": "settled", "dismissed_at": utc_now()}},
         )
         return int(r.modified_count or 0)
     except Exception as _exc:
@@ -178,7 +181,7 @@ SPLIT_MAX_DISCOUNT_PCT = 0.50  # Cap redemption at 50% of the debt amount
 
 async def _get_user_coin_balance(user_id: str) -> int:
     try:
-        u = await db.users.find_one({"_id": ObjectId(user_id)})
+        u = await get_user_by_id(user_id)
     except Exception as _exc:
         logging.warning('split_settle L181 default-return on except: %s', _exc)
         return 0
@@ -201,7 +204,7 @@ async def split_coin_redeem_preview(data: dict, user_id: str = Depends(get_curre
     """
     amount = float(data.get("amount", 0) or 0)
     if amount <= 0:
-        raise HTTPException(status_code=400, detail="Amount must be positive")
+        raise_positive_amount_required()
 
     balance = await _get_user_coin_balance(user_id)
     requested = int(data.get("coins_to_use", balance) or 0)
@@ -397,7 +400,7 @@ async def compute_outstanding_debt(user_id: str, target_user_id: str, group_id: 
 @api_router.get("/split/pay-intent/{target_user_id}")
 async def generate_upi_pay_intent(target_user_id: str, amount: float, user_id: str = Depends(get_current_user)):
     if not ObjectId.is_valid(target_user_id):
-        raise HTTPException(status_code=400, detail="Invalid target_user_id")
+        raise_invalid_id("target_user_id")
     """Generate UPI deep link for payment"""
     
     target = await db.users.find_one({"_id": ObjectId(target_user_id)}, {"upi_id": 1, "name": 1})
@@ -443,9 +446,9 @@ async def settle_payment(
         never before. No phantom events on rollback / failure.
     """
     if not ObjectId.is_valid(data.target_user_id):
-        raise HTTPException(status_code=400, detail="Invalid target_user_id")
+        raise_invalid_id("target_user_id")
     if data.amount is None or data.amount <= 0:
-        raise HTTPException(status_code=400, detail="Amount must be positive")
+        raise_positive_amount_required()
 
     # ── Round 53f — idempotency front door (no-op when header absent) ──
     proceed, cached = await _settle_idempotency_front_door(user_id, idempotency_key)
@@ -455,7 +458,7 @@ async def settle_payment(
     async with _settle_lock(user_id, data.target_user_id, data.group_id):
         outstanding = await compute_outstanding_debt(user_id, data.target_user_id, data.group_id)
         if outstanding <= 0:
-            raise HTTPException(status_code=400, detail="No outstanding debt to settle")
+            raise_no_outstanding_debt()
         if data.amount > outstanding + 0.5:  # allow ₹0.50 rounding slack
             raise HTTPException(status_code=400, detail=f"Amount exceeds outstanding ₹{outstanding:.2f}")
 
@@ -475,8 +478,8 @@ async def settle_payment(
             "txn_ref": data.txn_ref or f"MINTU{uuid_lib.uuid4().hex[:8].upper()}",
             "group_id": data.group_id,
             "status": "completed",
-            "settled_at": datetime.now(timezone.utc),
-            "created_at": datetime.now(timezone.utc)
+            "settled_at": utc_now(),
+            "created_at": utc_now()
         }
 
         # Round 53f — write inside with_atomic_ctx so the cache-invalidation
@@ -539,25 +542,32 @@ async def get_settlements(user_id: str = Depends(get_current_user)):
     settlements = await db.settlements.find({
         "$or": [{"payer_id": user_id}, {"payee_id": user_id}]
     }).sort("settled_at", -1).to_list(50)
-    
+
+    # Phase 5 fix: pre-fetch all payer + payee names in a single $in query
+    # instead of 2 serial find_one() calls per settlement (was 100 round-trips
+    # for the default 50-settlement page — now 1 round-trip).
+    uid_strs = set()
+    for s in settlements:
+        uid_strs.add(s.get("payer_id"))
+        uid_strs.add(s.get("payee_id"))
+    oid_to_name: Dict[str, str] = {}
+    oids = []
+    for uid in uid_strs:
+        if uid:
+            try:
+                oids.append(ObjectId(uid))
+            except Exception:
+                continue
+    if oids:
+        async for u in db.users.find({"_id": {"$in": oids}}, {"name": 1}):
+            oid_to_name[str(u["_id"])] = u.get("name", "User")
+
     result = []
     for s in settlements:
-        payer_name = "User"
-        payee_name = "User"
-        try:
-            payer = await db.users.find_one({"_id": ObjectId(s["payer_id"])}, {"name": 1})
-            if payer: payer_name = payer.get("name", "User")
-        except Exception as _exc:
-            logging.warning('split_settle L549 silent-except: %s', _exc)
-        try:
-            payee = await db.users.find_one({"_id": ObjectId(s["payee_id"])}, {"name": 1})
-            if payee: payee_name = payee.get("name", "User")
-        except Exception as _exc:
-            logging.warning('split_settle L554 silent-except: %s', _exc)
         result.append({
             "id": str(s["_id"]),
-            "payer_name": payer_name,
-            "payee_name": payee_name,
+            "payer_name": oid_to_name.get(s.get("payer_id"), "User"),
+            "payee_name": oid_to_name.get(s.get("payee_id"), "User"),
             "amount": s["amount"],
             "method": s["method"],
             "txn_ref": s.get("txn_ref", ""),
@@ -595,7 +605,7 @@ async def partial_settle(
     if not target_user_id or amount <= 0:
         raise HTTPException(status_code=400, detail="target_user_id and positive amount required")
     if not ObjectId.is_valid(target_user_id):
-        raise HTTPException(status_code=400, detail="Invalid target_user_id")
+        raise_invalid_id("target_user_id")
 
     proceed, cached = await _settle_idempotency_front_door(user_id, idempotency_key, scope="partial_settle")
     if not proceed:
@@ -605,7 +615,7 @@ async def partial_settle(
         # Phantom-settle + double-settle guard (Round 29, locked Round 30)
         outstanding = await compute_outstanding_debt(user_id, target_user_id, group_id)
         if outstanding <= 0:
-            raise HTTPException(status_code=400, detail="No outstanding debt to settle")
+            raise_no_outstanding_debt()
         if amount > outstanding + 0.5:
             raise HTTPException(status_code=400, detail=f"Amount exceeds outstanding ₹{outstanding:.2f}")
 
@@ -636,8 +646,8 @@ async def partial_settle(
             "note": note,
             "is_partial": True,
             "status": "completed",
-            "settled_at": datetime.now(timezone.utc),
-            "created_at": datetime.now(timezone.utc),
+            "settled_at": utc_now(),
+            "created_at": utc_now(),
         }
 
         # Resolve names BEFORE the txn so we can pass them into hooks.
@@ -698,7 +708,7 @@ async def partial_settle(
                                 "coins_applied": redemption["coins_applied"],
                                 "coin_discount": redemption["discount"],
                             },
-                            "created_at": datetime.now(timezone.utc),
+                            "created_at": utc_now(),
                         })
                     except Exception as e:
                         logging.warning(f"Could not post partial settlement message: {e}")
@@ -738,9 +748,9 @@ async def settle_with_rewards(
     """
 
     if not ObjectId.is_valid(data.target_user_id):
-        raise HTTPException(status_code=400, detail="Invalid target_user_id")
+        raise_invalid_id("target_user_id")
     if data.amount is None or data.amount <= 0:
-        raise HTTPException(status_code=400, detail="Amount must be positive")
+        raise_positive_amount_required()
 
     proceed, cached = await _settle_idempotency_front_door(user_id, idempotency_key, scope="settle_with_rewards")
     if not proceed:
@@ -750,7 +760,7 @@ async def settle_with_rewards(
         # Phantom-settle + double-settle guard (Round 29, locked Round 30)
         outstanding = await compute_outstanding_debt(user_id, data.target_user_id, data.group_id)
         if outstanding <= 0:
-            raise HTTPException(status_code=400, detail="No outstanding debt to settle")
+            raise_no_outstanding_debt()
         if data.amount > outstanding + 0.5:
             raise HTTPException(status_code=400, detail=f"Amount exceeds outstanding ₹{outstanding:.2f}")
 
@@ -784,8 +794,8 @@ async def settle_with_rewards(
             "status": "completed",
             "coins_earned": reward["coins"],
             "reward_label": reward["label"],
-            "settled_at": datetime.now(timezone.utc),
-            "created_at": datetime.now(timezone.utc)
+            "settled_at": utc_now(),
+            "created_at": utc_now()
         }
 
         async def _do(session, ctx: PostCommitContext):
@@ -813,7 +823,7 @@ async def settle_with_rewards(
     # These are read-mostly and depend on the post-commit reward bump
     # — but the bump fires synchronously inside _fire() above, so by the
     # time we reach here the user doc is already updated.
-    user = await db.users.find_one({"_id": ObjectId(user_id)})
+    user = await get_user_by_id(user_id)
     settle_count = user.get("settlement_count", 0) if user else 0
     total_coins = user.get("reward_coins", 0) if user else 0
     new_badges = []
@@ -821,7 +831,7 @@ async def settle_with_rewards(
         if settle_count >= badge["threshold"]:
             existing = await db.user_badges.find_one({"user_id": user_id, "badge_id": badge["id"]})
             if not existing:
-                await db.user_badges.insert_one({"user_id": user_id, "badge_id": badge["id"], "earned_at": datetime.now(timezone.utc)})
+                await db.user_badges.insert_one({"user_id": user_id, "badge_id": badge["id"], "earned_at": utc_now()})
                 new_badges.append(badge)
 
     # Calculate cashback (coins reduce future payments)
@@ -858,7 +868,7 @@ async def settle_with_rewards(
 async def redeem_coins(data: dict, user_id: str = Depends(get_current_user)):
     """Redeem reward coins as cashback on next settlement"""
     coins_to_redeem = data.get("coins", 0)
-    user = await db.users.find_one({"_id": ObjectId(user_id)})
+    user = await get_user_by_id(user_id)
     available = user.get("reward_coins", 0) if user else 0
 
     if coins_to_redeem > available:
@@ -901,7 +911,7 @@ async def mark_paid_offline(
     if not target_user_id or amount <= 0:
         raise HTTPException(status_code=400, detail="target_user_id and positive amount required")
     if not ObjectId.is_valid(target_user_id):
-        raise HTTPException(status_code=400, detail="Invalid target_user_id")
+        raise_invalid_id("target_user_id")
 
     proceed, cached = await _settle_idempotency_front_door(user_id, idempotency_key, scope="mark_paid_offline")
     if not proceed:
@@ -911,7 +921,7 @@ async def mark_paid_offline(
         # Phantom-settle + double-settle guard (Round 29, locked Round 30)
         outstanding = await compute_outstanding_debt(user_id, target_user_id, group_id)
         if outstanding <= 0:
-            raise HTTPException(status_code=400, detail="No outstanding debt to settle")
+            raise_no_outstanding_debt()
         if amount > outstanding + 0.5:
             raise HTTPException(status_code=400, detail=f"Amount exceeds outstanding ₹{outstanding:.2f}")
 
@@ -940,8 +950,8 @@ async def mark_paid_offline(
             "note": note,
             "status": "completed",
             "is_offline": True,
-            "settled_at": datetime.now(timezone.utc),
-            "created_at": datetime.now(timezone.utc),
+            "settled_at": utc_now(),
+            "created_at": utc_now(),
         }
 
         # Resolve names BEFORE the txn so we can use them in hooks.
@@ -979,7 +989,7 @@ async def mark_paid_offline(
                 try:
                     await db.split_reminders.update_many(
                         {"recipient_id": user_id, "sender_id": target_user_id, "status": "pending"},
-                        {"$set": {"status": "settled", "dismissed_at": datetime.now(timezone.utc)}}
+                        {"$set": {"status": "settled", "dismissed_at": utc_now()}}
                     )
                 except Exception as _exc:
                     logging.warning('split_settle L983 silent-except: %s', _exc)
@@ -1007,7 +1017,7 @@ async def mark_paid_offline(
                                 "coins_applied": redemption["coins_applied"],
                                 "coin_discount": redemption["discount"],
                             },
-                            "created_at": datetime.now(timezone.utc),
+                            "created_at": utc_now(),
                         })
                     except Exception as e:
                         logging.warning(f"Could not post settlement system message: {e}")
@@ -1106,12 +1116,12 @@ async def settle_plan(group_id: str, user_id: str = Depends(get_current_user)):
         }
     """
     if not ObjectId.is_valid(group_id):
-        raise HTTPException(status_code=400, detail="Invalid group_id")
+        raise_invalid_id("group_id")
     group = await db.split_groups.find_one(
         {"_id": safe_oid(group_id, field_name="group_id"), "members.user_id": user_id}
     )
     if not group:
-        raise HTTPException(status_code=404, detail="Group not found")
+        raise_group_not_found()
 
     member_names: Dict[str, str] = {
         m["user_id"]: m.get("name", "User") for m in group.get("members", [])
@@ -1194,7 +1204,7 @@ async def settle_my_part(
         }
     """
     if not ObjectId.is_valid(group_id):
-        raise HTTPException(status_code=400, detail="Invalid group_id")
+        raise_invalid_id("group_id")
 
     # ── idempotency front door (no-op if header absent) ──
     proceed, cached = await _settle_idempotency_front_door(
@@ -1211,7 +1221,7 @@ async def settle_my_part(
         {"_id": safe_oid(group_id, field_name="group_id"), "members.user_id": user_id}
     )
     if not group:
-        raise HTTPException(status_code=404, detail="Group not found")
+        raise_group_not_found()
 
     member_names: Dict[str, str] = {
         m["user_id"]: m.get("name", "User") for m in group.get("members", [])
@@ -1260,7 +1270,7 @@ async def settle_my_part(
             context="settle_my_part",
         )
 
-    now = datetime.now(timezone.utc)
+    now = utc_now()
     batch_ref = f"SMART{uuid_lib.uuid4().hex[:8].upper()}"
     settlements_to_insert: list = []
     for idx, t in enumerate(mine):
@@ -1367,7 +1377,7 @@ async def settle_my_part(
                         ],
                         "total_paise": total_paise,
                     },
-                    "created_at": datetime.now(timezone.utc),
+                    "created_at": utc_now(),
                 })
             except Exception as e:
                 logging.warning(f"Could not post smart-settle chat card: {e}")

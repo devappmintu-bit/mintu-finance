@@ -1,391 +1,478 @@
-"""
-Phase 3 Backend Validation Test
-================================
-Scope (strict):
-  - Group code generation on POST /api/split/groups (HSTL-7K2 format)
-  - Lazy backfill on GET /api/split/groups (legacy groups → atomic claim)
-  - Sparse UNIQUE index `split_groups_code_unique` enforcement
-  - Concurrent creation race safety
-  - POST /api/users/lookup-batch robustness
+"""Phase 7 — End-to-End Flow Validation (10 flows).
 
-Auth: phone 9876543210, OTP 123456
+Exercises every major user-journey against the live backend at
+`$REACT_APP_BACKEND_URL/api` using mock-OTP auth 9876543210 / 123456.
+Logs PASS/FAIL per step and aggregates results per flow.
 """
-import asyncio
+from __future__ import annotations
 import os
-import re
 import sys
-from datetime import datetime, timezone
-from typing import Any, Dict, List, Optional
+import uuid
+import json
+import time
+from typing import Any, Dict, List, Optional, Tuple
 
-import httpx
-from motor.motor_asyncio import AsyncIOMotorClient
-from bson import ObjectId
-from pymongo.errors import DuplicateKeyError
+import requests
 
-from dotenv import load_dotenv
-
-load_dotenv("/app/frontend/.env")
-load_dotenv("/app/backend/.env")
-
-BACKEND_URL = os.environ.get("EXPO_PUBLIC_BACKEND_URL", "https://mintu-finance.preview.emergentagent.com").rstrip("/")
-API = f"{BACKEND_URL}/api"
-MONGO_URL = os.environ.get("MONGO_URL", "mongodb://localhost:27017")
-DB_NAME = os.environ.get("DB_NAME", "mintu_database")
-
+BASE = "https://mintu-finance.preview.emergentagent.com/api"
 PHONE = "9876543210"
 OTP = "123456"
 
-results: List[tuple] = []
-created_group_ids: List[str] = []
+HEADERS: Dict[str, str] = {}
+SESSION = requests.Session()
+SESSION.headers.update({"Content-Type": "application/json"})
+
+RESULTS: Dict[str, List[Tuple[str, bool, str]]] = {}
 
 
-def record(name: str, ok: bool, details: str = "") -> None:
-    results.append((name, ok, details))
-    icon = "✅" if ok else "❌"
-    print(f"  {icon} {name} {('— ' + details) if details else ''}")
+def log(flow: str, step: str, ok: bool, detail: str = "") -> None:
+    RESULTS.setdefault(flow, []).append((step, ok, detail))
+    tag = "✅ PASS" if ok else "❌ FAIL"
+    print(f"[{flow}] {tag} — {step}  {detail[:300]}")
 
 
-async def auth_token(client: httpx.AsyncClient):
-    r = await client.post(f"{API}/auth/send-otp", json={"phone": PHONE})
-    assert r.status_code == 200, f"send-otp: {r.status_code} {r.text}"
-    r = await client.post(f"{API}/auth/verify-otp", json={"phone": PHONE, "otp": OTP})
-    assert r.status_code == 200, f"verify-otp: {r.status_code} {r.text}"
-    body = r.json()
-    token = body.get("token") or body.get("access_token")
-    user_id = body.get("user", {}).get("id") or body.get("user_id")
-    if not user_id:
-        h = {"Authorization": f"Bearer {token}"}
-        r2 = await client.get(f"{API}/user/me", headers=h)
-        if r2.status_code == 200:
-            j = r2.json()
-            user_id = j.get("id") or j.get("user", {}).get("id") or j.get("_id")
-    return token, user_id
+def req(method: str, path: str, *, json_body=None, params=None, token: Optional[str] = None,
+        headers: Optional[Dict[str, str]] = None, timeout: int = 60) -> requests.Response:
+    h = dict(SESSION.headers)
+    if token:
+        h["Authorization"] = f"Bearer {token}"
+    if headers:
+        h.update(headers)
+    url = f"{BASE}{path}"
+    return SESSION.request(method, url, json=json_body, params=params, headers=h, timeout=timeout)
 
 
-async def cleanup_groups(client, headers, ids):
-    for gid in ids:
-        try:
-            await client.delete(f"{API}/split/groups/{gid}", headers=headers, timeout=10.0)
-        except Exception:
-            pass
+TOKEN: Optional[str] = None
+USER_ID: Optional[str] = None
 
 
-# ── Scenarios ───────────────────────────────────────────────────────
-async def scenario_1(client, headers, db):
-    print("\n=== SCENARIO 1 — Group code format & stability ===")
-    payload = {"name": "Hostel", "members": ["9000000001"], "custom_emoji": "🏠"}
-    r = await client.post(f"{API}/split/groups", json=payload, headers=headers)
-    record("S1.1 POST /split/groups Hostel → 200", r.status_code == 200, f"status={r.status_code}")
-    if r.status_code != 200:
-        return
-    j = r.json()
-    gid = j["id"]
-    created_group_ids.append(gid)
-    # group_code may not be in create response — fetch from DB AND from GET
-    code_from_create = j.get("group_code")
-    doc = await db.split_groups.find_one({"_id": ObjectId(gid)})
-    code_db = doc.get("group_code") if doc else None
-    code = code_from_create or code_db
-    record("S1.2 group_code persisted in DB", bool(code_db), f"db_code={code_db} resp_code={code_from_create}")
-    if code:
-        record(
-            "S1.3 group_code matches ^[A-Z0-9]{4}-[A-Z2-9]{3}$",
-            bool(re.match(r"^[A-Z0-9]{4}-[A-Z2-9]{3}$", code)),
-            f"code={code}",
-        )
-        record("S1.4 prefix starts with HOST (deterministic from 'Hostel')", code.startswith("HOST"), f"code={code}")
+def flow_1_auth() -> bool:
+    global TOKEN, USER_ID
+    flow = "FLOW 1 - AUTH"
+    all_ok = True
 
-    r2 = await client.get(f"{API}/split/groups", headers=headers)
-    record("S1.5 GET /split/groups → 200", r2.status_code == 200)
-    if r2.status_code != 200:
-        return
-    found = next((g for g in r2.json() if g["id"] == gid), None)
-    record(
-        "S1.6 GET returns same group_code as create",
-        bool(found and found.get("group_code") == code),
-        f"got={found.get('group_code') if found else None} expected={code}",
-    )
+    r = req("POST", "/auth/send-otp", json_body={"phone": PHONE})
+    ok = r.status_code == 200 and r.json().get("success") is True
+    log(flow, "POST /auth/send-otp", ok, f"status={r.status_code} body={r.text[:120]}")
+    all_ok &= ok
 
-    r3 = await client.get(f"{API}/split/groups", headers=headers)
-    g3 = next((g for g in r3.json() if g["id"] == gid), None)
-    record(
-        "S1.7 second GET returns SAME group_code (no regeneration)",
-        bool(g3 and g3.get("group_code") == code),
-        f"got={g3.get('group_code') if g3 else None}",
-    )
+    r = req("POST", "/auth/verify-otp", json_body={"phone": PHONE, "otp": OTP})
+    body = r.json() if r.status_code == 200 else {}
+    ok = r.status_code == 200 and "token" in body
+    if ok:
+        TOKEN = body["token"]
+    log(flow, "POST /auth/verify-otp", ok, f"status={r.status_code} has_token={bool(TOKEN)}")
+    all_ok &= ok
 
+    if not TOKEN:
+        return False
 
-async def scenario_2(client, headers, db):
-    print("\n=== SCENARIO 2 — Edge case names ===")
-    # Backend has min_length=1 on `name`, so "" / "   " may be rejected by pydantic.
-    # Spec says "no 500 errors", so 4xx for empty names is acceptable.
-    cases = [
-        ("Goa", "GOA", True),     # padded to 4
-        ("", None, False),        # likely 422
-        ("   ", None, False),     # likely 422 if .strip then ""
-        ("🍻🍕", None, True),      # all stripped → fallback
-        ("Café Munch", None, True),
-    ]
-    for name, _, expect_ok in cases:
-        payload = {"name": name, "members": ["9000000002"]}
-        r = await client.post(f"{API}/split/groups", json=payload, headers=headers)
-        if expect_ok:
-            ok_status = r.status_code == 200
-            record(f"S2 name={name!r} create → 200", ok_status, f"status={r.status_code}")
-            if ok_status:
-                gid = r.json()["id"]
-                created_group_ids.append(gid)
-                doc = await db.split_groups.find_one({"_id": ObjectId(gid)})
-                code = doc.get("group_code") if doc else None
-                ok_format = bool(code and re.match(r"^[A-Z2-9]{4}-[A-Z2-9]{3}$", code))
-                record(f"S2 name={name!r} code matches ^[A-Z2-9]4-[A-Z2-9]3$", ok_format, f"code={code}")
-        else:
-            # accept 200 OR 4xx (no 500)
-            no_500 = r.status_code < 500
-            record(f"S2 name={name!r} no 5xx", no_500, f"status={r.status_code}")
-            if r.status_code == 200:
-                gid = r.json()["id"]
-                created_group_ids.append(gid)
-                doc = await db.split_groups.find_one({"_id": ObjectId(gid)})
-                code = doc.get("group_code") if doc else None
-                ok_format = bool(code and re.match(r"^[A-Z2-9]{4}-[A-Z2-9]{3}$", code))
-                record(f"S2 name={name!r} code valid format (since accepted)", ok_format, f"code={code}")
-
-    # Goa determinism check
-    r1 = await client.post(f"{API}/split/groups", json={"name": "Goa", "members": ["9000000003"]}, headers=headers)
-    r2 = await client.post(f"{API}/split/groups", json={"name": "Goa", "members": ["9000000004"]}, headers=headers)
-    if r1.status_code == 200 and r2.status_code == 200:
-        gid1, gid2 = r1.json()["id"], r2.json()["id"]
-        created_group_ids.extend([gid1, gid2])
-        d1 = await db.split_groups.find_one({"_id": ObjectId(gid1)})
-        d2 = await db.split_groups.find_one({"_id": ObjectId(gid2)})
-        c1, c2 = d1.get("group_code"), d2.get("group_code")
-        p1, p2 = c1.split("-")[0], c2.split("-")[0]
-        record("S2.det1 two 'Goa' groups: prefixes IDENTICAL", p1 == p2, f"{c1} vs {c2}")
-        record("S2.det2 two 'Goa' groups: full codes DIFFERENT", c1 != c2, f"{c1} vs {c2}")
-    else:
-        record("S2.det Goa double-create failed", False, f"r1={r1.status_code} r2={r2.status_code}")
-
-
-async def scenario_3(client, headers, db):
-    print("\n=== SCENARIO 3 — Concurrent creation (race-safe issuance) ===")
-    payload = {"name": "RaceTest", "members": ["9000000005"]}
-
-    async def one_post():
-        try:
-            r = await client.post(f"{API}/split/groups", json=payload, headers=headers, timeout=30.0)
-            return r.status_code, (r.json() if r.status_code == 200 else r.text)
-        except Exception as e:
-            return 599, str(e)
-
-    out = await asyncio.gather(*[one_post() for _ in range(10)])
-    statuses = [s for s, _ in out]
-    success = sum(1 for s in statuses if s == 200)
-    record("S3.1 All 10 concurrent POSTs → 200", success == 10, f"successes={success}/10")
-
-    codes = []
-    for s, b in out:
-        if s == 200 and isinstance(b, dict):
-            gid = b.get("id")
-            if gid:
-                created_group_ids.append(gid)
-                doc = await db.split_groups.find_one({"_id": ObjectId(gid)})
-                if doc and doc.get("group_code"):
-                    codes.append(doc["group_code"])
-
-    print(f"  📋 Returned group_codes (from DB):")
-    for c in codes:
-        print(f"     • {c}")
-    record("S3.2 All 10 codes UNIQUE", len(set(codes)) == 10 and len(codes) == 10, f"unique={len(set(codes))} total={len(codes)}")
-
-    db_groups = await db.split_groups.find({"name": "RaceTest"}).to_list(50)
-    db_codes = [g.get("group_code") for g in db_groups if g.get("group_code")]
-    record(
-        "S3.3 DB shows ≥10 RaceTest groups with distinct codes",
-        len(db_groups) >= 10 and len(set(db_codes)) == len(db_codes),
-        f"db_groups={len(db_groups)} unique_codes={len(set(db_codes))}",
-    )
-
-
-async def scenario_4(client, headers, db, user_id):
-    print("\n=== SCENARIO 4 — Lazy backfill atomicity ===")
-    user = await db.users.find_one({"_id": ObjectId(user_id)})
-    if not user:
-        record("S4.0 user lookup failed", False)
-        return
-
-    legacy_doc = {
-        "name": "Legacy Trip",
-        "members": [{"user_id": user_id, "name": user["name"], "phone": user["phone"]}],
-        "created_by": user_id,
-        "created_at": datetime.now(timezone.utc),
-    }
-    res = await db.split_groups.insert_one(legacy_doc)
-    legacy_id = str(res.inserted_id)
-    created_group_ids.append(legacy_id)
-    pre = await db.split_groups.find_one({"_id": res.inserted_id})
-    record("S4.0 Legacy group inserted WITHOUT group_code", "group_code" not in pre, f"keys={[k for k in pre.keys() if k != 'members']}")
-
-    # The 30s cache on /split/groups means previous GETs may have cached without this group.
-    # But cache is stamped at GET time AND legacy group was just inserted directly.
-    # If cache still hot from S1, the GETs may all return cached (without legacy).
-    # Wait briefly to age cache — 30s TTL... too long. Instead, let's INVALIDATE by triggering a write.
-    # Easier path: clear the in-process cache prefix. But we can't from here.
-    # Instead: the create_split_group calls in S1-S3 all called invalidate_split_cache_for_group, which clears
-    # the cache on EVERY call. So cache should be empty after S3.
-    # However, GETs in S1 may have re-cached. The last GET in S1 was after the last create which invalidated.
-    # Subsequent GETs in S1 cache. Fine — just sleep 31s? Too slow.
-    # Better: Force-clear the cache by explicitly creating a tiny dummy (which invalidates) then deleting.
-    dummy = await client.post(f"{API}/split/groups", json={"name": "CacheBuster", "members": ["9000000099"]}, headers=headers)
-    if dummy.status_code == 200:
-        created_group_ids.append(dummy.json()["id"])
-
-    async def one_get():
-        try:
-            r = await client.get(f"{API}/split/groups", headers=headers, timeout=30.0)
-            return r.status_code, (r.json() if r.status_code == 200 else r.text)
-        except Exception as e:
-            return 599, str(e)
-
-    out = await asyncio.gather(*[one_get() for _ in range(5)])
-    legacy_codes = []
-    for s, b in out:
-        if s == 200 and isinstance(b, list):
-            found = next((g for g in b if g.get("id") == legacy_id), None)
-            legacy_codes.append(found.get("group_code") if found else None)
-        else:
-            legacy_codes.append(f"ERR{s}")
-
-    print(f"  📋 5 concurrent GET responses for Legacy Trip:")
-    for c in legacy_codes:
-        print(f"     • {c}")
-    all_present = all(c and not str(c).startswith("ERR") for c in legacy_codes)
-    record("S4.1 All 5 concurrent GETs include legacy group with code", all_present, f"codes={legacy_codes}")
-    if all_present:
-        unique = set(legacy_codes)
-        record("S4.2 All 5 GETs return SAME group_code (atomic claim)", len(unique) == 1, f"unique={unique}")
-        winner = legacy_codes[0]
-    else:
-        winner = None
-
-    r_seq = await client.get(f"{API}/split/groups", headers=headers)
-    if r_seq.status_code == 200:
-        found = next((g for g in r_seq.json() if g.get("id") == legacy_id), None)
-        seq_code = found.get("group_code") if found else None
-        record("S4.3 Sequential GET returns same code (persistence)", winner is not None and seq_code == winner, f"seq={seq_code} winner={winner}")
-    else:
-        record("S4.3 Sequential GET", False, f"status={r_seq.status_code}")
-
-    db_doc = await db.split_groups.find_one({"_id": res.inserted_id})
-    record("S4.4 Mongo doc has group_code field", bool(db_doc.get("group_code")), f"code={db_doc.get('group_code')}")
-
-
-async def scenario_5(client, headers, db):
-    print("\n=== SCENARIO 5 — Unique-index DB enforcement ===")
-    info = await db.split_groups.index_information()
-    has_idx = "split_groups_code_unique" in info
-    record("S5.1 split_groups_code_unique index exists", has_idx, f"keys={list(info.keys())}")
-    if has_idx:
-        idx = info["split_groups_code_unique"]
-        record("S5.2 index unique=True", idx.get("unique") is True, f"unique={idx.get('unique')}")
-        record("S5.3 index sparse=True", idx.get("sparse") is True, f"sparse={idx.get('sparse')}")
-        record("S5.4 index key=[('group_code', 1)]", idx.get("key") == [("group_code", 1)], f"key={idx.get('key')}")
-
-    dup_code = "ZZZZ-Z9Z"
-    raised = False
-    inserted_id_1 = None
+    r = req("GET", "/user/me", token=TOKEN)
     try:
-        r1 = await db.split_groups.insert_one({
-            "name": "DupTest1", "members": [], "created_at": datetime.now(timezone.utc), "group_code": dup_code,
-        })
-        inserted_id_1 = r1.inserted_id
-        await db.split_groups.insert_one({
-            "name": "DupTest2", "members": [], "created_at": datetime.now(timezone.utc), "group_code": dup_code,
-        })
-    except DuplicateKeyError:
-        raised = True
-    finally:
-        if inserted_id_1:
-            await db.split_groups.delete_one({"_id": inserted_id_1})
-        await db.split_groups.delete_many({"name": "DupTest2"})
-    record("S5.5 Duplicate group_code direct-insert raises DuplicateKeyError", raised)
-
-
-async def scenario_6(client, headers):
-    print("\n=== SCENARIO 6 — Lookup-batch robustness ===")
-    # 1 phone
-    r = await client.post(f"{API}/users/lookup-batch", json={"phones": ["9876543210"]}, headers=headers)
-    record("S6.1 1 phone → 200", r.status_code == 200, f"status={r.status_code}")
-    if r.status_code == 200:
-        record("S6.1.body has matches[]", "matches" in r.json() and isinstance(r.json()["matches"], list))
-
-    # 50 phones
-    phones50 = [f"90000{str(i).zfill(5)}" for i in range(50)]
-    r = await client.post(f"{API}/users/lookup-batch", json={"phones": phones50}, headers=headers)
-    record("S6.2 50 phones → 200", r.status_code == 200, f"status={r.status_code}")
-
-    # 100 phones (cap)
-    phones100 = [f"90000{str(i).zfill(5)}" for i in range(100)]
-    r = await client.post(f"{API}/users/lookup-batch", json={"phones": phones100}, headers=headers)
-    record("S6.3 100 phones (cap) → 200", r.status_code == 200, f"status={r.status_code}")
-
-    # 150 phones → 400
-    phones150 = [f"90000{str(i).zfill(5)}" for i in range(150)]
-    r = await client.post(f"{API}/users/lookup-batch", json={"phones": phones150}, headers=headers)
-    detail = ""
-    try:
-        detail = r.json().get("detail", "")
+        body = r.json()
     except Exception:
-        pass
-    record("S6.4 150 phones → 400 with 'Too many phones' detail", r.status_code == 400 and "Too many phones" in detail, f"status={r.status_code} detail={detail}")
+        body = {}
+    ok = r.status_code == 200 and all(k in body for k in ("name", "phone", "money_score"))
+    if ok:
+        USER_ID = body.get("id")
+    log(flow, "GET /user/me", ok, f"status={r.status_code} keys={list(body.keys())[:8]}")
+    all_ok &= ok
 
-    # mixed valid/invalid
-    mixed = ["9876543210", "abc", "12345", "9999999999"]
-    r = await client.post(f"{API}/users/lookup-batch", json={"phones": mixed}, headers=headers)
-    record("S6.5 mixed valid/invalid → 200 (no crash)", r.status_code == 200, f"status={r.status_code} body={r.text[:160]}")
+    for i, path in enumerate(["/home/snapshot", "/alerts/smart", "/coins/status"]):
+        r = req("GET", path, token=TOKEN)
+        ok = r.status_code == 200
+        log(flow, f"token reuse #{i+1} GET {path}", ok, f"status={r.status_code}")
+        all_ok &= ok
+
+    return all_ok
 
 
-async def main():
-    print(f"Backend: {API}")
-    print(f"Mongo:   {MONGO_URL}/{DB_NAME}")
-    mongo = AsyncIOMotorClient(MONGO_URL)
-    db = mongo[DB_NAME]
+def flow_2_home() -> bool:
+    flow = "FLOW 2 - HOME"
+    all_ok = True
 
-    async with httpx.AsyncClient(timeout=30.0) as client:
-        token, user_id = await auth_token(client)
-        headers = {"Authorization": f"Bearer {token}"}
-        print(f"Auth OK — user_id={user_id}")
+    r = req("GET", "/home/snapshot", token=TOKEN)
+    body = r.json() if r.status_code == 200 else {}
+    sparkline = body.get("sparkline") or body.get("daily_spend") or []
+    sparkline_ok = isinstance(sparkline, list) and len(sparkline) == 7
+    mtd_ok = "mtd_spend" in body or "mtd" in body
+    tier_ok = "tier" in body or "score_level" in body or "level" in body
+    ok = r.status_code == 200 and sparkline_ok
+    log(flow, "GET /home/snapshot", ok,
+        f"status={r.status_code} sparkline_len={len(sparkline)} mtd_present={mtd_ok} tier_present={tier_ok}")
+    all_ok &= ok
 
-        try:
-            # Pre-cleanup: remove leftover RaceTest/Legacy Trip/Hostel/Goa groups from prior runs
-            for n in ["RaceTest", "Legacy Trip", "Hostel", "Goa", "🍻🍕", "Café Munch", "CacheBuster", "DupTest1", "DupTest2"]:
-                await db.split_groups.delete_many({"name": n})
+    r = req("GET", "/alerts/smart", token=TOKEN)
+    body = r.json() if r.status_code == 200 else {}
+    alerts = body.get("alerts")
+    count = body.get("count")
+    ok = r.status_code == 200 and isinstance(alerts, list) and isinstance(count, int)
+    log(flow, "GET /alerts/smart", ok, f"status={r.status_code} count={count}")
+    all_ok &= ok
 
-            await scenario_1(client, headers, db)
-            await scenario_2(client, headers, db)
-            await scenario_3(client, headers, db)
-            await scenario_4(client, headers, db, user_id)
-            await scenario_5(client, headers, db)
-            await scenario_6(client, headers)
-        finally:
-            print(f"\n=== CLEANUP — Deleting {len(created_group_ids)} groups via DELETE endpoint ===")
-            await cleanup_groups(client, headers, created_group_ids)
-            # Also delete by name as fallback
-            for n in ["RaceTest", "Legacy Trip", "Hostel", "Goa", "🍻🍕", "Café Munch", "CacheBuster", "DupTest1", "DupTest2", ""]:
-                await db.split_groups.delete_many({"name": n})
+    r = req("GET", "/analytics/summary", token=TOKEN)
+    body = r.json() if r.status_code == 200 else {}
+    required = {"total_income", "total_expense", "balance", "transaction_count", "category_breakdown"}
+    ok = r.status_code == 200 and required.issubset(body.keys())
+    log(flow, "GET /analytics/summary", ok, f"status={r.status_code} keys={sorted(body.keys())}")
+    all_ok &= ok
 
-    print("\n" + "=" * 70)
-    passed = sum(1 for _, ok, _ in results if ok)
-    total = len(results)
-    print(f"RESULTS: {passed}/{total} passed")
-    print("=" * 70)
-    failed = [r for r in results if not r[1]]
-    if failed:
-        print("\nFAILED:")
-        for n, _, d in failed:
-            print(f"  ❌ {n} — {d}")
-    return 0 if not failed else 1
+    r = req("GET", "/coins/status", token=TOKEN)
+    body = r.json() if r.status_code == 200 else {}
+    ok = r.status_code == 200 and "balance" in body and ("today_earned" in body or "earned_today" in body)
+    log(flow, "GET /coins/status", ok,
+        f"status={r.status_code} balance={body.get('balance')} today_earned={body.get('today_earned', body.get('earned_today'))}")
+    all_ok &= ok
+
+    r = req("GET", "/ai/predict", token=TOKEN, timeout=60)
+    body = r.json() if r.status_code == 200 else {}
+    ok = r.status_code == 200 and ("headline" in body or "prediction" in body or "summary" in body)
+    log(flow, "GET /ai/predict", ok, f"status={r.status_code} keys={list(body.keys())[:8]}")
+    all_ok &= ok
+
+    r = req("GET", "/news/india-finance", token=TOKEN, timeout=30)
+    body = r.json() if r.status_code == 200 else {}
+    articles = body.get("articles")
+    ok = r.status_code == 200 and isinstance(articles, list)
+    log(flow, "GET /news/india-finance", ok,
+        f"status={r.status_code} articles_len={len(articles) if isinstance(articles, list) else 'N/A'}")
+    all_ok &= ok
+
+    r = req("GET", "/notifications/unread-count", token=TOKEN)
+    body = r.json() if r.status_code == 200 else {}
+    ok = r.status_code == 200 and isinstance(body.get("count"), int)
+    log(flow, "GET /notifications/unread-count", ok, f"status={r.status_code} body={body}")
+    all_ok &= ok
+
+    return all_ok
+
+
+def flow_3_transactions() -> bool:
+    flow = "FLOW 3 - TRANSACTIONS"
+    all_ok = True
+
+    r = req("GET", "/transactions", token=TOKEN)
+    ok = r.status_code == 200 and isinstance(r.json(), list)
+    initial_count = len(r.json()) if ok else 0
+    log(flow, "GET /transactions (initial)", ok, f"status={r.status_code} count={initial_count}")
+    all_ok &= ok
+
+    payload = {"amount": 123, "category": "Food", "type": "debit", "description": "E2E test"}
+    r = req("POST", "/transactions", json_body=payload, token=TOKEN)
+    body = r.json() if r.status_code in (200, 201) else {}
+    ok = r.status_code in (200, 201) and "id" in body
+    txn_id = body.get("id") if ok else None
+    log(flow, "POST /transactions", ok, f"status={r.status_code} id={txn_id}")
+    all_ok &= ok
+
+    r = req("GET", "/transactions", token=TOKEN)
+    data = r.json() if r.status_code == 200 else []
+    new_count = len(data)
+    visible = any(t.get("id") == txn_id for t in data) if txn_id else False
+    ok = r.status_code == 200 and new_count == initial_count + 1 and visible
+    log(flow, "GET /transactions (after POST)", ok,
+        f"status={r.status_code} count={new_count} (expected {initial_count+1}) visible={visible}")
+    all_ok &= ok
+
+    if txn_id:
+        r = req("PUT", f"/transactions/{txn_id}",
+                json_body={"description": "E2E updated"}, token=TOKEN)
+        ok = r.status_code == 200
+        log(flow, "PUT /transactions/{id}", ok, f"status={r.status_code}")
+        all_ok &= ok
+
+        r = req("DELETE", f"/transactions/{txn_id}", token=TOKEN)
+        ok = r.status_code == 200
+        log(flow, "DELETE /transactions/{id}", ok, f"status={r.status_code}")
+        all_ok &= ok
+
+        r = req("GET", "/transactions", token=TOKEN)
+        final_count = len(r.json()) if r.status_code == 200 else -1
+        ok = final_count == initial_count
+        log(flow, "GET /transactions (after DELETE)", ok,
+            f"status={r.status_code} count={final_count} (expected {initial_count})")
+        all_ok &= ok
+
+    return all_ok
+
+
+def flow_4_budgets() -> bool:
+    flow = "FLOW 4 - BUDGETS"
+    all_ok = True
+
+    r = req("GET", "/budgets", token=TOKEN)
+    ok = r.status_code == 200 and isinstance(r.json(), list)
+    log(flow, "GET /budgets", ok, f"status={r.status_code} count={len(r.json()) if ok else 'N/A'}")
+    all_ok &= ok
+
+    unique_cat = f"E2ECat-{uuid.uuid4().hex[:6]}"
+    r = req("POST", "/budgets",
+            json_body={"category": unique_cat, "amount": 5000, "period": "monthly"}, token=TOKEN)
+    body = r.json() if r.status_code in (200, 201) else {}
+    ok = r.status_code in (200, 201) and "id" in body
+    budget_id = body.get("id") if ok else None
+    log(flow, "POST /budgets", ok, f"status={r.status_code} id={budget_id}")
+    all_ok &= ok
+
+    r = req("GET", "/budgets/live", token=TOKEN)
+    body = r.json() if r.status_code == 200 else {}
+    is_dict = isinstance(body, dict)
+    ok = r.status_code == 200 and (is_dict or isinstance(body, list))
+    log(flow, "GET /budgets/live", ok,
+        f"status={r.status_code} keys={list(body.keys())[:6] if is_dict else 'list'}")
+    all_ok &= ok
+
+    if budget_id:
+        r = req("PUT", f"/budgets/{budget_id}", json_body={"amount": 6000}, token=TOKEN)
+        body = r.json() if r.status_code == 200 else {}
+        ok = r.status_code == 200 and body.get("amount") == 6000
+        log(flow, "PUT /budgets/{id}", ok, f"status={r.status_code} amount={body.get('amount')}")
+        all_ok &= ok
+
+        r = req("DELETE", f"/budgets/{budget_id}", token=TOKEN)
+        ok = r.status_code == 200
+        log(flow, "DELETE /budgets/{id}", ok, f"status={r.status_code}")
+        all_ok &= ok
+
+    return all_ok
+
+
+def flow_5_goals() -> bool:
+    flow = "FLOW 5 - GOALS"
+    all_ok = True
+
+    r = req("GET", "/goals", token=TOKEN)
+    body = r.json() if r.status_code == 200 else {}
+    goals = body.get("goals") if isinstance(body, dict) else body
+    ok = r.status_code == 200 and isinstance(goals, list)
+    log(flow, "GET /goals", ok, f"status={r.status_code} count={len(goals) if isinstance(goals,list) else 'N/A'}")
+    all_ok &= ok
+
+    payload = {"name": "E2E Goal", "target_amount": 50000, "saved_amount": 0}
+    r = req("POST", "/goals", json_body=payload, token=TOKEN)
+    body = r.json() if r.status_code in (200, 201) else {}
+    goal_doc = body.get("goal") if isinstance(body, dict) else {}
+    goal_id = (goal_doc or {}).get("id") or (body.get("id") if isinstance(body, dict) else None)
+    ok = r.status_code in (200, 201) and bool(goal_id)
+    log(flow, "POST /goals", ok, f"status={r.status_code} id={goal_id}")
+    all_ok &= ok
+
+    if goal_id:
+        r_put = req("PUT", f"/goals/{goal_id}", json_body={"saved_amount": 1000}, token=TOKEN)
+        put_ok = r_put.status_code in (200, 201)
+        if put_ok:
+            log(flow, "PUT /goals/{id}", True, f"status={r_put.status_code}")
+        else:
+            log(flow, "PUT /goals/{id}", False,
+                f"status={r_put.status_code} — review-spec expected PUT; backend only exposes PATCH")
+            r_patch = req("PATCH", f"/goals/{goal_id}", json_body={"saved_amount": 1000}, token=TOKEN)
+            patch_ok = r_patch.status_code == 200
+            log(flow, "PATCH /goals/{id} (actual backend)", patch_ok, f"status={r_patch.status_code}")
+        all_ok &= put_ok
+
+        r = req("DELETE", f"/goals/{goal_id}", token=TOKEN)
+        ok = r.status_code == 200
+        log(flow, "DELETE /goals/{id}", ok, f"status={r.status_code}")
+        all_ok &= ok
+
+    return all_ok
+
+
+def flow_6_split() -> bool:
+    flow = "FLOW 6 - SPLIT"
+    all_ok = True
+    group_id = None
+
+    r = req("POST", "/split/groups",
+            json_body={"name": "E2E Group", "members": ["9876543210", "9999988888"]},
+            token=TOKEN)
+    body = r.json() if r.status_code == 200 else {}
+    group_id = body.get("id")
+    ok = r.status_code == 200 and bool(group_id)
+    log(flow, "POST /split/groups", ok, f"status={r.status_code} id={group_id}")
+    all_ok &= ok
+
+    if group_id:
+        r1 = req("GET", f"/split/groups/{group_id}/members", token=TOKEN)
+        if r1.status_code == 200:
+            log(flow, "GET /split/groups/{id}/members", True, f"status={r1.status_code}")
+        else:
+            log(flow, "GET /split/groups/{id}/members", False,
+                f"status={r1.status_code} — review-spec endpoint does NOT exist; canonical is /manage")
+            r2 = req("GET", f"/split/groups/{group_id}/manage", token=TOKEN)
+            manage_ok = r2.status_code == 200 and isinstance(r2.json().get("members"), list)
+            log(flow, "GET /split/groups/{id}/manage (actual)", manage_ok, f"status={r2.status_code}")
+        all_ok &= (r1.status_code == 200)
+
+        expense_payload = {
+            "group_id": group_id,
+            "description": "Dinner",
+            "amount": 500,
+            "paid_by": USER_ID,
+            "split_type": "equal",
+        }
+        r = req("POST", "/split/expenses", json_body=expense_payload, token=TOKEN)
+        body = r.json() if r.status_code == 200 else {}
+        expense_id = body.get("id")
+        ok = r.status_code == 200 and bool(expense_id)
+        log(flow, "POST /split/expenses", ok, f"status={r.status_code} id={expense_id}")
+        all_ok &= ok
+
+        r = req("GET", "/split/settlements", token=TOKEN, params={"group_id": group_id})
+        ok = r.status_code == 200 and isinstance(r.json(), list)
+        log(flow, "GET /split/settlements", ok, f"status={r.status_code} count={len(r.json()) if ok else 'N/A'}")
+        all_ok &= ok
+
+        r = req("DELETE", f"/split/groups/{group_id}", token=TOKEN)
+        ok = r.status_code in (200, 204)
+        log(flow, "DELETE /split/groups/{id}", ok, f"status={r.status_code}")
+        all_ok &= ok
+
+    return all_ok
+
+
+def flow_7_rewards() -> bool:
+    flow = "FLOW 7 - REWARDS"
+    all_ok = True
+
+    r = req("GET", "/rewards/summary", token=TOKEN)
+    body = r.json() if r.status_code == 200 else {}
+    ok = r.status_code == 200 and isinstance(body, dict)
+    log(flow, "GET /rewards/summary", ok,
+        f"status={r.status_code} keys={list(body.keys())[:8]}")
+    all_ok &= ok
+
+    r = req("POST", "/streak/check-in", token=TOKEN)
+    body = r.json() if r.status_code == 200 else {}
+    ok = r.status_code == 200 and isinstance(body, dict)
+    log(flow, "POST /streak/check-in", ok, f"status={r.status_code} body={str(body)[:180]}")
+    all_ok &= ok
+
+    r = req("GET", "/coins/ledger", token=TOKEN)
+    body = r.json() if r.status_code == 200 else {}
+    entries = body if isinstance(body, list) else (
+        body.get("entries") or body.get("ledger") or body.get("transactions") or body.get("history") or []
+    )
+    ok = r.status_code == 200 and isinstance(entries, list)
+    log(flow, "GET /coins/ledger", ok,
+        f"status={r.status_code} entries_len={len(entries) if isinstance(entries, list) else 'N/A'}")
+    all_ok &= ok
+
+    return all_ok
+
+
+def flow_8_profile() -> bool:
+    flow = "FLOW 8 - PROFILE"
+    all_ok = True
+
+    r = req("GET", "/profile/identity", token=TOKEN)
+    body = r.json() if r.status_code == 200 else {}
+    required_any = {"name", "score", "percentile", "badges"}
+    present = required_any.intersection(body.keys()) if isinstance(body, dict) else set()
+    ok = r.status_code == 200 and len(present) >= 2
+    log(flow, "GET /profile/identity", ok,
+        f"status={r.status_code} found_keys={sorted(present)} all_keys={list(body.keys())[:10] if isinstance(body, dict) else 'N/A'}")
+    all_ok &= ok
+
+    r = req("PUT", "/user/me", json_body={"name": "E2E Test User"}, token=TOKEN)
+    ok = r.status_code == 200
+    log(flow, "PUT /user/me (set name)", ok, f"status={r.status_code}")
+    all_ok &= ok
+
+    req("PUT", "/user/me", json_body={"name": "Test User"}, token=TOKEN)
+
+    return all_ok
+
+
+def flow_9_ai() -> bool:
+    flow = "FLOW 9 - AI INSIGHTS"
+    all_ok = True
+
+    r = req("GET", "/ai/predict", token=TOKEN, timeout=60)
+    ok = r.status_code == 200
+    log(flow, "GET /ai/predict", ok, f"status={r.status_code}")
+    all_ok &= ok
+
+    r = req("GET", "/waste-detector", token=TOKEN, timeout=30)
+    body = r.json() if r.status_code == 200 else {}
+    ok = r.status_code == 200 and isinstance(body, dict)
+    log(flow, "GET /waste-detector", ok,
+        f"status={r.status_code} keys={list(body.keys())[:8] if isinstance(body, dict) else 'N/A'}")
+    all_ok &= ok
+
+    r = req("GET", "/split/insights", token=TOKEN, timeout=30)
+    ok = r.status_code == 200
+    log(flow, "GET /split/insights", ok, f"status={r.status_code}")
+    all_ok &= ok
+
+    return all_ok
+
+
+def flow_10_edge() -> bool:
+    flow = "FLOW 10 - EDGE CASES"
+    all_ok = True
+
+    r = req("GET", "/user/me")
+    ok = r.status_code in (401, 403, 422)
+    log(flow, "GET /user/me without token", ok, f"status={r.status_code} (accepts 401/403/422)")
+    all_ok &= ok
+
+    r = req("GET", "/transactions/invalid-id-format", token=TOKEN)
+    ok = r.status_code < 500
+    log(flow, "GET /transactions/invalid-id-format", ok, f"status={r.status_code} (not 500)")
+    all_ok &= ok
+
+    r = req("POST", "/transactions", json_body={"amount": 100}, token=TOKEN)
+    ok = r.status_code == 422
+    log(flow, "POST /transactions missing field", ok, f"status={r.status_code}")
+    all_ok &= ok
+
+    r = req("PUT", "/budgets/000000000000000000000000",
+            json_body={"amount": 999}, token=TOKEN)
+    ok = r.status_code == 404
+    log(flow, "PUT /budgets/{nonexistent} → 404", ok, f"status={r.status_code}")
+    all_ok &= ok
+
+    r = req("POST", "/split/groups", json_body={"name": "Solo", "members": []}, token=TOKEN)
+    ok = r.status_code < 500
+    log(flow, "POST /split/groups empty members", ok, f"status={r.status_code} (not 500)")
+    all_ok &= ok
+
+    return all_ok
+
+
+def main() -> int:
+    print(f"═══ Phase 7 E2E Flow Validation — {BASE} ═══\n")
+    flow1 = flow_1_auth()
+    if not TOKEN:
+        print("No token — aborting remaining flows")
+        return 1
+
+    flow_2_home()
+    flow_3_transactions()
+    flow_4_budgets()
+    flow_5_goals()
+    flow_6_split()
+    flow_7_rewards()
+    flow_8_profile()
+    flow_9_ai()
+    flow_10_edge()
+
+    print("\n═══ SUMMARY ═══")
+    total_pass = total_fail = 0
+    for flow, steps in RESULTS.items():
+        p = sum(1 for _, ok, _ in steps if ok)
+        f = sum(1 for _, ok, _ in steps if not ok)
+        total_pass += p
+        total_fail += f
+        status = "✅" if f == 0 else "❌"
+        print(f"  {status} {flow}: {p} pass, {f} fail")
+        for step, ok, detail in steps:
+            if not ok:
+                print(f"      ✗ {step} — {detail}")
+    print(f"\nTOTAL: {total_pass} pass, {total_fail} fail across {len(RESULTS)} flows")
+    return 0 if total_fail == 0 else 2
 
 
 if __name__ == "__main__":
-    sys.exit(asyncio.run(main()))
+    sys.exit(main())

@@ -28,6 +28,7 @@ from fastapi import APIRouter, Depends
 
 from core import db, get_current_user
 from core.cache import cache_get, cache_set
+from core.time import utc_now
 
 router = APIRouter(tags=["profile-engine"])
 
@@ -94,7 +95,7 @@ async def score_breakdown(user_id: str = Depends(get_current_user)) -> Dict[str,
     score = int(user.get("money_score", 0) or 0)
     streak = int(user.get("streak_days", 0) or 0)
 
-    now = datetime.now(timezone.utc)
+    now = utc_now()
     month_start, _ = _month_bounds(now)
     this = await _sum_range(user_id, month_start, now)
     saving_rate = int(round((this["saved"] / this["income"]) * 100)) if this["income"] > 0 else 0
@@ -164,7 +165,7 @@ async def score_breakdown(user_id: str = Depends(get_current_user)) -> Dict[str,
 @router.get("/profile/weekly-comparison")
 async def weekly_comparison(user_id: str = Depends(get_current_user)) -> Dict[str, Any]:
     """Compare THIS week vs LAST week. Emit AI commentary + reward preview."""
-    now = datetime.now(timezone.utc)
+    now = utc_now()
     t_start, t_end = _week_bounds(now, 0)
     l_start, l_end = _week_bounds(now, 1)
 
@@ -220,7 +221,7 @@ async def weekly_comparison(user_id: str = Depends(get_current_user)) -> Dict[st
 @router.get("/profile/missions")
 async def profile_missions(user_id: str = Depends(get_current_user)) -> Dict[str, Any]:
     """Return 3 daily missions deterministic per user-day."""
-    now = datetime.now(timezone.utc)
+    now = utc_now()
     midnight_utc = (now.replace(hour=0, minute=0, second=0, microsecond=0) + timedelta(days=1))
     seconds_to_refresh = int((midnight_utc - now).total_seconds())
     date_key = now.strftime("%Y-%m-%d")

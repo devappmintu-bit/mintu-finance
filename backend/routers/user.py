@@ -5,6 +5,7 @@ from pydantic import BaseModel
 
 from core import db, get_current_user
 from core.upi import validate_upi_id, mask_upi_id
+from core.users import get_user_by_id
 import logging
 
 router = APIRouter(prefix="/user", tags=["user"])
@@ -15,7 +16,7 @@ class BiometricToggle(BaseModel):
 
 
 async def _get_user_or_404(user_id: str, projection: dict | None = None) -> dict:
-    user = await db.users.find_one({"_id": ObjectId(user_id)}, projection) if projection else await db.users.find_one({"_id": ObjectId(user_id)})
+    user = await db.users.find_one({"_id": ObjectId(user_id)}, projection) if projection else await get_user_by_id(user_id)
     if not user:
         # Return 401 (not 404) when the user doc is gone — signals the
         # "dead-token" / "account deleted" case to the frontend interceptor

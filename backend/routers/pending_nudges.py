@@ -24,6 +24,10 @@ from typing import Optional
 
 from bson import ObjectId
 from fastapi import APIRouter, Depends, HTTPException
+from core.time import utc_now
+from core.errors import (
+    raise_invalid_id,
+)
 from pydantic import BaseModel
 
 from core import db, get_current_user
@@ -51,7 +55,7 @@ def _strength_from_ignores(ignore_count: int) -> str:
 
 
 def _now() -> datetime:
-    return datetime.now(timezone.utc)
+    return utc_now()
 
 
 def _ensure_aware(dt: Optional[datetime]) -> Optional[datetime]:
@@ -294,7 +298,7 @@ async def reset_nudge_for_group(group_id: str, user_id: str = Depends(get_curren
     """Convenience: reset by (user, group) — the frontend uses this on
     group-open without needing the nudge_id."""
     if not ObjectId.is_valid(group_id):
-        raise HTTPException(status_code=400, detail="Invalid group_id")
+        raise_invalid_id("group_id")
     await db.pending_settlement_nudges.update_one(
         {"user_id": user_id, "group_id": group_id},
         {

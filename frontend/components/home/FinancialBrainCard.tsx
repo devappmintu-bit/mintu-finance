@@ -10,6 +10,7 @@ import * as Haptics from 'expo-haptics';
 import AIInsightCard from './AIInsightCard';
 import { makeStyles } from '../../utils/makeStyles';
 import {  COLORS, useAppColors, GLASS } from '../../utils/theme';
+import { ROUTES } from '../../constants/routes';
 
 type Props = { snapshot: any | null; stats: any | null; predict: any | null };
 type TabKey = 'insight' | 'predict' | 'waste';
@@ -53,7 +54,7 @@ function FinancialBrainCard({ snapshot, stats, predict }: Props) {
         <TouchableOpacity
           key={'ov' + i}
           style={[s.predictRow, a.severity === 'critical' && s.predictRowCrit]}
-          onPress={() => router.push('/(tabs)/budget')}
+          onPress={() => router.push(ROUTES.BUDGET)}
           activeOpacity={0.75}
         >
           <Ionicons name={a.severity === 'critical' ? 'alert-circle' : 'warning'} size={17} color={a.severity === 'critical' ? COLORS.state.danger : COLORS.accent.secondary} />

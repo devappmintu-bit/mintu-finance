@@ -32,6 +32,8 @@ import { useAuthStore } from '../../store/authStore';
 import { useLangStore } from '../../store/langStore';
 import { t, LANGUAGES } from '../../utils/i18n';
 import api from '../../utils/api';
+import { fetchAnalyticsSummary } from '../../services/transactions';
+import { fetchGamificationStatus } from '../../services/rewards';
 import { fetchAvatar, uploadAvatar, deleteAvatar } from '../../services/user';
 import { COLORS } from '../../utils/theme';
 import { makeStyles } from '../../utils/makeStyles';
@@ -58,6 +60,7 @@ import ScoreBoostModal from '../../components/profile/ScoreBoostModal';
 import ProfilePhotoSheet from '../../components/profile/ProfilePhotoSheet';
 import ShareWeeklyWinModal from '../../components/profile/ShareWeeklyWinModal';
 import { deriveWin } from '../../components/profile/WeeklyWinCard';
+import { STORAGE } from '../../constants/storage';
 import SubScreenModal from '../../components/profile/SubScreenModal';
 import EditNameSheet from '../../components/profile/EditNameSheet';
 import LanguageSheet from '../../components/profile/LanguageSheet';
@@ -72,6 +75,7 @@ import AuthTransitionOverlay from '../../components/auth/AuthTransitionOverlay';
 import StreakCoinsHealthCard from '../../components/profile/StreakCoinsHealthCard';
 import { sendTestPush } from '../../hooks/usePushNotifications';
 import PinSetupModal from '../../components/PinSetupModal';
+import { showInfo, showSuccess } from '../../utils/toast';
 import { 
   biometricAvailable, 
   isBiometricEnabled, 
@@ -116,7 +120,7 @@ function ProfileScreen() {
         // App-lock pref via SecureStore
         try {
           const SecureStore = require('expo-secure-store');
-          const v = await SecureStore.getItemAsync('app_lock_enabled');
+          const v = await SecureStore.getItemAsync(STORAGE.APP_LOCK_ENABLED);
           if (v === '0') setAppLockOn(false);
         } catch { /* web — default ON */ }
       } catch { /* non-blocking */ }
@@ -149,7 +153,7 @@ function ProfileScreen() {
     setAppLockOn(next);
     try {
       const SecureStore = require('expo-secure-store');
-      await SecureStore.setItemAsync('app_lock_enabled', next ? '1' : '0');
+      await SecureStore.setItemAsync(STORAGE.APP_LOCK_ENABLED, next ? '1' : '0');
     } catch { /* web fallback — ignored */ }
     Toast.show({
       type: 'success',
@@ -192,10 +196,13 @@ function ProfileScreen() {
 
   const loadData = useCallback(async () => {
     try {
-      const [avatarRes, statsRes, gamiRes, rewardsRes, identityRes, breakdownRes, weeklyRes, missionsRes, gmailRes] = await Promise.all([
+      // Phase 3: analytics & gamification now flow through services layer
+      // rather than calling api.get directly. Other 7 endpoints are pure
+      // profile-scoped data fetches with no planned service wrapping.
+      const [avatarRes, statsData, gamiData, rewardsRes, identityRes, breakdownRes, weeklyRes, missionsRes, gmailRes] = await Promise.all([
         fetchAvatar().then(data => ({ data })).catch(() => ({ data: {} })),
-        api.get('/analytics/summary').catch(() => ({ data: null })),
-        api.get('/gamification/status').catch(() => ({ data: null })),
+        fetchAnalyticsSummary().catch(() => null),
+        fetchGamificationStatus().catch(() => null),
         api.get('/rewards/summary').catch(() => ({ data: null })),
         api.get('/profile/identity').catch(() => ({ data: null })),
         api.get('/profile/score-breakdown').catch(() => ({ data: null })),
@@ -204,8 +211,8 @@ function ProfileScreen() {
         api.get('/gmail/status').catch(() => ({ data: null })),
       ]);
       if ((avatarRes.data as any)?.avatar) setAvatar((avatarRes.data as any).avatar);
-      if (statsRes.data) setStats(statsRes.data);
-      if (gamiRes.data) setGamiStatus(gamiRes.data);
+      if (statsData) setStats(statsData);
+      if (gamiData) setGamiStatus(gamiData);
       if (rewardsRes.data) setRewardsSummary(rewardsRes.data);
       if (identityRes.data) setIdentity(identityRes.data);
       if (breakdownRes.data) setBreakdown(breakdownRes.data);
@@ -241,13 +248,13 @@ function ProfileScreen() {
     };
   }, [stats]);
 
-  const handleLogout = async () => {
+  const handleLogout = useCallback(async () => {
     setLogoutSheet(false);
     setLogoutAnim(true);
     await logout();
-  };
+  }, [logout]);
 
-  const handleAvatarPicked = async (base64DataUri: string) => {
+  const handleAvatarPicked = useCallback(async (base64DataUri: string) => {
     // Snapshot previous avatar so we can rollback if the upload fails —
     // otherwise the user sees the new avatar locally but the server has
     // the old one, creating a silent drift that reappears after relogin.
@@ -255,33 +262,33 @@ function ProfileScreen() {
     await setAvatar(base64DataUri);
     try {
       await uploadAvatar(base64DataUri);
-      Toast.show({ type: 'success', text1: 'Profile photo updated' });
+      showSuccess('Profile photo updated');
     } catch {
       // Rollback to keep local state in sync with server.
       await setAvatar(prevAvatar);
       Toast.show({ type: 'error', text1: 'Couldn\'t save photo', text2: 'Try again in a moment.' });
     }
-  };
+  }, [avatar, setAvatar]);
 
-  const handleAvatarRemoved = async () => {
+  const handleAvatarRemoved = useCallback(async () => {
     await setAvatar('');
     try {
       await deleteAvatar();
-      Toast.show({ type: 'success', text1: 'Profile photo removed' });
+      showSuccess('Profile photo removed');
     } catch {
-      Toast.show({ type: 'info', text1: 'Removed locally' });
+      showInfo('Removed locally');
     }
-  };
+  }, [setAvatar]);
 
-  const onMissionPress = (m: Mission) => {
+  const onMissionPress = useCallback((m: Mission) => {
     try { router.push(m.route as any); } catch { /* noop */ }
-  };
+  }, []);
 
-  const onEarnAll = () => {
+  const onEarnAll = useCallback(() => {
     // Navigate to first incomplete mission
     const next = todayMissions.find(m => !m.done);
     if (next) { try { router.push(next.route as any); } catch {} }
-  };
+  }, [todayMissions]);
 
   const currentLang = LANGUAGES.find(l => l.code === lang);
 
@@ -310,6 +317,60 @@ function ProfileScreen() {
     }
   }, [gmailStatus]);
 
+  // Phase 5 Wave 2 — stable callback refs so memoized SettingsListItem
+  // children don't re-render on every unrelated profile state tick.
+  const goGoals = useCallback(() => router.push('/goals' as any), []);
+  const openAchievements = useCallback(() => setAchievementsModalVisible(true), []);
+  const goLeaderboard = useCallback(() => router.push('/leaderboard' as any), []);
+  const openPaymentMethods = useCallback(() => setPaymentMethodsVisible(true), []);
+  const openPreferences = useCallback(() => setPreferencesVisible(true), []);
+  const openNotifs = useCallback(() => setNotifsVisible(true), []);
+  const goGmail = useCallback(() => router.push('/gmail' as any), []);
+  const openHelp = useCallback(() => setHelpVisible(true), []);
+  const goAbout = useCallback(() => router.push('/about' as any), []);
+  const openLogout = useCallback(() => setLogoutSheet(true), []);
+  const goDeleteAccount = useCallback(() => router.push('/profile/delete-account' as any), []);
+  const openEditAvatar = useCallback(() => setPhotoSheetVisible(true), []);
+  const openEditName = useCallback(() => setEditNameVisible(true), []);
+  const openScoreBreakdown = useCallback(() => setScoreBreakdownVisible(true), []);
+  const openScoreBoost = useCallback(() => setScoreBoostVisible(true), []);
+  const goRewards = useCallback(() => router.push('/(tabs)/rewards' as any), []);
+  const goYearly = useCallback(() => router.push('/yearly' as any), []);
+  const openShareWin = useCallback(() => setShareWinVisible(true), []);
+  const openLangFromPrefs = useCallback(() => {
+    setPreferencesVisible(false);
+    setTimeout(() => setLangModalVisible(true), 300);
+  }, []);
+  const onRefresh = useCallback(() => {
+    setRefreshing(true);
+    loadData();
+  }, [loadData]);
+  const closeLogout = useCallback(() => setLogoutSheet(false), []);
+  const closeScoreBreakdown = useCallback(() => setScoreBreakdownVisible(false), []);
+  const closeScoreBoost = useCallback(() => setScoreBoostVisible(false), []);
+  const closeEditName = useCallback(() => setEditNameVisible(false), []);
+  const closeLang = useCallback(() => setLangModalVisible(false), []);
+  const closeHelp = useCallback(() => setHelpVisible(false), []);
+  const closeAchievements = useCallback(() => setAchievementsModalVisible(false), []);
+  const closePaymentMethods = useCallback(() => setPaymentMethodsVisible(false), []);
+  const closePreferences = useCallback(() => setPreferencesVisible(false), []);
+  const closeNotifs = useCallback(() => setNotifsVisible(false), []);
+  const closePhoto = useCallback(() => setPhotoSheetVisible(false), []);
+  const closeShareWin = useCallback(() => setShareWinVisible(false), []);
+  const onLogoutAnimDone = useCallback(() => {
+    setLogoutAnim(false);
+    router.replace('/unlock');
+  }, []);
+
+  const onSendTestPush = useCallback(async () => {
+    const { sent, message } = await sendTestPush();
+    Toast.show({
+      type: sent ? 'success' : 'info',
+      text1: sent ? 'Test push sent' : 'Push test',
+      text2: message,
+    });
+  }, []);
+
   return (
     <SafeAreaView style={s.bg}>
       <ScrollView
@@ -318,7 +379,7 @@ function ProfileScreen() {
         refreshControl={
           <RefreshControl
             refreshing={refreshing}
-            onRefresh={() => { setRefreshing(true); loadData(); }}
+            onRefresh={onRefresh}
             tintColor={COLORS.accent.primary}
           />
         }
@@ -344,8 +405,8 @@ function ProfileScreen() {
           avatarUri={avatar}
           score={identity?.money_score || user?.money_score || 0}
           weeklyDelta={typeof weekly?.score_delta === 'number' ? weekly.score_delta : null}
-          onEditAvatar={() => setPhotoSheetVisible(true)}
-          onEditName={() => setEditNameVisible(true)}
+          onEditAvatar={openEditAvatar}
+          onEditName={openEditName}
         />
         <MoneyScoreCard
           score={identity?.money_score || user?.money_score || 0}
@@ -353,8 +414,8 @@ function ProfileScreen() {
           percentile={typeof identity?.percentile === 'number' ? identity.percentile : null}
           nextTier={breakdown?.next_tier}
           pointsToNext={breakdown?.points_to_next}
-          onTap={() => setScoreBreakdownVisible(true)}
-          onLevelUp={() => setScoreBoostVisible(true)}
+          onTap={openScoreBreakdown}
+          onLevelUp={openScoreBoost}
         />
         {breakdown?.pillars && breakdown.pillars.length > 0 ? (
           <BoostCarousel pillars={breakdown.pillars} />
@@ -378,7 +439,7 @@ function ProfileScreen() {
           badgesEarned={badgesEarned}
           badgesTotal={badgesTotal}
           coins={coinsBalance}
-          onPressViewProgress={() => router.push('/(tabs)/rewards' as any)}
+          onPressViewProgress={goRewards}
         />
 
         {/* 3b. STREAK & COINS HEALTH — expandable observability card */}
@@ -396,8 +457,8 @@ function ProfileScreen() {
             commentary={weekly.commentary || ''}
             tone={weekly.tone || 'info'}
             rewardPreview={weekly.reward_preview}
-            onPress={() => router.push('/yearly' as any)}
-            onShare={() => setShareWinVisible(true)}
+            onPress={goYearly}
+            onShare={openShareWin}
           />
         ) : null}
 
@@ -409,10 +470,10 @@ function ProfileScreen() {
 
         {/* 7. SETTINGS (list-style, no card blocks) */}
         <SettingsList header="Financial">
-          <SettingsListItem icon="flag-outline" label="My Goals" onPress={() => router.push('/goals' as any)} />
-          <SettingsListItem icon="ribbon-outline" label="Achievements" onPress={() => setAchievementsModalVisible(true)} />
-          <SettingsListItem icon="trophy-outline" label="Leaderboard" onPress={() => router.push('/leaderboard' as any)} />
-          <SettingsListItem icon="card-outline" label="Payment methods" onPress={() => setPaymentMethodsVisible(true)} />
+          <SettingsListItem icon="flag-outline" label="My Goals" onPress={goGoals} />
+          <SettingsListItem icon="ribbon-outline" label="Achievements" onPress={openAchievements} />
+          <SettingsListItem icon="trophy-outline" label="Leaderboard" onPress={goLeaderboard} />
+          <SettingsListItem icon="card-outline" label="Payment methods" onPress={openPaymentMethods} />
         </SettingsList>
 
         <SettingsList header="Security">
@@ -443,22 +504,22 @@ function ProfileScreen() {
             icon="color-palette-outline"
             label="Theme & language"
             value={currentLang?.nativeName}
-            onPress={() => setPreferencesVisible(true)}
+            onPress={openPreferences}
           />
-          <SettingsListItem icon="notifications-outline" label="Notifications" onPress={() => setNotifsVisible(true)} />
+          <SettingsListItem icon="notifications-outline" label="Notifications" onPress={openNotifs} />
           <SmartStatusRow
             icon="logo-google"
             label="Gmail auto-import"
             status={gmailRow.status}
             statusText={gmailRow.text}
-            onPress={() => router.push('/gmail' as any)}
-            onFixNow={() => router.push('/gmail' as any)}
+            onPress={goGmail}
+            onFixNow={goGmail}
           />
         </SettingsList>
 
         <SettingsList header="Support">
-          <SettingsListItem icon="help-circle-outline" label={t('help_support', lang)} onPress={() => setHelpVisible(true)} />
-          <SettingsListItem icon="information-circle-outline" label="About MintU" onPress={() => router.push('/about' as any)} />
+          <SettingsListItem icon="help-circle-outline" label={t('help_support', lang)} onPress={openHelp} />
+          <SettingsListItem icon="information-circle-outline" label="About MintU" onPress={goAbout} />
         </SettingsList>
 
         <SettingsList header="Account">
@@ -466,14 +527,14 @@ function ProfileScreen() {
             icon="log-out-outline"
             label={t('logout', lang)}
             danger
-            onPress={() => setLogoutSheet(true)}
+            onPress={openLogout}
             testID="profile-logout"
           />
           <SettingsListItem
             icon="trash-outline"
             label="Delete account"
             danger
-            onPress={() => router.push('/profile/delete-account' as any)}
+            onPress={goDeleteAccount}
             testID="profile-delete-account"
           />
         </SettingsList>
@@ -492,19 +553,19 @@ function ProfileScreen() {
 
       <LogoutConfirmSheet
         visible={logoutSheet}
-        onCancel={() => setLogoutSheet(false)}
+        onCancel={closeLogout}
         onConfirm={handleLogout}
       />
 
       <ScoreBreakdownModal
         visible={scoreBreakdownVisible}
-        onClose={() => setScoreBreakdownVisible(false)}
+        onClose={closeScoreBreakdown}
         fallbackScore={identity?.money_score || user?.money_score || 0}
       />
 
       <ScoreBoostModal
         visible={scoreBoostVisible}
-        onClose={() => setScoreBoostVisible(false)}
+        onClose={closeScoreBoost}
         currentScore={identity?.money_score || user?.money_score || 0}
       />
 
@@ -512,22 +573,22 @@ function ProfileScreen() {
       <EditNameSheet
         visible={editNameVisible}
         currentName={user?.name || ''}
-        onClose={() => setEditNameVisible(false)}
+        onClose={closeEditName}
       />
 
       {/* Language — extracted bottom sheet */}
       <LanguageSheet
         visible={langModalVisible}
-        onClose={() => setLangModalVisible(false)}
+        onClose={closeLang}
       />
 
-      <Modal visible={helpVisible} animationType="slide"><HelpSupport onClose={() => setHelpVisible(false)} /></Modal>
+      <Modal visible={helpVisible} animationType="slide"><HelpSupport onClose={closeHelp} /></Modal>
 
       {/* Sub-screens launched from settings list — all use shared SubScreenModal */}
       <SubScreenModal
         visible={achievementsModalVisible}
         title="Achievements"
-        onClose={() => setAchievementsModalVisible(false)}
+        onClose={closeAchievements}
       >
         <BudgetAchievements />
       </SubScreenModal>
@@ -535,7 +596,7 @@ function ProfileScreen() {
       <SubScreenModal
         visible={paymentMethodsVisible}
         title="Payment methods"
-        onClose={() => setPaymentMethodsVisible(false)}
+        onClose={closePaymentMethods}
       >
         <PaymentMethodsV2 />
       </SubScreenModal>
@@ -543,14 +604,14 @@ function ProfileScreen() {
       <SubScreenModal
         visible={preferencesVisible}
         title="Language"
-        onClose={() => setPreferencesVisible(false)}
+        onClose={closePreferences}
       >
         <SettingsList header="Language">
           <SettingsListItem
             icon="language-outline"
             label={t('language', lang)}
             value={currentLang?.nativeName}
-            onPress={() => { setPreferencesVisible(false); setTimeout(() => setLangModalVisible(true), 300); }}
+            onPress={openLangFromPrefs}
           />
         </SettingsList>
       </SubScreenModal>
@@ -558,7 +619,7 @@ function ProfileScreen() {
       <SubScreenModal
         visible={notifsVisible}
         title="Notifications"
-        onClose={() => setNotifsVisible(false)}
+        onClose={closeNotifs}
       >
         <NotificationSettings />
         <View style={{ height: 8 }} />
@@ -566,10 +627,7 @@ function ProfileScreen() {
           <SettingsListItem
             icon="send-outline"
             label="Send test notification"
-            onPress={async () => {
-              const { sent, message } = await sendTestPush();
-              Toast.show({ type: sent ? 'success' : 'info', text1: sent ? 'Test push sent' : 'Push test', text2: message });
-            }}
+            onPress={onSendTestPush}
           />
         </SettingsList>
       </SubScreenModal>
@@ -577,7 +635,7 @@ function ProfileScreen() {
       {logoutAnim && (
         <AuthTransitionOverlay
           variant="locking"
-          onDone={() => { setLogoutAnim(false); router.replace('/unlock'); }}
+          onDone={onLogoutAnimDone}
         />
       )}
 
@@ -585,7 +643,7 @@ function ProfileScreen() {
       <ProfilePhotoSheet
         visible={photoSheetVisible}
         hasAvatar={!!avatar}
-        onClose={() => setPhotoSheetVisible(false)}
+        onClose={closePhoto}
         onPicked={handleAvatarPicked}
         onRemoved={handleAvatarRemoved}
       />
@@ -594,7 +652,7 @@ function ProfileScreen() {
       {weekly ? (
         <ShareWeeklyWinModal
           visible={shareWinVisible}
-          onClose={() => setShareWinVisible(false)}
+          onClose={closeShareWin}
           cardProps={deriveWin({
             userName: user?.name,
             score: identity?.money_score ?? user?.money_score,

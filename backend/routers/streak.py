@@ -10,6 +10,7 @@ Endpoints
   GET  /api/coins/history          — immutable ledger history (last 50)
 """
 from fastapi import APIRouter, Depends, HTTPException
+from core.time import utc_now
 from datetime import datetime, timezone
 import asyncio
 
@@ -165,7 +166,7 @@ async def coins_ledger(
                 "description": r.get("description") or r.get("source") or "Coin activity",
                 "source": r.get("source") or "",
                 "balance_after": int(r.get("balance_after", 0) or 0),
-                "created_at": (r.get("created_at") or datetime.now(timezone.utc)).isoformat(),
+                "created_at": (r.get("created_at") or utc_now()).isoformat(),
             })
             last = str(r["_id"])
         return out, last

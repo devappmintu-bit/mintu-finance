@@ -24,6 +24,7 @@ import WeeklyWinCard, { type WeeklyWinCardProps } from './WeeklyWinCard';
 import { shareImageSmart, copyToClipboard } from '../../utils/share';
 import { useAppColors, GLASS } from '../../utils/theme';
 import { makeStyles } from '../../utils/makeStyles';
+import { showError } from '../../utils/toast';
 
 interface Props {
   visible: boolean;
@@ -61,7 +62,7 @@ export default function ShareWeeklyWinModal({ visible, onClose, cardProps, capti
         filename: 'mintu-weekly-win.png',
       });
     } catch (e) {
-      Toast.show({ type: 'error', text1: 'Could not capture card', text2: 'Please try again in a moment.' });
+      showError('Could not capture card', 'Please try again in a moment.');
     } finally {
       setSharing(false);
     }

@@ -26,6 +26,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { router } from 'expo-router';
 import api, { apiSlow } from '../utils/api';
+import { fetchAnalyticsSummary } from '../services/transactions';
 import MintULogo from './MintULogo';
 import { useAuthStore } from '../store/authStore';
 import { useAIPrompt } from '../store/aiPromptStore';
@@ -148,8 +149,8 @@ export default function AICoachChat({ onClose }: { onClose?: () => void }) {
   useEffect(() => {
     (async () => {
       try {
-        const r = await api.get('/analytics/summary');
-        const d = r.data || {};
+        // Phase 3: use canonical services layer, not direct api.get.
+        const d = (await fetchAnalyticsSummary()) || {};
         const cats = Array.isArray(d.categories) ? d.categories : [];
         const topCat = cats[0];
         setCtx((prev) => ({

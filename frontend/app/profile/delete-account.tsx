@@ -21,6 +21,7 @@ import { useAuthStore } from '../../store/authStore';
 import { makeStyles } from '../../utils/makeStyles';
 import { hasPin, verifyPin } from '../../utils/lockManager';
 import { COLORS } from '../../utils/theme';
+import { showError } from '../../utils/toast';
 
 const DATA_LIST = [
   'Transactions, budgets & categories',
@@ -56,12 +57,12 @@ export default function DeleteAccountScreen() {
     // mPIN — no more hardcoded `1234` bypass.
     if (mode === 'hard' && pinRequired) {
       if (!/^\d{4,6}$/.test(pin)) {
-        Toast.show({ type: 'error', text1: 'Enter your 4-digit PIN' });
+        showError('Enter your 4-digit PIN');
         return;
       }
       const ok = await verifyPin(pin).catch(() => false);
       if (!ok) {
-        Toast.show({ type: 'error', text1: 'Incorrect PIN', text2: 'Please try again' });
+        showError('Incorrect PIN', 'Please try again');
         setPin('');
         return;
       }

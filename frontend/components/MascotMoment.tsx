@@ -18,7 +18,7 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { Animated, Pressable, StyleSheet, Text, View } from 'react-native';
 import { makeStyles } from '../utils/makeStyles';
-import { haptics } from '../utils/haptics';
+import { haptic as haptics } from '../utils/haptics';
 import { fetchMascotMoment, getInstantFallback, MascotMomentDTO, MascotMode } from '../services/mascot';
 import {
   createMascotAnimValues,

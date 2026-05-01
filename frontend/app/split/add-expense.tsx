@@ -28,6 +28,7 @@ import FullScreenLoader from '../../components/FullScreenLoader';
 import { makeStyles } from '../../utils/makeStyles';
 import { COLORS, SPACING, useAppColors } from '../../utils/theme';
 import { useIsOnline } from '../../hooks/useIsOnline';
+import { showError, showSuccess } from '../../utils/toast';
 
 type Member = { id: string; name: string; phone?: string };
 type SplitType = 'equal' | 'exact' | 'shares';
@@ -112,11 +113,11 @@ export default function AddExpenseScreen() {
             }
             setSplitType((exp.split_type as SplitType) || 'equal');
           } else {
-            Toast.show({ type: 'error', text1: 'Expense not found' });
+            showError('Expense not found');
           }
         }
       } catch (e) {
-        Toast.show({ type: 'error', text1: 'Could not load group' });
+        showError('Could not load group');
         router.back();
       } finally { setLoading(false); }
     })();
@@ -221,7 +222,7 @@ export default function AddExpenseScreen() {
         if (Platform.OS !== 'web') Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
         setShowConfetti(true);
         setTimeout(() => {
-          Toast.show({ type: 'success', text1: 'Expense updated' });
+          showSuccess('Expense updated');
           router.back();
         }, 800);
         return;

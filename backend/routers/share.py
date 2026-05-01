@@ -5,6 +5,11 @@ from fastapi import APIRouter, Depends, HTTPException
 
 from core import db, get_current_user
 from core.content import APP_DOWNLOAD_LINK
+from core.users import get_user_by_id
+from core.time import utc_now
+from core.errors import (
+    raise_user_not_found,
+)
 
 router = APIRouter(tags=["share"])
 api_router = router  # extracted code uses @api_router.*
@@ -14,10 +19,10 @@ api_router = router  # extracted code uses @api_router.*
 @api_router.get("/share/score-card")
 async def get_score_card_data(user_id: str = Depends(get_current_user)):
     """Get data for generating shareable score card"""
-    user = await db.users.find_one({"_id": ObjectId(user_id)})
+    user = await get_user_by_id(user_id)
     if not user:
-        raise HTTPException(status_code=404, detail="User not found")
-    thirty_days_ago = datetime.now(timezone.utc) - timedelta(days=30)
+        raise_user_not_found()
+    thirty_days_ago = utc_now() - timedelta(days=30)
     txns = await db.transactions.find({"user_id": user_id, "date": {"$gte": thirty_days_ago}}).to_list(1000)
     
     total_saved = sum(t["amount"] for t in txns if t["type"] == "credit") - sum(t["amount"] for t in txns if t["type"] == "debit")
@@ -25,7 +30,7 @@ async def get_score_card_data(user_id: str = Depends(get_current_user)):
     
     # Calculate streak — Round 44 perf: was 365 sequential find_one calls.
     # Single aggregation bucketed by day, then walk in Python.
-    today = datetime.now(timezone.utc).replace(hour=0, minute=0, second=0, microsecond=0)
+    today = utc_now().replace(hour=0, minute=0, second=0, microsecond=0)
     earliest = today - timedelta(days=365)
     days_with_txn: set[str] = set()
     async for d in db.transactions.aggregate([
@@ -47,15 +52,15 @@ async def get_score_card_data(user_id: str = Depends(get_current_user)):
         "streak": streak,
         "total_saved": max(total_saved, 0),
         "transaction_count": len(txns),
-        "month": datetime.now(timezone.utc).strftime("%B %Y"),
+        "month": utc_now().strftime("%B %Y"),
     }
 
 
 @api_router.get("/share/stats-card")
 async def shareable_stats_card(user_id: str = Depends(get_current_user)):
     """Generate shareable stats for WhatsApp/Instagram"""
-    user = await db.users.find_one({"_id": ObjectId(user_id)})
-    now = datetime.now(timezone.utc)
+    user = await get_user_by_id(user_id)
+    now = utc_now()
     month_start = now.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
     
     # Monthly stats

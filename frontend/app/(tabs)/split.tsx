@@ -47,6 +47,7 @@ import InviteGroupSheet from '../../components/split/InviteGroupSheet';
 import EmptyState from '../../components/ui/EmptyState';
 import useSwr from '../../hooks/useSwr';
 import PremiumUnlockTeaser from '../../components/premium/PremiumUnlockTeaser';
+import { showError, showInfo, showSuccess } from '../../utils/toast';
 
 function SplitScreen() {
   const s = useStyles();
@@ -188,11 +189,11 @@ function SplitScreen() {
     const trimmed = (name || '').trim();
     // Validation
     if (trimmed.length < 2) {
-      Toast.show({ type: 'error', text1: 'Name too short', text2: 'Group names need at least 2 characters' });
+      showError('Name too short', 'Group names need at least 2 characters');
       return;
     }
     if (trimmed.length > 50) {
-      Toast.show({ type: 'error', text1: 'Name too long', text2: 'Keep it under 50 characters' });
+      showError('Name too long', 'Keep it under 50 characters');
       return;
     }
     // Optimistic UI — insert a placeholder group instantly so the list updates before the API resolves.
@@ -249,7 +250,7 @@ function SplitScreen() {
     setGroups((prev) => prev.map((g) => (g.id === selectedGroup.id ? { ...g, name: newName.trim() } : g)));
     try {
       await updateGroupName(selectedGroup.id, newName);
-      Toast.show({ type: 'success', text1: 'Renamed!' });
+      showSuccess('Renamed!');
       openManage(selectedGroup); fetchData();
     } catch (e: any) {
       // Roll back the optimistic update and surface the error.
@@ -271,7 +272,7 @@ function SplitScreen() {
     if (!selectedGroup?.id) return;
     try {
       await removeGroupMember(selectedGroup.id, mid);
-      Toast.show({ type: 'success', text1: 'Member Removed' });
+      showSuccess('Member Removed');
     } catch {}
     openManage(selectedGroup); scheduleFetchData(300);
   };
@@ -282,7 +283,7 @@ function SplitScreen() {
     const gid = selectedGroup.id;
     try {
       await leaveGroupSrv(gid);
-      Toast.show({ type: 'success', text1: 'Left Group' });
+      showSuccess('Left Group');
     } catch (e: any) {
       Toast.show({ type: 'error', text1: 'Error', text2: e?.response?.data?.detail || 'Could not leave' });
     }
@@ -336,7 +337,7 @@ function SplitScreen() {
         try {
           await deleteExpenseSrv(exp.id);
           settleRowsCacheKey.current = ''; // invalidate — remove this debt share
-          Toast.show({ type: 'success', text1: 'Deleted ✅' });
+          showSuccess('Deleted ✅');
           if (selectedGroup) openSummary(selectedGroup);
           fetchData();
         } catch (e: any) { Toast.show({ type: 'error', text1: 'Error', text2: e?.response?.data?.detail || 'Failed' }); }
@@ -360,9 +361,9 @@ function SplitScreen() {
       if (e?.response?.status === 404) {
         setGroups((prev) => prev.filter((g) => g.id !== gr.id));
         setModal(''); setSelectedGroup(null); setChatGroup(null);
-        Toast.show({ type: 'info', text1: 'Group no longer available' });
+        showInfo('Group no longer available');
       } else {
-        Toast.show({ type: 'error', text1: 'Error', text2: 'Could not load' });
+        showError('Error', 'Could not load');
       }
     }
   };
@@ -372,9 +373,9 @@ function SplitScreen() {
       if (e?.response?.status === 404) {
         setGroups((prev) => prev.filter((g) => g.id !== gr.id));
         setModal(''); setSelectedGroup(null); setChatGroup(null);
-        Toast.show({ type: 'info', text1: 'Group no longer available' });
+        showInfo('Group no longer available');
       } else {
-        Toast.show({ type: 'error', text1: 'Error', text2: 'Could not load' });
+        showError('Error', 'Could not load');
       }
     }
   };
@@ -442,7 +443,7 @@ function SplitScreen() {
     } catch {
       // Roll back optimistic removal if the server rejected the settle.
       setSettleRows(prevRows);
-      Toast.show({ type: 'error', text1: 'Error', text2: 'Could not settle' });
+      showError('Error', 'Could not settle');
     }
   };
 
@@ -482,7 +483,7 @@ function SplitScreen() {
       }) };
       const checkoutUrl: string = orderRes.data?.checkout_url;
       if (!checkoutUrl) {
-        Toast.show({ type: 'error', text1: 'Payment unavailable', text2: 'Checkout URL not configured' });
+        showError('Payment unavailable', 'Checkout URL not configured');
         return;
       }
       setModal('');
@@ -544,7 +545,7 @@ function SplitScreen() {
     } catch (e: any) {
       const msg = e?.response?.data?.detail || 'Failed';
       if (String(msg).toLowerCase().includes('already sent')) {
-        Toast.show({ type: 'info', text1: 'Already Reminded', text2: 'Wait 1 hour before sending again' });
+        showInfo('Already Reminded', 'Wait 1 hour before sending again');
         close();
       } else { Toast.show({ type: 'error', text1: 'Error', text2: msg }); }
     }

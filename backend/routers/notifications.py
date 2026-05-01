@@ -6,6 +6,11 @@ from pydantic import BaseModel
 
 from core import db, get_current_user
 from core.cache import cache_get, cache_set
+from core.users import get_user_by_id
+from core.time import utc_now
+from core.errors import (
+    raise_user_not_found,
+)
 import logging
 
 
@@ -44,9 +49,9 @@ async def send_test_push(user_id: str = Depends(get_current_user)):
     Useful for verifying push setup end-to-end from the Settings screen.
     Returns {sent, message} so the UI can show a success/error toast.
     """
-    user = await db.users.find_one({"_id": ObjectId(user_id)})
+    user = await get_user_by_id(user_id)
     if not user:
-        raise HTTPException(status_code=404, detail="User not found")
+        raise_user_not_found()
 
     token = user.get("push_token")
     if not token:
@@ -72,7 +77,7 @@ async def send_test_push(user_id: str = Depends(get_current_user)):
 async def check_budget_alerts(user_id: str = Depends(get_current_user)):
     """Check budgets and return any that need alerts"""
     budgets = await db.budgets.find({"user_id": user_id}).to_list(100)
-    thirty_days_ago = datetime.now(timezone.utc) - timedelta(days=30)
+    thirty_days_ago = utc_now() - timedelta(days=30)
     
     alerts = []
     for budget in budgets:
@@ -101,7 +106,7 @@ async def check_budget_alerts(user_id: str = Depends(get_current_user)):
 @api_router.get("/notifications/smart-triggers")
 async def get_smart_notification_triggers(user_id: str = Depends(get_current_user)):
     """Generate all pending smart notifications for user"""
-    now = datetime.now(timezone.utc)
+    now = utc_now()
     today_start = now.replace(hour=0, minute=0, second=0, microsecond=0)
     
     notifications = []
@@ -187,7 +192,7 @@ async def cron_check_notifications():
         token = user.get("push_token", "")
         if not token: continue
         
-        now = datetime.now(timezone.utc)
+        now = utc_now()
         today_start = now.replace(hour=0, minute=0, second=0, microsecond=0)
         seven_days_ago = now - timedelta(days=7)
         thirty_days_ago = now - timedelta(days=30)
@@ -281,7 +286,7 @@ async def persist_notification(user_id: str, kind: str, title: str, body: str, m
         "title": title,
         "body": body,
         "read": False,
-        "created_at": datetime.now(timezone.utc),
+        "created_at": utc_now(),
         "metadata": metadata or {},
     }
     await db.notifications_feed.insert_one(doc)
@@ -302,7 +307,7 @@ async def list_notifications(user_id: str = Depends(get_current_user), limit: in
             "title": d.get("title", ""),
             "body": d.get("body", ""),
             "read": bool(d.get("read", False)),
-            "created_at": (d.get("created_at") or datetime.now(timezone.utc)).isoformat(),
+            "created_at": (d.get("created_at") or utc_now()).isoformat(),
             "metadata": d.get("metadata", {}),
         })
     return {"notifications": items, "count": len(items)}
@@ -357,7 +362,7 @@ async def seed_sample_notifications(user_id: str = Depends(get_current_user)):
     existing = await db.notifications_feed.count_documents({"user_id": user_id})
     if existing > 0:
         return {"ok": True, "seeded": 0, "reason": "already_has_entries"}
-    now = datetime.now(timezone.utc)
+    now = utc_now()
     samples = [
         {"kind": "streak",       "title": "🔥 Keep your streak going!", "body": "You're 3 days away from a 30-day streak.", "created_at": now - timedelta(minutes=5)},
         {"kind": "budget_alert", "title": "Food budget at 82%",         "body": "₹4,100 of ₹5,000 used this month.",         "created_at": now - timedelta(hours=2)},

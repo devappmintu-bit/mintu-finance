@@ -41,6 +41,11 @@ from bson import ObjectId
 
 from routers.premium_common import router, api_router, razorpay_client
 from core import db, get_current_user
+from core.users import get_user_by_id
+from core.time import utc_now
+from core.errors import (
+    raise_user_not_found,
+)
 
 logger = logging.getLogger("premium_subscriptions")
 
@@ -89,9 +94,9 @@ async def create_subscription(body: CreateSubBody, user_id: str = Depends(get_cu
     # Default 12 (1 year). App may pass other values (e.g., 24 = 2 years, 120 = 10 years).
     total_count = max(1, min(240, int(body.total_count or 12)))
 
-    user = await db.users.find_one({"_id": ObjectId(user_id)})
+    user = await get_user_by_id(user_id)
     if not user:
-        raise HTTPException(status_code=404, detail="User not found")
+        raise_user_not_found()
 
     try:
         sub = razorpay_client.subscription.create({
@@ -120,7 +125,7 @@ async def create_subscription(body: CreateSubBody, user_id: str = Depends(get_cu
             "status": sub.get("status", "created"),
             "total_count": total_count,
             "short_url": sub.get("short_url"),
-            "created_at": datetime.now(timezone.utc),
+            "created_at": utc_now(),
         }},
         upsert=True,
     )
@@ -159,7 +164,7 @@ async def cancel_subscription(user_id: str = Depends(get_current_user)):
 
     await db.subscriptions.update_one(
         {"_id": sub["_id"]},
-        {"$set": {"status": res.get("status", "cancelled"), "cancelled_at": datetime.now(timezone.utc)}},
+        {"$set": {"status": res.get("status", "cancelled"), "cancelled_at": utc_now()}},
     )
     return {"status": res.get("status", "cancelled"), "ok": True}
 
@@ -241,7 +246,7 @@ async def razorpay_webhook(request: Request):
             "current_start": _epoch_to_dt(sub_entity.get("current_start")),
             "current_end":   _epoch_to_dt(sub_entity.get("current_end")),
             "next_charge_at": _epoch_to_dt(sub_entity.get("charge_at")),
-            "updated_at": datetime.now(timezone.utc),
+            "updated_at": utc_now(),
         }},
         upsert=True,
     )
@@ -259,7 +264,7 @@ async def razorpay_webhook(request: Request):
     uid_obj = _safe_oid(user_id)
     if event in ("subscription.activated", "subscription.charged", "subscription.resumed"):
         if uid_obj:
-            now = datetime.now(timezone.utc)
+            now = utc_now()
             await db.users.update_one(
                 {"_id": uid_obj},
                 {"$set": {

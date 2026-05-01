@@ -7,17 +7,13 @@ from pydantic import BaseModel
 
 from core import db, get_current_user
 from core.ids import safe_oid
+from core.time import utc_now
 
 
-class RecurringExpenseCreate(BaseModel):
-    description: str
-    amount: float
-    category: str
-    frequency: str  # "daily", "weekly", "monthly"
-
-
-class QuickCashEntry(BaseModel):
-    text: str  # e.g. "₹50 auto", "200 sabzi", "milk 50"
+# Phase 3 consolidation: RecurringExpenseCreate + QuickCashEntry live in
+# backend/schemas.py as the single source of truth. cash.py used to declare
+# its own copies — drift risk if the two ever diverged. Now we re-import.
+from schemas import RecurringExpenseCreate, QuickCashEntry  # noqa: F401
 
 
 router = APIRouter(tags=["cash"])
@@ -68,8 +64,8 @@ async def quick_cash_entry(entry: QuickCashEntry, user_id: str = Depends(get_cur
         "description": desc,
         "type": "debit",
         "source": "cash",
-        "date": datetime.now(timezone.utc),
-        "created_at": datetime.now(timezone.utc)
+        "date": utc_now(),
+        "created_at": utc_now()
     }
     result = await db.transactions.insert_one(trans_dict)
 
@@ -97,7 +93,7 @@ async def create_recurring_expense(expense: RecurringExpenseCreate, user_id: str
         "frequency": expense.frequency,
         "active": True,
         "last_applied": None,
-        "created_at": datetime.now(timezone.utc)
+        "created_at": utc_now()
     }
     result = await db.recurring_expenses.insert_one(rec)
     return {
@@ -134,7 +130,7 @@ async def delete_recurring_expense(expense_id: str, user_id: str = Depends(get_c
 async def apply_recurring_expenses(user_id: str = Depends(get_current_user)):
     """Apply all due recurring expenses as transactions"""
     expenses = await db.recurring_expenses.find({"user_id": user_id, "active": True}).to_list(100)
-    now = datetime.now(timezone.utc)
+    now = utc_now()
     added = 0
 
     for exp in expenses:

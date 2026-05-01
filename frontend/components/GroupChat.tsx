@@ -20,6 +20,7 @@ import ExpensesTab from './split/ExpensesTab';
 import Toast from 'react-native-toast-message';
 import { FlashList, type FlashListRef } from '@shopify/flash-list';
 import useGroupChat from '../hooks/useGroupChat';
+import { showError, showInfo } from '../utils/toast';
 
 // Format currency for display (₹1.2K, ₹12K, ₹1.2L)
 const fmtCompact = (n: number) => {
@@ -63,7 +64,7 @@ export default function GroupChat({ group, onClose, onAddExpense, onManage, onEd
     } catch (e: any) {
       if (e?.response?.status === 404) {
         goneRef.current = true;
-        Toast.show({ type: 'info', text1: 'Group no longer available' });
+        showInfo('Group no longer available');
         try { onClose(); } catch {}
       }
     }
@@ -154,7 +155,7 @@ export default function GroupChat({ group, onClose, onAddExpense, onManage, onEd
       setShowStickers(false);
       await loadMessages();
       setTimeout(() => flatRef.current?.scrollToEnd({ animated: true }), 200);
-    } catch { Toast.show({ type: 'error', text1: 'Error', text2: 'Could not send' }); }
+    } catch { showError('Error', 'Could not send'); }
     finally { setSending(false); }
   };
 

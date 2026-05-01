@@ -15,6 +15,7 @@ from __future__ import annotations
 import asyncio as _asyncio
 import logging
 from datetime import datetime, timezone
+from core.time import utc_now
 
 logger = logging.getLogger(__name__)
 
@@ -279,7 +280,7 @@ async def _start_background_workers(db) -> None:
     async def _soft_delete_purge_loop():
         while True:
             try:
-                now = datetime.now(timezone.utc)
+                now = utc_now()
                 expired = await db.users.find(
                     {"deleted_at": {"$exists": True},
                      "scheduled_purge_at": {"$lte": now}},
@@ -315,7 +316,7 @@ async def _start_background_workers(db) -> None:
         RECENT_WINDOW = 7 * 24 * 3600  # 7 days
         while True:
             try:
-                since = datetime.now(timezone.utc) - __import__("datetime").timedelta(seconds=RECENT_WINDOW)
+                since = utc_now() - __import__("datetime").timedelta(seconds=RECENT_WINDOW)
                 # Pipeline: unique user_ids with ledger activity in the window.
                 cursor = db.ledger_transactions.aggregate([
                     {"$match": {"created_at": {"$gte": since}}},
@@ -357,6 +358,67 @@ async def _start_background_workers(db) -> None:
         logger.info("🔄 Ledger reconcile worker started (6-hour interval)")
     except Exception as e:
         logger.warning(f"Could not start ledger reconcile worker: {e}")
+
+    # ── Waste-detector peer cache pre-warmer (Phase 5 Wave 4) ─────────────
+    # The /waste-detector endpoint joins each user's spending to a global
+    # peer average computed from ALL users' transactions in the current
+    # month. That aggregate is an O(N_users × N_txns) collection scan
+    # that measures ~3.2 s cold on the current data set — unacceptable
+    # for runtime. Before this worker, every 10 minutes (when the in-
+    # memory cache expired) one unlucky user waited for the full scan.
+    #
+    # Strategy: compute the peer aggregate on startup (so the very first
+    # user to hit /waste-detector after a backend boot gets an O(1) result)
+    # and refresh it every 8 minutes (< the 10-min cache TTL so we NEVER
+    # let the cache expire in the steady state).
+    async def _waste_peer_warmer_loop():
+        from routers.ai_common import cache_get, cache_set  # lazy import — avoids circular
+        INTERVAL = 8 * 60  # 8 minutes — beats the 10-min TTL
+        # Small startup delay so we don't compete with primary request
+        # traffic during the first few seconds of boot.
+        await _asyncio.sleep(5)
+        while True:
+            try:
+                now = utc_now()
+                month_start = now.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+                pipeline = [
+                    {"$match": {
+                        "type": {"$in": ["expense", "debit"]},
+                        "date": {"$gte": month_start},
+                    }},
+                    {"$group": {
+                        "_id": "$category",
+                        "total": {"$sum": "$amount"},
+                        "user_count": {"$addToSet": "$user_id"},
+                    }},
+                    {"$project": {
+                        "_id": 1, "total": 1,
+                        "user_count": {"$size": "$user_count"},
+                    }},
+                ]
+                out = {}
+                async for d in db.transactions.aggregate(pipeline):
+                    if d["user_count"] > 0:
+                        out[d["_id"]] = {"avg": d["total"] / d["user_count"]}
+                # 10-min TTL — worker refreshes every 8 min so runtime
+                # hits should ALWAYS find a warm cache.
+                cache_set("waste:peer_global", out, ttl_seconds=600)
+                logger.info(
+                    f"🧮 Waste peer aggregate refreshed · "
+                    f"{len(out)} categories"
+                )
+            except Exception as e:
+                logger.warning(f"Waste peer warmer iteration failed: {e}")
+            await _asyncio.sleep(INTERVAL)
+
+    try:
+        _asyncio.create_task(_waste_peer_warmer_loop())
+        logger.info(
+            "🧮 Waste peer warmer started (8-min interval, pre-warms the "
+            "10-min /waste-detector peer cache)"
+        )
+    except Exception as e:
+        logger.warning(f"Could not start waste peer warmer: {e}")
 
 
 def register_lifecycle(app, db, client) -> None:

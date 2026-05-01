@@ -4,6 +4,10 @@
  * Renders uppercase section header + plain list items with
  * icon + label + chevron. No card backgrounds, no borders around
  * groups — just subtle hairline dividers between items.
+ *
+ * Phase 5 Wave 2: both components are React.memo-wrapped so parent
+ * re-renders (e.g. profile.tsx on every unrelated state tick) don't
+ * cascade repaints into each row.
  */
 import React from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, Platform } from 'react-native';
@@ -21,14 +25,22 @@ export type SettingsListItemProps = {
   testID?: string;
 };
 
-export function SettingsListItem({ icon, label, value, danger, onPress, testID }: SettingsListItemProps) {
+// Module-scoped haptic — no per-render closure allocation.
+function triggerHaptic() {
+  if (Platform.OS !== 'web') Haptics.selectionAsync().catch(() => {});
+}
+
+function SettingsListItemImpl({ icon, label, value, danger, onPress, testID }: SettingsListItemProps) {
   const s = useStyles();
-  const haptic = () => { if (Platform.OS !== 'web') Haptics.selectionAsync().catch(() => {}); };
+  const handlePress = React.useCallback(() => {
+    triggerHaptic();
+    onPress?.();
+  }, [onPress]);
 
   return (
     <TouchableOpacity
       style={s.item}
-      onPress={() => { haptic(); onPress?.(); }}
+      onPress={handlePress}
       disabled={!onPress}
       activeOpacity={0.55}
       testID={testID}
@@ -50,7 +62,10 @@ export function SettingsListItem({ icon, label, value, danger, onPress, testID }
   );
 }
 
-export function SettingsList({ header, children }: { header: string; children: React.ReactNode }) {
+export const SettingsListItem = React.memo(SettingsListItemImpl);
+SettingsListItem.displayName = 'SettingsListItem';
+
+function SettingsListImpl({ header, children }: { header: string; children: React.ReactNode }) {
   const s = useStyles();
   const items = React.Children.toArray(children).filter(Boolean);
   return (
@@ -65,6 +80,9 @@ export function SettingsList({ header, children }: { header: string; children: R
     </View>
   );
 }
+
+export const SettingsList = React.memo(SettingsListImpl);
+SettingsList.displayName = 'SettingsList';
 
 const styles = { iconColor: COLORS.text.muted };
 

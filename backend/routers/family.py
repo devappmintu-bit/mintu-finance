@@ -6,6 +6,11 @@ from pydantic import BaseModel
 
 from core import db, get_current_user
 from core.ids import safe_oid
+from core.users import get_user_by_id
+from core.time import utc_now
+from core.errors import (
+    raise_user_not_found,
+)
 
 router = APIRouter(prefix="/family", tags=["family"])
 
@@ -42,15 +47,15 @@ async def _get_group_or_404(group_id: str, user_id: str, owner_only: bool = Fals
 # ---- Endpoints ---------------------------------------------------------------
 @router.post("/create")
 async def create_family_group(group: FamilyGroupCreate, user_id: str = Depends(get_current_user)):
-    user = await db.users.find_one({"_id": ObjectId(user_id)})
+    user = await get_user_by_id(user_id)
     if not user:
-        raise HTTPException(status_code=404, detail="User not found")
+        raise_user_not_found()
 
     family = {
         "name": group.name,
         "owner_id": user_id,
         "members": [{"user_id": user_id, "name": user["name"], "phone": user["phone"], "role": "owner"}],
-        "created_at": datetime.now(timezone.utc),
+        "created_at": utc_now(),
     }
     result = await db.family_groups.insert_one(family)
     return {
@@ -105,7 +110,7 @@ async def create_family_budget(group_id: str, budget: FamilyBudgetCreate, user_i
         "amount": budget.amount,
         "period": budget.period,
         "created_by": user_id,
-        "created_at": datetime.now(timezone.utc),
+        "created_at": utc_now(),
     }
     result = await db.family_budgets.insert_one(doc)
     return {"id": str(result.inserted_id), **budget.dict()}
@@ -117,7 +122,7 @@ async def get_family_budgets(group_id: str, user_id: str = Depends(get_current_u
 
     budgets = await db.family_budgets.find({"group_id": group_id}).to_list(100)
     member_ids = [m["user_id"] for m in group["members"]]
-    thirty_days_ago = datetime.now(timezone.utc) - timedelta(days=30)
+    thirty_days_ago = utc_now() - timedelta(days=30)
 
     # Single query for all member transactions; filter in memory to avoid N+1
     all_txns = await db.transactions.find({
@@ -144,7 +149,7 @@ async def get_family_summary(group_id: str, user_id: str = Depends(get_current_u
     group = await _get_group_or_404(group_id, user_id)
 
     member_ids = [m["user_id"] for m in group["members"]]
-    thirty_days_ago = datetime.now(timezone.utc) - timedelta(days=30)
+    thirty_days_ago = utc_now() - timedelta(days=30)
     all_txns = await db.transactions.find({
         "user_id": {"$in": member_ids},
         "date": {"$gte": thirty_days_ago},

@@ -23,6 +23,7 @@ from datetime import datetime, timezone
 
 import jwt
 from fastapi import Request, Response
+from core.time import utc_now
 from starlette.middleware.base import BaseHTTPMiddleware
 
 logger = logging.getLogger(__name__)
@@ -157,7 +158,7 @@ class AuditLogMiddleware(BaseHTTPMiddleware):
                     pass
 
             await db.audit_logs.insert_one({
-                "timestamp": datetime.now(timezone.utc),
+                "timestamp": utc_now(),
                 "method": request.method,
                 "path": request.url.path,
                 "status_code": response.status_code,

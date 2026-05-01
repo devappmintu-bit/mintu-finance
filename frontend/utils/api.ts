@@ -2,6 +2,7 @@ import axios from 'axios';
 import Constants from 'expo-constants';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import Toast from 'react-native-toast-message';
+import { STORAGE } from '../constants/storage';
 
 const API_URL = Constants.expoConfig?.extra?.EXPO_PUBLIC_BACKEND_URL || process.env.EXPO_PUBLIC_BACKEND_URL || '';
 
@@ -15,7 +16,7 @@ const api = axios.create({
 
 // Auth token + device id interceptor
 api.interceptors.request.use(async (config) => {
-  const token = await AsyncStorage.getItem('token');
+  const token = await AsyncStorage.getItem(STORAGE.TOKEN);
   if (token) config.headers.Authorization = `Bearer ${token}`;
   // Round 53g — attach a stable per-install UUID so the backend can
   // apply device-scoped rate limits in addition to per-user limits.
@@ -58,7 +59,7 @@ const notifyAuthExpired = async (hadToken: boolean) => {
   lastAuthToastAt = now;
   authExpiredHandled = true;
   try {
-    await AsyncStorage.removeItem('token');
+    await AsyncStorage.removeItem(STORAGE.TOKEN);
     Toast.show({
       type: 'info',
       text1: 'Session expired',
@@ -220,7 +221,7 @@ export const apiSlow = axios.create({
 // possibly-undefined. The duplication here is 4 lines and not worth a
 // type-system fight.)
 apiSlow.interceptors.request.use(async (config) => {
-  const token = await AsyncStorage.getItem('token');
+  const token = await AsyncStorage.getItem(STORAGE.TOKEN);
   if (token) config.headers.Authorization = `Bearer ${token}`;
   return config;
 });

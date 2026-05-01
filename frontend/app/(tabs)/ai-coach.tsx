@@ -21,7 +21,7 @@ import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { View, Text, StyleSheet, ScrollView, RefreshControl, Modal, Platform, TouchableOpacity } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
-import { router } from 'expo-router';
+import { router, useLocalSearchParams } from 'expo-router';
 import AICoachChat from '../../components/AICoachChat';
 import InsightCard from '../../components/ui/InsightCard';
 import NeonButton from '../../components/ui/NeonButton';
@@ -31,12 +31,14 @@ import ThinkingDots from '../../components/ui/ThinkingDots';
 import { COLORS, FONT_FAMILY, GRADIENT, SPACING, useAppColors } from '../../utils/theme';
 import { makeStyles } from '../../utils/makeStyles';
 import api from '../../utils/api';
+import { fetchGamificationStatus } from '../../services/rewards';
 import { useIsOnline } from '../../hooks/useIsOnline';
 import TaxCalculator from '../../components/premium/TaxCalculator';
 import InvestmentSuggester from '../../components/premium/InvestmentSuggester';
 import PremiumUnlockTeaser from '../../components/premium/PremiumUnlockTeaser';
 import { useActivePlan, FEATURES, canAccess } from '../../utils/premium';
 import MascotMoment from '../../components/MascotMoment';
+import { ROUTES } from '../../constants/routes';
 
 type Pulse = {
   currency_week_total?: number;
@@ -63,6 +65,15 @@ function AICoachTab() {
   const c = useAppColors();
   const isOnline = useIsOnline();
   const [activeTab, setActiveTab] = useState<'insights' | 'tax' | 'invest' | 'school'>('insights');
+  // Phase 7 — honor /?tab=tax|invest|school|insights query param so
+  // Premium Hub cards can deep-link into a specific tool.
+  const params = useLocalSearchParams<{ tab?: string }>();
+  useEffect(() => {
+    const t = params?.tab;
+    if (t && ['insights', 'tax', 'invest', 'school'].includes(t)) {
+      setActiveTab(t as any);
+    }
+  }, [params?.tab]);
   const [plan] = useActivePlan();
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -82,7 +93,7 @@ function AICoachTab() {
       api.get('/stats/overview').then(r => r.data),
       api.get('/waste-detector').then(r => r.data),
       api.get('/budgets/live').then(r => r.data),
-      api.get('/gamification/status').then(r => r.data),
+      fetchGamificationStatus(),
     ]);
 
     setStats(s.status === 'fulfilled' ? s.value : null);
@@ -115,6 +126,23 @@ function AICoachTab() {
   const wastedAmt = waste?.total_wasted || 0;
   const wasteCount = waste?.items?.length || 0;
 
+  // Phase 5 Wave 2D — stable callbacks + moved tab defs to useMemo so the
+  // `.map()` below isn't rebuilding a fresh [{…},{…},{…},{…}] identity on
+  // every re-render. Each tab's onPress is keyed off the tab id so swapping
+  // the active tab doesn't invalidate siblings.
+  const tabDefs = useMemo(() => ([
+    { id: 'insights' as const, emoji: '🧠', label: 'Insights', feature: undefined },
+    { id: 'tax'      as const, emoji: '🧾', label: 'Tax',      feature: FEATURES.TAX_CALCULATOR },
+    { id: 'invest'   as const, emoji: '💰', label: 'Invest',   feature: FEATURES.INVESTMENT_SUGGESTER },
+    { id: 'school'   as const, emoji: '🎓', label: 'School',   feature: FEATURES.MONEY_SCHOOL },
+  ]), []);
+  const goMoneySchool = useCallback(() => router.push('/money-school' as any), []);
+  const goPremium = useCallback(() => router.push('/premium' as any), []);
+  const onRefreshInsights = useCallback(() => loadAll(true), [loadAll]);
+  const onRefreshFromRC = useCallback(() => { if (!loading) loadAll(true); }, [loading, loadAll]);
+  const onAskMintu = useCallback(() => { if (isOnline) setChatOpen(true); }, [isOnline]);
+  const closeChat = useCallback(() => setChatOpen(false), []);
+
   // Format currency compactly (Indian format)
   const fmtINR = (n: number) => {
     if (!n && n !== 0) return '—';
@@ -135,12 +163,7 @@ function AICoachTab() {
 
       {/* Tab strip — Insights / Tax / Invest / School */}
       <View style={s.tabStrip}>
-        {([
-          { id: 'insights', emoji: '🧠', label: 'Insights', feature: undefined },
-          { id: 'tax',      emoji: '🧾', label: 'Tax',      feature: FEATURES.TAX_CALCULATOR },
-          { id: 'invest',   emoji: '💰', label: 'Invest',   feature: FEATURES.INVESTMENT_SUGGESTER },
-          { id: 'school',   emoji: '🎓', label: 'School',   feature: FEATURES.MONEY_SCHOOL },
-        ] as const).map(t => {
+        {tabDefs.map(t => {
           // top-right of the icon when the feature is gated and the
           // user isn't on a qualifying plan. Keeps the row tight on
           // 360-px viewports (no extra inline pill that would push
@@ -201,7 +224,7 @@ function AICoachTab() {
           {canAccess(FEATURES.MONEY_SCHOOL, plan) ? (
             <TouchableOpacity
               style={s.schoolCta}
-              onPress={() => router.push('/money-school' as any)}
+              onPress={goMoneySchool}
               activeOpacity={0.85}
             >
               <Text style={s.schoolCtaEmoji}>🎓</Text>
@@ -218,7 +241,7 @@ function AICoachTab() {
             <View style={s.lockedWrap}>
               <TouchableOpacity
                 style={s.schoolCta}
-                onPress={() => router.push('/premium' as any)}
+                onPress={goPremium}
                 activeOpacity={0.85}
               >
                 <Text style={s.schoolCtaEmoji}>🎓</Text>
@@ -246,7 +269,7 @@ function AICoachTab() {
         refreshControl={
           <RefreshControl
             refreshing={refreshing}
-            onRefresh={() => loadAll(true)}
+            onRefresh={onRefreshInsights}
             tintColor={COLORS.accent.primary}
             colors={[COLORS.accent.primary]}
           />
@@ -265,7 +288,7 @@ function AICoachTab() {
               testID="ai-regenerate-btn"
               accessibilityRole="button"
               accessibilityLabel="Refresh insights"
-              onPress={() => !loading && loadAll(true)}
+              onPress={onRefreshFromRC}
               disabled={loading}
               hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
               style={[s.regenBtn, loading && { opacity: 0.5 }]}
@@ -341,7 +364,7 @@ function AICoachTab() {
                 headline={`You're cooking close to your ${budgetAlert.category} limit 🔥`}
                 body={`${fmtINR(budgetAlert.spent)} spent of ${fmtINR(budgetAlert.budget)}. A ${fmtINR(budgetAlert.budget - budgetAlert.spent)} breather left for the month.`}
                 ctaLabel="Open budget"
-                onPressCta={() => router.push('/(tabs)/budget')}
+                onPressCta={() => router.push(ROUTES.BUDGET)}
                 gradientStops={GRADIENT.moneyOut}
               />
             )}
@@ -357,7 +380,7 @@ function AICoachTab() {
                 headline="Subscriptions you're barely using 💸"
                 body="Cancel any of these and pocket the cash. I'll help you decide."
                 ctaLabel="Review leaks"
-                onPressCta={() => router.push('/(tabs)/transactions')}
+                onPressCta={() => router.push(ROUTES.TRANSACTIONS)}
                 gradientStops={GRADIENT.moneyOut}
               />
             )}
@@ -373,7 +396,7 @@ function AICoachTab() {
                 headline="You're building a habit 🔥"
                 body="Consistency is where real wealth starts. Log a transaction today to keep it alive."
                 ctaLabel="Log one now"
-                onPressCta={() => router.push('/(tabs)/transactions')}
+                onPressCta={() => router.push(ROUTES.TRANSACTIONS)}
                 gradientStops={GRADIENT.success}
               />
             )}
@@ -412,7 +435,7 @@ function AICoachTab() {
             <Text style={s.askTitle}>Got a money question?</Text>
             <Text style={s.askSub}>{!isOnline ? "Offline — connect to chat with Mintu" : 'I can explain anything — from SIPs to tax tricks.'}</Text>
           </View>
-          <NeonButton label={!isOnline ? 'Offline' : 'Ask'} icon="chatbubbles" onPress={() => isOnline && setChatOpen(true)} size="md" pulse={isOnline} disabled={!isOnline} />
+          <NeonButton label={!isOnline ? 'Offline' : 'Ask'} icon="chatbubbles" onPress={onAskMintu} size="md" pulse={isOnline} disabled={!isOnline} />
         </View>
 
         <View style={{ height: 120 }} />
@@ -423,7 +446,7 @@ function AICoachTab() {
         visible={chatOpen}
         animationType="slide"
         presentationStyle={Platform.OS === 'ios' ? 'pageSheet' : 'overFullScreen'}
-        onRequestClose={() => setChatOpen(false)}
+        onRequestClose={closeChat}
       >
         <SafeAreaView style={s.safe} edges={['top']}>
           <AICoachChat onClose={() => setChatOpen(false)} />

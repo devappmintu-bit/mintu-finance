@@ -5,6 +5,9 @@ from bson import ObjectId
 from fastapi import APIRouter, Depends
 
 from core import db, get_current_user
+from core.users import get_user_by_id
+from core.time import utc_now
+from core.cache import cache_get, cache_set
 
 router = APIRouter(tags=["analytics"])
 
@@ -14,7 +17,17 @@ router = APIRouter(tags=["analytics"])
 @router.get("/analytics/summary")
 @router.get("/analytics/monthly")
 async def get_stats_overview(user_id: str = Depends(get_current_user)):
-    thirty_days_ago = datetime.now(timezone.utc) - timedelta(days=30)
+    # Phase 5 Wave 2 — 60-second cache. Home + Profile + Transactions tab
+    # all hit this within a single warm session; monthly totals shift only
+    # on new transaction insert (which invalidates the home/bundle cache
+    # via the event bus). 60s TTL keeps the response fresh for immediate
+    # UX feedback without hammering the aggregate on rapid tab switches.
+    cache_key = f"analytics_summary:{user_id}"
+    cached = cache_get(cache_key)
+    if cached is not None:
+        return cached
+
+    thirty_days_ago = utc_now() - timedelta(days=30)
     txns = await db.transactions.find({
         "user_id": user_id,
         "date": {"$gte": thirty_days_ago},
@@ -28,24 +41,26 @@ async def get_stats_overview(user_id: str = Depends(get_current_user)):
         if t["type"] == "debit":
             category_breakdown[t["category"]] = category_breakdown.get(t["category"], 0) + t["amount"]
 
-    return {
+    result = {
         "total_income": total_income,
         "total_expense": total_expense,
         "balance": total_income - total_expense,
         "transaction_count": len(txns),
         "category_breakdown": category_breakdown,
     }
+    cache_set(cache_key, result, ttl_seconds=60)
+    return result
 
 
 # ============== WEEKLY REPORT ==============
 @router.get("/reports/weekly")
 async def weekly_report(user_id: str = Depends(get_current_user)):
     """Weekly Report — emotional + actionable summary."""
-    now = datetime.now(timezone.utc)
+    now = utc_now()
     week_start = (now - timedelta(days=now.weekday())).replace(hour=0, minute=0, second=0, microsecond=0)
     prev_week_start = week_start - timedelta(days=7)
 
-    user = await db.users.find_one({"_id": ObjectId(user_id)}) or {}
+    user = await get_user_by_id(user_id) or {}
 
     async def _category_totals(gte, lt=None):
         match = {"user_id": user_id, "type": {"$in": ["expense", "debit"]}, "date": {"$gte": gte}}
@@ -102,7 +117,7 @@ async def weekly_report(user_id: str = Depends(get_current_user)):
 @router.get("/leaderboard/savings")
 async def savings_leaderboard(user_id: str = Depends(get_current_user)):
     """Global savings leaderboard with user's rank + percentile."""
-    now = datetime.now(timezone.utc)
+    now = utc_now()
     month_start = now.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
 
     all_users = await db.users.find(
@@ -316,7 +331,7 @@ async def award_coins(data: dict, user_id: str = Depends(get_current_user)):
         return {"awarded": 0, "reason": "invalid_action", "balance": 0}
 
     rule = COIN_RULES[action]
-    today_str = datetime.now(timezone.utc).strftime("%Y-%m-%d")
+    today_str = utc_now().strftime("%Y-%m-%d")
     counter_path = f"daily_coin_caps.{today_str}.{action}"
     cap = int(rule["daily_cap"])
     amount = int(rule["amount"])
@@ -364,7 +379,7 @@ async def award_coins(data: dict, user_id: str = Depends(get_current_user)):
     if dedupe_key:
         idem_key = f"action::{action}::{user_id}::{dedupe_key}"
     else:
-        minute_bucket = datetime.now(timezone.utc).strftime("%Y%m%d%H%M")
+        minute_bucket = utc_now().strftime("%Y%m%d%H%M")
         idem_key = f"action::{action}::{user_id}::{minute_bucket}"
 
     # ── LEDGER WRITE ──────────────────────────────────────────────────
@@ -395,10 +410,20 @@ async def award_coins(data: dict, user_id: str = Depends(get_current_user)):
 
 @router.get("/coins/status")
 async def coins_status(user_id: str = Depends(get_current_user)):
-    """Return coin balance + today's earnings + next streakable actions."""
-    user = await db.users.find_one({"_id": ObjectId(user_id)}) or {}
+    """Return coin balance + today's earnings + next streakable actions.
+
+    Phase 5 Wave 3: 30s cache. Balance changes only on coin-award events
+    which invalidate via `_invalidate_caches` in routers/transactions.py
+    and the rewards router.
+    """
+    cache_key = f"coins_status:{user_id}"
+    cached = cache_get(cache_key)
+    if cached is not None:
+        return cached
+
+    user = await get_user_by_id(user_id) or {}
     balance = user.get("coins", 0)
-    today_start = datetime.now(timezone.utc).replace(hour=0, minute=0, second=0, microsecond=0)
+    today_start = utc_now().replace(hour=0, minute=0, second=0, microsecond=0)
 
     today_breakdown: dict = {}
     async for d in db.coin_ledger.aggregate([
@@ -427,7 +452,7 @@ async def coins_status(user_id: str = Depends(get_current_user)):
                 "reward": min(rule["amount"], remaining),
             })
 
-    return {
+    result = {
         "balance": balance,
         "today_earned": today_total,
         "today_breakdown": today_breakdown,
@@ -435,6 +460,8 @@ async def coins_status(user_id: str = Depends(get_current_user)):
         "streak_days": user.get("streak_days", 0),
         "rules": COIN_RULES,
     }
+    cache_set(cache_key, result, ttl_seconds=30)
+    return result
 
 
 # ============== FRIEND COMPARISON ==============
@@ -447,7 +474,7 @@ async def friend_comparison(user_id: str = Depends(get_current_user)):
     if not friend_ids:
         return {"friends": [], "message": "Add friends in Split groups to compare savings! 👥"}
 
-    user = await db.users.find_one({"_id": ObjectId(user_id)}) or {}
+    user = await get_user_by_id(user_id) or {}
     user_score = user.get("money_score", 50)
     user_name = user.get("name", "You")
 
@@ -504,27 +531,49 @@ async def friend_comparison(user_id: str = Depends(get_current_user)):
 # ============== MINTU 2.0 — HOME SNAPSHOT (dynamic insights) ==============
 @router.get("/home/snapshot")
 async def home_snapshot(user_id: str = Depends(get_current_user)):
-    """Unified Home insights — sparkline, pace prediction, top category, score level."""
-    now = datetime.now(timezone.utc)
+    """Unified Home insights — sparkline, pace prediction, top category, score level.
+
+    Phase 5 Wave 3 — Performance:
+      • 7-day sparkline loop collapsed from 7 aggregates → 1 `$dateTrunc`
+        grouped aggregate (saves 6 round-trips per home load).
+      • 45-second response cache (home tab hits this 1-2× per session;
+        cache stores the JSON-ready dict).
+    """
+    # Cache short-circuit
+    cache_key = f"home_snapshot:{user_id}"
+    cached = cache_get(cache_key)
+    if cached is not None:
+        return cached
+
+    now = utc_now()
     today_start = now.replace(hour=0, minute=0, second=0, microsecond=0)
     month_start = now.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
     days_in_month = (now.replace(month=now.month % 12 + 1, day=1) - timedelta(days=1)).day if now.month < 12 else 31
     day_of_month = now.day
 
-    user = await db.users.find_one({"_id": ObjectId(user_id)}) or {}
+    user = await get_user_by_id(user_id) or {}
 
-    # 7-day spend sparkline (today + 6 previous days)
+    # 7-day spend sparkline (today + 6 previous days) — ONE aggregate.
+    # Phase 5 Wave 3: previously this ran 7 separate aggregates in a for-loop.
     week_start = today_start - timedelta(days=6)
+    week_end = today_start + timedelta(days=1)
+    sparkline_docs = await db.transactions.aggregate([
+        {"$match": {
+            "user_id": user_id,
+            "type": {"$in": ["debit", "expense"]},
+            "date": {"$gte": week_start, "$lt": week_end},
+        }},
+        {"$group": {
+            "_id": {"$dateTrunc": {"date": "$date", "unit": "day"}},
+            "total": {"$sum": "$amount"},
+        }},
+    ]).to_list(10)
+    # Build day→total lookup then fill the 7-slot sparkline.
+    day_totals = {d["_id"].replace(tzinfo=timezone.utc) if d["_id"].tzinfo is None else d["_id"]: d["total"] for d in sparkline_docs}
     daily_spend = []
     for i in range(7):
         day = week_start + timedelta(days=i)
-        next_day = day + timedelta(days=1)
-        total = 0
-        async for doc in db.transactions.aggregate([
-            {"$match": {"user_id": user_id, "type": {"$in": ["debit", "expense"]}, "date": {"$gte": day, "$lt": next_day}}},
-            {"$group": {"_id": None, "total": {"$sum": "$amount"}}},
-        ]):
-            total = doc["total"]
+        total = day_totals.get(day, 0)
         daily_spend.append({"day": day.strftime("%a"), "date": day.strftime("%b %d"), "amount": total})
 
     # Month-to-date spend + pace prediction
@@ -603,7 +652,7 @@ async def home_snapshot(user_id: str = Depends(get_current_user)):
         pace_headline = f"Saving only {savings_rate:.0f}% — room to grow"
         pace_emoji = "🌱"
 
-    return {
+    result = {
         "mtd_spend": mtd_spend,
         "mtd_income": mtd_income,
         "savings_rate": savings_rate,
@@ -627,13 +676,24 @@ async def home_snapshot(user_id: str = Depends(get_current_user)):
         },
         "transaction_count": len(mtd_txns),
     }
+    cache_set(cache_key, result, ttl_seconds=45)
+    return result
 
 
 # ============== MINTU 2.0 — AI PREDICTIVE INSIGHTS ==============
 @router.get("/ai/predict")
 async def ai_predict(user_id: str = Depends(get_current_user)):
-    """Predictive insights: month-end projection, overspending alerts, relatable waste comparisons."""
-    now = datetime.now(timezone.utc)
+    """Predictive insights: month-end projection, overspending alerts, relatable waste comparisons.
+
+    Phase 5 Wave 3: 2-minute cache. Predictions are derived from running
+    month totals; sub-2-min freshness is imperceptible.
+    """
+    cache_key = f"ai_predict:{user_id}"
+    cached = cache_get(cache_key)
+    if cached is not None:
+        return cached
+
+    now = utc_now()
     month_start = now.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
     day_of_month = now.day
     days_in_month = (now.replace(month=now.month % 12 + 1, day=1) - timedelta(days=1)).day if now.month < 12 else 31
@@ -713,7 +773,7 @@ async def ai_predict(user_id: str = Depends(get_current_user)):
             "daily_avg": round(cat_daily),
         })
 
-    return {
+    result = {
         "mtd_spend": total,
         "daily_avg": round(daily_avg),
         "projected_month_end": round(projected),
@@ -728,6 +788,8 @@ async def ai_predict(user_id: str = Depends(get_current_user)):
             if total > 0 else "📭 No spending data yet — add transactions to unlock predictions"
         ),
     }
+    cache_set(cache_key, result, ttl_seconds=120)
+    return result
 
 # ============== MINTU 2.0 — YEARLY ANALYTICS DASHBOARD (12-month view) ==============
 @router.get("/analytics/yearly")
@@ -738,7 +800,7 @@ async def analytics_yearly(year: int = 0, user_id: str = Depends(get_current_use
     """
     from calendar import monthrange
 
-    now = datetime.now(timezone.utc)
+    now = utc_now()
     if year == 0:
         # Trailing 12 months
         months = []

@@ -15,6 +15,7 @@ Coverage:
 """
 from __future__ import annotations
 
+from core.time import utc_now
 import asyncio
 import time
 import pytest
@@ -135,7 +136,7 @@ async def test_streak_ignores_client_date():
     tok, _ = await _fresh_user(_phone(106))
     async with httpx.AsyncClient(base_url=BASE_URL, timeout=15) as c:
         # Try to pass a date/timezone header — backend must ignore
-        future = (datetime.now(timezone.utc) + timedelta(days=365)).isoformat()
+        future = (utc_now() + timedelta(days=365)).isoformat()
         r = await c.post(
             "/api/streak/check-in",
             headers={**_h(tok), "X-Client-Date": future, "X-Timezone": "America/Halifax"},
@@ -239,7 +240,7 @@ async def test_streak_continuation_and_reset_via_http():
         try:
             db_name = os.environ.get("DB_NAME", "mintu_database")
             from bson import ObjectId
-            yesterday = (datetime.now(timezone.utc) - timedelta(days=1)).strftime("%Y-%m-%d")
+            yesterday = (utc_now() - timedelta(days=1)).strftime("%Y-%m-%d")
             client[db_name].users.update_one(
                 {"_id": ObjectId(uid)},
                 {"$set": {"streak_last_active_date": yesterday}},
@@ -251,7 +252,7 @@ async def test_streak_continuation_and_reset_via_http():
             assert r2.json()["reset"] is False
 
             # Step 4: 3 days ago → reset
-            three_ago = (datetime.now(timezone.utc) - timedelta(days=3)).strftime("%Y-%m-%d")
+            three_ago = (utc_now() - timedelta(days=3)).strftime("%Y-%m-%d")
             client[db_name].users.update_one(
                 {"_id": ObjectId(uid)},
                 {"$set": {"streak_last_active_date": three_ago}},
