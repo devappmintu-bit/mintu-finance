@@ -65,7 +65,7 @@ export function LockedState({ feature, desc, minPlan }: { feature: string; desc:
   return (
     <ScrollView contentContainerStyle={{ padding: 16, paddingBottom: 60 }} showsVerticalScrollIndicator={false}>
       <View style={{ alignItems: 'center', marginBottom: 18, gap: 6 }}>
-        <View style={{ width: 52, height: 52, borderRadius: 26, backgroundColor: c.accent.primary + '18', justifyContent: 'center', alignItems: 'center' }}>
+        <View style={{ width: 52, height: 52, borderRadius: 0, backgroundColor: c.accent.primary + '18', justifyContent: 'center', alignItems: 'center' }}>
           <Ionicons name="sparkles" size={22} color={c.accent.primary} />
         </View>
         <Text style={{ fontSize: 22, fontWeight: '900', color: c.text.primary, letterSpacing: -0.4 }}>{feature}</Text>

@@ -20,7 +20,6 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
-import { LinearGradient } from 'expo-linear-gradient';
 import { router } from 'expo-router';
 import * as Haptics from 'expo-haptics';
 import Toast from 'react-native-toast-message';
@@ -185,7 +184,7 @@ export default function RewardsHubScreen() {
         <TouchableOpacity
           style={{
             marginTop: 18, paddingHorizontal: 24, paddingVertical: 12,
-            backgroundColor: c.accent.primary, borderRadius: 12,
+            backgroundColor: c.accent.primary, borderRadius: 0,
           }}
           onPress={() => { setLoading(true); load(); }}
           activeOpacity={0.85}
@@ -302,7 +301,7 @@ export default function RewardsHubScreen() {
         {/* Pro upsell — soft paywall */}
         <View style={s.section}>
           <TouchableOpacity activeOpacity={0.9} onPress={() => router.push('/premium' as any)}>
-            <LinearGradient colors={['#1F2937', '#0F172A']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={s.proCard}>
+            <View style={[s.proCard, { backgroundColor: '#1F2937' }]}>
               <View style={s.proBlob} />
               <View style={s.proHeadRow}>
                 <View style={s.proBadge}>
@@ -317,7 +316,7 @@ export default function RewardsHubScreen() {
                 <Text style={s.proCtaTxt}>Upgrade Now</Text>
                 <Ionicons name="arrow-forward" size={14} color={COLORS.accent.secondary} />
               </View>
-            </LinearGradient>
+            </View>
           </TouchableOpacity>
         </View>
 
@@ -420,8 +419,8 @@ const useStyles = makeStyles((c) => ({
   sectionTitle: { fontSize: 15, fontWeight: '900', color: COLORS.text.primary, letterSpacing: -0.2 },
   sectionEmoji: { fontSize: 16 },
   sectionSub: { fontSize: 10.5, fontWeight: '800', color: COLORS.text.muted, letterSpacing: 0.3 },
-  proCard: { padding: 16, borderRadius: 20, gap: 8, overflow: 'hidden', position: 'relative' },
-  proBlob: { position: 'absolute', top: -40, right: -40, width: 140, height: 140, borderRadius: 70, backgroundColor: 'rgba(245,158,11,0.15)' },
+  proCard: { padding: 16, borderRadius: 0, gap: 8, overflow: 'hidden', position: 'relative' },
+  proBlob: { position: 'absolute', top: -40, right: -40, width: 140, height: 140, borderRadius: 0, backgroundColor: 'rgba(245,158,11,0.15)' },
   proHeadRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   proBadge: { flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: 9, paddingVertical: 4, borderRadius: 999, backgroundColor: COLORS.accent.secondary },
   proBadgeTxt: { fontSize: 9.5, fontWeight: '900', color: '#fff', letterSpacing: 1 },
@@ -430,7 +429,7 @@ const useStyles = makeStyles((c) => ({
   proSub: { fontSize: 12, fontWeight: '600', color: 'rgba(255,255,255,0.8)', lineHeight: 17 },
   proCta: { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 6 },
   proCtaTxt: { fontSize: 13, fontWeight: '900', color: COLORS.accent.secondary },
-  winCard: { width: 120, padding: 12, backgroundColor: '#fff', borderRadius: 14, borderWidth: 1, borderColor: '#F3F4F6', alignItems: 'center', gap: 6, position: 'relative' },
+  winCard: { width: 120, padding: 12, backgroundColor: '#fff', borderRadius: 0, borderWidth: 1, borderColor: '#F3F4F6', alignItems: 'center', gap: 6, position: 'relative' },
   winLbl: { fontSize: 11, fontWeight: '800', color: '#374151', textAlign: 'center' },
   winBadge: { position: 'absolute', top: 6, right: 6, paddingHorizontal: 6, paddingVertical: 2, borderRadius: 999, backgroundColor: COLORS.state.successAlt },
   winBadgeTxt: { fontSize: 8, fontWeight: '900', color: '#fff', letterSpacing: 0.4 },

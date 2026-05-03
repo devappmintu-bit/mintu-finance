@@ -12,7 +12,6 @@
  */
 import React from 'react';
 import { View, StyleSheet, StyleProp, ViewStyle } from 'react-native';
-import { LinearGradient } from 'expo-linear-gradient';
 import { COLORS, RADIUS, SPACE, ELEVATION } from '../../utils/theme';
 
 type Variant = 'flat' | 'elevated' | 'glass' | 'hero';
@@ -48,11 +47,8 @@ function PremiumCardImpl({
   if (variant === 'hero') {
     return (
       <View testID={testID} style={[base, ELEVATION.z3, style]}>
-        <LinearGradient
-          colors={heroColors}
-          start={{ x: 0, y: 0 }}
-          end={{ x: 1, y: 1 }}
-          style={StyleSheet.absoluteFill}
+        <View
+          style={[StyleSheet.absoluteFill, { backgroundColor: '#0A0A0A' }]}
         />
         {children}
       </View>

@@ -1,7 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { View, Text, StyleSheet, Modal, TouchableOpacity, TextInput, KeyboardAvoidingView, Platform, Linking } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { LinearGradient } from 'expo-linear-gradient';
 import { COLORS, useAppColors, GLASS } from '../../utils/theme';
 import { makeStyles } from '../../utils/makeStyles';
 import { C, DebtRow } from './theme';
@@ -95,22 +94,22 @@ export default function RemindSheet({ visible, onClose, target, onSend }: Props)
                 {`Will post a reminder in the group chat${Platform.OS !== 'web' ? ' + open WhatsApp' : ''}. 1 reminder/hour limit.`}
               </Text>
               <TouchableOpacity onPress={inviteToSettle} activeOpacity={0.85}>
-                <LinearGradient colors={['#E65100', '#E65100']} style={s.primaryBtn}>
+                <View style={[s.primaryBtn, { backgroundColor: '#E65100' }]}>
                   <Ionicons name="card" size={18} color={C.inv} />
                   <Text style={s.primaryBtnText}> Invite to Settle (UPI)</Text>
-                </LinearGradient>
+                </View>
               </TouchableOpacity>
               <TouchableOpacity onPress={shareWhatsApp} activeOpacity={0.85} style={{ marginTop: 10 }}>
-                <LinearGradient colors={['#25D366', '#128C7E']} style={s.primaryBtn}>
+                <View style={[s.primaryBtn, { backgroundColor: '#25D366' }]}>
                   <Ionicons name="logo-whatsapp" size={18} color={C.inv} />
                   <Text style={s.primaryBtnText}> Remind on WhatsApp</Text>
-                </LinearGradient>
+                </View>
               </TouchableOpacity>
               <TouchableOpacity onPress={() => onSend(note.trim())} activeOpacity={0.85} style={{ marginTop: 10 }}>
-                <LinearGradient colors={[COLORS.accent.secondary, '#FB923C']} style={s.primaryBtn}>
+                <View style={[s.primaryBtn, { backgroundColor: '#0A0A0A' }]}>
                   <Ionicons name="notifications" size={18} color={C.inv} />
                   <Text style={s.primaryBtnText}> In-app Reminder</Text>
-                </LinearGradient>
+                </View>
               </TouchableOpacity>
             </>
           )}
@@ -122,17 +121,17 @@ export default function RemindSheet({ visible, onClose, target, onSend }: Props)
 
 const useStyles = makeStyles((c) => ({
   mBg: { flex: 1, justifyContent: 'flex-end', backgroundColor: 'rgba(0,0,0,0.5)' },
-  sheet: { backgroundColor: C.sheetBg, borderTopLeftRadius: 28, borderTopRightRadius: 28, padding: 24 },
+  sheet: { backgroundColor: C.sheetBg, borderTopLeftRadius: 0, borderTopRightRadius: 0, padding: 24 },
   handle: { width: 40, height: 4, borderRadius: 2, backgroundColor: C.text4, alignSelf: 'center', marginBottom: 16 },
   sheetH: { flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 20 },
   sheetT: { fontSize: 20, fontWeight: '700', color: C.text1 },
   label: { fontSize: 13, fontWeight: '600', color: C.text3, marginBottom: 8 },
-  input: { backgroundColor: c.bg.primary, borderRadius: 14, paddingHorizontal: 16, paddingVertical: 14, fontSize: 16, color: C.text1, borderWidth: 1, borderColor: C.border, marginBottom: 12 },
+  input: { backgroundColor: c.bg.primary, borderRadius: 0, paddingHorizontal: 16, paddingVertical: 14, fontSize: 16, color: C.text1, borderWidth: 1, borderColor: C.border, marginBottom: 12 },
   remindInfo: { alignItems: 'center', paddingVertical: 12, marginBottom: 12, borderBottomWidth: 1, borderBottomColor: C.border },
   remindInfoN: { fontSize: 18, fontWeight: '700', color: C.text1 },
   remindInfoG: { fontSize: 13, color: C.text3, marginTop: 2 },
   remindInfoA: { fontSize: 28, fontWeight: '800', color: C.red, marginTop: 8 },
   remindHint: { fontSize: 11, color: C.text3, textAlign: 'center', marginVertical: 10, fontStyle: 'italic' },
-  primaryBtn: { borderRadius: 16, paddingVertical: 16, alignItems: 'center', justifyContent: 'center', flexDirection: 'row' },
+  primaryBtn: { borderRadius: 0, paddingVertical: 16, alignItems: 'center', justifyContent: 'center', flexDirection: 'row' },
   primaryBtnText: { fontSize: 16, fontWeight: '700', color: C.inv },
 }));

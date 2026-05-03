@@ -249,42 +249,42 @@ export default function DeleteAccountScreen() {
 const useStyles = makeStyles((c) => ({
   bg: { flex: 1, backgroundColor: c.bg.primary },
   header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 16, paddingVertical: 10 },
-  backBtn: { width: 36, height: 36, borderRadius: 18, alignItems: 'center', justifyContent: 'center' },
+  backBtn: { width: 36, height: 36, borderRadius: 0, alignItems: 'center', justifyContent: 'center' },
   headerTitle: { fontSize: 16, fontWeight: '700', color: c.text.primary },
 
   scroll: { padding: 20, paddingBottom: 60 },
 
-  heroIcon: { width: 56, height: 56, borderRadius: 28, backgroundColor: '#FEE2E2', alignItems: 'center', justifyContent: 'center', alignSelf: 'center', marginBottom: 14 },
+  heroIcon: { width: 56, height: 56, borderRadius: 0, backgroundColor: '#FEE2E2', alignItems: 'center', justifyContent: 'center', alignSelf: 'center', marginBottom: 14 },
   title: { fontSize: 22, fontWeight: '700', color: c.text.primary, textAlign: 'center', letterSpacing: -0.4 },
   subtitle: { fontSize: 13, fontWeight: '500', color: c.text.secondary, textAlign: 'center', marginTop: 6, lineHeight: 18, paddingHorizontal: 10 },
 
   section: { marginTop: 24 },
   sectionHead: { fontSize: 11, fontWeight: '700', color: c.text.muted, letterSpacing: 0.8, textTransform: 'uppercase', marginBottom: 10 },
 
-  listCard: { backgroundColor: c.bg.secondary, borderRadius: 14, borderWidth: 1, borderColor: c.border.subtle, paddingHorizontal: 14 },
+  listCard: { backgroundColor: c.bg.secondary, borderRadius: 0, borderWidth: 1, borderColor: c.border.subtle, paddingHorizontal: 14 },
   listItem: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 10 },
   listItemDivider: { borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: c.border.subtle },
   listItemTxt: { fontSize: 13, fontWeight: '500', color: c.text.secondary },
 
-  noteCard: { flexDirection: 'row', gap: 10, marginTop: 16, padding: 14, borderRadius: 14, backgroundColor: '#10B9810F', borderWidth: 1, borderColor: '#10B98133' },
+  noteCard: { flexDirection: 'row', gap: 10, marginTop: 16, padding: 14, borderRadius: 0, backgroundColor: '#10B9810F', borderWidth: 1, borderColor: '#10B98133' },
   noteTxt: { flex: 1, fontSize: 12.5, fontWeight: '500', color: c.text.secondary, lineHeight: 17 },
   noteBold: { fontWeight: '700', color: COLORS.state.success },
 
-  optionRow: { flexDirection: 'row', gap: 12, alignItems: 'center', padding: 14, borderRadius: 14, backgroundColor: c.bg.secondary, borderWidth: 1, borderColor: c.border.subtle, marginBottom: 8 },
+  optionRow: { flexDirection: 'row', gap: 12, alignItems: 'center', padding: 14, borderRadius: 0, backgroundColor: c.bg.secondary, borderWidth: 1, borderColor: c.border.subtle, marginBottom: 8 },
   optionRowActive: { borderColor: COLORS.state.successAlt, backgroundColor: '#10B9810F' },
   optionRowDangerActive: { borderColor: COLORS.state.danger, backgroundColor: '#FEE2E22E' },
-  radio: { width: 20, height: 20, borderRadius: 10, borderWidth: 2, borderColor: '#D1D5DB', alignItems: 'center', justifyContent: 'center' },
-  radioDot: { width: 10, height: 10, borderRadius: 5, backgroundColor: COLORS.state.successAlt },
+  radio: { width: 20, height: 20, borderRadius: 0, borderWidth: 2, borderColor: '#D1D5DB', alignItems: 'center', justifyContent: 'center' },
+  radioDot: { width: 10, height: 10, borderRadius: 0, backgroundColor: COLORS.state.successAlt },
   optTitleRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
   optTitle: { fontSize: 14.5, fontWeight: '700', color: c.text.primary, letterSpacing: -0.1 },
   optSub: { fontSize: 12, fontWeight: '500', color: c.text.secondary, marginTop: 3, lineHeight: 16 },
   recBadge: { backgroundColor: COLORS.state.successAlt, paddingHorizontal: 6, paddingVertical: 2, borderRadius: 999 },
   recBadgeTxt: { fontSize: 8.5, fontWeight: '800', color: '#fff', letterSpacing: 0.6 },
 
-  pinInput: { backgroundColor: c.bg.secondary, borderRadius: 12, paddingHorizontal: 14, paddingVertical: 13, fontSize: 16, color: c.text.primary, borderWidth: 1, borderColor: c.border.subtle, fontWeight: '700', letterSpacing: 3, textAlign: 'center' },
+  pinInput: { backgroundColor: c.bg.secondary, borderRadius: 0, paddingHorizontal: 14, paddingVertical: 13, fontSize: 16, color: c.text.primary, borderWidth: 1, borderColor: c.border.subtle, fontWeight: '700', letterSpacing: 3, textAlign: 'center' },
   pinHint: { fontSize: 11.5, fontWeight: '500', color: c.text.muted, marginTop: 6, textAlign: 'center' },
 
-  primaryBtn: { marginTop: 28, paddingVertical: 14, borderRadius: 12, backgroundColor: COLORS.state.successAlt, alignItems: 'center' },
+  primaryBtn: { marginTop: 28, paddingVertical: 14, borderRadius: 0, backgroundColor: COLORS.state.successAlt, alignItems: 'center' },
   primaryDanger: { backgroundColor: COLORS.state.danger },
   primaryTxt: { fontSize: 14.5, fontWeight: '700', color: '#fff' },
   cancelBtn: { marginTop: 10, paddingVertical: 12, alignItems: 'center' },

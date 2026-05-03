@@ -22,7 +22,6 @@ import React, { useMemo } from 'react';
 import { View, Text, StyleSheet, Pressable, Platform } from 'react-native';
 import * as Haptics from 'expo-haptics';
 import { Ionicons } from '@expo/vector-icons';
-import { LinearGradient } from 'expo-linear-gradient';
 import { COLORS, RADIUS, SPACE, TYPO, ELEVATION } from '../../utils/theme';
 
 export type GoalLike = {
@@ -165,11 +164,8 @@ function GoalsImpactCardImpl({ goals, onPressGoal }: GoalsImpactCardProps) {
       accessibilityLabel={`${pick.headline}. ${pick.subline}. Tap to open.`}
       testID="goals-impact-card"
     >
-      <LinearGradient
-        colors={toneGradient[pick.tone]}
-        start={{ x: 0, y: 0 }}
-        end={{ x: 1, y: 1 }}
-        style={StyleSheet.absoluteFill}
+      <View
+        style={[StyleSheet.absoluteFill, { backgroundColor: '#0A0A0A' }]}
       />
       <View style={styles.emojiWrap}>
         <Text style={styles.emoji}>{pick.emoji}</Text>

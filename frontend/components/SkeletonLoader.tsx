@@ -1,6 +1,5 @@
 import React, { useEffect, useRef } from 'react';
 import { View, Animated, StyleSheet, ViewStyle } from 'react-native';
-import { LinearGradient } from 'expo-linear-gradient';
 import { COLORS, SPACING, RADIUS } from '../utils/theme';
 import { makeStyles } from '../utils/makeStyles';
 
@@ -117,7 +116,7 @@ const useStyles = makeStyles((c) => ({
   barHero: { backgroundColor: 'rgba(255,255,255,0.35)' },
   hero: { marginTop: 16, borderRadius: RADIUS.card, padding: 18, overflow: 'hidden' },
   heroGlass: {
-    marginTop: 16, borderRadius: 24, padding: 18, paddingTop: 22,
+    marginTop: 16, borderRadius: 0, padding: 18, paddingTop: 22,
     backgroundColor: 'rgba(255,255,255,0.72)',
     borderWidth: StyleSheet.hairlineWidth, borderColor: 'rgba(15,23,42,0.06)',
     overflow: 'hidden',
@@ -214,17 +213,14 @@ export const BudgetSkeleton = () => {
     </View>
 
     {/* Overall gradient budget hero */}
-    <LinearGradient
-      colors={[COLORS.accent.brand, COLORS.accent.brandDark]}
-      start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}
-      style={sk.hero}
-    >
+    <View
+      style={[sk.hero, { backgroundColor: '#0A0A0A' }]}>
       <Skeleton width={100} height={10} onHero />
       <View style={{ height: 8 }} />
       <Skeleton width={180} height={36} borderRadius={6} onHero />
       <View style={{ height: 10 }} />
       <Skeleton height={10} borderRadius={5} onHero />
-    </LinearGradient>
+    </View>
 
     {/* 3 category budget cards */}
     {[1, 2, 3].map(i => (
@@ -260,11 +256,8 @@ export const SplitSkeleton = () => {
     </View>
 
     {/* Net balance hero (orange gradient) */}
-    <LinearGradient
-      colors={[COLORS.accent.brand, COLORS.accent.brandDark]}
-      start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}
-      style={sk.hero}
-    >
+    <View
+      style={[sk.hero, { backgroundColor: '#0A0A0A' }]}>
       <Skeleton width={90} height={10} onHero />
       <View style={{ height: 6 }} />
       <Skeleton width={160} height={30} borderRadius={6} onHero />
@@ -274,7 +267,7 @@ export const SplitSkeleton = () => {
         <View style={{ width: 8 }} />
         <Skeleton width={72} height={28} borderRadius={999} onHero />
       </View>
-    </LinearGradient>
+    </View>
 
     {/* Tabs */}
     <View style={[sk.row, { marginTop: 14, gap: 10 }]}>
@@ -323,11 +316,8 @@ export const LeaderboardSkeleton = () => {
       </View>
 
       {/* Your-rank hero (gradient) */}
-      <LinearGradient
-        colors={[COLORS.accent.brand, COLORS.accent.brandDark]}
-        start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}
-        style={sk.hero}
-      >
+      <View
+        style={[sk.hero, { backgroundColor: '#0A0A0A' }]}>
         <Skeleton width={70} height={10} onHero />
         <View style={{ height: 10 }} />
         <View style={sk.row}>
@@ -338,7 +328,7 @@ export const LeaderboardSkeleton = () => {
           </View>
           <Skeleton width={64} height={26} borderRadius={999} onHero />
         </View>
-      </LinearGradient>
+      </View>
 
       {/* Podium row (top 3) */}
       <View style={[sk.row, { marginTop: 16, alignItems: 'flex-end', gap: 10 }]}>
@@ -385,17 +375,14 @@ export const MysteryBoxSkeleton = () => {
       </View>
 
       {/* Hero box CTA */}
-      <LinearGradient
-        colors={[COLORS.accent.brand, COLORS.accent.brandDark]}
-        start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}
-        style={[sk.hero, { alignItems: 'center', paddingVertical: 28 }]}
-      >
+      <View
+        style={[sk.hero, { alignItems: 'center', paddingVertical: 28 }, { backgroundColor: '#0A0A0A' }]}>
         <Skeleton width={96} height={96} borderRadius={20} onHero />
         <View style={{ height: 14 }} />
         <Skeleton width={180} height={18} borderRadius={6} onHero />
         <View style={{ height: 10 }} />
         <Skeleton width={160} height={42} borderRadius={999} onHero />
-      </LinearGradient>
+      </View>
 
       {/* Streak / coin counters */}
       <View style={[sk.row, { marginTop: 14, gap: 10 }]}>
@@ -436,11 +423,8 @@ export const YearlySkeleton = () => {
       </View>
 
       {/* Year hero */}
-      <LinearGradient
-        colors={[COLORS.accent.brand, COLORS.accent.brandDark]}
-        start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}
-        style={sk.hero}
-      >
+      <View
+        style={[sk.hero, { backgroundColor: '#0A0A0A' }]}>
         <Skeleton width={100} height={12} onHero />
         <View style={{ height: 10 }} />
         <Skeleton width={200} height={36} borderRadius={6} onHero />
@@ -450,7 +434,7 @@ export const YearlySkeleton = () => {
           <View style={{ width: 8 }} />
           <Skeleton width={'48%' as any} height={48} borderRadius={12} onHero />
         </View>
-      </LinearGradient>
+      </View>
 
       {/* Month grid (3×4) */}
       <View style={{ marginTop: 16, flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
@@ -485,11 +469,8 @@ export const PremiumHubSkeleton = () => {
       </View>
 
       {/* Pro hero */}
-      <LinearGradient
-        colors={[COLORS.accent.brand, COLORS.accent.brandDark]}
-        start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}
-        style={sk.hero}
-      >
+      <View
+        style={[sk.hero, { backgroundColor: '#0A0A0A' }]}>
         <View style={[sk.row, { alignItems: 'center' }]}>
           <Skeleton width={60} height={60} borderRadius={30} onHero />
           <View style={{ marginLeft: 14, flex: 1 }}>
@@ -499,7 +480,7 @@ export const PremiumHubSkeleton = () => {
         </View>
         <View style={{ height: 14 }} />
         <Skeleton height={42} borderRadius={999} onHero />
-      </LinearGradient>
+      </View>
 
       {/* Entitlement chips row */}
       <View style={[sk.row, { marginTop: 14, gap: 8 }]}>

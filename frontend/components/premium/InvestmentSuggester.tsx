@@ -2,7 +2,6 @@
 import React, { useState } from 'react';
 import { View, Text, ScrollView, TouchableOpacity, TextInput, ActivityIndicator } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { LinearGradient } from 'expo-linear-gradient';
 import Toast from 'react-native-toast-message';
 import api from '../../utils/api';
 import { COLORS } from '../../utils/theme';
@@ -54,11 +53,11 @@ export default function InvestmentSuggester() {
           ))}
         </View>
         <TouchableOpacity style={styles.primaryBtn} onPress={suggest} disabled={loading} activeOpacity={0.85}>
-          <LinearGradient colors={[COLORS.accent.primaryLight, COLORS.accent.primary]} style={styles.primaryBtnGrad}>
+          <View style={[styles.primaryBtnGrad, { backgroundColor: '#0A0A0A' }]}>
             {loading ? <ActivityIndicator color="#fff" /> : (
               <><Ionicons name="trending-up" size={18} color="#fff" /><Text style={styles.primaryBtnText}>Get Suggestion</Text></>
             )}
-          </LinearGradient>
+          </View>
         </TouchableOpacity>
       </View>
 

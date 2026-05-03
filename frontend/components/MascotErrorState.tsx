@@ -28,7 +28,6 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { Animated, Pressable, StyleSheet, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { LinearGradient } from 'expo-linear-gradient';
 import { COLORS, SPACING } from '../utils/theme';
 import { haptic as haptics } from '../utils/haptics';
 import {
@@ -161,15 +160,11 @@ export default function MascotErrorState({
         style={({ pressed }) => [pressed && { opacity: 0.85 }]}
         disabled={retrying}
       >
-        <LinearGradient
-          colors={['#FF6B1A', '#FF8A33']}
-          start={{ x: 0, y: 0 }}
-          end={{ x: 1, y: 0 }}
-          style={[s.cta, retrying && { opacity: 0.7 }]}
-        >
+        <View
+          style={[s.cta, retrying && { opacity: 0.7 }, { backgroundColor: '#FF6B1A' }]}>
           <Ionicons name={retrying ? 'sync' : 'refresh'} size={14} color="#fff" />
           <Text style={s.ctaT}>{retrying ? 'Retrying\u2026' : 'Try again'}</Text>
-        </LinearGradient>
+        </View>
       </Pressable>
     </Animated.View>
   );
@@ -199,7 +194,7 @@ const s = StyleSheet.create({
     gap: 6,
     paddingHorizontal: 18,
     paddingVertical: 10,
-    borderRadius: 14,
+    borderRadius: 0,
   },
   ctaT: {
     fontSize: 13,

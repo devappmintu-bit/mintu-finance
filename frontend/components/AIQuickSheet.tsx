@@ -135,7 +135,7 @@ const useStyles = makeStyles((c) => ({
   backdropTouch: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(0,0,0,0.45)' },
   sheet: {
     backgroundColor: GLASS.solidBg,
-    borderTopLeftRadius: 28, borderTopRightRadius: 28,
+    borderTopLeftRadius: 0, borderTopRightRadius: 0,
     borderTopWidth: StyleSheet.hairlineWidth, borderColor: GLASS.borderLight,
     paddingHorizontal: 20, paddingTop: 12, paddingBottom: Platform.OS === 'ios' ? 32 : 20,
     ...shadowStyle('#111827', 12, 32, 0.10, 12),
@@ -147,7 +147,7 @@ const useStyles = makeStyles((c) => ({
   header: { marginBottom: 14 },
   titleRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   aiBadge: {
-    width: 26, height: 26, borderRadius: 13,
+    width: 26, height: 26, borderRadius: 0,
     backgroundColor: c.accent.primary + '14',
     borderWidth: 1, borderColor: c.accent.primary + '33',
     justifyContent: 'center', alignItems: 'center',
@@ -158,7 +158,7 @@ const useStyles = makeStyles((c) => ({
   promptList: { gap: 8, marginBottom: 14 },
   promptRow: {
     flexDirection: 'row', alignItems: 'center', gap: 12,
-    paddingHorizontal: 14, paddingVertical: 13, borderRadius: 14,
+    paddingHorizontal: 14, paddingVertical: 13, borderRadius: 0,
     backgroundColor: c.bg.elevated,
     borderWidth: 1, borderColor: c.border.card,
   },
@@ -176,7 +176,7 @@ const useStyles = makeStyles((c) => ({
     minHeight: Platform.OS === 'ios' ? 36 : 40,
   },
   sendBtn: {
-    width: 38, height: 38, borderRadius: 19,
+    width: 38, height: 38, borderRadius: 0,
     backgroundColor: c.accent.primary,
     justifyContent: 'center', alignItems: 'center',
     ...shadowStyle(c.accent.primary, 2, 8, 0.25, 3),

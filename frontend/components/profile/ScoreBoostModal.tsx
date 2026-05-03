@@ -10,7 +10,6 @@ import {
   View, Text, StyleSheet, TouchableOpacity, Modal, ScrollView,
   ActivityIndicator, Platform,
 } from 'react-native';
-import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import * as Haptics from 'expo-haptics';
@@ -148,9 +147,9 @@ export default function ScoreBoostModal({ visible, onClose, currentScore }: Prop
                     <Text style={s.boostSub} numberOfLines={2}>{b.sub}</Text>
                   </View>
                   <View style={s.ptsCol}>
-                    <LinearGradient colors={[COLORS.state.successAlt, COLORS.state.success]} style={s.ptsPill}>
+                    <View style={[s.ptsPill, { backgroundColor: '#0A0A0A' }]}>
                       <Text style={s.ptsTxt}>+{b.points}</Text>
-                    </LinearGradient>
+                    </View>
                     <Text style={s.ctaTxt}>{b.cta} →</Text>
                   </View>
                 </TouchableOpacity>
@@ -170,8 +169,8 @@ const s = StyleSheet.create({
   backdropTap: { ...StyleSheet.absoluteFillObject },
   sheet: {
     backgroundColor: '#FFFFFF',
-    borderTopLeftRadius: 28,
-    borderTopRightRadius: 28,
+    borderTopLeftRadius: 0,
+    borderTopRightRadius: 0,
     padding: 20,
     paddingBottom: 34,
     maxHeight: '88%',
@@ -180,10 +179,10 @@ const s = StyleSheet.create({
   header: { flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 14 },
   title: { fontSize: 22, fontWeight: '900', color: COLORS.text.primary, letterSpacing: -0.5 },
   sub: { fontSize: 12.5, fontWeight: '700', color: COLORS.text.muted, marginTop: 3 },
-  closeBtn: { width: 34, height: 34, borderRadius: 17, backgroundColor: '#F3F4F6', alignItems: 'center', justifyContent: 'center' },
+  closeBtn: { width: 34, height: 34, borderRadius: 0, backgroundColor: '#F3F4F6', alignItems: 'center', justifyContent: 'center' },
 
   // Projection card
-  projectionCard: { backgroundColor: '#FFF7ED', borderRadius: 16, padding: 14, borderWidth: 1, borderColor: '#FED7AA', marginBottom: 16 },
+  projectionCard: { backgroundColor: '#FFF7ED', borderRadius: 0, padding: 14, borderWidth: 1, borderColor: '#FED7AA', marginBottom: 16 },
   projRow: { flexDirection: 'row', alignItems: 'center', gap: 10 },
   projCol: { alignItems: 'flex-start' },
   projLbl: { fontSize: 9.5, fontWeight: '900', color: '#92400E', letterSpacing: 1 },
@@ -197,10 +196,10 @@ const s = StyleSheet.create({
   projBarPotential: { position: 'absolute', top: 0, height: '100%', backgroundColor: COLORS.state.successAlt, opacity: 0.65 },
 
   // Boost rows
-  boostRow: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 12, paddingHorizontal: 10, borderRadius: 14, marginBottom: 8, backgroundColor: '#F9FAFB', borderWidth: 1, borderColor: '#F3F4F6' },
-  numBadge: { width: 24, height: 24, borderRadius: 12, backgroundColor: COLORS.text.primary, alignItems: 'center', justifyContent: 'center' },
+  boostRow: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 12, paddingHorizontal: 10, borderRadius: 0, marginBottom: 8, backgroundColor: '#F9FAFB', borderWidth: 1, borderColor: '#F3F4F6' },
+  numBadge: { width: 24, height: 24, borderRadius: 0, backgroundColor: COLORS.text.primary, alignItems: 'center', justifyContent: 'center' },
   numTxt: { fontSize: 11, fontWeight: '900', color: '#FFFFFF' },
-  emojiBox: { width: 42, height: 42, borderRadius: 14, backgroundColor: '#FFFFFF', alignItems: 'center', justifyContent: 'center', shadowColor: '#000000', shadowOpacity: 0.06, shadowRadius: 4, shadowOffset: { width: 0, height: 2 }, elevation: 2 },
+  emojiBox: { width: 42, height: 42, borderRadius: 0, backgroundColor: '#FFFFFF', alignItems: 'center', justifyContent: 'center', shadowColor: '#000000', shadowOpacity: 0.06, shadowRadius: 4, shadowOffset: { width: 0, height: 2 }, elevation: 2 },
   emoji: { fontSize: 22 },
   boostTitle: { fontSize: 13.5, fontWeight: '900', color: COLORS.text.primary, letterSpacing: -0.1 },
   boostSub: { fontSize: 11, fontWeight: '600', color: COLORS.text.muted, marginTop: 2, lineHeight: 14 },

@@ -18,7 +18,6 @@ import {
   KeyboardAvoidingView, Platform, ScrollView, Alert, Linking,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { LinearGradient } from 'expo-linear-gradient';
 import * as Contacts from 'expo-contacts';
 import { FlashList } from '@shopify/flash-list';
 import Toast from 'react-native-toast-message';
@@ -239,9 +238,9 @@ export default function ContactPickerSheet({ visible, onClose, onCreate, existin
                   onSubmitEditing={addManual}
                 />
                 <PressableGlass onPress={addManual} feedback="light">
-                  <LinearGradient colors={[C.accent, C.accentLight]} style={s.manualBtn}>
+                  <View style={[s.manualBtn, { backgroundColor: '#0A0A0A' }]}>
                     <Ionicons name="add" size={22} color={C.inv} />
-                  </LinearGradient>
+                  </View>
                 </PressableGlass>
               </View>
 
@@ -341,19 +340,19 @@ export default function ContactPickerSheet({ visible, onClose, onCreate, existin
 
               {/* Next button */}
               <PressableGlass onPress={goNext} feedback="medium" disabled={selected.length === 0}>
-                <LinearGradient colors={[C.accent, C.accentLight]} style={[s.primaryBtn, selected.length === 0 && { opacity: 0.4 }]}>
+                <View style={[s.primaryBtn, selected.length === 0 && { opacity: 0.4 }, { backgroundColor: '#0A0A0A' }]}>
                   <Text style={s.primaryBtnT}>{`Next (${selected.length} selected)`}</Text>
                   <Ionicons name="arrow-forward" size={18} color={C.inv} />
-                </LinearGradient>
+                </View>
               </PressableGlass>
             </>
           ) : (
             <ScrollView>
               {/* Preview avatar */}
               <View style={s.preview}>
-                <LinearGradient colors={[C.accent + '30', C.accentLight + '30']} style={s.previewAv}>
+                <View style={[s.previewAv, { backgroundColor: '#0A0A0A' }]}>
                   <Text style={{ fontSize: 40 }}>{previewAvatar}</Text>
-                </LinearGradient>
+                </View>
                 <View style={s.avatarStack}>
                   {selected.slice(0, 6).map((c, i) => {
                     // Extract the first letter; fall back to last digit of the
@@ -422,10 +421,10 @@ export default function ContactPickerSheet({ visible, onClose, onCreate, existin
               </View>
 
               <PressableGlass onPress={handleCreate} feedback="medium">
-                <LinearGradient colors={[C.accent, C.accentLight]} style={s.primaryBtn}>
+                <View style={[s.primaryBtn, { backgroundColor: '#0A0A0A' }]}>
                   <Text style={s.primaryBtnT}>Create Group</Text>
                   <Ionicons name="checkmark" size={20} color={C.inv} />
-                </LinearGradient>
+                </View>
               </PressableGlass>
             </ScrollView>
           )}
@@ -437,39 +436,39 @@ export default function ContactPickerSheet({ visible, onClose, onCreate, existin
 
 const useStyles = makeStyles((c) => ({
   bg: { flex: 1, justifyContent: 'flex-end', backgroundColor: 'rgba(0,0,0,0.5)' },
-  sheet: { backgroundColor: C.sheetBg, borderTopLeftRadius: 28, borderTopRightRadius: 28, padding: 20, paddingTop: 16 },
+  sheet: { backgroundColor: C.sheetBg, borderTopLeftRadius: 0, borderTopRightRadius: 0, padding: 20, paddingTop: 16 },
   head: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 10, marginBottom: 12 },
   headT: { flex: 1, fontSize: 18, fontWeight: '700', color: C.text1, textAlign: 'center' },
   selectedRow: { gap: 12, paddingVertical: 8 },
   selectedCell: { alignItems: 'center', gap: 4, width: 58 },
-  selectedAv: { width: 50, height: 50, borderRadius: 25, justifyContent: 'center', alignItems: 'center' },
+  selectedAv: { width: 50, height: 50, borderRadius: 0, justifyContent: 'center', alignItems: 'center' },
   selectedAvT: { fontSize: 18, fontWeight: '700' },
-  selectedBadge: { position: 'absolute', top: -2, right: -2, width: 18, height: 18, borderRadius: 9, backgroundColor: C.red, justifyContent: 'center', alignItems: 'center', borderWidth: 2, borderColor: C.sheetBg },
+  selectedBadge: { position: 'absolute', top: -2, right: -2, width: 18, height: 18, borderRadius: 0, backgroundColor: C.red, justifyContent: 'center', alignItems: 'center', borderWidth: 2, borderColor: C.sheetBg },
   selectedName: { fontSize: 11, color: C.text2 },
-  searchBar: { flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: c.bg.primary, borderRadius: 14, paddingHorizontal: 12, paddingVertical: 10, borderWidth: 1, borderColor: C.border, marginBottom: 10 },
+  searchBar: { flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: c.bg.primary, borderRadius: 0, paddingHorizontal: 12, paddingVertical: 10, borderWidth: 1, borderColor: C.border, marginBottom: 10 },
   searchInput: { flex: 1, fontSize: 15, color: C.text1 },
   manualRow: { flexDirection: 'row', gap: 8, marginBottom: 10 },
-  input: { backgroundColor: c.bg.primary, borderRadius: 14, paddingHorizontal: 14, paddingVertical: 12, fontSize: 15, color: C.text1, borderWidth: 1, borderColor: C.border },
-  manualBtn: { width: 48, height: 48, borderRadius: 14, justifyContent: 'center', alignItems: 'center' },
+  input: { backgroundColor: c.bg.primary, borderRadius: 0, paddingHorizontal: 14, paddingVertical: 12, fontSize: 15, color: C.text1, borderWidth: 1, borderColor: C.border },
+  manualBtn: { width: 48, height: 48, borderRadius: 0, justifyContent: 'center', alignItems: 'center' },
   contactRow: { flexDirection: 'row', alignItems: 'center', paddingVertical: 10, gap: 12 },
-  contactAv: { width: 40, height: 40, borderRadius: 20, justifyContent: 'center', alignItems: 'center' },
+  contactAv: { width: 40, height: 40, borderRadius: 0, justifyContent: 'center', alignItems: 'center' },
   contactInit: { fontSize: 15, fontWeight: '700' },
   contactName: { fontSize: 15, fontWeight: '600', color: C.text1 },
   contactPhone: { fontSize: 12, color: C.text3, marginTop: 2 },
   hint: { fontSize: 13, color: C.text3, textAlign: 'center', marginTop: 16 },
   grantT: { color: C.accent, fontWeight: '700', marginTop: 8, textAlign: 'center' },
   noContacts: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: 8, padding: 20 },
-  primaryBtn: { flexDirection: 'row', gap: 8, borderRadius: 16, paddingVertical: 16, alignItems: 'center', justifyContent: 'center', marginTop: 10, ...SHADOW.md },
+  primaryBtn: { flexDirection: 'row', gap: 8, borderRadius: 0, paddingVertical: 16, alignItems: 'center', justifyContent: 'center', marginTop: 10, ...SHADOW.md },
   primaryBtnT: { fontSize: 16, fontWeight: '700', color: C.inv },
   preview: { alignItems: 'center', marginVertical: 20 },
-  previewAv: { width: 96, height: 96, borderRadius: 48, justifyContent: 'center', alignItems: 'center', marginBottom: 12 },
+  previewAv: { width: 96, height: 96, borderRadius: 0, justifyContent: 'center', alignItems: 'center', marginBottom: 12 },
   avatarStack: { flexDirection: 'row', marginTop: 4 },
-  sAv: { width: 34, height: 34, borderRadius: 17, justifyContent: 'center', alignItems: 'center', borderWidth: 2, borderColor: C.sheetBg },
+  sAv: { width: 34, height: 34, borderRadius: 0, justifyContent: 'center', alignItems: 'center', borderWidth: 2, borderColor: C.sheetBg },
   sAvT: { fontSize: 13, fontWeight: '700' },
   label: { fontSize: 13, fontWeight: '700', color: C.text3, marginBottom: 8, marginTop: 8, letterSpacing: 0.3 },
-  bigInput: { backgroundColor: c.bg.primary, borderRadius: 16, padding: 18, fontSize: 18, fontWeight: '600', color: C.text1, borderWidth: 1, borderColor: C.border, marginBottom: 4 },
+  bigInput: { backgroundColor: c.bg.primary, borderRadius: 0, padding: 18, fontSize: 18, fontWeight: '600', color: C.text1, borderWidth: 1, borderColor: C.border, marginBottom: 4 },
   emojiGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 8 },
-  emojiBtn: { width: 56, height: 56, borderRadius: 16, backgroundColor: c.bg.primary, justifyContent: 'center', alignItems: 'center', borderWidth: 2, borderColor: 'transparent' },
+  emojiBtn: { width: 56, height: 56, borderRadius: 0, backgroundColor: c.bg.primary, justifyContent: 'center', alignItems: 'center', borderWidth: 2, borderColor: 'transparent' },
   emojiBtnOn: { backgroundColor: C.accentDim, borderColor: C.accent },
   // Phase 1.2 — duplicate-name warning chip (amber, non-blocking)
   dupWarn: {
@@ -479,7 +478,7 @@ const useStyles = makeStyles((c) => ({
     backgroundColor: 'rgba(245, 158, 11, 0.12)',
     borderColor: 'rgba(245, 158, 11, 0.35)',
     borderWidth: 1,
-    borderRadius: 12,
+    borderRadius: 0,
     paddingHorizontal: 12,
     paddingVertical: 10,
     marginTop: 8,
@@ -499,7 +498,7 @@ const useStyles = makeStyles((c) => ({
     gap: 2,
     paddingHorizontal: 6,
     paddingVertical: 1,
-    borderRadius: 6,
+    borderRadius: 0,
     backgroundColor: 'rgba(16, 185, 129, 0.12)',
     borderWidth: 1,
     borderColor: 'rgba(16, 185, 129, 0.3)',

@@ -15,7 +15,6 @@
  */
 import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
-import { LinearGradient } from 'expo-linear-gradient';
 import { Image } from 'expo-image';
 import { Ionicons } from '@expo/vector-icons';
 import { COLORS } from '../../utils/theme';
@@ -75,11 +74,8 @@ export default function WeeklyWinCard({
   };
 
   return (
-    <LinearGradient
-      colors={[COLORS.accent.brand, COLORS.accent.brandDark]}
-      start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}
-      style={s.card}
-    >
+    <View
+      style={[s.card, { backgroundColor: '#0A0A0A' }]}>
       {/* Decorative blobs for depth */}
       <View style={s.blob1} />
       <View style={s.blob2} />
@@ -141,23 +137,23 @@ export default function WeeklyWinCard({
           <Text style={s.ctaTxt}>Try MintU free</Text>
         </View>
       </View>
-    </LinearGradient>
+    </View>
   );
 }
 
 const s = StyleSheet.create({
   card: {
     width: CARD_W, height: CARD_H,
-    borderRadius: 28, padding: 22, overflow: 'hidden', position: 'relative',
+    borderRadius: 0, padding: 22, overflow: 'hidden', position: 'relative',
     backgroundColor: COLORS.accent.brand,
   },
-  blob1: { position: 'absolute', top: -60, right: -50, width: 180, height: 180, borderRadius: 90, backgroundColor: 'rgba(255,255,255,0.10)' },
+  blob1: { position: 'absolute', top: -60, right: -50, width: 180, height: 180, borderRadius: 0, backgroundColor: 'rgba(255,255,255,0.10)' },
   blob2: { position: 'absolute', bottom: -70, left: -50, width: 200, height: 200, borderRadius: 100, backgroundColor: 'rgba(0,0,0,0.08)' },
-  blob3: { position: 'absolute', top: 80, left: -30, width: 90, height: 90, borderRadius: 45, backgroundColor: 'rgba(255,255,255,0.06)' },
+  blob3: { position: 'absolute', top: 80, left: -30, width: 90, height: 90, borderRadius: 0, backgroundColor: 'rgba(255,255,255,0.06)' },
 
   topRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   logoWrap: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  logo: { width: 24, height: 24, borderRadius: 6 },
+  logo: { width: 24, height: 24, borderRadius: 0 },
   brand: { fontSize: 16, fontWeight: '900', color: '#FFFFFF', letterSpacing: -0.3 },
   tierPill: { backgroundColor: 'rgba(0,0,0,0.22)', paddingHorizontal: 10, paddingVertical: 5, borderRadius: 999 },
   tierTxt: { fontSize: 10.5, fontWeight: '900', color: '#FFFFFF', letterSpacing: 0.4 },
@@ -169,7 +165,7 @@ const s = StyleSheet.create({
   heroValue: { fontSize: 48, fontWeight: '900', color: '#FFFFFF', letterSpacing: -2, flexShrink: 1 },
   tagline: { fontSize: 13, fontWeight: '700', color: 'rgba(255,255,255,0.92)', marginTop: 6, letterSpacing: -0.2, lineHeight: 17 },
 
-  compareBlock: { marginTop: 16, gap: 8, backgroundColor: 'rgba(0,0,0,0.18)', borderRadius: 14, padding: 12 },
+  compareBlock: { marginTop: 16, gap: 8, backgroundColor: 'rgba(0,0,0,0.18)', borderRadius: 0, padding: 12 },
   barRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   barLbl: { width: 72, fontSize: 10, fontWeight: '700', color: 'rgba(255,255,255,0.75)', letterSpacing: 0.3 },
   barTrack: { flex: 1, height: 8, borderRadius: 4, backgroundColor: 'rgba(255,255,255,0.15)', overflow: 'hidden' },

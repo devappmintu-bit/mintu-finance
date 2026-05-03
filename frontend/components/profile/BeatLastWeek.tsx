@@ -137,7 +137,7 @@ const BeatLastWeek = React.memo(BeatLastWeekBase, beatEqual);
 export default BeatLastWeek;
 
 const useStyles = makeStyles((c) => ({
-  card: { backgroundColor: c.bg.secondary, borderRadius: 18, padding: 16, borderWidth: 1, borderColor: c.border.subtle, marginBottom: 14 },
+  card: { backgroundColor: c.bg.secondary, borderRadius: 0, padding: 16, borderWidth: 1, borderColor: c.border.subtle, marginBottom: 14 },
   head: { flexDirection: 'row', alignItems: 'flex-start', gap: 10 },
   label: { fontSize: 10.5, fontWeight: '700', color: c.text.muted, letterSpacing: 0.6, textTransform: 'uppercase' },
   commentary: { fontSize: 14, fontWeight: '700', marginTop: 4, letterSpacing: -0.2, lineHeight: 18 },

@@ -16,7 +16,6 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
-import { LinearGradient } from 'expo-linear-gradient';
 import { router } from 'expo-router';
 import api, { apiSlow } from '../utils/api';
 import { fetchPremiumStatus } from '../services/premium';
@@ -157,11 +156,8 @@ export default function MoneySchoolScreen() {
         <StaggeredEntrance delayMs={65} duration={420} distance={14}>
         {/* Free-user lock banner */}
         {!isPremium && (
-          <LinearGradient
-            colors={[COLORS.accent.primary, COLORS.accent.brandDark]}
-            start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}
-            style={s.lockBanner}
-          >
+          <View
+            style={[s.lockBanner, { backgroundColor: '#0A0A0A' }]}>
             <View style={s.lockIconWrap}>
               <Ionicons name="lock-closed" size={22} color={COLORS.accent.primary} />
             </View>
@@ -175,7 +171,7 @@ export default function MoneySchoolScreen() {
               <Text style={s.lockCtaT}>Upgrade</Text>
               <Ionicons name="arrow-forward" size={14} color={COLORS.accent.primary} />
             </TouchableOpacity>
-          </LinearGradient>
+          </View>
         )}
 
         {/* Progress strip (only for premium) */}
@@ -211,11 +207,8 @@ export default function MoneySchoolScreen() {
 
         {/* Today's lesson hero */}
         {lesson && (
-          <LinearGradient
-            colors={['#FFF7E8', '#FFE7C7']}
-            start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}
-            style={s.hero}
-          >
+          <View
+            style={[s.hero, { backgroundColor: '#FFF7E8' }]}>
             <View style={s.heroEyebrowRow}>
               <Ionicons name="sunny" size={14} color={COLORS.accent.primary} />
               <Text style={s.heroEyebrow}>TODAY'S LESSON</Text>
@@ -246,7 +239,7 @@ export default function MoneySchoolScreen() {
                 <Text style={s.actionT} numberOfLines={2}>{lesson.action}</Text>
               </View>
             )}
-          </LinearGradient>
+          </View>
         )}
 
         {/* Cards deck */}
@@ -323,14 +316,14 @@ const useStyles = makeStyles((c) => ({
     borderBottomWidth: 1, borderBottomColor: c.border.subtle,
   },
   backBtn: {
-    width: 36, height: 36, borderRadius: 18,
+    width: 36, height: 36, borderRadius: 0,
     backgroundColor: c.bg.elevated,
     alignItems: 'center', justifyContent: 'center',
   },
   topTitle: { fontSize: 17, fontWeight: '800', color: c.text.primary },
   topSub: { fontSize: 11, color: c.text.muted, marginTop: 1 },
   topBadge: {
-    width: 36, height: 36, borderRadius: 12,
+    width: 36, height: 36, borderRadius: 0,
     backgroundColor: '#FFF0DE',
     alignItems: 'center', justifyContent: 'center',
     borderWidth: 1, borderColor: c.accent.primary + '40',
@@ -339,10 +332,10 @@ const useStyles = makeStyles((c) => ({
   // Lock banner
   lockBanner: {
     flexDirection: 'row', alignItems: 'center', gap: 12,
-    padding: 14, borderRadius: 18, marginBottom: 16,
+    padding: 14, borderRadius: 0, marginBottom: 16,
   },
   lockIconWrap: {
-    width: 44, height: 44, borderRadius: 14,
+    width: 44, height: 44, borderRadius: 0,
     backgroundColor: c.bg.elevated,
     alignItems: 'center', justifyContent: 'center',
   },
@@ -359,7 +352,7 @@ const useStyles = makeStyles((c) => ({
   // Progress card
   progressCard: {
     backgroundColor: c.bg.secondary,
-    borderRadius: 18,
+    borderRadius: 0,
     padding: 14,
     marginBottom: 14,
     borderWidth: 1,
@@ -367,7 +360,7 @@ const useStyles = makeStyles((c) => ({
   },
   progressTop: { flexDirection: 'row', alignItems: 'center', gap: 12 },
   levelBadge: {
-    width: 46, height: 46, borderRadius: 23,
+    width: 46, height: 46, borderRadius: 0,
     backgroundColor: '#FFF0DE',
     alignItems: 'center', justifyContent: 'center',
     borderWidth: 1, borderColor: c.accent.primary + '33',
@@ -386,7 +379,7 @@ const useStyles = makeStyles((c) => ({
 
   // Hero lesson
   hero: {
-    borderRadius: 18,
+    borderRadius: 0,
     padding: 16,
     marginBottom: 16,
     borderWidth: 1,
@@ -399,7 +392,7 @@ const useStyles = makeStyles((c) => ({
   tipBox: {
     flexDirection: 'row', gap: 8,
     backgroundColor: c.bg.elevated,
-    padding: 10, borderRadius: 12,
+    padding: 10, borderRadius: 0,
     marginTop: 12,
     borderWidth: 1,
     borderColor: c.accent.primary + '22',
@@ -426,7 +419,7 @@ const useStyles = makeStyles((c) => ({
   cardTile: {
     width: '48%',
     backgroundColor: c.bg.secondary,
-    borderRadius: 14, padding: 12,
+    borderRadius: 0, padding: 12,
     borderWidth: 1, borderColor: c.border.subtle,
     minHeight: 140,
   },

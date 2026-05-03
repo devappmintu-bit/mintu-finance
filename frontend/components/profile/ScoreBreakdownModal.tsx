@@ -164,15 +164,15 @@ export default function ScoreBreakdownModal({ visible, onClose, fallbackScore = 
 
 const useStyles = makeStyles((c) => ({
   backdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.55)', justifyContent: 'flex-end' },
-  sheet: { backgroundColor: GLASS.solidBg, borderTopLeftRadius: 24, borderTopRightRadius: 24, borderTopWidth: StyleSheet.hairlineWidth, borderColor: GLASS.borderLight, padding: 20, paddingBottom: 32, maxHeight: '86%' },
+  sheet: { backgroundColor: GLASS.solidBg, borderTopLeftRadius: 0, borderTopRightRadius: 0, borderTopWidth: StyleSheet.hairlineWidth, borderColor: GLASS.borderLight, padding: 20, paddingBottom: 32, maxHeight: '86%' },
   grip: { width: 40, height: 4, borderRadius: 2, backgroundColor: c.border.subtle, alignSelf: 'center', marginBottom: 16 },
   header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14 },
   sheetLabel: { fontSize: 11, fontWeight: '700', color: c.text.muted, letterSpacing: 0.6, textTransform: 'uppercase' },
   sheetTitle: { fontSize: 30, fontWeight: '900', color: c.text.primary, letterSpacing: -1, marginTop: 3 },
   sheetTitleOf: { fontSize: 15, fontWeight: '700', color: c.text.muted },
-  closeBtn: { width: 34, height: 34, borderRadius: 17, backgroundColor: c.bg.primary, alignItems: 'center', justifyContent: 'center' },
+  closeBtn: { width: 34, height: 34, borderRadius: 0, backgroundColor: c.bg.primary, alignItems: 'center', justifyContent: 'center' },
 
-  predictive: { flexDirection: 'row', alignItems: 'center', gap: 6, padding: 12, borderRadius: 12, backgroundColor: '#F56E1E14', borderWidth: 1, borderColor: '#F56E1E33', marginBottom: 14 },
+  predictive: { flexDirection: 'row', alignItems: 'center', gap: 6, padding: 12, borderRadius: 0, backgroundColor: '#F56E1E14', borderWidth: 1, borderColor: '#F56E1E33', marginBottom: 14 },
   predictiveTxt: { flex: 1, fontSize: 12.5, fontWeight: '700', color: c.accent.brandDark },
 
   pillar: { flexDirection: 'row', alignItems: 'center', gap: 14, paddingVertical: 12, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: c.border.subtle },
@@ -188,7 +188,7 @@ const useStyles = makeStyles((c) => ({
 
   // Round 51e — error/empty state UI for /profile/score-breakdown failures.
   errorWrap: { alignItems: 'center', justifyContent: 'center', paddingVertical: 36, paddingHorizontal: 16, gap: 10 },
-  errorIconWrap: { width: 64, height: 64, borderRadius: 32, backgroundColor: c.bg.primary, alignItems: 'center', justifyContent: 'center' },
+  errorIconWrap: { width: 64, height: 64, borderRadius: 0, backgroundColor: c.bg.primary, alignItems: 'center', justifyContent: 'center' },
   errorTitle: { fontSize: 16, fontWeight: '800', color: c.text.primary, textAlign: 'center', marginTop: 4 },
   errorSub: { fontSize: 12.5, color: c.text.muted, textAlign: 'center', lineHeight: 18, marginBottom: 6 },
   errorRetry: {

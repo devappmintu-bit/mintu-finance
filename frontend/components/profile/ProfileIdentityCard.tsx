@@ -21,7 +21,6 @@
 import React from 'react';
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import { Image } from 'expo-image';
-import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import { COLORS, GLASS, shadowStyle } from '../../utils/theme';
@@ -110,11 +109,8 @@ function ProfileIdentityCard({
         accessibilityLabel="Change profile photo"
         testID="profile-avatar"
       >
-        <LinearGradient
-          colors={ringStops}
-          start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}
-          style={s.avatarRing}
-        >
+        <View
+          style={[s.avatarRing, { backgroundColor: '#0A0A0A' }]}>
           <View style={s.avatarInner}>
             {avatarUri ? (
               <Image source={{ uri: avatarUri }} style={s.avatarImg} contentFit="cover" />
@@ -124,7 +120,7 @@ function ProfileIdentityCard({
               </View>
             )}
           </View>
-        </LinearGradient>
+        </View>
         {/* Tiny camera badge */}
         <View style={s.cameraBadge}>
           <Ionicons name="camera" size={11} color={COLORS.text.primary} />
@@ -182,7 +178,7 @@ const useStyles = makeStyles((c) => ({
   card: {
     flexDirection: 'row', alignItems: 'center', gap: 14,
     backgroundColor: GLASS.solidBg,
-    borderRadius: 22, padding: 16, marginBottom: 14,
+    borderRadius: 0, padding: 16, marginBottom: 14,
     borderWidth: StyleSheet.hairlineWidth, borderColor: GLASS.borderLight,
     ...shadowStyle('#111827', 4, 18, 0.05, 3),
   },
@@ -212,7 +208,7 @@ const useStyles = makeStyles((c) => ({
   },
   cameraBadge: {
     position: 'absolute', right: -2, bottom: -2,
-    width: 22, height: 22, borderRadius: 11,
+    width: 22, height: 22, borderRadius: 0,
     backgroundColor: c.bg.elevated,
     borderWidth: StyleSheet.hairlineWidth, borderColor: GLASS.borderLight,
     justifyContent: 'center', alignItems: 'center',
@@ -228,14 +224,14 @@ const useStyles = makeStyles((c) => ({
   tierPill: {
     flexDirection: 'row', alignItems: 'center', gap: 4,
     paddingHorizontal: 8, paddingVertical: 3,
-    borderRadius: 10, borderWidth: 1,
+    borderRadius: 0, borderWidth: 1,
     maxWidth: 160,
   },
   tierEmoji: { fontSize: 11 },
   tierLabel: { fontSize: 11, fontWeight: '800', letterSpacing: 0.2 },
   deltaChip: {
     flexDirection: 'row', alignItems: 'center', gap: 3,
-    paddingHorizontal: 7, paddingVertical: 3, borderRadius: 10,
+    paddingHorizontal: 7, paddingVertical: 3, borderRadius: 0,
     borderWidth: 1,
   },
   deltaUp: { backgroundColor: c.state.successBg, borderColor: c.state.successBorder },

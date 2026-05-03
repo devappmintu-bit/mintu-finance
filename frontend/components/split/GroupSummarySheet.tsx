@@ -1,7 +1,6 @@
 import React from 'react';
 import { View, Text, StyleSheet, Modal, ScrollView, TouchableOpacity } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { LinearGradient } from 'expo-linear-gradient';
 import { COLORS, useAppColors, GLASS } from '../../utils/theme';
 import { makeStyles } from '../../utils/makeStyles';
 import { C, getGA } from './theme';
@@ -44,9 +43,9 @@ export default function GroupSummarySheet({ visible, onClose, summary, onAddExpe
         <View style={[s.sheet, { maxHeight: '92%' }]} accessibilityViewIsModal>
           <View style={s.handle} />
           <View style={s.sheetH}>
-            <LinearGradient colors={getGA(summary?.group_name || '').colors.map((c: string) => c + '25') as any} style={s.groupAv}>
+            <View style={[s.groupAv, { backgroundColor: (getGA(summary?.group_name || '').colors?.[0] || '#0A0A0A') + '25' }]}>
               <Text style={{ fontSize: 16 }}>{getGA(summary?.group_name || '').emoji}</Text>
-            </LinearGradient>
+            </View>
             <Text style={[s.sheetT, { flex: 1 }]} numberOfLines={1} ellipsizeMode="tail">{summary?.group_name}</Text>
             {/* Round 38 — kebab menu for rename / leave when callbacks provided */}
             {(onRename || onLeave) && (
@@ -117,15 +116,11 @@ export default function GroupSummarySheet({ visible, onClose, summary, onAddExpe
                       accessibilityLabel="Smart settle — optimized payment plan"
                       activeOpacity={0.85}
                     >
-                      <LinearGradient
-                        colors={[C.accent, C.accentLight]}
-                        start={{ x: 0, y: 0 }}
-                        end={{ x: 1, y: 0 }}
-                        style={s.smartBtn}
-                      >
+                      <View
+                        style={[s.smartBtn, { backgroundColor: '#0A0A0A' }]}>
                         <Ionicons name="flash" size={13} color={C.inv} />
                         <Text style={s.smartBtnT}>Smart settle</Text>
-                      </LinearGradient>
+                      </View>
                     </TouchableOpacity>
                   )}
                 </View>
@@ -138,10 +133,10 @@ export default function GroupSummarySheet({ visible, onClose, summary, onAddExpe
                     </View>
                     <Text style={s.debtA}>{`₹${d.amount.toFixed(0)}`}</Text>
                     <TouchableOpacity onPress={() => onPay(d)} accessibilityRole="button" accessibilityLabel={`Pay ₹${Math.round(d.amount)} to ${d.to_name}`}>
-                      <LinearGradient colors={[C.accent, C.accentLight]} style={s.payBtn}>
+                      <View style={[s.payBtn, { backgroundColor: '#0A0A0A' }]}>
                         <Ionicons name="card" size={14} color={C.inv} />
                         <Text style={s.payBtnT}>Pay</Text>
-                      </LinearGradient>
+                      </View>
                     </TouchableOpacity>
                     <TouchableOpacity style={s.waBtn} onPress={() => onRemindLegacy(d.to_name, d.amount)} accessibilityRole="button" accessibilityLabel={`Remind ${d.to_name} on WhatsApp`}>
                       <Ionicons name="logo-whatsapp" size={18} color="#25D366" />
@@ -191,10 +186,10 @@ export default function GroupSummarySheet({ visible, onClose, summary, onAddExpe
               </>
             )}
             <TouchableOpacity onPress={onAddExpense} accessibilityRole="button" accessibilityLabel="Add expense to group">
-              <LinearGradient colors={[C.accent, C.accentLight]} style={[s.primaryBtn, { marginTop: 16 }]}>
+              <View style={[s.primaryBtn, { marginTop: 16 }, { backgroundColor: '#0A0A0A' }]}>
                 <Ionicons name="add" size={18} color={C.inv} />
                 <Text style={s.primaryBtnText}> Add Expense</Text>
-              </LinearGradient>
+              </View>
             </TouchableOpacity>
           </ScrollView>
         </View>
@@ -205,12 +200,12 @@ export default function GroupSummarySheet({ visible, onClose, summary, onAddExpe
 
 const useStyles = makeStyles((c) => ({
   mBg: { flex: 1, justifyContent: 'flex-end', backgroundColor: 'rgba(0,0,0,0.5)' },
-  sheet: { backgroundColor: C.sheetBg, borderTopLeftRadius: 28, borderTopRightRadius: 28, padding: 24 },
+  sheet: { backgroundColor: C.sheetBg, borderTopLeftRadius: 0, borderTopRightRadius: 0, padding: 24 },
   handle: { width: 40, height: 4, borderRadius: 2, backgroundColor: C.text4, alignSelf: 'center', marginBottom: 16 },
   sheetH: { flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 20 },
   sheetT: { fontSize: 20, fontWeight: '700', color: C.text1 },
-  groupAv: { width: 36, height: 36, borderRadius: 14, justifyContent: 'center', alignItems: 'center' },
-  sumStats: { flexDirection: 'row', justifyContent: 'space-around', backgroundColor: c.bg.primary, borderRadius: 14, padding: 16, marginBottom: 16, borderWidth: 1, borderColor: C.border },
+  groupAv: { width: 36, height: 36, borderRadius: 0, justifyContent: 'center', alignItems: 'center' },
+  sumStats: { flexDirection: 'row', justifyContent: 'space-around', backgroundColor: c.bg.primary, borderRadius: 0, padding: 16, marginBottom: 16, borderWidth: 1, borderColor: C.border },
   sumStat: { alignItems: 'center' },
   sumV: { fontSize: 20, fontWeight: '800', color: C.text1 },
   sumL: { fontSize: 11, color: C.text3, marginTop: 2 },
@@ -219,22 +214,22 @@ const useStyles = makeStyles((c) => ({
   debtInfo: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: 6 },
   debtN: { fontSize: 14, fontWeight: '600' },
   debtA: { fontSize: 16, fontWeight: '800', color: C.text1 },
-  payBtn: { flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: 14, paddingVertical: 8, borderRadius: 12 },
+  payBtn: { flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: 14, paddingVertical: 8, borderRadius: 0 },
   payBtnT: { fontSize: 13, fontWeight: '700', color: C.inv },
-  waBtn: { width: 36, height: 36, borderRadius: 12, backgroundColor: 'rgba(37,211,102,0.1)', justifyContent: 'center', alignItems: 'center' },
+  waBtn: { width: 36, height: 36, borderRadius: 0, backgroundColor: 'rgba(37,211,102,0.1)', justifyContent: 'center', alignItems: 'center' },
   actRow: { flexDirection: 'row', alignItems: 'center', paddingVertical: 10, gap: 10 },
   actDot: { width: 8, height: 8, borderRadius: 4, backgroundColor: C.accent },
   actDesc: { fontSize: 14, fontWeight: '600', color: C.text1 },
   actMeta: { fontSize: 12, color: C.text3 },
   actAmt: { fontSize: 15, fontWeight: '700', color: C.text1 },
   actIcon: { padding: 4, marginLeft: 4 },
-  primaryBtn: { borderRadius: 16, paddingVertical: 16, alignItems: 'center', justifyContent: 'center', flexDirection: 'row' },
+  primaryBtn: { borderRadius: 0, paddingVertical: 16, alignItems: 'center', justifyContent: 'center', flexDirection: 'row' },
   primaryBtnText: { fontSize: 16, fontWeight: '700', color: C.inv },
   // Round 38 — celebratory "all-settled" empty state for the debts section.
   allSettled: {
     flexDirection: 'row', alignItems: 'center', gap: 10,
     backgroundColor: 'rgba(16,185,129,0.10)', borderColor: 'rgba(16,185,129,0.35)',
-    borderWidth: 1, borderRadius: 14, paddingVertical: 14, paddingHorizontal: 16,
+    borderWidth: 1, borderRadius: 0, paddingVertical: 14, paddingHorizontal: 16,
     marginTop: 4, marginBottom: 8,
   },
   allSettledTxt: { fontSize: 14, fontWeight: '700', color: c.state.success },
@@ -242,7 +237,7 @@ const useStyles = makeStyles((c) => ({
   settleHeaderRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 10, marginTop: 12, gap: 8 },
   smartBtn: {
     flexDirection: 'row', alignItems: 'center', gap: 4,
-    paddingHorizontal: 12, paddingVertical: 7, borderRadius: 14,
+    paddingHorizontal: 12, paddingVertical: 7, borderRadius: 0,
   },
   smartBtnT: { fontSize: 12, fontWeight: '800', color: C.inv, letterSpacing: 0.2 },
 }));

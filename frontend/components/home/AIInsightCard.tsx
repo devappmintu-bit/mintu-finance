@@ -149,7 +149,7 @@ export default function AIInsightCard({
 const useStyles = makeStyles((c) => ({
   card: {
     backgroundColor: c.bg.elevated,
-    borderRadius: 18,
+    borderRadius: 0,
     padding: 16,
     marginBottom: 12,
     borderWidth: 1,
@@ -157,7 +157,7 @@ const useStyles = makeStyles((c) => ({
     gap: 10,
   },
   header: { flexDirection: 'row', gap: 12, alignItems: 'center' },
-  iconBox: { width: 48, height: 48, borderRadius: 14, justifyContent: 'center', alignItems: 'center' },
+  iconBox: { width: 48, height: 48, borderRadius: 0, justifyContent: 'center', alignItems: 'center' },
   icon: { fontSize: 26 },
   headerLabelRow: { flexDirection: 'row', alignItems: 'center', gap: 4, marginBottom: 2 },
   headerLabel: { fontSize: 9, fontWeight: '800', letterSpacing: 1, color: c.accent.primary },

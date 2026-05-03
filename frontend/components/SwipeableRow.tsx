@@ -130,7 +130,7 @@ const useStyles = makeStyles((c) => ({
   actionText: { color: '#fff', fontSize: 11, fontWeight: '700', marginTop: 2 },
 
   webHandle: {
-    width: 30, height: 30, borderRadius: 15,
+    width: 30, height: 30, borderRadius: 0,
     backgroundColor: '#F3F4F6',
     alignItems: 'center', justifyContent: 'center',
     marginLeft: 6,

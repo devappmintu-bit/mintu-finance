@@ -18,7 +18,6 @@
  */
 import React, { memo, useMemo } from 'react';
 import { View, Text, TouchableOpacity, Platform, StyleSheet } from 'react-native';
-import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import * as Haptics from 'expo-haptics';
@@ -84,10 +83,8 @@ function BalanceHero({ user, snapshot, stats }: Props) {
       <View style={s.card}>
         {/* Brand accent strip — the only orange flood on the card. 4px tall,
             spans the top edge. Gradient anchors brand-light → brand for warmth. */}
-        <LinearGradient
-          colors={[COLORS.accent.brand, COLORS.accent.brandDark]}
-          start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }}
-          style={s.accentStrip}
+        <View
+          style={[s.accentStrip, { backgroundColor: '#0A0A0A' }]}
         />
 
         <View style={s.headerRow}>
@@ -147,7 +144,7 @@ const useStyles = makeStyles((c) => ({
   shell: { marginTop: 6, marginBottom: 14 },
   card: {
     backgroundColor: GLASS.solidBg,
-    borderRadius: 24, padding: 20, paddingTop: 22,
+    borderRadius: 0, padding: 20, paddingTop: 22,
     borderWidth: StyleSheet.hairlineWidth, borderColor: GLASS.borderLight,
     overflow: 'hidden',
     ...shadowStyle('#111827', 6, 24, 0.06, 4),
@@ -160,14 +157,14 @@ const useStyles = makeStyles((c) => ({
   headerRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 },
   tierPill: {
     flexDirection: 'row', alignItems: 'center', gap: 5,
-    paddingHorizontal: 10, paddingVertical: 4, borderRadius: 12, borderWidth: 1,
+    paddingHorizontal: 10, paddingVertical: 4, borderRadius: 0, borderWidth: 1,
   },
   tierEmoji: { fontSize: 11 },
   tierTxt: { fontSize: 10, fontWeight: '900', letterSpacing: 0.8 },
   streakPill: {
     flexDirection: 'row', alignItems: 'center', gap: 4,
     backgroundColor: c.accent.primary + '14',
-    paddingHorizontal: 10, paddingVertical: 4, borderRadius: 12,
+    paddingHorizontal: 10, paddingVertical: 4, borderRadius: 0,
     borderWidth: 1, borderColor: c.accent.primary + '33',
   },
   streakEmoji: { fontSize: 11 },
@@ -181,7 +178,7 @@ const useStyles = makeStyles((c) => ({
   amount: { fontSize: 44, fontWeight: '900', letterSpacing: -1.5 },
   rateChip: {
     flexDirection: 'row', alignItems: 'center', gap: 3,
-    paddingHorizontal: 8, paddingVertical: 3, borderRadius: 12,
+    paddingHorizontal: 8, paddingVertical: 3, borderRadius: 0,
     borderWidth: 1, marginBottom: 6,
   },
   ratePositive: { backgroundColor: c.state.successBg, borderColor: c.state.successBorder },

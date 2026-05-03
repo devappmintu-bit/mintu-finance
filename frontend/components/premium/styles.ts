@@ -24,7 +24,7 @@ export const usePremiumStyles = makeStyles((c) => ({
   // Round 55 — `hookCard` style retained for backward compat but the
   // PlansView now wraps in <GlassCard/> instead. Kept for any callers
   // that still reference styles.hookCard directly.
-  hookCard: { margin: 16, padding: 18, backgroundColor: c.accent.moneyOut + '14', borderRadius: 16, borderWidth: 1, borderColor: c.accent.moneyOut + '40' },
+  hookCard: { margin: 16, padding: 18, backgroundColor: c.accent.moneyOut + '14', borderRadius: 0, borderWidth: 1, borderColor: c.accent.moneyOut + '40' },
   hookHeader: { fontSize: 20, fontWeight: '800', color: c.text.primary, lineHeight: 26 },
   hookSub: { fontSize: 13, color: c.text.secondary, marginTop: 6 },
   plansRow: { flexDirection: 'row', gap: 10, paddingHorizontal: 16, marginTop: 18 },
@@ -38,7 +38,7 @@ export const usePremiumStyles = makeStyles((c) => ({
     paddingVertical: 20,
     paddingHorizontal: 10,
     backgroundColor: 'rgba(255,255,255,0.78)',
-    borderRadius: 20,
+    borderRadius: 0,
     borderWidth: 1,
     borderColor: 'rgba(17,24,39,0.06)',
     position: 'relative',
@@ -49,7 +49,7 @@ export const usePremiumStyles = makeStyles((c) => ({
   // The "Best Value" tier stays as the hero orange surface — the
   // intentional contrast against the surrounding glass cards is what
   // makes the comparison legible. Slightly bumped radius for parity.
-  planCardBest: { flex: 1.15, alignItems: 'center', paddingVertical: 20, paddingHorizontal: 10, backgroundColor: c.accent.primary, borderRadius: 20, position: 'relative', minHeight: 140, ...shadowStyle(c.accent.primary, 4, 14, 0.35, 6) },
+  planCardBest: { flex: 1.15, alignItems: 'center', paddingVertical: 20, paddingHorizontal: 10, backgroundColor: c.accent.primary, borderRadius: 0, position: 'relative', minHeight: 140, ...shadowStyle(c.accent.primary, 4, 14, 0.35, 6) },
   planCardBestActive: { borderColor: '#FCD34D', borderWidth: 2 },
   planLabel: { fontSize: 14, fontWeight: '800', color: c.text.primary },
   planLabelWhite: { fontSize: 14, fontWeight: '800', color: '#fff', marginTop: 6 },
@@ -66,7 +66,7 @@ export const usePremiumStyles = makeStyles((c) => ({
   mostPopular: { fontSize: 12, color: c.text.secondary, textAlign: 'center', marginTop: 16, fontWeight: '700' },
 
   // Payment-methods trust bar — India-first (now dark-theme-native)
-  payTrust: { marginHorizontal: 16, marginTop: 14, padding: 14, backgroundColor: c.bg.secondary, borderRadius: 14, borderWidth: 1, borderColor: c.border.subtle },
+  payTrust: { marginHorizontal: 16, marginTop: 14, padding: 14, backgroundColor: c.bg.secondary, borderRadius: 0, borderWidth: 1, borderColor: c.border.subtle },
   payTrustHeader: { flexDirection: 'row', alignItems: 'center', gap: 6, justifyContent: 'center', marginBottom: 10 },
   payTrustTitle: { fontSize: 12, fontWeight: '800', color: c.text.primary, letterSpacing: -0.1 },
   payLogosRow: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'center', gap: 6 },
@@ -75,14 +75,14 @@ export const usePremiumStyles = makeStyles((c) => ({
   payPillWhiteTxt: { fontSize: 11, fontWeight: '800', color: '#fff', letterSpacing: -0.1 },
   payFootnote: { fontSize: 10, fontWeight: '700', color: c.text.muted, textAlign: 'center', marginTop: 10, letterSpacing: 0.2 },
 
-  freeBanner: { flexDirection: 'row', alignItems: 'center', gap: 12, marginHorizontal: 16, marginTop: 14, padding: 14, backgroundColor: c.bg.secondary, borderRadius: 14, borderWidth: 1, borderColor: c.border.subtle },
+  freeBanner: { flexDirection: 'row', alignItems: 'center', gap: 12, marginHorizontal: 16, marginTop: 14, padding: 14, backgroundColor: c.bg.secondary, borderRadius: 0, borderWidth: 1, borderColor: c.border.subtle },
   freeBannerActive: { borderColor: c.accent.moneyIn, backgroundColor: c.accent.moneyIn + '10' },
-  freeBannerIcon: { width: 40, height: 40, borderRadius: 20, backgroundColor: c.bg.elevated, justifyContent: 'center', alignItems: 'center' },
+  freeBannerIcon: { width: 40, height: 40, borderRadius: 0, backgroundColor: c.bg.elevated, justifyContent: 'center', alignItems: 'center' },
   freeBannerTitle: { fontSize: 14, fontWeight: '800', color: c.text.primary },
   freeBannerSub: { fontSize: 11.5, color: c.text.muted, marginTop: 2, fontWeight: '500' },
   freeBannerCta: { fontSize: 12, fontWeight: '800', color: c.accent.primary },
   sectionTitle: { fontSize: 14, fontWeight: '900', color: c.text.primary, marginTop: 22, marginBottom: 10, marginLeft: 20, letterSpacing: 0.3 },
-  featureCard: { marginHorizontal: 16, marginBottom: 10, padding: 16, backgroundColor: c.bg.secondary, borderRadius: 16, borderWidth: 1, borderColor: c.border.subtle },
+  featureCard: { marginHorizontal: 16, marginBottom: 10, padding: 16, backgroundColor: c.bg.secondary, borderRadius: 0, borderWidth: 1, borderColor: c.border.subtle },
   featureCardActive: { borderColor: c.accent.primary, borderWidth: 2, backgroundColor: c.accent.primary + '0A' },
   featureHeader: { flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 10 },
   featureEmoji: { fontSize: 22 },
@@ -93,17 +93,17 @@ export const usePremiumStyles = makeStyles((c) => ({
   featureRow: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingVertical: 5 },
   featureText: { flex: 1, fontSize: 13, color: c.text.primary, fontWeight: '600' },
   trustRow: { flexDirection: 'row', gap: 8, paddingHorizontal: 16, marginTop: 20 },
-  trustSig: { flex: 1, alignItems: 'center', gap: 6, paddingVertical: 14, backgroundColor: c.bg.secondary, borderRadius: 14, borderWidth: 1, borderColor: c.border.subtle },
+  trustSig: { flex: 1, alignItems: 'center', gap: 6, paddingVertical: 14, backgroundColor: c.bg.secondary, borderRadius: 0, borderWidth: 1, borderColor: c.border.subtle },
   trustSigEmoji: { fontSize: 22 },
   trustSigText: { fontSize: 10.5, fontWeight: '800', color: c.text.secondary, textAlign: 'center', lineHeight: 13 },
 
   // SHARED CARD
-  card: { backgroundColor: c.bg.secondary, borderRadius: 16, margin: 12, padding: 16, borderWidth: 1, borderColor: c.border.subtle, ...shadowStyle('#000', 2, 10, 0.08, 2) },
+  card: { backgroundColor: c.bg.secondary, borderRadius: 0, margin: 12, padding: 16, borderWidth: 1, borderColor: c.border.subtle, ...shadowStyle('#000', 2, 10, 0.08, 2) },
   cardTitle: { fontSize: 15, fontWeight: '800', color: c.text.primary, marginBottom: 4 },
   cardSub: { fontSize: 12, color: c.text.muted, marginBottom: 14, fontWeight: '500' },
   label: { fontSize: 12, fontWeight: '700', color: c.text.secondary, marginTop: 10, marginBottom: 4 },
-  input: { backgroundColor: c.bg.elevated, borderRadius: 10, paddingHorizontal: 14, paddingVertical: 12, fontSize: 15, color: c.text.primary, borderWidth: 1, borderColor: c.border.subtle },
-  primaryBtn: { marginTop: 18, borderRadius: 12, overflow: 'hidden' },
+  input: { backgroundColor: c.bg.elevated, borderRadius: 0, paddingHorizontal: 14, paddingVertical: 12, fontSize: 15, color: c.text.primary, borderWidth: 1, borderColor: c.border.subtle },
+  primaryBtn: { marginTop: 18, borderRadius: 0, overflow: 'hidden' },
   primaryBtnGrad: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', paddingVertical: 14, gap: 8 },
   primaryBtnText: { color: '#fff', fontSize: 14, fontWeight: '800' },
 
@@ -115,21 +115,21 @@ export const usePremiumStyles = makeStyles((c) => ({
   recBadgeText: { color: '#fff', fontSize: 10, fontWeight: '800', letterSpacing: 0.5 },
   recHeadline: { fontSize: 14, fontWeight: '700', color: c.text.primary, lineHeight: 20 },
   compareGrid: { flexDirection: 'row', gap: 10 },
-  compareCol: { flex: 1, padding: 12, borderRadius: 10, backgroundColor: c.bg.elevated, borderWidth: 1, borderColor: c.border.subtle },
+  compareCol: { flex: 1, padding: 12, borderRadius: 0, backgroundColor: c.bg.elevated, borderWidth: 1, borderColor: c.border.subtle },
   compareColWin: { backgroundColor: c.accent.moneyIn + '1A', borderColor: c.accent.moneyIn },
   compareHead: { fontSize: 11, fontWeight: '800', color: c.text.muted, letterSpacing: 0.5 },
   compareBig: { fontSize: 20, fontWeight: '900', color: c.text.primary, marginTop: 4 },
   compareSub: { fontSize: 11, color: c.text.muted, marginTop: 2, fontWeight: '500' },
   compareDetail: { fontSize: 11, color: c.text.secondary, marginTop: 8, fontWeight: '600' },
   sugRow: { flexDirection: 'row', gap: 10, paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: c.border.subtle, alignItems: 'flex-start' },
-  sugIcon: { width: 32, height: 32, borderRadius: 16, backgroundColor: c.accent.primary + '20', justifyContent: 'center', alignItems: 'center' },
+  sugIcon: { width: 32, height: 32, borderRadius: 0, backgroundColor: c.accent.primary + '20', justifyContent: 'center', alignItems: 'center' },
   sugTitle: { fontSize: 13, fontWeight: '700', color: c.text.primary },
   sugDetail: { fontSize: 11, color: c.text.muted, marginTop: 2, lineHeight: 15 },
   sugSave: { fontSize: 12, fontWeight: '800', color: c.accent.moneyIn },
 
   // INVEST
   riskRow: { flexDirection: 'row', gap: 8, marginTop: 6 },
-  riskBtn: { flex: 1, paddingVertical: 12, borderRadius: 10, borderWidth: 1, borderColor: c.border.subtle, backgroundColor: c.bg.elevated, alignItems: 'center' },
+  riskBtn: { flex: 1, paddingVertical: 12, borderRadius: 0, borderWidth: 1, borderColor: c.border.subtle, backgroundColor: c.bg.elevated, alignItems: 'center' },
   riskBtnActive: { borderColor: c.accent.primary, backgroundColor: c.accent.primary + '15' },
   riskText: { fontSize: 13, fontWeight: '700', color: c.text.muted },
   riskTextActive: { color: c.accent.primary },
@@ -139,7 +139,7 @@ export const usePremiumStyles = makeStyles((c) => ({
   snapshotL: { fontSize: 10, fontWeight: '700', color: c.text.muted, marginTop: 2 },
   snapshotDiv: { width: 1, backgroundColor: c.border.subtle },
   allocHead: { flexDirection: 'row', alignItems: 'center', gap: 12 },
-  allocIcon: { width: 40, height: 40, borderRadius: 20, justifyContent: 'center', alignItems: 'center' },
+  allocIcon: { width: 40, height: 40, borderRadius: 0, justifyContent: 'center', alignItems: 'center' },
   allocTitle: { fontSize: 14, fontWeight: '800', color: c.text.primary },
   allocWhy: { fontSize: 11, color: c.text.muted, marginTop: 2, lineHeight: 15 },
   allocAmt: { fontSize: 16, fontWeight: '900' },
@@ -152,7 +152,7 @@ export const usePremiumStyles = makeStyles((c) => ({
 
   // LOCKED STATE
   lockedWrap: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 32 },
-  lockIconBox: { width: 80, height: 80, borderRadius: 40, backgroundColor: c.accent.primary + '15', justifyContent: 'center', alignItems: 'center', marginBottom: 20 },
+  lockIconBox: { width: 80, height: 80, borderRadius: 0, backgroundColor: c.accent.primary + '15', justifyContent: 'center', alignItems: 'center', marginBottom: 20 },
   lockedTitle: { fontSize: 20, fontWeight: '800', color: c.text.primary, marginBottom: 8, textAlign: 'center' },
   lockedDesc: { fontSize: 13, color: c.text.secondary, textAlign: 'center', lineHeight: 19, maxWidth: 280, marginBottom: 20 },
   lockedPlanRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 16 },

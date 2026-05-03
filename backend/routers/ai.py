@@ -14,3 +14,4 @@ from routers import ai_money_school # noqa: F401 — extracted in Round 26
 from routers import ai_coach        # noqa: F401 — /ai/chat + /ai/memory + /ai/agents
 from routers import ai_voice        # noqa: F401 — /voice/transcribe (Round 26)
 from routers import ai_agent        # noqa: F401 — /ai/agent-chat (Round 26)
+from routers import ai_context      # noqa: F401 — /ai-coach/context-response (v10 Brain)

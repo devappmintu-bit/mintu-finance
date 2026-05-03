@@ -8,7 +8,6 @@
 import React, { useMemo, useState } from 'react';
 import { View, Text, StyleSheet, Modal, ScrollView, TouchableOpacity, TextInput, Alert, Share, Platform } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { LinearGradient } from 'expo-linear-gradient';
 import Toast from 'react-native-toast-message';
 import { COLORS, useAppColors, GLASS } from '../../utils/theme';
 import { makeStyles } from '../../utils/makeStyles';
@@ -136,9 +135,9 @@ export default function GroupManageSheet({ visible, onClose, manage, currentUser
                 <View style={s.inlineRow}>
                   <TextInput style={s.input} value={renameVal} onChangeText={setRenameVal} autoFocus placeholder="New name" placeholderTextColor={C.text4} />
                   <TouchableOpacity onPress={() => { onRename(renameVal.trim()); setShowRename(false); }}>
-                    <LinearGradient colors={[C.accent, C.accentLight]} style={s.iconBtn}>
+                    <View style={[s.iconBtn, { backgroundColor: '#0A0A0A' }]}>
                       <Ionicons name="checkmark" size={18} color={C.inv} />
-                    </LinearGradient>
+                    </View>
                   </TouchableOpacity>
                 </View>
               )}
@@ -151,9 +150,9 @@ export default function GroupManageSheet({ visible, onClose, manage, currentUser
                 <View style={s.inlineRow}>
                   <TextInput style={s.input} placeholder="10-digit phone number" placeholderTextColor={C.text4} value={addPhoneVal} onChangeText={setAddPhoneVal} keyboardType="phone-pad" maxLength={10} autoFocus />
                   <TouchableOpacity onPress={handleAddMember}>
-                    <LinearGradient colors={[C.accent, C.accentLight]} style={s.iconBtn}>
+                    <View style={[s.iconBtn, { backgroundColor: '#0A0A0A' }]}>
                       <Ionicons name="person-add" size={18} color={C.inv} />
-                    </LinearGradient>
+                    </View>
                   </TouchableOpacity>
                 </View>
               )}
@@ -219,40 +218,40 @@ function ActionRow({ icon, label, onPress, danger }: { icon: string; label: stri
 
 const useStyles = makeStyles((c) => ({
   mBg: { flex: 1, justifyContent: 'flex-end', backgroundColor: 'rgba(15,23,42,0.55)' },
-  sheet: { backgroundColor: C.sheetBg, borderTopLeftRadius: 28, borderTopRightRadius: 28, padding: 20, maxHeight: '92%' },
+  sheet: { backgroundColor: C.sheetBg, borderTopLeftRadius: 0, borderTopRightRadius: 0, padding: 20, maxHeight: '92%' },
   handle: { width: 40, height: 4, borderRadius: 2, backgroundColor: C.text4, alignSelf: 'center', marginBottom: 12 },
   topBar: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 },
   topTitle: { fontSize: 18, fontWeight: '800', color: C.text1 },
 
   heroCard: { alignItems: 'center', marginBottom: 16 },
   avStack: { flexDirection: 'row' },
-  av: { width: 50, height: 50, borderRadius: 25, justifyContent: 'center', alignItems: 'center', borderWidth: 3, borderColor: C.sheetBg },
+  av: { width: 50, height: 50, borderRadius: 0, justifyContent: 'center', alignItems: 'center', borderWidth: 3, borderColor: C.sheetBg },
   avInit: { fontSize: 17, fontWeight: '800' },
   groupName: { fontSize: 22, fontWeight: '800', color: C.text1, marginTop: 12, textAlign: 'center' },
   groupMeta: { fontSize: 12, color: C.text3, marginTop: 4 },
 
   statsRow: { flexDirection: 'row', gap: 8, marginBottom: 20 },
-  statCard: { flex: 1, backgroundColor: c.bg.primary, borderRadius: 14, padding: 12, borderWidth: 1, borderColor: C.border, alignItems: 'center' },
+  statCard: { flex: 1, backgroundColor: c.bg.primary, borderRadius: 0, padding: 12, borderWidth: 1, borderColor: C.border, alignItems: 'center' },
   statVal: { fontSize: 16, fontWeight: '800', color: C.text1, maxWidth: '100%' },
   statLbl: { fontSize: 10, color: C.text3, marginTop: 4, letterSpacing: 0.3 },
 
   sectionTitle: { fontSize: 12, fontWeight: '700', color: C.text3, marginBottom: 8, marginTop: 14, letterSpacing: 0.5 },
-  actionGroup: { backgroundColor: C.card, borderRadius: 16, borderWidth: 1, borderColor: C.border, overflow: 'hidden' },
+  actionGroup: { backgroundColor: C.card, borderRadius: 0, borderWidth: 1, borderColor: C.border, overflow: 'hidden' },
 
   actionRow: { flexDirection: 'row', alignItems: 'center', gap: 14, paddingVertical: 12, paddingHorizontal: 14, borderBottomWidth: 1, borderBottomColor: C.border },
-  actIcon: { width: 34, height: 34, borderRadius: 17, alignItems: 'center', justifyContent: 'center' },
+  actIcon: { width: 34, height: 34, borderRadius: 0, alignItems: 'center', justifyContent: 'center' },
   actLabel: { flex: 1, fontSize: 14, fontWeight: '600' },
 
   inlineRow: { flexDirection: 'row', gap: 8, padding: 10, borderBottomWidth: 1, borderBottomColor: C.border },
-  input: { flex: 1, backgroundColor: c.bg.primary, borderRadius: 12, paddingHorizontal: 12, paddingVertical: 10, fontSize: 14, color: C.text1, borderWidth: 1, borderColor: C.border },
-  iconBtn: { width: 40, height: 40, borderRadius: 12, justifyContent: 'center', alignItems: 'center' },
+  input: { flex: 1, backgroundColor: c.bg.primary, borderRadius: 0, paddingHorizontal: 12, paddingVertical: 10, fontSize: 14, color: C.text1, borderWidth: 1, borderColor: C.border },
+  iconBtn: { width: 40, height: 40, borderRadius: 0, justifyContent: 'center', alignItems: 'center' },
 
   memRow: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 10, paddingHorizontal: 14 },
   memRowBorder: { borderBottomWidth: 1, borderBottomColor: C.border },
-  memAv: { width: 36, height: 36, borderRadius: 18, alignItems: 'center', justifyContent: 'center' },
+  memAv: { width: 36, height: 36, borderRadius: 0, alignItems: 'center', justifyContent: 'center' },
   memInit: { fontSize: 14, fontWeight: '700' },
   memName: { fontSize: 14, fontWeight: '600', color: C.text1 },
   youTag: { fontSize: 10, color: C.accent, fontWeight: '700', letterSpacing: 0.5, marginTop: 2 },
-  adminBadge: { backgroundColor: C.accent + '20', paddingHorizontal: 8, paddingVertical: 3, borderRadius: 8 },
+  adminBadge: { backgroundColor: C.accent + '20', paddingHorizontal: 8, paddingVertical: 3, borderRadius: 0 },
   adminTxt: { fontSize: 10, fontWeight: '700', color: C.accent, letterSpacing: 0.3 },
 }));

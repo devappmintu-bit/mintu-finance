@@ -30,7 +30,7 @@ import { makeStyles } from '../../utils/makeStyles';
 import { shareSmart, copyToClipboard } from '../../utils/share';
 import { C, getGA, DebtRow } from '../../components/split/theme';
 import SettleUpCard from '../../components/split/SettleUpCard';
-import SplitHero from '../../components/split/SplitHero';
+import SplitHero from '../../components/split/SplitHeroBrutalist';
 import SplitInsightsHero from '../../components/split/SplitInsightsHero';
 import RemindersBanner from '../../components/split/RemindersBanner';
 import ContactPickerSheet from '../../components/split/ContactPickerSheet';
@@ -761,12 +761,12 @@ const useStyles = makeStyles((c) => ({
   header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 },
   title: { fontSize: 28, fontWeight: '800', color: C.text1, letterSpacing: -0.5 },
   headerR: { flexDirection: 'row', alignItems: 'center', gap: 10 },
-  coinPill: { paddingHorizontal: 14, paddingVertical: 6, borderRadius: 20, backgroundColor: C.goldDim, borderWidth: 1, borderColor: 'rgba(255,179,0,0.2)' },
+  coinPill: { paddingHorizontal: 14, paddingVertical: 6, borderRadius: 0, backgroundColor: C.goldDim, borderWidth: 1, borderColor: 'rgba(255,179,0,0.2)' },
   coinText: { fontSize: 14, fontWeight: '700', color: C.gold },
-  addBtn: { width: 44, height: 44, borderRadius: 22, justifyContent: 'center', alignItems: 'center', ...SHADOW.md },
+  addBtn: { width: 44, height: 44, borderRadius: 0, justifyContent: 'center', alignItems: 'center', ...SHADOW.md },
   balCard: {
     backgroundColor: C.card,
-    borderRadius: 24, padding: 22, marginBottom: 16,
+    borderRadius: 0, padding: 22, marginBottom: 16,
     borderWidth: 1, borderColor: C.cardBorder,
     ...SHADOW.lg,
   },
@@ -778,7 +778,7 @@ const useStyles = makeStyles((c) => ({
   section: { fontSize: 16, fontWeight: '700', color: C.text1, marginBottom: 12 },
   emptyCard: {
     backgroundColor: C.card,
-    borderRadius: 24, padding: 40, alignItems: 'center',
+    borderRadius: 0, padding: 40, alignItems: 'center',
     borderWidth: 1, borderColor: C.cardBorder, gap: 8,
     ...SHADOW.sm,
   },

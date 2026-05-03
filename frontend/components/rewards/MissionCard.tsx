@@ -13,7 +13,6 @@
  */
 import React, { useEffect, useRef } from 'react';
 import { View, Text, TouchableOpacity, Animated, Easing, Platform } from 'react-native';
-import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import { makeStyles } from '../../utils/makeStyles';
@@ -78,10 +77,8 @@ export default function MissionCard({ mission, onClaim, submitting }: Props) {
         <Text style={[s.title, mission.claimed && { color: c.gray[400] }]} numberOfLines={1}>{mission.title}</Text>
         <View style={s.metaRow}>
           <View style={s.track}>
-            <LinearGradient
-              colors={progGradient}
-              start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }}
-              style={[s.fill, { width: `${Math.max(2, mission.progress_pct)}%` }]}
+            <View
+              style={[s.fill, { width: `${Math.max(2, mission.progress_pct)}%`, backgroundColor: '#0A0A0A' }]}
             />
           </View>
           <Text style={s.progTxt}>
@@ -105,9 +102,9 @@ export default function MissionCard({ mission, onClaim, submitting }: Props) {
         ) : isClaimable ? (
           <Animated.View style={{ transform: [{ scale: pulse }] }}>
             <TouchableOpacity onPress={handle} disabled={submitting} activeOpacity={0.85} testID={`claim-${mission.id}`}>
-              <LinearGradient colors={CLAIM_BTN_GRAD} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={s.claimBtn}>
+              <View style={[s.claimBtn, { backgroundColor: '#0A0A0A' }]}>
                 <Text style={s.claimTxt}>{submitting ? '…' : 'Claim'}</Text>
-              </LinearGradient>
+              </View>
             </TouchableOpacity>
           </Animated.View>
         ) : (
@@ -121,9 +118,9 @@ export default function MissionCard({ mission, onClaim, submitting }: Props) {
 }
 
 const useStyles = makeStyles((c) => ({
-  card: { flexDirection: 'row', alignItems: 'center', gap: 12, padding: 12, backgroundColor: c.bg.elevated, borderRadius: 16, borderWidth: 1, borderColor: c.gray[100] },
+  card: { flexDirection: 'row', alignItems: 'center', gap: 12, padding: 12, backgroundColor: c.bg.elevated, borderRadius: 0, borderWidth: 1, borderColor: c.gray[100] },
   cardClaimed: { opacity: 0.55 },
-  emojiPill: { width: 44, height: 44, borderRadius: 16, backgroundColor: c.state.warningBg, alignItems: 'center', justifyContent: 'center' },
+  emojiPill: { width: 44, height: 44, borderRadius: 0, backgroundColor: c.state.warningBg, alignItems: 'center', justifyContent: 'center' },
   emoji: { fontSize: 24 },
   title: { fontSize: 13, fontWeight: '800', color: c.text.primary },
   metaRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 4 },
@@ -136,9 +133,9 @@ const useStyles = makeStyles((c) => ({
   rewardTxt: { fontSize: 11, fontWeight: '800', color: c.state.warning },
   rewardTxtPurple: { fontSize: 11, fontWeight: '800', color: '#6D28D9' },
   cta: { alignItems: 'center', justifyContent: 'center', marginLeft: 4 },
-  btnMuted: { width: 44, height: 44, borderRadius: 16, alignItems: 'center', justifyContent: 'center', backgroundColor: c.gray[200] },
-  btnFaint: { width: 44, height: 44, borderRadius: 16, alignItems: 'center', justifyContent: 'center', backgroundColor: c.gray[100] },
+  btnMuted: { width: 44, height: 44, borderRadius: 0, alignItems: 'center', justifyContent: 'center', backgroundColor: c.gray[200] },
+  btnFaint: { width: 44, height: 44, borderRadius: 0, alignItems: 'center', justifyContent: 'center', backgroundColor: c.gray[100] },
   pendingTxt: { fontSize: 13, fontWeight: '900', color: c.gray[400] },
-  claimBtn: { paddingHorizontal: 16, paddingVertical: 12, borderRadius: 16, shadowColor: c.state.success, shadowOpacity: 0.35, shadowRadius: 8, shadowOffset: { width: 0, height: 4 }, elevation: 3 },
+  claimBtn: { paddingHorizontal: 16, paddingVertical: 12, borderRadius: 0, shadowColor: c.state.success, shadowOpacity: 0.35, shadowRadius: 8, shadowOffset: { width: 0, height: 4 }, elevation: 3 },
   claimTxt: { fontSize: 12, fontWeight: '900', color: c.bg.elevated, letterSpacing: 0.4 },
 }));

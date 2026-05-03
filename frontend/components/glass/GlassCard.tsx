@@ -21,7 +21,6 @@
 import React from 'react';
 import { Platform, StyleSheet, View, ViewProps, ViewStyle } from 'react-native';
 import { BlurView } from 'expo-blur';
-import { LinearGradient } from 'expo-linear-gradient';
 import { GLASS, COLORS } from '../../utils/theme';
 
 type Props = ViewProps & {
@@ -79,11 +78,8 @@ function _GlassCard({
       />
       {/* Frosted-milk overlay so legibility doesn't depend on what's
           behind the card. Subtle gradient gives top-edge highlight. */}
-      <LinearGradient
-        colors={['rgba(255,255,255,0.75)', 'rgba(255,255,255,0.45)'] as any}
-        start={{ x: 0, y: 0 }}
-        end={{ x: 0, y: 1 }}
-        style={[StyleSheet.absoluteFill, { borderRadius: radius }]}
+      <View
+        style={[StyleSheet.absoluteFill, { borderRadius: radius }, { backgroundColor: 'rgba(255,255,255,0.75)' }]}
       />
       <View style={{ borderRadius: radius, overflow: 'hidden' }}>{children}</View>
     </View>

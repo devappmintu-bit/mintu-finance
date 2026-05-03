@@ -124,7 +124,7 @@ function GettingStartedCard({ counts }: Props) {
 const s = StyleSheet.create({
   card: {
     marginHorizontal: SPACING.lg, marginTop: SPACING.md,
-    padding: 16, borderRadius: 18,
+    padding: 16, borderRadius: 0,
     backgroundColor: '#FFF7ED',
     borderWidth: 1, borderColor: '#FFDDC0',
   },
@@ -142,7 +142,7 @@ const s = StyleSheet.create({
     paddingVertical: 10, borderTopWidth: 1, borderTopColor: 'rgba(0,0,0,0.05)',
   },
   checkbox: {
-    width: 28, height: 28, borderRadius: 14,
+    width: 28, height: 28, borderRadius: 0,
     borderWidth: 1.5, borderColor: '#FFDDC0', backgroundColor: '#FFFFFF',
     alignItems: 'center', justifyContent: 'center',
   },

@@ -135,14 +135,14 @@ export default function CoinRedeemPanel({ plan, amount, listPrice, context = 'pr
 }
 
 const useStyles = makeStyles((c) => ({
-  wrap: { backgroundColor: '#FFF7ED', borderRadius: 14, padding: 12, borderWidth: 1, borderColor: '#FED7AA', marginBottom: 10 },
+  wrap: { backgroundColor: '#FFF7ED', borderRadius: 0, padding: 12, borderWidth: 1, borderColor: '#FED7AA', marginBottom: 10 },
   wrapCompact: { padding: 10 },
   head: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 10 },
   headTxt: { flex: 1, fontSize: 12, color: '#78350F', fontWeight: '600' },
   headBold: { fontWeight: '800', color: '#7C2D12' },
 
-  segRow: { flexDirection: 'row', gap: 6, backgroundColor: '#FFEFDC', padding: 4, borderRadius: 12 },
-  seg: { flex: 1, paddingVertical: 9, alignItems: 'center', justifyContent: 'center', borderRadius: 9 },
+  segRow: { flexDirection: 'row', gap: 6, backgroundColor: '#FFEFDC', padding: 4, borderRadius: 0 },
+  seg: { flex: 1, paddingVertical: 9, alignItems: 'center', justifyContent: 'center', borderRadius: 0 },
   segOn: { backgroundColor: COLORS.accent.brand },
   segTxt: { fontSize: 12, fontWeight: '700', color: '#78350F' },
   segTxtOn: { color: '#fff' },

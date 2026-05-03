@@ -19,7 +19,6 @@ import {
   ActivityIndicator,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import * as Haptics from 'expo-haptics';
@@ -177,7 +176,7 @@ export default function MysteryBoxScreen() {
   return (
     <SafeAreaView style={s.container} edges={['top']}>
       <Confetti trigger={confettiTrigger} />
-      <LinearGradient colors={['#4C1D95', '#7C3AED', '#8B5CF6']} style={StyleSheet.absoluteFillObject} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} />
+      <View style={[StyleSheet.absoluteFillObject, { backgroundColor: '#4C1D95' }]} />
 
       {/* Header */}
       <View style={s.header}>
@@ -209,11 +208,11 @@ export default function MysteryBoxScreen() {
             ]}
           >
             {/* Box body */}
-            <LinearGradient colors={['#FCD34D', COLORS.accent.secondary]} style={s.boxBody} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}>
+            <View style={[s.boxBody, { backgroundColor: '#FCD34D' }]}>
               <Text style={s.boxQ}>?</Text>
-            </LinearGradient>
+            </View>
             {/* Box lid */}
-            <LinearGradient colors={[COLORS.accent.secondary, '#B45309']} style={s.boxLid} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} />
+            <View style={[s.boxLid, { backgroundColor: '#0A0A0A' }]} />
             {/* Ribbon */}
             <View style={s.ribbonV} />
             <View style={s.ribbonH} />
@@ -269,14 +268,11 @@ export default function MysteryBoxScreen() {
                 : '🚫 Out of spins — earn more coins via missions'}
             </Text>
             <TouchableOpacity onPress={open} disabled={!canSpin} activeOpacity={0.88}>
-              <LinearGradient
-                colors={canSpin ? [COLORS.accent.secondary, COLORS.accent.brand] : [COLORS.text.muted, '#4B5563']}
-                start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}
-                style={s.cta}
-              >
+              <View
+                style={[s.cta, { backgroundColor: '#0A0A0A' }]}>
                 <Ionicons name="gift" size={18} color="#fff" />
                 <Text style={s.ctaTxt}>{canSpin ? 'Tap to Unwrap' : 'Out of Spins'}</Text>
-              </LinearGradient>
+              </View>
             </TouchableOpacity>
           </>
         )}
@@ -288,10 +284,10 @@ export default function MysteryBoxScreen() {
         {stage === 'revealed' && (
           <View style={{ gap: 10 }}>
             <TouchableOpacity onPress={() => router.back()} activeOpacity={0.88}>
-              <LinearGradient colors={[COLORS.state.successAlt, COLORS.state.success]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={s.cta}>
+              <View style={[s.cta, { backgroundColor: '#0A0A0A' }]}>
                 <Ionicons name="checkmark-circle" size={18} color="#fff" />
                 <Text style={s.ctaTxt}>Collect & Continue</Text>
-              </LinearGradient>
+              </View>
             </TouchableOpacity>
             {canSpin && (
               <TouchableOpacity onPress={openAnother} activeOpacity={0.88}>
@@ -311,7 +307,7 @@ export default function MysteryBoxScreen() {
 const useStyles = makeStyles((c) => ({
   container: { flex: 1, backgroundColor: '#4C1D95' },
   header: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingHorizontal: 16, paddingVertical: 12 },
-  iconBtn: { width: 34, height: 34, borderRadius: 17, backgroundColor: 'rgba(255,255,255,0.18)', alignItems: 'center', justifyContent: 'center' },
+  iconBtn: { width: 34, height: 34, borderRadius: 0, backgroundColor: 'rgba(255,255,255,0.18)', alignItems: 'center', justifyContent: 'center' },
   eyebrow: { fontSize: 10, fontWeight: '900', letterSpacing: 1.5, color: 'rgba(255,255,255,0.85)' },
   hdrTitle: { fontSize: 16, fontWeight: '900', color: c.bg.elevated, marginTop: 2, letterSpacing: -0.2 },
   coinsPill: { paddingHorizontal: 10, paddingVertical: 5, borderRadius: 999, backgroundColor: 'rgba(255,255,255,0.18)' },
@@ -321,8 +317,8 @@ const useStyles = makeStyles((c) => ({
 
   // Box
   boxWrap: { width: 220, height: 220, alignItems: 'center', justifyContent: 'center', position: 'relative' },
-  boxBody: { position: 'absolute', bottom: 0, width: 200, height: 160, borderRadius: 14, alignItems: 'center', justifyContent: 'center', shadowColor: '#000', shadowOpacity: 0.35, shadowRadius: 20, shadowOffset: { width: 0, height: 8 }, elevation: 8 },
-  boxLid: { position: 'absolute', top: 20, width: 210, height: 44, borderRadius: 10 },
+  boxBody: { position: 'absolute', bottom: 0, width: 200, height: 160, borderRadius: 0, alignItems: 'center', justifyContent: 'center', shadowColor: '#000', shadowOpacity: 0.35, shadowRadius: 20, shadowOffset: { width: 0, height: 8 }, elevation: 8 },
+  boxLid: { position: 'absolute', top: 20, width: 210, height: 44, borderRadius: 0 },
   boxQ: { fontSize: 68, fontWeight: '900', color: c.bg.elevated, textShadowColor: 'rgba(0,0,0,0.25)', textShadowOffset: { width: 0, height: 2 }, textShadowRadius: 6 },
   ribbonV: { position: 'absolute', top: 18, bottom: 0, width: 18, backgroundColor: c.state.danger, left: 101 },
   ribbonH: { position: 'absolute', left: 10, right: 10, height: 18, top: 82, backgroundColor: c.state.danger },
@@ -331,8 +327,8 @@ const useStyles = makeStyles((c) => ({
   // Reward
   rewardWrap: { alignItems: 'center', justifyContent: 'center' },
   rays: { position: 'absolute', width: 360, height: 360, alignItems: 'center', justifyContent: 'center' },
-  ray: { position: 'absolute', width: 340, height: 40, borderRadius: 20, backgroundColor: 'rgba(255,255,255,0.08)' },
-  rewardCard: { backgroundColor: c.bg.elevated, paddingHorizontal: 22, paddingVertical: 26, borderRadius: 22, alignItems: 'center', gap: 10, minWidth: 260, shadowColor: '#000', shadowOpacity: 0.25, shadowRadius: 20, shadowOffset: { width: 0, height: 10 }, elevation: 10 },
+  ray: { position: 'absolute', width: 340, height: 40, borderRadius: 0, backgroundColor: 'rgba(255,255,255,0.08)' },
+  rewardCard: { backgroundColor: c.bg.elevated, paddingHorizontal: 22, paddingVertical: 26, borderRadius: 0, alignItems: 'center', gap: 10, minWidth: 260, shadowColor: '#000', shadowOpacity: 0.25, shadowRadius: 20, shadowOffset: { width: 0, height: 10 }, elevation: 10 },
   rewardEmoji: { fontSize: 64 },
   rewardTitle: { fontSize: 20, fontWeight: '900', color: c.text.primary, letterSpacing: -0.3, textAlign: 'center' },
   rewardSub: { fontSize: 13, color: c.text.muted, fontWeight: '700', textAlign: 'center' },

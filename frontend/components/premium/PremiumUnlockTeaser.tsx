@@ -87,13 +87,13 @@ const useStyles = makeStyles((c) => ({
   card: {
     flexDirection: 'row', alignItems: 'center', gap: 12,
     marginHorizontal: 16, marginVertical: 8, padding: 12,
-    borderRadius: 14,
+    borderRadius: 0,
     backgroundColor: c.accent.primary + '10',
     borderWidth: 1,
     borderColor: c.accent.primary + '40',
   },
   emojiBox: {
-    width: 38, height: 38, borderRadius: 10,
+    width: 38, height: 38, borderRadius: 0,
     backgroundColor: c.bg.elevated,
     alignItems: 'center', justifyContent: 'center',
   },

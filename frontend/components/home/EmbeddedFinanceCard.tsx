@@ -7,7 +7,6 @@
  */
 import React from 'react';
 import { View, Text, ScrollView, TouchableOpacity, Platform } from 'react-native';
-import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import Toast from 'react-native-toast-message';
@@ -78,7 +77,7 @@ function EmbeddedFinanceCard({ moneyScore = 0 }: { moneyScore?: number }) {
       <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={s.row}>
         {products.map((p) => (
           <TouchableOpacity key={p.key} activeOpacity={0.9} onPress={() => onTap(p)}>
-            <LinearGradient colors={p.gradient} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={s.card}>
+            <View style={[s.card, { backgroundColor: '#0A0A0A' }]}>
               <View style={s.cardTop}>
                 <Text style={s.emoji}>{p.emoji}</Text>
                 <View style={[s.badge, { backgroundColor: p.accent + '33', borderColor: p.accent + '88' }]}>
@@ -91,7 +90,7 @@ function EmbeddedFinanceCard({ moneyScore = 0 }: { moneyScore?: number }) {
                 <Text style={[s.ctaTxt, { color: p.accent }]}>{p.cta}</Text>
                 <Ionicons name="arrow-forward" size={12} color={p.accent} />
               </View>
-            </LinearGradient>
+            </View>
           </TouchableOpacity>
         ))}
       </ScrollView>
@@ -110,7 +109,7 @@ const useStyles = makeStyles((c) => ({
   liveDot: { width: 4, height: 4, borderRadius: 4, backgroundColor: c.state.success },
   liveTxt: { fontSize: 9, fontWeight: '900', color: c.state.success, letterSpacing: 0.6 },
   row: { gap: 12, paddingRight: 16, paddingVertical: 4 },
-  card: { width: 232, padding: 16, borderRadius: 20, gap: 8, shadowColor: c.shadow.medium, shadowOpacity: 1, shadowRadius: 8, shadowOffset: { width: 0, height: 4 }, elevation: 3 },
+  card: { width: 232, padding: 16, borderRadius: 0, gap: 8, shadowColor: c.shadow.medium, shadowOpacity: 1, shadowRadius: 8, shadowOffset: { width: 0, height: 4 }, elevation: 3 },
   cardTop: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   emoji: { fontSize: 28 },
   badge: { paddingHorizontal: 8, paddingVertical: 4, borderRadius: 999, borderWidth: 1 },

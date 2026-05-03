@@ -148,10 +148,10 @@ const useStyles = makeStyles((c) => ({
   subtitle: { fontSize: 14, fontWeight: '600', color: c.text.primary, marginTop: 4, marginBottom: 16 },
 
   cardHost: { alignItems: 'center', marginBottom: 18 },
-  shotBox: { borderRadius: 28, overflow: 'hidden' },
+  shotBox: { borderRadius: 0, overflow: 'hidden' },
 
   captionBox: {
-    backgroundColor: c.bg.secondary, borderRadius: 14,
+    backgroundColor: c.bg.secondary, borderRadius: 0,
     padding: 14, borderWidth: StyleSheet.hairlineWidth, borderColor: c.border.subtle,
     marginBottom: 18,
   },
@@ -160,14 +160,14 @@ const useStyles = makeStyles((c) => ({
 
   primary: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8,
-    backgroundColor: c.accent.primary, paddingVertical: 15, borderRadius: 14,
+    backgroundColor: c.accent.primary, paddingVertical: 15, borderRadius: 0,
     shadowColor: c.accent.primary, shadowOpacity: 0.25, shadowRadius: 12, shadowOffset: { width: 0, height: 6 }, elevation: 4,
   },
   primaryTxt: { fontSize: 15, fontWeight: '800', color: c.bg.elevated, letterSpacing: -0.2 },
 
   secondary: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6,
-    marginTop: 10, paddingVertical: 13, borderRadius: 14,
+    marginTop: 10, paddingVertical: 13, borderRadius: 0,
     borderWidth: 1, borderColor: c.border.subtle,
   },
   secondaryTxt: { fontSize: 13.5, fontWeight: '700', color: c.text.primary },

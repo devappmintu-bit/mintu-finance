@@ -125,10 +125,24 @@ async def deep_report(
         prev = monthly_series[-2]["expense"] or 1
         mom_growth = round(((last - prev) / prev) * 100, 1)
 
-    # AI exec summary (best-effort — never blocks the report)
-    exec_summary = ""
-    try:
-        if LlmChat and UserMessage and os.environ.get("EMERGENT_LLM_KEY"):
+    # Round 70 — AI exec summary now flows through llm_cache.
+    # Request path NEVER blocks on the LLM; first caller gets a
+    # deterministic placeholder, subsequent ones get the cached
+    # AI summary as soon as the background regen lands.
+    cache_key = f"premium_exec_summary:{user_id}:{months}m:{now.strftime('%Y-%m')}"
+
+    fallback_exec = (
+        f"Income ₹{int(income_total):,} · Expense ₹{int(expense_total):,} · "
+        f"Savings rate {savings_rate}%. "
+        f"Top category: {top_categories[0]['name'] if top_categories else 'N/A'} "
+        f"({top_categories[0]['pct'] if top_categories else 0}% of spend). "
+        f"Month-over-month change: {mom_growth}%."
+    )
+
+    async def _compute_summary():
+        if not (LlmChat and UserMessage and os.environ.get("EMERGENT_LLM_KEY")):
+            return None
+        try:
             prompt = (
                 f"Give a crisp 4-line executive summary for this user's finances in INR. "
                 f"Total income ₹{int(income_total)}, expense ₹{int(expense_total)}, "
@@ -141,10 +155,21 @@ async def deep_report(
                 session_id=f"deep_report_{user_id}_{now.timestamp()}",
                 system_message="You are a CFA coaching an Indian user. Write 4 lines max, no markdown.",
             ).with_model("openai", "gpt-4o")
-            resp = (await safe_send(chat, UserMessage(text=prompt), timeout=15.0, label='premium_reports') or "")
-            exec_summary = (getattr(resp, "content", None) or str(resp) or "").strip()
-    except Exception as e:
-        logging.warning("deep_report summary failed: %s", e)
+            resp = await safe_send(chat, UserMessage(text=prompt), timeout=15.0, label='premium_reports')
+            text = (getattr(resp, "content", None) or str(resp) or "").strip()
+            return text or None
+        except Exception as e:
+            logging.warning("deep_report summary failed: %s", e)
+            return None
+
+    from core.llm_cache import get_or_regen
+    exec_summary = await get_or_regen(
+        key=cache_key,
+        compute_fn=_compute_summary,
+        ttl_fresh=6 * 3600,        # 6h — execs read this once a day
+        ttl_stale=14 * 86400,
+        fallback=fallback_exec,
+    ) or fallback_exec
 
     return {
         "range": {"months": months, "from": since.isoformat(), "to": now.isoformat()},

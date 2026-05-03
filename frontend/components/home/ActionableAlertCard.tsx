@@ -78,13 +78,13 @@ function ActionableAlertCard({ emoji, severity, title, message, actions }: Props
 export default memo(ActionableAlertCard);
 
 const useStyles = makeStyles(() => ({
-  card: { borderRadius: 16, padding: 12, marginBottom: 10, borderWidth: 1 },
+  card: { borderRadius: 0, padding: 12, marginBottom: 10, borderWidth: 1 },
   topRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 10 },
-  iconBubble: { width: 38, height: 38, borderRadius: 19, alignItems: 'center', justifyContent: 'center' },
+  iconBubble: { width: 38, height: 38, borderRadius: 0, alignItems: 'center', justifyContent: 'center' },
   emoji: { fontSize: 19 },
   title: { fontSize: 14, fontWeight: '800', marginBottom: 3, letterSpacing: -0.2 },
   message: { fontSize: 12.5, color: '#374151', lineHeight: 17, fontWeight: '500' },
   ctaRow: { flexDirection: 'row', gap: 6, marginTop: 12, flexWrap: 'wrap' },
-  ctaBtn: { flexDirection: 'row', alignItems: 'center', gap: 5, paddingVertical: 8, paddingHorizontal: 12, borderRadius: 10, borderWidth: 1 },
+  ctaBtn: { flexDirection: 'row', alignItems: 'center', gap: 5, paddingVertical: 8, paddingHorizontal: 12, borderRadius: 0, borderWidth: 1 },
   ctaTxt: { fontSize: 12, fontWeight: '800', letterSpacing: -0.1 },
 }));

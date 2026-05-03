@@ -71,7 +71,7 @@ export default memo(TodayChips);
 const useStyles = makeStyles(() => ({
   scroll: { marginHorizontal: -20, marginBottom: 14 },
   row: { gap: 8, paddingHorizontal: 20 },
-  chip: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingVertical: 10, paddingHorizontal: 12, borderRadius: 14, minWidth: 108 },
+  chip: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingVertical: 10, paddingHorizontal: 12, borderRadius: 0, minWidth: 108 },
   chipLabel: { fontSize: 9, fontWeight: '900', letterSpacing: 0.5 },
   chipValue: { fontSize: 14, fontWeight: '900', marginTop: 1 },
 }));

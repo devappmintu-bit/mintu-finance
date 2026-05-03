@@ -22,7 +22,6 @@
 import React, { useEffect, useMemo, useRef } from 'react';
 import { View, Text, StyleSheet, Animated, Easing, Platform } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { LinearGradient } from 'expo-linear-gradient';
 import { Image } from 'expo-image';
 import { useAuthStore } from '../../store/authStore';
 import { makeStyles } from '../../utils/makeStyles';
@@ -85,9 +84,7 @@ export default function AuthTransitionOverlay({ variant, onDone, durationMs = 15
 
   return (
     <Animated.View style={[s.wrap, { opacity: fade }]} pointerEvents="auto">
-      <LinearGradient
-        colors={variant === 'locking' ? ['#2E1F1A', '#4A2F22'] : [COLORS.accent.brand, COLORS.accent.brandDark]}
-        style={StyleSheet.absoluteFillObject}
+      <View style={[StyleSheet.absoluteFillObject, { backgroundColor: '#0A0A0A' }]}
       />
 
       {/* Confetti dots */}
@@ -264,10 +261,10 @@ function ConfettiDots({ anim }: { anim: Animated.Value }) {
 
 const useStyles = makeStyles((c) => ({
   wrap: { position: 'absolute', top: 0, right: 0, bottom: 0, left: 0, alignItems: 'center', justifyContent: 'center', zIndex: 9999 },
-  halo: { position: 'absolute', width: 140, height: 140, borderRadius: 70, borderWidth: 3, borderColor: '#fff' },
+  halo: { position: 'absolute', width: 140, height: 140, borderRadius: 0, borderWidth: 3, borderColor: '#fff' },
   mascotWrap: { alignItems: 'center' },
   mascotTile: {
-    width: 120, height: 120, borderRadius: 34,
+    width: 120, height: 120, borderRadius: 0,
     backgroundColor: '#FFF0DE',
     alignItems: 'center', justifyContent: 'center',
     overflow: 'hidden',
@@ -281,11 +278,11 @@ const useStyles = makeStyles((c) => ({
   mascotImg: { width: '100%', height: '100%' },
   pedestal: {
     marginTop: 8,
-    width: 100, height: 8, borderRadius: 6,
+    width: 100, height: 8, borderRadius: 0,
     backgroundColor: 'rgba(0,0,0,0.22)',
   },
   lockBubble: {
-    width: 120, height: 120, borderRadius: 60,
+    width: 120, height: 120, borderRadius: 0,
     backgroundColor: '#fff',
     alignItems: 'center', justifyContent: 'center',
   },

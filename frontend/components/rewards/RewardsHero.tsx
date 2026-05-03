@@ -1,112 +1,113 @@
 /**
- * RewardsHero.tsx — Gamified hero header for the Rewards Hub.
+ * RewardsHero — v10 Brutalist replacement for the old saffron-gradient
+ * variant. Used by `/rewards-hub` with the existing prop shape:
+ *   { coins, freeSpinsLeft, tierName, tierColor, onBack, onPressCoins }
  *
- * Shows:
- *   • Coin balance (animated counter-up) with gold pill
- *   • Energy bolt (free spins today)
- *   • Tier badge mini-pill
- *   • Subtle particle/blob decorations
- *
- * Round 50 — the bright orange→saffron→gold gradient is intentional brand
- * (rewards = warmth + dopamine), so it stays literal in both themes.
- * White overlay text + scrim opacity also stay literal because they're
- * tuned against the gradient, not the page bg.
+ * Matches the grammar of every tab hero: eyebrow + accent rule, 2px
+ * INK bordered card, mono ledger numerals, brutalist action strip.
  */
-import React, { useEffect, useRef } from 'react';
-import { View, Text, Animated, Easing, TouchableOpacity } from 'react-native';
-import { LinearGradient } from 'expo-linear-gradient';
+import React, { memo } from 'react';
+import { View, Text, Pressable, StyleSheet, Platform } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { makeStyles } from '../../utils/makeStyles';
-import { COLORS } from '../../utils/theme';
+
+const INK    = '#0A0A0A';
+const PAPER  = '#F5F1EA';
+const ACCENT = '#E84A0C';
+const MUTED  = '#6B6B6B';
+const OK     = '#0E8F5B';
+const MONO   = Platform.select({ ios: 'Menlo', android: 'monospace' });
 
 type Props = {
   coins: number;
   freeSpinsLeft: number;
   tierName: string;
-  tierColor: string;
+  tierColor?: string;
   onBack?: () => void;
   onPressCoins?: () => void;
 };
 
-// Brand gradient — intentional, theme-independent
-const HERO_GRADIENT: readonly [string, string, string] = [COLORS.accent.brand, COLORS.accent.secondary, '#FCD34D'];
-const ON_BRAND = '#FFFFFF';
-const ON_BRAND_SOFT = 'rgba(255,255,255,0.85)';
-const ON_BRAND_SCRIM = 'rgba(255,255,255,0.22)';
-
-export default function RewardsHero({ coins, freeSpinsLeft, tierName, tierColor, onBack, onPressCoins }: Props) {
-  const s = useStyles();
-  const coinBounce = useRef(new Animated.Value(0)).current;
-  useEffect(() => {
-    Animated.sequence([
-      Animated.timing(coinBounce, { toValue: 1, duration: 500, easing: Easing.out(Easing.back(1.4)), useNativeDriver: true }),
-    ]).start();
-  }, [coins, coinBounce]);
-
+function RewardsHero({ coins, freeSpinsLeft, tierName, tierColor = ACCENT, onBack, onPressCoins }: Props) {
   return (
-    <LinearGradient colors={HERO_GRADIENT} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={s.wrap}>
-      <View style={s.blob1} />
-      <View style={s.blob2} />
-
-      <View style={s.topRow}>
-        {onBack && (
-          <TouchableOpacity onPress={onBack} hitSlop={16} style={s.backBtn}>
-            <Ionicons name="arrow-back" size={20} color={ON_BRAND} />
-          </TouchableOpacity>
-        )}
-        <View style={{ flex: 1 }}>
-          <Text style={s.eyebrow}>⚡ REWARDS HUB</Text>
-          <Text style={s.heading}>Spin. Win. Repeat.</Text>
-        </View>
-        <View style={[s.tierPill, { backgroundColor: tierColor + 'AA' }]}>
-          <Ionicons name="trophy" size={12} color={ON_BRAND} />
-          <Text style={s.tierTxt}>{tierName}</Text>
+    <View style={styles.wrap}>
+      {/* Top bar */}
+      <View style={styles.topRow}>
+        <Pressable onPress={onBack} hitSlop={8} style={styles.backBtn} testID="rewards-hero-back">
+          <Ionicons name="arrow-back" size={16} color={INK} />
+        </Pressable>
+        <View style={{ flex: 1 }} />
+        <View style={[styles.tierPill, { borderColor: tierColor }]}>
+          <Ionicons name="medal-outline" size={10} color={tierColor} />
+          <Text style={[styles.tierText, { color: tierColor }]}>{(tierName || 'BRONZE').toUpperCase()}</Text>
         </View>
       </View>
 
-      <View style={s.statsRow}>
-        <Animated.View style={[s.statCard, { transform: [{ scale: coinBounce.interpolate({ inputRange: [0, 1], outputRange: [0.85, 1] }) }] }]}>
-          <TouchableOpacity
-            onPress={onPressCoins}
-            disabled={!onPressCoins}
-            style={s.statRow}
-            accessibilityRole="button"
-            accessibilityLabel={`Coin balance ${coins}, view history`}
-            activeOpacity={0.85}
-          >
-            <Text style={s.statEmoji}>🪙</Text>
-            <View>
-              <Text style={s.statLbl}>COINS</Text>
-              <Text style={s.statVal}>{coins.toLocaleString('en-IN')}</Text>
-            </View>
-          </TouchableOpacity>
-        </Animated.View>
-        <View style={s.statCard}>
-          <Text style={s.statEmoji}>⚡</Text>
-          <View>
-            <Text style={s.statLbl}>FREE SPINS</Text>
-            <Text style={s.statVal}>{freeSpinsLeft}</Text>
+      {/* Eyebrow */}
+      <View style={styles.eyebrowRow}>
+        <View style={styles.rule} />
+        <Text style={styles.eyebrow}>REWARDS · HUB</Text>
+      </View>
+
+      <Pressable onPress={onPressCoins} style={({ pressed }) => [styles.card, pressed && { transform: [{ translateY: 1 }] }]} testID="rewards-hero-coins">
+        <View style={styles.focalRow}>
+          <View style={{ flex: 1 }}>
+            <Text style={styles.focalTag}>MINTU COINS</Text>
+            <Text style={styles.focal} numberOfLines={1}>{coins.toLocaleString('en-IN')}</Text>
+            <Text style={styles.sub} numberOfLines={1}>Tap to view coin ledger →</Text>
+          </View>
+
+          {/* Free spins chip */}
+          <View style={styles.spinChip}>
+            <Ionicons name="flash" size={12} color={OK} />
+            <Text style={styles.spinNum}>{freeSpinsLeft}</Text>
+            <Text style={styles.spinLabel}>FREE SPINS</Text>
           </View>
         </View>
-      </View>
-    </LinearGradient>
+
+        {/* Stat strip */}
+        <View style={styles.strip}>
+          <Cell label="COINS"  value={coins.toLocaleString('en-IN')} />
+          <Cell label="SPINS"  value={String(freeSpinsLeft)} tone={freeSpinsLeft > 0 ? OK : INK} />
+          <Cell label="TIER"   value={(tierName || 'Bronze').toUpperCase()} tone={tierColor} last />
+        </View>
+      </Pressable>
+    </View>
   );
 }
 
-const useStyles = makeStyles((c) => ({
-  wrap: { paddingTop: 16, paddingHorizontal: 16, paddingBottom: 16, gap: 12, borderBottomLeftRadius: 24, borderBottomRightRadius: 24, overflow: 'hidden', shadowColor: c.shadow.medium, shadowOpacity: 1, shadowRadius: 12, shadowOffset: { width: 0, height: 4 }, elevation: 4 },
-  blob1: { position: 'absolute', top: -32, right: -20, width: 152, height: 152, borderRadius: 76, backgroundColor: 'rgba(255,255,255,0.15)' },
-  blob2: { position: 'absolute', bottom: -80, left: -40, width: 180, height: 180, borderRadius: 90, backgroundColor: 'rgba(0,0,0,0.05)' },
-  topRow: { flexDirection: 'row', alignItems: 'center', gap: 12 },
-  backBtn: { width: 36, height: 36, borderRadius: 16, backgroundColor: ON_BRAND_SCRIM, justifyContent: 'center', alignItems: 'center' },
-  eyebrow: { fontSize: 11, fontWeight: '900', letterSpacing: 1.4, color: ON_BRAND_SOFT },
-  heading: { fontSize: 20, fontWeight: '900', color: ON_BRAND, letterSpacing: -0.3, marginTop: 4 },
-  tierPill: { flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: 12, paddingVertical: 4, borderRadius: 999, borderWidth: 1, borderColor: 'rgba(255,255,255,0.45)' },
-  tierTxt: { fontSize: 11, fontWeight: '900', color: ON_BRAND, letterSpacing: 0.4 },
-  statsRow: { flexDirection: 'row', gap: 12 },
-  statCard: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: ON_BRAND_SCRIM, borderRadius: 16, paddingHorizontal: 12, paddingVertical: 12, borderWidth: 1, borderColor: 'rgba(255,255,255,0.3)' },
-  statRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  statEmoji: { fontSize: 24 },
-  statLbl: { fontSize: 11, fontWeight: '900', letterSpacing: 1.2, color: ON_BRAND_SOFT },
-  statVal: { fontSize: 20, fontWeight: '900', color: ON_BRAND, letterSpacing: -0.4, marginTop: 0 },
-}));
+function Cell({ label, value, tone = INK, last }: { label: string; value: string; tone?: string; last?: boolean }) {
+  return (
+    <View style={[styles.cell, last && { borderRightWidth: 0 }]}>
+      <Text style={styles.cellLabel}>{label}</Text>
+      <Text style={[styles.cellVal, { color: tone }]} numberOfLines={1}>{value}</Text>
+    </View>
+  );
+}
+
+export default memo(RewardsHero);
+
+const styles = StyleSheet.create({
+  wrap: { marginTop: 4, marginBottom: 12, paddingHorizontal: 16 },
+  topRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 10 },
+  backBtn: { width: 36, height: 36, borderWidth: 2, borderColor: INK, backgroundColor: '#fff', alignItems: 'center', justifyContent: 'center' },
+  tierPill: { flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: 8, paddingVertical: 3, borderWidth: 2, backgroundColor: PAPER },
+  tierText: { fontSize: 10, fontWeight: '900', letterSpacing: 1.3 },
+
+  eyebrowRow: { flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 6 },
+  rule: { width: 10, height: 3, backgroundColor: ACCENT },
+  eyebrow: { fontSize: 10, fontWeight: '900', letterSpacing: 1.8, color: INK },
+
+  card: { borderWidth: 2, borderColor: INK, backgroundColor: '#fff' },
+  focalRow: { flexDirection: 'row', alignItems: 'flex-start', paddingHorizontal: 14, paddingVertical: 14, gap: 12, borderBottomWidth: 1, borderColor: INK },
+  focalTag: { fontSize: 9, fontWeight: '900', letterSpacing: 1.5, color: MUTED },
+  focal: { fontFamily: MONO, fontSize: 38, fontWeight: '900', color: INK, letterSpacing: -1.6, lineHeight: 42, marginTop: 2 },
+  sub: { fontSize: 11, fontWeight: '700', color: MUTED, marginTop: 4, letterSpacing: 0.3 },
+
+  spinChip: { alignItems: 'center', paddingHorizontal: 10, paddingVertical: 6, borderWidth: 2, borderColor: OK, backgroundColor: '#E9F7EF', minWidth: 78 },
+  spinNum: { fontFamily: MONO, fontSize: 20, fontWeight: '900', color: OK, marginTop: 2 },
+  spinLabel: { fontSize: 8, fontWeight: '900', letterSpacing: 1.3, color: OK, marginTop: 2 },
+
+  strip: { flexDirection: 'row', backgroundColor: PAPER },
+  cell: { flex: 1, paddingVertical: 10, paddingHorizontal: 8, borderRightWidth: 1, borderColor: INK, alignItems: 'flex-start' },
+  cellLabel: { fontSize: 9, fontWeight: '900', letterSpacing: 1.2, color: MUTED },
+  cellVal: { fontFamily: MONO, fontSize: 14, fontWeight: '900', marginTop: 3, letterSpacing: -0.4 },
+});

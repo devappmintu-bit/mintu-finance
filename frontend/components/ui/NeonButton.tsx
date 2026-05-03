@@ -13,7 +13,6 @@
  */
 import React, { useEffect, useRef } from 'react';
 import { Animated, Pressable, StyleSheet, Text, View, ViewStyle, StyleProp, Platform } from 'react-native';
-import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import { COLORS, GRADIENT, GLOW, RADIUS, FONT_FAMILY, MOTION } from '../../utils/theme';
@@ -82,14 +81,11 @@ export default function NeonButton({ label, icon, onPress, disabled, variant = '
           </View>
         ) : (
           <Animated.View style={[glowStyle, { opacity: glowOpacity, borderRadius: RADIUS.full }]}>
-            <LinearGradient
-              colors={gradientStops as any}
-              start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}
-              style={[styles.base, { paddingVertical: padV, paddingHorizontal: padH }]}
-            >
+            <View
+              style={[styles.base, { paddingVertical: padV, paddingHorizontal: padH }, { backgroundColor: '#0A0A0A' }]}>
               {icon && <Ionicons name={icon as any} size={fontSize + 3} color="#fff" />}
               <Text style={[styles.label, { fontSize, color: '#fff' }]}>{label}</Text>
-            </LinearGradient>
+            </View>
           </Animated.View>
         )}
       </Pressable>

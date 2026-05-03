@@ -2,7 +2,6 @@ import React, { useCallback, useEffect, useState } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, ActivityIndicator, ScrollView, Platform, Linking } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
-import { LinearGradient } from 'expo-linear-gradient';
 import * as WebBrowser from 'expo-web-browser';
 import * as AuthSession from 'expo-auth-session';
 import { router } from 'expo-router';
@@ -207,7 +206,7 @@ export default function GmailConnectScreen() {
       <ScrollView contentContainerStyle={{ padding: SPACING.lg, paddingBottom: 60 }} showsVerticalScrollIndicator={false}>
         <StaggeredEntrance delayMs={70} duration={420} distance={14}>
         {/* Hero — condensed copy (Phase 2 trust-first UX) */}
-        <LinearGradient colors={connected ? ['#047857', COLORS.state.successAlt] : [COLORS.accent.brand, COLORS.accent.brandDark]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={s.hero}>
+        <View style={[s.hero, { backgroundColor: '#0A0A0A' }]}>
           <View style={s.heroIcon}>
             <Ionicons name={connected ? 'checkmark-circle' : 'mail-outline'} size={38} color="#FFFFFF" />
           </View>
@@ -230,7 +229,7 @@ export default function GmailConnectScreen() {
               </View>
             </View>
           )}
-        </LinearGradient>
+        </View>
 
         {/* Trust badges row — ONLY when disconnected */}
         {!connected && (
@@ -253,7 +252,7 @@ export default function GmailConnectScreen() {
         {/* Actions */}
         {!connected ? (
           <TouchableOpacity style={[s.cta, connecting && { opacity: 0.6 }]} disabled={connecting} onPress={connect} activeOpacity={0.85}>
-            <LinearGradient colors={[COLORS.accent.brand, COLORS.accent.brandDark]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={s.ctaBg}>
+            <View style={[s.ctaBg, { backgroundColor: '#0A0A0A' }]}>
               {connecting
                 ? <ActivityIndicator color="#FFFFFF" />
                 : (
@@ -262,12 +261,12 @@ export default function GmailConnectScreen() {
                     <Text style={s.ctaT}>Connect with Google</Text>
                   </>
                 )}
-            </LinearGradient>
+            </View>
           </TouchableOpacity>
         ) : (
           <View style={{ gap: 10 }}>
             <TouchableOpacity style={[s.cta, syncing && { opacity: 0.6 }]} disabled={syncing} onPress={syncNow} activeOpacity={0.85}>
-              <LinearGradient colors={[COLORS.accent.brand, COLORS.accent.brandDark]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={s.ctaBg}>
+              <View style={[s.ctaBg, { backgroundColor: '#0A0A0A' }]}>
                 {syncing
                   ? <ActivityIndicator color="#FFFFFF" />
                   : (
@@ -276,7 +275,7 @@ export default function GmailConnectScreen() {
                       <Text style={s.ctaT}>Sync now</Text>
                     </>
                   )}
-              </LinearGradient>
+              </View>
             </TouchableOpacity>
             <TouchableOpacity style={s.secondary} onPress={disconnect} activeOpacity={0.85}>
               <Ionicons name="unlink-outline" size={16} color={c.state.danger} />
@@ -316,7 +315,7 @@ const useStyles = makeStyles((c) => ({
   header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: SPACING.lg, paddingVertical: SPACING.md },
   title: { fontSize: 17, fontWeight: '800', color: c.text.primary, letterSpacing: -0.3 },
 
-  hero: { borderRadius: 24, padding: 22, marginBottom: 14 },
+  hero: { borderRadius: 0, padding: 22, marginBottom: 14 },
   heroIcon: { alignSelf: 'flex-start', padding: 6, marginBottom: 8 },
   heroTitle: { color: c.bg.elevated, fontSize: 22, fontWeight: '800', letterSpacing: -0.3 },
   heroSub: { color: 'rgba(255,255,255,0.9)', fontSize: 13, marginTop: 6, lineHeight: 19 },
@@ -326,11 +325,11 @@ const useStyles = makeStyles((c) => ({
   heroStatLbl: { color: 'rgba(255,255,255,0.85)', fontSize: 11, fontWeight: '700', marginTop: 2, textTransform: 'uppercase', letterSpacing: 0.4 },
   heroStatDiv: { width: 1, backgroundColor: 'rgba(255,255,255,0.25)', marginHorizontal: 12 },
 
-  cta: { borderRadius: 14, overflow: 'hidden' },
+  cta: { borderRadius: 0, overflow: 'hidden' },
   ctaBg: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 10, paddingVertical: 15 },
   ctaT: { color: c.bg.elevated, fontSize: 15, fontWeight: '800' },
 
-  secondary: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, paddingVertical: 12, backgroundColor: c.state.dangerBg, borderRadius: 14 },
+  secondary: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, paddingVertical: 12, backgroundColor: c.state.dangerBg, borderRadius: 0 },
   secondaryT: { color: c.state.danger, fontSize: 14, fontWeight: '700' },
 
   sect: { fontSize: 11, fontWeight: '800', color: c.gray[400], textTransform: 'uppercase', letterSpacing: 0.6, marginTop: 24, marginBottom: 10 },
@@ -340,25 +339,25 @@ const useStyles = makeStyles((c) => ({
   bankEmoji: { fontSize: 12 },
   bankName: { fontSize: 12, fontWeight: '700', color: c.text.primary },
 
-  stepsCard: { backgroundColor: c.bg.elevated, borderRadius: 16, padding: 14, gap: 12, borderWidth: 1, borderColor: c.gray[100] },
+  stepsCard: { backgroundColor: c.bg.elevated, borderRadius: 0, padding: 14, gap: 12, borderWidth: 1, borderColor: c.gray[100] },
   step: { flexDirection: 'row', gap: 12 },
   /* Pill border — brand-soft alpha (intentional aesthetic per Round 50). */
-  stepNumBg: { width: 26, height: 26, borderRadius: 13, backgroundColor: c.accent.brandSoft, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: c.accent.brand + '33' },
+  stepNumBg: { width: 26, height: 26, borderRadius: 0, backgroundColor: c.accent.brandSoft, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: c.accent.brand + '33' },
   stepNum: { fontSize: 12, fontWeight: '800', color: c.accent.brandDark },
   stepT: { fontSize: 14, fontWeight: '700', color: c.text.primary },
   stepD: { fontSize: 12, color: c.text.muted, marginTop: 2 },
 
   // Phase 2 — Trust badge row (3 visual badges replace verbose privacy block)
   badgeRow: { flexDirection: 'row', gap: 8, marginBottom: 14 },
-  badge: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: 7, backgroundColor: c.state.successBg, borderWidth: 1, borderColor: c.state.successBorder, borderRadius: 12, paddingVertical: 10, paddingHorizontal: 10 },
+  badge: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: 7, backgroundColor: c.state.successBg, borderWidth: 1, borderColor: c.state.successBorder, borderRadius: 0, paddingVertical: 10, paddingHorizontal: 10 },
   badgeTxt: { fontSize: 10, fontWeight: '800', color: c.state.success, lineHeight: 13 },
   // Phase 2 — condensed bullet card (replaces 4-step wordy block)
-  bulletCard: { backgroundColor: c.bg.elevated, borderRadius: 14, padding: 14, gap: 12, borderWidth: 1, borderColor: c.gray[100] },
+  bulletCard: { backgroundColor: c.bg.elevated, borderRadius: 0, padding: 14, gap: 12, borderWidth: 1, borderColor: c.gray[100] },
   bulletRow: { flexDirection: 'row', alignItems: 'center', gap: 10 },
   bulletTxt: { flex: 1, fontSize: 12.5, color: c.text.secondary, fontWeight: '600', lineHeight: 17 },
   bulletBold: { fontWeight: '900', color: c.text.primary },
 
-  privacy: { flexDirection: 'row', gap: 10, backgroundColor: c.state.successBg, borderRadius: 14, padding: 12, marginTop: 16, borderWidth: 1, borderColor: c.state.successBorder },
+  privacy: { flexDirection: 'row', gap: 10, backgroundColor: c.state.successBg, borderRadius: 0, padding: 12, marginTop: 16, borderWidth: 1, borderColor: c.state.successBorder },
   privacyT: { fontSize: 13, fontWeight: '800', color: c.state.success },
   privacyD: { fontSize: 12, color: c.state.success, marginTop: 4, lineHeight: 17 },
 }));

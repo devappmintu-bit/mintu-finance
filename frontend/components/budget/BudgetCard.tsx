@@ -18,7 +18,6 @@ import React, { memo, useEffect, useRef, useState } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Animated, Platform, Easing } from 'react-native';
 import { Swipeable, RectButton } from 'react-native-gesture-handler';
 import { Ionicons } from '@expo/vector-icons';
-import { LinearGradient } from 'expo-linear-gradient';
 import * as Haptics from 'expo-haptics';
 import { COLORS,  CATEGORIES, shadowStyle, useAppColors } from '../../utils/theme';
 import { makeStyles } from '../../utils/makeStyles';
@@ -239,11 +238,8 @@ function CardContent({ item, emoji, catColor, statusColor, limit, spent, pct, ov
         accessibilityValue={{ min: 0, max: 100, now: Math.round(Math.min(100, pct || 0)), text: `${formatINR(spent)} of ${formatINR(limit)} used` }}
       >
         <Animated.View style={[s.fill, { width: fillWidth }]}>
-          <LinearGradient
-            colors={[statusColor, statusColor + 'AA']}
-            start={{ x: 0, y: 0 }}
-            end={{ x: 1, y: 0 }}
-            style={{ flex: 1, borderRadius: 4 }}
+          <View
+            style={[{ flex: 1, borderRadius: 4}, { backgroundColor: '#0A0A0A' }]}
           />
         </Animated.View>
       </View>
@@ -293,11 +289,11 @@ function CardContent({ item, emoji, catColor, statusColor, limit, spent, pct, ov
 }
 
 const useStyles = makeStyles((c) => ({
-  card: { borderRadius: 18, padding: 14, marginBottom: 10, borderWidth: 1 },
+  card: { borderRadius: 0, padding: 14, marginBottom: 10, borderWidth: 1 },
   cardBody: {},
 
   row1: { flexDirection: 'row', alignItems: 'center' },
-  icon: { width: 40, height: 40, borderRadius: 12, alignItems: 'center', justifyContent: 'center' },
+  icon: { width: 40, height: 40, borderRadius: 0, alignItems: 'center', justifyContent: 'center' },
   name: { fontSize: 15, fontWeight: '800', color: c.text.primary },
   period: { fontSize: 10, color: c.text.muted, fontWeight: '700', letterSpacing: 0.3, marginTop: 2 },
   amt: { fontSize: 16, fontWeight: '800' },
@@ -314,20 +310,20 @@ const useStyles = makeStyles((c) => ({
   chip: { flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: 'rgba(255,255,255,0.7)', borderWidth: 1, borderColor: c.gray[200], borderRadius: 999, paddingHorizontal: 8, paddingVertical: 3 },
   chipT: { fontSize: 10.5, color: c.text.secondary, fontWeight: '700' },
 
-  warnBanner: { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 10, paddingVertical: 6, paddingHorizontal: 10, borderRadius: 10, backgroundColor: c.accent.brandSoft, borderWidth: 1, borderColor: c.accent.brandSoft },
+  warnBanner: { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 10, paddingVertical: 6, paddingHorizontal: 10, borderRadius: 0, backgroundColor: c.accent.brandSoft, borderWidth: 1, borderColor: c.accent.brandSoft },
   warnT: { fontSize: 11.5, fontWeight: '700', color: '#9A3412', flex: 1 },
-  overBanner: { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 10, paddingVertical: 6, paddingHorizontal: 10, borderRadius: 10, backgroundColor: c.state.dangerBg, borderWidth: 1, borderColor: c.state.dangerBorder },
+  overBanner: { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 10, paddingVertical: 6, paddingHorizontal: 10, borderRadius: 0, backgroundColor: c.state.dangerBg, borderWidth: 1, borderColor: c.state.dangerBorder },
   overT: { fontSize: 11.5, fontWeight: '800', color: c.state.danger, flex: 1 },
 
-  rightAct: { backgroundColor: c.state.danger, justifyContent: 'center', alignItems: 'center', width: 92, borderRadius: 16, marginBottom: 10, marginLeft: 8 },
-  leftActEdit: { backgroundColor: c.state.info, justifyContent: 'center', alignItems: 'center', width: 78, borderRadius: 16, marginBottom: 10, marginRight: 6 },
-  leftActAdd: { backgroundColor: c.state.success, justifyContent: 'center', alignItems: 'center', width: 82, borderRadius: 16, marginBottom: 10, marginRight: 6 },
+  rightAct: { backgroundColor: c.state.danger, justifyContent: 'center', alignItems: 'center', width: 92, borderRadius: 0, marginBottom: 10, marginLeft: 8 },
+  leftActEdit: { backgroundColor: c.state.info, justifyContent: 'center', alignItems: 'center', width: 78, borderRadius: 0, marginBottom: 10, marginRight: 6 },
+  leftActAdd: { backgroundColor: c.state.success, justifyContent: 'center', alignItems: 'center', width: 82, borderRadius: 0, marginBottom: 10, marginRight: 6 },
   actTxt: { color: c.bg.elevated, fontSize: 11, fontWeight: '800', marginTop: 3 },
 
-  dotsBtn: { position: 'absolute', top: 10, right: 10, width: 28, height: 28, borderRadius: 14, backgroundColor: 'rgba(255,255,255,0.85)', alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: c.gray[200] },
-  aiBtn_web: { position: 'absolute', top: 10, right: 44, width: 28, height: 28, borderRadius: 14, backgroundColor: c.accent.brandSoft, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: c.accent.brandSoft },
-  aiBtn: { position: 'absolute', bottom: 10, right: 10, width: 28, height: 28, borderRadius: 14, backgroundColor: c.accent.brandSoft, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: c.accent.brandSoft },
-  menu: { position: 'absolute', top: 42, right: 8, backgroundColor: c.bg.elevated, borderRadius: 12, paddingVertical: 6, paddingHorizontal: 4, borderWidth: 1, borderColor: c.gray[200], zIndex: 10, minWidth: 130, ...shadowStyle('#000000', 8, 14, 0.1, 10) },
-  menuItem: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingHorizontal: 10, paddingVertical: 8, borderRadius: 8 },
+  dotsBtn: { position: 'absolute', top: 10, right: 10, width: 28, height: 28, borderRadius: 0, backgroundColor: 'rgba(255,255,255,0.85)', alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: c.gray[200] },
+  aiBtn_web: { position: 'absolute', top: 10, right: 44, width: 28, height: 28, borderRadius: 0, backgroundColor: c.accent.brandSoft, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: c.accent.brandSoft },
+  aiBtn: { position: 'absolute', bottom: 10, right: 10, width: 28, height: 28, borderRadius: 0, backgroundColor: c.accent.brandSoft, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: c.accent.brandSoft },
+  menu: { position: 'absolute', top: 42, right: 8, backgroundColor: c.bg.elevated, borderRadius: 0, paddingVertical: 6, paddingHorizontal: 4, borderWidth: 1, borderColor: c.gray[200], zIndex: 10, minWidth: 130, ...shadowStyle('#000000', 8, 14, 0.1, 10) },
+  menuItem: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingHorizontal: 10, paddingVertical: 8, borderRadius: 0 },
   menuT: { fontSize: 13, fontWeight: '700' },
 }));

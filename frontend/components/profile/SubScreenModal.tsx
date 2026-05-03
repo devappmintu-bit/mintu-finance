@@ -12,7 +12,6 @@ import { View, Text, Modal, TouchableOpacity, ScrollView, StyleSheet, Platform }
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { BlurView } from 'expo-blur';
-import { LinearGradient } from 'expo-linear-gradient';
 import { useAppColors, GLASS } from '../../utils/theme';
 import { makeStyles } from '../../utils/makeStyles';
 
@@ -36,11 +35,8 @@ export default function SubScreenModal({ visible, title, onClose, children, cont
           {Platform.OS !== 'web' ? (
             <BlurView intensity={40} tint="light" style={StyleSheet.absoluteFill} />
           ) : null}
-          <LinearGradient
-            colors={['rgba(255,255,255,0.85)', 'rgba(255,255,255,0.55)'] as any}
-            start={{ x: 0, y: 0 }}
-            end={{ x: 0, y: 1 }}
-            style={StyleSheet.absoluteFill}
+          <View
+            style={[StyleSheet.absoluteFill, { backgroundColor: 'rgba(255,255,255,0.85)' }]}
           />
           <View style={s.header}>
             <TouchableOpacity onPress={onClose} hitSlop={10} accessibilityLabel={`Close ${title}`}>

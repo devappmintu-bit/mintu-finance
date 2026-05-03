@@ -8,7 +8,6 @@
 import React from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Platform, Linking } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { LinearGradient } from 'expo-linear-gradient';
 import {  COLORS, useAppColors } from '../../utils/theme';
 import { makeStyles } from '../../utils/makeStyles';
 import { MEMBER_COLORS, C } from './theme';
@@ -66,11 +65,7 @@ export default function ExpensesTab({ summary, currentUserId, onAddExpense, onEd
   return (
     <ScrollView contentContainerStyle={{ padding: 16, paddingBottom: 40 }}>
       {/* 1. Hero balance card ----------------------------------------- */}
-      <LinearGradient
-        colors={net >= 0 ? ['#047857', COLORS.state.successAlt] : [COLORS.accent.brandDark, COLORS.accent.brand]}
-        start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}
-        style={s.hero}
-      >
+      <View style={[s.hero, { backgroundColor: net >= 0 ? '#047857' : COLORS.accent.brand }]}>
         <View style={s.heroHead}>
           <Text style={s.heroLbl}>{net >= 0 ? "You're net owed" : "You owe net"}</Text>
           <Ionicons name={net >= 0 ? 'trending-up' : 'trending-down'} size={16} color="#FFFFFF" />
@@ -90,14 +85,14 @@ export default function ExpensesTab({ summary, currentUserId, onAddExpense, onEd
             <Text style={s.heroSplitVal}>₹{owedByYou.toFixed(0)}</Text>
           </View>
         </View>
-      </LinearGradient>
+      </View>
 
       {/* 2. Quick-action strip --------------------------------------- */}
       <View style={s.quickRow}>
         <TouchableOpacity style={s.quickBtn} onPress={onAddExpense} activeOpacity={0.85} testID="quick-add-expense">
-          <LinearGradient colors={[COLORS.accent.brand, COLORS.accent.brandDark]} style={s.quickIconSaff}>
+          <View style={[s.quickIconSaff, { backgroundColor: '#0A0A0A' }]}>
             <Ionicons name="add" size={18} color="#FFFFFF" />
-          </LinearGradient>
+          </View>
           <Text style={s.quickTxt}>{t('split_expense', lang)}</Text>
         </TouchableOpacity>
 
@@ -155,10 +150,10 @@ export default function ExpensesTab({ summary, currentUserId, onAddExpense, onEd
                     style={s.payBtn}
                     testID={`direct-pay-${i}`}
                   >
-                    <LinearGradient colors={[COLORS.accent.brand, COLORS.accent.brandDark]} style={s.payBtnGrad}>
+                    <View style={[s.payBtnGrad, { backgroundColor: '#0A0A0A' }]}>
                       <Ionicons name="flash" size={14} color="#FFFFFF" />
                       <Text style={s.payBtnTxt}>Pay</Text>
-                    </LinearGradient>
+                    </View>
                   </TouchableOpacity>
                 ) : (
                   <TouchableOpacity
@@ -271,7 +266,7 @@ export default function ExpensesTab({ summary, currentUserId, onAddExpense, onEd
 
 const useStyles = makeStyles((c) => ({
   // Hero
-  hero: { borderRadius: 22, padding: 18, overflow: 'hidden' },
+  hero: { borderRadius: 0, padding: 18, overflow: 'hidden' },
   heroHead: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   heroLbl: { color: 'rgba(255,255,255,0.9)', fontSize: 11, fontWeight: '800', textTransform: 'uppercase', letterSpacing: 0.7 },
   heroAmt: { color: c.bg.elevated, fontSize: 34, fontWeight: '800', marginTop: 4, letterSpacing: -0.5 },
@@ -284,28 +279,28 @@ const useStyles = makeStyles((c) => ({
 
   // Quick actions
   quickRow: { flexDirection: 'row', gap: 10, marginTop: 14 },
-  quickBtn: { flex: 1, alignItems: 'center', gap: 6, backgroundColor: C.card, padding: 12, borderRadius: 14, borderWidth: 1, borderColor: C.cardBorder },
-  quickIcon: { width: 38, height: 38, borderRadius: 19, alignItems: 'center', justifyContent: 'center' },
-  quickIconSaff: { width: 38, height: 38, borderRadius: 19, alignItems: 'center', justifyContent: 'center' },
+  quickBtn: { flex: 1, alignItems: 'center', gap: 6, backgroundColor: C.card, padding: 12, borderRadius: 0, borderWidth: 1, borderColor: C.cardBorder },
+  quickIcon: { width: 38, height: 38, borderRadius: 0, alignItems: 'center', justifyContent: 'center' },
+  quickIconSaff: { width: 38, height: 38, borderRadius: 0, alignItems: 'center', justifyContent: 'center' },
   quickTxt: { fontSize: 11, fontWeight: '700', color: C.text1 },
 
   // Section
   sectHead: { fontSize: 11, fontWeight: '800', color: C.text3, textTransform: 'uppercase', letterSpacing: 0.6, marginBottom: 10, marginLeft: 4 },
 
   // Debt tile
-  debtCard: { flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: C.card, borderRadius: 14, padding: 12, marginBottom: 8, borderWidth: 1, borderColor: C.cardBorder },
-  avatarLarge: { width: 42, height: 42, borderRadius: 21, alignItems: 'center', justifyContent: 'center', borderWidth: 1.5 },
+  debtCard: { flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: C.card, borderRadius: 0, padding: 12, marginBottom: 8, borderWidth: 1, borderColor: C.cardBorder },
+  avatarLarge: { width: 42, height: 42, borderRadius: 0, alignItems: 'center', justifyContent: 'center', borderWidth: 1.5 },
   avatarTxt: { fontSize: 16, fontWeight: '800' },
   debtTitle: { fontSize: 14, fontWeight: '700', color: C.text1 },
   debtSub: { fontSize: 18, fontWeight: '800', color: C.accent, marginTop: 2 },
   payBtn: { borderRadius: 999, overflow: 'hidden' },
   payBtnGrad: { flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: 14, paddingVertical: 8 },
   payBtnTxt: { color: c.bg.elevated, fontSize: 13, fontWeight: '800' },
-  bellOnly: { width: 38, height: 38, borderRadius: 19, backgroundColor: C.gold, alignItems: 'center', justifyContent: 'center' },
+  bellOnly: { width: 38, height: 38, borderRadius: 0, backgroundColor: C.gold, alignItems: 'center', justifyContent: 'center' },
 
   // Expense card
-  expCard: { flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: C.card, borderRadius: 14, padding: 12, marginBottom: 8, borderWidth: 1, borderColor: C.cardBorder },
-  expIcon: { width: 40, height: 40, borderRadius: 12, alignItems: 'center', justifyContent: 'center' },
+  expCard: { flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: C.card, borderRadius: 0, padding: 12, marginBottom: 8, borderWidth: 1, borderColor: C.cardBorder },
+  expIcon: { width: 40, height: 40, borderRadius: 0, alignItems: 'center', justifyContent: 'center' },
   expDesc: { fontSize: 14, fontWeight: '700', color: C.text1 },
   expMetaRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 4 },
   paidByChip: { paddingHorizontal: 8, paddingVertical: 2, borderRadius: 999 },

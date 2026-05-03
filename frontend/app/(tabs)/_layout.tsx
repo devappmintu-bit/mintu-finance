@@ -382,7 +382,7 @@ const useStyles = makeStyles((c) => {
       position: 'absolute',
       width: 42,
       height: 42,
-      borderRadius: 21,
+      borderRadius: 0,
       backgroundColor: c.accent.primary,
       // Cross-platform soft outer glow: web boxShadow + native shadow*.
       ...Platform.select({
@@ -398,7 +398,7 @@ const useStyles = makeStyles((c) => {
     },
     // Dark circular chip holding the icon (Paytm-style prominent chip)
     sideIconWrap: {
-      width: 42, height: 42, borderRadius: 21,
+      width: 42, height: 42, borderRadius: 0,
       alignItems: 'center', justifyContent: 'center',
       backgroundColor: isLight ? '#1B1D27' : '#2A2D3A',
       borderWidth: isLight ? 0 : 1,
@@ -429,7 +429,7 @@ const useStyles = makeStyles((c) => {
     },
     raisedOuter: {
       width: PUCK_SIZE, height: PUCK_SIZE,
-      borderRadius: 22,                // rounded-SQUARE (not circle)
+      borderRadius: 0,                // rounded-SQUARE (not circle)
       backgroundColor: isLight ? '#FFFFFF' : '#1A1C24',
       alignItems: 'center', justifyContent: 'center',
       // Brand orange accent ring
@@ -443,7 +443,7 @@ const useStyles = makeStyles((c) => {
     },
     raisedInner: {
       width: PUCK_INNER, height: PUCK_INNER,
-      borderRadius: 16,                // rounded-square inner — transparent
+      borderRadius: 0,                // rounded-square inner — transparent
       backgroundColor: 'transparent',
       overflow: 'hidden',
       alignItems: 'center', justifyContent: 'center',

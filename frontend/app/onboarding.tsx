@@ -17,7 +17,9 @@ import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import { useLangStore } from '../store/langStore';
 import { t } from '../utils/i18n';
-import ConfettiBurst from '../components/ConfettiBurst';
+// Round 75 — consolidated to single Confetti primitive (was
+// ConfettiBurst, deleted; same trigger semantics).
+import Confetti from '../components/Confetti';
 import { COLORS } from '../utils/theme';
 import { STORAGE } from '../constants/storage';
 
@@ -115,6 +117,13 @@ export default function Onboarding() {
         </Animated.View>
 
         <View style={s.copy}>
+          {/* v10 Brutalist eyebrow — slide number + tag */}
+          <View style={s.eyebrowRow}>
+            <View style={s.rule} />
+            <Text style={s.eyebrow}>
+              {String(index + 1).padStart(2, '0')} · {index === 0 ? 'INTRO' : index === 1 ? 'AI BRAIN' : 'REWARDS'}
+            </Text>
+          </View>
           <Text style={s.title}>{item.title}</Text>
           <Text style={s.sub}>{item.sub}</Text>
         </View>
@@ -142,8 +151,8 @@ export default function Onboarding() {
         scrollEventThrottle={16}
       />
 
-      {/* 🎉 Confetti burst — one-shot when user lands on the last slide */}
-      {burstKey > 0 && <ConfettiBurst trigger={burstKey} particles={30} />}
+      {/* 🎉 Confetti — one-shot when user lands on the last slide */}
+      {burstKey > 0 && <Confetti trigger={burstKey > 0} />}
 
       {/* Footer — dots + chunky CTA */}
       <View style={s.footer}>
@@ -179,7 +188,7 @@ const useStyles = makeStyles((c) => ({
 
   hero: { alignItems: 'center', marginTop: 16, marginBottom: 36 },
   heroInner: {
-    width: 220, height: 220, borderRadius: 44,
+    width: 220, height: 220, borderRadius: 0,
     backgroundColor: ACCENT,
     alignItems: 'center', justifyContent: 'center',
     transform: [{ rotate: '-4deg' }],
@@ -188,21 +197,24 @@ const useStyles = makeStyles((c) => ({
   heroEmoji: { fontSize: 112, transform: [{ rotate: '4deg' }] },
 
   copy: { alignItems: 'center', paddingHorizontal: 4 },
+  eyebrowRow: { flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 10 },
+  rule: { width: 14, height: 3, backgroundColor: '#0A0A0A' },
+  eyebrow: { fontSize: 10, fontWeight: '900', letterSpacing: 2, color: '#0A0A0A' },
   title: { fontSize: 36, fontWeight: '900', color: '#1F0A02', textAlign: 'center', letterSpacing: -1.2, lineHeight: 42 },
   sub: { fontSize: 15, color: '#6B3E1F', textAlign: 'center', marginTop: 14, lineHeight: 22, paddingHorizontal: 12 },
 
   footer: { paddingHorizontal: 22, paddingBottom: 36, paddingTop: 8, gap: 16 },
 
-  dots: { flexDirection: 'row', justifyContent: 'center', gap: 8, marginBottom: 6 },
-  dot: { width: 8, height: 8, borderRadius: 4, backgroundColor: '#D1C3B5' },
-  dotActive: { width: 26, backgroundColor: ACCENT },
+  dots: { flexDirection: 'row', justifyContent: 'center', gap: 6, marginBottom: 6 },
+  dot: { width: 18, height: 4, backgroundColor: '#D1C3B5' },
+  dotActive: { width: 34, backgroundColor: '#0A0A0A' },
 
   cta: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 10,
-    backgroundColor: ACCENT, borderRadius: 22, paddingVertical: 18,
-    shadowColor: ACCENT_DEEP, shadowOffset: { width: 0, height: 10 }, shadowOpacity: 0.4, shadowRadius: 16, elevation: 10,
+    backgroundColor: ACCENT, paddingVertical: 18,
+    borderWidth: 2, borderColor: '#0A0A0A',
   },
-  ctaT: { color: c.bg.elevated, fontSize: 17, fontWeight: '900', letterSpacing: 0.4 },
+  ctaT: { color: c.bg.elevated, fontSize: 17, fontWeight: '900', letterSpacing: 0.8 },
 
   tos: { textAlign: 'center', fontSize: 11, color: c.gray[400], marginTop: 6 },
   tosLink: { color: ACCENT_DEEP, fontWeight: '700' },

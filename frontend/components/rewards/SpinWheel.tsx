@@ -17,7 +17,6 @@ import React, { useEffect, useImperativeHandle, useRef, forwardRef, useState } f
 import { View, Text, StyleSheet, TouchableOpacity, Animated, Easing, Platform } from 'react-native';
 import Svg, { G, Path, Circle, Defs, LinearGradient as SvgGradient, Stop, Text as SvgText } from 'react-native-svg';
 import * as Haptics from 'expo-haptics';
-import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { shade } from '../../utils/color';
 
@@ -243,18 +242,14 @@ const SpinWheel = forwardRef<SpinWheelHandle, Props>(function SpinWheel(
       {/* CTA */}
       <Animated.View style={{ transform: [{ scale: pulse }], marginTop: 18 }}>
         <TouchableOpacity onPress={handleSpin} disabled={disabled || spinning} activeOpacity={0.9} testID="spin-cta">
-          <LinearGradient
-            colors={disabled ? ['#D1D5DB', COLORS.text.muted] : [COLORS.accent.secondary, COLORS.accent.brand, COLORS.accent.brandDark]}
-            start={{ x: 0, y: 0 }}
-            end={{ x: 1, y: 1 }}
-            style={s.cta}
-          >
+          <View
+            style={[s.cta, { backgroundColor: '#0A0A0A' }]}>
             <Ionicons name={spinning ? 'sync' : 'flash'} size={18} color="#FFFFFF" />
             <View>
               <Text style={s.ctaText}>{spinning ? 'Spinning…' : ctaLabel}</Text>
               {!!ctaSubtitle && <Text style={s.ctaSub}>{ctaSubtitle}</Text>}
             </View>
-          </LinearGradient>
+          </View>
         </TouchableOpacity>
       </Animated.View>
     </View>
@@ -271,7 +266,7 @@ const s = StyleSheet.create({
   glow: { position: 'absolute', top: -6, backgroundColor: '#FCD34D', shadowColor: COLORS.accent.secondary, shadowOpacity: 0.8, shadowRadius: 28, shadowOffset: { width: 0, height: 0 }, elevation: 10 },
   pointerWrap: { position: 'absolute', zIndex: 4, alignItems: 'center' },
   pointer: { width: 0, height: 0, borderLeftWidth: 14, borderRightWidth: 14, borderTopWidth: 22, borderLeftColor: 'transparent', borderRightColor: 'transparent', borderTopColor: COLORS.state.danger },
-  pointerDot: { width: 10, height: 10, borderRadius: 5, backgroundColor: '#FFFFFF', borderWidth: 2, borderColor: COLORS.state.danger, marginTop: -4 },
+  pointerDot: { width: 10, height: 10, borderRadius: 0, backgroundColor: '#FFFFFF', borderWidth: 2, borderColor: COLORS.state.danger, marginTop: -4 },
   cta: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 10, paddingHorizontal: 28, paddingVertical: 14, borderRadius: 999, minWidth: 220, shadowColor: COLORS.accent.brand, shadowOpacity: 0.45, shadowRadius: 14, shadowOffset: { width: 0, height: 6 }, elevation: 6 },
   ctaText: { fontSize: 15, fontWeight: '900', color: '#FFFFFF', letterSpacing: 0.3 },
   ctaSub: { fontSize: 10.5, fontWeight: '700', color: 'rgba(255,255,255,0.85)', marginTop: 1 },

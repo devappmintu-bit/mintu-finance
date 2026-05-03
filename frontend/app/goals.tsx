@@ -24,10 +24,12 @@ import EmptyState from '../components/ui/EmptyState';
 import ProgressRing from '../components/ui/ProgressRing';
 import GoalsImpactCard from '../components/goals/GoalsImpactCard';
 import { StaggeredEntrance, CurrencyField, InputAssistantHeader, QuickAmountChips } from '../components/primitives';
+import GoalSheet from '../components/goals/GoalSheet';
 import { useIsOnline } from '../hooks/useIsOnline';
 import { makeStyles } from '../utils/makeStyles';
 import { COLORS, useAppColors } from '../utils/theme';
 import { showError, showSuccess } from '../utils/toast';
+import BrutalistGoalsHero from '../components/brutalist/BrutalistGoalsHero';
 
 type Goal = {
   id: string;
@@ -275,21 +277,28 @@ export default function GoalsScreen() {
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); loadGoals(); }} tintColor={COLORS.accent.brand} />}
       >
         <StaggeredEntrance delayMs={65} duration={420} distance={14}>
-        {/* Overall summary */}
-        <LinearGradient colors={[COLORS.accent.brand, COLORS.accent.brandDark]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={s.summaryCard}>
-          <View style={{ flex: 1 }}>
-            <Text style={s.sumLbl}>Total saved across goals</Text>
-            <Text style={s.sumAmt}>₹{totalSaved.toLocaleString('en-IN', { maximumFractionDigits: 0 })}</Text>
-            <Text style={s.sumSub}>of ₹{totalTarget.toLocaleString('en-IN', { maximumFractionDigits: 0 })} target</Text>
-            <View style={s.sumBar}>
-              <View style={[s.sumFill, { width: `${Math.min(100, overallPct)}%` }]} />
-            </View>
-          </View>
-          <View style={s.sumRing}>
-            <ProgressRing pct={overallPct} color="#fff" size={72} stroke={7} />
-            <Text style={s.sumRingPct}>{Math.round(overallPct)}%</Text>
-          </View>
-        </LinearGradient>
+        {/* v9 master §Goals — Commitment Engine hero replaces the old
+            gradient summary card. Emits CTA to open the create-goal
+            form and optional preset to seed the form with a smart
+            suggestion (Emergency / Trip / Gadget / Car / Gift). */}
+        <BrutalistGoalsHero
+          goals={goals as any}
+          onStartFirstGoal={() => {
+            setEditingGoal(null);
+            setName(''); setTarget(''); setSaved('');
+            setEmoji('🎯'); setColor(COLORS.accent.brand);
+            setFormVisible(true);
+          }}
+          onPickPreset={(p) => {
+            setEditingGoal(null);
+            setName(p.name);
+            setTarget(String(p.target));
+            setSaved('');
+            setEmoji(p.emoji);
+            setColor(COLORS.accent.brand);
+            setFormVisible(true);
+          }}
+        />
 
         {goals.length === 0 ? (
           <EmptyState
@@ -363,113 +372,51 @@ export default function GoalsScreen() {
         <View style={{ height: 40 }} />
       </ScrollView>
 
-      {/* New/Edit Goal bottom sheet */}
-      <Modal visible={formVisible} transparent animationType="slide" onRequestClose={() => setFormVisible(false)}>
-        <View style={s.sheetBg}>
-          <TouchableOpacity activeOpacity={1} onPress={() => setFormVisible(false)} style={s.sheetBgTap} />
-          <View style={s.sheet}>
-            <View style={s.sheetHandle} />
-            {/* Round 57 — Conversational input header. Mascot watches
-                idle, lifts to "success" once a target amount lands.
-                Replaces the flat "New goal / Edit goal" title above. */}
-            <InputAssistantHeader
-              prompt={editingGoal ? 'Editing your goal' : "What are you saving for?"}
-              hint="Pick an amount chip or type your target"
-              phase={
-                targetError
-                  ? 'error'
-                  : !!target && Number(target) > 0
-                    ? 'success'
-                    : 'idle'
-              }
-            />
-
-            <ScrollView showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
-              <Text style={s.fieldLbl}>Name</Text>
-              <TextInput
-                style={s.input}
-                value={name}
-                onChangeText={setName}
-                placeholder="e.g., Goa trip"
-                placeholderTextColor={COLORS.text.muted}
-              />
-
-              {/* Round 57 — Quick chips above the target field. Goals
-                  span a wider amount range than transactions so we
-                  surface ₹10k → ₹5L. */}
-              <QuickAmountChips
-                current={target}
-                presets={[10000, 25000, 50000, 100000, 250000, 500000]}
-                onSelect={(n) => {
-                  setTarget(String(n));
-                  if (targetError) setTargetError(null);
-                }}
-              />
-
-              {/* DS2.0 — CurrencyField replaces handwritten TextInput
-                  for goal target. Automatic digit masking + lakh preview
-                  + shake-on-error + built-in min validation. */}
-              <CurrencyField
-                label="Target amount"
-                value={target}
-                onChangeText={(v) => { setTarget(v); if (targetError) setTargetError(null); }}
-                placeholder="e.g. 25,000 (emergency fund)"
-                minAmount={100}
-                required
-                error={targetError}
-              />
-
-              {/* DS2.0 — CurrencyField for optional "already saved" amount.
-                  No `required`, no `minAmount` — user may genuinely start at ₹0. */}
-              <CurrencyField
-                label="Already saved (optional)"
-                value={saved}
-                onChangeText={(v) => { setSaved(v); if (savedError) setSavedError(null); }}
-                placeholder="0"
-                error={savedError}
-              />
-
-              <Text style={s.fieldLbl}>Emoji</Text>
-              <View style={s.emojiRow}>
-                {EMOJI_OPTIONS.map((e) => (
-                  <TouchableOpacity
-                    key={e}
-                    style={[s.emojiBtn, emoji === e && s.emojiBtnOn]}
-                    onPress={() => { haptic(); setEmoji(e); }}
-                    activeOpacity={0.8}
-                  >
-                    <Text style={{ fontSize: 22 }}>{e}</Text>
-                  </TouchableOpacity>
-                ))}
-              </View>
-
-              <Text style={s.fieldLbl}>Color</Text>
-              <View style={s.colorRow}>
-                {COLOR_OPTIONS.map((c) => (
-                  <TouchableOpacity
-                    key={c}
-                    style={[s.colorBtn, { backgroundColor: c }, color === c && s.colorBtnOn]}
-                    onPress={() => { haptic(); setColor(c); }}
-                    activeOpacity={0.8}
-                  />
-                ))}
-              </View>
-            </ScrollView>
-
-            <TouchableOpacity style={[s.saveBtn, (saving || !isOnline) && { opacity: 0.7 }]} onPress={onSave} disabled={saving || !isOnline} activeOpacity={0.85}>
-              {saving ? <ActivityIndicator color="#fff" /> : (
-                <>
-                  <Ionicons name="checkmark" size={18} color="#fff" />
-                  <Text style={s.saveBtnTxt}>{!isOnline ? "Offline — can't save" : (editingGoal ? 'Save changes' : 'Create goal')}</Text>
-                </>
-              )}
-            </TouchableOpacity>
-            <TouchableOpacity onPress={() => setFormVisible(false)} style={{ paddingVertical: 10, alignItems: 'center' }}>
-              <Text style={{ color: COLORS.text.muted, fontWeight: '600' }}>Cancel</Text>
-            </TouchableOpacity>
-          </View>
-        </View>
-      </Modal>
+      {/* New/Edit Goal sheet — Round 65 minimalist redesign */}
+      <GoalSheet
+        visible={formVisible}
+        editing={editingGoal ? {
+          id: editingGoal.id,
+          name: editingGoal.name,
+          target_amount: editingGoal.target_amount,
+          saved_amount: editingGoal.saved_amount,
+          emoji: editingGoal.emoji,
+          color: editingGoal.color,
+        } : null}
+        submitting={saving}
+        isOnline={isOnline}
+        onClose={() => setFormVisible(false)}
+        onSubmit={async (payload) => {
+          // Validation already happens inside GoalSheet; here we just persist
+          // and surface server-side detail messages on failure.
+          Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
+          setSaving(true);
+          try {
+            if (editingGoal) {
+              await api.patch(`/goals/${editingGoal.id}`, payload);
+              Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
+              showSuccess('Goal updated!');
+            } else {
+              await api.post('/goals', payload);
+              Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
+              showSuccess('Goal created 🎉');
+            }
+            setFormVisible(false);
+            loadGoals();
+          } catch (e: any) {
+            const detail = e?.response?.data?.detail;
+            const msg = Array.isArray(detail) ? detail[0]?.msg : detail;
+            Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error).catch(() => {});
+            Toast.show({
+              type: 'error',
+              text1: msg ? 'Invalid goal' : 'Could not save goal',
+              text2: typeof msg === 'string' ? msg.slice(0, 90) : undefined,
+            });
+          } finally {
+            setSaving(false);
+          }
+        }}
+      />
     </SafeAreaView>
   );
 }
@@ -477,14 +424,14 @@ export default function GoalsScreen() {
 const useStyles = makeStyles((c) => ({
   bg: { flex: 1, backgroundColor: c.bg.primary },
   header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 16, paddingVertical: 12 },
-  backBtn: { width: 36, height: 36, borderRadius: 20, backgroundColor: c.gray[100], alignItems: 'center', justifyContent: 'center' },
+  backBtn: { width: 36, height: 36, borderRadius: 0, backgroundColor: c.gray[100], alignItems: 'center', justifyContent: 'center' },
   title: { fontSize: 20, fontWeight: '900', color: c.text.primary, letterSpacing: -0.5 },
-  addBtn: { width: 36, height: 36, borderRadius: 20, backgroundColor: c.accent.brand, alignItems: 'center', justifyContent: 'center' },
+  addBtn: { width: 36, height: 36, borderRadius: 0, backgroundColor: c.accent.brand, alignItems: 'center', justifyContent: 'center' },
   scroll: { padding: 16, paddingBottom: 80 },
 
   // Summary card — overlaid on a saturated brand gradient. White-on-color
   // text + dark scrim work consistently in both themes (gradient is bright).
-  summaryCard: { flexDirection: 'row', alignItems: 'center', padding: 20, borderRadius: 24, marginBottom: 20, gap: 16 },
+  summaryCard: { flexDirection: 'row', alignItems: 'center', padding: 20, borderRadius: 0, marginBottom: 20, gap: 16 },
   sumLbl: { fontSize: 11, fontWeight: '900', color: 'rgba(255,255,255,0.85)', letterSpacing: 1 },
   sumAmt: { fontSize: 28, fontWeight: '900', color: c.bg.elevated, letterSpacing: -0.8, marginTop: 4 },
   sumSub: { fontSize: 12, fontWeight: '700', color: 'rgba(255,255,255,0.75)', marginTop: 4 },
@@ -499,7 +446,7 @@ const useStyles = makeStyles((c) => ({
   sumRingPct: { position: 'absolute', fontSize: 14, fontWeight: '900', color: c.bg.elevated },
 
   // Empty state
-  emptyCard: { alignItems: 'center', padding: 32, borderRadius: 20, backgroundColor: c.bg.elevated, borderWidth: 1, borderColor: c.accent.brandSoft, gap: 12 },
+  emptyCard: { alignItems: 'center', padding: 32, borderRadius: 0, backgroundColor: c.bg.elevated, borderWidth: 1, borderColor: c.accent.brandSoft, gap: 12 },
   emptyEmoji: { fontSize: 52 },
   emptyTitle: { fontSize: 17, fontWeight: '900', color: c.text.primary },
   emptySub: { fontSize: 13, fontWeight: '600', color: c.text.muted, textAlign: 'center', lineHeight: 18 },
@@ -508,32 +455,32 @@ const useStyles = makeStyles((c) => ({
 
   // Grid
   grid: { flexDirection: 'row', flexWrap: 'wrap', gap: 12 },
-  goalCard: { width: '47.5%', backgroundColor: c.bg.elevated, borderRadius: 20, padding: 16, alignItems: 'center', borderWidth: 1, borderColor: c.gray[100], shadowColor: c.shadow.primary, shadowOpacity: 1, shadowRadius: 8, shadowOffset: { width: 0, height: 2 }, elevation: 2 },
+  goalCard: { width: '47.5%', backgroundColor: c.bg.elevated, borderRadius: 0, padding: 16, alignItems: 'center', borderWidth: 1, borderColor: c.gray[100], shadowColor: c.shadow.primary, shadowOpacity: 1, shadowRadius: 8, shadowOffset: { width: 0, height: 2 }, elevation: 2 },
   ringWrap: { position: 'relative', alignItems: 'center', justifyContent: 'center' },
   ringCenter: { position: 'absolute' },
   ringEmoji: { fontSize: 32 },
-  doneBadge: { position: 'absolute', top: 0, right: -4, width: 24, height: 24, borderRadius: 12, backgroundColor: c.state.success, alignItems: 'center', justifyContent: 'center', borderWidth: 2, borderColor: c.bg.elevated },
+  doneBadge: { position: 'absolute', top: 0, right: -4, width: 24, height: 24, borderRadius: 0, backgroundColor: c.state.success, alignItems: 'center', justifyContent: 'center', borderWidth: 2, borderColor: c.bg.elevated },
   goalName: { fontSize: 14, fontWeight: '900', color: c.text.primary, marginTop: 8 },
   goalAmt: { fontSize: 17, fontWeight: '900', color: c.text.primary, marginTop: 4, letterSpacing: -0.3 },
   goalTarget: { fontSize: 11, fontWeight: '700', color: c.text.muted, marginTop: 0 },
   linkedChip: { flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 8, paddingHorizontal: 8, paddingVertical: 4, borderRadius: 999, backgroundColor: '#D1FAE5' },
   linkedChipTxt: { fontSize: 9, fontWeight: '800', color: '#065F46' },
   goalActions: { flexDirection: 'row', gap: 8, marginTop: 8 },
-  goalAct: { width: 28, height: 28, borderRadius: 16, alignItems: 'center', justifyContent: 'center', backgroundColor: c.gray[50] },
+  goalAct: { width: 28, height: 28, borderRadius: 0, alignItems: 'center', justifyContent: 'center', backgroundColor: c.gray[50] },
 
   // Sheet
   sheetBg: { flex: 1, justifyContent: 'flex-end', backgroundColor: 'rgba(0,0,0,0.5)' },
   sheetBgTap: { ...StyleSheet.absoluteFillObject },
-  sheet: { backgroundColor: c.bg.elevated, borderTopLeftRadius: 28, borderTopRightRadius: 28, padding: 20, maxHeight: '88%' },
+  sheet: { backgroundColor: c.bg.elevated, borderTopLeftRadius: 0, borderTopRightRadius: 0, padding: 20, maxHeight: '88%' },
   sheetHandle: { width: 40, height: 4, borderRadius: 4, backgroundColor: c.gray[300], alignSelf: 'center', marginBottom: 16 },
   sheetTitle: { fontSize: 20, fontWeight: '900', color: c.text.primary, marginBottom: 16 },
   fieldLbl: { fontSize: 11, fontWeight: '900', color: c.text.muted, letterSpacing: 0.5, textTransform: 'uppercase', marginBottom: 8, marginTop: 12 },
-  input: { backgroundColor: c.gray[50], borderWidth: 1, borderColor: c.gray[200], borderRadius: 12, paddingHorizontal: 16, paddingVertical: 12, fontSize: 15, color: c.text.primary },
+  input: { backgroundColor: c.gray[50], borderWidth: 1, borderColor: c.gray[200], borderRadius: 0, paddingHorizontal: 16, paddingVertical: 12, fontSize: 15, color: c.text.primary },
   emojiRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
-  emojiBtn: { width: 44, height: 44, borderRadius: 12, alignItems: 'center', justifyContent: 'center', backgroundColor: c.gray[50], borderWidth: 2, borderColor: 'transparent' },
+  emojiBtn: { width: 44, height: 44, borderRadius: 0, alignItems: 'center', justifyContent: 'center', backgroundColor: c.gray[50], borderWidth: 2, borderColor: 'transparent' },
   emojiBtnOn: { borderColor: c.accent.brand, backgroundColor: c.accent.brandSoft },
   colorRow: { flexDirection: 'row', gap: 8, flexWrap: 'wrap' },
-  colorBtn: { width: 40, height: 40, borderRadius: 20, borderWidth: 3, borderColor: 'transparent' },
+  colorBtn: { width: 40, height: 40, borderRadius: 0, borderWidth: 3, borderColor: 'transparent' },
   colorBtnOn: { borderColor: c.text.primary },
   saveBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, backgroundColor: c.accent.brand, paddingVertical: 16, borderRadius: 999, marginTop: 16 },
   saveBtnTxt: { fontSize: 14, fontWeight: '900', color: c.bg.elevated },

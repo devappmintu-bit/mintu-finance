@@ -58,7 +58,7 @@ export default function ProgressInline({
 const useStyles = makeStyles((c) => ({
   card: {
     backgroundColor: c.bg.secondary,
-    borderRadius: 16,
+    borderRadius: 0,
     padding: 16,
     borderWidth: 1,
     borderColor: c.border.subtle,

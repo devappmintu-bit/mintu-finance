@@ -289,15 +289,19 @@ export const SPACE = {
 //  → xl (hero cards) → 2xl (glass overlays) → pill (fully rounded)
 // ══════════════════════════════════════════════════════════════════════
 export const RADIUS = {
-  xs:   4,
-  sm:   8,
-  md:  12,
-  lg:  16,
-  xl:  20,
-  xxl: 24,
-  card: 28,        // legacy card corner — KEEP (used in 30+ places)
-  '2xl': 24,
-  '3xl': 32,
+  // V10 BRUTALIST — flat corners everywhere. Left `pill`/`full` intact
+  // so true-circle primitives (avatars, hamburger buttons, small dots)
+  // stay round. Everything else is now flush 0px to match the 2px INK
+  // border grammar from AIBrainDashboard / NewsCardStack / Hero blocks.
+  xs:   0,
+  sm:   0,
+  md:   0,
+  lg:   0,
+  xl:   0,
+  xxl:  0,
+  card: 0,
+  '2xl': 0,
+  '3xl': 0,
   pill: 999,
   full: 9999,
 } as const;
@@ -308,43 +312,17 @@ export const RADIUS = {
 //  z0 = flat, z1 = subtle (default cards), z2 = elevated (modals),
 //  z3 = floating (FABs), z4 = overlay (sheets), z5 = above-all (toasts)
 // ══════════════════════════════════════════════════════════════════════
+// V10 BRUTALIST — shadows flattened globally. Brutalism expresses
+// hierarchy via 2px INK borders + hard offsets, not drop-shadows.
+// All z-levels now zero-opacity so any existing consumer silently
+// inherits the new visual language without breakage.
 export const ELEVATION = {
   z0: { shadowOpacity: 0, elevation: 0 },
-  z1: {
-    shadowColor: '#0F172A',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.06,
-    shadowRadius: 2,
-    elevation: 1,
-  },
-  z2: {
-    shadowColor: '#0F172A',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.08,
-    shadowRadius: 12,
-    elevation: 3,
-  },
-  z3: {
-    shadowColor: '#0F172A',
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.12,
-    shadowRadius: 20,
-    elevation: 6,
-  },
-  z4: {
-    shadowColor: '#0F172A',
-    shadowOffset: { width: 0, height: 16 },
-    shadowOpacity: 0.18,
-    shadowRadius: 32,
-    elevation: 10,
-  },
-  z5: {
-    shadowColor: '#0F172A',
-    shadowOffset: { width: 0, height: 24 },
-    shadowOpacity: 0.22,
-    shadowRadius: 40,
-    elevation: 14,
-  },
+  z1: { shadowColor: '#0A0A0A', shadowOffset: { width: 0, height: 0 }, shadowOpacity: 0, shadowRadius: 0, elevation: 0 },
+  z2: { shadowColor: '#0A0A0A', shadowOffset: { width: 0, height: 0 }, shadowOpacity: 0, shadowRadius: 0, elevation: 0 },
+  z3: { shadowColor: '#0A0A0A', shadowOffset: { width: 0, height: 0 }, shadowOpacity: 0, shadowRadius: 0, elevation: 0 },
+  z4: { shadowColor: '#0A0A0A', shadowOffset: { width: 0, height: 0 }, shadowOpacity: 0, shadowRadius: 0, elevation: 0 },
+  z5: { shadowColor: '#0A0A0A', shadowOffset: { width: 0, height: 0 }, shadowOpacity: 0, shadowRadius: 0, elevation: 0 },
 } as const;
 
 // ══════════════════════════════════════════════════════════════════════

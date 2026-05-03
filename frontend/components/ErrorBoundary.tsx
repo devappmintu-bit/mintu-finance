@@ -147,7 +147,7 @@ const s = StyleSheet.create({
 
   devBlock: { marginTop: 24, width: '100%', maxWidth: 520 },
   devToggle: { textAlign: 'center', color: COLORS.text.muted, fontSize: 12, fontWeight: '700', letterSpacing: 1 },
-  stackBox: { marginTop: 10, padding: 12, borderRadius: 10, backgroundColor: '#0F172A', maxHeight: 240 },
+  stackBox: { marginTop: 10, padding: 12, borderRadius: 0, backgroundColor: '#0F172A', maxHeight: 240 },
   stackTitle: { color: '#FCA5A5', fontWeight: '800', fontSize: 12, marginTop: 6 },
   stackTxt: { color: '#CBD5E1', fontSize: 11, fontFamily: Platform.select({ ios: 'Menlo', android: 'monospace' }) },
 

@@ -276,7 +276,7 @@ const useStyles = makeStyles((c) => ({
 
   emptyWrap: { flex: 1, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 28, gap: 12 },
   emptyIconWrap: {
-    width: 88, height: 88, borderRadius: 44,
+    width: 88, height: 88, borderRadius: 0,
     backgroundColor: c.accent.primary + '14',
     alignItems: 'center', justifyContent: 'center', marginBottom: 6,
   },
@@ -294,11 +294,11 @@ const useStyles = makeStyles((c) => ({
     flexDirection: 'row', alignItems: 'center', gap: 10,
     padding: 12, marginBottom: 10,
     backgroundColor: c.bg.secondary,
-    borderRadius: 14,
+    borderRadius: 0,
     borderWidth: 1, borderColor: c.border.subtle,
   },
   draftIconWrap: {
-    width: 38, height: 38, borderRadius: 12,
+    width: 38, height: 38, borderRadius: 0,
     backgroundColor: c.accent.primary + '14',
     alignItems: 'center', justifyContent: 'center',
   },
@@ -317,7 +317,7 @@ const useStyles = makeStyles((c) => ({
   sheetBackdrop: { flex: 1, justifyContent: 'flex-end', backgroundColor: 'rgba(0,0,0,0.45)' },
   sheet: {
     backgroundColor: c.bg.elevated,
-    borderTopLeftRadius: 24, borderTopRightRadius: 24,
+    borderTopLeftRadius: 0, borderTopRightRadius: 0,
     padding: 20, paddingBottom: 30, gap: 6,
     borderTopWidth: 1, borderColor: c.border.subtle,
   },
@@ -329,12 +329,12 @@ const useStyles = makeStyles((c) => ({
   sheetSub: { fontSize: 12, color: c.text.muted, textAlign: 'center', marginBottom: 12 },
   groupRow: {
     flexDirection: 'row', alignItems: 'center', gap: 10,
-    padding: 12, borderRadius: 12,
+    padding: 12, borderRadius: 0,
     backgroundColor: c.bg.secondary,
     marginBottom: 8,
   },
   groupAv: {
-    width: 36, height: 36, borderRadius: 12,
+    width: 36, height: 36, borderRadius: 0,
     backgroundColor: COLORS.accent.primary + '20',
     alignItems: 'center', justifyContent: 'center',
   },

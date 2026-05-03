@@ -9,7 +9,6 @@
 import React from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity } from 'react-native';
 import { Image } from 'expo-image';
-import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import * as Haptics from 'expo-haptics';
@@ -161,11 +160,8 @@ function RewardCard({ reward, userCoins, onClaim, testID }: { reward: Reward; us
     >
       <View style={[s.card, locked && s.cardLocked, !locked && !canAfford && { opacity: 0.55 }]}>
         {/* Coloured top band with real brand logo (or emoji fallback) */}
-        <LinearGradient
-          colors={[reward.color, shade(reward.color, -0.2)]}
-          start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}
-          style={s.cardBand}
-        >
+        <View
+          style={[s.cardBand, { backgroundColor: '#0A0A0A' }]}>
           {logo && !imgError ? (
             <View style={s.logoFrame}>
               <Image
@@ -188,7 +184,7 @@ function RewardCard({ reward, userCoins, onClaim, testID }: { reward: Reward; us
               <Ionicons name="lock-closed" size={22} color="#FFFFFF" />
             </View>
           )}
-        </LinearGradient>
+        </View>
         <View style={s.cardBody}>
           <Text style={s.brandTxt} numberOfLines={1}>{reward.brand}</Text>
           <Text style={s.discTxt} numberOfLines={1}>{reward.discount}</Text>
@@ -219,11 +215,11 @@ const useStyles = makeStyles((c) => ({
   laneSub: { fontSize: 10.5, fontWeight: '700', color: c.text.muted, marginTop: 1 },
   unlockTxt: { fontSize: 11.5, fontWeight: '900', color: c.accent.brand, letterSpacing: 0.2 },
 
-  card: { width: 160, backgroundColor: c.bg.elevated, borderRadius: 18, borderWidth: 1, borderColor: c.gray[100], overflow: 'hidden', shadowColor: '#000000', shadowOpacity: 0.06, shadowRadius: 6, shadowOffset: { width: 0, height: 2 }, elevation: 2 },
+  card: { width: 160, backgroundColor: c.bg.elevated, borderRadius: 0, borderWidth: 1, borderColor: c.gray[100], overflow: 'hidden', shadowColor: '#000000', shadowOpacity: 0.06, shadowRadius: 6, shadowOffset: { width: 0, height: 2 }, elevation: 2 },
   cardLocked: { opacity: 0.9 },
   cardBand: { height: 68, alignItems: 'center', justifyContent: 'center', position: 'relative' },
   cardEmoji: { fontSize: 34 },
-  logoFrame: { width: 54, height: 42, backgroundColor: c.bg.elevated, borderRadius: 10, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 6, paddingVertical: 4 },
+  logoFrame: { width: 54, height: 42, backgroundColor: c.bg.elevated, borderRadius: 0, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 6, paddingVertical: 4 },
   logoImg: { width: '100%', height: '100%' },
   urgencyPill: { position: 'absolute', top: 6, right: 6, paddingHorizontal: 6, paddingVertical: 2, borderRadius: 999 },
   urgencyTxt: { fontSize: 8.5, fontWeight: '900', color: c.bg.elevated, letterSpacing: 0.5 },
@@ -235,6 +231,6 @@ const useStyles = makeStyles((c) => ({
   minTxt: { fontSize: 10, fontWeight: '600', color: c.gray[400] },
   popRow: { flexDirection: 'row', alignItems: 'center', gap: 3, marginTop: 4 },
   popTxt: { fontSize: 9.5, fontWeight: '700', color: c.text.muted },
-  claimBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 4, marginTop: 6, paddingVertical: 7, borderRadius: 10, backgroundColor: c.accent.brand },
+  claimBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 4, marginTop: 6, paddingVertical: 7, borderRadius: 0, backgroundColor: c.accent.brand },
   coinTxt: { fontSize: 11, fontWeight: '900', color: c.bg.elevated },
 }));

@@ -155,7 +155,7 @@ const useStyles = makeStyles((c) => ({
   backdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.55)', justifyContent: 'flex-end' },
   sheet: {
     backgroundColor: GLASS.solidBg,
-    borderTopLeftRadius: 28, borderTopRightRadius: 28,
+    borderTopLeftRadius: 0, borderTopRightRadius: 0,
     borderTopWidth: StyleSheet.hairlineWidth, borderColor: GLASS.borderLight,
     paddingHorizontal: 20, paddingTop: 10, paddingBottom: Platform.OS === 'ios' ? 32 : 20,
   },
@@ -167,16 +167,16 @@ const useStyles = makeStyles((c) => ({
   action: {
     flexDirection: 'row', alignItems: 'center', gap: 14,
     backgroundColor: c.bg.primary,
-    borderRadius: 16, paddingVertical: 14, paddingHorizontal: 14,
+    borderRadius: 0, paddingVertical: 14, paddingHorizontal: 14,
     borderWidth: StyleSheet.hairlineWidth, borderColor: c.border.subtle,
   },
   iconWrap: {
-    width: 42, height: 42, borderRadius: 21,
+    width: 42, height: 42, borderRadius: 0,
     alignItems: 'center', justifyContent: 'center',
     borderWidth: 1,
   },
   actionTxt: { flex: 1, fontSize: 15.5, fontWeight: '700', color: c.text.primary, letterSpacing: -0.2 },
 
-  cancel: { marginTop: 14, paddingVertical: 14, alignItems: 'center', borderRadius: 14 },
+  cancel: { marginTop: 14, paddingVertical: 14, alignItems: 'center', borderRadius: 0 },
   cancelTxt: { fontSize: 15, fontWeight: '700', color: c.text.muted },
 }));

@@ -12,7 +12,6 @@
 import React, { useEffect, useState } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { LinearGradient } from 'expo-linear-gradient';
 import { router } from 'expo-router';
 import api from '../../utils/api';
 import { fetchPremiumStatus } from '../../services/premium';
@@ -55,19 +54,13 @@ function MoneySchoolCard() {
 
   return (
     <TouchableOpacity activeOpacity={0.9} onPress={open} testID="money-school-card">
-      <LinearGradient
-        colors={['#FFF7E8', '#FFE7C7']}
-        start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}
-        style={s.wrap}
-      >
+      <View
+        style={[s.wrap, { backgroundColor: '#FFF7E8' }]}>
         {/* Left: accent strip with mortarboard icon */}
-        <LinearGradient
-          colors={[COLORS.accent.secondary, COLORS.accent.primary]}
-          start={{ x: 0, y: 0 }} end={{ x: 0, y: 1 }}
-          style={s.iconStrip}
-        >
+        <View
+          style={[s.iconStrip, { backgroundColor: '#0A0A0A' }]}>
           <Ionicons name="school" size={22} color="#FFFFFF" />
-        </LinearGradient>
+        </View>
 
         <View style={s.body}>
           <View style={s.topRow}>
@@ -105,7 +98,7 @@ function MoneySchoolCard() {
             </View>
           </View>
         </View>
-      </LinearGradient>
+      </View>
     </TouchableOpacity>
   );
 }
@@ -113,7 +106,7 @@ function MoneySchoolCard() {
 const useStyles = makeStyles((c) => ({
   wrap: {
     flexDirection: 'row',
-    borderRadius: 18,
+    borderRadius: 0,
     overflow: 'hidden',
     marginBottom: 14,
     borderWidth: 1,

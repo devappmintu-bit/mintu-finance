@@ -90,14 +90,14 @@ const styles = StyleSheet.create({
   backdrop: { flex: 1, justifyContent: 'flex-end', backgroundColor: 'rgba(0,0,0,0.5)' },
   sheet: {
     backgroundColor: GLASS.solidBg,
-    borderTopLeftRadius: 28, borderTopRightRadius: 28,
+    borderTopLeftRadius: 0, borderTopRightRadius: 0,
     borderTopWidth: StyleSheet.hairlineWidth, borderColor: GLASS.borderLight,
     padding: 24, paddingBottom: 36, gap: 14,
   },
   handle: { width: 40, height: 4, borderRadius: 2, backgroundColor: COLORS.border.subtle, alignSelf: 'center', marginBottom: 8 },
   header: { alignItems: 'center', marginBottom: 4 },
   iconWrap: {
-    width: 64, height: 64, borderRadius: 32,
+    width: 64, height: 64, borderRadius: 0,
     backgroundColor: COLORS.accent.moneyIn + '15',
     justifyContent: 'center', alignItems: 'center', marginBottom: 10,
   },

@@ -13,7 +13,6 @@
  */
 import React from 'react';
 import { View, Text, StyleSheet, Platform, StyleProp, ViewStyle, TextStyle, ActivityIndicator } from 'react-native';
-import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import Animated, {
@@ -137,11 +136,8 @@ function PremiumButtonImpl({
         ]}
       >
         {gradient ? (
-          <LinearGradient
-            colors={gradient}
-            start={{ x: 0, y: 0 }}
-            end={{ x: 1, y: 1 }}
-            style={StyleSheet.absoluteFill}
+          <View
+            style={[StyleSheet.absoluteFill, { backgroundColor: '#0A0A0A' }]}
           />
         ) : null}
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>

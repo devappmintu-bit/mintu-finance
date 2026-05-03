@@ -26,7 +26,6 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import PinDot from '../components/primitives/PinDot';
-import { LinearGradient } from 'expo-linear-gradient';
 import { Image } from 'expo-image';
 import { router } from 'expo-router';
 import * as Haptics from 'expo-haptics';
@@ -283,11 +282,8 @@ export default function UnlockScreen() {
       </View>
 
       {/* ── Greeting card (cream) ───────────────────────────────── */}
-      <LinearGradient
-        colors={['#FFFFFF', '#FFF4EC']}
-        start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}
-        style={s.greetCard}
-      >
+      <View
+        style={[s.greetCard, { backgroundColor: '#FFFFFF' }]}>
         <View style={s.greetLeft}>
           <Text style={s.hi}>{greeting}</Text>
           <Text style={s.name} numberOfLines={1}>{firstName}</Text>
@@ -306,7 +302,7 @@ export default function UnlockScreen() {
             cachePolicy="memory-disk"
           />
         </View>
-      </LinearGradient>
+      </View>
 
       {/* ── mPIN title + dots ───────────────────────────────────── */}
       <Text style={s.pinTitle}>Enter your mPIN</Text>
@@ -436,7 +432,7 @@ const useStyles = makeStyles((c) => ({
   // ── Top bar ────────────────────────────────────────────────────
   topBar: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: 4 },
   brandRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  brandMark: { width: 26, height: 26, borderRadius: 7 },
+  brandMark: { width: 26, height: 26, borderRadius: 0 },
   brandName: { color: c.text.primary, fontSize: 14, fontWeight: '900', letterSpacing: 2.4 },
   secBadge: {
     flexDirection: 'row', alignItems: 'center', gap: 5,
@@ -450,7 +446,7 @@ const useStyles = makeStyles((c) => ({
   // ── Greeting card ──────────────────────────────────────────────
   greetCard: {
     marginTop: 18,
-    borderRadius: 20,
+    borderRadius: 0,
     padding: 14,
     flexDirection: 'row',
     alignItems: 'center',
@@ -469,7 +465,7 @@ const useStyles = makeStyles((c) => ({
   phoneRow: { flexDirection: 'row', alignItems: 'center', gap: 5, marginTop: 4 },
   phoneT: { color: c.text.muted, fontSize: 11.5, fontWeight: '700' },
   avatarWrap: {
-    width: 56, height: 56, borderRadius: 16,
+    width: 56, height: 56, borderRadius: 0,
     backgroundColor: '#FFF0DE',
     alignItems: 'center', justifyContent: 'center',
     borderWidth: 1, borderColor: c.border.subtle,
@@ -489,7 +485,7 @@ const useStyles = makeStyles((c) => ({
   },
   pinBoxes: { flexDirection: 'row', gap: 12, marginTop: 12, alignSelf: 'center' },
   pinBox: {
-    width: 48, height: 54, borderRadius: 14,
+    width: 48, height: 54, borderRadius: 0,
     backgroundColor: c.bg.secondary,
     borderWidth: 1.5, borderColor: c.border.subtle,
     alignItems: 'center', justifyContent: 'center',
@@ -502,7 +498,7 @@ const useStyles = makeStyles((c) => ({
     borderColor: c.state.danger,
     backgroundColor: c.state.dangerBg,
   },
-  pinCenterDot: { width: 12, height: 12, borderRadius: 6, backgroundColor: c.accent.primary },
+  pinCenterDot: { width: 12, height: 12, borderRadius: 0, backgroundColor: c.accent.primary },
   errText: {
     color: c.state.danger,
     textAlign: 'center', marginTop: 8, fontSize: 12, fontWeight: '700', minHeight: 14,
@@ -520,7 +516,7 @@ const useStyles = makeStyles((c) => ({
     width: '33.33%',
     paddingVertical: 14,
     alignItems: 'center', justifyContent: 'center',
-    borderRadius: 16,
+    borderRadius: 0,
     position: 'relative',
   },
   keyPressed: {
@@ -539,11 +535,11 @@ const useStyles = makeStyles((c) => ({
   // Biometric inline chip
   bioGlow: {
     position: 'absolute',
-    width: 72, height: 72, borderRadius: 36,
+    width: 72, height: 72, borderRadius: 0,
     backgroundColor: c.accent.primary,
   },
   bioChip: {
-    width: 52, height: 52, borderRadius: 26,
+    width: 52, height: 52, borderRadius: 0,
     backgroundColor: '#FFF0DE',
     borderWidth: 1.5, borderColor: c.accent.primary,
     alignItems: 'center', justifyContent: 'center',

@@ -53,7 +53,7 @@ const useStyles = makeStyles((c) => ({
   title: { fontSize: 19, fontWeight: '800', color: c.text.primary, letterSpacing: -0.3 },
   sub: { fontSize: 12.5, fontWeight: '600', color: c.text.secondary, marginTop: 3 },
   closeBtn: {
-    width: 32, height: 32, borderRadius: 16,
+    width: 32, height: 32, borderRadius: 0,
     backgroundColor: c.gray[100],
     alignItems: 'center', justifyContent: 'center',
   },

@@ -858,23 +858,30 @@ VALID_CATEGORIES = [
 async def rewards_vouchers(category: str = "food", user_id: str = Depends(get_current_user)) -> Dict[str, Any]:
     """Fetch LIVE working vouchers/coupons for the requested category.
 
-    Uses GPT-5.2 to aggregate publicly-known Indian coupon codes with merchant
-    URLs. Cached for 6 hours to minimise LLM cost.
+    Round 70 — Migrated to ``llm_cache.get_or_regen``. Cold callers see
+    the static fallback voucher pack instantly; the next call (after the
+    background regen lands) gets the LLM-aggregated coupon list. TTL
+    fresh = 6 h, stale = 3 d.
     """
     category = (category or "food").lower().strip()
     if category not in VALID_CATEGORIES:
         category = "food"
 
-    # Cache check
     cache_key = f"vouchers:{category}"
-    cached = _VOUCHER_CACHE.get(cache_key)
-    if cached and (utc_now() - cached["ts"]) < CACHE_TTL:
-        return {"category": category, "vouchers": cached["data"], "cached": True}
 
-    vouchers = await _fetch_live_vouchers(category)
+    async def _compute() -> Optional[List[Dict[str, Any]]]:
+        return await _fetch_live_vouchers(category)
 
-    _VOUCHER_CACHE[cache_key] = {"ts": utc_now(), "data": vouchers}
-    return {"category": category, "vouchers": vouchers, "cached": False}
+    from core.llm_cache import get_or_regen
+    vouchers = await get_or_regen(
+        key=cache_key,
+        compute_fn=_compute,
+        ttl_fresh=6 * 3600,
+        ttl_stale=3 * 86400,
+        fallback=_fallback_vouchers(category),
+    ) or _fallback_vouchers(category)
+
+    return {"category": category, "vouchers": vouchers, "cached": True}
 
 
 async def _fetch_live_vouchers(category: str) -> List[Dict[str, Any]]:

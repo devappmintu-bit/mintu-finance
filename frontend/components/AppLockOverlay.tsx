@@ -69,7 +69,7 @@ const styles = StyleSheet.create({
       default: {},
     }),
   },
-  mark: { width: 64, height: 64, borderRadius: 16, marginBottom: 4 },
+  mark: { width: 64, height: 64, borderRadius: 0, marginBottom: 4 },
   brand: { fontSize: 18, fontWeight: '900', letterSpacing: 4 },
   sub: { fontSize: 12, fontWeight: '700', letterSpacing: 0.4 },
 });

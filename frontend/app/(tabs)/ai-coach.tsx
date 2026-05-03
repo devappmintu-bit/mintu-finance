@@ -24,7 +24,6 @@ import { Ionicons } from '@expo/vector-icons';
 import { router, useLocalSearchParams } from 'expo-router';
 import AICoachChat from '../../components/AICoachChat';
 import InsightCard from '../../components/ui/InsightCard';
-import NeonButton from '../../components/ui/NeonButton';
 import GlowPill from '../../components/ui/GlowPill';
 import Skeleton from '../../components/ui/Skeleton';
 import ThinkingDots from '../../components/ui/ThinkingDots';
@@ -38,8 +37,9 @@ import TaxCalculator from '../../components/premium/TaxCalculator';
 import InvestmentSuggester from '../../components/premium/InvestmentSuggester';
 import PremiumUnlockTeaser from '../../components/premium/PremiumUnlockTeaser';
 import { useActivePlan, FEATURES, canAccess } from '../../utils/premium';
-import MascotMoment from '../../components/MascotMoment';
-import AskMintuPill from '../../components/ai-coach/AskMintuPill';
+import AskBar from '../../components/ai-coach/AskBar';
+import { useAIPrompt } from '../../store/aiPromptStore';
+import AIBrainDashboard from '../../components/ai-coach/AIBrainDashboard';
 import { StaggeredEntrance } from '../../components/primitives';
 import { ROUTES } from '../../constants/routes';
 
@@ -110,6 +110,18 @@ function AICoachTab() {
 
   useEffect(() => { loadAll(); }, [loadAll]);
 
+  // FIX (master v9 §3): if any surface (Profile's BUILD MY PLAN /
+  // BOOST SCORE, Home nudges, etc.) pre-filled a prompt via useAIPrompt
+  // before navigating here, auto-open the full-screen chat so the user
+  // lands on a firing conversation — never a blank coach.
+  useEffect(() => {
+    const pending = useAIPrompt.getState().pending;
+    if (pending) {
+      setActiveTab('insights');
+      setChatOpen(true);
+    }
+  }, []);
+
   // Derive punchy insights from raw stats
   const pulse: Pulse = useMemo(() => ({
     currency_week_total: stats?.week_spent || 0,
@@ -143,7 +155,6 @@ function AICoachTab() {
   const goPremium = useCallback(() => router.push('/premium' as any), []);
   const onRefreshInsights = useCallback(() => loadAll(true), [loadAll]);
   const onRefreshFromRC = useCallback(() => { if (!loading) loadAll(true); }, [loading, loadAll]);
-  const onAskMintu = useCallback(() => { if (isOnline) setChatOpen(true); }, [isOnline]);
   const closeChat = useCallback(() => setChatOpen(false), []);
 
   // Format currency compactly (Indian format)
@@ -156,24 +167,6 @@ function AICoachTab() {
 
   return (
     <SafeAreaView style={s.safe} edges={['top']}>
-      {/* Round 53l — MintU Personality burst on tab focus.
-          The coach surface gets the bigger, expressive moment
-          (vs the slim home variant). The mascot stays visible so
-          users feel an "assistant is awake" beat. */}
-      <View style={{ paddingHorizontal: SPACING.lg, paddingTop: 4, paddingBottom: 4 }}>
-        <MascotMoment mode="coach" autoDismissMs={0} />
-      </View>
-
-      {/* Wave 5.4 — Ask Mintu pill. PRIMARY CTA for the AI Coach tab.
-          Previously the "Ask" action lived in an obscure NeonButton row
-          at the bottom of the insights hero — users tapped into Tax /
-          Invest / School far more often than the open-ended chat, even
-          though chat is the product's flagship feature. This pill is
-          full-width, shimmers subtly at idle, and surfaces 3 quick
-          prompts so first-time users can kick off a useful conversation
-          without typing. Tapping any element opens the chat modal. */}
-      <AskMintuPill onAsk={onAskMintu} disabled={!isOnline} />
-
       {/* Tab strip — Insights / Tax / Invest / School */}
       <View style={s.tabStrip}>
         {tabDefs.map(t => {
@@ -284,19 +277,18 @@ function AICoachTab() {
             refreshing={refreshing}
             onRefresh={onRefreshInsights}
             tintColor={COLORS.accent.primary}
-            colors={[COLORS.accent.primary]}
           />
         }
       >
-        {/* Header */}
+        {/* Slim header — single intent, no AI greeting duplication.
+            Round 71: replaced the big "Hey, let's talk money 💬" stack
+            + "Your personalised money pulse, fresh." subtitle (which
+            both repeated the AI ask intent already conveyed by the
+            sticky AskBar at the bottom) with a single calm "Coach"
+            label + Refresh + LIVE pill. */}
         <View style={s.header}>
-          <View>
-            <Text style={s.kicker}>AI COACH</Text>
-            <Text style={s.title}>Hey, let's talk{'\n'}money 💬</Text>
-          </View>
+          <Text style={s.kicker}>COACH</Text>
           <View style={s.headerPills}>
-            {/* Round 36 — explicit "Regenerate" button. Pull-to-refresh on a
-                non-list screen isn't discoverable; a tappable icon is. */}
             <TouchableOpacity
               testID="ai-regenerate-btn"
               accessibilityRole="button"
@@ -309,7 +301,7 @@ function AICoachTab() {
             >
               <Ionicons
                 name="refresh"
-                size={18}
+                size={16}
                 color={COLORS.accent.primary}
               />
               <Text style={s.regenTxt}>{loading ? 'Refreshing…' : 'Refresh'}</Text>
@@ -318,10 +310,14 @@ function AICoachTab() {
           </View>
         </View>
 
-        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-          <Text style={s.subtitle}>{loading ? helloMsg : 'Your personalised money pulse, fresh.'}</Text>
-          {loading && <ThinkingDots />}
-        </View>
+        {/* v10 AI BRAIN DASHBOARD — live context strip + auto-insight +
+            action stack + deep analysis. Data-driven, never generic. */}
+        <AIBrainDashboard />
+
+        {loading && <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 4 }}>
+          <Text style={s.subtitleSlim}>{helloMsg}</Text>
+          <ThinkingDots />
+        </View>}
 
         {/* Round 42 — offline card. AI Coach needs the network to fetch
             insights and to call the LLM, so we show a clear non-blocking
@@ -443,24 +439,76 @@ function AICoachTab() {
                 tag="ALL CLEAR"
                 tagTone="success"
                 headline="Nothing's on fire today ✌️"
-                body="Your money is behaving. Ask me anything below — I'm bored."
+                body="Your money is behaving — keep the rhythm going."
               />
             )}
             </StaggeredEntrance>
           </View>
         )}
 
-        {/* Ask-anything shortcut */}
-        <View style={s.askBox}>
-          <View style={{ flex: 1 }}>
-            <Text style={s.askTitle}>Got a money question?</Text>
-            <Text style={s.askSub}>{!isOnline ? "Offline — connect to chat with Mintu" : 'I can explain anything — from SIPs to tax tricks.'}</Text>
-          </View>
-          <NeonButton label={!isOnline ? 'Offline' : 'Ask'} icon="chatbubbles" onPress={onAskMintu} size="md" pulse={isOnline} disabled={!isOnline} />
-        </View>
-
-        <View style={{ height: 120 }} />
+        {/* Bottom space so content doesn't sit under the sticky AskBar
+            (~76 px AskBar + tab bar already adds 110 px above-bottom). */}
+        <View style={{ height: 90 }} />
       </ScrollView>}
+
+      {/* Brutalist QUICK ACTION CHIPS — v9 master §3:
+          before first message, surface 3 one-tap starters so the user
+          never faces a blank chat. Tap = prefill the AI prompt + open
+          full-screen chat. */}
+      {activeTab === 'insights' && !chatOpen && (
+        <View style={{
+          position: 'absolute', bottom: 76, left: 0, right: 0,
+          paddingHorizontal: 16, paddingBottom: 8,
+        }}>
+          <ScrollView
+            horizontal showsHorizontalScrollIndicator={false}
+            contentContainerStyle={{ gap: 8 }}
+          >
+            {[
+              { label: 'Fix my score',     prompt: 'Help me boost my money score. What should I fix today?' },
+              { label: 'Reduce spending',  prompt: 'Analyze my spending this month and suggest where to cut.' },
+              { label: 'Set a savings goal', prompt: 'Help me set a realistic monthly savings goal based on my spending.' },
+              { label: 'Plan next month',  prompt: 'Build my 5-minute money plan for next month.' },
+            ].map((a, i) => (
+              <TouchableOpacity
+                key={i}
+                testID={`aic-chip-${i}`}
+                onPress={() => {
+                  useAIPrompt.getState().set(a.prompt);
+                  setChatOpen(true);
+                }}
+                style={{
+                  borderWidth: 2, borderColor: '#0A0A0A',
+                  backgroundColor: '#fff',
+                  paddingHorizontal: 14, paddingVertical: 10,
+                }}
+              >
+                <Text style={{
+                  fontSize: 12, fontWeight: '800', letterSpacing: 1.2, color: '#0A0A0A',
+                }}>
+                  {a.label.toUpperCase()}
+                </Text>
+              </TouchableOpacity>
+            ))}
+          </ScrollView>
+        </View>
+      )}
+
+      {/* ────────────────────────────────────────────────────────────
+          Round 71 — SINGLE primary AI surface. Sticky AskBar floats
+          above the tab bar. Hidden on Tax / Invest / School tabs
+          (they have their own focused tools — surfacing chat there
+          would split intent).
+          ─────────────────────────────────────────────────────────── */}
+      {activeTab === 'insights' && (
+        <AskBar
+          disabled={!isOnline}
+          onSubmit={(prefill) => {
+            useAIPrompt.getState().set(prefill);
+            setChatOpen(true);
+          }}
+        />
+      )}
 
       {/* Full-screen chat sheet */}
       <Modal
@@ -494,7 +542,7 @@ const useStyles = makeStyles((c) => ({
     flexDirection: 'column',
     alignItems: 'center',
     paddingVertical: 8,
-    borderRadius: 12,
+    borderRadius: 0,
     gap: 3,
   },
   tabItemActive: {
@@ -510,7 +558,7 @@ const useStyles = makeStyles((c) => ({
     flexDirection: 'row', alignItems: 'center', gap: 14,
     margin: SPACING.lg, padding: 18,
     backgroundColor: c.bg.secondary,
-    borderRadius: 18, borderWidth: 1, borderColor: c.border.subtle,
+    borderRadius: 0, borderWidth: 1, borderColor: c.border.subtle,
   },
   schoolCtaEmoji: { fontSize: 32 },
   schoolCtaTitle: { fontSize: 16, fontWeight: '900', color: c.text.primary, letterSpacing: -0.3 },
@@ -537,74 +585,40 @@ const useStyles = makeStyles((c) => ({
   proPillT: { fontSize: 9, fontWeight: '900', color: '#B45309', letterSpacing: 0.4 },
   header: {
     flexDirection: 'row',
-    alignItems: 'flex-start',
+    alignItems: 'center',
     justifyContent: 'space-between',
     marginTop: 4,
   },
-  headerPills: { paddingTop: 8, flexDirection: 'row', alignItems: 'center', gap: 8 },
+  headerPills: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   regenBtn: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6,
     paddingHorizontal: 12,
-    paddingVertical: 8,
-    borderRadius: 20,
+    paddingVertical: 7,
+    borderRadius: 0,
     backgroundColor: COLORS.accent.primary + '14',
     borderWidth: 1,
     borderColor: COLORS.accent.primary + '33',
   },
   regenTxt: { fontSize: 12, fontWeight: '700', color: COLORS.accent.primary, letterSpacing: 0.2 },
   kicker: {
-    fontSize: 11,
-    fontFamily: FONT_FAMILY.bold,
-    letterSpacing: 1.4,
-    color: c.accent.primary,
-    marginBottom: 6,
-  },
-  title: {
-    fontSize: 28,
-    fontFamily: FONT_FAMILY.black,
-    color: c.text.primary,
-    letterSpacing: -0.6,
-    lineHeight: 34,
-  },
-  subtitle: {
-    fontSize: 14,
-    fontFamily: FONT_FAMILY.regular,
-    color: c.text.secondary,
-    marginTop: 10,
-    marginBottom: 4,
-  },
-  askBox: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-    padding: 16,
-    borderRadius: 24,
-    backgroundColor: 'rgba(26,26,36,0.9)',
-    borderWidth: 1,
-    borderColor: 'rgba(255,107,26,0.3)',
-    marginTop: 24,
-  },
-  askTitle: {
-    fontSize: 15,
-    fontFamily: FONT_FAMILY.bold,
-    color: c.text.primary,
-    letterSpacing: -0.2,
-  },
-  askSub: {
     fontSize: 12,
+    fontFamily: FONT_FAMILY.bold,
+    letterSpacing: 1.6,
+    color: c.accent.primary,
+  },
+  subtitleSlim: {
+    fontSize: 13,
     fontFamily: FONT_FAMILY.regular,
     color: c.text.secondary,
-    marginTop: 2,
-    lineHeight: 16,
   },
   offlineCard: {
     flexDirection: 'row',
     alignItems: 'flex-start',
     gap: 10,
     padding: 14,
-    borderRadius: 16,
+    borderRadius: 0,
     backgroundColor: c.state.warningBg,
     borderWidth: 1,
     borderColor: c.state.warningBorder,

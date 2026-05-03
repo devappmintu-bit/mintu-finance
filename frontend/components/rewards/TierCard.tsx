@@ -9,7 +9,6 @@
  */
 import React from 'react';
 import { View, Text } from 'react-native';
-import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { makeStyles } from '../../utils/makeStyles';
 import { COLORS, useAppColors } from '../../utils/theme';
@@ -51,7 +50,7 @@ export default function TierCard({ tier }: { tier: Tier }) {
   const emoji = TIER_EMOJI[tier.id] || '🥉';
 
   return (
-    <LinearGradient colors={gradient} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={s.card}>
+    <View style={[s.card, { backgroundColor: '#0A0A0A' }]}>
       <View style={s.blob} />
       <View style={s.row}>
         <View style={s.badge}>
@@ -87,15 +86,15 @@ export default function TierCard({ tier }: { tier: Tier }) {
           ))}
         </View>
       )}
-    </LinearGradient>
+    </View>
   );
 }
 
 const useStyles = makeStyles((c) => ({
-  card: { padding: 16, borderRadius: 20, gap: 12, overflow: 'hidden', position: 'relative', shadowColor: c.shadow.medium, shadowOpacity: 1, shadowRadius: 12, shadowOffset: { width: 0, height: 4 }, elevation: 4 },
-  blob: { position: 'absolute', top: -50, right: -50, width: 140, height: 140, borderRadius: 70, backgroundColor: 'rgba(255,255,255,0.12)' },
+  card: { padding: 16, borderRadius: 0, gap: 12, overflow: 'hidden', position: 'relative', shadowColor: c.shadow.medium, shadowOpacity: 1, shadowRadius: 12, shadowOffset: { width: 0, height: 4 }, elevation: 4 },
+  blob: { position: 'absolute', top: -50, right: -50, width: 140, height: 140, borderRadius: 0, backgroundColor: 'rgba(255,255,255,0.12)' },
   row: { flexDirection: 'row', alignItems: 'center', gap: 12 },
-  badge: { width: 56, height: 56, borderRadius: 16, backgroundColor: 'rgba(255,255,255,0.25)', justifyContent: 'center', alignItems: 'center', borderWidth: 2, borderColor: 'rgba(255,255,255,0.4)' },
+  badge: { width: 56, height: 56, borderRadius: 0, backgroundColor: 'rgba(255,255,255,0.25)', justifyContent: 'center', alignItems: 'center', borderWidth: 2, borderColor: 'rgba(255,255,255,0.4)' },
   emoji: { fontSize: 28 },
   topRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 },
   tierName: { fontSize: 14, fontWeight: '900', color: ON_GRADIENT, letterSpacing: 1.2 },

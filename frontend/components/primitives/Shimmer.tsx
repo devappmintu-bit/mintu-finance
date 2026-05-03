@@ -56,7 +56,6 @@ function ShimmerImpl({ width = '100%', height = 16, radius = 8, style }: Shimmer
       ]}
     >
       <AGradient
-        colors={['rgba(255,255,255,0)', 'rgba(255,255,255,0.9)', 'rgba(255,255,255,0)']}
         start={{ x: 0, y: 0.5 }}
         end={{ x: 1, y: 0.5 }}
         style={[StyleSheet.absoluteFillObject, animStyle, { width: 180 }]}

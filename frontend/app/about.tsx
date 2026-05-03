@@ -78,11 +78,11 @@ export default function AboutScreen() {
 const useStyles = makeStyles((c) => ({
   safe: { flex: 1, backgroundColor: c.bg.primary },
   header: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, paddingVertical: 12, justifyContent: 'space-between' },
-  back: { padding: 6, borderRadius: 14, backgroundColor: c.gray[100] },
+  back: { padding: 6, borderRadius: 0, backgroundColor: c.gray[100] },
   title: { fontSize: 18, fontWeight: '800', color: c.text.primary },
   body: { padding: 20, paddingBottom: 60 },
   hero: { alignItems: 'center', marginBottom: 24 },
-  logo: { width: 96, height: 96, borderRadius: 24 },
+  logo: { width: 96, height: 96, borderRadius: 0 },
   brand: { marginTop: 10, fontSize: 24, fontWeight: '900', color: c.text.primary, letterSpacing: -0.5 },
   tagline: { marginTop: 4, fontSize: 14, fontWeight: '600', color: c.text.secondary },
   para: { fontSize: 14.5, lineHeight: 22, color: c.text.secondary, marginBottom: 14 },
@@ -92,7 +92,7 @@ const useStyles = makeStyles((c) => ({
   bulletT: { flex: 1, fontSize: 14, color: c.text.secondary, lineHeight: 20 },
   cta: {
     marginTop: 18, marginBottom: 16, padding: 18,
-    backgroundColor: '#FFF0E3', borderRadius: 16, alignItems: 'center',
+    backgroundColor: '#FFF0E3', borderRadius: 0, alignItems: 'center',
     borderWidth: 1, borderColor: c.border.subtle,
   },
   ctaT: { fontSize: 14.5, fontWeight: '700', color: c.accent.primary, textAlign: 'center' },

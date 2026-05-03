@@ -172,23 +172,23 @@ async def india_finance_news(
     today = date.today().isoformat()
     cached = await db.news_cache.find_one({"date": today})
 
-    # EXPLICIT refresh — force a fresh fetch now and wait briefly for it to land.
-    # Inshorts-style: user tapped "Refresh now" and expects *new* data.
-    if refresh:
-        try:
-            await _refresh_news_in_background(today)
-            cached = await db.news_cache.find_one({"date": today})
-        except Exception as e:
-            logging.warning("Explicit news refresh failed: %s", e)
-
-    # If cache is empty (first request of day, or test pollution cleared it),
-    # kick off a background regen so subsequent calls get real data within ~30s.
-    # This is fire-and-forget and never blocks the response.
-    if not (cached and cached.get("articles")):
-        try:
-            asyncio.create_task(_refresh_news_in_background(today))
-        except RuntimeError:
-            pass  # no event loop yet
+    # Round 74 — Removed the inline `asyncio.create_task` regen path.
+    # Even with `asyncio.shield + wait_for(timeout=3)`, the spawned
+    # regen task gets adopted by the request's anyio TaskGroup
+    # (Starlette BaseHTTPMiddleware), holding the response for the
+    # full 25-30s LLM duration. Empirical evidence in production
+    # access logs:
+    #   /api/news/india-finance latency_ms=24979.11
+    # while the corresponding "exceeded 3 s — returning cached data"
+    # log line was ALSO emitted — proving wait_for fired but the
+    # middleware kept the response open.
+    #
+    # Fix: trust the dedicated `_news_refresher_loop` periodic
+    # worker (started at app boot, runs hourly). It's a long-lived
+    # task at the loop level — fully decoupled from any request
+    # scope. The `refresh=1` query is now a no-op hint; cache
+    # freshness comes from the worker, not per-request regens.
+    _ = refresh  # kept as a hint flag for forward compatibility
 
     raw_articles = (cached or {}).get("articles") or _FALLBACK
     articles = [_enrich_article(a) for a in raw_articles]

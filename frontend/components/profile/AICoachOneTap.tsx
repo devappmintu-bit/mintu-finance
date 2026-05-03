@@ -69,9 +69,9 @@ export default function AICoachOneTap({ stats, score }: Props) {
 }
 
 const useStyles = makeStyles((c) => ({
-  card: { backgroundColor: c.bg.secondary, borderRadius: 18, padding: 16, borderWidth: 1, borderColor: c.border.subtle, marginBottom: 14 },
+  card: { backgroundColor: c.bg.secondary, borderRadius: 0, padding: 16, borderWidth: 1, borderColor: c.border.subtle, marginBottom: 14 },
   head: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 8 },
-  iconBubble: { width: 26, height: 26, borderRadius: 13, alignItems: 'center', justifyContent: 'center', backgroundColor: '#7C3AED1F' },
+  iconBubble: { width: 26, height: 26, borderRadius: 0, alignItems: 'center', justifyContent: 'center', backgroundColor: '#7C3AED1F' },
   label: { flex: 1, fontSize: 11, fontWeight: '800', color: c.accent.tertiary, letterSpacing: 0.5, textTransform: 'uppercase' },
   liveDot: { width: 6, height: 6, borderRadius: 3, backgroundColor: c.state.success },
   liveTxt: { fontSize: 9, fontWeight: '800', color: c.state.success, letterSpacing: 0.5 },

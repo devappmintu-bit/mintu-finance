@@ -130,29 +130,29 @@ const useStyles = makeStyles((c) => ({
   title: { fontSize: 20, fontWeight: '900', color: c.text.primary, letterSpacing: -0.3 },
   scroll: { padding: SPACING.lg, gap: 14 },
 
-  searchWrap: { flexDirection: 'row', alignItems: 'center', gap: 9, backgroundColor: c.bg.secondary, borderRadius: 14, paddingHorizontal: 14, borderWidth: 1, borderColor: c.border.subtle },
+  searchWrap: { flexDirection: 'row', alignItems: 'center', gap: 9, backgroundColor: c.bg.secondary, borderRadius: 0, paddingHorizontal: 14, borderWidth: 1, borderColor: c.border.subtle },
   searchInput: { flex: 1, paddingVertical: 12, fontSize: 14, color: c.text.primary },
 
-  aiCard: { flexDirection: 'row', alignItems: 'center', gap: 12, padding: 14, borderRadius: 16, backgroundColor: '#FFF7ED', borderWidth: 1, borderColor: '#FED7AA' },
-  aiIconBubble: { width: 40, height: 40, borderRadius: 20, backgroundColor: COLORS.accent.brandDark, alignItems: 'center', justifyContent: 'center' },
+  aiCard: { flexDirection: 'row', alignItems: 'center', gap: 12, padding: 14, borderRadius: 0, backgroundColor: '#FFF7ED', borderWidth: 1, borderColor: '#FED7AA' },
+  aiIconBubble: { width: 40, height: 40, borderRadius: 0, backgroundColor: COLORS.accent.brandDark, alignItems: 'center', justifyContent: 'center' },
   aiTitle: { fontSize: 14, fontWeight: '900', color: '#7A2E0A', letterSpacing: -0.2 },
   aiSub: { fontSize: 11.5, color: '#92400E', marginTop: 2, fontWeight: '600' },
 
   sectionLbl: { fontSize: 10.5, fontWeight: '900', color: c.text.muted, letterSpacing: 1, marginTop: 6, marginBottom: 2 },
 
-  faqCard: { backgroundColor: c.bg.secondary, borderRadius: 14, padding: 14, borderWidth: 1, borderColor: c.border.subtle },
+  faqCard: { backgroundColor: c.bg.secondary, borderRadius: 0, padding: 14, borderWidth: 1, borderColor: c.border.subtle },
   faqCardOpen: { borderColor: c.accent.primary + '60' },
   faqRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 10 },
   faqQ: { flex: 1, fontSize: 13.5, fontWeight: '800', color: c.text.primary },
   faqA: { fontSize: 12.5, color: c.text.secondary, marginTop: 8, lineHeight: 18, fontWeight: '500' },
 
-  emptyCard: { alignItems: 'center', padding: 24, gap: 8, backgroundColor: c.bg.secondary, borderRadius: 14, borderWidth: 1, borderColor: c.border.subtle },
+  emptyCard: { alignItems: 'center', padding: 24, gap: 8, backgroundColor: c.bg.secondary, borderRadius: 0, borderWidth: 1, borderColor: c.border.subtle },
   emptyT: { fontSize: 14, fontWeight: '800', color: c.text.primary },
   emptyS: { fontSize: 12, color: c.text.secondary, textAlign: 'center', fontWeight: '500' },
   emptyCTA: { marginTop: 6, paddingVertical: 10, paddingHorizontal: 20, borderRadius: 999, backgroundColor: c.accent.primary },
   emptyCTATxt: { fontSize: 13, fontWeight: '800', color: '#fff' },
 
   contactRow: { flexDirection: 'row', gap: 8, flexWrap: 'wrap' },
-  contactChip: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 5, paddingVertical: 11, paddingHorizontal: 10, borderRadius: 12, backgroundColor: c.bg.secondary, borderWidth: 1, borderColor: c.border.subtle, minWidth: 100 },
+  contactChip: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 5, paddingVertical: 11, paddingHorizontal: 10, borderRadius: 0, backgroundColor: c.bg.secondary, borderWidth: 1, borderColor: c.border.subtle, minWidth: 100 },
   contactTxt: { fontSize: 12, fontWeight: '800', color: c.text.primary },
 }));

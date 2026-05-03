@@ -132,13 +132,13 @@ const useStyles = makeStyles((c) => ({
   card: {
     width: CARD_WIDTH,
     backgroundColor: GLASS.solidBg,
-    borderRadius: 18, padding: 14,
+    borderRadius: 0, padding: 14,
     borderWidth: StyleSheet.hairlineWidth, borderColor: GLASS.borderLight,
     ...shadowStyle('#111827', 2, 10, 0.04, 3),
   },
   cardHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 },
   cardEmoji: { fontSize: 22 },
-  scorePill: { paddingHorizontal: 8, paddingVertical: 3, borderRadius: 8, borderWidth: 1 },
+  scorePill: { paddingHorizontal: 8, paddingVertical: 3, borderRadius: 0, borderWidth: 1 },
   scorePillTxt: { fontSize: 11, fontWeight: '800' },
 
   cardLabel: { fontSize: 14, fontWeight: '800', color: c.text.primary, letterSpacing: -0.2 },
@@ -149,6 +149,6 @@ const useStyles = makeStyles((c) => ({
 
   cardFooter: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 12 },
   impactTxt: { fontSize: 11, color: c.text.muted, fontWeight: '700', flex: 1 },
-  ctaChip: { flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: 8, paddingVertical: 4, borderRadius: 8 },
+  ctaChip: { flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: 8, paddingVertical: 4, borderRadius: 0 },
   ctaChipTxt: { color: '#FFFFFF', fontSize: 10, fontWeight: '800', letterSpacing: 0.2 },
 }));

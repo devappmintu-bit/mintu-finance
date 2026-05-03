@@ -16,7 +16,6 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
-import { LinearGradient } from 'expo-linear-gradient';
 import { router } from 'expo-router';
 import api from '../utils/api';
 import FullScreenLoader from '../components/FullScreenLoader';
@@ -105,7 +104,7 @@ export default function PremiumHubScreen() {
 
         {/* Active premium hero */}
         {isPremium && (
-          <LinearGradient colors={[COLORS.accent.brand, COLORS.accent.brandDark]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={s.activeHero}>
+          <View style={[s.activeHero, { backgroundColor: '#0A0A0A' }]}>
             <View style={s.activeHeroTop}>
               <View style={s.diamondBox}><Ionicons name="diamond" size={22} color={COLORS.accent.brand} /></View>
               <View style={{ flex: 1 }}>
@@ -119,7 +118,7 @@ export default function PremiumHubScreen() {
             <Text style={s.activeBody}>
               All {tools.length} premium tools are unlocked. Tap any tile to start.
             </Text>
-          </LinearGradient>
+          </View>
         )}
 
         {/* Tools grid */}
@@ -154,7 +153,7 @@ export default function PremiumHubScreen() {
 function LockedState({ onUnlock }: { onUnlock: () => void }) {
   const s = useStyles();
   return (
-    <LinearGradient colors={['#1F2937', '#0F172A']} style={s.lockedHero}>
+    <View style={[s.lockedHero, { backgroundColor: '#1F2937' }]}>
       <View style={s.lockBig}>
         <Ionicons name="lock-closed" size={34} color={COLORS.accent.brand} />
       </View>
@@ -164,13 +163,13 @@ function LockedState({ onUnlock }: { onUnlock: () => void }) {
         Subscription lives in your Profile — pay once, access forever.
       </Text>
       <TouchableOpacity activeOpacity={0.9} onPress={onUnlock} style={s.unlockBtn} testID="premium-hub-unlock">
-        <LinearGradient colors={[COLORS.accent.brand, COLORS.accent.brandDark]} style={s.unlockGrad}>
+        <View style={[s.unlockGrad, { backgroundColor: '#0A0A0A' }]}>
           <Ionicons name="lock-open" size={18} color="#fff" />
           <Text style={s.unlockTxt}>Go to Profile → Unlock</Text>
           <Ionicons name="arrow-forward" size={18} color="#fff" />
-        </LinearGradient>
+        </View>
       </TouchableOpacity>
-    </LinearGradient>
+    </View>
   );
 }
 
@@ -211,25 +210,25 @@ const useStyles = makeStyles((c) => ({
   bg: { flex: 1, backgroundColor: '#FAFAF9' },
 
   topbar: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingHorizontal: 14, paddingVertical: 12, backgroundColor: c.bg.elevated, borderBottomWidth: 1, borderBottomColor: c.gray[100] },
-  backBtn: { width: 36, height: 36, borderRadius: 18, backgroundColor: c.gray[100], alignItems: 'center', justifyContent: 'center' },
+  backBtn: { width: 36, height: 36, borderRadius: 0, backgroundColor: c.gray[100], alignItems: 'center', justifyContent: 'center' },
   topTitle: { fontSize: 17, fontWeight: '800', color: c.text.primary },
   topSub: { fontSize: 11, color: c.text.muted, marginTop: 1 },
   statusPill: { flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: 8, paddingVertical: 4, borderRadius: 999, borderWidth: 1 },
   statusTxt: { fontSize: 10, fontWeight: '800', letterSpacing: 0.5 },
 
   // Locked hero
-  lockedHero: { padding: 22, borderRadius: 18, alignItems: 'center', marginBottom: 20 },
-  lockBig: { width: 72, height: 72, borderRadius: 36, backgroundColor: 'rgba(245,110,30,0.18)', borderWidth: 2, borderColor: c.accent.brand, alignItems: 'center', justifyContent: 'center', marginBottom: 12 },
+  lockedHero: { padding: 22, borderRadius: 0, alignItems: 'center', marginBottom: 20 },
+  lockBig: { width: 72, height: 72, borderRadius: 0, backgroundColor: 'rgba(245,110,30,0.18)', borderWidth: 2, borderColor: c.accent.brand, alignItems: 'center', justifyContent: 'center', marginBottom: 12 },
   lockedTitle: { color: c.bg.elevated, fontSize: 18, fontWeight: '800', marginBottom: 6 },
   lockedBody: { color: c.gray[300], fontSize: 12.5, textAlign: 'center', lineHeight: 18, marginBottom: 18 },
-  unlockBtn: { width: '100%', borderRadius: 14, overflow: 'hidden' },
+  unlockBtn: { width: '100%', borderRadius: 0, overflow: 'hidden' },
   unlockGrad: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, paddingVertical: 13 },
   unlockTxt: { color: c.bg.elevated, fontSize: 14, fontWeight: '800' },
 
   // Active hero
-  activeHero: { padding: 16, borderRadius: 18, marginBottom: 18 },
+  activeHero: { padding: 16, borderRadius: 0, marginBottom: 18 },
   activeHeroTop: { flexDirection: 'row', alignItems: 'center', gap: 10 },
-  diamondBox: { width: 40, height: 40, borderRadius: 20, backgroundColor: c.bg.elevated, alignItems: 'center', justifyContent: 'center' },
+  diamondBox: { width: 40, height: 40, borderRadius: 0, backgroundColor: c.bg.elevated, alignItems: 'center', justifyContent: 'center' },
   activeTitle: { color: c.bg.elevated, fontSize: 16, fontWeight: '800' },
   activeSub: { color: '#FFE4CC', fontSize: 11, fontWeight: '700', marginTop: 2 },
   activeBody: { color: c.bg.elevated, fontSize: 12.5, marginTop: 10, opacity: 0.9 },
@@ -238,15 +237,15 @@ const useStyles = makeStyles((c) => ({
 
   // Grid
   grid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
-  tile: { width: '48%', backgroundColor: c.bg.elevated, borderRadius: 16, padding: 14, borderWidth: 1, borderColor: c.gray[100], position: 'relative', overflow: 'hidden', minHeight: 130 },
+  tile: { width: '48%', backgroundColor: c.bg.elevated, borderRadius: 0, padding: 14, borderWidth: 1, borderColor: c.gray[100], position: 'relative', overflow: 'hidden', minHeight: 130 },
   tileLocked: { backgroundColor: '#FAFAF9', borderColor: c.gray[200] },
-  tileIcon: { width: 40, height: 40, borderRadius: 20, alignItems: 'center', justifyContent: 'center', marginBottom: 8 },
+  tileIcon: { width: 40, height: 40, borderRadius: 0, alignItems: 'center', justifyContent: 'center', marginBottom: 8 },
   tileTitle: { fontSize: 13.5, fontWeight: '800', color: c.text.primary, marginBottom: 4 },
   tileDesc: { fontSize: 11, color: c.text.muted, lineHeight: 15 },
-  tileBadge: { position: 'absolute', top: 8, right: 8, paddingHorizontal: 6, paddingVertical: 2, borderRadius: 6 },
+  tileBadge: { position: 'absolute', top: 8, right: 8, paddingHorizontal: 6, paddingVertical: 2, borderRadius: 0 },
   tileBadgeTxt: { color: c.bg.elevated, fontSize: 9, fontWeight: '800', letterSpacing: 0.5 },
-  lockOverlay: { position: 'absolute', top: 8, right: 8, width: 26, height: 26, borderRadius: 13, backgroundColor: '#FFFFFFE0', borderWidth: 1, borderColor: c.gray[200], alignItems: 'center', justifyContent: 'center' },
+  lockOverlay: { position: 'absolute', top: 8, right: 8, width: 26, height: 26, borderRadius: 0, backgroundColor: '#FFFFFFE0', borderWidth: 1, borderColor: c.gray[200], alignItems: 'center', justifyContent: 'center' },
 
-  perkStrip: { flexDirection: 'row', alignItems: 'center', gap: 10, marginTop: 16, padding: 12, borderRadius: 12, backgroundColor: '#F0FDF4', borderWidth: 1, borderColor: '#D1FAE5' },
+  perkStrip: { flexDirection: 'row', alignItems: 'center', gap: 10, marginTop: 16, padding: 12, borderRadius: 0, backgroundColor: '#F0FDF4', borderWidth: 1, borderColor: '#D1FAE5' },
   perkStripTxt: { flex: 1, fontSize: 11.5, color: '#065F46', fontWeight: '600', lineHeight: 16 },
 }));

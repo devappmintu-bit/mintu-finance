@@ -81,7 +81,7 @@ const styles = StyleSheet.create({
     marginBottom: 4,
     paddingVertical: 12,
     paddingHorizontal: 14,
-    borderRadius: 14,
+    borderRadius: 0,
     borderWidth: 1,
   },
   pending: {

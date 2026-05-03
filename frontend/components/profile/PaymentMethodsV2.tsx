@@ -149,10 +149,40 @@ export default function PaymentMethodsV2() {
           {loading ? (
             <ActivityIndicator color={COLORS.accent.primary} />
           ) : methods.length === 0 ? (
-            <View style={s.empty}>
-              <Ionicons name="card-outline" size={36} color={COLORS.text.muted} />
-              <Text style={s.emptyT}>No payment methods yet</Text>
-              <Text style={s.emptyS}>Add one to pay friends from Split, unlock Premium, or redeem coins instantly.</Text>
+            /* CRED-style smart empty (v9 master §Payments) — brutalist dashed
+               call-to-action tile with concrete unlock copy, followed by an
+               inline trust strip. */
+            <View>
+              <View style={{
+                borderWidth: 2, borderStyle: 'dashed', borderColor: '#0A0A0A',
+                padding: 20, alignItems: 'flex-start', backgroundColor: '#FFFBEE',
+              }}>
+                <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                  <View style={{
+                    width: 36, height: 36,
+                    borderWidth: 2, borderColor: '#0A0A0A',
+                    backgroundColor: '#E84A0C',
+                    alignItems: 'center', justifyContent: 'center',
+                  }}>
+                    <Ionicons name="flash" size={18} color="#fff" />
+                  </View>
+                  <View style={{ marginLeft: 12, flex: 1 }}>
+                    <Text style={{ fontSize: 14, fontWeight: '900', color: '#0A0A0A' }}>
+                      No payment method yet
+                    </Text>
+                    <Text style={{ fontSize: 12, color: '#1F1F1F', marginTop: 2 }}>
+                      Add UPI to unlock instant payments, Split balances & Pro checkout.
+                    </Text>
+                  </View>
+                </View>
+              </View>
+              {/* Inline trust strip — light, not loud */}
+              <Text style={{
+                marginTop: 10, fontSize: 10, fontWeight: '600',
+                letterSpacing: 0.8, color: '#6B6B6B', textAlign: 'center',
+              }}>
+                ✓ RBI-aligned · ✓ 256-bit encrypted · ✓ Data in India
+              </Text>
             </View>
           ) : (
             <View style={{ gap: 8 }}>
@@ -464,24 +494,24 @@ function AddMethodModal({ visible, onClose, onSaved }: { visible: boolean; onClo
 }
 
 const useSStyles = makeStyles((c) => ({
-  card: { backgroundColor: 'rgba(255,255,255,0.92)', borderRadius: 20, padding: 14, marginBottom: 14, borderWidth: 1, borderColor: 'rgba(238,221,204,0.6)', ...shadowStyle('#2E1F1A', 2, 10, 0.04, 2) },
+  card: { backgroundColor: 'rgba(255,255,255,0.92)', borderRadius: 0, padding: 14, marginBottom: 14, borderWidth: 1, borderColor: 'rgba(238,221,204,0.6)', ...shadowStyle('#2E1F1A', 2, 10, 0.04, 2) },
   header: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 4 },
-  iconBox: { width: 40, height: 40, borderRadius: 12, backgroundColor: c.accent.primary + '15', justifyContent: 'center', alignItems: 'center' },
+  iconBox: { width: 40, height: 40, borderRadius: 0, backgroundColor: c.accent.primary + '15', justifyContent: 'center', alignItems: 'center' },
   title: { fontSize: 16, fontWeight: '800', color: c.text.primary },
   sub: { fontSize: 12, color: c.text.muted, marginTop: 2 },
   body: { marginTop: 14, gap: 10 },
   empty: { alignItems: 'center', paddingVertical: 16 },
   emptyT: { fontSize: 13, fontWeight: '800', color: c.text.primary, marginTop: 8 },
   emptyS: { fontSize: 11.5, color: c.text.secondary, textAlign: 'center', marginTop: 4, lineHeight: 16 },
-  row: { flexDirection: 'column', gap: 8, padding: 12, borderRadius: 14, backgroundColor: c.bg.primary, borderWidth: 1, borderColor: c.border.subtle },
+  row: { flexDirection: 'column', gap: 8, padding: 12, borderRadius: 0, backgroundColor: c.bg.primary, borderWidth: 1, borderColor: c.border.subtle },
   rowMain: { flexDirection: 'row', alignItems: 'center', gap: 10 },
   rowDefault: { borderColor: c.accent.primary + '60', backgroundColor: c.accent.brandSoft },
-  rowIcon: { width: 34, height: 34, borderRadius: 10, alignItems: 'center', justifyContent: 'center' },
+  rowIcon: { width: 34, height: 34, borderRadius: 0, alignItems: 'center', justifyContent: 'center' },
   rowLabel: { fontSize: 13.5, fontWeight: '800', color: c.text.primary },
   rowSub: { fontSize: 11, color: c.text.muted, marginTop: 2 },
   defaultPill: { flexDirection: 'row', alignItems: 'center', gap: 3, backgroundColor: c.accent.primary, paddingHorizontal: 8, paddingVertical: 4, borderRadius: 999 },
   defaultPillT: { fontSize: 10, fontWeight: '900', color: c.bg.elevated },
-  setDefaultBtn: { paddingHorizontal: 8, paddingVertical: 5, borderRadius: 8, backgroundColor: c.accent.primary + '15' },
+  setDefaultBtn: { paddingHorizontal: 8, paddingVertical: 5, borderRadius: 0, backgroundColor: c.accent.primary + '15' },
   setDefaultT: { fontSize: 10.5, fontWeight: '800', color: c.accent.primary },
   delBtn: { padding: 6 },
   // Smart Status row (Round 26)
@@ -492,13 +522,13 @@ const useSStyles = makeStyles((c) => ({
   healthCta: { flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: 10, paddingVertical: 5, borderRadius: 999, backgroundColor: c.accent.primary + '15', borderWidth: 1, borderColor: c.accent.primary + '50', minHeight: 26 },
   healthCtaDanger: { backgroundColor: c.state.danger, borderColor: c.state.danger },
   healthCtaT: { fontSize: 10.5, fontWeight: '800', color: c.accent.primary, letterSpacing: 0.1 },
-  addBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, backgroundColor: c.accent.primary, paddingVertical: 12, borderRadius: 12, marginTop: 6 },
+  addBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, backgroundColor: c.accent.primary, paddingVertical: 12, borderRadius: 0, marginTop: 6 },
   addBtnT: { color: c.bg.elevated, fontWeight: '800', fontSize: 13, letterSpacing: 0.2 },
 }));
 
 const useMStyles = makeStyles((c) => ({
   backdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.45)', justifyContent: 'flex-end' },
-  sheet: { backgroundColor: GLASS.solidBg, borderTopLeftRadius: 24, borderTopRightRadius: 24, borderTopWidth: StyleSheet.hairlineWidth, borderColor: GLASS.borderLight, padding: 20, paddingBottom: 28 },
+  sheet: { backgroundColor: GLASS.solidBg, borderTopLeftRadius: 0, borderTopRightRadius: 0, borderTopWidth: StyleSheet.hairlineWidth, borderColor: GLASS.borderLight, padding: 20, paddingBottom: 28 },
   grip: { width: 40, height: 4, borderRadius: 2, backgroundColor: c.border.subtle, alignSelf: 'center', marginBottom: 12 },
   title: { fontSize: 18, fontWeight: '900', color: c.text.primary, marginBottom: 4 },
   subtitle: { fontSize: 12, color: c.text.secondary, marginBottom: 10, fontWeight: '600' },
@@ -507,7 +537,7 @@ const useMStyles = makeStyles((c) => ({
   trustBadge: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: 4, paddingVertical: 6, paddingHorizontal: 8, borderRadius: 999, backgroundColor: c.state.successBg, borderWidth: 1, borderColor: c.state.successBorder },
   trustTxt: { fontSize: 9.5, fontWeight: '800', color: c.state.success, letterSpacing: 0.1 },
   // Inline UPI validation
-  inputWrap: { flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: c.bg.primary, borderRadius: 10, paddingHorizontal: 12, borderWidth: 1, borderColor: c.border.subtle },
+  inputWrap: { flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: c.bg.primary, borderRadius: 0, paddingHorizontal: 12, borderWidth: 1, borderColor: c.border.subtle },
   inputWrapValid: { borderColor: c.state.success, borderWidth: 1.5 },
   inputWrapInvalid: { borderColor: c.accent.warning, borderWidth: 1.5 },
   inputInline: { flex: 1, paddingVertical: 11, fontSize: 14, color: c.text.primary },
@@ -515,25 +545,25 @@ const useMStyles = makeStyles((c) => ({
   // Success state on save button
   btnSuccess: { backgroundColor: c.state.success, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6 },
   typeRow: { flexDirection: 'row', gap: 8, marginBottom: 12 },
-  typeChip: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 5, paddingVertical: 9, borderRadius: 10, backgroundColor: c.bg.primary, borderWidth: 1, borderColor: c.border.subtle },
+  typeChip: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 5, paddingVertical: 9, borderRadius: 0, backgroundColor: c.bg.primary, borderWidth: 1, borderColor: c.border.subtle },
   typeChipOn: { backgroundColor: c.accent.primary, borderColor: c.accent.primary },
   typeChipT: { fontSize: 12, fontWeight: '800', color: c.text.primary },
   typeChipTOn: { color: '#FFFFFF' },
   rowWrap: { flexDirection: 'row', gap: 10 },
   field: { marginBottom: 12 },
   label: { fontSize: 11, fontWeight: '800', color: c.text.muted, textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 5 },
-  input: { backgroundColor: c.bg.primary, borderRadius: 10, paddingHorizontal: 12, paddingVertical: 11, fontSize: 14, color: c.text.primary, borderWidth: 1, borderColor: c.border.subtle },
+  input: { backgroundColor: c.bg.primary, borderRadius: 0, paddingHorizontal: 12, paddingVertical: 11, fontSize: 14, color: c.text.primary, borderWidth: 1, borderColor: c.border.subtle },
   chipRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 6 },
   miniChip: { paddingHorizontal: 10, paddingVertical: 6, borderRadius: 999, backgroundColor: c.bg.primary, borderWidth: 1, borderColor: c.border.subtle },
   miniChipOn: { backgroundColor: c.accent.primary, borderColor: c.accent.primary },
   miniChipT: { fontSize: 11, fontWeight: '800', color: c.text.secondary },
   miniChipTOn: { color: '#FFFFFF' },
   defaultRow: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 6 },
-  cbox: { width: 20, height: 20, borderRadius: 5, borderWidth: 1.5, borderColor: c.border.subtle, alignItems: 'center', justifyContent: 'center' },
+  cbox: { width: 20, height: 20, borderRadius: 0, borderWidth: 1.5, borderColor: c.border.subtle, alignItems: 'center', justifyContent: 'center' },
   cboxOn: { backgroundColor: c.accent.primary, borderColor: c.accent.primary },
   defaultT: { fontSize: 12.5, color: c.text.primary, fontWeight: '700' },
   actions: { flexDirection: 'row', gap: 10, marginTop: 16 },
-  btn: { flex: 1, paddingVertical: 12, borderRadius: 12, alignItems: 'center' },
+  btn: { flex: 1, paddingVertical: 12, borderRadius: 0, alignItems: 'center' },
   btnGhost: { backgroundColor: c.bg.primary, borderWidth: 1, borderColor: c.border.subtle },
   btnPrimary: { backgroundColor: c.accent.primary },
   btnT: { fontSize: 14, fontWeight: '800' },

@@ -328,7 +328,7 @@ function CoinPill({
 const useStyles = makeStyles((c) => ({
   card: {
     backgroundColor: c.bg.secondary,
-    borderRadius: 16,
+    borderRadius: 0,
     borderWidth: 1,
     borderColor: c.border.subtle,
     marginBottom: 14,
@@ -361,7 +361,7 @@ const useStyles = makeStyles((c) => ({
     paddingVertical: 10,
     paddingHorizontal: 10,
     backgroundColor: c.bg.primary,
-    borderRadius: 12,
+    borderRadius: 0,
     marginBottom: 14,
   },
   statItem: { alignItems: 'center', flex: 1 },
@@ -376,7 +376,7 @@ const useStyles = makeStyles((c) => ({
   freezeRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingVertical: 4 },
   freezeGrid: { flexDirection: 'row', gap: 6 },
   freezeChip: {
-    width: 36, height: 36, borderRadius: 10,
+    width: 36, height: 36, borderRadius: 0,
     alignItems: 'center', justifyContent: 'center',
     borderWidth: 1,
   },
@@ -387,7 +387,7 @@ const useStyles = makeStyles((c) => ({
 
   premiumCta: {
     flexDirection: 'row', alignItems: 'center', gap: 10,
-    padding: 12, borderRadius: 12,
+    padding: 12, borderRadius: 0,
     backgroundColor: 'rgba(245, 110, 30, 0.08)',
     borderWidth: 1, borderColor: 'rgba(245, 110, 30, 0.2)',
   },
@@ -400,7 +400,7 @@ const useStyles = makeStyles((c) => ({
     minWidth: '30%',
     flexGrow: 1,
     backgroundColor: c.bg.primary,
-    borderRadius: 10,
+    borderRadius: 0,
     paddingHorizontal: 10,
     paddingVertical: 8,
     borderWidth: 1,
@@ -417,7 +417,7 @@ const useStyles = makeStyles((c) => ({
   milestoneItem: {
     flex: 1, alignItems: 'center',
     backgroundColor: c.bg.primary,
-    borderRadius: 12, padding: 10,
+    borderRadius: 0, padding: 10,
     borderWidth: 1, borderColor: c.border.subtle,
   },
   milestoneEmoji: { fontSize: 22 },

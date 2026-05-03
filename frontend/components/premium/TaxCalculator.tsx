@@ -2,7 +2,6 @@
 import React, { useState } from 'react';
 import { View, Text, ScrollView, TouchableOpacity, TextInput, ActivityIndicator } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { LinearGradient } from 'expo-linear-gradient';
 import Toast from 'react-native-toast-message';
 import api from '../../utils/api';
 import { COLORS } from '../../utils/theme';
@@ -52,14 +51,14 @@ export default function TaxCalculator() {
         <Text style={styles.label}>HRA Exemption · Old regime only</Text>
         <TextInput style={styles.input} value={hra} onChangeText={setHra} keyboardType="numeric" placeholder="Monthly × 12" placeholderTextColor={COLORS.text.muted} />
         <TouchableOpacity style={styles.primaryBtn} onPress={calculate} disabled={loading} activeOpacity={0.85}>
-          <LinearGradient colors={[COLORS.accent.primaryLight, COLORS.accent.primary]} style={styles.primaryBtnGrad}>
+          <View style={[styles.primaryBtnGrad, { backgroundColor: '#0A0A0A' }]}>
             {loading ? <ActivityIndicator color="#fff" /> : (
               <>
                 <Ionicons name="calculator" size={18} color="#fff" />
                 <Text style={styles.primaryBtnText}>Calculate Tax</Text>
               </>
             )}
-          </LinearGradient>
+          </View>
         </TouchableOpacity>
       </View>
 

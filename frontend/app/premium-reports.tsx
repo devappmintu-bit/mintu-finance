@@ -21,7 +21,6 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
-import { LinearGradient } from 'expo-linear-gradient';
 import { PieChart, BarChart } from 'react-native-gifted-charts';
 import * as Print from 'expo-print';
 import * as Sharing from 'expo-sharing';
@@ -223,9 +222,9 @@ export default function PremiumReportsScreen() {
             <Ionicons name="lock-closed" size={32} color={COLORS.accent.brand} />
             <Text style={s.errTitle}>{err}</Text>
             <TouchableOpacity style={s.ctaBtn} onPress={() => router.replace('/premium' as any)}>
-              <LinearGradient colors={[COLORS.accent.brand, COLORS.accent.brandDark]} style={s.ctaGrad}>
+              <View style={[s.ctaGrad, { backgroundColor: '#0A0A0A' }]}>
                 <Text style={s.ctaText}>Start saving today</Text>
-              </LinearGradient>
+              </View>
             </TouchableOpacity>
           </View>
         )}
@@ -387,33 +386,33 @@ function TableHeader({ cols }: { cols: string[] }) {
 const useStyles = makeStyles((c) => ({
   bg: { flex: 1, backgroundColor: '#FAFAF9' },
   topbar: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingHorizontal: 14, paddingVertical: 12, backgroundColor: c.bg.elevated, borderBottomWidth: 1, borderBottomColor: c.gray[100] },
-  backBtn: { width: 36, height: 36, borderRadius: 18, backgroundColor: c.gray[100], alignItems: 'center', justifyContent: 'center' },
-  iconBtn: { width: 36, height: 36, borderRadius: 18, backgroundColor: '#FEF3C7', alignItems: 'center', justifyContent: 'center' },
+  backBtn: { width: 36, height: 36, borderRadius: 0, backgroundColor: c.gray[100], alignItems: 'center', justifyContent: 'center' },
+  iconBtn: { width: 36, height: 36, borderRadius: 0, backgroundColor: '#FEF3C7', alignItems: 'center', justifyContent: 'center' },
   topTitle: { fontSize: 17, fontWeight: '800', color: c.text.primary },
   topSub: { fontSize: 11, color: '#9A5B1C', fontWeight: '600', marginTop: 1 },
 
   chipsRow: { flexDirection: 'row', gap: 8, paddingHorizontal: 14, paddingVertical: 10, backgroundColor: c.bg.elevated, borderBottomWidth: 1, borderBottomColor: c.gray[100] },
-  chip: { paddingHorizontal: 14, paddingVertical: 6, borderRadius: 20, backgroundColor: c.gray[100] },
+  chip: { paddingHorizontal: 14, paddingVertical: 6, borderRadius: 0, backgroundColor: c.gray[100] },
   chipOn: { backgroundColor: c.accent.brand },
   chipTxt: { fontSize: 12, fontWeight: '700', color: c.text.muted },
   chipTxtOn: { color: c.bg.elevated },
 
-  summaryCard: { backgroundColor: c.text.primary, borderRadius: 16, padding: 14, marginBottom: 14 },
+  summaryCard: { backgroundColor: c.text.primary, borderRadius: 0, padding: 14, marginBottom: 14 },
   sumHeader: { flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 8 },
   sumTitle: { color: '#FBBF24', fontSize: 11, fontWeight: '800', textTransform: 'uppercase', letterSpacing: 0.5 },
   sumBody: { color: c.gray[50], fontSize: 13, lineHeight: 19 },
 
   kpiGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 14 },
-  kpi: { width: '48%', padding: 10, borderRadius: 12, backgroundColor: c.bg.elevated, borderWidth: 1, position: 'relative', overflow: 'hidden' },
+  kpi: { width: '48%', padding: 10, borderRadius: 0, backgroundColor: c.bg.elevated, borderWidth: 1, position: 'relative', overflow: 'hidden' },
   kpiBar: { position: 'absolute', left: 0, top: 0, bottom: 0, width: 4 },
   kpiLbl: { fontSize: 11, color: c.text.muted, fontWeight: '700', textTransform: 'uppercase', letterSpacing: 0.3, marginLeft: 4 },
   kpiVal: { fontSize: 18, fontWeight: '800', marginTop: 2, marginLeft: 4 },
 
-  card: { backgroundColor: c.bg.elevated, borderRadius: 16, padding: 14, marginBottom: 14, borderWidth: 1, borderColor: c.gray[100] },
+  card: { backgroundColor: c.bg.elevated, borderRadius: 0, padding: 14, marginBottom: 14, borderWidth: 1, borderColor: c.gray[100] },
   cardTitle: { fontSize: 13, fontWeight: '800', color: c.text.primary, letterSpacing: 0.2 },
 
   legendRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', marginTop: 6 },
-  legendDot: { width: 10, height: 10, borderRadius: 5 },
+  legendDot: { width: 10, height: 10, borderRadius: 0 },
   legendTxt: { marginLeft: 6, fontSize: 11, color: c.text.muted, fontWeight: '600' },
 
   thRow: { flexDirection: 'row', alignItems: 'center', paddingVertical: 6, borderBottomWidth: 1, borderBottomColor: c.gray[100], marginTop: 10 },
@@ -421,16 +420,16 @@ const useStyles = makeStyles((c) => ({
   tr: { flexDirection: 'row', alignItems: 'center', paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: c.gray[50] },
   td: { fontSize: 13, color: c.text.primary, flex: 1 },
   tdRight: { textAlign: 'right' },
-  pctDot: { width: 10, height: 10, borderRadius: 5, marginRight: 8 },
+  pctDot: { width: 10, height: 10, borderRadius: 0, marginRight: 8 },
 
-  projectionBox: { flex: 1, padding: 12, borderRadius: 12, borderWidth: 1 },
+  projectionBox: { flex: 1, padding: 12, borderRadius: 0, borderWidth: 1 },
   projLbl: { fontSize: 11, color: c.text.muted, fontWeight: '700', textTransform: 'uppercase', letterSpacing: 0.3 },
   projVal: { fontSize: 18, fontWeight: '800', marginTop: 4 },
   momBox: { flexDirection: 'row', gap: 8, alignItems: 'center', paddingVertical: 10, marginTop: 6, borderTopWidth: 1, borderTopColor: c.gray[100] },
   momTxt: { fontSize: 12, color: '#374151' },
 
   ctaRow: { flexDirection: 'row', gap: 10, marginTop: 6, marginBottom: 20 },
-  actionBtn: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, paddingVertical: 14, borderRadius: 14 },
+  actionBtn: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, paddingVertical: 14, borderRadius: 0 },
   actionTxt: { fontWeight: '800', fontSize: 14, color: c.text.primary },
 
   errBox: { alignItems: 'center', paddingVertical: 50, paddingHorizontal: 20 },

@@ -190,56 +190,73 @@ ALERTS DETECTED:
 
 Generate personalized insights based on this data."""
 
-        chat = LlmChat(
-            api_key=os.environ['EMERGENT_LLM_KEY'],
-            session_id=f"insights_v2_{user_id}_{now.timestamp()}",
-            system_message=system_prompt,
-        ).with_model("openai", "gpt-5.2")
-        # Round 62 — global LLM-call timeout. The legacy unbounded
-        # send_message was the smoking gun behind the 30-57 s
-        # `/api/profile/identity` and `/api/rewards/summary` traces
-        # we saw in production access logs.
-        response = await safe_send(
-            chat,
-            UserMessage(text=user_prompt),
-            timeout=10.0,    # generous — heavy synthesis, ~6s P99
-            label="generate_insights",
-        )
-        if response is None:
-            # Fall back to a minimal "soft" insights payload so the UI
-            # still renders something useful instead of erroring out.
+        # Round 70 — Migrated to llm_cache.get_or_regen so the request
+        # path NEVER blocks waiting for the LLM. The LLM call now runs
+        # as a fire-and-forget background regen; cold callers get the
+        # deterministic fallback (still derived from local stats),
+        # subsequent calls get the LLM-enriched copy.
+        cache_key = f"insights_v2:{user_id}:{now.strftime('%Y-W%U')}"
+        # Per-week key — insights regenerate every Monday automatically.
+
+        soft_fallback = {
+            "insight_text": "Keep tracking your expenses.",
+            "weekly_summary": "",
+            "recommendations": [
+                "Track all your expenses",
+                "Set category budgets",
+                "Review spending weekly",
+            ],
+            "savings_tip": "",
+            "mood": "good",
+        }
+
+        async def _compute():
+            chat = LlmChat(
+                api_key=os.environ['EMERGENT_LLM_KEY'],
+                session_id=f"insights_v2_{user_id}_{now.timestamp()}",
+                system_message=system_prompt,
+            ).with_model("openai", "gpt-5.2")
+            resp = await safe_send(
+                chat,
+                UserMessage(text=user_prompt),
+                timeout=10.0,
+                label="generate_insights",
+            )
+            if resp is None:
+                return None
+            response_text = resp.strip()
+            if response_text.startswith("```"):
+                parts = response_text.split("```")
+                response_text = parts[1] if len(parts) > 1 else parts[0]
+                if response_text.startswith("json"):
+                    response_text = response_text[4:]
+            response_text = response_text.strip()
+            try:
+                parsed = _json.loads(response_text)
+            except Exception:
+                return None
             return {
-                "insight_text": "Keep tracking your expenses.",
-                "weekly_summary": "",
-                "recommendations": [
-                    "Track all your expenses",
-                    "Set category budgets",
-                    "Review spending weekly",
-                ],
-                "savings_tip": "",
-                "mood": "good",
-                "alerts": alerts,
-                "trends": {},
+                "insight_text": parsed.get("daily_insight", "Keep tracking your expenses!"),
+                "weekly_summary": parsed.get("weekly_summary", ""),
+                "recommendations": parsed.get("recommendations", soft_fallback["recommendations"]),
+                "savings_tip": parsed.get("savings_tip", ""),
+                "mood": parsed.get("mood", "good"),
             }
 
-        response_text = response.strip()
-        if response_text.startswith("```"):
-            parts = response_text.split("```")
-            response_text = parts[1] if len(parts) > 1 else parts[0]
-            if response_text.startswith("json"):
-                response_text = response_text[4:]
-        response_text = response_text.strip()
+        from core.llm_cache import get_or_regen
+        cached = await get_or_regen(
+            key=cache_key,
+            compute_fn=_compute,
+            ttl_fresh=86400,           # 1 day fresh — weekly insights move slowly
+            ttl_stale=14 * 86400,
+            fallback=soft_fallback,
+        )
 
-        parsed = _json.loads(response_text)
-
+        # Locally-computed alerts/trends are merged with the cached
+        # LLM-derived dict so today's budget alerts always reflect
+        # current state even if the cached insights are from yesterday.
         return {
-            "insight_text": parsed.get("daily_insight", "Keep tracking your expenses!"),
-            "weekly_summary": parsed.get("weekly_summary", ""),
-            "recommendations": parsed.get("recommendations", [
-                "Track all your expenses", "Set category budgets", "Review spending weekly"
-            ]),
-            "savings_tip": parsed.get("savings_tip", ""),
-            "mood": parsed.get("mood", "good"),
+            **cached,
             "alerts": alerts,
             "trends": {
                 "this_week_total": this_week_total,

@@ -15,8 +15,11 @@ The endpoint registers on a fresh `router` that server.py includes alongside
 analytics. No URL paths change.
 """
 import asyncio
+import logging
 from datetime import datetime, timezone
 from fastapi import APIRouter, Depends
+
+log = logging.getLogger(__name__)
 
 from core import db, get_current_user
 from core.cache import cache_get, cache_set
@@ -113,10 +116,73 @@ async def home_bundle(lang: str = "en", user_id: str = Depends(get_current_user)
             out.append(t)
         return out
 
+    async def _peer_mom():
+        """Compute v10 peer-benchmark and month-over-month insights.
+
+        Returns { peer: {median_spend, score_percentile}, mom: {current_spend, previous_spend, delta_pct} }
+        Kept fast — two aggregation pipelines with tight indexes.
+        """
+        try:
+            now = utc_now()
+            cm_start = now.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+            # Previous month boundaries
+            if cm_start.month == 1:
+                pm_start = cm_start.replace(year=cm_start.year - 1, month=12)
+            else:
+                pm_start = cm_start.replace(month=cm_start.month - 1)
+
+            # Current + previous month spend for THIS user (debit only)
+            pipe = [
+                {"$match": {"user_id": user_id, "type": {"$ne": "credit"}, "date": {"$gte": pm_start}}},
+                {"$project": {"amount": 1, "period": {"$cond": [{"$gte": ["$date", cm_start]}, "cur", "prev"]}}},
+                {"$group": {"_id": "$period", "total": {"$sum": "$amount"}}},
+            ]
+            sums = {row["_id"]: float(row.get("total") or 0) async for row in db.transactions.aggregate(pipe)}
+            cur_spend = sums.get("cur", 0)
+            prev_spend = sums.get("prev", 0)
+            delta_pct = round(((cur_spend - prev_spend) / prev_spend) * 100) if prev_spend > 0 else 0
+
+            # Peer median — median spend of other users this month (last 60 users, debit only).
+            # Cheap approximation: sample 60 most-active users this month.
+            peer_pipe = [
+                {"$match": {"type": {"$ne": "credit"}, "date": {"$gte": cm_start}, "user_id": {"$ne": user_id}}},
+                {"$group": {"_id": "$user_id", "total": {"$sum": "$amount"}}},
+                {"$sort": {"total": -1}},
+                {"$limit": 60},
+            ]
+            totals = [float(r.get("total") or 0) async for r in db.transactions.aggregate(peer_pipe)]
+            peer_median = 0
+            if totals:
+                totals.sort()
+                mid = len(totals) // 2
+                peer_median = int(totals[mid] if len(totals) % 2 else (totals[mid - 1] + totals[mid]) / 2)
+
+            # Score percentile — use user's current score vs leaderboard.
+            score_pct = 0
+            try:
+                udoc = await db.users.find_one({"_id": user_id}, {"money_score": 1})
+                if udoc:
+                    my_score = int(udoc.get("money_score") or 0)
+                    rank_cnt = await db.users.count_documents({"money_score": {"$gt": my_score}})
+                    total = await db.users.count_documents({})
+                    if total > 0:
+                        score_pct = round(((total - rank_cnt) / total) * 100)
+            except Exception:
+                pass
+
+            return {
+                "peer": {"median_spend": peer_median, "score_percentile": score_pct},
+                "mom":  {"current_spend": int(cur_spend), "previous_spend": int(prev_spend), "delta_pct": delta_pct},
+            }
+        except Exception as exc:
+            log.warning("peer_mom compute failed: %s", exc)
+            return {"peer": {}, "mom": {}}
+
     (
         user, stats, recent_txns, avatar, snapshot,
         alerts, weekly_rep, lb, game,
         cotd, fomo, pred, coins,
+        peer_mom,
     ) = await asyncio.gather(
         # Mongo-only slices — fast, tight budget.
         _safe(get_user_profile(user_id=user_id)),
@@ -134,6 +200,8 @@ async def home_bundle(lang: str = "en", user_id: str = Depends(get_current_user)
         _safe(fomo_feed(user_id=user_id),                            budget=_BUDGET_LLM),
         _safe(ai_predict(user_id=user_id),                           budget=_BUDGET_LLM),
         _safe(coins_status(user_id=user_id),                         budget=_BUDGET_FAST),
+        # v10 — peer benchmark + month-over-month (fast, Mongo only).
+        _safe(_peer_mom()),
     )
 
     bundle = {
@@ -150,6 +218,8 @@ async def home_bundle(lang: str = "en", user_id: str = Depends(get_current_user)
         "fomo_feed": fomo,
         "ai_predict": pred,
         "coins": coins,
+        # v10 insights — consumed by financialContext + ai_context peer/mom modes.
+        "insights": peer_mom or {"peer": {}, "mom": {}},
         "cached_at": utc_now().isoformat(),
         "cache_ttl_s": 25,
     }

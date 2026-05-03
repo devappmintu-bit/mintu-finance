@@ -58,7 +58,7 @@ const useStyles = makeStyles((c) => ({
   glowCircle: { position: 'absolute', width: 300, height: 300, borderRadius: 150, backgroundColor: c.accent.secondary, opacity: 0.08 },
   logoContainer: { alignItems: 'center' },
   logoIcon: {
-    width: 96, height: 96, borderRadius: 32, backgroundColor: c.accent.primary,
+    width: 96, height: 96, borderRadius: 0, backgroundColor: c.accent.primary,
     justifyContent: 'center', alignItems: 'center', marginBottom: 20,
     ...shadowStyle(c.accent.primary, 8, 20, 0.3, 12),
   },

@@ -82,7 +82,7 @@ export default function PremiumConversionFunnel({ isPro }: Props) {
 }
 
 const s = StyleSheet.create({
-  card: { backgroundColor: '#0F172A', borderRadius: 20, padding: 18, borderWidth: 1, borderColor: '#1E293B', marginBottom: 16, overflow: 'hidden' },
+  card: { backgroundColor: '#0F172A', borderRadius: 0, padding: 18, borderWidth: 1, borderColor: '#1E293B', marginBottom: 16, overflow: 'hidden' },
   topRow: { flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between' },
   badgeRow: { flexDirection: 'row', gap: 6 },
   proBadge: { backgroundColor: '#FCD34D', paddingHorizontal: 8, paddingVertical: 3, borderRadius: 999 },
@@ -93,23 +93,23 @@ const s = StyleSheet.create({
   price: { fontSize: 20, fontWeight: '900', color: '#FFFFFF' },
   priceSub: { fontSize: 12, fontWeight: '600', color: COLORS.text.muted },
 
-  roiBanner: { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 14, padding: 10, borderRadius: 12, backgroundColor: '#10B98114', borderWidth: 1, borderColor: '#10B98133' },
+  roiBanner: { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 14, padding: 10, borderRadius: 0, backgroundColor: '#10B98114', borderWidth: 1, borderColor: '#10B98133' },
   roiTxt: { flex: 1, fontSize: 12, fontWeight: '600', color: '#D1FAE5' },
   roiBold: { fontWeight: '900', color: '#34D399' },
 
   features: { marginTop: 14, gap: 10 },
   feature: { flexDirection: 'row', alignItems: 'center', gap: 10 },
-  featIcon: { width: 34, height: 34, borderRadius: 10, backgroundColor: '#1E293B', alignItems: 'center', justifyContent: 'center' },
+  featIcon: { width: 34, height: 34, borderRadius: 0, backgroundColor: '#1E293B', alignItems: 'center', justifyContent: 'center' },
   featTitleRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
   featTitle: { fontSize: 13, fontWeight: '700', color: '#FFFFFF' },
   featBlur: { fontSize: 11, fontWeight: '500', color: COLORS.text.muted, marginTop: 1, opacity: 0.7 },
 
   social: { flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 14, paddingTop: 12, borderTopWidth: 1, borderTopColor: '#1E293B' },
   avatars: { width: 60, height: 18, position: 'relative' },
-  avatarDot: { position: 'absolute', top: 0, width: 18, height: 18, borderRadius: 9, borderWidth: 2, borderColor: '#0F172A' },
+  avatarDot: { position: 'absolute', top: 0, width: 18, height: 18, borderRadius: 0, borderWidth: 2, borderColor: '#0F172A' },
   socialTxt: { fontSize: 11.5, fontWeight: '600', color: COLORS.text.muted },
 
-  cta: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, backgroundColor: '#FCD34D', paddingVertical: 13, borderRadius: 12, marginTop: 14 },
+  cta: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, backgroundColor: '#FCD34D', paddingVertical: 13, borderRadius: 0, marginTop: 14 },
   ctaTxt: { fontSize: 14, fontWeight: '900', color: '#0F172A', letterSpacing: -0.1 },
   ctaSub: { fontSize: 10.5, fontWeight: '500', color: COLORS.text.muted, textAlign: 'center', marginTop: 8 },
 });

@@ -17,7 +17,7 @@ import { COLORS, RADIUS, SPACING, CATEGORIES, CATEGORY_LIST, SHADOW, useAppColor
 import { makeStyles } from '../../utils/makeStyles';
 import PressableGlass from '../../components/PressableGlass';
 import BudgetCard from '../../components/budget/BudgetCard';
-import BudgetHero from '../../components/budget/BudgetHero';
+import BudgetHero from '../../components/budget/BudgetHeroBrutalist';
 import DeleteBudgetSheet from '../../components/budget/DeleteBudgetSheet';
 import BudgetInsightsSheet from '../../components/budget/BudgetInsightsSheet';
 import BudgetShareCard from '../../components/budget/BudgetShareCard';
@@ -276,11 +276,10 @@ function BudgetScreen() {
 
   return (
     <SafeAreaView style={s.bg}>
-      {/* HERO — saffron card replacing plain header (Phase 2 redesign) */}
+      {/* HERO — v10 Brutalist. Opens SmartEntry internally. */}
       <View style={s.heroPad}>
         <BudgetHero
           budgets={budgets}
-          onPressAdd={openAdd}
           onPressShare={shareBudgetSnapshot}
           sharing={sharing}
         />
@@ -430,8 +429,8 @@ const useStyles = makeStyles((c) => ({
   header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: SPACING.lg, paddingVertical: SPACING.md },
   title: { fontSize: 28, fontWeight: '800', color: c.text.primary },
   sub: { fontSize: 13, color: c.text.muted },
-  addBtn: { width: 44, height: 44, borderRadius: 22, backgroundColor: c.accent.primary, justifyContent: 'center', alignItems: 'center', ...SHADOW.md },
-  shareBtn: { width: 44, height: 44, borderRadius: 22, backgroundColor: 'rgba(255,107,26,0.14)', justifyContent: 'center', alignItems: 'center', borderWidth: 1, borderColor: 'rgba(255,107,26,0.4)' },
+  addBtn: { width: 44, height: 44, borderRadius: 0, backgroundColor: c.accent.primary, justifyContent: 'center', alignItems: 'center', ...SHADOW.md },
+  shareBtn: { width: 44, height: 44, borderRadius: 0, backgroundColor: 'rgba(255,107,26,0.14)', justifyContent: 'center', alignItems: 'center', borderWidth: 1, borderColor: 'rgba(255,107,26,0.4)' },
   offscreen: { position: 'absolute', top: -99999, left: -99999, width: 360, opacity: 0 },
   list: { padding: SPACING.lg, paddingBottom: 140 },
   // Summary
@@ -440,9 +439,9 @@ const useStyles = makeStyles((c) => ({
   sumLabel: { fontSize: 11, color: c.text.muted, marginBottom: 4 },
   sumVal: { fontSize: 17, fontWeight: '800', color: c.text.primary },
   // Card
-  card: { backgroundColor: 'rgba(255,255,255,0.9)', borderRadius: 20, padding: SPACING.lg, marginBottom: 10, borderWidth: 1, borderColor: 'rgba(255,255,255,0.6)', ...SHADOW.sm },
+  card: { backgroundColor: 'rgba(255,255,255,0.9)', borderRadius: 0, padding: SPACING.lg, marginBottom: 10, borderWidth: 1, borderColor: 'rgba(255,255,255,0.6)', ...SHADOW.sm },
   cardRow: { flexDirection: 'row', alignItems: 'center', gap: 12 },
-  catDot: { width: 10, height: 10, borderRadius: 5 },
+  catDot: { width: 10, height: 10, borderRadius: 0 },
   catName: { fontSize: 16, fontWeight: '700', color: c.text.primary },
   period: { fontSize: 11, color: c.text.muted, marginTop: 1 },
   spentAmt: { fontSize: 18, fontWeight: '800' },
@@ -465,7 +464,7 @@ const useStyles = makeStyles((c) => ({
   emptyBtnText: { fontSize: 14, fontWeight: '600', color: c.bg.elevated },
   // Modal — dark sheet
   mBg: { flex: 1, justifyContent: 'flex-end', backgroundColor: 'rgba(0,0,0,0.75)' },
-  sheet: { backgroundColor: c.bg.elevated, borderTopLeftRadius: 28, borderTopRightRadius: 28, padding: 24, maxHeight: '88%', borderTopWidth: 1, borderColor: 'rgba(255,255,255,0.08)' },
+  sheet: { backgroundColor: c.bg.elevated, borderTopLeftRadius: 0, borderTopRightRadius: 0, padding: 24, maxHeight: '88%', borderTopWidth: 1, borderColor: 'rgba(255,255,255,0.08)' },
   handle: { width: 40, height: 4, borderRadius: 2, backgroundColor: c.text.muted, alignSelf: 'center', marginBottom: 16, opacity: 0.6 },
   sheetTitle: { fontSize: 22, fontWeight: '700', color: c.text.primary },
   formLabel: { fontSize: 13, fontWeight: '600', color: c.text.muted, marginBottom: 10 },
@@ -481,10 +480,10 @@ const useStyles = makeStyles((c) => ({
   saveBtnText: { fontSize: 16, fontWeight: '700', color: c.bg.elevated },
   // Bar-style category rows — dark glass
   barRow: {
-    flexDirection: 'row', alignItems: 'center', padding: 14, borderRadius: 16,
+    flexDirection: 'row', alignItems: 'center', padding: 14, borderRadius: 0,
     backgroundColor: 'rgba(26,26,36,0.85)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.08)', marginBottom: 10,
   },
-  barIcon: { width: 40, height: 40, borderRadius: 12, alignItems: 'center', justifyContent: 'center' },
+  barIcon: { width: 40, height: 40, borderRadius: 0, alignItems: 'center', justifyContent: 'center' },
   barTop: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 },
   barName: { fontSize: 14.5, fontWeight: '700', color: c.text.primary, flex: 1, marginRight: 8 },
   barAmt: { fontSize: 13.5, fontWeight: '800' },
@@ -495,17 +494,17 @@ const useStyles = makeStyles((c) => ({
   barPct: { fontSize: 10.5, color: c.text.muted, fontWeight: '700', textTransform: 'uppercase', letterSpacing: 0.3 },
   barTail: { fontSize: 11, fontWeight: '700' },
   // Recurring toggle — dark
-  recurringRow: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 12, paddingHorizontal: 14, borderRadius: 14, backgroundColor: 'rgba(255,255,255,0.04)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.08)', marginBottom: 16 },
+  recurringRow: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 12, paddingHorizontal: 14, borderRadius: 0, backgroundColor: 'rgba(255,255,255,0.04)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.08)', marginBottom: 16 },
   recurringRowOn: { backgroundColor: 'rgba(255,107,26,0.14)', borderColor: 'rgba(255,107,26,0.4)' },
-  recurringIcon: { width: 36, height: 36, borderRadius: 18, alignItems: 'center', justifyContent: 'center' },
+  recurringIcon: { width: 36, height: 36, borderRadius: 0, alignItems: 'center', justifyContent: 'center' },
   recurringTitle: { fontSize: 14, fontWeight: '700', color: c.text.primary },
   recurringSub: { fontSize: 11, color: c.text.muted, marginTop: 2 },
-  toggle: { width: 42, height: 24, borderRadius: 12, backgroundColor: 'rgba(255,255,255,0.12)', padding: 2, justifyContent: 'center' },
+  toggle: { width: 42, height: 24, borderRadius: 0, backgroundColor: 'rgba(255,255,255,0.12)', padding: 2, justifyContent: 'center' },
   toggleOn: { backgroundColor: c.accent.primary },
-  toggleKnob: { width: 20, height: 20, borderRadius: 10, backgroundColor: c.bg.elevated },
+  toggleKnob: { width: 20, height: 20, borderRadius: 0, backgroundColor: c.bg.elevated },
   toggleKnobOn: { alignSelf: 'flex-end' },
   // Other-category description box — dark glass orange
-  otherDescBox: { backgroundColor: 'rgba(255,107,26,0.1)', borderRadius: 14, padding: 12, borderWidth: 1, borderColor: 'rgba(255,107,26,0.3)', marginBottom: 16 },
+  otherDescBox: { backgroundColor: 'rgba(255,107,26,0.1)', borderRadius: 0, padding: 12, borderWidth: 1, borderColor: 'rgba(255,107,26,0.3)', marginBottom: 16 },
   descInput: { fontSize: 14, color: c.text.primary, minHeight: 54, paddingVertical: 6, textAlignVertical: 'top' },
 }));
 

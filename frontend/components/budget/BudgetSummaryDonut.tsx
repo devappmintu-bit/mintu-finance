@@ -87,7 +87,7 @@ export default function BudgetSummaryDonut({ budgets }: { budgets: Budget[] }) {
 }
 
 const useStyles = makeStyles((c) => ({
-  wrap: { backgroundColor: c.bg.secondary, padding: 16, borderRadius: 18, marginBottom: 14, borderWidth: 1, borderColor: c.border.subtle },
+  wrap: { backgroundColor: c.bg.secondary, padding: 16, borderRadius: 0, marginBottom: 14, borderWidth: 1, borderColor: c.border.subtle },
   header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 },
   title: { fontSize: 14, fontWeight: '800', color: c.text.primary },
   pctPill: { paddingHorizontal: 10, paddingVertical: 4, borderRadius: 999, borderWidth: 1 },
@@ -101,7 +101,7 @@ const useStyles = makeStyles((c) => ({
 
   legendCol: { flex: 1, gap: 6 },
   legendRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  dot: { width: 10, height: 10, borderRadius: 5 },
+  dot: { width: 10, height: 10, borderRadius: 0 },
   legendLbl: { flex: 1, fontSize: 12, color: c.text.primary, fontWeight: '600' },
   legendAmt: { fontSize: 12, color: c.text.secondary, fontWeight: '700' },
   moreTxt: { fontSize: 10, color: c.text.muted, fontStyle: 'italic', marginTop: 4 },

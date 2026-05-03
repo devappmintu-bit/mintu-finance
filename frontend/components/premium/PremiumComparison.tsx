@@ -21,7 +21,6 @@
 import React from 'react';
 import { View, Text, ScrollView, TouchableOpacity } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { LinearGradient } from 'expo-linear-gradient';
 import { makeStyles } from '../../utils/makeStyles';
 import { COLORS } from '../../utils/theme';
 import PulseCTA from './PulseCTA';
@@ -106,7 +105,7 @@ export default function PremiumComparison({ onClose, activeTier, selectedTier, o
   return (
     <View style={s.wrap}>
       {/* Hero */}
-      <LinearGradient colors={[COLORS.accent.brand, COLORS.accent.brandDark]} style={s.hero}>
+      <View style={[s.hero, { backgroundColor: '#0A0A0A' }]}>
         <View style={s.heroTop}>
           <Ionicons name="diamond" size={16} color="#fff" />
           <Text style={s.heroTitle}>Compare plans</Text>
@@ -117,7 +116,7 @@ export default function PremiumComparison({ onClose, activeTier, selectedTier, o
           )}
         </View>
         <Text style={s.heroSub}>All monthly · ≤ ₹150 · Cancel anytime</Text>
-      </LinearGradient>
+      </View>
 
       {/* Column header — fits without horizontal scroll on 360px+ phones */}
       <View style={s.headRow}>
@@ -186,7 +185,7 @@ export default function PremiumComparison({ onClose, activeTier, selectedTier, o
 
 const useStyles = makeStyles((c) => ({
   wrap: {
-    borderRadius: 18,
+    borderRadius: 0,
     overflow: 'hidden',
     backgroundColor: c.bg.card,
     borderWidth: 1,
@@ -197,7 +196,7 @@ const useStyles = makeStyles((c) => ({
   heroTop: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   heroTitle: { flex: 1, color: '#fff', fontSize: 14, fontWeight: '800' },
   heroSub: { color: '#FFE4CC', fontSize: 10.5, marginTop: 4, fontWeight: '600' },
-  closeBtn: { width: 24, height: 24, borderRadius: 12, backgroundColor: 'rgba(255,255,255,0.2)', alignItems: 'center', justifyContent: 'center' },
+  closeBtn: { width: 24, height: 24, borderRadius: 0, backgroundColor: 'rgba(255,255,255,0.2)', alignItems: 'center', justifyContent: 'center' },
 
   // Column header row — fixed widths, no horizontal scroll.
   // 110 (label) + 80*3 (cols) = 350px, fits 360+ phones.

@@ -276,7 +276,7 @@ const s = StyleSheet.create({
   },
   searchBox: {
     flex: 1, flexDirection: 'row', alignItems: 'center', gap: 8,
-    backgroundColor: COLORS.bg.secondary, borderRadius: 22,
+    backgroundColor: COLORS.bg.secondary, borderRadius: 0,
     paddingHorizontal: 14, paddingVertical: Platform.OS === 'ios' ? 10 : 4,
     borderWidth: 1, borderColor: COLORS.border.subtle,
   },
@@ -286,9 +286,9 @@ const s = StyleSheet.create({
   row: {
     flexDirection: 'row', gap: 12, alignItems: 'center',
     padding: 12, backgroundColor: COLORS.bg.secondary,
-    borderRadius: 14, borderWidth: 1, borderColor: COLORS.border.subtle,
+    borderRadius: 0, borderWidth: 1, borderColor: COLORS.border.subtle,
   },
-  iconWrap: { width: 40, height: 40, borderRadius: 12, alignItems: 'center', justifyContent: 'center' },
+  iconWrap: { width: 40, height: 40, borderRadius: 0, alignItems: 'center', justifyContent: 'center' },
   iconEmoji: { fontSize: 20 },
   rowTitle: { fontSize: 14, fontWeight: '700', color: COLORS.text.primary },
   rowSub: { fontSize: 12, color: COLORS.text.muted, marginTop: 2 },

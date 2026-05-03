@@ -15,7 +15,6 @@
 import React, { useEffect, useState } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, ActivityIndicator } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { LinearGradient } from 'expo-linear-gradient';
 import { router } from 'expo-router';
 import api from '../../utils/api';
 import { makeStyles } from '../../utils/makeStyles';
@@ -64,7 +63,7 @@ function PremiumHomeCard() {
       onPress={() => setExpanded(v => !v)}
       testID="premium-home-card-header"
     >
-      <LinearGradient colors={headerColors} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={s.header}>
+      <View style={[s.header, { backgroundColor: '#0A0A0A' }]}>
         <View style={[s.iconBadge, isPremium ? s.iconBadgePremium : s.iconBadgeLocked]}>
           <Ionicons name={isPremium ? 'diamond' : 'flash'} size={20} color={COLORS.accent.brand} />
         </View>
@@ -82,7 +81,7 @@ function PremiumHomeCard() {
           <View style={s.lockBadge}><Text style={s.lockBadgeTxt}>PRO</Text></View>
         )}
         <Ionicons name={expanded ? 'chevron-up' : 'chevron-down'} size={20} color="#FFFFFF" />
-      </LinearGradient>
+      </View>
     </TouchableOpacity>
   );
 
@@ -118,11 +117,11 @@ function PremiumHomeCard() {
               style={[s.primaryCta, { flex: 1 }]}
               testID="premium-home-hub"
             >
-              <LinearGradient colors={[COLORS.accent.brand, COLORS.accent.brandDark]} style={s.ctaGrad}>
+              <View style={[s.ctaGrad, { backgroundColor: '#0A0A0A' }]}>
                 <Ionicons name="grid" size={16} color="#FFFFFF" />
                 <Text style={s.ctaText}>Open Premium Hub</Text>
                 <Ionicons name="arrow-forward" size={16} color="#FFFFFF" />
-              </LinearGradient>
+              </View>
             </TouchableOpacity>
           </View>
         ) : (
@@ -133,11 +132,11 @@ function PremiumHomeCard() {
               style={s.primaryCta}
               testID="premium-home-hub-locked"
             >
-              <LinearGradient colors={[COLORS.accent.brand, COLORS.accent.brandDark]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={s.ctaGrad}>
+              <View style={[s.ctaGrad, { backgroundColor: '#0A0A0A' }]}>
                 <Ionicons name="grid" size={16} color="#FFFFFF" />
                 <Text style={s.ctaText}>Open Premium Hub</Text>
                 <Ionicons name="arrow-forward" size={16} color="#FFFFFF" />
-              </LinearGradient>
+              </View>
             </TouchableOpacity>
             <TouchableOpacity
               activeOpacity={0.85}
@@ -156,22 +155,22 @@ function PremiumHomeCard() {
 }
 
 const useStyles = makeStyles((c) => ({
-  wrap: { marginBottom: 14, borderRadius: 18, overflow: 'hidden' },
-  skeleton: { height: 62, borderRadius: 18, backgroundColor: c.gray[100], marginBottom: 14 },
+  wrap: { marginBottom: 14, borderRadius: 0, overflow: 'hidden' },
+  skeleton: { height: 62, borderRadius: 0, backgroundColor: c.gray[100], marginBottom: 14 },
 
   header: { flexDirection: 'row', alignItems: 'center', gap: 10, padding: 14 },
-  iconBadge: { width: 38, height: 38, borderRadius: 19, alignItems: 'center', justifyContent: 'center' },
+  iconBadge: { width: 38, height: 38, borderRadius: 0, alignItems: 'center', justifyContent: 'center' },
   iconBadgePremium: { backgroundColor: c.bg.elevated },
   iconBadgeLocked: { backgroundColor: 'rgba(245,110,30,0.16)', borderWidth: 1, borderColor: 'rgba(245,110,30,0.4)' },
   headerTitle: { color: c.bg.elevated, fontSize: 15, fontWeight: '800' },
   headerSub: { color: 'rgba(255,255,255,0.78)', fontSize: 11, fontWeight: '600', marginTop: 2 },
-  lockBadge: { backgroundColor: c.accent.brand, paddingHorizontal: 8, paddingVertical: 3, borderRadius: 8 },
+  lockBadge: { backgroundColor: c.accent.brand, paddingHorizontal: 8, paddingVertical: 3, borderRadius: 0 },
   lockBadgeTxt: { color: c.bg.elevated, fontSize: 9, fontWeight: '800', letterSpacing: 0.6 },
 
   body: { backgroundColor: c.bg.elevated, padding: 12, borderTopWidth: 1, borderTopColor: c.gray[100] },
   perkRow: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 10 },
   perkBorder: { borderTopWidth: 1, borderTopColor: c.gray[50] },
-  perkIcon: { width: 30, height: 30, borderRadius: 15, alignItems: 'center', justifyContent: 'center' },
+  perkIcon: { width: 30, height: 30, borderRadius: 0, alignItems: 'center', justifyContent: 'center' },
   perkIconOn: { backgroundColor: c.accent.brandSoft },
   perkIconOff: { backgroundColor: c.gray[100] },
   perkTitle: { fontSize: 13, fontWeight: '700', color: c.text.primary },
@@ -180,14 +179,14 @@ const useStyles = makeStyles((c) => ({
   lockedSub: { color: c.gray[400] },
 
   ctaRow: { flexDirection: 'row', gap: 8, marginTop: 8 },
-  primaryCta: { borderRadius: 14, overflow: 'hidden', marginTop: 4 },
+  primaryCta: { borderRadius: 0, overflow: 'hidden', marginTop: 4 },
   ctaGrad: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, paddingVertical: 13, paddingHorizontal: 16 },
   ctaText: { color: c.bg.elevated, fontWeight: '800', fontSize: 13.5, letterSpacing: 0.2 },
-  secondaryCta: { backgroundColor: c.gray[100], paddingHorizontal: 16, borderRadius: 14, alignItems: 'center', justifyContent: 'center', marginTop: 4 },
+  secondaryCta: { backgroundColor: c.gray[100], paddingHorizontal: 16, borderRadius: 0, alignItems: 'center', justifyContent: 'center', marginTop: 4 },
   secondaryCtaTxt: { color: c.text.primary, fontWeight: '800', fontSize: 13.5 },
   secondaryCtaFull: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6,
-    paddingVertical: 10, borderRadius: 12, marginTop: 8,
+    paddingVertical: 10, borderRadius: 0, marginTop: 8,
     backgroundColor: c.accent.brandSoft, borderWidth: 1, borderColor: '#FED7AA',
   },
   secondaryCtaFullTxt: { color: '#7C2D12', fontWeight: '800', fontSize: 12.5 },

@@ -150,14 +150,14 @@ const MissionsEngine = React.memo(MissionsEngineBase, missionsPropsEqual);
 export default MissionsEngine;
 
 const useStyles = makeStyles((c) => ({
-  card: { backgroundColor: c.bg.secondary, borderRadius: 20, padding: 18, borderWidth: 1, borderColor: c.border.subtle, marginBottom: 14 },
+  card: { backgroundColor: c.bg.secondary, borderRadius: 0, padding: 18, borderWidth: 1, borderColor: c.border.subtle, marginBottom: 14 },
   head: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   title: { fontSize: 15, fontWeight: '800', color: c.text.primary, letterSpacing: -0.2 },
   sub: { fontSize: 11.5, fontWeight: '500', color: c.text.muted, marginTop: 2 },
   timerPill: { flexDirection: 'row', alignItems: 'center', gap: 3, paddingHorizontal: 8, paddingVertical: 4, borderRadius: 999, backgroundColor: c.state.warningBg },
   timerTxt: { fontSize: 11, fontWeight: '800', color: c.state.warning, letterSpacing: 0.3 },
 
-  streakAlert: { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 10, padding: 10, borderRadius: 12, backgroundColor: c.state.dangerBg, borderWidth: 1, borderColor: c.state.dangerBorder },
+  streakAlert: { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 10, padding: 10, borderRadius: 0, backgroundColor: c.state.dangerBg, borderWidth: 1, borderColor: c.state.dangerBorder },
   streakAlertEmoji: { fontSize: 14 },
   streakAlertTxt: { flex: 1, fontSize: 11.5, fontWeight: '700', color: c.state.danger },
 
@@ -165,7 +165,7 @@ const useStyles = makeStyles((c) => ({
   mission: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 10 },
   missionDivider: { borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: c.border.subtle },
   missionDone: { opacity: 0.55 },
-  missionIcon: { width: 34, height: 34, borderRadius: 10, alignItems: 'center', justifyContent: 'center', backgroundColor: c.bg.primary },
+  missionIcon: { width: 34, height: 34, borderRadius: 0, alignItems: 'center', justifyContent: 'center', backgroundColor: c.bg.primary },
   missionIconDone: { backgroundColor: c.state.success },
   missionIconSaver: { backgroundColor: c.state.danger },
   missionTitleRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
@@ -181,6 +181,6 @@ const useStyles = makeStyles((c) => ({
   rewardDot: { width: 2, height: 2, borderRadius: 1, backgroundColor: c.text.muted },
   estTxt: { fontSize: 9.5, fontWeight: '600', color: c.text.muted },
 
-  cta: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, backgroundColor: c.accent.primary, paddingVertical: 12, borderRadius: 12, marginTop: 12 },
+  cta: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, backgroundColor: c.accent.primary, paddingVertical: 12, borderRadius: 0, marginTop: 12 },
   ctaTxt: { fontSize: 13, fontWeight: '800', color: c.bg.elevated, letterSpacing: -0.1 },
 }));

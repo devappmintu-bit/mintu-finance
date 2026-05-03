@@ -10,7 +10,6 @@
  */
 import React from 'react';
 import { View, Text } from 'react-native';
-import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { makeStyles } from '../../utils/makeStyles';
 import { useAppColors } from '../../utils/theme';
@@ -42,7 +41,7 @@ export default function EnergyBar({ freeSpinsLeft, coins, spinCost, coinsToNextS
           <Text style={[s.valTxt, { color: c.state.success }]}>{freeSpinsLeft} left</Text>
         </View>
         <View style={s.track}>
-          <LinearGradient colors={[c.state.success, c.accent.moneyIn]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={[s.fill, { width: `${(freeSpinsLeft / total) * 100}%` }]} />
+          <View style={[s.fill, { width: `${(freeSpinsLeft / total) * 100}%`, backgroundColor: '#0A0A0A' }]} />
         </View>
       </View>
     );
@@ -59,7 +58,7 @@ export default function EnergyBar({ freeSpinsLeft, coins, spinCost, coinsToNextS
           <Text style={[s.valTxt, { color: c.accent.brand }]}>{spinCost} coins</Text>
         </View>
         <View style={s.track}>
-          <LinearGradient colors={[c.accent.secondary, c.accent.brand]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={[s.fill, { width: '100%' }]} />
+          <View style={[s.fill, { width: '100%' }, { backgroundColor: '#0A0A0A' }]} />
         </View>
       </View>
     );
@@ -77,7 +76,7 @@ export default function EnergyBar({ freeSpinsLeft, coins, spinCost, coinsToNextS
         <Text style={[s.valTxt, { color: c.accent.brandDark }]}>{coinsToNextSpin} more coins</Text>
       </View>
       <View style={s.track}>
-        <LinearGradient colors={[c.accent.secondary, c.accent.brand]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={[s.fill, { width: `${Math.min(100, haveRatio * 100)}%` }]} />
+        <View style={[s.fill, { width: `${Math.min(100, haveRatio * 100)}%`, backgroundColor: '#0A0A0A' }]} />
       </View>
       <Text style={s.helperTxt}>Complete missions or refer a friend to earn coins</Text>
     </View>

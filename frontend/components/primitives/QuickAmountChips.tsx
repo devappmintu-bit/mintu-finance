@@ -34,7 +34,6 @@ import Animated, {
   withSequence,
   withTiming,
 } from 'react-native-reanimated';
-import { LinearGradient } from 'expo-linear-gradient';
 import { COLORS, RADIUS, SPACE, TYPO } from '../../utils/theme';
 import { BRAND_GRADIENT } from '../../constants/brand';
 
@@ -100,11 +99,8 @@ function Chip({ value, active, onPress }: { value: number; active: boolean; onPr
     <Pressable onPress={handlePress} hitSlop={8}>
       <Animated.View style={[styles.chip, animStyle]}>
         {active ? (
-          <LinearGradient
-            colors={[...BRAND_GRADIENT]}
-            start={{ x: 0, y: 0 }}
-            end={{ x: 1, y: 1 }}
-            style={[StyleSheet.absoluteFill, { borderRadius: RADIUS.pill }]}
+          <View
+            style={[StyleSheet.absoluteFill, { borderRadius: RADIUS.pill }, { backgroundColor: '#0A0A0A' }]}
           />
         ) : null}
         <Text style={[styles.chipText, active && styles.chipTextActive]} numberOfLines={1}>

@@ -29,9 +29,12 @@
 //   • Visual `selectedTier` independent of `plan` — every tap gives feedback.
 //   • `demoMode` short-circuit when Razorpay plan IDs aren't configured.
 //   • Re-tapping the active card still emits haptic + highlight feedback.
+// Round 72 — replaced the native Alert.alert confirm + raw Razorpay
+// open with a CheckoutSheet bottom sheet (UPI/Cards/Wallets picker,
+// trust badge, urgency strip) and a SuccessSheet (confetti + feature
+// highlights). All in-flight state lives in `paymentStore`.
 import React, { useState, useRef } from 'react';
-import { View, Text, ScrollView, TouchableOpacity, Alert, Platform, Animated } from 'react-native';
-import * as WebBrowser from 'expo-web-browser';
+import { View, Text, ScrollView, TouchableOpacity, Platform, Animated } from 'react-native';
 import * as Haptics from 'expo-haptics';
 import { Ionicons } from '@expo/vector-icons';
 import Toast from 'react-native-toast-message';
@@ -39,14 +42,10 @@ import { COLORS } from '../../utils/theme';
 import { useActivePlan, PLAN_META } from '../../utils/premium';
 import type { Plan } from '../../utils/premium';
 import { usePremiumStyles, fmtINR } from './styles';
-import api from '../../utils/api';
 import PremiumComparison from './PremiumComparison';
 import { GlassCard } from '../glass';
-
-// Frontend plan-key → backend subscription-tier ("lite"|"pro"|"elite")
-const PLAN_TO_TIER: Record<Plan, 'lite' | 'pro' | 'elite' | null> = {
-  free: null, intro: 'lite', monthly: 'pro', yearly: 'elite',
-};
+import CheckoutSheet from './CheckoutSheet';
+import SuccessSheet from './SuccessSheet';
 
 export default function PlansView({ potentialSavings }: { potentialSavings: number }) {
   const styles = usePremiumStyles();
@@ -57,6 +56,12 @@ export default function PlansView({ potentialSavings }: { potentialSavings: numb
   // configured (Razorpay 503), or after a manual mockActivate.
   const [demoMode, setDemoMode] = useState<boolean>(false);
   const inFlightRef = useRef(false);
+
+  // Round 72 — Bottom-sheet checkout state
+  const [checkoutOpen, setCheckoutOpen] = useState(false);
+  const [checkoutPlan, setCheckoutPlan] = useState<Plan | null>(null);
+  const [successOpen, setSuccessOpen] = useState(false);
+  const [successPlan, setSuccessPlan] = useState<Plan | null>(null);
 
   // Refs for scroll-to-comparison UX.
   const scrollRef     = useRef<ScrollView>(null);
@@ -75,63 +80,29 @@ export default function PlansView({ potentialSavings }: { potentialSavings: numb
 
   const scrollToComparison = () => {
     if (!scrollRef.current) return;
-    // Scroll just before the comparison block so the user sees the column
-    // header animate into view.
     scrollRef.current.scrollTo({ y: Math.max(0, comparisonY.current - 12), animated: true });
-  };
-
-  // UPI AutoPay flow — opens Razorpay's hosted mandate page.
-  const startAutoPay = async (p: Plan) => {
-    const tier = PLAN_TO_TIER[p];
-    if (!tier) return false;
-    try {
-      const r = await api.post('/premium/create-subscription', { tier, total_count: 12 });
-      if (r.data?.short_url) {
-        await WebBrowser.openBrowserAsync(r.data.short_url);
-        Toast.show({
-          type: 'info',
-          text1: 'Razorpay opened',
-          text2: 'Complete authorisation to activate ' + PLAN_META[p].label,
-          position: 'bottom',
-        });
-        return true;
-      }
-    } catch (e: any) {
-      const status = e?.response?.status;
-      if (status === 503) {
-        // Plan not yet configured — silent fallback to demo activation.
-        setDemoMode(true);
-        await mockActivate(p, /* silent */ false);
-        return true;
-      }
-      const detail = e?.response?.data?.detail || '';
-      Toast.show({ type: 'error', text1: 'Could not start payment', text2: detail || 'Please try again' });
-      return false;
-    }
-    return false;
   };
 
   const mockActivate = async (p: Plan, isDemo = demoMode) => {
     await setPlan(p);
-    Toast.show({
-      type: 'success',
-      text1: isDemo
-        ? `🧪 ${PLAN_META[p].label} preview activated`
-        : `🎉 ${PLAN_META[p].label} activated!`,
-      text2: isDemo
-        ? 'Demo mode — no payment taken'
-        : 'All premium features unlocked',
-      position: 'bottom',
-    });
+    if (isDemo) {
+      Toast.show({
+        type: 'success',
+        text1: `🧪 ${PLAN_META[p].label} preview activated`,
+        text2: 'Demo mode — no payment taken',
+        position: 'bottom',
+      });
+    } else {
+      // Real activation: trigger SuccessSheet (confetti + features)
+      setSuccessPlan(p);
+      setSuccessOpen(true);
+    }
   };
 
   const buy = async (p: Plan) => {
     if (inFlightRef.current) return;
-    // Always give immediate visual + haptic feedback so a tap is never
-    // silent, even if the user re-taps the currently-active plan.
     setSelectedTier(p);
     if (p !== 'free') {
-      // Reinforce decision: scroll to comparison + flash matching column.
       requestAnimationFrame(() => {
         scrollToComparison();
         triggerFlash();
@@ -140,7 +111,7 @@ export default function PlansView({ potentialSavings }: { potentialSavings: numb
     if (Platform.OS !== 'web') {
       try { Haptics.selectionAsync(); } catch { /* noop */ }
     }
-    if (p === plan) return;  // already on this plan (after the haptic + highlight)
+    if (p === plan) return;
 
     if (p === 'free') {
       inFlightRef.current = true;
@@ -148,34 +119,34 @@ export default function PlansView({ potentialSavings }: { potentialSavings: numb
       return;
     }
 
-    // Demo mode short-circuit: skip Alert and activate inline.
+    // Demo mode short-circuit.
     if (demoMode) {
       inFlightRef.current = true;
       try { await mockActivate(p, true); } finally { inFlightRef.current = false; }
       return;
     }
 
-    // Production flow: confirm + try real Razorpay AutoPay.
-    const confirm = (yes: () => void) => {
-      if (Platform.OS === 'web') {
-        // eslint-disable-next-line no-alert
-        if (typeof window !== 'undefined' && window.confirm(`Activate ${PLAN_META[p].label}?\n\n${PLAN_META[p].price} ${PLAN_META[p].priceSub}\nUPI AutoPay via Razorpay. Cancel anytime.`)) yes();
-        return;
-      }
-      Alert.alert(
-        `Activate ${PLAN_META[p].label}?`,
-        `${PLAN_META[p].price} ${PLAN_META[p].priceSub}\n\nUPI AutoPay via Razorpay. Cancel anytime.`,
-        [
-          { text: 'Cancel', style: 'cancel' },
-          { text: 'Activate', onPress: yes },
-        ],
-      );
-    };
+    // Production flow → open the bottom-sheet checkout. NO native
+    // Alert.alert anymore — that broke design language and was the
+    // single biggest friction point in the conversion funnel.
+    setCheckoutPlan(p);
+    setCheckoutOpen(true);
+  };
 
-    confirm(async () => {
-      inFlightRef.current = true;
-      try { await startAutoPay(p); } finally { inFlightRef.current = false; }
-    });
+  const onCheckoutSuccess = async () => {
+    if (!checkoutPlan) return;
+    setCheckoutOpen(false);
+    // Tiny delay so the sheet finishes animating out before the success
+    // sheet pops in — feels intentional, not abrupt.
+    await new Promise<void>((r) => setTimeout(r, 180));
+    await mockActivate(checkoutPlan, false);
+  };
+
+  const onDemoFallback = async (p: Plan) => {
+    setDemoMode(true);
+    setCheckoutOpen(false);
+    await new Promise<void>((r) => setTimeout(r, 120));
+    await mockActivate(p, true);
   };
 
   const isActive   = (p: Plan) => plan === p;
@@ -186,6 +157,7 @@ export default function PlansView({ potentialSavings }: { potentialSavings: numb
   const compSelected = (selectedTier && selectedTier !== 'free' ? selectedTier : null) as Exclude<Plan, 'free'> | null;
 
   return (
+    <>
     <ScrollView ref={scrollRef} contentContainerStyle={{ paddingBottom: 40 }}>
       {/* 1. Hero — Round 55 GlassCard wrapper for iOS Crystal aesthetic.
           Inner padding/typography retained from styles.hookCard so the
@@ -339,5 +311,23 @@ export default function PlansView({ potentialSavings }: { potentialSavings: numb
         </Text>
       )}
     </ScrollView>
+
+      {/* Round 72 — Bottom-sheet checkout (UPI/Cards/Wallets, trust
+          badge, urgency strip, retry/change-method on failure). */}
+      <CheckoutSheet
+        visible={checkoutOpen}
+        plan={checkoutPlan}
+        potentialSavings={potentialSavings}
+        onClose={() => setCheckoutOpen(false)}
+        onSuccessActivate={onCheckoutSuccess}
+        onDemoFallback={onDemoFallback}
+      />
+      {/* Round 72 — Confetti + plan-unlocked celebration */}
+      <SuccessSheet
+        visible={successOpen}
+        plan={successPlan}
+        onDismiss={() => { setSuccessOpen(false); setSuccessPlan(null); }}
+      />
+    </>
   );
 }

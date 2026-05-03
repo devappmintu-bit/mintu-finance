@@ -12,7 +12,6 @@
  */
 import React, { memo, useMemo } from 'react';
 import { View, Text, TouchableOpacity, Platform } from 'react-native';
-import { LinearGradient } from 'expo-linear-gradient';
 import { BlurView } from 'expo-blur';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
@@ -58,12 +57,8 @@ function PremiumTeaserCard({ monthlyLoss = 0, topLeaks = [], hiddenInsightsCount
   };
 
   return (
-    <LinearGradient
-      colors={['#0B0D12', '#1A1F2E']}
-      start={{ x: 0, y: 0 }}
-      end={{ x: 1, y: 1 }}
-      style={s.card}
-    >
+    <View
+      style={[s.card, { backgroundColor: '#0B0D12' }]}>
       <View style={s.glow} />
 
       {/* Header */}
@@ -124,22 +119,22 @@ function PremiumTeaserCard({ monthlyLoss = 0, topLeaks = [], hiddenInsightsCount
       {/* Primary CTA */}
       <PulseCTA intensity={0.025}>
         <TouchableOpacity onPress={handleReveal} activeOpacity={0.88} style={s.ctaBtn} testID="premium-reveal-cta">
-          <LinearGradient colors={[COLORS.accent.brand, COLORS.accent.brandDark]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={s.ctaGrad}>
+          <View style={[s.ctaGrad, { backgroundColor: '#0A0A0A' }]}>
             <Ionicons name="eye" size={15} color="#fff" />
             <Text style={s.ctaTxt}>Reveal full breakdown</Text>
             <Ionicons name="arrow-forward" size={14} color="#fff" />
-          </LinearGradient>
+          </View>
         </TouchableOpacity>
       </PulseCTA>
       <Text style={s.subCta}>7-day free trial · ₹149/mo · cancel anytime</Text>
-    </LinearGradient>
+    </View>
   );
 }
 
 export default memo(PremiumTeaserCard);
 
 const useStyles = makeStyles(() => ({
-  card: { borderRadius: 22, padding: 18, gap: 12, overflow: 'hidden', position: 'relative', marginBottom: 14 },
+  card: { borderRadius: 0, padding: 18, gap: 12, overflow: 'hidden', position: 'relative', marginBottom: 14 },
   glow: { position: 'absolute', top: -80, right: -60, width: 200, height: 200, borderRadius: 100, backgroundColor: 'rgba(245,110,30,0.12)' },
 
   headRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
@@ -159,13 +154,13 @@ const useStyles = makeStyles(() => ({
 
   sectionLabel: { fontSize: 9.5, fontWeight: '900', color: '#D1D5DB', letterSpacing: 1.2, marginTop: 6 },
   leakList: { gap: 8 },
-  leakRow: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 8, paddingHorizontal: 10, borderRadius: 12, backgroundColor: 'rgba(255,255,255,0.06)' },
+  leakRow: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 8, paddingHorizontal: 10, borderRadius: 0, backgroundColor: 'rgba(255,255,255,0.06)' },
   rank: { fontSize: 11, fontWeight: '900', color: '#D1D5DB', width: 14, textAlign: 'center' },
   leakEmoji: { fontSize: 15 },
   leakLabel: { flex: 1, fontSize: 13, fontWeight: '700', color: '#F3F4F6' },
   leakAmt: { fontSize: 13, fontWeight: '900', color: '#FCA5A5' },
 
-  teaserHost: { position: 'relative', borderRadius: 12, overflow: 'hidden' },
+  teaserHost: { position: 'relative', borderRadius: 0, overflow: 'hidden' },
   teaserFake: { padding: 10 },
   fakeBar: { height: 7, borderRadius: 3, backgroundColor: 'rgba(255,255,255,0.1)' },
   teaserOverlay: { ...{ position: 'absolute' }, top: 0, left: 0, right: 0, bottom: 0, alignItems: 'center', justifyContent: 'center' },
@@ -173,7 +168,7 @@ const useStyles = makeStyles(() => ({
   teaserInner: { flexDirection: 'row', alignItems: 'center', gap: 5, backgroundColor: 'rgba(255,255,255,0.08)', paddingHorizontal: 10, paddingVertical: 5, borderRadius: 999, borderWidth: 1, borderColor: 'rgba(251,191,36,0.3)' },
   teaserTxt: { fontSize: 11, fontWeight: '800', color: '#fff' },
 
-  ctaBtn: { borderRadius: 14, overflow: 'hidden', marginTop: 4 },
+  ctaBtn: { borderRadius: 0, overflow: 'hidden', marginTop: 4 },
   ctaGrad: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 7, paddingVertical: 13, paddingHorizontal: 16 },
   ctaTxt: { fontSize: 14, fontWeight: '900', color: '#fff', letterSpacing: -0.2 },
   // Round 51e — bumped from #6B7280 (3.4:1) to #D1D5DB (4.78:1) for AA.

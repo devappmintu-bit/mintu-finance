@@ -26,7 +26,6 @@ import Animated, {
   Easing,
 } from 'react-native-reanimated';
 import { BlurView } from 'expo-blur';
-import { LinearGradient } from 'expo-linear-gradient';
 import { GLASS, COLORS } from '../../utils/theme';
 
 type Props = {
@@ -90,14 +89,11 @@ export default function GlassSheet({
             <BlurView
               intensity={50}
               tint="light"
-              style={[StyleSheet.absoluteFill, { borderTopLeftRadius: 28, borderTopRightRadius: 28, overflow: 'hidden' }]}
+              style={[StyleSheet.absoluteFill, { borderTopLeftRadius: 0, borderTopRightRadius: 0, overflow: 'hidden' }]}
             />
           ) : null}
-          <LinearGradient
-            colors={['rgba(255,255,255,0.92)', 'rgba(255,255,255,0.78)'] as any}
-            start={{ x: 0, y: 0 }}
-            end={{ x: 0, y: 1 }}
-            style={[StyleSheet.absoluteFill, { borderTopLeftRadius: 28, borderTopRightRadius: 28 }]}
+          <View
+            style={[StyleSheet.absoluteFill, { borderTopLeftRadius: 0, borderTopRightRadius: 0 }, { backgroundColor: 'rgba(255,255,255,0.92)' }]}
           />
           <View style={styles.sheetContent}>
             {!hideHandle && <View style={styles.handle} />}
@@ -114,8 +110,8 @@ const styles = StyleSheet.create({
   webBackdrop: { backgroundColor: 'rgba(245,247,250,0.65)' },
   dimOverlay: { backgroundColor: 'rgba(17,24,39,0.18)' },
   sheet: {
-    borderTopLeftRadius: 28,
-    borderTopRightRadius: 28,
+    borderTopLeftRadius: 0,
+    borderTopRightRadius: 0,
     borderTopWidth: StyleSheet.hairlineWidth,
     borderColor: GLASS.borderLight,
     overflow: 'hidden',

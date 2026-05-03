@@ -230,19 +230,19 @@ const s = StyleSheet.create({
   headerTitle: { flex: 1, fontSize: 20, fontWeight: '900', color: COLORS.text.primary, letterSpacing: -0.3 },
   balanceChip: {
     flexDirection: 'row', alignItems: 'center', gap: 6,
-    paddingHorizontal: 12, paddingVertical: 6, borderRadius: 20,
+    paddingHorizontal: 12, paddingVertical: 6, borderRadius: 0,
     backgroundColor: 'rgba(255,176,71,0.16)', borderWidth: 1, borderColor: 'rgba(255,176,71,0.45)',
   },
   balanceEmoji: { fontSize: 14 },
   balanceTxt: { fontSize: 13, fontWeight: '900', color: COLORS.accent.warning },
 
   totalsRow: { flexDirection: 'row', gap: 10, paddingHorizontal: SPACING.lg, paddingTop: 14 },
-  totalCard: { flex: 1, padding: 12, borderRadius: 14, borderWidth: 1 },
+  totalCard: { flex: 1, padding: 12, borderRadius: 0, borderWidth: 1 },
   totalLbl: { fontSize: 11, fontWeight: '900', letterSpacing: 1 },
   totalVal: { fontSize: 18, fontWeight: '900', marginTop: 2 },
 
   tabs: { flexDirection: 'row', gap: 6, paddingHorizontal: SPACING.lg, paddingTop: 14, paddingBottom: 4 },
-  tab: { paddingHorizontal: 14, paddingVertical: 8, borderRadius: 20, backgroundColor: COLORS.bg.secondary, borderWidth: 1, borderColor: COLORS.border.subtle },
+  tab: { paddingHorizontal: 14, paddingVertical: 8, borderRadius: 0, backgroundColor: COLORS.bg.secondary, borderWidth: 1, borderColor: COLORS.border.subtle },
   tabActive: { backgroundColor: COLORS.accent.primary, borderColor: COLORS.accent.primary },
   tabTxt: { fontSize: 11, fontWeight: '900', color: COLORS.text.muted, letterSpacing: 1 },
   /* Active tab — white-on-saturated-orange (intentional per Round 50). */
@@ -251,11 +251,11 @@ const s = StyleSheet.create({
   row: {
     flexDirection: 'row', alignItems: 'center', gap: 12,
     padding: 12, backgroundColor: COLORS.bg.secondary,
-    borderRadius: 14, borderWidth: 1, borderColor: COLORS.border.subtle,
+    borderRadius: 0, borderWidth: 1, borderColor: COLORS.border.subtle,
   },
-  iconWrap: { width: 44, height: 44, borderRadius: 14, alignItems: 'center', justifyContent: 'center', position: 'relative' },
+  iconWrap: { width: 44, height: 44, borderRadius: 0, alignItems: 'center', justifyContent: 'center', position: 'relative' },
   iconEmoji: { fontSize: 22 },
-  iconDot: { position: 'absolute', bottom: -2, right: -2, width: 16, height: 16, borderRadius: 8, alignItems: 'center', justifyContent: 'center', borderWidth: 2, borderColor: COLORS.bg.secondary },
+  iconDot: { position: 'absolute', bottom: -2, right: -2, width: 16, height: 16, borderRadius: 0, alignItems: 'center', justifyContent: 'center', borderWidth: 2, borderColor: COLORS.bg.secondary },
   rowDesc: { fontSize: 14, fontWeight: '700', color: COLORS.text.primary },
   rowMeta: { fontSize: 11, color: COLORS.text.muted, marginTop: 2, fontWeight: '600' },
   rowAmt: { fontSize: 15, fontWeight: '900' },

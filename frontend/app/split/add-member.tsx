@@ -25,7 +25,6 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
-import { LinearGradient } from 'expo-linear-gradient';
 import { router, useLocalSearchParams } from 'expo-router';
 import * as Haptics from 'expo-haptics';
 import * as Clipboard from 'expo-clipboard';
@@ -616,11 +615,11 @@ export default function AddMemberScreen() {
               {inviteExpanded ? (
                 <View style={s.inviteBody}>
                   <TouchableOpacity style={s.waBtn} onPress={shareGroupWhatsApp} activeOpacity={0.88}>
-                    <LinearGradient colors={['#25D366', '#128C7E']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={s.waGrad}>
+                    <View style={[s.waGrad, { backgroundColor: '#25D366' }]}>
                       <Ionicons name="logo-whatsapp" size={18} color="#fff" />
                       <Text style={s.waTxt}>Invite via WhatsApp</Text>
                       <Ionicons name="arrow-forward" size={15} color="#fff" />
-                    </LinearGradient>
+                    </View>
                   </TouchableOpacity>
                   <TouchableOpacity style={s.altBtn} onPress={copyInviteLink} activeOpacity={0.85}>
                     <Ionicons name="link" size={16} color={COLORS.accent.primary} />
@@ -724,14 +723,14 @@ export default function AddMemberScreen() {
               testID="am-submit"
               accessibilityLabel={`Add ${selected.size} to group`}
             >
-              <LinearGradient colors={[COLORS.accent.brand, COLORS.accent.brandDark]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={s.footerGrad}>
+              <View style={[s.footerGrad, { backgroundColor: '#0A0A0A' }]}>
                 {submitting ? <ActivityIndicator color="#fff" /> : (
                   <>
                     <Ionicons name="person-add" size={16} color="#fff" />
                     <Text style={s.footerCtaTxt}>Add to group</Text>
                   </>
                 )}
-              </LinearGradient>
+              </View>
             </TouchableOpacity>
           </View>
         ) : null}
@@ -750,7 +749,7 @@ const useStyles = makeStyles((c) => ({
     paddingHorizontal: SPACING.lg, paddingVertical: SPACING.md,
     borderBottomWidth: 1, borderBottomColor: c.border.subtle,
   },
-  iconBtn: { width: 36, height: 36, borderRadius: 18, alignItems: 'center', justifyContent: 'center', backgroundColor: c.bg.secondary },
+  iconBtn: { width: 36, height: 36, borderRadius: 0, alignItems: 'center', justifyContent: 'center', backgroundColor: c.bg.secondary },
   title: { fontSize: 16, fontWeight: '900', color: c.text.primary, letterSpacing: -0.2 },
   groupName: { fontSize: 11, fontWeight: '700', color: c.text.muted, marginTop: 1 },
 
@@ -758,7 +757,7 @@ const useStyles = makeStyles((c) => ({
     flexDirection: 'row', alignItems: 'center', gap: 8,
     margin: SPACING.md, marginBottom: 0,
     paddingHorizontal: 12, paddingVertical: 10,
-    backgroundColor: c.bg.secondary, borderRadius: 12,
+    backgroundColor: c.bg.secondary, borderRadius: 0,
     borderWidth: 1, borderColor: c.border.subtle,
   },
   searchInput: { flex: 1, fontSize: 14, fontWeight: '600', color: c.text.primary, paddingVertical: 2 },
@@ -772,25 +771,25 @@ const useStyles = makeStyles((c) => ({
     backgroundColor: c.accent.primary + '18', borderRadius: 999,
     borderWidth: 1, borderColor: c.accent.primary + '44',
   },
-  chipAvatar: { width: 26, height: 26, borderRadius: 13, backgroundColor: c.accent.primary, alignItems: 'center', justifyContent: 'center' },
+  chipAvatar: { width: 26, height: 26, borderRadius: 0, backgroundColor: c.accent.primary, alignItems: 'center', justifyContent: 'center' },
   chipInitials: { fontSize: 11, fontWeight: '900', color: c.bg.elevated },
   chipTxt: { maxWidth: 120, fontSize: 12, fontWeight: '800', color: c.accent.primary, letterSpacing: -0.2 },
 
   listContent: { paddingHorizontal: 0, paddingBottom: 120 },
 
-  manualCard: { margin: SPACING.md, marginBottom: 8, padding: SPACING.md, backgroundColor: c.bg.secondary, borderRadius: 14, borderWidth: 1, borderColor: c.border.subtle },
-  phoneInputWrap: { flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: c.bg.primary, borderRadius: 10, paddingHorizontal: 12, borderWidth: 1, borderColor: c.border.subtle, marginTop: 6 },
+  manualCard: { margin: SPACING.md, marginBottom: 8, padding: SPACING.md, backgroundColor: c.bg.secondary, borderRadius: 0, borderWidth: 1, borderColor: c.border.subtle },
+  phoneInputWrap: { flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: c.bg.primary, borderRadius: 0, paddingHorizontal: 12, borderWidth: 1, borderColor: c.border.subtle, marginTop: 6 },
   dialCode: { fontSize: 14, fontWeight: '900', color: c.text.primary },
   phoneInput: { flex: 1, paddingVertical: 10, fontSize: 14.5, fontWeight: '700', color: c.text.primary, letterSpacing: 0.5 },
-  addChipBtn: { width: 28, height: 28, borderRadius: 14, backgroundColor: c.accent.primary, justifyContent: 'center', alignItems: 'center' },
+  addChipBtn: { width: 28, height: 28, borderRadius: 0, backgroundColor: c.accent.primary, justifyContent: 'center', alignItems: 'center' },
 
-  inviteHdr: { flexDirection: 'row', alignItems: 'center', gap: 8, marginHorizontal: SPACING.md, paddingVertical: 12, paddingHorizontal: 14, backgroundColor: c.bg.secondary, borderRadius: 12, borderWidth: 1, borderColor: c.border.subtle },
+  inviteHdr: { flexDirection: 'row', alignItems: 'center', gap: 8, marginHorizontal: SPACING.md, paddingVertical: 12, paddingHorizontal: 14, backgroundColor: c.bg.secondary, borderRadius: 0, borderWidth: 1, borderColor: c.border.subtle },
   inviteHdrTxt: { flex: 1, fontSize: 13, fontWeight: '800', color: c.text.primary },
   inviteBody: { marginHorizontal: SPACING.md, marginTop: 8, gap: 8 },
-  waBtn: { borderRadius: 14, overflow: 'hidden' },
+  waBtn: { borderRadius: 0, overflow: 'hidden' },
   waGrad: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, paddingVertical: 14 },
   waTxt: { fontSize: 14, fontWeight: '900', color: c.bg.elevated },
-  altBtn: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingVertical: 12, paddingHorizontal: 14, borderRadius: 12, backgroundColor: c.bg.secondary, borderWidth: 1, borderColor: c.border.subtle },
+  altBtn: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingVertical: 12, paddingHorizontal: 14, borderRadius: 0, backgroundColor: c.bg.secondary, borderWidth: 1, borderColor: c.border.subtle },
   altTxt: { fontSize: 13, fontWeight: '800', color: c.text.primary },
   altSub: { flex: 1, fontSize: 11, fontWeight: '600', color: c.text.muted, textAlign: 'right' },
 
@@ -798,12 +797,12 @@ const useStyles = makeStyles((c) => ({
   contactsPrompt: {
     flexDirection: 'row', alignItems: 'center', gap: 12,
     marginHorizontal: SPACING.md, marginTop: 10,
-    padding: 14, borderRadius: 14,
+    padding: 14, borderRadius: 0,
     backgroundColor: c.bg.secondary,
     borderWidth: 1, borderColor: c.accent.primary + '33',
   },
   contactsIcon: {
-    width: 36, height: 36, borderRadius: 18,
+    width: 36, height: 36, borderRadius: 0,
     backgroundColor: c.accent.primary + '1A',
     alignItems: 'center', justifyContent: 'center',
   },
@@ -822,7 +821,7 @@ const useStyles = makeStyles((c) => ({
   row: {
     flexDirection: 'row', alignItems: 'center', gap: 12,
     marginHorizontal: SPACING.md, paddingVertical: 10, paddingHorizontal: 12,
-    backgroundColor: c.bg.secondary, borderRadius: 14,
+    backgroundColor: c.bg.secondary, borderRadius: 0,
     borderWidth: 1, borderColor: c.border.subtle,
     marginBottom: 6,
   },
@@ -832,7 +831,7 @@ const useStyles = makeStyles((c) => ({
   textMuted: { color: c.text.muted },
 
   avatar: {
-    width: 40, height: 40, borderRadius: 20,
+    width: 40, height: 40, borderRadius: 0,
     alignItems: 'center', justifyContent: 'center',
     backgroundColor: c.bg.primary, borderWidth: 1, borderColor: c.border.subtle,
   },
@@ -850,7 +849,7 @@ const useStyles = makeStyles((c) => ({
   inviteTxt: { fontSize: 11.5, fontWeight: '900', color: c.accent.primary, letterSpacing: 0.2 },
 
   empty: { padding: 32, alignItems: 'center' },
-  emptyIcon: { width: 64, height: 64, borderRadius: 32, backgroundColor: c.accent.primary + '1A', alignItems: 'center', justifyContent: 'center', marginBottom: 12 },
+  emptyIcon: { width: 64, height: 64, borderRadius: 0, backgroundColor: c.accent.primary + '1A', alignItems: 'center', justifyContent: 'center', marginBottom: 12 },
   emptyTitle: { fontSize: 15, fontWeight: '800', color: c.text.primary, textAlign: 'center' },
   emptySub: { fontSize: 12.5, fontWeight: '600', color: c.text.muted, textAlign: 'center', marginTop: 4, maxWidth: 280, lineHeight: 17 },
   emptyCta: { flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: c.accent.primary, paddingHorizontal: 16, paddingVertical: 9, borderRadius: 999, marginTop: 14 },
@@ -864,7 +863,7 @@ const useStyles = makeStyles((c) => ({
   },
   footerCount: { fontSize: 14, fontWeight: '900', color: c.text.primary, letterSpacing: -0.2 },
   footerSub: { fontSize: 11, fontWeight: '600', color: c.text.muted, marginTop: 1 },
-  footerCta: { borderRadius: 12, overflow: 'hidden' },
+  footerCta: { borderRadius: 0, overflow: 'hidden' },
   footerGrad: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingVertical: 12, paddingHorizontal: 18 },
   footerCtaTxt: { fontSize: 13.5, fontWeight: '900', color: c.bg.elevated, letterSpacing: -0.2 },
 }));

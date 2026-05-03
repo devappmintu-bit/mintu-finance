@@ -409,20 +409,20 @@ const useStyles = makeStyles((c) => ({
   emptySub: { fontSize: 14, color: c.text.muted, marginTop: 8, textAlign: 'center', lineHeight: 20 },
   retryBtn: {
     marginTop: 18, paddingHorizontal: 24, paddingVertical: 12,
-    backgroundColor: c.accent.primary, borderRadius: 12,
+    backgroundColor: c.accent.primary, borderRadius: 0,
   },
   retryTxt: { color: '#FFFFFF', fontWeight: '800', fontSize: 14 },
 
   warningBar: {
     flexDirection: 'row', alignItems: 'center', gap: 8,
     backgroundColor: c.state.warningBg, borderColor: c.state.warningBorder,
-    borderWidth: 1, borderRadius: 10, paddingHorizontal: 12, paddingVertical: 8, marginBottom: 12,
+    borderWidth: 1, borderRadius: 0, paddingHorizontal: 12, paddingVertical: 8, marginBottom: 12,
   },
   warningText: { flex: 1, fontSize: 12, color: c.text.primary },
 
   card: {
     backgroundColor: GLASS.solidBg,
-    borderRadius: 20, padding: 18, marginBottom: 14,
+    borderRadius: 0, padding: 18, marginBottom: 14,
     borderWidth: StyleSheet.hairlineWidth, borderColor: GLASS.borderLight,
     ...shadowStyle('#111827', 2, 12, 0.04, 3),
   },
@@ -434,18 +434,18 @@ const useStyles = makeStyles((c) => ({
   heroLabel: { fontSize: 13, color: c.text.muted, fontWeight: '600', marginBottom: 4 },
   heroAmount: { fontSize: 36, fontWeight: '900', color: c.text.primary, letterSpacing: -1 },
   heroRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 12 },
-  tierPill: { paddingHorizontal: 10, paddingVertical: 5, borderRadius: 12, borderWidth: 1 },
+  tierPill: { paddingHorizontal: 10, paddingVertical: 5, borderRadius: 0, borderWidth: 1 },
   tierPillTxt: { fontSize: 12, fontWeight: '800' },
   changePill: {
     flexDirection: 'row', alignItems: 'center', gap: 4,
-    paddingHorizontal: 10, paddingVertical: 5, borderRadius: 12,
+    paddingHorizontal: 10, paddingVertical: 5, borderRadius: 0,
     backgroundColor: c.bg.elevated, borderWidth: 1, borderColor: c.border.card,
   },
   changeTxt: { fontSize: 12, fontWeight: '800' },
   paceHeadline: { fontSize: 13, color: c.text.secondary, marginTop: 12, lineHeight: 19 },
 
   catRow: { flexDirection: 'row', alignItems: 'center', gap: 10, marginTop: 10 },
-  catDot: { width: 10, height: 10, borderRadius: 5 },
+  catDot: { width: 10, height: 10, borderRadius: 0 },
   catName: { fontSize: 13, color: c.text.primary, fontWeight: '600', width: 80 },
   catBarWrap: { flex: 1, height: 6, backgroundColor: c.gray[200], borderRadius: 3, overflow: 'hidden' },
   catBar: { height: '100%', borderRadius: 3 },
@@ -453,7 +453,7 @@ const useStyles = makeStyles((c) => ({
 
   friendSummary: { fontSize: 13, color: c.text.secondary, marginBottom: 10 },
   friendRow: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 8 },
-  friendRank: { width: 28, height: 28, borderRadius: 14, alignItems: 'center', justifyContent: 'center' },
+  friendRank: { width: 28, height: 28, borderRadius: 0, alignItems: 'center', justifyContent: 'center' },
   friendRankTxt: { fontSize: 12, fontWeight: '900' },
   friendName: { fontSize: 14, fontWeight: '700', color: c.text.primary },
   friendTaunt: { fontSize: 11, color: c.text.muted, marginTop: 2 },
@@ -462,7 +462,7 @@ const useStyles = makeStyles((c) => ({
   yearlyHeadline: { fontSize: 13, color: c.text.secondary, marginBottom: 14, lineHeight: 19 },
   highlightsGrid: { flexDirection: 'row', gap: 10 },
   highlightBox: {
-    flex: 1, backgroundColor: c.bg.elevated, borderRadius: 14, padding: 12,
+    flex: 1, backgroundColor: c.bg.elevated, borderRadius: 0, padding: 12,
     borderWidth: 1, borderColor: c.border.card, alignItems: 'flex-start',
   },
   highlightEmoji: { fontSize: 20, marginBottom: 4 },
@@ -474,13 +474,13 @@ const useStyles = makeStyles((c) => ({
 
   ctaBtn: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8,
-    backgroundColor: c.accent.primary, paddingVertical: 11, borderRadius: 12, marginTop: 12,
+    backgroundColor: c.accent.primary, paddingVertical: 11, borderRadius: 0, marginTop: 12,
   },
   ctaBtnTxt: { color: '#FFFFFF', fontWeight: '800', fontSize: 13 },
 
   shareBtn: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8,
-    backgroundColor: c.accent.primary, paddingVertical: 14, borderRadius: 14, marginTop: 6,
+    backgroundColor: c.accent.primary, paddingVertical: 14, borderRadius: 0, marginTop: 6,
     ...shadowStyle(c.accent.primary, 4, 12, 0.2, 4),
   },
   shareBtnTxt: { color: '#FFFFFF', fontWeight: '800', fontSize: 15, letterSpacing: 0.2 },

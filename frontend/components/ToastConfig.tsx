@@ -103,7 +103,7 @@ const useStyles = makeStyles(() => ({
     ...shadowStyle('#000', 6, 16, 0.16, 8),
   },
   iconChip: {
-    width: 36, height: 36, borderRadius: 18,
+    width: 36, height: 36, borderRadius: 0,
     alignItems: 'center', justifyContent: 'center',
   },
   textWrap: { flex: 1 },

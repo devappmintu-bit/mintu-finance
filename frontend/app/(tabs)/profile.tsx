@@ -1,183 +1,72 @@
 /**
- * ProfileScreen — MintU Financial Identity + Progress Engine.
+ * ProfileScreen — PILOT of the Brutalist + Swiss design system.
  *
- * Top-to-bottom structure (Round 58 redesign):
- *   1. ProfileIdentityCard           — glass identity (avatar/name/tier/delta)
- *   2. MoneyScoreCard                — dominant 64pt score + segmented bar
- *   3. BoostCarousel                 — 3-pillar swipeable boost cards
- *   4. Missions Engine               — daily gamified tasks (refresh timer, XP/coin totals)
- *   5. Progress row                  — streak · badges · coins
- *   6. Beat Last Week (+ Share)      — viral shareable weekly win
- *   7. AI Coach 1-tap                — contextual nudge to /ai-coach
- *   8. Premium funnel                — MintU Pro upsell
- *   9. Settings (list-style)         — Financial / App / Support / Account
+ * Round 77 pivot: the entire visual layer below the header is now rendered
+ * by `BrutalistProfileView` (components/brutalist/profile/*) using the
+ * tokens in `utils/brutalist.ts`. All data fetching, modal state, and
+ * auth/biometric logic is unchanged — only the presentation rebuilds.
  *
- * Sheets:
- *   • ProfilePhotoSheet  — avatar CUD (take / gallery / remove)
- *   • ShareWeeklyWinModal — react-native-view-shot capture for viral share
- *   • LogoutConfirmSheet / ScoreBreakdownModal / ScoreBoostModal
- *   • Inline modals (kept for now): edit-name, language, achievements,
- *     payment methods, preferences, notifications. Candidates for extraction
- *     in a follow-up refactor.
+ * If sign-off fails, revert this file only; none of the legacy
+ * components (ProfileIdentityCard, MoneyScoreCard, ProgressInline,
+ * BoostCarousel, MissionsEngine, etc.) have been deleted — they remain
+ * available under `components/profile/*` for other screens or rollback.
  */
-import React, { useState, useEffect, useCallback } from 'react';
-import {
-  View, Text, StyleSheet, ScrollView, TouchableOpacity,
-  Modal, RefreshControl,
-} from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
-import { Ionicons } from '@expo/vector-icons';
-import { router, useFocusEffect } from 'expo-router';
+import React, { useState, useCallback } from 'react';
+import { View, Modal } from 'react-native';
+import { router } from 'expo-router';
+import Toast from 'react-native-toast-message';
+
 import { useAuthStore } from '../../store/authStore';
 import { useLangStore } from '../../store/langStore';
-import { t, LANGUAGES } from '../../utils/i18n';
-import api from '../../utils/api';
-import { fetchAnalyticsSummary } from '../../services/transactions';
-import { fetchGamificationStatus } from '../../services/rewards';
-import { fetchAvatar, uploadAvatar, deleteAvatar } from '../../services/user';
-import { COLORS } from '../../utils/theme';
-import { makeStyles } from '../../utils/makeStyles';
-import Toast from 'react-native-toast-message';
-import { shareSmart } from '../../utils/share';
-import HelpSupport from '../../components/HelpSupport';
+import { LANGUAGES } from '../../utils/i18n';
 
-// Round 58 — Profile Revamp: hero split into three glass cards
-// (Identity / MoneyScore / BoostCarousel) for clearer hierarchy and a
-// premium iOS-Wallet feel without introducing new design tokens.
-import ProfileIdentityCard from '../../components/profile/ProfileIdentityCard';
-import MoneyScoreCard from '../../components/profile/MoneyScoreCard';
-import BoostCarousel from '../../components/profile/BoostCarousel';
-import MissionsEngine, { type Mission } from '../../components/profile/MissionsEngine';
-import ProgressInline from '../../components/profile/ProgressInline';
-import StreakMeter from '../../components/rewards/StreakMeter';
-import BeatLastWeek from '../../components/profile/BeatLastWeek';
-import AICoachOneTap from '../../components/profile/AICoachOneTap';
-import PremiumConversionFunnel from '../../components/profile/PremiumConversionFunnel';
+// Shared hooks (unchanged)
+import { useProfileData } from '../../hooks/useProfileData';
+import { useBiometricSettings } from '../../hooks/useBiometricSettings';
+import { sendTestPush } from '../../hooks/usePushNotifications';
+
+// Modals / sheets (kept as-is; only page chrome turns brutalist)
 import ScoreBreakdownModal from '../../components/profile/ScoreBreakdownModal';
-import { SettingsList, SettingsListItem } from '../../components/profile/SettingsList';
-import SmartStatusRow, { type RowStatus } from '../../components/profile/SmartStatusRow';
-import LogoutConfirmSheet from '../../components/profile/LogoutConfirmSheet';
 import ScoreBoostModal from '../../components/profile/ScoreBoostModal';
+import LogoutConfirmSheet from '../../components/profile/LogoutConfirmSheet';
 import ProfilePhotoSheet from '../../components/profile/ProfilePhotoSheet';
 import ShareWeeklyWinModal from '../../components/profile/ShareWeeklyWinModal';
 import { deriveWin } from '../../components/profile/WeeklyWinCard';
-import { STORAGE } from '../../constants/storage';
 import SubScreenModal from '../../components/profile/SubScreenModal';
 import EditNameSheet from '../../components/profile/EditNameSheet';
 import LanguageSheet from '../../components/profile/LanguageSheet';
-import ProfileSkeleton from '../../components/profile/ProfileSkeleton';
-import { StaggeredEntrance } from '../../components/primitives';
-
-// Retained sub-screens (opened only via explicit settings tap)
 import BudgetAchievements from '../../components/budget/BudgetAchievements';
 import PaymentMethodsV2 from '../../components/profile/PaymentMethodsV2';
 import NotificationSettings from '../../components/profile/NotificationSettings';
-// Round 56 — ThemeToggle deleted (Round 60 cleanup); app is light-only.
-import AuthTransitionOverlay from '../../components/auth/AuthTransitionOverlay';
-import StreakCoinsHealthCard from '../../components/profile/StreakCoinsHealthCard';
-import { sendTestPush } from '../../hooks/usePushNotifications';
+import HelpSupport from '../../components/HelpSupport';
 import PinSetupModal from '../../components/PinSetupModal';
-import { showInfo, showSuccess } from '../../utils/toast';
-import { 
-  biometricAvailable, 
-  isBiometricEnabled, 
-  supportedBiometricLabel, 
-  hasPin, 
-  setBiometricEnabled, 
-  tryBiometric 
-} from '../../utils/lockManager';
+import AuthTransitionOverlay from '../../components/auth/AuthTransitionOverlay';
+import { SettingsList, SettingsListItem } from '../../components/profile/SettingsList';
+
+// ─── Brutalist visual layer ──────────────────────────────────────────
+import BrutalistProfileView from '../../components/brutalist/profile/BrutalistProfileView';
+import MoreSettingsSheet from '../../components/brutalist/MoreSettingsSheet';
+import ProfileSheet from '../../components/brutalist/profile/ProfileSheet';
+import { useAIPrompt } from '../../store/aiPromptStore';
 
 function ProfileScreen() {
-  const s = useStyles();
-  const { user, logout, avatar, setAvatar } = useAuthStore();
-  const { lang, setLang } = useLangStore();
-  const [refreshing, setRefreshing] = useState(false);
+  const { user, logout, avatar } = useAuthStore();
+  const { lang } = useLangStore();
 
-  // Data
-  const [stats, setStats] = useState<any>(null);
-  const [gamiStatus, setGamiStatus] = useState<any>(null);
-  const [rewardsSummary, setRewardsSummary] = useState<any>(null);
-  const [identity, setIdentity] = useState<any>(null);
-  const [breakdown, setBreakdown] = useState<any>(null);
-  const [weekly, setWeekly] = useState<any>(null);
-  const [missionsData, setMissionsData] = useState<{ missions: Mission[]; seconds_to_refresh: number; total_xp: number; total_coins: number } | null>(null);
+  const {
+    identity, rewardsSummary, gamiStatus, weekly, gmailStatus,
+    refreshing, setRefreshing, loadData,
+    handleAvatarPicked, handleAvatarRemoved,
+  } = useProfileData();
+
+  const {
+    bioHwAvail, bioOn, bioLabel, appLockOn, hasPinSet, pinModalVisible,
+    setHasPinSet, setPinModalVisible,
+    onToggleBio, onToggleAppLock, onChangePin,
+  } = useBiometricSettings();
+
+  // Modal/sheet state
   const [scoreBreakdownVisible, setScoreBreakdownVisible] = useState(false);
-  const [gmailStatus, setGmailStatus] = useState<any>(null);
-
-  // Round 45 — Security section state
-  const [bioHwAvail, setBioHwAvail] = useState(false);
-  const [bioOn, setBioOn] = useState(false);
-  const [bioLabel, setBioLabel] = useState<'Face ID' | 'Fingerprint' | 'Biometric'>('Biometric');
-  const [appLockOn, setAppLockOn] = useState(true);
-  const [pinModalVisible, setPinModalVisible] = useState(false);
-  const [hasPinSet, setHasPinSet] = useState(false);
-
-  useEffect(() => {
-    (async () => {
-      try {
-        const [hw, on, lbl, pinSet] = await Promise.all([
-          biometricAvailable(), isBiometricEnabled(), supportedBiometricLabel(), hasPin(),
-        ]);
-        setBioHwAvail(hw); setBioOn(hw && on); setBioLabel(lbl); setHasPinSet(pinSet);
-        // App-lock pref via SecureStore
-        try {
-          const SecureStore = require('expo-secure-store');
-          const v = await SecureStore.getItemAsync(STORAGE.APP_LOCK_ENABLED);
-          if (v === '0') setAppLockOn(false);
-        } catch { /* web — default ON */ }
-      } catch { /* non-blocking */ }
-    })();
-  }, []);
-
-  const onToggleBio = useCallback(async () => {
-    if (!bioHwAvail) return;
-    const next = !bioOn;
-    if (next) {
-      // Verify with biometric BEFORE flipping pref ON.
-      const ok = await tryBiometric(`Confirm to enable ${bioLabel}`);
-      if (!ok) {
-        Toast.show({ type: 'info', text1: `${bioLabel} not confirmed`, text2: 'Try again to enable', position: 'bottom' });
-        return;
-      }
-    }
-    await setBiometricEnabled(next);
-    setBioOn(next);
-    Toast.show({
-      type: 'success',
-      text1: next ? `${bioLabel} enabled` : `${bioLabel} disabled`,
-      text2: next ? `Use ${bioLabel} to unlock MintU` : 'Use mPIN to unlock',
-      position: 'bottom',
-    });
-  }, [bioHwAvail, bioOn, bioLabel]);
-
-  const onToggleAppLock = useCallback(async () => {
-    const next = !appLockOn;
-    setAppLockOn(next);
-    try {
-      const SecureStore = require('expo-secure-store');
-      await SecureStore.setItemAsync(STORAGE.APP_LOCK_ENABLED, next ? '1' : '0');
-    } catch { /* web fallback — ignored */ }
-    Toast.show({
-      type: 'success',
-      text1: next ? 'App lock ON' : 'App lock OFF',
-      text2: next ? 'MintU will lock when sent to background' : 'MintU stays unlocked in background',
-      position: 'bottom',
-    });
-  }, [appLockOn]);
-
-  const onChangePin = useCallback(async () => {
-    // Require current credential before allowing PIN change.
-    if (bioHwAvail && bioOn) {
-      const ok = await tryBiometric(`Confirm to change mPIN`);
-      if (!ok) {
-        Toast.show({ type: 'info', text1: 'Verification needed', text2: 'Confirm to change PIN', position: 'bottom' });
-        return;
-      }
-    }
-    setPinModalVisible(true);
-  }, [bioHwAvail, bioOn]);
-
-  // Modals / sheets
   const [langModalVisible, setLangModalVisible] = useState(false);
   const [helpVisible, setHelpVisible] = useState(false);
   const [editNameVisible, setEditNameVisible] = useState(false);
@@ -190,427 +79,168 @@ function ProfileScreen() {
   const [logoutAnim, setLogoutAnim] = useState(false);
   const [photoSheetVisible, setPhotoSheetVisible] = useState(false);
   const [shareWinVisible, setShareWinVisible] = useState(false);
-
-  // Today tasks are fetched from /api/profile/missions now
-  const todayMissions = missionsData?.missions || [];
-
-  const [initialLoading, setInitialLoading] = useState(true);
-
-  const loadData = useCallback(async () => {
-    try {
-      // Phase 3: analytics & gamification now flow through services layer
-      // rather than calling api.get directly. Other 7 endpoints are pure
-      // profile-scoped data fetches with no planned service wrapping.
-      const [avatarRes, statsData, gamiData, rewardsRes, identityRes, breakdownRes, weeklyRes, missionsRes, gmailRes] = await Promise.all([
-        fetchAvatar().then(data => ({ data })).catch(() => ({ data: {} })),
-        fetchAnalyticsSummary().catch(() => null),
-        fetchGamificationStatus().catch(() => null),
-        api.get('/rewards/summary').catch(() => ({ data: null })),
-        api.get('/profile/identity').catch(() => ({ data: null })),
-        api.get('/profile/score-breakdown').catch(() => ({ data: null })),
-        api.get('/profile/weekly-comparison').catch(() => ({ data: null })),
-        api.get('/profile/missions').catch(() => ({ data: null })),
-        api.get('/gmail/status').catch(() => ({ data: null })),
-      ]);
-      if ((avatarRes.data as any)?.avatar) setAvatar((avatarRes.data as any).avatar);
-      if (statsData) setStats(statsData);
-      if (gamiData) setGamiStatus(gamiData);
-      if (rewardsRes.data) setRewardsSummary(rewardsRes.data);
-      if (identityRes.data) setIdentity(identityRes.data);
-      if (breakdownRes.data) setBreakdown(breakdownRes.data);
-      if (weeklyRes.data) setWeekly(weeklyRes.data);
-      if (missionsRes.data) setMissionsData(missionsRes.data);
-      if (gmailRes.data) setGmailStatus(gmailRes.data);
-    } catch { /* noop */ } finally {
-      setRefreshing(false);
-      setInitialLoading(false);
-    }
-  }, [setAvatar]);
-
-  // Phase 2 fix (H-1): useFocusEffect already covers initial mount (focus
-  // event always fires the first time a tab becomes active), so keeping a
-  // separate useEffect here caused 9 endpoints × 2 = 18 redundant API
-  // requests on first profile open. The single useFocusEffect below is
-  // sufficient for both mount + every tab re-focus.
-  useFocusEffect(React.useCallback(() => { loadData(); }, [loadData]));
-
-  const realStats = React.useMemo(() => {
-    if (!stats) return null;
-    const income = Number(stats.total_income || 0);
-    const expense = Number(stats.total_expense || 0);
-    const savingsRate = income > 0 ? Math.max(0, Math.round(((income - expense) / income) * 100)) : 0;
-    const breakdown = stats.category_breakdown || {};
-    const topCat = Object.entries(breakdown).sort((a: any, b: any) => b[1] - a[1])[0];
-    return {
-      monthlySpend: expense,
-      topCategory: topCat ? { name: topCat[0], amount: Number(topCat[1]) } : null,
-      savingsRate,
-      transactionCount: Number(stats.transaction_count || 0),
-      balance: Number(stats.balance || 0),
-    };
-  }, [stats]);
-
-  const handleLogout = useCallback(async () => {
-    setLogoutSheet(false);
-    setLogoutAnim(true);
-    await logout();
-  }, [logout]);
-
-  const handleAvatarPicked = useCallback(async (base64DataUri: string) => {
-    // Snapshot previous avatar so we can rollback if the upload fails —
-    // otherwise the user sees the new avatar locally but the server has
-    // the old one, creating a silent drift that reappears after relogin.
-    const prevAvatar = avatar;
-    await setAvatar(base64DataUri);
-    try {
-      await uploadAvatar(base64DataUri);
-      showSuccess('Profile photo updated');
-    } catch {
-      // Rollback to keep local state in sync with server.
-      await setAvatar(prevAvatar);
-      Toast.show({ type: 'error', text1: 'Couldn\'t save photo', text2: 'Try again in a moment.' });
-    }
-  }, [avatar, setAvatar]);
-
-  const handleAvatarRemoved = useCallback(async () => {
-    await setAvatar('');
-    try {
-      await deleteAvatar();
-      showSuccess('Profile photo removed');
-    } catch {
-      showInfo('Removed locally');
-    }
-  }, [setAvatar]);
-
-  const onMissionPress = useCallback((m: Mission) => {
-    try { router.push(m.route as any); } catch { /* noop */ }
-  }, []);
-
-  const onEarnAll = useCallback(() => {
-    // Navigate to first incomplete mission
-    const next = todayMissions.find(m => !m.done);
-    if (next) { try { router.push(next.route as any); } catch {} }
-  }, [todayMissions]);
+  const [moreSettingsVisible, setMoreSettingsVisible] = useState(false);
+  const [profileSheetVisible, setProfileSheetVisible] = useState(false);
 
   const currentLang = LANGUAGES.find(l => l.code === lang);
 
   const streak = identity?.streak ?? gamiStatus?.streak ?? 0;
-  const badgesEarned = identity?.badges_earned ?? gamiStatus?.badges_earned?.length ?? 0;
+  const badgesEarned = identity?.badges_earned ?? (gamiStatus?.badges_earned?.length ?? 0);
   const badgesTotal = identity?.badges_total ?? 12;
   const coinsBalance = identity?.coins_balance ?? rewardsSummary?.coins_balance ?? 0;
   const isPro = !!(identity?.is_premium || (user as any)?.is_premium);
 
-  // Derive Gmail status for SmartStatusRow
-  const gmailRow = React.useMemo(() => {
-    if (!gmailStatus || !gmailStatus.connected) {
-      return { status: 'idle' as RowStatus, text: 'Not connected · tap to set up' };
-    }
+  // Derive gmail status string
+  const gmailText = React.useMemo(() => {
+    if (!gmailStatus || !gmailStatus.connected) return 'NOT LINKED';
     const last = gmailStatus.last_synced_at || gmailStatus.last_sync;
-    const hasError = gmailStatus.error || gmailStatus.status === 'error';
-    if (hasError) return { status: 'error' as RowStatus, text: 'Sync failed · fix auth' };
-    if (!last) return { status: 'syncing' as RowStatus, text: 'First sync in progress' };
+    if (gmailStatus.error || gmailStatus.status === 'error') return 'FIX AUTH';
+    if (!last) return 'SYNCING';
     try {
       const diffMin = Math.round((Date.now() - new Date(last).getTime()) / 60000);
-      if (diffMin < 60) return { status: 'ok' as RowStatus, text: `Synced ${diffMin || '<1'}m ago` };
-      if (diffMin < 1440) return { status: 'ok' as RowStatus, text: `Synced ${Math.round(diffMin / 60)}h ago` };
-      return { status: 'warn' as RowStatus, text: `Last sync ${Math.round(diffMin / 1440)}d ago` };
-    } catch {
-      return { status: 'ok' as RowStatus, text: 'Connected' };
-    }
+      if (diffMin < 60) return `SYNC ${diffMin || '<1'}M`;
+      if (diffMin < 1440) return `SYNC ${Math.round(diffMin / 60)}H`;
+      return `SYNC ${Math.round(diffMin / 1440)}D`;
+    } catch { return 'LINKED'; }
   }, [gmailStatus]);
 
-  // Phase 5 Wave 2 — stable callback refs so memoized SettingsListItem
-  // children don't re-render on every unrelated profile state tick.
-  const goGoals = useCallback(() => router.push('/goals' as any), []);
-  const openAchievements = useCallback(() => setAchievementsModalVisible(true), []);
-  const goLeaderboard = useCallback(() => router.push('/leaderboard' as any), []);
-  const openPaymentMethods = useCallback(() => setPaymentMethodsVisible(true), []);
-  const openPreferences = useCallback(() => setPreferencesVisible(true), []);
-  const openNotifs = useCallback(() => setNotifsVisible(true), []);
-  const goGmail = useCallback(() => router.push('/gmail' as any), []);
-  const openHelp = useCallback(() => setHelpVisible(true), []);
-  const goAbout = useCallback(() => router.push('/about' as any), []);
-  const openLogout = useCallback(() => setLogoutSheet(true), []);
-  const goDeleteAccount = useCallback(() => router.push('/profile/delete-account' as any), []);
+  // ─ Callbacks ────────────────────────────────────────────────────
+  const onRefresh = useCallback(() => { setRefreshing(true); loadData(); }, [loadData, setRefreshing]);
+  const handleLogout = useCallback(async () => {
+    setLogoutSheet(false); setLogoutAnim(true); await logout();
+  }, [logout]);
+
   const openEditAvatar = useCallback(() => setPhotoSheetVisible(true), []);
   const openEditName = useCallback(() => setEditNameVisible(true), []);
   const openScoreBreakdown = useCallback(() => setScoreBreakdownVisible(true), []);
-  const openScoreBoost = useCallback(() => setScoreBoostVisible(true), []);
-  const goRewards = useCallback(() => router.push('/(tabs)/rewards' as any), []);
-  const goYearly = useCallback(() => router.push('/yearly' as any), []);
+  const openScoreBoost = useCallback(() => {
+    // Route Score Boost through the SAME AI flow per master v9 §Bonus:
+    // v10 mode-aware: carry `score_boost` so the brain tailors the plan.
+    useAIPrompt.getState().set('Help me boost my money score. What should I fix today?', 'score_boost', 'profile');
+    try { router.push('/(tabs)/ai-coach' as any); } catch {}
+  }, []);
   const openShareWin = useCallback(() => setShareWinVisible(true), []);
+  const openAICoach = useCallback(() => {
+    // v10 mode-aware: BUILD MY PLAN → plan_build (AI brain picks context).
+    useAIPrompt.getState().set('Build my 5-minute money plan — start by analyzing my spending.', 'plan_build', 'profile');
+    try { router.push('/(tabs)/ai-coach' as any); } catch {}
+  }, []);
+  const openPremium = useCallback(() => { try { router.push('/premium' as any); } catch {} }, []);
+  const goGoals = useCallback(() => { try { router.push('/goals' as any); } catch {} }, []);
+  const openAchievements = useCallback(() => setAchievementsModalVisible(true), []);
+  const goLeaderboard = useCallback(() => { try { router.push('/leaderboard' as any); } catch {} }, []);
+  const openPaymentMethods = useCallback(() => setPaymentMethodsVisible(true), []);
+  const openPreferences = useCallback(() => setPreferencesVisible(true), []);
+  const openNotifs = useCallback(() => setNotifsVisible(true), []);
+  const goGmail = useCallback(() => { try { router.push('/gmail' as any); } catch {} }, []);
+  const openHelp = useCallback(() => setHelpVisible(true), []);
+  const goAbout = useCallback(() => { try { router.push('/about' as any); } catch {} }, []);
+  const openLogout = useCallback(() => setLogoutSheet(true), []);
+  const goDeleteAccount = useCallback(() => { try { router.push('/profile/delete-account' as any); } catch {} }, []);
+
   const openLangFromPrefs = useCallback(() => {
     setPreferencesVisible(false);
     setTimeout(() => setLangModalVisible(true), 300);
   }, []);
-  const onRefresh = useCallback(() => {
-    setRefreshing(true);
-    loadData();
-  }, [loadData]);
-  const closeLogout = useCallback(() => setLogoutSheet(false), []);
-  const closeScoreBreakdown = useCallback(() => setScoreBreakdownVisible(false), []);
-  const closeScoreBoost = useCallback(() => setScoreBoostVisible(false), []);
-  const closeEditName = useCallback(() => setEditNameVisible(false), []);
-  const closeLang = useCallback(() => setLangModalVisible(false), []);
-  const closeHelp = useCallback(() => setHelpVisible(false), []);
-  const closeAchievements = useCallback(() => setAchievementsModalVisible(false), []);
-  const closePaymentMethods = useCallback(() => setPaymentMethodsVisible(false), []);
-  const closePreferences = useCallback(() => setPreferencesVisible(false), []);
-  const closeNotifs = useCallback(() => setNotifsVisible(false), []);
-  const closePhoto = useCallback(() => setPhotoSheetVisible(false), []);
-  const closeShareWin = useCallback(() => setShareWinVisible(false), []);
-  const onLogoutAnimDone = useCallback(() => {
-    setLogoutAnim(false);
-    router.replace('/unlock');
-  }, []);
+
+  const goRewards = useCallback(() => { try { router.push('/(tabs)/rewards' as any); } catch {} }, []);
+  const openMoreSettings = useCallback(() => setMoreSettingsVisible(true), []);
+  const onLogExpense = useCallback(() => { try { router.push('/(tabs)/transactions' as any); } catch {} }, []);
 
   const onSendTestPush = useCallback(async () => {
     const { sent, message } = await sendTestPush();
-    Toast.show({
-      type: sent ? 'success' : 'info',
-      text1: sent ? 'Test push sent' : 'Push test',
-      text2: message,
-    });
+    Toast.show({ type: sent ? 'success' : 'info', text1: sent ? 'Test push sent' : 'Push test', text2: message });
   }, []);
 
   return (
-    <SafeAreaView style={s.bg}>
-      <ScrollView
-        contentContainerStyle={s.scroll}
-        showsVerticalScrollIndicator={false}
-        refreshControl={
-          <RefreshControl
-            refreshing={refreshing}
-            onRefresh={onRefresh}
-            tintColor={COLORS.accent.primary}
-          />
-        }
-      >
-        {/* Top bar with Profile title */}
-        <View style={s.topBar}>
-          <Text style={s.topBarTitle}>Profile</Text>
-        </View>
+    <>
+      <BrutalistProfileView
+        name={user?.name}
+        phone={user?.phone}
+        avatar={avatar}
+        score={identity?.money_score || (user as any)?.money_score || 0}
+        percentile={typeof identity?.percentile === 'number' ? identity.percentile : null}
+        weeklyDelta={typeof weekly?.score_delta === 'number' ? weekly.score_delta : null}
+        tierLabel={identity?.tier_label}
+        tierEmoji={identity?.tier_emoji}
+        streak={streak}
+        badgesEarned={badgesEarned}
+        badgesTotal={badgesTotal}
+        coins={coinsBalance}
+        weeklyPctBetter={weekly?.pct_better ?? null}
+        weeklyCommentary={weekly?.commentary ?? null}
+        weeklyThis={weekly?.this_week ?? null}
+        weeklyLast={weekly?.last_week ?? null}
+        isPro={isPro}
+        gmailText={gmailText}
+        bioLabel={bioLabel}
+        bioHwAvail={bioHwAvail}
+        bioOn={bioOn}
+        hasPinSet={hasPinSet}
+        appLockOn={appLockOn}
+        langLabel={currentLang?.nativeName}
+        refreshing={refreshing}
+        onRefresh={onRefresh}
+        onEditAvatar={openEditAvatar}
+        onEditName={openEditName}
+        onOpenScoreBreakdown={openScoreBreakdown}
+        onOpenScoreBoost={openScoreBoost}
+        onShareWin={openShareWin}
+        onOpenAICoach={openAICoach}
+        onOpenPremium={openPremium}
+        onGoGoals={goGoals}
+        onOpenAchievements={openAchievements}
+        onGoLeaderboard={goLeaderboard}
+        onOpenPaymentMethods={openPaymentMethods}
+        onToggleBio={bioHwAvail ? onToggleBio : undefined}
+        onChangePin={onChangePin}
+        onToggleAppLock={onToggleAppLock}
+        onOpenPreferences={openPreferences}
+        onOpenNotifs={openNotifs}
+        onGoGmail={goGmail}
+        onOpenHelp={openHelp}
+        onGoAbout={goAbout}
+        onLogout={openLogout}
+        onGoDeleteAccount={goDeleteAccount}
+        onOpenMoreSettings={openMoreSettings}
+        onGoRewards={goRewards}
+        onLogExpense={onLogExpense}
+        onOpenProfileSheet={() => setProfileSheetVisible(true)}
+      />
 
-        {/* Initial load skeleton — shown once, never on refresh */}
-        {initialLoading && !identity ? (
-          <ProfileSkeleton />
-        ) : (
-        <StaggeredEntrance delayMs={55} duration={420} distance={14}>
-        {/* Round 58 — Profile Revamp.
-             Hero replaced by THREE focused glass cards:
-              1. Identity (avatar/name/tier)
-              2. Money Score (dominant) + Boost-my-score CTA
-              3. Boost Carousel (3 pillar levers) */}
-        <ProfileIdentityCard
-          name={user?.name}
-          phone={user?.phone}
-          avatarUri={avatar}
-          score={identity?.money_score || user?.money_score || 0}
-          weeklyDelta={typeof weekly?.score_delta === 'number' ? weekly.score_delta : null}
-          onEditAvatar={openEditAvatar}
-          onEditName={openEditName}
-        />
-        <MoneyScoreCard
-          score={identity?.money_score || user?.money_score || 0}
-          predictiveInsight={breakdown?.predictive_insight}
-          percentile={typeof identity?.percentile === 'number' ? identity.percentile : null}
-          nextTier={breakdown?.next_tier}
-          pointsToNext={breakdown?.points_to_next}
-          onTap={openScoreBreakdown}
-          onLevelUp={openScoreBoost}
-        />
-        {breakdown?.pillars && breakdown.pillars.length > 0 ? (
-          <BoostCarousel pillars={breakdown.pillars} />
-        ) : null}
-
-        {/* 2. MISSIONS ENGINE */}
-        {missionsData ? (
-          <MissionsEngine
-            missions={todayMissions}
-            secondsToRefresh={missionsData.seconds_to_refresh || 0}
-            totalXp={missionsData.total_xp || 0}
-            totalCoins={missionsData.total_coins || 0}
-            onMissionPress={onMissionPress}
-            onEarnAll={onEarnAll}
-          />
-        ) : null}
-
-        {/* 3. PROGRESS merged */}
-        <ProgressInline
-          streak={streak}
-          badgesEarned={badgesEarned}
-          badgesTotal={badgesTotal}
-          coins={coinsBalance}
-          onPressViewProgress={goRewards}
-        />
-
-        {/* Wave 5.5 — 7-day weekly streak meter (M T W T F S S) */}
-        {streak > 0 ? (
-          <StreakMeter
-            streak={streak}
-            todayIdx={(() => {
-              const js = new Date().getDay();     // 0=Sun..6=Sat
-              return (js + 6) % 7;                 // convert to 0=Mon..6=Sun
-            })()}
-            days={(() => {
-              // Fill the last `streak` days up to (and including) today.
-              const js = new Date().getDay();
-              const todayIdx = (js + 6) % 7;
-              const filled = Math.min(streak, 7);
-              return Array.from({ length: 7 }, (_, i) =>
-                i <= todayIdx && i > todayIdx - filled
-              );
-            })()}
-          />
-        ) : null}
-
-        {/* 3b. STREAK & COINS HEALTH — expandable observability card */}
-        <StreakCoinsHealthCard
-          initialStreak={streak}
-          initialCoins={coinsBalance}
-        />
-
-        {/* 4. BEAT YOUR LAST WEEK */}
-        {weekly ? (
-          <BeatLastWeek
-            thisWeek={weekly.this_week}
-            lastWeek={weekly.last_week}
-            pctBetter={weekly.pct_better || 0}
-            commentary={weekly.commentary || ''}
-            tone={weekly.tone || 'info'}
-            rewardPreview={weekly.reward_preview}
-            onPress={goYearly}
-            onShare={openShareWin}
-          />
-        ) : null}
-
-        {/* 5. AI COACH — 1-tap contextual */}
-        <AICoachOneTap stats={realStats} score={identity?.money_score || user?.money_score || 0} />
-
-        {/* 6. PREMIUM conversion funnel */}
-        <PremiumConversionFunnel isPro={isPro} />
-
-        {/* 7. SETTINGS (list-style, no card blocks) */}
-        <SettingsList header="Financial">
-          <SettingsListItem icon="flag-outline" label="My Goals" onPress={goGoals} />
-          <SettingsListItem icon="ribbon-outline" label="Achievements" onPress={openAchievements} />
-          <SettingsListItem icon="trophy-outline" label="Leaderboard" onPress={goLeaderboard} />
-          <SettingsListItem icon="card-outline" label="Payment methods" onPress={openPaymentMethods} />
-        </SettingsList>
-
-        <SettingsList header="Security">
-          <SettingsListItem
-            icon="finger-print-outline"
-            label={`${bioLabel} login`}
-            value={!bioHwAvail ? 'Not available' : (bioOn ? 'On' : 'Off')}
-            onPress={bioHwAvail ? onToggleBio : undefined}
-            testID="security-bio-toggle"
-          />
-          <SettingsListItem
-            icon="keypad-outline"
-            label={hasPinSet ? 'Change mPIN' : 'Set mPIN'}
-            onPress={onChangePin}
-            testID="security-change-pin"
-          />
-          <SettingsListItem
-            icon="lock-closed-outline"
-            label="App lock on background"
-            value={appLockOn ? 'On' : 'Off'}
-            onPress={onToggleAppLock}
-            testID="security-app-lock"
-          />
-        </SettingsList>
-
-        <SettingsList header="App">
-          <SettingsListItem
-            icon="color-palette-outline"
-            label="Theme & language"
-            value={currentLang?.nativeName}
-            onPress={openPreferences}
-          />
-          <SettingsListItem icon="notifications-outline" label="Notifications" onPress={openNotifs} />
-          <SmartStatusRow
-            icon="logo-google"
-            label="Gmail auto-import"
-            status={gmailRow.status}
-            statusText={gmailRow.text}
-            onPress={goGmail}
-            onFixNow={goGmail}
-          />
-        </SettingsList>
-
-        <SettingsList header="Support">
-          <SettingsListItem icon="help-circle-outline" label={t('help_support', lang)} onPress={openHelp} />
-          <SettingsListItem icon="information-circle-outline" label="About MintU" onPress={goAbout} />
-        </SettingsList>
-
-        <SettingsList header="Account">
-          <SettingsListItem
-            icon="log-out-outline"
-            label={t('logout', lang)}
-            danger
-            onPress={openLogout}
-            testID="profile-logout"
-          />
-          <SettingsListItem
-            icon="trash-outline"
-            label="Delete account"
-            danger
-            onPress={goDeleteAccount}
-            testID="profile-delete-account"
-          />
-        </SettingsList>
-
-        <View style={s.footer}>
-          <Ionicons name="shield-checkmark-outline" size={12} color={COLORS.text.muted} />
-          <Text style={s.footerTxt}>Bank-grade encryption · Data in India</Text>
-        </View>
-        <Text style={s.version}>v1.0.0</Text>
-        <View style={{ height: 40 }} />
-        </StaggeredEntrance>
-        )}
-      </ScrollView>
-
-      {/* ── Modals / Sheets ── */}
-
+      {/* ── Modals / Sheets (unchanged) ─────────────────────────── */}
       <LogoutConfirmSheet
         visible={logoutSheet}
-        onCancel={closeLogout}
+        onCancel={() => setLogoutSheet(false)}
         onConfirm={handleLogout}
       />
 
       <ScoreBreakdownModal
         visible={scoreBreakdownVisible}
-        onClose={closeScoreBreakdown}
-        fallbackScore={identity?.money_score || user?.money_score || 0}
+        onClose={() => setScoreBreakdownVisible(false)}
+        fallbackScore={identity?.money_score || (user as any)?.money_score || 0}
       />
 
       <ScoreBoostModal
         visible={scoreBoostVisible}
-        onClose={closeScoreBoost}
-        currentScore={identity?.money_score || user?.money_score || 0}
+        onClose={() => setScoreBoostVisible(false)}
+        currentScore={identity?.money_score || (user as any)?.money_score || 0}
       />
 
-      {/* Edit name — extracted component */}
       <EditNameSheet
         visible={editNameVisible}
         currentName={user?.name || ''}
-        onClose={closeEditName}
+        onClose={() => setEditNameVisible(false)}
       />
 
-      {/* Language — extracted bottom sheet */}
-      <LanguageSheet
-        visible={langModalVisible}
-        onClose={closeLang}
-      />
+      <LanguageSheet visible={langModalVisible} onClose={() => setLangModalVisible(false)} />
 
-      <Modal visible={helpVisible} animationType="slide"><HelpSupport onClose={closeHelp} /></Modal>
+      <Modal visible={helpVisible} animationType="slide"><HelpSupport onClose={() => setHelpVisible(false)} /></Modal>
 
-      {/* Sub-screens launched from settings list — all use shared SubScreenModal */}
       <SubScreenModal
         visible={achievementsModalVisible}
         title="Achievements"
-        onClose={closeAchievements}
+        onClose={() => setAchievementsModalVisible(false)}
       >
         <BudgetAchievements />
       </SubScreenModal>
@@ -618,7 +248,7 @@ function ProfileScreen() {
       <SubScreenModal
         visible={paymentMethodsVisible}
         title="Payment methods"
-        onClose={closePaymentMethods}
+        onClose={() => setPaymentMethodsVisible(false)}
       >
         <PaymentMethodsV2 />
       </SubScreenModal>
@@ -626,12 +256,12 @@ function ProfileScreen() {
       <SubScreenModal
         visible={preferencesVisible}
         title="Language"
-        onClose={closePreferences}
+        onClose={() => setPreferencesVisible(false)}
       >
         <SettingsList header="Language">
           <SettingsListItem
             icon="language-outline"
-            label={t('language', lang)}
+            label="Language"
             value={currentLang?.nativeName}
             onPress={openLangFromPrefs}
           />
@@ -641,43 +271,34 @@ function ProfileScreen() {
       <SubScreenModal
         visible={notifsVisible}
         title="Notifications"
-        onClose={closeNotifs}
+        onClose={() => setNotifsVisible(false)}
       >
         <NotificationSettings />
         <View style={{ height: 8 }} />
         <SettingsList header="Debug">
-          <SettingsListItem
-            icon="send-outline"
-            label="Send test notification"
-            onPress={onSendTestPush}
-          />
+          <SettingsListItem icon="send-outline" label="Send test notification" onPress={onSendTestPush} />
         </SettingsList>
       </SubScreenModal>
 
       {logoutAnim && (
-        <AuthTransitionOverlay
-          variant="locking"
-          onDone={onLogoutAnimDone}
-        />
+        <AuthTransitionOverlay variant="locking" onDone={() => { setLogoutAnim(false); router.replace('/unlock'); }} />
       )}
 
-      {/* Profile photo CUD sheet — Samsung Health style */}
       <ProfilePhotoSheet
         visible={photoSheetVisible}
         hasAvatar={!!avatar}
-        onClose={closePhoto}
+        onClose={() => setPhotoSheetVisible(false)}
         onPicked={handleAvatarPicked}
         onRemoved={handleAvatarRemoved}
       />
 
-      {/* Weekly Win share card — viral loop */}
       {weekly ? (
         <ShareWeeklyWinModal
           visible={shareWinVisible}
-          onClose={closeShareWin}
+          onClose={() => setShareWinVisible(false)}
           cardProps={deriveWin({
             userName: user?.name,
-            score: identity?.money_score ?? user?.money_score,
+            score: identity?.money_score ?? (user as any)?.money_score,
             tierLabel: identity?.tier_label
               ? `${identity?.tier_emoji || ''} ${identity.tier_label}`.trim()
               : undefined,
@@ -689,7 +310,6 @@ function ProfileScreen() {
         />
       ) : null}
 
-      {/* Round 45 — Change/Set PIN modal triggered from Security section */}
       <PinSetupModal
         visible={pinModalVisible}
         onDone={async () => {
@@ -699,24 +319,49 @@ function ProfileScreen() {
         }}
         onSkip={() => setPinModalVisible(false)}
       />
-    </SafeAreaView>
+
+      {/* Brutalist v9 — Avatar = Identity Control Node */}
+      <ProfileSheet
+        visible={profileSheetVisible}
+        onClose={() => setProfileSheetVisible(false)}
+        name={user?.name}
+        phone={user?.phone}
+        avatar={avatar}
+        onEditName={openEditName}
+        onChangeAvatar={openEditAvatar}
+        onLogout={openLogout}
+      />
+
+      {/* Brutalist v4 — collapsed Plan/Security/App/Support sub-sheet */}
+      <SubScreenModal
+        visible={moreSettingsVisible}
+        title="Settings"
+        onClose={() => setMoreSettingsVisible(false)}
+      >
+        <MoreSettingsSheet
+          isPro={isPro}
+          bioLabel={bioLabel}
+          bioHwAvail={bioHwAvail}
+          bioOn={bioOn}
+          hasPinSet={hasPinSet}
+          appLockOn={appLockOn}
+          langLabel={currentLang?.nativeName}
+          gmailText={gmailText}
+          gmailConnected={!!gmailStatus?.connected}
+          onOpenPremium={openPremium}
+          onToggleBio={bioHwAvail ? onToggleBio : undefined}
+          onChangePin={onChangePin}
+          onToggleAppLock={onToggleAppLock}
+          onOpenPreferences={openPreferences}
+          onOpenNotifs={openNotifs}
+          onGoGmail={goGmail}
+          onOpenHelp={openHelp}
+          onGoAbout={goAbout}
+        />
+      </SubScreenModal>
+    </>
   );
 }
 
-const useStyles = makeStyles((c) => ({
-  bg: { flex: 1, backgroundColor: c.bg.primary },
-  scroll: { padding: 16, paddingBottom: 100 },
-
-  topBar: { paddingVertical: 4, marginBottom: 10 },
-  topBarTitle: { fontSize: 26, fontWeight: '800', color: c.text.primary, letterSpacing: -0.6 },
-
-  footer: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, marginTop: 4, paddingVertical: 6 },
-  footerTxt: { fontSize: 11, fontWeight: '500', color: c.text.muted },
-  version: { textAlign: 'center', fontSize: 10.5, color: c.text.muted, marginTop: 4, fontWeight: '500' },
-}));
-
-
-// Round 41 — wrap with tab-level ErrorBoundary so a crash here
-// doesn't blank the whole app; the user sees a Retry CTA instead.
 import { withTabBoundary as _wrapTab_ProfileScreen } from '../../components/withTabBoundary';
 export default _wrapTab_ProfileScreen(ProfileScreen, 'Profile');

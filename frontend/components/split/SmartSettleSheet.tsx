@@ -39,7 +39,6 @@ import {
   View,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { LinearGradient } from 'expo-linear-gradient';
 import Toast from 'react-native-toast-message';
 import { makeStyles } from '../../utils/makeStyles';
 import { haptic as haptics } from '../../utils/haptics';
@@ -417,10 +416,7 @@ export default function SmartSettleSheet({ visible, groupId, groupName, currentU
                 activeOpacity={0.85}
                 style={{ marginTop: 14 }}
               >
-                <LinearGradient
-                  colors={hasOutgoing ? [C.accent, C.accentLight] : [C.border, C.border]}
-                  style={[s.cta, !hasOutgoing && { opacity: 0.6 }]}
-                >
+                <View style={[s.cta, !hasOutgoing && { opacity: 0.6 }, { backgroundColor: '#0A0A0A' }]}>
                   {submitting ? (
                     <>
                       <ActivityIndicator size="small" color={C.inv} />
@@ -434,7 +430,7 @@ export default function SmartSettleSheet({ visible, groupId, groupName, currentU
                   ) : (
                     <Text style={[s.ctaT, { color: C.text3 }]}>Nothing to settle</Text>
                   )}
-                </LinearGradient>
+                </View>
               </TouchableOpacity>
 
               {/* Secondary close */}
@@ -541,8 +537,8 @@ const useStyles = makeStyles(() => ({
   },
   sheet: {
     backgroundColor: C.sheetBg,
-    borderTopLeftRadius: 28,
-    borderTopRightRadius: 28,
+    borderTopLeftRadius: 0,
+    borderTopRightRadius: 0,
     paddingHorizontal: 20,
     paddingTop: 8,
     paddingBottom: 24,
@@ -559,7 +555,7 @@ const useStyles = makeStyles(() => ({
   headerIcon: {
     width: 36,
     height: 36,
-    borderRadius: 12,
+    borderRadius: 0,
     backgroundColor: C.accentDim,
     alignItems: 'center',
     justifyContent: 'center',
@@ -574,7 +570,7 @@ const useStyles = makeStyles(() => ({
     alignItems: 'center',
     paddingVertical: 12,
     paddingHorizontal: 12,
-    borderRadius: 12,
+    borderRadius: 0,
     backgroundColor: 'transparent',
     marginVertical: 3,
     borderWidth: 1,
@@ -594,7 +590,7 @@ const useStyles = makeStyles(() => ({
   mineDot: {
     width: 20,
     height: 20,
-    borderRadius: 10,
+    borderRadius: 0,
     backgroundColor: C.accent,
     alignItems: 'center',
     justifyContent: 'center',
@@ -604,7 +600,7 @@ const useStyles = makeStyles(() => ({
   netBox: {
     marginTop: 14,
     backgroundColor: C.bg,
-    borderRadius: 14,
+    borderRadius: 0,
     padding: 14,
     borderWidth: 1,
     borderColor: C.border,
@@ -624,7 +620,7 @@ const useStyles = makeStyles(() => ({
     alignItems: 'center',
     justifyContent: 'center',
     paddingVertical: 16,
-    borderRadius: 16,
+    borderRadius: 0,
     gap: 4,
   },
   ctaT: { fontSize: 16, fontWeight: '800', color: C.inv },
@@ -642,7 +638,7 @@ const useStyles = makeStyles(() => ({
     marginTop: 12,
     paddingVertical: 10,
     paddingHorizontal: 24,
-    borderRadius: 12,
+    borderRadius: 0,
     backgroundColor: C.accentDim,
     borderWidth: 1,
     borderColor: C.accent + '40',
@@ -681,7 +677,7 @@ const useStyles = makeStyles(() => ({
     marginTop: 14,
     paddingHorizontal: 14,
     paddingVertical: 6,
-    borderRadius: 14,
+    borderRadius: 0,
     backgroundColor: C.accent + '18',
     borderWidth: 1,
     borderColor: C.accent + '30',

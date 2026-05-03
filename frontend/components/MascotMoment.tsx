@@ -266,7 +266,7 @@ const useStyles = makeStyles((c) => ({
   bubble: {
     paddingHorizontal: 12,
     paddingVertical: 8,
-    borderRadius: 14,
+    borderRadius: 0,
     maxWidth: 240,
     borderWidth: StyleSheet.hairlineWidth,
   },

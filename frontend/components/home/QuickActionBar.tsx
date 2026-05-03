@@ -5,7 +5,6 @@
 import React, { memo } from 'react';
 import { View, Text, TouchableOpacity, Platform } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { LinearGradient } from 'expo-linear-gradient';
 import { router } from 'expo-router';
 import * as Haptics from 'expo-haptics';
 import { makeStyles } from '../../utils/makeStyles';
@@ -31,10 +30,10 @@ function QuickActionBar() {
   return (
     <View style={s.wrap}>
       <TouchableOpacity style={s.primaryShell} activeOpacity={0.9} onPress={add} testID="qa-add">
-        <LinearGradient colors={[COLORS.accent.brand, COLORS.accent.brandDark]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={s.primary}>
+        <View style={[s.primary, { backgroundColor: '#0A0A0A' }]}>
           <Ionicons name="add-circle" size={20} color="#FFFFFF" />
           <Text style={s.primaryTxt}>Add Expense</Text>
-        </LinearGradient>
+        </View>
       </TouchableOpacity>
       {ACTIONS.map((a) => (
         <TouchableOpacity key={a.id} style={s.tile} activeOpacity={0.72} onPress={() => go(a.route)} testID={`qa-${a.id}`}>
@@ -52,10 +51,10 @@ export default memo(QuickActionBar);
 
 const useStyles = makeStyles((c) => ({
   wrap: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 16 },
-  primaryShell: { flex: 1.35, borderRadius: 16, overflow: 'hidden' },
-  primary: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, paddingVertical: 16, paddingHorizontal: 8, borderRadius: 16 },
+  primaryShell: { flex: 1.35, borderRadius: 0, overflow: 'hidden' },
+  primary: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, paddingVertical: 16, paddingHorizontal: 8, borderRadius: 0 },
   primaryTxt: { color: c.bg.elevated, fontSize: 13, fontWeight: '900', letterSpacing: -0.2 },
-  tile: { flex: 1, alignItems: 'center', gap: 5, paddingVertical: 10, borderRadius: 14, backgroundColor: c.bg.secondary, borderWidth: 1, borderColor: c.border.card },
-  iconBubble: { width: 36, height: 36, borderRadius: 18, alignItems: 'center', justifyContent: 'center' },
+  tile: { flex: 1, alignItems: 'center', gap: 5, paddingVertical: 10, borderRadius: 0, backgroundColor: c.bg.secondary, borderWidth: 1, borderColor: c.border.card },
+  iconBubble: { width: 36, height: 36, borderRadius: 0, alignItems: 'center', justifyContent: 'center' },
   tileTxt: { fontSize: 10.5, fontWeight: '800', color: c.text.primary },
 }));

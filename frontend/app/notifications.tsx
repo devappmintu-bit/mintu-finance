@@ -184,15 +184,15 @@ const s = StyleSheet.create({
     gap: 12,
   },
   headerTitle: { flex: 1, fontSize: 20, fontWeight: '900', color: COLORS.text.primary, letterSpacing: -0.3 },
-  markAll: { paddingHorizontal: 10, paddingVertical: 6, borderRadius: 16 },
+  markAll: { paddingHorizontal: 10, paddingVertical: 6, borderRadius: 0 },
   markAllTxt: { fontSize: 12, fontWeight: '800', color: COLORS.accent.primary, letterSpacing: 0.2 },
 
   row: {
     flexDirection: 'row', gap: 12, padding: 14, backgroundColor: COLORS.bg.secondary,
-    borderRadius: 16, borderWidth: 1, borderColor: COLORS.border.subtle,
+    borderRadius: 0, borderWidth: 1, borderColor: COLORS.border.subtle,
   },
   rowUnread: { backgroundColor: COLORS.accent.brandSoft, borderColor: 'rgba(255,107,26,0.32)' },
-  iconWrap: { width: 44, height: 44, borderRadius: 14, alignItems: 'center', justifyContent: 'center' },
+  iconWrap: { width: 44, height: 44, borderRadius: 0, alignItems: 'center', justifyContent: 'center' },
   iconEmoji: { fontSize: 22 },
   rowHead: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   title: { flex: 1, fontSize: 14, fontWeight: '600', color: COLORS.text.primary },

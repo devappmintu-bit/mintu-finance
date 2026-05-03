@@ -138,7 +138,7 @@ const styles = StyleSheet.create({
   fab: {
     width: 56,
     height: 56,
-    borderRadius: 28,
+    borderRadius: 0,
     backgroundColor: COLORS.accent.primary,
     alignItems: 'center',
     justifyContent: 'center',
@@ -158,7 +158,7 @@ const styles = StyleSheet.create({
   subBtn: {
     width: 48,
     height: 48,
-    borderRadius: 24,
+    borderRadius: 0,
     alignItems: 'center',
     justifyContent: 'center',
   },

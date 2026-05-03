@@ -11,7 +11,6 @@
  */
 import React, { memo } from 'react';
 import { View, Text, TouchableOpacity, Platform } from 'react-native';
-import { LinearGradient } from 'expo-linear-gradient';
 import { BlurView } from 'expo-blur';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
@@ -127,11 +126,11 @@ function SoftPaywall({
       {/* Primary CTA with pulse */}
       <PulseCTA>
         <TouchableOpacity activeOpacity={0.88} onPress={handlePress} style={s.ctaBtn} testID="softpaywall-cta">
-          <LinearGradient colors={[COLORS.accent.brand, COLORS.accent.brandDark]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={s.ctaGrad}>
+          <View style={[s.ctaGrad, { backgroundColor: '#0A0A0A' }]}>
             <Ionicons name="sparkles" size={16} color="#fff" />
             <Text style={s.ctaTxt}>{ctaLabel}</Text>
             <Ionicons name="arrow-forward" size={15} color="#fff" />
-          </LinearGradient>
+          </View>
         </TouchableOpacity>
       </PulseCTA>
       <Text style={s.subCta}>7-day free trial · cancel anytime</Text>
@@ -144,7 +143,7 @@ export default memo(SoftPaywall);
 const useStyles = makeStyles((c) => ({
   wrap: {
     backgroundColor: c.bg.secondary,
-    borderRadius: 20,
+    borderRadius: 0,
     padding: 16,
     borderWidth: 1,
     borderColor: c.border.subtle,
@@ -153,7 +152,7 @@ const useStyles = makeStyles((c) => ({
   wrapCompact: { padding: 12, gap: 10 },
 
   lossRow: { flexDirection: 'row', alignItems: 'center', gap: 10 },
-  lossIcon: { width: 32, height: 32, borderRadius: 10, backgroundColor: '#FEE2E2', alignItems: 'center', justifyContent: 'center' },
+  lossIcon: { width: 32, height: 32, borderRadius: 0, backgroundColor: '#FEE2E2', alignItems: 'center', justifyContent: 'center' },
   lossLabel: { fontSize: 9.5, fontWeight: '900', color: '#B91C1C', letterSpacing: 1 },
   lossAmount: { fontSize: 22, fontWeight: '900', color: c.text.primary, letterSpacing: -0.6 },
   lossPeriod: { fontSize: 12, fontWeight: '700', color: c.text.muted },
@@ -163,7 +162,7 @@ const useStyles = makeStyles((c) => ({
   bullet: { width: 5, height: 5, borderRadius: 2.5, backgroundColor: c.accent.primary, marginTop: 6 },
   teaserTxt: { flex: 1, fontSize: 12.5, color: c.text.secondary, fontWeight: '600', lineHeight: 17 },
 
-  blurHost: { position: 'relative', borderRadius: 12, overflow: 'hidden' },
+  blurHost: { position: 'relative', borderRadius: 0, overflow: 'hidden' },
   fakeRows: { gap: 8, padding: 10 },
   fakeRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 10 },
   fakeBar: { height: 9, borderRadius: 4, backgroundColor: 'rgba(0,0,0,0.1)' },
@@ -176,7 +175,7 @@ const useStyles = makeStyles((c) => ({
   trustBadge: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 3, paddingVertical: 5, paddingHorizontal: 6, borderRadius: 999, backgroundColor: c.bg.primary, borderWidth: 1, borderColor: c.border.subtle },
   trustTxt: { fontSize: 10, fontWeight: '800', color: c.text.secondary },
 
-  ctaBtn: { borderRadius: 14, overflow: 'hidden' },
+  ctaBtn: { borderRadius: 0, overflow: 'hidden' },
   ctaGrad: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 7, paddingVertical: 13, paddingHorizontal: 16 },
   ctaTxt: { fontSize: 14, fontWeight: '900', color: '#fff', letterSpacing: -0.2 },
   subCta: { fontSize: 10.5, fontWeight: '700', color: c.text.muted, textAlign: 'center', marginTop: -6 },

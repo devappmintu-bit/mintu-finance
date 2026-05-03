@@ -93,8 +93,8 @@ export default GlassSheet;
 const useStyles = makeStyles((c) => ({
   bg: {
     backgroundColor: c.bg.elevated,
-    borderTopLeftRadius: 28,
-    borderTopRightRadius: 28,
+    borderTopLeftRadius: 0,
+    borderTopRightRadius: 0,
     borderTopWidth: 1,
     borderColor: 'rgba(255,255,255,0.08)',
   },

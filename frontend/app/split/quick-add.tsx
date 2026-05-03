@@ -21,7 +21,6 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
-import { LinearGradient } from 'expo-linear-gradient';
 import * as Haptics from 'expo-haptics';
 import Toast from 'react-native-toast-message';
 import { createDraftExpense } from '../../services/split';
@@ -151,11 +150,8 @@ export default function QuickAddDraft() {
             style={[s.ctaBtn, !canSave && s.ctaDisabled]}
             testID="qa-submit"
           >
-            <LinearGradient
-              colors={canSave ? [COLORS.accent.brand, COLORS.accent.brandDark] : ['#D1D5DB', COLORS.text.muted]}
-              start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }}
-              style={s.ctaGrad}
-            >
+            <View
+              style={[s.ctaGrad, { backgroundColor: '#0A0A0A' }]}>
               {submitting ? <ActivityIndicator color="#FFFFFF" /> : (
                 <>
                   <Ionicons name="bookmark" size={16} color="#FFFFFF" />
@@ -164,7 +160,7 @@ export default function QuickAddDraft() {
                   </Text>
                 </>
               )}
-            </LinearGradient>
+            </View>
           </TouchableOpacity>
         </View>
       </KeyboardAvoidingView>
@@ -179,7 +175,7 @@ const useStyles = makeStyles((c) => ({
     paddingHorizontal: SPACING.lg, paddingVertical: SPACING.md,
     borderBottomWidth: 1, borderBottomColor: c.border.subtle,
   },
-  iconBtn: { width: 36, height: 36, borderRadius: 18, alignItems: 'center', justifyContent: 'center', backgroundColor: c.bg.secondary },
+  iconBtn: { width: 36, height: 36, borderRadius: 0, alignItems: 'center', justifyContent: 'center', backgroundColor: c.bg.secondary },
   title: { fontSize: 16, fontWeight: '900', color: c.text.primary, letterSpacing: -0.2 },
   subtitle: { fontSize: 11, fontWeight: '700', color: c.text.muted, marginTop: 1 },
   scroll: { paddingHorizontal: SPACING.lg, paddingTop: SPACING.lg, paddingBottom: 100, gap: 10 },
@@ -187,7 +183,7 @@ const useStyles = makeStyles((c) => ({
   amountCard: {
     flexDirection: 'row', alignItems: 'center', gap: 8,
     paddingVertical: 20, paddingHorizontal: 18,
-    borderRadius: 20, backgroundColor: c.accent.brandSoft,
+    borderRadius: 0, backgroundColor: c.accent.brandSoft,
     borderWidth: 1, borderColor: c.accent.brand + '33',
   },
   rupee: { fontSize: 42, fontWeight: '900', color: c.accent.brandDark },
@@ -196,7 +192,7 @@ const useStyles = makeStyles((c) => ({
   label: { fontSize: 10, fontWeight: '900', color: c.text.muted, letterSpacing: 1.2, marginTop: 6 },
   descInput: {
     fontSize: 15, fontWeight: '700', color: c.text.primary,
-    backgroundColor: c.bg.secondary, borderRadius: 12,
+    backgroundColor: c.bg.secondary, borderRadius: 0,
     paddingVertical: 12, paddingHorizontal: 14,
     borderWidth: 1, borderColor: c.border.subtle,
   },
@@ -208,12 +204,12 @@ const useStyles = makeStyles((c) => ({
   hintCard: {
     flexDirection: 'row', alignItems: 'center', gap: 8,
     backgroundColor: c.accent.tertiary + '12',
-    borderRadius: 12, padding: 12, marginTop: 6,
+    borderRadius: 0, padding: 12, marginTop: 6,
   },
   hintTxt: { flex: 1, fontSize: 12.5, color: c.text.secondary, lineHeight: 17, fontWeight: '600' },
 
   ctaWrap: { padding: SPACING.lg, borderTopWidth: 1, borderTopColor: c.border.subtle, backgroundColor: c.bg.primary },
-  ctaBtn: { borderRadius: 14, overflow: 'hidden' },
+  ctaBtn: { borderRadius: 0, overflow: 'hidden' },
   ctaDisabled: { opacity: 0.65 },
   ctaGrad: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 7, paddingVertical: 16 },
   ctaTxt: { fontSize: 15, fontWeight: '900', color: '#FFFFFF', letterSpacing: -0.2 },

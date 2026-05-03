@@ -54,64 +54,80 @@ async def get_money_school_lessons():
 async def get_daily_lesson(user_id: str = Depends(get_current_user), lang: str = "en"):
     """Get today's lesson + AI-personalized tip based on user's spending.
 
-    Caches the personalized tip per-user for 6 hours so the 4.5-second LLM
-    round-trip doesn't block the UI on every dashboard load. The tip is
-    tied to today's rotating lesson + spending trend, so stale-within-day
-    is fine.
+    Round 70 — Migrated to ``llm_cache.get_or_regen``. Request never blocks
+    on the LLM. First caller of the day gets the static lesson tip; the
+    next caller (after the background regen lands) gets the AI-personalized
+    tip. TTL fresh = 6 h, stale = 7 d.
     """
     # Rotate daily lesson based on date
     day_index = date.today().toordinal() % len(MONEY_SCHOOL_LESSONS)
     lesson = MONEY_SCHOOL_LESSONS[day_index]
 
-    # Per-user cache key — stable for 6 hours so we don't LLM on every screen mount.
-    cache_key = f"school_daily:{user_id}:{lang}:{day_index}"
-    cached = cache_get(cache_key)
-    if cached:
-        return cached
-
-    # Get user's spending context for AI personalization
+    # Aggregate spending context — cheap DB read, used both for fallback
+    # text and the LLM prompt. Doing it inline (vs. inside compute_fn)
+    # gives us a meaningful fallback even on a cold miss.
     try:
         thirty_days_ago = utc_now() - timedelta(days=30)
         txns = await db.transactions.find({"user_id": user_id, "type": "debit", "date": {"$gte": thirty_days_ago}}).to_list(500)
         total_spent = sum(t["amount"] for t in txns)
-        top_cat = {}
+        top_cat: Dict[str, float] = {}
         for t in txns:
             top_cat[t["category"]] = top_cat.get(t["category"], 0) + t["amount"]
         top_category = max(top_cat, key=top_cat.get) if top_cat else "Food"
+    except Exception:
+        total_spent = 0
+        top_category = "Food"
 
-        lang_instr = get_lang_instruction(lang)
-        chat = LlmChat(
-            api_key=os.environ['EMERGENT_LLM_KEY'],
-            session_id=f"school_{user_id}_{utc_now().timestamp()}",
-            system_message="You are MintU's financial literacy buddy. Give ONE short personalized tip (1-2 sentences) connecting the lesson topic to user's actual spending. Be warm and specific with numbers. Use ₹." + lang_instr
-        ).with_model("openai", "gpt-5.2")
+    cache_key = f"school_daily:{user_id}:{lang}:{day_index}"
+    fallback_tip = lesson["tip"]
 
-        msg = f"Lesson: {lesson['title']}. User spent ₹{total_spent:.0f} this month, top category: {top_category}."
-        response = (await safe_send(chat, UserMessage(text=msg), timeout=15.0, label='ai_money_school') or "")
-        personal_tip = response.strip()
-    except Exception as e:
-        logging.error(f"Money school AI error: {e}")
-        personal_tip = lesson["tip"]
+    async def _compute() -> Optional[str]:
+        try:
+            lang_instr = get_lang_instruction(lang)
+            chat = LlmChat(
+                api_key=os.environ['EMERGENT_LLM_KEY'],
+                session_id=f"school_{user_id}_{utc_now().timestamp()}",
+                system_message="You are MintU's financial literacy buddy. Give ONE short personalized tip (1-2 sentences) connecting the lesson topic to user's actual spending. Be warm and specific with numbers. Use ₹." + lang_instr,
+            ).with_model("openai", "gpt-5.2")
+            msg = f"Lesson: {lesson['title']}. User spent ₹{total_spent:.0f} this month, top category: {top_category}."
+            resp = (await safe_send(chat, UserMessage(text=msg), timeout=15.0, label='ai_money_school') or "")
+            personal_tip = resp.strip() if isinstance(resp, str) else str(resp).strip()
+            return personal_tip or None
+        except Exception as e:
+            logging.warning(f"Money school daily regen failed: {e}")
+            return None
 
-    result = {
+    from core.llm_cache import get_or_regen
+    personal_tip = await get_or_regen(
+        key=cache_key,
+        compute_fn=_compute,
+        ttl_fresh=6 * 3600,
+        ttl_stale=7 * 86400,
+        fallback=fallback_tip,
+    ) or fallback_tip
+
+    return {
         "lesson": lesson,
         "personal_tip": personal_tip,
         "lesson_number": day_index + 1,
-        "total_lessons": len(MONEY_SCHOOL_LESSONS)
+        "total_lessons": len(MONEY_SCHOOL_LESSONS),
     }
-    # 6h TTL — survives the user's whole day + overlap, without blocking on day rollover.
-    cache_set(cache_key, result, ttl_seconds=6 * 3600)
-    return result
 
 # ── dynamic / cards / complete / personalized ──────────────────────────────
 @api_router.get("/money-school/dynamic")
 async def dynamic_money_school(user_id: str = Depends(get_current_user), lang: str = "en"):
-    """AI-generated daily finance school — trends, news, personalized teachings"""
-    
+    """AI-generated daily finance school — trends, news, personalized teachings.
+
+    Round 70 — Migrated to ``llm_cache.get_or_regen``. Request never blocks
+    on the LLM (was the worst offender — ~15s p99). First caller of the
+    day gets static fallback cards; subsequent calls get the AI cards.
+    Cache key includes today's date so cards rotate daily.
+    """
     user = await get_user_by_id(user_id)
     now = utc_now()
     month_start = now.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
-    
+    today_str = now.strftime("%Y-%m-%d")
+
     # User spending context
     cat_pipe = [
         {"$match": {"user_id": user_id, "date": {"$gte": month_start}}},
@@ -120,26 +136,29 @@ async def dynamic_money_school(user_id: str = Depends(get_current_user), lang: s
     spending = {}
     async for doc in db.transactions.aggregate(cat_pipe):
         spending[doc["_id"]] = doc["total"]
-    
+
     total = sum(spending.values())
     top_cat = max(spending, key=spending.get) if spending else "Food"
-    
+
     income_pipe = [
         {"$match": {"user_id": user_id, "type": {"$in": ["income", "credit"]}, "date": {"$gte": month_start}}},
         {"$group": {"_id": None, "total": {"$sum": "$amount"}}}
     ]
     inc_docs = await db.transactions.aggregate(income_pipe).to_list(1)
     income = inc_docs[0]["total"] if inc_docs else 0
-    
+
     context = f"User: {user.get('name','User') if user else 'User'}, Income: ₹{income:,.0f}, Expenses: ₹{total:,.0f}, Top category: {top_cat} (₹{spending.get(top_cat,0):,.0f}), Score: {user.get('money_score',50) if user else 50}/100. Date: {now.strftime('%B %d, %Y')}."
-    
+
     lang_instr = get_lang_instruction(lang)
-    
-    try:
-        chat = LlmChat(
-            api_key=os.environ.get("EMERGENT_LLM_KEY", ""),
-            session_id=f"school_dynamic_{user_id}_{now.timestamp()}",
-            system_message=f"""You are MintU Money School — India's AI finance teacher. Generate 6 dynamic learning cards for TODAY.
+
+    cache_key = f"school_dynamic:{user_id}:{lang}:{today_str}"
+
+    async def _compute() -> Optional[List[Dict]]:
+        try:
+            chat = LlmChat(
+                api_key=os.environ.get("EMERGENT_LLM_KEY", ""),
+                session_id=f"school_dynamic_{user_id}_{now.timestamp()}",
+                system_message=f"""You are MintU Money School — India's AI finance teacher. Generate 6 dynamic learning cards for TODAY.
 
 CARD TYPES (generate 1 of each):
 1. "trend" — Today's Indian financial trend/news (stock market, RBI policy, crypto, gold prices)
@@ -160,32 +179,41 @@ RULES:
 - For quiz: include question AND answer in body
 - For challenge: make it achievable today
 {lang_instr}"""
-        ).with_model("openai", "gpt-5.2")
-        
-        response = (await safe_send(chat, UserMessage(text=context), timeout=15.0, label='ai_money_school') or "")
-        response_text = response.strip() if isinstance(response, str) else str(response)
-        
-        import json as json_mod
-        start = response_text.find('[')
-        end = response_text.rfind(']') + 1
-        if start >= 0 and end > start:
-            ai_cards = json_mod.loads(response_text[start:end])
-        else:
-            ai_cards = []
-    except Exception as e:
-        logging.error(f"Dynamic school error: {e}")
-        ai_cards = []
-    
+            ).with_model("openai", "gpt-5.2")
+
+            response = (await safe_send(chat, UserMessage(text=context), timeout=15.0, label='ai_money_school') or "")
+            response_text = response.strip() if isinstance(response, str) else str(response)
+
+            import json as json_mod
+            start = response_text.find('[')
+            end = response_text.rfind(']') + 1
+            if start >= 0 and end > start:
+                ai_cards = json_mod.loads(response_text[start:end])
+                return ai_cards if isinstance(ai_cards, list) and ai_cards else None
+            return None
+        except Exception as e:
+            logging.warning(f"dynamic school regen failed: {e}")
+            return None
+
+    from core.llm_cache import get_or_regen
+    ai_cards = await get_or_regen(
+        key=cache_key,
+        compute_fn=_compute,
+        ttl_fresh=12 * 3600,    # 12h fresh — re-rotate twice a day
+        ttl_stale=3 * 86400,    # 3d stale-but-serve
+        fallback=[],            # cold callers see static fallback only
+    ) or []
+
     # Merge with static fallback
     all_cards = []
     for i, card in enumerate(ai_cards[:6]):
         all_cards.append({**card, "id": f"dynamic_{i}", "source": "ai"})
-    
+
     # Add static fallbacks if AI didn't generate enough
     if len(all_cards) < 6:
         for i, card in enumerate(MONEY_SCHOOL_CARDS[:6-len(all_cards)]):
             all_cards.append({**card, "id": f"static_{i}", "source": "static"})
-    
+
     # Progress
     progress = await db.school_progress.find_one({"user_id": user_id}) or {"xp": 0, "completed": []}
     xp = progress.get("xp", 0)
@@ -195,7 +223,7 @@ RULES:
         if xp >= lvl["min_xp"]:
             current_level = lvl
             next_level = XP_LEVELS[i + 1] if i + 1 < len(XP_LEVELS) else None
-    
+
     return {
         "cards": all_cards,
         "date": now.strftime("%B %d, %Y"),
@@ -287,10 +315,16 @@ async def complete_card(data: dict, user_id: str = Depends(get_current_user)):
 
 @api_router.get("/money-school/personalized")
 async def personalized_money_school(user_id: str = Depends(get_current_user), lang: str = "en"):
-    """AI-personalized money school cards based on user's actual spending"""
+    """AI-personalized money school cards based on user's actual spending.
 
+    Round 70 — Migrated to ``llm_cache.get_or_regen``. Cold callers see
+    static-only cards (still useful) and the next call returns the AI
+    personalized deck. Cache key includes today's date so cards rotate
+    daily.
+    """
     now = utc_now()
     month_start = now.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+    today_str = now.strftime("%Y-%m-%d")
 
     # Get spending data
     cat_pipe = [
@@ -316,31 +350,42 @@ async def personalized_money_school(user_id: str = Depends(get_current_user), la
     # Generate personalized cards using AI
     context = f"User spends ₹{total_expense:,.0f}/month. Top: {top_cat} ₹{top_amount:,.0f}. Income: ₹{income:,.0f}. Savings rate: {savings_rate:.0f}%."
 
-    try:
-        lang_instr = get_lang_instruction(lang)
-        chat = LlmChat(
-            api_key=os.environ.get("EMERGENT_LLM_KEY", ""),
-            session_id=f"school_{user_id}_{now.timestamp()}",
-            system_message=f"""Generate 5 personalized financial learning cards for an Indian user. Return ONLY valid JSON array.
+    cache_key = f"school_personalized:{user_id}:{lang}:{today_str}"
+
+    async def _compute() -> Optional[List[Dict]]:
+        try:
+            lang_instr = get_lang_instruction(lang)
+            chat = LlmChat(
+                api_key=os.environ.get("EMERGENT_LLM_KEY", ""),
+                session_id=f"school_{user_id}_{now.timestamp()}",
+                system_message=f"""Generate 5 personalized financial learning cards for an Indian user. Return ONLY valid JSON array.
 Each card: {{"type": "saving_hack"|"investment"|"daily_tip"|"market_trend"|"risk_alert", "emoji": "emoji", "title": "short title", "body": "2-3 sentence actionable advice with specific ₹ amounts", "xp": 10-25, "color": "hex_color"}}
 Use REAL numbers from their data. Reference Indian products (Zerodha, SBI, HDFC, Swiggy, Zomato, D-Mart).
 Make it FUN, specific, and actionable. Not generic boring advice.{lang_instr}"""
-        ).with_model("openai", "gpt-5.2")
+            ).with_model("openai", "gpt-5.2")
 
-        response = (await safe_send(chat, UserMessage(text=context), timeout=15.0, label='ai_money_school') or "")
-        response_text = response.strip() if isinstance(response, str) else str(response)
+            response = (await safe_send(chat, UserMessage(text=context), timeout=15.0, label='ai_money_school') or "")
+            response_text = response.strip() if isinstance(response, str) else str(response)
 
-        import json as json_mod
-        # Extract JSON from response
-        start = response_text.find('[')
-        end = response_text.rfind(']') + 1
-        if start >= 0 and end > start:
-            ai_cards = json_mod.loads(response_text[start:end])
-        else:
-            ai_cards = []
-    except Exception as e:
-        logging.error(f"Money school AI error: {e}")
-        ai_cards = []
+            import json as json_mod
+            start = response_text.find('[')
+            end = response_text.rfind(']') + 1
+            if start >= 0 and end > start:
+                ai_cards = json_mod.loads(response_text[start:end])
+                return ai_cards if isinstance(ai_cards, list) and ai_cards else None
+            return None
+        except Exception as e:
+            logging.warning(f"personalized school regen failed: {e}")
+            return None
+
+    from core.llm_cache import get_or_regen
+    ai_cards = await get_or_regen(
+        key=cache_key,
+        compute_fn=_compute,
+        ttl_fresh=12 * 3600,
+        ttl_stale=3 * 86400,
+        fallback=[],
+    ) or []
 
     # Merge AI cards with static cards
     all_cards = []

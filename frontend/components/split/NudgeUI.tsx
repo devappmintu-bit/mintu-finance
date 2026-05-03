@@ -19,7 +19,6 @@
 import React from 'react';
 import { Animated, Pressable, StyleSheet, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { LinearGradient } from 'expo-linear-gradient';
 import { makeStyles } from '../../utils/makeStyles';
 import { haptic as haptics } from '../../utils/haptics';
 import Mascot from '../Mascot';
@@ -166,15 +165,11 @@ export function NudgeBanner({
             accessibilityLabel={hints.cta}
             style={({ pressed }) => [pressed && { opacity: 0.85 }]}
           >
-            <LinearGradient
-              colors={[C.accent, C.accentLight]}
-              start={{ x: 0, y: 0 }}
-              end={{ x: 1, y: 0 }}
-              style={s.cta}
-            >
+            <View
+              style={[s.cta, { backgroundColor: '#0A0A0A' }]}>
               <Ionicons name="flash" size={13} color={C.inv} />
               <Text style={s.ctaT}>{`\u26a1 ${hints.cta}`}</Text>
-            </LinearGradient>
+            </View>
           </Pressable>
           <Pressable
             onPress={handleDismiss}
@@ -198,7 +193,7 @@ const useBannerStyles = makeStyles(() => ({
     gap: 12,
     paddingHorizontal: 14,
     paddingVertical: 12,
-    borderRadius: 16,
+    borderRadius: 0,
     borderWidth: StyleSheet.hairlineWidth,
     borderColor: C.accent + '35',
     marginVertical: 6,
@@ -217,7 +212,7 @@ const useBannerStyles = makeStyles(() => ({
     gap: 4,
     paddingHorizontal: 12,
     paddingVertical: 8,
-    borderRadius: 12,
+    borderRadius: 0,
   },
   ctaT: {
     fontSize: 12,

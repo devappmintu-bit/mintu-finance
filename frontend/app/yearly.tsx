@@ -8,7 +8,6 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
-import { LinearGradient } from 'expo-linear-gradient';
 import Svg, { Rect, Line, Text as SvgText } from 'react-native-svg';
 import { router } from 'expo-router';
 import api from '../utils/api';
@@ -189,7 +188,7 @@ export default function YearlyDashboard() {
           <View style={{ width: 32 }} />
         </View>
         <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', padding: 32 }}>
-          <View style={{ width: 80, height: 80, borderRadius: 40, backgroundColor: COLORS.accent.primary + '15', justifyContent: 'center', alignItems: 'center', marginBottom: 16 }}>
+          <View style={{ width: 80, height: 80, borderRadius: 0, backgroundColor: COLORS.accent.primary + '15', justifyContent: 'center', alignItems: 'center', marginBottom: 16 }}>
             <Ionicons name="lock-closed" size={32} color={COLORS.accent.primary} />
           </View>
           <Text style={{ fontSize: 20, fontWeight: '800', color: COLORS.text.primary, textAlign: 'center', marginBottom: 8 }}>Yearly Dashboard is Premium</Text>
@@ -239,7 +238,7 @@ export default function YearlyDashboard() {
         <StaggeredEntrance delayMs={65} duration={420} distance={14}>
         {/* Hero headline */}
         {/* Hero — yearly brand gradient (deep indigo-orange, intentional brand identity per Round 50). */}
-        <LinearGradient colors={[tc.accent.brandDeeper, tc.accent.brandDeeper]} style={s.hero}>
+        <View style={[s.hero, { backgroundColor: '#0A0A0A' }]}>
           <Text style={s.heroLabel}>{data?.label || 'Last 12 months'}</Text>
           <Text style={s.heroHeadline}>{data?.headline}</Text>
           <View style={s.heroStats}>
@@ -258,7 +257,7 @@ export default function YearlyDashboard() {
               <Text style={s.heroStatL}>Saved</Text>
             </View>
           </View>
-        </LinearGradient>
+        </View>
 
         {/* Bar chart */}
         <View style={s.card}>
@@ -375,7 +374,7 @@ const useStyles = makeStyles((c) => ({
   header: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 12, paddingVertical: 12, backgroundColor: c.bg.elevated, borderBottomWidth: 1, borderBottomColor: c.border.subtle },
   backBtn: { padding: 6 },
   headerTitle: { flex: 1, fontSize: 17, fontWeight: '800', color: c.text.primary, textAlign: 'center' },
-  hero: { margin: 12, padding: 18, borderRadius: 18, ...shadowStyle(c.accent.brandDeeper, 6, 16, 0.25, 6) },
+  hero: { margin: 12, padding: 18, borderRadius: 0, ...shadowStyle(c.accent.brandDeeper, 6, 16, 0.25, 6) },
   heroLabel: { color: 'rgba(255,255,255,0.8)', fontSize: 11, fontWeight: '800', letterSpacing: 1 },
   heroHeadline: { color: c.bg.elevated, fontSize: 16, fontWeight: '800', marginTop: 4, lineHeight: 22 },
   heroStats: { flexDirection: 'row', marginTop: 16, paddingTop: 14, borderTopWidth: 1, borderTopColor: 'rgba(255,255,255,0.25)' },
@@ -384,7 +383,7 @@ const useStyles = makeStyles((c) => ({
   heroStatL: { color: 'rgba(255,255,255,0.85)', fontSize: 11, fontWeight: '700', marginTop: 2 },
   heroDiv: { width: 1, height: 28, backgroundColor: 'rgba(255,255,255,0.3)', alignSelf: 'center' },
   /* Brand-tinted shadow + brand-tinted border are intentional per Round 50. */
-  card: { backgroundColor: c.bg.elevated, margin: 12, padding: 16, borderRadius: 16, borderWidth: 1, borderColor: c.border.card, ...shadowStyle('#2E1F1A', 2, 10, 0.05, 2) },
+  card: { backgroundColor: c.bg.elevated, margin: 12, padding: 16, borderRadius: 0, borderWidth: 1, borderColor: c.border.card, ...shadowStyle('#2E1F1A', 2, 10, 0.05, 2) },
   cardTitle: { fontSize: 15, fontWeight: '800', color: c.text.primary },
   cardSub: { fontSize: 11, color: c.text.muted, marginTop: 2, marginBottom: 10 },
   legendRow: { flexDirection: 'row', justifyContent: 'center', gap: 16, marginTop: 8 },
@@ -392,7 +391,7 @@ const useStyles = makeStyles((c) => ({
   legendDot: { width: 10, height: 10, borderRadius: 2 },
   legendText: { fontSize: 11, color: c.text.muted, fontWeight: '600' },
   /* Brand-tinted alpha border + soft fill — intentional warm-orange identity per Round 50. */
-  selectedCard: { marginTop: 10, padding: 12, backgroundColor: c.bg.elevated, borderRadius: 10, borderWidth: 1, borderColor: c.accent.brandDeeper + '40' },
+  selectedCard: { marginTop: 10, padding: 12, backgroundColor: c.bg.elevated, borderRadius: 0, borderWidth: 1, borderColor: c.accent.brandDeeper + '40' },
   selectedLabel: { fontSize: 13, fontWeight: '800', color: c.accent.brandDeeper, marginBottom: 8 },
   selectedGrid: { flexDirection: 'row' },
   selectedCell: { flex: 1, alignItems: 'center' },
@@ -403,7 +402,7 @@ const useStyles = makeStyles((c) => ({
   momentumTitle: { fontSize: 13, fontWeight: '800', color: c.text.primary, letterSpacing: 0.3 },
   momentumDetail: { fontSize: 12, color: c.text.secondary, marginTop: 2 },
   catRow: { flexDirection: 'row', alignItems: 'center', gap: 10, marginTop: 10 },
-  catRank: { width: 24, height: 24, borderRadius: 12, backgroundColor: c.accent.brandDeeper + '15', justifyContent: 'center', alignItems: 'center' },
+  catRank: { width: 24, height: 24, borderRadius: 0, backgroundColor: c.accent.brandDeeper + '15', justifyContent: 'center', alignItems: 'center' },
   catRankNum: { fontSize: 11, fontWeight: '800', color: c.accent.brandDeeper },
   catName: { fontSize: 13, fontWeight: '700', color: c.text.primary },
   catBar: { height: 5, backgroundColor: c.bg.elevated, borderRadius: 999, overflow: 'hidden', marginTop: 4 },

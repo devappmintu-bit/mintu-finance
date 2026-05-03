@@ -10,7 +10,6 @@
  */
 import React, { useEffect, useState } from 'react';
 import { View, Text, TouchableOpacity, ScrollView } from 'react-native';
-import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import { makeStyles } from '../../utils/makeStyles';
@@ -67,7 +66,7 @@ export default function EventsBanner({ events, onPress }: { events: Event[]; onP
             onPress={() => { try { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); } catch { /* noop */ } onPress && onPress(ev); }}
             testID={`event-${ev.id}`}
           >
-            <LinearGradient colors={[ev.color, shade(ev.color, -0.25)]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={s.card}>
+            <View style={[s.card, { backgroundColor: '#0A0A0A' }]}>
               <View style={s.blob} />
               <View style={s.row}>
                 <Text style={s.emoji}>{ev.emoji}</Text>
@@ -88,7 +87,7 @@ export default function EventsBanner({ events, onPress }: { events: Event[]; onP
                   <Ionicons name="arrow-forward" size={12} color={ON_BRAND} />
                 </View>
               </View>
-            </LinearGradient>
+            </View>
           </TouchableOpacity>
         );
       })}
@@ -100,8 +99,8 @@ const evMountedAt = Date.now();
 
 
 const useStyles = makeStyles((c) => ({
-  card: { width: 240, padding: 12, borderRadius: 16, gap: 12, overflow: 'hidden', position: 'relative', shadowColor: c.shadow.medium, shadowOpacity: 1, shadowRadius: 8, shadowOffset: { width: 0, height: 4 }, elevation: 3 },
-  blob: { position: 'absolute', top: -32, right: -32, width: 100, height: 100, borderRadius: 52, backgroundColor: 'rgba(255,255,255,0.14)' },
+  card: { width: 240, padding: 12, borderRadius: 0, gap: 12, overflow: 'hidden', position: 'relative', shadowColor: c.shadow.medium, shadowOpacity: 1, shadowRadius: 8, shadowOffset: { width: 0, height: 4 }, elevation: 3 },
+  blob: { position: 'absolute', top: -32, right: -32, width: 100, height: 100, borderRadius: 0, backgroundColor: 'rgba(255,255,255,0.14)' },
   row: { flexDirection: 'row', alignItems: 'center', gap: 12 },
   emoji: { fontSize: 28 },
   title: { fontSize: 13, fontWeight: '900', color: ON_BRAND, letterSpacing: 0.8 },

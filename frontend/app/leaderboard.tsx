@@ -308,7 +308,7 @@ const useStyles = makeStyles((c) => ({
     flexDirection: 'row', alignItems: 'center', paddingHorizontal: 12, paddingVertical: 10,
     backgroundColor: c.bg.secondary, borderBottomWidth: 1, borderBottomColor: c.border.subtle,
   },
-  iconBtn: { width: 36, height: 36, borderRadius: 18, justifyContent: 'center', alignItems: 'center' },
+  iconBtn: { width: 36, height: 36, borderRadius: 0, justifyContent: 'center', alignItems: 'center' },
   title: { fontSize: 17, fontWeight: '900', color: c.text.primary, letterSpacing: -0.3 },
   subtitle: { fontSize: 11, color: c.text.muted, marginTop: 2, maxWidth: 260 },
 
@@ -330,7 +330,7 @@ const useStyles = makeStyles((c) => ({
   // Round 51e — soft pedestal behind the trophy so the heavier filled
   // icon reads as a "ready and waiting" award rather than abandoned.
   emptyTrophyWrap: {
-    width: 110, height: 110, borderRadius: 55,
+    width: 110, height: 110, borderRadius: 0,
     backgroundColor: c.accent.primary + '14',
     alignItems: 'center', justifyContent: 'center',
     marginBottom: 6,
@@ -339,9 +339,9 @@ const useStyles = makeStyles((c) => ({
   emptyS: { fontSize: 13, color: c.text.secondary, textAlign: 'center', lineHeight: 19, maxWidth: 280 },
 
   // ── Hero Your Rank card (also the share capture target) ────────────
-  shareContainer: { margin: 16, borderRadius: 20, overflow: 'hidden' },
+  shareContainer: { margin: 16, borderRadius: 0, overflow: 'hidden' },
   heroCard: {
-    padding: 20, borderRadius: 20, backgroundColor: c.bg.secondary,
+    padding: 20, borderRadius: 0, backgroundColor: c.bg.secondary,
     borderWidth: 1.5, borderColor: c.accent.primary + '40',
     // Soft orange glow via box-shadow fallback (Android shadow props safe)
   },
@@ -354,7 +354,7 @@ const useStyles = makeStyles((c) => ({
   heroPercentile: { fontSize: 16, fontWeight: '800', color: c.accent.primary },
   heroScope: { fontSize: 12, fontWeight: '700', color: c.text.muted, marginTop: 2 },
   heroStatsRow: {
-    flexDirection: 'row', backgroundColor: c.bg.elevated, borderRadius: 14, padding: 12,
+    flexDirection: 'row', backgroundColor: c.bg.elevated, borderRadius: 0, padding: 12,
     borderWidth: 1, borderColor: c.border.subtle, alignItems: 'center',
   },
   heroStat: { flex: 1, alignItems: 'center' },
@@ -377,7 +377,7 @@ const useStyles = makeStyles((c) => ({
     paddingHorizontal: 16, paddingVertical: 12,
   },
   podiumItem: {
-    flex: 1, alignItems: 'center', padding: 10, marginHorizontal: 4, borderRadius: 14,
+    flex: 1, alignItems: 'center', padding: 10, marginHorizontal: 4, borderRadius: 0,
     backgroundColor: c.bg.secondary, borderWidth: 1, borderColor: c.border.subtle,
     gap: 4, minHeight: 130,
   },
@@ -387,7 +387,7 @@ const useStyles = makeStyles((c) => ({
   },
   podiumMedal: { fontSize: 28 },
   podiumAvatar: {
-    width: 44, height: 44, borderRadius: 22, backgroundColor: c.accent.primary + '24',
+    width: 44, height: 44, borderRadius: 0, backgroundColor: c.accent.primary + '24',
     justifyContent: 'center', alignItems: 'center', marginTop: 2,
   },
   podiumAvatarFirst: { backgroundColor: '#FFD54F40', borderWidth: 1.5, borderColor: '#FFD54F' },
@@ -398,13 +398,13 @@ const useStyles = makeStyles((c) => ({
   // ── List ───────────────────────────────────────────────────────────
   listWrap: { marginHorizontal: 16, gap: 6, marginBottom: 12 },
   row: {
-    flexDirection: 'row', alignItems: 'center', gap: 10, padding: 12, borderRadius: 14,
+    flexDirection: 'row', alignItems: 'center', gap: 10, padding: 12, borderRadius: 0,
     backgroundColor: c.bg.secondary, borderWidth: 1, borderColor: c.border.subtle,
   },
   rowMe: { borderColor: c.accent.primary + '66', backgroundColor: c.accent.primary + '12' },
   rowRank: { fontSize: 13, fontWeight: '900', color: c.text.muted, minWidth: 32 },
   rowAvatar: {
-    width: 34, height: 34, borderRadius: 17, backgroundColor: c.accent.primary + '22',
+    width: 34, height: 34, borderRadius: 0, backgroundColor: c.accent.primary + '22',
     justifyContent: 'center', alignItems: 'center',
   },
   rowAvatarT: { fontSize: 13, fontWeight: '900', color: c.text.primary },

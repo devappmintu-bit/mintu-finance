@@ -17,7 +17,6 @@
 import React, { memo } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { LinearGradient } from 'expo-linear-gradient';
 import { router } from 'expo-router';
 import { useAuthStore } from '../../store/authStore';
 import {  COLORS, RADIUS, SPACING, useAppColors } from '../../utils/theme';
@@ -42,12 +41,8 @@ function WelcomeNewUserCard({ userName }: Props) {
 
   return (
     <View style={s.wrap} testID="welcome-new-user-card">
-      <LinearGradient
-        colors={['#FFF6EB', '#FFEAD0']}
-        start={{ x: 0, y: 0 }}
-        end={{ x: 1, y: 1 }}
-        style={s.card}
-      >
+      <View
+        style={[s.card, { backgroundColor: '#FFF6EB' }]}>
         <TouchableOpacity onPress={onDismiss} style={s.close} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
           <Ionicons name="close" size={18} color={COLORS.text.muted} />
         </TouchableOpacity>
@@ -65,7 +60,7 @@ function WelcomeNewUserCard({ userName }: Props) {
           <Ionicons name="add-circle" size={18} color="#FFFFFF" />
           <Text style={s.ctaTxt}>Add your first transaction</Text>
         </TouchableOpacity>
-      </LinearGradient>
+      </View>
     </View>
   );
 }
@@ -73,14 +68,14 @@ function WelcomeNewUserCard({ userName }: Props) {
 const s = StyleSheet.create({
   wrap: { paddingHorizontal: SPACING.lg, marginTop: SPACING.md },
   card: {
-    borderRadius: 20,
+    borderRadius: 0,
     padding: 18,
     borderWidth: 1,
     borderColor: '#FFD7A6',
   },
   close: {
     position: 'absolute', top: 10, right: 10,
-    width: 28, height: 28, borderRadius: 14,
+    width: 28, height: 28, borderRadius: 0,
     alignItems: 'center', justifyContent: 'center',
     backgroundColor: 'rgba(0,0,0,0.04)',
   },

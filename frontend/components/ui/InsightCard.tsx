@@ -15,7 +15,6 @@
 import React from 'react';
 import { Text, StyleSheet, View, ViewStyle, StyleProp } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { LinearGradient } from 'expo-linear-gradient';
 import GlassCard from './TintedGlassCard';
 import GlowPill from './GlowPill';
 import NeonButton from './NeonButton';
@@ -55,23 +54,18 @@ export default function InsightCard({
   return (
     <GlassCard style={[styles.wrap, style]} tint="orange" radius={24}>
       {/* Gradient accent bar at top */}
-      <LinearGradient
-        colors={gradientStops as any}
-        start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}
-        style={styles.accentBar}
+      <View
+        style={[styles.accentBar, { backgroundColor: '#0A0A0A' }]}
       />
 
       <View style={styles.body}>
         {/* Header: icon + tag */}
         <View style={styles.header}>
           {icon && (
-            <LinearGradient
-              colors={gradientStops as any}
-              start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}
-              style={styles.iconBubble}
-            >
+            <View
+              style={[styles.iconBubble, { backgroundColor: '#0A0A0A' }]}>
               <Ionicons name={icon as any} size={18} color="#fff" />
-            </LinearGradient>
+            </View>
           )}
           {tag && <GlowPill label={tag} tone={tagTone} />}
         </View>
@@ -117,7 +111,7 @@ const useStyles = makeStyles((c) => ({
     gap: 10,
   },
   iconBubble: {
-    width: 36, height: 36, borderRadius: 12,
+    width: 36, height: 36, borderRadius: 0,
     alignItems: 'center', justifyContent: 'center',
   },
   bigRow: {

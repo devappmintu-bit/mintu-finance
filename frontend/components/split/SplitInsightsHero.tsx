@@ -15,7 +15,6 @@ import {
   View, Text, StyleSheet, ScrollView, TouchableOpacity, Animated, Easing,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { LinearGradient } from 'expo-linear-gradient';
 import * as Haptics from 'expo-haptics';
 import api from '../../utils/api';
 import {  COLORS, useAppColors } from '../../utils/theme';
@@ -97,11 +96,8 @@ function FeaturedCard({ card }: { card: InsightCard }) {
   return (
     <Animated.View style={[s.featWrap, { transform: [{ scale }], opacity }]}>
       <TouchableOpacity activeOpacity={0.92} onPress={press} testID={`insight-featured-${card.id}`}>
-        <LinearGradient
-          colors={[card.color, card.color + 'CC']}
-          start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}
-          style={s.featCard}
-        >
+        <View
+          style={[s.featCard, { backgroundColor: '#0A0A0A' }]}>
           <View style={s.featBlob} />
           <View style={s.featHeaderRow}>
             <View style={s.featEmojiPill}>
@@ -114,7 +110,7 @@ function FeaturedCard({ card }: { card: InsightCard }) {
           </View>
           <Text style={s.featTitle} numberOfLines={1}>{card.title}</Text>
           <Text style={s.featSubtitle} numberOfLines={3}>{card.subtitle}</Text>
-        </LinearGradient>
+        </View>
       </TouchableOpacity>
     </Animated.View>
   );
@@ -175,17 +171,14 @@ function AnimatedCard({ card, index }: { card: InsightCard; index: number }) {
   return (
     <Animated.View style={[s.card, { transform: [{ scale }], opacity, borderColor: card.color + '88' }]}>
       <TouchableOpacity activeOpacity={0.9} onPress={press} style={{ flex: 1 }} testID={`insight-${card.id}`}>
-        <LinearGradient
-          colors={[card.color + '16', card.color + '06']}
-          start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}
-          style={s.cardInner}
-        >
+        <View
+          style={[s.cardInner, { backgroundColor: '#0A0A0A' }]}>
           <View style={[s.emojiPill, { backgroundColor: card.color + '22' }]}>
             <Text style={s.emoji}>{card.emoji}</Text>
           </View>
           <Text style={[s.title, { color: card.color }]} numberOfLines={1}>{card.title}</Text>
           <Text style={s.subtitle} numberOfLines={3}>{card.subtitle}</Text>
-        </LinearGradient>
+        </View>
       </TouchableOpacity>
     </Animated.View>
   );
@@ -201,12 +194,12 @@ const useStyles = makeStyles((c) => ({
   // Featured hero card (full-width)
   featWrap: { paddingHorizontal: 16, marginBottom: 4 },
   featCard: {
-    borderRadius: 22, padding: 16, gap: 8, overflow: 'hidden', position: 'relative',
+    borderRadius: 0, padding: 16, gap: 8, overflow: 'hidden', position: 'relative',
     shadowColor: '#000000', shadowOpacity: 0.15, shadowRadius: 12, shadowOffset: { width: 0, height: 6 }, elevation: 4,
   },
-  featBlob: { position: 'absolute', top: -40, right: -40, width: 130, height: 130, borderRadius: 65, backgroundColor: 'rgba(255,255,255,0.12)' },
+  featBlob: { position: 'absolute', top: -40, right: -40, width: 130, height: 130, borderRadius: 0, backgroundColor: 'rgba(255,255,255,0.12)' },
   featHeaderRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-  featEmojiPill: { width: 42, height: 42, borderRadius: 14, backgroundColor: 'rgba(255,255,255,0.26)', alignItems: 'center', justifyContent: 'center' },
+  featEmojiPill: { width: 42, height: 42, borderRadius: 0, backgroundColor: 'rgba(255,255,255,0.26)', alignItems: 'center', justifyContent: 'center' },
   featEmoji: { fontSize: 22 },
   featPill: { flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: 8, paddingVertical: 4, borderRadius: 999, backgroundColor: 'rgba(0,0,0,0.22)' },
   featPillTxt: { fontSize: 9, fontWeight: '900', letterSpacing: 1, color: c.bg.elevated },
@@ -219,7 +212,7 @@ const useStyles = makeStyles((c) => ({
   // crisper edge at 2x DPI than the previous 1px.
   card: {
     width: 182,
-    borderRadius: 18,
+    borderRadius: 0,
     borderWidth: 1.5,
     backgroundColor: c.bg.secondary,
     overflow: 'hidden',
@@ -231,7 +224,7 @@ const useStyles = makeStyles((c) => ({
   },
   cardInner: { padding: 12, minHeight: 110, gap: 5 },
   emojiPill: {
-    width: 34, height: 34, borderRadius: 10,
+    width: 34, height: 34, borderRadius: 0,
     alignItems: 'center', justifyContent: 'center',
     marginBottom: 3,
   },

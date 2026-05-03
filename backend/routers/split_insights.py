@@ -12,7 +12,7 @@ from __future__ import annotations
 import os
 import logging
 from datetime import datetime, timezone, timedelta
-from typing import Any, Dict, List
+from typing import Any, Dict, List, Optional
 
 from fastapi import APIRouter, Depends
 from bson import ObjectId
@@ -224,62 +224,71 @@ async def split_insights(user_id: str = Depends(get_current_user)) -> Dict[str, 
 
 
 # ══════════════════════════════════════════════════════════════════
-# AI fun-fact generator (cached)
+# AI fun-fact generator (cached via llm_cache stale-while-revalidate)
 # ══════════════════════════════════════════════════════════════════
-_FACT_CACHE: Dict[str, Dict[str, Any]] = {}
 
 
 async def _fun_fact_for_user(user_id: str, stats: Dict[str, Any]) -> str:
     """Return a 1-line witty fun fact about the user's splitting behaviour.
 
-    Cached per-user for 6 hours. Graceful fallback if LLM fails.
+    Round 70 — Migrated to ``llm_cache.get_or_regen`` so the request
+    NEVER blocks waiting for the LLM. First caller gets the deterministic
+    fallback; the next call (after the background regen lands) gets the
+    LLM-enriched copy. Cache TTL fresh = 6 h.
     """
     today_key = utc_now().strftime("%Y-%m-%d")
-    cache_key = f"{user_id}:{today_key}"
-    hit = _FACT_CACHE.get(cache_key)
-    if hit and (utc_now() - hit["ts"]).seconds < 21600:
-        return hit["fact"]
 
     # Skip LLM if zero activity — nothing interesting to say
     if (stats.get("total_this_month") or 0) == 0 and (stats.get("expense_count") or 0) == 0:
         return ""
 
-    try:
-        from emergentintegrations.llm.chat import LlmChat, UserMessage
-        # Round 62 — global LLM-call timeout wrapper.
-        from core.llm_safe import safe_send
-        api_key = os.environ.get("EMERGENT_LLM_KEY", "")
-        if not api_key:
-            return _fallback_fact(stats)
-        sys_msg = (
-            "You are a witty, upbeat finance buddy. Return ONE LINE (max 90 chars) "
-            "that feels fun, personal and playful, using 1 emoji and no hashtags. "
-            "Reference one of the provided stats. No preamble, no quotes, just the line."
-        )
-        prompt = (
-            f"User stats this month:\n"
-            f"- Total split: ₹{stats.get('total_this_month', 0):.0f}\n"
-            f"- Estimated savings: ₹{stats.get('savings', 0):.0f}\n"
-            f"- Expense count: {stats.get('expense_count', 0)}\n"
-            f"- Most active group: {stats.get('most_active_name') or 'none'}\n"
-            f"- Friends in split squad: {stats.get('friends', 0)}\n"
-            f"- Settlement streak: {stats.get('streak', 0)} days\n\n"
-            f"Write one witty line."
-        )
-        chat = LlmChat(
-            api_key=api_key,
-            session_id=f"split_fact_{user_id}_{today_key}",
-            system_message=sys_msg,
-        ).with_model("openai", "gpt-5.2")
-        resp = (await safe_send(chat, UserMessage(text=prompt), timeout=15.0, label='split_insights') or "")
-        fact = (resp or "").strip().strip('"').strip("'")[:110]
-        if not fact:
-            fact = _fallback_fact(stats)
-        _FACT_CACHE[cache_key] = {"ts": utc_now(), "fact": fact}
-        return fact
-    except Exception as e:
-        log.warning(f"split fun_fact failed: {e}")
+    api_key = os.environ.get("EMERGENT_LLM_KEY", "")
+    if not api_key:
         return _fallback_fact(stats)
+
+    cache_key = f"split_fun_fact:{user_id}:{today_key}"
+
+    async def _compute() -> Optional[str]:
+        try:
+            from emergentintegrations.llm.chat import LlmChat, UserMessage
+            # Round 62 — global LLM-call timeout wrapper.
+            from core.llm_safe import safe_send
+            sys_msg = (
+                "You are a witty, upbeat finance buddy. Return ONE LINE (max 90 chars) "
+                "that feels fun, personal and playful, using 1 emoji and no hashtags. "
+                "Reference one of the provided stats. No preamble, no quotes, just the line."
+            )
+            prompt = (
+                f"User stats this month:\n"
+                f"- Total split: ₹{stats.get('total_this_month', 0):.0f}\n"
+                f"- Estimated savings: ₹{stats.get('savings', 0):.0f}\n"
+                f"- Expense count: {stats.get('expense_count', 0)}\n"
+                f"- Most active group: {stats.get('most_active_name') or 'none'}\n"
+                f"- Friends in split squad: {stats.get('friends', 0)}\n"
+                f"- Settlement streak: {stats.get('streak', 0)} days\n\n"
+                f"Write one witty line."
+            )
+            chat = LlmChat(
+                api_key=api_key,
+                session_id=f"split_fact_{user_id}_{today_key}",
+                system_message=sys_msg,
+            ).with_model("openai", "gpt-5.2")
+            resp = (await safe_send(chat, UserMessage(text=prompt), timeout=15.0, label='split_insights') or "")
+            fact = (resp or "").strip().strip('"').strip("'")[:110]
+            return fact or None
+        except Exception as e:
+            log.warning(f"split fun_fact regen failed: {e}")
+            return None
+
+    from core.llm_cache import get_or_regen
+    cached = await get_or_regen(
+        key=cache_key,
+        compute_fn=_compute,
+        ttl_fresh=6 * 3600,        # 6h fresh
+        ttl_stale=7 * 86400,       # 7d stale-but-serve
+        fallback=_fallback_fact(stats),
+    )
+    return cached or _fallback_fact(stats)
 
 
 def _fallback_fact(stats: Dict[str, Any]) -> str:

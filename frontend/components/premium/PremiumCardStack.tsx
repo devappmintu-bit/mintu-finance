@@ -17,7 +17,6 @@
 import React, { useEffect, useState, useRef } from 'react';
 import { View, Text, StyleSheet, Pressable, Platform, Dimensions } from 'react-native';
 import { router } from 'expo-router';
-import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import Animated, {
@@ -120,11 +119,8 @@ function PremiumCardStackImpl({
   return (
     <View style={styles.wrap}>
       <Animated.View style={[styles.card, ELEVATION.z3, cardStyle]}>
-        <LinearGradient
-          colors={feat.accent}
-          start={{ x: 0, y: 0 }}
-          end={{ x: 1, y: 1 }}
-          style={StyleSheet.absoluteFill}
+        <View
+          style={[StyleSheet.absoluteFill, { backgroundColor: '#0A0A0A' }]}
         />
         <View style={styles.iconWrap}>
           <Ionicons name={feat.icon} size={36} color="#FFFFFF" />
@@ -181,7 +177,7 @@ const styles = StyleSheet.create({
   },
   iconWrap: {
     width: 56, height: 56,
-    borderRadius: 28,
+    borderRadius: 0,
     backgroundColor: 'rgba(255,255,255,0.2)',
     alignItems: 'center',
     justifyContent: 'center',

@@ -12,7 +12,6 @@
  */
 import React, { forwardRef } from 'react';
 import { View, Text, StyleSheet } from 'react-native';
-import { LinearGradient } from 'expo-linear-gradient';
 import { makeStyles } from '../../utils/makeStyles';
 import { COLORS } from '../../utils/theme';
 
@@ -26,7 +25,10 @@ type Summary = {
   month_label?: string;
 };
 
-const BudgetShareCard = forwardRef<View, { summary: Summary }>(function BudgetShareCard({ summary }, ref) {
+type BudgetShareCardProps = { summary: Summary };
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+const BudgetShareCard = forwardRef(function BudgetShareCard({ summary }: BudgetShareCardProps, ref: any) {
   const stl = useStyles();
   const s = summary || {};
   const spent = Number(s.total_spent || 0);
@@ -35,7 +37,7 @@ const BudgetShareCard = forwardRef<View, { summary: Summary }>(function BudgetSh
   const pct = budget > 0 ? Math.min(100, Math.round((spent / budget) * 100)) : 0;
   return (
     <View ref={ref} collapsable={false} style={stl.card}>
-      <LinearGradient colors={[COLORS.accent.brand, COLORS.accent.brandDark]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={stl.bg}>
+      <View style={[stl.bg, { backgroundColor: '#0A0A0A' }]}>
         <View style={stl.headRow}>
           <Text style={stl.brand}>MintU</Text>
           <Text style={stl.month}>{s.month_label || 'This month'}</Text>
@@ -55,11 +57,8 @@ const BudgetShareCard = forwardRef<View, { summary: Summary }>(function BudgetSh
 
         {/* Progress bar */}
         <View style={stl.track}>
-          <LinearGradient
-            colors={['#FFFFFF', '#FDE68A']}
-            start={{ x: 0, y: 0 }}
-            end={{ x: 1, y: 0 }}
-            style={[stl.fill, { width: `${pct}%` }]}
+          <View
+            style={[stl.fill, { width: `${pct}%`, backgroundColor: '#FFFFFF' }]}
           />
         </View>
         <Text style={stl.pct}>{pct}% of budget used</Text>
@@ -80,7 +79,7 @@ const BudgetShareCard = forwardRef<View, { summary: Summary }>(function BudgetSh
         </View>
 
         <Text style={stl.tag}>Track smarter on MintU — mintu.app</Text>
-      </LinearGradient>
+      </View>
     </View>
   );
 });
@@ -88,7 +87,7 @@ const BudgetShareCard = forwardRef<View, { summary: Summary }>(function BudgetSh
 export default BudgetShareCard;
 
 const useStyles = makeStyles((c) => ({
-  card: { width: 360, borderRadius: 24, overflow: 'hidden', backgroundColor: 'transparent' },
+  card: { width: 360, borderRadius: 0, overflow: 'hidden', backgroundColor: 'transparent' },
   bg: { padding: 22 },
   headRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
   brand: { color: c.bg.elevated, fontSize: 14, fontWeight: '900', letterSpacing: 2, textTransform: 'uppercase' },
@@ -99,12 +98,12 @@ const useStyles = makeStyles((c) => ({
   amtLbl: { color: 'rgba(255,255,255,0.85)', fontSize: 10.5, fontWeight: '700', textTransform: 'uppercase', letterSpacing: 0.4 },
   amtVal: { color: c.bg.elevated, fontSize: 22, fontWeight: '800', marginTop: 3 },
 
-  track: { height: 10, borderRadius: 5, backgroundColor: 'rgba(255,255,255,0.25)', overflow: 'hidden', marginTop: 16 },
-  fill: { height: '100%', borderRadius: 5 },
+  track: { height: 10, borderRadius: 0, backgroundColor: 'rgba(255,255,255,0.25)', overflow: 'hidden', marginTop: 16 },
+  fill: { height: '100%', borderRadius: 0 },
   pct: { color: 'rgba(255,255,255,0.9)', fontSize: 11.5, fontWeight: '700', marginTop: 6 },
 
   kpis: { flexDirection: 'row', gap: 10, marginTop: 18 },
-  kpi: { flex: 1, backgroundColor: 'rgba(255,255,255,0.15)', borderRadius: 14, padding: 12, borderWidth: 1, borderColor: 'rgba(255,255,255,0.25)' },
+  kpi: { flex: 1, backgroundColor: 'rgba(255,255,255,0.15)', borderRadius: 0, padding: 12, borderWidth: 1, borderColor: 'rgba(255,255,255,0.25)' },
   kpiLbl: { color: 'rgba(255,255,255,0.85)', fontSize: 10.5, fontWeight: '700' },
   kpiVal: { color: c.bg.elevated, fontSize: 18, fontWeight: '800', marginTop: 4 },
   kpiSub: { color: 'rgba(255,255,255,0.85)', fontSize: 10, marginTop: 2, fontWeight: '700' },

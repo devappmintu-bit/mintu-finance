@@ -13,7 +13,6 @@
 import React from 'react';
 import { Platform, Pressable, StyleSheet, View, ViewStyle } from 'react-native';
 import Animated, { useAnimatedStyle, useSharedValue, withSpring } from 'react-native-reanimated';
-import { LinearGradient } from 'expo-linear-gradient';
 import { COLORS, GLASS } from '../../utils/theme';
 import { haptic } from '../../utils/haptics';
 
@@ -90,11 +89,8 @@ function _GlassButton({
         flatStyle as any,
       ]}
     >
-      <LinearGradient
-        colors={palette.gradient as any}
-        start={{ x: 0, y: 0 }}
-        end={{ x: 1, y: 1 }}
-        style={StyleSheet.absoluteFill}
+      <View
+        style={[StyleSheet.absoluteFill, { backgroundColor: '#0A0A0A' }]}
       />
       {/* Inner top highlight for the iOS "glass" sheen. */}
       <View pointerEvents="none" style={styles.topShine} />
@@ -117,7 +113,7 @@ export default GlassButton;
 const styles = StyleSheet.create({
   base: {
     minHeight: 48,
-    borderRadius: 16,
+    borderRadius: 0,
     borderWidth: StyleSheet.hairlineWidth,
     overflow: 'hidden',
     justifyContent: 'center',

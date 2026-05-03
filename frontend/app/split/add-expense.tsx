@@ -11,11 +11,10 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import {
   View, Text, TextInput, TouchableOpacity, ScrollView, KeyboardAvoidingView,
-  Platform, ActivityIndicator, Animated, Easing,
+  Platform, ActivityIndicator, Animated, Easing, StyleSheet,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
-import { LinearGradient } from 'expo-linear-gradient';
 import { router, useLocalSearchParams } from 'expo-router';
 import * as Haptics from 'expo-haptics';
 import Toast from 'react-native-toast-message';
@@ -29,7 +28,7 @@ import { makeStyles } from '../../utils/makeStyles';
 import { COLORS, SPACING, useAppColors } from '../../utils/theme';
 import { useIsOnline } from '../../hooks/useIsOnline';
 import { showError, showSuccess } from '../../utils/toast';
-import { InputAssistantHeader, QuickAmountChips } from '../../components/primitives';
+import { InputAssistantHeader, QuickAmountChips, ExpandableSection, InputMascot } from '../../components/primitives';
 
 type Member = { id: string; name: string; phone?: string };
 type SplitType = 'equal' | 'exact' | 'shares';
@@ -278,14 +277,14 @@ export default function AddExpenseScreen() {
     return (
       <SafeAreaView style={s.container}>
         <View style={s.header}>
-          <TouchableOpacity onPress={() => router.back()} style={{ width: 36, height: 36, borderRadius: 18, alignItems: 'center', justifyContent: 'center' }} testID="add-expense-close">
+          <TouchableOpacity onPress={() => router.back()} style={{ width: 36, height: 36, borderRadius: 0, alignItems: 'center', justifyContent: 'center' }} testID="add-expense-close">
             <Ionicons name="close" size={22} color={COLORS.text.primary} />
           </TouchableOpacity>
           <Text style={s.title}>New expense</Text>
           <View style={{ width: 36 }} />
         </View>
         <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', padding: 24, gap: 12 }}>
-          <View style={{ width: 72, height: 72, borderRadius: 36, backgroundColor: COLORS.accent.primary + '22', alignItems: 'center', justifyContent: 'center' }}>
+          <View style={{ width: 72, height: 72, borderRadius: 0, backgroundColor: COLORS.accent.primary + '22', alignItems: 'center', justifyContent: 'center' }}>
             <Ionicons name="people" size={36} color={COLORS.accent.primary} />
           </View>
           <Text style={{ fontSize: 18, fontWeight: '800', color: COLORS.text.primary, textAlign: 'center' }}>
@@ -520,7 +519,7 @@ export default function AddExpenseScreen() {
             style={[s.ctaBtn, !canSubmit && s.ctaDisabled]}
             testID="ae-submit"
           >
-            <LinearGradient colors={canSubmit ? [COLORS.accent.brand, COLORS.accent.brandDark] : ['#D1D5DB', COLORS.text.muted]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={s.ctaGrad}>
+            <View style={[s.ctaGrad, { backgroundColor: '#0A0A0A' }]}>
               {submitting ? <ActivityIndicator color="#FFFFFF" /> : (
                 <>
                   <Ionicons name="checkmark-circle" size={18} color="#FFFFFF" />
@@ -540,7 +539,7 @@ export default function AddExpenseScreen() {
                   </Text>
                 </>
               )}
-            </LinearGradient>
+            </View>
           </TouchableOpacity>
         </View>
       </KeyboardAvoidingView>
@@ -549,21 +548,32 @@ export default function AddExpenseScreen() {
 }
 
 const useStyles = makeStyles((c) => ({
-  container: { flex: 1, backgroundColor: c.bg.primary },
-  header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: SPACING.lg, paddingVertical: SPACING.md, borderBottomWidth: 1, borderBottomColor: c.border.subtle },
-  iconBtn: { width: 36, height: 36, borderRadius: 18, alignItems: 'center', justifyContent: 'center', backgroundColor: c.bg.secondary },
-  title: { fontSize: 16, fontWeight: '900', color: c.text.primary, letterSpacing: -0.2 },
-  groupName: { fontSize: 11, fontWeight: '700', color: c.text.muted, marginTop: 1 },
-  scroll: { paddingHorizontal: SPACING.lg, paddingTop: SPACING.lg, paddingBottom: 100, gap: 10 },
+  container: { flex: 1, backgroundColor: c.bg.elevated },
 
-  /* Brand-soft border — intentional warm-orange peach tone (Round 50). */
-  amountCard: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingVertical: 20, paddingHorizontal: 18, borderRadius: 20, backgroundColor: c.accent.brandSoft, borderWidth: 1, borderColor: c.accent.brand + '33' },
-  rupee: { fontSize: 42, fontWeight: '900', color: c.accent.brandDark },
-  amountInput: { flex: 1, fontSize: 44, fontWeight: '900', color: c.text.primary, letterSpacing: -1.5, padding: 0 },
+  // Slim top bar (close + mascot)
+  topBar: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: SPACING.lg, paddingTop: 4, paddingBottom: 6 },
+  iconBtn: { width: 36, height: 36, borderRadius: 0, alignItems: 'center', justifyContent: 'center' },
 
-  label: { fontSize: 10, fontWeight: '900', color: c.text.muted, letterSpacing: 1.2, marginTop: 6 },
-  descInput: { fontSize: 15, fontWeight: '700', color: c.text.primary, backgroundColor: c.bg.secondary, borderRadius: 12, paddingVertical: 12, paddingHorizontal: 14, borderWidth: 1, borderColor: c.border.subtle },
-  suggRow: { },
+  // Eyebrow + hero (replaces title row)
+  eyebrow: { fontSize: 10.5, fontWeight: '900', letterSpacing: 1.4, color: c.text.muted, marginTop: 4 },
+  hero: { marginTop: 4, fontSize: 26, fontWeight: '900', letterSpacing: -0.6, color: c.text.primary, lineHeight: 32 },
+  groupLine: { marginTop: 4, fontSize: 13, color: c.text.muted, fontWeight: '600' },
+
+  scroll: { paddingHorizontal: SPACING.lg, paddingTop: 12, paddingBottom: 100, gap: 10 },
+
+  // Hero amount input — bare, centered, huge
+  amountWrap: { marginTop: 22, flexDirection: 'row', alignItems: 'baseline', justifyContent: 'center' },
+  rupee: { fontSize: 44, fontWeight: '300', color: c.text.muted, letterSpacing: -1, marginRight: 4 },
+  amountInput: { fontSize: 60, fontWeight: '900', color: c.text.primary, letterSpacing: -2.4, padding: 0, minWidth: 80, textAlign: 'left' },
+
+  // Quick chips row (matches Budget/Transaction sheets)
+  quickRow: { flexDirection: 'row', justifyContent: 'center', gap: 8, marginTop: 14, flexWrap: 'wrap' },
+  quickChip: { paddingHorizontal: 14, paddingVertical: 8, borderRadius: 999, backgroundColor: c.bg.elevated, borderWidth: 1, borderColor: c.gray[200] },
+  quickTxt: { fontSize: 13, fontWeight: '700', color: c.text.primary },
+
+  label: { fontSize: 10, fontWeight: '900', color: c.text.muted, letterSpacing: 1.2, marginTop: 18 },
+  subLabel: { fontSize: 10, fontWeight: '900', color: c.text.muted, letterSpacing: 1.2, marginBottom: 8 },
+  descInput: { fontSize: 15, fontWeight: '700', color: c.text.primary, backgroundColor: c.bg.secondary, borderRadius: 0, paddingVertical: 12, paddingHorizontal: 14, borderWidth: 1, borderColor: c.border.subtle, marginTop: 8 },
   suggChip: { flexDirection: 'row', alignItems: 'center', gap: 5, paddingHorizontal: 10, paddingVertical: 6, borderRadius: 999, backgroundColor: c.bg.secondary, borderWidth: 1, borderColor: c.border.subtle },
   suggEmoji: { fontSize: 13 },
   suggTxt: { fontSize: 11.5, fontWeight: '800', color: c.text.secondary },
@@ -574,35 +584,35 @@ const useStyles = makeStyles((c) => ({
   personTxt: { fontSize: 12, fontWeight: '800', color: c.text.secondary },
   personTxtActive: { color: c.accent.brandDark },
 
-  tabRow: { flexDirection: 'row', gap: 4, padding: 4, backgroundColor: c.bg.secondary, borderRadius: 12 },
-  tab: { flex: 1, paddingVertical: 9, alignItems: 'center', borderRadius: 9 },
+  tabRow: { flexDirection: 'row', gap: 4, padding: 4, backgroundColor: c.bg.secondary, borderRadius: 0 },
+  tab: { flex: 1, paddingVertical: 9, alignItems: 'center', borderRadius: 0 },
   tabActive: { backgroundColor: c.bg.elevated, shadowColor: '#000', shadowOpacity: 0.06, shadowRadius: 4, shadowOffset: { width: 0, height: 1 }, elevation: 1 },
   tabTxt: { fontSize: 12, fontWeight: '800', color: c.text.muted },
   tabTxtActive: { color: c.accent.brandDark },
 
   inlineInputRow: { flexDirection: 'row', alignItems: 'center', gap: 10 },
   inlineLbl: { flex: 1, fontSize: 13, fontWeight: '700', color: c.text.primary },
-  inlineInputWrap: { flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: c.bg.secondary, borderRadius: 10, paddingHorizontal: 10, borderWidth: 1, borderColor: c.border.subtle, minWidth: 110 },
+  inlineInputWrap: { flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: c.bg.secondary, borderRadius: 0, paddingHorizontal: 10, borderWidth: 1, borderColor: c.border.subtle, minWidth: 110 },
   inlineRupee: { fontSize: 13, color: c.text.muted, fontWeight: '700' },
   inlineInput: { flex: 1, paddingVertical: 8, fontSize: 14, fontWeight: '700', color: c.text.primary, padding: 0, textAlign: 'right' },
   warnTxt: { fontSize: 11.5, color: c.state.warning, fontWeight: '700', marginTop: 4 },
 
-  smartRow: { flexDirection: 'row', gap: 6, flexWrap: 'wrap' },
+  smartRow: { flexDirection: 'row', gap: 6, flexWrap: 'wrap', marginTop: 14 },
   smartChip: { flexDirection: 'row', alignItems: 'center', gap: 5, paddingHorizontal: 10, paddingVertical: 7, borderRadius: 999, backgroundColor: c.bg.secondary, borderWidth: 1, borderColor: c.border.subtle },
   smartTxt: { fontSize: 11.5, fontWeight: '800', color: c.text.secondary },
 
-  /* Preview block: brand-soft bg + brand-deep ink (intentional warm orange tone). */
-  previewCard: { backgroundColor: c.accent.brandSoft, borderRadius: 16, padding: 14, borderWidth: 1, borderColor: c.accent.brand + '33', gap: 7 },
+  /* Preview block kept prominent — it's the differentiator */
+  previewCard: { marginTop: 14, backgroundColor: c.accent.brandSoft, borderRadius: 0, padding: 14, borderWidth: 1, borderColor: c.accent.brand + '33', gap: 7 },
   previewHead: { flexDirection: 'row', alignItems: 'center', gap: 5, marginBottom: 2 },
   previewLbl: { fontSize: 10, fontWeight: '900', color: c.accent.brandDark, letterSpacing: 1.2 },
-  /* Deep brand ink — warm chocolate-orange used in preview blocks (intentional brand identity per Round 50). */
   previewLine: { fontSize: 13, color: '#7A2E0A', lineHeight: 19, fontWeight: '500' },
   previewStrong: { fontWeight: '900', color: '#7A2E0A' },
   previewAmt: { fontWeight: '900', color: c.accent.brandDark },
 
-  ctaWrap: { padding: SPACING.lg, borderTopWidth: 1, borderTopColor: c.border.subtle, backgroundColor: c.bg.primary },
-  ctaBtn: { borderRadius: 14, overflow: 'hidden' },
+  // Sticky CTA
+  ctaWrap: { paddingHorizontal: SPACING.lg, paddingTop: 12, paddingBottom: 20, borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: c.gray[100], backgroundColor: c.bg.elevated },
+  ctaBtn: { borderRadius: 0, overflow: 'hidden' },
   ctaDisabled: { opacity: 0.65 },
-  ctaGrad: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 7, paddingVertical: 16 },
-  ctaTxt: { fontSize: 15, fontWeight: '900', color: c.bg.elevated, letterSpacing: -0.2 },
+  ctaGrad: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 10, paddingVertical: 16 },
+  ctaTxt: { fontSize: 15.5, fontWeight: '900', color: '#FFFFFF', letterSpacing: 0.2 },
 }));

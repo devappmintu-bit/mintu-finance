@@ -75,10 +75,10 @@ const Sparkline: React.FC<{ points: SparkPoint[] }> = ({ points }) => {
     <View style={s.sparkWrap}>
       <Svg width={CHART_W} height={CHART_H}>
         <Defs>
-          <LinearGradient id="sparkFill" x1="0" y1="0" x2="0" y2="1">
+          <View id="sparkFill" x1="0" y1="0" x2="0" y2="1" style={{ backgroundColor: '#0A0A0A' }}>
             <Stop offset="0" stopColor={COLORS.accent.primary} stopOpacity="0.25" />
             <Stop offset="1" stopColor={COLORS.accent.primary} stopOpacity="0" />
-          </LinearGradient>
+          </View>
         </Defs>
         <Polygon points={areaPts} fill="url(#sparkFill)" />
         <Polyline
@@ -197,7 +197,7 @@ const useStyles = makeStyles((c) => ({
   // back gracefully on Android (opacity handled by alpha channel).
   card: {
     backgroundColor: GLASS.solidBg,
-    borderRadius: 20,
+    borderRadius: 0,
     padding: 18,
     marginBottom: 14,
     borderWidth: StyleSheet.hairlineWidth,
@@ -217,7 +217,7 @@ const useStyles = makeStyles((c) => ({
   progressLabelRow: { flexDirection: 'row', justifyContent: 'space-between', marginTop: 6 },
   progressLabel: { fontSize: 11, fontWeight: '600', color: c.text.muted },
   progressLabelR: { fontSize: 11, fontWeight: '700', color: c.text.secondary },
-  paceBox: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingVertical: 10, paddingHorizontal: 12, backgroundColor: c.accent.primary + '08', borderRadius: 12, marginBottom: 14 },
+  paceBox: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingVertical: 10, paddingHorizontal: 12, backgroundColor: c.accent.primary + '08', borderRadius: 0, marginBottom: 14 },
   paceEmoji: { fontSize: 18 },
   paceText: { flex: 1, fontSize: 13, fontWeight: '700', color: c.text.primary, lineHeight: 18 },
   sparkHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 },
@@ -228,7 +228,7 @@ const useStyles = makeStyles((c) => ({
   sparkWrap: { alignItems: 'center', marginVertical: 6 },
   sparkLabels: { flexDirection: 'row', justifyContent: 'space-between', width: CHART_W - PAD * 2, marginTop: 2, paddingHorizontal: PAD },
   sparkLabel: { flex: 1, fontSize: 10, color: c.text.muted, fontWeight: '600', textAlign: 'center' },
-  emptySparkBox: { alignItems: 'center', padding: 20, backgroundColor: c.bg.elevated, borderRadius: 14, marginVertical: 10, gap: 8 },
+  emptySparkBox: { alignItems: 'center', padding: 20, backgroundColor: c.bg.elevated, borderRadius: 0, marginVertical: 10, gap: 8 },
   emptySparkText: { fontSize: 12, color: c.text.muted, fontWeight: '500', textAlign: 'center' },
   statsGrid: { flexDirection: 'row', alignItems: 'center', paddingTop: 14, borderTopWidth: 1, borderTopColor: c.border.subtle, marginTop: 4 },
   statCell: { flex: 1, alignItems: 'center', gap: 3 },

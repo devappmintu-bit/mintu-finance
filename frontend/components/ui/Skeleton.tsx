@@ -13,7 +13,6 @@
  */
 import React, { useEffect, useRef } from 'react';
 import { Animated, StyleSheet, View, ViewStyle, StyleProp, Platform, Easing } from 'react-native';
-import { LinearGradient } from 'expo-linear-gradient';
 import { COLORS } from '../../utils/theme';
 import { makeStyles } from '../../utils/makeStyles';
 
@@ -29,10 +28,8 @@ const ShimmerBase = ({ style }: { style?: StyleProp<ViewStyle> }) => {
   return (
     <View style={[st.base, style]}>
       <Animated.View style={[StyleSheet.absoluteFill, { transform: [{ translateX: translate }] }]} pointerEvents="none">
-        <LinearGradient
-          colors={['transparent', 'rgba(255,255,255,0.65)', 'transparent']}
-          start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }}
-          style={{ width: 200, height: '100%' }}
+        <View
+          style={[{ width: 200, height: '100%'}, { backgroundColor: 'transparent' }]}
         />
       </Animated.View>
     </View>

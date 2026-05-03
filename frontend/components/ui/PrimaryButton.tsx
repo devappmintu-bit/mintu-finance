@@ -20,7 +20,6 @@ import React, { useRef } from 'react';
 import {
   View, Text, StyleSheet, Pressable, ActivityIndicator, Animated, Easing, ViewStyle, TextStyle,
 } from 'react-native';
-import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { useHaptic } from '../../hooks/useHaptic';
 import { makeStyles } from '../../utils/makeStyles';
@@ -90,7 +89,7 @@ export default function PrimaryButton({
   );
 
   const base: ViewStyle = {
-    borderRadius: 14,
+    borderRadius: 0,
     overflow: 'hidden',
     minHeight: 44,
     opacity: disabled ? 0.4 : 1,
@@ -109,14 +108,14 @@ export default function PrimaryButton({
         android_ripple={{ color: 'rgba(255,255,255,0.16)' }}
       >
         {variant === 'solid' && (
-          <LinearGradient colors={['#FF8C42', COLORS.accent.primaryLight, '#E84A0C']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }}>
+          <View style={{ backgroundColor: '#FF8C42' }}>
             {content}
-          </LinearGradient>
+          </View>
         )}
         {variant === 'danger' && (
-          <LinearGradient colors={['#FF5470', '#E11D48']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }}>
+          <View style={{ backgroundColor: '#FF5470' }}>
             {content}
-          </LinearGradient>
+          </View>
         )}
         {variant === 'ghost' && (
           <View style={[s.ghostBg]}>{content}</View>
@@ -131,6 +130,6 @@ export default function PrimaryButton({
 
 const useStyles = makeStyles((c) => ({
   inner: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center' },
-  ghostBg: { backgroundColor: 'rgba(255,107,26,0.08)', borderWidth: 1.5, borderColor: COLORS.accent.primaryLight, borderRadius: 14 },
-  tonalBg: { backgroundColor: 'rgba(255,107,26,0.14)', borderWidth: 1, borderColor: 'rgba(255,107,26,0.35)', borderRadius: 14 },
+  ghostBg: { backgroundColor: 'rgba(255,107,26,0.08)', borderWidth: 1.5, borderColor: COLORS.accent.primaryLight, borderRadius: 0 },
+  tonalBg: { backgroundColor: 'rgba(255,107,26,0.14)', borderWidth: 1, borderColor: 'rgba(255,107,26,0.35)', borderRadius: 0 },
 }));

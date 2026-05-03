@@ -63,7 +63,7 @@ const useStyles = makeStyles((c) => ({
   bg: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'flex-end' },
   sheet: {
     backgroundColor: GLASS.solidBg,
-    borderTopLeftRadius: 24, borderTopRightRadius: 24,
+    borderTopLeftRadius: 0, borderTopRightRadius: 0,
     borderTopWidth: StyleSheet.hairlineWidth, borderColor: GLASS.borderLight,
     paddingHorizontal: 20, paddingTop: 10, paddingBottom: 32,
     maxHeight: '70%',
@@ -74,7 +74,7 @@ const useStyles = makeStyles((c) => ({
 
   opt: {
     flexDirection: 'row', alignItems: 'center', gap: 12,
-    paddingVertical: 14, paddingHorizontal: 14, borderRadius: 12,
+    paddingVertical: 14, paddingHorizontal: 14, borderRadius: 0,
     backgroundColor: c.bg.primary, marginBottom: 8,
     borderWidth: StyleSheet.hairlineWidth, borderColor: c.border.subtle,
   },

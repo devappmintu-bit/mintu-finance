@@ -272,13 +272,13 @@ const useStyles = makeStyles(() => ({
   wrap: { flexDirection: 'row', alignItems: 'center' },
   glow: { position: 'absolute' },
   legendChip: {
-    marginLeft: 4, paddingHorizontal: 8, paddingVertical: 3, borderRadius: 10,
+    marginLeft: 4, paddingHorizontal: 8, paddingVertical: 3, borderRadius: 0,
     backgroundColor: '#FEF3C7', borderWidth: 1, borderColor: '#EAB30866',
   },
   legendTxt: { fontSize: 9, fontWeight: '900', color: '#A16207', letterSpacing: 1 },
   milestone: {
     position: 'absolute', top: -24, alignSelf: 'center',
-    backgroundColor: COLORS.text.primary, paddingHorizontal: 10, paddingVertical: 4, borderRadius: 10,
+    backgroundColor: COLORS.text.primary, paddingHorizontal: 10, paddingVertical: 4, borderRadius: 0,
   },
   milestoneTxt: { color: '#fff', fontSize: 11, fontWeight: '900', letterSpacing: 0.5 },
 }));

@@ -26,6 +26,7 @@ import { COLORS, useAppColors } from '../utils/theme';
 import ErrorBoundary from '../components/ErrorBoundary';
 import OfflineBanner from '../components/OfflineBanner';
 import AppLockOverlay from '../components/AppLockOverlay';
+import SmartEntryHost from '../components/smart-entry/SmartEntryHost';
 import { isExpoGo } from '../utils/lockManager';
 
 // Phase 5 Wave 4 — boot-sequence optimization.
@@ -272,6 +273,11 @@ export default function RootLayout() {
               sensitive content is never visible during the lock→unlock
               transition. */}
           <AppLockOverlay />
+          {/* v10 Phase 2A — Unified SmartEntry host. Any screen (or AI
+              Brain action) can call useSmartEntry.open('expense'|'budget'|'goal')
+              and the right sheet pops globally. Mounted LAST so sheets
+              render above stack but BELOW the app lock overlay. */}
+          <SmartEntryHost />
         </BottomSheetModalProvider>
       </PortalProvider>
       </ErrorBoundary>

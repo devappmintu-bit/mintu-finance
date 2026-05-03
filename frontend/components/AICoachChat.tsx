@@ -23,7 +23,6 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
-import { LinearGradient } from 'expo-linear-gradient';
 import { router } from 'expo-router';
 import api, { apiSlow } from '../utils/api';
 import { fetchAnalyticsSummary } from '../services/transactions';
@@ -183,7 +182,7 @@ export default function AICoachChat({ onClose }: { onClose?: () => void }) {
     if (pending) {
       // Defer so the welcome message renders first, giving a natural
       // pacing instead of two messages flashing simultaneously.
-      const t = setTimeout(() => sendMessage(pending), 250);
+      const t = setTimeout(() => sendMessage(pending.prompt), 250);
       return () => clearTimeout(t);
     }
     // Intentionally not listing sendMessage in deps — we ONLY want to
@@ -360,11 +359,8 @@ export default function AICoachChat({ onClose }: { onClose?: () => void }) {
                 style={s.lockedSchoolCard}
                 testID="ai-coach-school-locked"
               >
-                <LinearGradient
-                  colors={['#FFF7E8', '#FFE7C7']}
-                  start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}
-                  style={s.lockedSchoolInner}
-                >
+                <View
+                  style={[s.lockedSchoolInner, { backgroundColor: '#FFF7E8' }]}>
                   <View style={s.lockedSchoolIcon}>
                     <Ionicons name="school" size={22} color={COLORS.accent.primary} />
                   </View>
@@ -378,7 +374,7 @@ export default function AICoachChat({ onClose }: { onClose?: () => void }) {
                     <Text style={s.lockedCTAT}>Upgrade</Text>
                     <Ionicons name="arrow-forward" size={13} color={COLORS.accent.primary} />
                   </View>
-                </LinearGradient>
+                </View>
                 {/* Locked preview chips — muted */}
                 <View style={[s.chipsWrap, { opacity: 0.5 }]}>
                   {SCHOOL_CHIPS.slice(0, 4).map((c, i) => (
@@ -448,19 +444,19 @@ export default function AICoachChat({ onClose }: { onClose?: () => void }) {
 const useStyles = makeStyles((c) => ({
   container: { flex: 1, backgroundColor: c.bg.primary },
   header: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingHorizontal: 16, paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: c.border.subtle },
-  headerIcon: { width: 40, height: 40, borderRadius: 20, backgroundColor: 'transparent', justifyContent: 'center', alignItems: 'center' },
+  headerIcon: { width: 40, height: 40, borderRadius: 0, backgroundColor: 'transparent', justifyContent: 'center', alignItems: 'center' },
   headerTitle: { fontSize: 17, fontWeight: '800', color: c.text.primary },
   headerSub: { fontSize: 11, color: c.text.muted, marginTop: 1 },
-  closeBtn: { width: 36, height: 36, borderRadius: 18, backgroundColor: c.bg.card, justifyContent: 'center', alignItems: 'center' },
+  closeBtn: { width: 36, height: 36, borderRadius: 0, backgroundColor: c.bg.card, justifyContent: 'center', alignItems: 'center' },
   chatList: { padding: 16, paddingBottom: 8 },
   msgRow: { flexDirection: 'row', marginBottom: 14 },
   msgRowUser: { justifyContent: 'flex-end' },
   msgRowAi: { justifyContent: 'flex-start' },
-  aiAv: { width: 28, height: 28, borderRadius: 14, backgroundColor: c.accent.primary + '12', justifyContent: 'center', alignItems: 'center', marginRight: 8, marginTop: 18 },
+  aiAv: { width: 28, height: 28, borderRadius: 0, backgroundColor: c.accent.primary + '12', justifyContent: 'center', alignItems: 'center', marginRight: 8, marginTop: 18 },
   agentLabelRow: { flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 3, marginLeft: 4 },
   agentLabel: { fontSize: 10, fontWeight: '700', color: c.accent.primary },
   offlinePill: { fontSize: 8, fontWeight: '800', color: '#fff', backgroundColor: COLORS.text.muted, paddingHorizontal: 6, paddingVertical: 1, borderRadius: 999, letterSpacing: 0.5 },
-  bubble: { borderRadius: 18, paddingHorizontal: 14, paddingVertical: 10 },
+  bubble: { borderRadius: 0, paddingHorizontal: 14, paddingVertical: 10 },
   bubbleUser: { backgroundColor: c.accent.primary, borderBottomRightRadius: 4 },
   bubbleAi: { backgroundColor: c.bg.card, borderBottomLeftRadius: 4, borderWidth: 1, borderColor: c.border.card },
   msgText: { fontSize: 14, lineHeight: 21, color: c.text.primary },
@@ -473,9 +469,9 @@ const useStyles = makeStyles((c) => ({
   schoolHeaderRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingRight: 16 },
   premiumBadge: { flexDirection: 'row', alignItems: 'center', gap: 3, backgroundColor: c.accent.primary + '1E', paddingHorizontal: 7, paddingVertical: 3, borderRadius: 999, borderWidth: 1, borderColor: c.accent.primary + '44' },
   premiumBadgeT: { fontSize: 9, fontWeight: '900', color: c.accent.primary, letterSpacing: 0.6 },
-  lockedSchoolCard: { marginHorizontal: 16, marginBottom: 10, borderRadius: 16, overflow: 'hidden', borderWidth: 1, borderColor: c.accent.primary + '33' },
+  lockedSchoolCard: { marginHorizontal: 16, marginBottom: 10, borderRadius: 0, overflow: 'hidden', borderWidth: 1, borderColor: c.accent.primary + '33' },
   lockedSchoolInner: { flexDirection: 'row', alignItems: 'center', gap: 12, padding: 12 },
-  lockedSchoolIcon: { width: 40, height: 40, borderRadius: 12, backgroundColor: '#fff', alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: c.accent.primary + '33' },
+  lockedSchoolIcon: { width: 40, height: 40, borderRadius: 0, backgroundColor: '#fff', alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: c.accent.primary + '33' },
   lockedSchoolTitle: { fontSize: 13.5, fontWeight: '900', color: c.text.primary },
   lockedSchoolSub: { fontSize: 11, color: c.text.secondary, marginTop: 3, lineHeight: 15 },
   lockedCTA: { flexDirection: 'row', alignItems: 'center', gap: 3, paddingHorizontal: 10, paddingVertical: 7, backgroundColor: '#fff', borderRadius: 999 },
@@ -490,6 +486,6 @@ const useStyles = makeStyles((c) => ({
   chipTextSticky: { fontSize: 12, fontWeight: '600', color: c.text.primary },
 
   inputRow: { flexDirection: 'row', paddingHorizontal: 16, paddingVertical: 10, gap: 8, borderTopWidth: 1, borderTopColor: c.border.subtle, backgroundColor: '#fff' },
-  chatInput: { flex: 1, backgroundColor: c.bg.card, borderRadius: 22, paddingHorizontal: 16, paddingVertical: 10, fontSize: 14, color: c.text.primary, borderWidth: 1, borderColor: c.border.card, maxHeight: 90 },
-  sendBtn: { width: 42, height: 42, borderRadius: 21, backgroundColor: c.accent.primary, justifyContent: 'center', alignItems: 'center', alignSelf: 'flex-end' },
+  chatInput: { flex: 1, backgroundColor: c.bg.card, borderRadius: 0, paddingHorizontal: 16, paddingVertical: 10, fontSize: 14, color: c.text.primary, borderWidth: 1, borderColor: c.border.card, maxHeight: 90 },
+  sendBtn: { width: 42, height: 42, borderRadius: 0, backgroundColor: c.accent.primary, justifyContent: 'center', alignItems: 'center', alignSelf: 'flex-end' },
 }));

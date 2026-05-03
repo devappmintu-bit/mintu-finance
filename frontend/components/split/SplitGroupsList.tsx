@@ -18,7 +18,6 @@
 import React, { useMemo } from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { LinearGradient } from 'expo-linear-gradient';
 import PressableGlass from '../PressableGlass';
 import EmptyState from '../ui/EmptyState';
 import { C, getGA } from './theme';
@@ -99,12 +98,11 @@ function SplitGroupsListImpl({
               feedback="light"
               style={styles.groupCard}
             >
-              <LinearGradient
-                colors={av.colors.map((c) => c + '20') as any}
-                style={styles.groupAv}
+              <View
+                style={[styles.groupAv, { backgroundColor: (av.colors[0] || '#0A0A0A') + '20' }]}
               >
                 <Text style={styles.groupEmoji}>{displayEmoji}</Text>
-              </LinearGradient>
+              </View>
               <View style={styles.groupInfo}>
                 <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
                   <Text style={styles.groupName} numberOfLines={1}>
@@ -164,14 +162,14 @@ const styles = StyleSheet.create({
     padding: 14,
     marginBottom: 10,
     backgroundColor: C.card,
-    borderRadius: 16,
+    borderRadius: 0,
     borderWidth: 1,
     borderColor: C.border,
   },
   groupAv: {
     width: 48,
     height: 48,
-    borderRadius: 24,
+    borderRadius: 0,
     alignItems: 'center',
     justifyContent: 'center',
     marginRight: 12,
@@ -183,7 +181,7 @@ const styles = StyleSheet.create({
   groupCodeChip: {
     paddingHorizontal: 6,
     paddingVertical: 1,
-    borderRadius: 6,
+    borderRadius: 0,
     backgroundColor: 'rgba(0,0,0,0.06)',
   },
   groupCodeChipT: {

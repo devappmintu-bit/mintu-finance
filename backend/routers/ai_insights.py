@@ -97,8 +97,40 @@ async def ai_expense_report(user_id: str = Depends(get_current_user)):
         income = doc["total"]
     savings_rate = round(((income - total) / max(income, 1)) * 100) if income > 0 else 0
     cat_summary = "\n".join([f"- {cat}: ₹{d['total']:,.0f} ({d['count']} txns)" for cat, d in sorted(categories.items(), key=lambda x: x[1]["total"], reverse=True)[:6]])
-    try:
-        prompt = f"""Generate a personalized monthly expense report for an Indian user:
+
+    # Round 69 — Architectural pass: LLM-derived `report` is now read
+    # from the `llm_cache` collection. This endpoint NEVER blocks
+    # waiting for an LLM call. On a cold miss, callers receive a
+    # deterministic fallback (same shape as the AI version) and the
+    # next request gets the LLM-enriched copy after the background
+    # regen lands. TTL fresh = 10 min so reports update steadily; TTL
+    # stale = 7d so we always have *something* to show even if the
+    # LLM provider is down for a week.
+    cache_key = f"insights_report:{user_id}:{now.strftime('%Y-%m')}"
+
+    fallback_report = {
+        "headline": "Your Monthly Snapshot",
+        "health_grade": "B",
+        "health_color": "yellow",
+        "savings_rate": savings_rate,
+        "top_insight": f"You spent ₹{total:,.0f} across {len(categories)} categories this month.",
+        "highlights": [
+            f"Total: ₹{total:,.0f} across {txn_count} transactions",
+            f"Savings rate: {savings_rate}%",
+        ],
+        "recommendations": [
+            "Review your top spending category",
+            "Set a weekly budget limit",
+        ],
+        "comparison_text": f"{'📈' if total > prev_total else '📉'} {abs(((total-prev_total)/max(prev_total,1)*100)):,.0f}% vs last month",
+    }
+
+    async def _compute_report():
+        """Generate the AI-enriched report. Called by llm_cache when
+        the cached value is missing/stale; runs in the background and
+        the result is written to MongoDB for subsequent reads."""
+        try:
+            prompt = f"""Generate a personalized monthly expense report for an Indian user:
 Income: ₹{income:,.0f} | Expenses: ₹{total:,.0f} | Savings Rate: {savings_rate}%
 Last Month Expenses: ₹{prev_total:,.0f} | Change: {((total-prev_total)/max(prev_total,1)*100):+.0f}%
 Transaction Count: {txn_count}
@@ -108,14 +140,25 @@ Category Breakdown:
 Generate a JSON report with these EXACT keys:
 {{"headline": "catchy 5-word summary", "health_grade": "A/B/C/D/F", "health_color": "green/yellow/red", "savings_rate": {savings_rate}, "top_insight": "1 sentence key finding", "highlights": ["3-4 bullet point insights"], "recommendations": ["2-3 actionable tips"], "comparison_text": "vs last month comparison"}}
 Return ONLY valid JSON."""
-        chat = LlmChat(api_key=os.environ.get("EMERGENT_LLM_KEY", ""), session_id=f"report_{user_id}_{now.timestamp()}", system_message="You are a certified financial planner analyzing an Indian user's expenses.").with_model("openai", "gpt-5.2")
-        resp = (await safe_send(chat, UserMessage(text=prompt), timeout=15.0, label='ai_insights') or "")
-        resp_text = resp.strip() if isinstance(resp, str) else str(resp)
-        import json as json_mod
-        report = json_mod.loads(resp_text) if resp_text.startswith("{") else json_mod.loads(resp_text[resp_text.index("{"):resp_text.rindex("}")+1])
-    except Exception as e:
-        logging.warning(f"AI report failed: {e}")
-        report = {"headline": "Your Monthly Snapshot", "health_grade": "B", "health_color": "yellow", "savings_rate": savings_rate, "top_insight": f"You spent ₹{total:,.0f} across {len(categories)} categories this month.", "highlights": [f"Total: ₹{total:,.0f} across {txn_count} transactions", f"Savings rate: {savings_rate}%"], "recommendations": ["Review your top spending category", "Set a weekly budget limit"], "comparison_text": f"{'📈' if total > prev_total else '📉'} {abs(((total-prev_total)/max(prev_total,1)*100)):,.0f}% vs last month"}
+            chat = LlmChat(api_key=os.environ.get("EMERGENT_LLM_KEY", ""), session_id=f"report_{user_id}_{now.timestamp()}", system_message="You are a certified financial planner analyzing an Indian user's expenses.").with_model("openai", "gpt-5.2")
+            resp = (await safe_send(chat, UserMessage(text=prompt), timeout=15.0, label='ai_insights') or "")
+            resp_text = resp.strip() if isinstance(resp, str) else str(resp)
+            if not resp_text:
+                return None
+            import json as json_mod
+            return json_mod.loads(resp_text) if resp_text.startswith("{") else json_mod.loads(resp_text[resp_text.index("{"):resp_text.rindex("}")+1])
+        except Exception as e:
+            logging.warning(f"insights LLM regen failed: {e}")
+            return None
+
+    from core.llm_cache import get_or_regen
+    report = await get_or_regen(
+        key=cache_key,
+        compute_fn=_compute_report,
+        ttl_fresh=600,        # 10 min
+        ttl_stale=7 * 86400,  # 7 days
+        fallback=fallback_report,
+    )
     result = {"total_expense": total, "total_income": income, "savings_rate": savings_rate, "txn_count": txn_count, "prev_total": prev_total, "categories": {k: v["total"] for k, v in categories.items()}, "report": report}
     cache_set(cache_key, result, ttl_seconds=600)
     return result

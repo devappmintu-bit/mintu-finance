@@ -1,60 +1,64 @@
-import React, { useState, useEffect } from 'react';
+/**
+ * app/(tabs)/rewards.tsx — Round 73 redesign.
+ *
+ * Replaces the static score / streak / weekly-challenge stack
+ * with a real-time gamification surface:
+ *
+ *   1. AnimatedScoreRing  — circular progress + count-up + tap
+ *      → ScoreBreakdownSheet (4 sub-scores)
+ *   2. StreakFlame        — animated flame that scales with streak
+ *      length, plus a 7-day visualization strip
+ *   3. ChallengeProgress  — live "1/3 days completed" with a
+ *      progress bar (replaces the inert title+desc card)
+ *   4. NextMilestone      — closest still-locked badge + gap copy
+ *      (replaces the empty/lonely "no badges yet" placeholder)
+ *   5. Social proof       — "Top X% savers this week" pill
+ *
+ * Backend: /api/gamification/status was extended in Round 73 to
+ * return: score, score_breakdown, weekly_challenge.progress,
+ * next_milestone, percentile.
+ */
+import React, { useState, useCallback, useMemo } from 'react';
 import {
-  View, Text, StyleSheet, ScrollView, TouchableOpacity, ActivityIndicator,
-  Share, Linking, Alert, RefreshControl, Platform,
+  View, Text, StyleSheet, ScrollView, TouchableOpacity,
+  Share, Linking, RefreshControl,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
-import api from '../../utils/api';
 import { trackAbEvent } from '../../services/rewards';
 import { useLangStore } from '../../store/langStore';
 import { useAuthStore } from '../../store/authStore';
-import { COLORS, RADIUS, SPACING } from '../../utils/theme';
+import { COLORS, RADIUS, SPACING, FONT_FAMILY } from '../../utils/theme';
 import { makeStyles } from '../../utils/makeStyles';
 import Skeleton from '../../components/ui/Skeleton';
 import ScoreCard from '../../components/ScoreCard';
 import { t } from '../../utils/i18n';
 import useSwr from '../../hooks/useSwr';
 import { StaggeredEntrance } from '../../components/primitives';
-
-// Push notification handler + registration now live in /hooks/usePushNotifications.ts
-// (set up once globally in app/_layout.tsx).
+import AnimatedScoreRing from '../../components/rewards/AnimatedScoreRing';
+import StreakFlame from '../../components/rewards/StreakFlame';
+import ChallengeProgress from '../../components/rewards/ChallengeProgress';
+import NextMilestone from '../../components/rewards/NextMilestone';
+import ScoreBreakdownSheet from '../../components/rewards/ScoreBreakdownSheet';
+import RewardsHeroBrutalist from '../../components/rewards/RewardsHeroBrutalist';
 
 function RewardsScreen() {
   const s = useStyles();
   const { lang } = useLangStore();
   const { user } = useAuthStore();
 
-  // ── SWR data layer (Round 26) ───────────────────────────────────────
-  // 9 parallel endpoints migrated to declarative useSwr hooks. All share
-  // a 30s default TTL so returning to the tab serves cache instantly.
   const gate = { paused: !user?.id };
-  const { data: referral, refetch: refRef } = useSwr<any>('/referral/my-code', { ttlMs: 60_000, ...gate });
-  const { data: enhancedRef, refetch: refEnhRef } = useSwr<any>('/referral/enhanced-status', { ttlMs: 60_000, ...gate });
   const { data: gamification, refetch: refGame } = useSwr<any>('/gamification/status', { ttlMs: 30_000, ...gate });
-  const { data: premium } = useSwr<any>('/premium/status', { ttlMs: 60_000, ...gate });
-  const { data: paywall } = useSwr<any>('/premium/paywall-trigger', { ttlMs: 60_000, ...gate });
   const { data: scoreCardData } = useSwr<any>('/share/score-card', { ttlMs: 60_000, ...gate });
   const { data: abGroup } = useSwr<any>('/ab/paywall-group', { ttlMs: 60_000, ...gate });
-  const { data: leaderboard, refetch: refLb } = useSwr<any>('/leaderboard/savings', { ttlMs: 30_000, ...gate });
-  const { data: friendComparison, refetch: refFriends } = useSwr<any>('/leaderboard/friends', { ttlMs: 30_000, ...gate });
 
-  // Loading gate — skeleton stays until the three must-have cards resolve.
-  const loading = referral == null && gamification == null && premium == null;
+  const loading = gamification == null;
   const [refreshing, setRefreshing] = useState(false);
+  const [breakdownOpen, setBreakdownOpen] = useState(false);
 
-  const fetchData = async () => {
-    try {
-      await Promise.all([refRef(), refEnhRef(), refGame(), refLb(), refFriends()]);
-    } finally { setRefreshing(false); }
-  };
-
-  // SWR auto-fetches on mount; the manual useEffect is redundant now.
-  // Keeping `fetchData` available for pull-to-refresh / post-mutation
-  // revalidations below.
-
-  // Push notification registration moved to global hook in app/_layout.tsx
-  // See hooks/usePushNotifications.ts — registers once globally with idempotency.
+  const fetchData = useCallback(async () => {
+    try { await refGame(); } finally { setRefreshing(false); }
+  }, [refGame]);
 
   const shareWhatsApp = (text: string) => {
     const url = `whatsapp://send?text=${encodeURIComponent(text)}`;
@@ -64,29 +68,44 @@ function RewardsScreen() {
     });
   };
 
-  const shareReferral = () => { if (referral?.share_text) shareWhatsApp(referral.share_text); };
+  // Round 73 — pre-build the urgency line based on what's closest:
+  // "You can reach X by tonight" if a small score bump is reachable
+  // by today's tracking, otherwise fall back to the badge gap copy.
+  const score = gamification?.score ?? user?.money_score ?? 50;
+  const breakdown = gamification?.score_breakdown || [];
+  const milestone = gamification?.next_milestone || null;
+  const percentile = gamification?.percentile || null;
+  const challenge = gamification?.weekly_challenge;
 
-  // Phase 2 fix (L-2): no awaited Promise inside, async keyword was redundant.
-  const trackABEvent = (event: string) => {
-    trackAbEvent(event, abGroup?.group, abGroup?.placement);
-  };
+  const urgencyText = useMemo(() => {
+    // Prefer reaching the next round-10 score if possible from
+    // today's tracking activity (each new txn ≈ 0.5 pt → 2 txns = 1 pt).
+    const nextTen = Math.min(100, Math.ceil((score + 1) / 10) * 10);
+    if (nextTen > score && nextTen - score <= 5) {
+      return `You can reach ${nextTen} by tonight`;
+    }
+    if (milestone?.copy) {
+      // Trim to fit the chip
+      return milestone.copy.length > 38 ? milestone.copy.slice(0, 36) + '…' : milestone.copy;
+    }
+    return null;
+  }, [score, milestone]);
+
+  // Track AB-group view event for paywall placement (legacy)
+  const _ = abGroup ? trackAbEvent('rewards_view', abGroup?.group, abGroup?.placement) : null;
 
   if (loading) return (
     <SafeAreaView style={s.container}>
-      <View style={{ padding: 20, gap: 10 }}>
-        <Skeleton.Box w="100%" h={120} radius={18} />
-        <Skeleton.Box w="100%" h={90} radius={16} />
-        <Skeleton.Box w="100%" h={60} radius={12} />
-        <Skeleton.Box w="100%" h={60} radius={12} />
-        <Skeleton.Box w="100%" h={60} radius={12} />
+      <View style={{ padding: 20, gap: 14 }}>
+        <Skeleton.Box w="100%" h={200} radius={22} />
+        <Skeleton.Box w="100%" h={140} radius={22} />
+        <Skeleton.Box w="100%" h={120} radius={22} />
+        <Skeleton.Box w="100%" h={110} radius={22} />
       </View>
     </SafeAreaView>
   );
 
   const streak = gamification?.streak || 0;
-  const badges = gamification?.badges_earned || [];
-  const availBadges = gamification?.badges_available || [];
-  const challenge = gamification?.weekly_challenge;
 
   return (
     <SafeAreaView style={s.container}>
@@ -95,82 +114,146 @@ function RewardsScreen() {
         contentContainerStyle={s.scroll}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); fetchData(); }} tintColor={COLORS.accent.primary} />}
       >
-        <Text style={s.pageTitle}>{t('rewards', lang)}</Text>
+        <RewardsHeroBrutalist
+          score={score}
+          streak={streak}
+          percentile={percentile || null}
+          tier={(gamification as any)?.tier || 'BRONZE'}
+        />
 
         <StaggeredEntrance delayMs={65} duration={420} distance={14}>
-        {/* Streak */}
-        <View style={s.streakCard}>
-          <View style={s.streakRow}>
-            <View style={s.streakCircle}>
-              <Ionicons name="flame" size={28} color={COLORS.accent.secondary} />
-              <Text style={s.streakNum}>{streak}</Text>
-            </View>
-            <View style={s.streakInfo}>
-              <Text style={s.streakTitle}>{t('streak_days', lang, { n: streak })}</Text>
-              <Text style={s.streakSub}>{t('keep_tracking', lang)}</Text>
-            </View>
-          </View>
-          <TouchableOpacity testID="share-score-btn" style={s.shareScoreBtn} onPress={() => shareWhatsApp(`My Money Score on MintU is ${user?.money_score || 50}/100! Track your finances: https://mintu.app`)}>
-            <Ionicons name="share-social" size={16} color="#fff" />
-            <Text style={s.shareScoreTxt}>{t('share_score', lang)}</Text>
-          </TouchableOpacity>
-        </View>
-
-        {/* Instagram Story Card */}
-        {scoreCardData && (
-          <View style={{ marginBottom: SPACING.lg }}>
-            <Text style={s.section}>{t('share_your_score', lang)}</Text>
-            <ScoreCard
-              name={scoreCardData.name}
-              score={scoreCardData.score}
-              streak={scoreCardData.streak}
-              totalSaved={scoreCardData.total_saved}
-              month={scoreCardData.month}
+          {/* 1. Animated score ring + tap-to-breakdown + urgency chip */}
+          <View style={s.heroCard}>
+            <AnimatedScoreRing
+              score={score}
+              urgencyText={urgencyText}
+              onPress={() => setBreakdownOpen(true)}
             />
+            {/* Social proof pill — "Top X% savers this week" */}
+            {percentile?.label && (
+              <View style={s.socialProof}>
+                <Ionicons name="trending-up" size={13} color="#0E8B5E" />
+                <Text style={s.socialProofTxt}>{percentile.label}</Text>
+              </View>
+            )}
+
+            {/* v9 master §Rewards: replace 'Tap for breakdown' → 'See how to improve'
+                + inline 'Top X% · WHY?' explainer. Brutalist row, 1px hairline. */}
+            <TouchableOpacity
+              onPress={() => setBreakdownOpen(true)}
+              testID="rewards-see-how"
+              style={{
+                marginTop: 14,
+                flexDirection: 'row',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                paddingHorizontal: 14, paddingVertical: 12,
+                borderWidth: 1, borderColor: '#0A0A0A',
+                backgroundColor: '#fff',
+              }}
+            >
+              <View style={{ flex: 1 }}>
+                <Text style={{ fontSize: 13, fontWeight: '800', color: '#0A0A0A', letterSpacing: 0.2 }}>
+                  See how to improve
+                </Text>
+                {percentile?.pct != null ? (
+                  <Text style={{ fontSize: 11, color: '#6B6B6B', marginTop: 2 }}>
+                    Top {Math.max(1, 100 - Math.round(percentile.pct))}% — here's WHY: logging
+                    daily + on-time bills + low food-delivery share.
+                  </Text>
+                ) : (
+                  <Text style={{ fontSize: 11, color: '#6B6B6B', marginTop: 2 }}>
+                    3 concrete actions to lift your score this week.
+                  </Text>
+                )}
+              </View>
+              <Ionicons name="arrow-forward" size={14} color="#0A0A0A" />
+            </TouchableOpacity>
           </View>
-        )}
 
-        {/* Weekly Challenge */}
-        {challenge && (
-          <View style={s.challengeCard}>
-            <View style={s.challengeHeader}>
-              <Ionicons name="trophy" size={18} color={COLORS.accent.secondary} />
-              <Text style={s.challengeOverline}>{t('weekly_challenge', lang).toUpperCase()}</Text>
-            </View>
-            <Text style={s.challengeTitle}>{challenge.title}</Text>
-            <Text style={s.challengeDesc}>{challenge.desc}</Text>
+          {/* Brutalist 🔥/⚪ 7-day streak strip (v9 master §Rewards) */}
+          <View style={{
+            marginTop: 14,
+            flexDirection: 'row', alignItems: 'center', gap: 6,
+            paddingHorizontal: 2,
+          }}>
+            <Text style={{ fontSize: 10, fontWeight: '800', letterSpacing: 1.2, color: '#6B6B6B' }}>
+              7-DAY FLAME
+            </Text>
+            <View style={{ flex: 1 }} />
+            {Array.from({ length: 7 }).map((_, i) => (
+              <Text key={i} style={{ fontSize: 16 }}>
+                {i < Math.min(streak, 7) ? '🔥' : '⚪'}
+              </Text>
+            ))}
           </View>
-        )}
 
-        {/* Badges */}
-        <Text style={s.section}>{t('badges_earned', lang)} ({badges.length})</Text>
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} style={s.badgeScroll}>
-          {badges.map((b: any) => (
-            <View key={b.id} style={s.badge}>
-              <View style={s.badgeIcon}><Ionicons name={b.icon as any} size={24} color={COLORS.accent.primary} /></View>
-              <Text style={s.badgeName}>{b.name}</Text>
+          {/* 2. Animated streak flame */}
+          <View style={{ marginTop: 14 }}>
+            <StreakFlame streak={streak} />
+          </View>
+
+          {/* 3. Live weekly challenge with progress tracker */}
+          {challenge && (
+            <View style={{ marginTop: 14 }}>
+              <ChallengeProgress
+                title={challenge.title}
+                desc={challenge.desc}
+                current={challenge.progress?.current ?? 0}
+                target={challenge.progress?.target ?? challenge.target_days ?? challenge.target_count ?? 1}
+                unit={challenge.progress?.unit ?? 'completed'}
+                pct={challenge.progress?.pct}
+              />
             </View>
-          ))}
-          {badges.length === 0 && <Text style={s.emptyBadge}>Start tracking to earn badges!</Text>}
-        </ScrollView>
+          )}
 
-        {availBadges.length > 0 && (
-          <>
-            <Text style={s.section}>Locked Badges ({availBadges.length})</Text>
-            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={s.badgeScroll}>
-              {availBadges.slice(0, 5).map((b: any) => (
-                <View key={b.id} style={[s.badge, s.badgeLocked]}>
-                  <View style={[s.badgeIcon, s.badgeIconLocked]}><Ionicons name={b.icon as any} size={24} color={COLORS.text.muted} /></View>
-                  <Text style={[s.badgeName, { color: COLORS.text.muted }]}>{b.name}</Text>
-                </View>
-              ))}
-            </ScrollView>
-          </>
-        )}
+          {/* 4. Next milestone preview (replaces empty badges row) */}
+          {milestone && (
+            <View style={{ marginTop: 14 }}>
+              <NextMilestone milestone={milestone} />
+            </View>
+          )}
+
+          {/* Instagram-shareable score card (kept — still high-value
+              social action when score is solid). */}
+          {scoreCardData && score >= 60 && (
+            <View style={{ marginTop: 14 }}>
+              <Text style={s.sectionLbl}>SHARE YOUR SCORE</Text>
+              <ScoreCard
+                name={scoreCardData.name}
+                score={scoreCardData.score}
+                streak={scoreCardData.streak}
+                totalSaved={scoreCardData.total_saved}
+                month={scoreCardData.month}
+              />
+            </View>
+          )}
+
+          {/* WhatsApp share CTA (only when there's something to flex) */}
+          {score >= 50 && (
+            <TouchableOpacity
+              testID="share-score-btn"
+              style={s.shareBtn}
+              onPress={() => shareWhatsApp(`My Money Score on MintU is ${score}/100! Track your finances: https://mintu.app`)}
+              activeOpacity={0.85}
+            >
+              <Ionicons name="share-social" size={16} color="#FFFFFF" />
+              <Text style={s.shareTxt}>Share on WhatsApp</Text>
+            </TouchableOpacity>
+          )}
         </StaggeredEntrance>
 
         <View style={{ height: 32 }} />
       </ScrollView>
+
+      {/* Tap-to-breakdown bottom sheet */}
+      <ScoreBreakdownSheet
+        visible={breakdownOpen}
+        total={score}
+        items={breakdown}
+        urgencyText={urgencyText}
+        onClose={() => setBreakdownOpen(false)}
+      />
     </SafeAreaView>
   );
 }
@@ -178,54 +261,56 @@ function RewardsScreen() {
 const useStyles = makeStyles((c) => ({
   container: { flex: 1, backgroundColor: c.bg.primary },
   scroll: { padding: SPACING.lg, paddingBottom: 120 },
-  pageTitle: { fontSize: 28, fontWeight: '800', color: c.text.primary, letterSpacing: -0.5, marginBottom: SPACING.xxl },
-  section: { fontSize: 16, fontWeight: '700', color: c.text.secondary, marginTop: SPACING.xxl, marginBottom: SPACING.md },
-  // Streak
-  streakCard: { backgroundColor: c.bg.card, borderRadius: RADIUS.card, padding: SPACING.xl, marginBottom: SPACING.lg, borderWidth: 1, borderColor: '#F59E0B25' },
-  streakRow: { flexDirection: 'row', alignItems: 'center', marginBottom: SPACING.md },
-  streakCircle: { width: 64, height: 64, borderRadius: 32, backgroundColor: '#F59E0B18', justifyContent: 'center', alignItems: 'center', marginRight: SPACING.lg },
-  streakNum: { fontSize: 18, fontWeight: '800', color: COLORS.accent.secondary, marginTop: -4 },
-  streakInfo: { flex: 1 },
-  streakTitle: { fontSize: 20, fontWeight: '700', color: c.text.primary },
-  streakSub: { fontSize: 13, color: c.text.muted, marginTop: 2 },
-  shareScoreBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, backgroundColor: c.accent.primary, borderRadius: RADIUS.full, paddingVertical: 12 },
-  shareScoreTxt: { fontSize: 14, fontWeight: '600', color: '#fff' },
-  // Challenge
-  challengeCard: { backgroundColor: c.bg.card, borderRadius: RADIUS.card, padding: SPACING.xl, marginBottom: SPACING.lg, borderWidth: 1, borderColor: c.border.card },
-  challengeHeader: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: SPACING.sm },
-  challengeOverline: { fontSize: 11, fontWeight: '700', color: COLORS.accent.secondary, letterSpacing: 1 },
-  challengeTitle: { fontSize: 18, fontWeight: '700', color: c.text.primary, marginBottom: 4 },
-  challengeDesc: { fontSize: 14, color: c.text.secondary },
-  // Badges
-  badgeScroll: { marginBottom: SPACING.sm },
-  badge: { alignItems: 'center', marginRight: 16, width: 80 },
-  badgeLocked: { opacity: 0.5 },
-  badgeIcon: { width: 56, height: 56, borderRadius: 28, backgroundColor: c.accent.primary + '18', justifyContent: 'center', alignItems: 'center', marginBottom: 6 },
-  badgeIconLocked: { backgroundColor: c.bg.secondary },
-  badgeName: { fontSize: 11, fontWeight: '600', color: c.text.primary, textAlign: 'center' },
-  emptyBadge: { fontSize: 14, color: c.text.muted, paddingVertical: 16 },
-  // Referral
-  // Premium
-  // Enhanced Referral
-  // Leaderboard
-  leaderboardCard: { backgroundColor: c.bg.card, borderRadius: RADIUS.card, padding: SPACING.xl, borderWidth: 1, borderColor: '#F59E0B25' },
-  rankHero: { flexDirection: 'row', alignItems: 'center', marginBottom: SPACING.lg },
-  rankCircle: { width: 56, height: 56, borderRadius: 28, backgroundColor: '#F59E0B18', justifyContent: 'center', alignItems: 'center', marginRight: SPACING.md },
-  rankNum: { fontSize: 20, fontWeight: '800', color: COLORS.accent.secondary },
-  rankInfo: { flex: 1 },
-  rankTitle: { fontSize: 13, color: c.text.muted },
-  rankPercentile: { fontSize: 14, fontWeight: '700', color: c.text.primary },
-  rankScore: { alignItems: 'center' },
-  rankScoreNum: { fontSize: 26, fontWeight: '800', color: c.accent.primary },
-  rankScoreLabel: { fontSize: 10, color: c.text.muted },
-  comparisonText: { fontSize: 14, fontWeight: '600', color: c.text.secondary, marginBottom: SPACING.lg, lineHeight: 20 },
-  lbRow: { flexDirection: 'row', alignItems: 'center', paddingVertical: 10, borderTopWidth: 1, borderTopColor: c.border.subtle, gap: 10 },
-  lbRowMe: { backgroundColor: c.accent.primary + '08', borderRadius: 8, marginHorizontal: -8, paddingHorizontal: 8 },
-  lbRank: { fontSize: 16, fontWeight: '700', width: 30, textAlign: 'center', color: c.text.secondary },
-  lbName: { flex: 1, fontSize: 15, fontWeight: '500', color: c.text.primary },
-  lbScore: { fontSize: 16, fontWeight: '700', color: c.accent.primary },
-  lbStreak: { fontSize: 12, color: COLORS.accent.secondary },
-  // Friend Comparison
+  pageTitle: {
+    fontSize: 28, fontWeight: '800', color: c.text.primary,
+    letterSpacing: -0.5, marginBottom: SPACING.lg,
+  },
+  heroCard: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 0,
+    paddingVertical: 22,
+    paddingHorizontal: 18,
+    alignItems: 'center',
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: 'rgba(15,23,42,0.08)',
+    gap: 14,
+  },
+  socialProof: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 999,
+    backgroundColor: 'rgba(16,185,129,0.10)',
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: 'rgba(16,185,129,0.25)',
+  },
+  socialProofTxt: {
+    fontSize: 11.5,
+    fontWeight: '800',
+    color: '#0E8B5E',
+    letterSpacing: 0.2,
+  },
+  sectionLbl: {
+    fontSize: 10,
+    fontFamily: FONT_FAMILY.bold,
+    letterSpacing: 1.4,
+    color: c.text.muted,
+    marginBottom: 10,
+    marginTop: 4,
+  },
+  shareBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    backgroundColor: c.accent.primary,
+    borderRadius: RADIUS.full,
+    paddingVertical: 14,
+    marginTop: 18,
+  },
+  shareTxt: { fontSize: 14, fontWeight: '800', color: '#FFFFFF', letterSpacing: 0.2 },
 }));
 
 

@@ -64,7 +64,7 @@ export default function SocialFeedTicker({ items }: { items: Item[] }) {
 }
 
 const useStyles = makeStyles((c) => ({
-  wrap: { flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: c.gray[800], borderRadius: 12, paddingHorizontal: 12, paddingVertical: 8, marginHorizontal: 16 },
+  wrap: { flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: c.gray[800], borderRadius: 0, paddingHorizontal: 12, paddingVertical: 8, marginHorizontal: 16 },
   liveBadge: { flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: c.state.danger, paddingHorizontal: 8, paddingVertical: 4, borderRadius: 999 },
   // White-on-dark-bg works in both themes
   liveDot: { width: 4, height: 4, borderRadius: 4, backgroundColor: c.bg.elevated },

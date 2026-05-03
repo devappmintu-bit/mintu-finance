@@ -251,6 +251,17 @@ async def _archive_legacy_coin_ledger(db) -> None:
 
 async def _start_background_workers(db) -> None:
     """Fire-and-forget launch of all recurring background workers."""
+    # Round 70 — LLM cache regen worker. MUST be the very first
+    # worker started so it's spawned at the loop level (outside any
+    # request scope) before any endpoint needs to enqueue regen
+    # jobs. See ``core/llm_cache.py`` for the Starlette
+    # BaseHTTPMiddleware story behind why this matters.
+    try:
+        from core.llm_cache import start_regen_worker
+        start_regen_worker()
+    except Exception as e:
+        logger.warning(f"Could not start llm_cache regen worker: {e}")
+
     # News refresher
     try:
         from routers.news import start_news_worker
@@ -419,6 +430,20 @@ async def _start_background_workers(db) -> None:
         )
     except Exception as e:
         logger.warning(f"Could not start waste peer warmer: {e}")
+
+    # ── LLM cache warmup worker (Round 70) ────────────────────────────────
+    # Pre-warms ``llm_cache`` entries for active users so the first daily
+    # call doesn't return the deterministic fallback. See
+    # ``core/cache_warmup.py`` for full rationale + cost ceiling.
+    try:
+        from core.cache_warmup import llm_cache_warmup_loop
+        _asyncio.create_task(llm_cache_warmup_loop(db))
+        logger.info(
+            "🔥 LLM cache warmup worker started (30-min interval, pre-warms "
+            "insights/expense-report/school-daily for active users)"
+        )
+    except Exception as e:
+        logger.warning(f"Could not start LLM cache warmup worker: {e}")
 
 
 def register_lifecycle(app, db, client) -> None:

@@ -22,13 +22,14 @@ import SheetHeader from '../../components/ui/SheetHeader';
 import PrimaryButton from '../../components/ui/PrimaryButton';
 import TapTile from '../../components/ui/TapTile';
 import GmailConnectCard from '../../components/transactions/GmailConnectCard';
+import TransactionSheet from '../../components/transactions/TransactionSheet';
 import {
   fetchTransactions as fetchTxnsSrv, addTransaction, updateTransaction, deleteTransaction,
 } from '../../services/transactions';
 import { PieChart } from 'react-native-gifted-charts';
 import SmartInsightsStrip from '../../components/transactions/SmartInsightsStrip';
 import TransactionFilterSheet, { DEFAULT_FILTER, TxnFilter, applyFilterToList, filterActiveCount } from '../../components/transactions/TransactionFilterSheet';
-import TransactionsHero from '../../components/transactions/TransactionsHero';
+import TransactionsHero from '../../components/transactions/TransactionsHeroBrutalist';
 import QuickScanFAB from '../../components/transactions/QuickScanFAB';
 import { StaggeredEntrance, SegmentedToggle, CurrencyField, CategorySelector, QuickAmountChips, InputAssistantHeader } from '../../components/primitives';
 import useSwr from '../../hooks/useSwr';
@@ -126,26 +127,17 @@ function TransactionsScreen() {
   const [smsModalVisible, setSmsModalVisible] = useState(false);
   const [smsText, setSmsText] = useState('');
   const [smsLoading, setSmsLoading] = useState(false);
-  const [formData, setFormData] = useState({ id: '', amount: '', category: 'Food', description: '', type: 'debit' });
+  // Round 68 — formData/handleAdd/amountError were retired in Round 66
+  // when TransactionSheet became a self-contained component owning its
+  // own form state. We keep only `pendingType` to honour deep-link
+  // `?openAdd=1&type=credit` (kicks the sheet open in Income mode).
   const [editingTxn, setEditingTxn] = useState<any>(null);
+  const [pendingType, setPendingType] = useState<'debit' | 'credit' | null>(null);
   // Submit-in-flight guard so spam-click can't double-fire (Round 32 audit fix).
   // The backend also has an idempotency_key partial-unique index, but this
   // is defence-in-depth to give the user immediate tactile feedback and
   // prevent two requests from ever leaving the device.
   const [submitting, setSubmitting] = useState(false);
-  // Round 36 — field-level error state for inline blur validation. Lets us
-  // show red helper text under the amount input the moment the user leaves
-  // the field, instead of waiting until they tap Save.
-  const [amountError, setAmountError] = useState<string | null>(null);
-  const validateAmountOnBlur = useCallback((raw: string) => {
-    const v = (raw || '').trim();
-    if (!v) { setAmountError('Amount is required'); return; }
-    const n = parseFloat(v);
-    if (!Number.isFinite(n)) { setAmountError('Enter a valid number'); return; }
-    if (n <= 0) { setAmountError('Amount must be greater than 0'); return; }
-    if (n > 10_000_000) { setAmountError('Amount too large (max ₹1cr)'); return; }
-    setAmountError(null);
-  }, []);
   const [cashText, setCashText] = useState('');
   const [cashLoading, setCashLoading] = useState(false);
   const [notifText, setNotifText] = useState('');
@@ -157,11 +149,7 @@ function TransactionsScreen() {
 
   useEffect(() => {
     if (params.openAdd === '1') {
-      setFormData(prev => ({
-        ...prev,
-        type: params.type === 'credit' ? 'credit' : 'debit',
-        category: params.type === 'credit' ? 'Other' : 'Food',
-      }));
+      setPendingType(params.type === 'credit' ? 'credit' : 'debit');
       setModalVisible(true);
       // Clear the query so it doesn't re-trigger on re-render
       try { router.setParams({ openAdd: undefined, type: undefined } as any); } catch {}
@@ -185,54 +173,9 @@ function TransactionsScreen() {
     } catch {}
   }, [refetchTxns, refetchWaste]);
 
-  const handleAdd = async () => {
-    if (submitting) return;  // Defence-in-depth against spam-click
-    // Round 34 audit: strict input validation. parseFloat allows NaN, Infinity,
-    // negative and zero — all of which corrupt the ledger. Trim the description
-    // so whitespace-only entries are rejected.
-    const desc = (formData.description || '').trim();
-    const rawAmount = (formData.amount || '').trim();
-    const amt = parseFloat(rawAmount);
-    if (!rawAmount || !desc) { Alert.alert(t('error', lang), t('fill_all_fields', lang)); return; }
-    if (!Number.isFinite(amt) || amt <= 0) {
-      Alert.alert(t('error', lang), 'Enter a valid amount greater than 0'); return;
-    }
-    // Hard upper bound — anything above ₹1cr is almost certainly a typo.
-    if (amt > 10_000_000) {
-      Alert.alert(t('error', lang), 'Amount too large'); return;
-    }
-    if (desc.length > 200) {
-      Alert.alert(t('error', lang), 'Description too long (max 200 chars)'); return;
-    }
-    const isEdit = !!editingTxn;
-    setSubmitting(true);
-    try {
-      if (isEdit) {
-        // Optimistic update via SWR mutate
-        const patched = { ...editingTxn, amount: amt, category: formData.category, description: desc, type: formData.type };
-        mutateTxns((prev) => (prev || []).map((tx: any) => (tx.id === editingTxn.id ? patched : tx)));
-        await updateTransaction(editingTxn.id, { amount: amt, category: formData.category, description: desc, type: formData.type as any });
-        Toast.show({ type: 'success', text1: t('txn_updated', lang) });
-      } else {
-        await addTransaction({ ...formData, description: desc, amount: amt } as any);
-        Toast.show({ type: 'success', text1: t('txn_added', lang) });
-      }
-      setModalVisible(false);
-      setEditingTxn(null);
-      setFormData({ id: '', amount: '', category: 'Food', description: '', type: 'debit' });
-      fetchTransactions();
-    } catch (e: any) {
-      // Surface backend detail if available; fall back to generic message.
-      const detail = e?.response?.data?.detail;
-      Alert.alert(t('error', lang), typeof detail === 'string' ? detail : t('failed_save', lang));
-      fetchTransactions();
-    }
-    finally { setSubmitting(false); }
-  };
-
   const openEdit = useCallback((tx: any) => {
     setEditingTxn(tx);
-    setFormData({ id: tx.id, amount: String(tx.amount), category: tx.category, description: tx.description, type: tx.type });
+    setPendingType(null);  // edit mode honours tx.type, not pendingType
     setModalVisible(true);
   }, []);
 
@@ -332,11 +275,10 @@ function TransactionsScreen() {
 
   return (
     <SafeAreaView style={styles.container}>
-      {/* HERO — saffron summary card replacing plain header (Phase 2 redesign) */}
+      {/* HERO — v10 Brutalist ledger card. Onboard via SmartEntry directly. */}
       <View style={styles.heroPad}>
         <TransactionsHero
           transactions={transactions}
-          onPressAdd={() => setModalVisible(true)}
           onPressFilter={() => setFilterVisible(true)}
           activeFilterCount={activeFilterCount}
           filteredCount={filteredTransactions.length}
@@ -442,129 +384,59 @@ function TransactionsScreen() {
         }
       />
 
-      {/* Add Transaction Modal */}
-      <Modal visible={modalVisible} animationType="slide" transparent>
-        <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={styles.modalBg}>
-          <View style={styles.modalSheet}>
-            <SheetHeader
-              title={editingTxn ? t('edit_transaction', lang) : t('add_transaction', lang)}
-              onClose={() => { setModalVisible(false); setEditingTxn(null); setFormData({ id: '', amount: '', category: 'Food', description: '', type: 'debit' }); }}
-            />
-            <ScrollView keyboardShouldPersistTaps="handled">
-              {/* Round 57 — Conversational input header. Mascot watches
-                  in idle, lifts to "thinking" while the user types,
-                  bounces to "success" once a valid amount lands. */}
-              <InputAssistantHeader
-                prompt={
-                  editingTxn
-                    ? 'Editing your transaction'
-                    : formData.type === 'credit'
-                      ? 'How much did you receive?'
-                      : 'How much did you spend?'
-                }
-                hint="Tap a chip below or type the amount"
-                phase={
-                  amountError
-                    ? 'error'
-                    : !!formData.amount && Number(formData.amount) > 0
-                      ? 'success'
-                      : 'idle'
-                }
-              />
-              {/* DS2.0 — SegmentedToggle replaces handwritten debit/credit
-                  TapTile row. Built-in spring-pill indicator, haptic
-                  selection, and consistent styling with the rest of
-                  the app. */}
-              <View style={{ marginBottom: 14 }}>
-                <SegmentedToggle
-                  options={[
-                    { id: 'debit',  label: t('expense', lang), icon: <Ionicons name="arrow-up-circle" size={15} color={formData.type === 'debit' ? COLORS.text.primary : COLORS.text.muted} /> },
-                    { id: 'credit', label: t('income', lang),  icon: <Ionicons name="arrow-down-circle" size={15} color={formData.type === 'credit' ? COLORS.text.primary : COLORS.text.muted} /> },
-                  ]}
-                  value={formData.type}
-                  onChange={(id) => setFormData({ ...formData, type: id })}
-                  fullWidth
-                />
-              </View>
-              {/* Round 57 — Quick chips above the currency field collapse
-                  the most common amounts to a single tap. Order matches
-                  the user's mental ladder: ₹100 → ₹5,000. */}
-              <QuickAmountChips
-                current={formData.amount}
-                onSelect={(n) => {
-                  setFormData({ ...formData, amount: String(n) });
-                  if (amountError) setAmountError(null);
-                }}
-              />
-              {/* DS2.0 — CurrencyField replaces the manual ₹ + TextInput
-                  block. Auto-masks to digits, shows lakh preview on right,
-                  decimal-pad keyboard, and surfaces amountError with
-                  shake + red border via the `error` prop. */}
-              <CurrencyField
-                label={t('amount', lang)}
-                value={formData.amount}
-                onChangeText={(v) => {
-                  setFormData({ ...formData, amount: v });
-                  if (amountError) setAmountError(null);
-                }}
-                onChangeNumber={(n) => {
-                  // Re-run the legacy validator on blur via existing hook;
-                  // no change to business logic.
-                  if (n === 0) return;
-                }}
-                placeholder="e.g. 2,500 (lunch)"
-                minAmount={1}
-                required
-                error={amountError}
-              />
-
-              <Text style={styles.formLabel}>{t('category', lang)}</Text>
-              {/* DS2.0 — CategorySelector replaces the horizontal TapTile
-                  chip scroll. Wraps to multi-row, spring-press feel,
-                  and a single source of truth for selection state. */}
-              <CategorySelector
-                options={CATEGORY_LIST.map((c) => ({
-                  id: c,
-                  label: c,
-                  icon: CATEGORIES[c]?.icon as any,
-                }))}
-                value={formData.category}
-                onChange={(id) => setFormData({ ...formData, category: id })}
-              />
-              <Text style={styles.formLabel}>{t('description', lang)}</Text>
-              <TextInput style={styles.textInput} placeholder="e.g. Lunch at restaurant" placeholderTextColor={COLORS.text.muted} value={formData.description} onChangeText={(v) => setFormData({ ...formData, description: v })} />
-              {/* Round 42 — gate submit on connectivity so users see "Offline — can't save"
-                  before tapping (instead of axios eating their submit silently and leaving
-                  a half-filled form). Form data is preserved while offline; banner above
-                  already informs the user globally. */}
-              <TouchableOpacity testID="submit-txn-btn" accessibilityRole="button" accessibilityLabel={editingTxn ? 'Update transaction' : 'Add transaction'} style={[styles.submitBtn, (submitting || !isOnline) && { opacity: 0.6 }]} onPress={handleAdd} disabled={submitting || !isOnline}><Text style={styles.submitText}>{!isOnline ? "Offline — can't save" : submitting ? (editingTxn ? t('saving', lang) || 'Saving…' : t('adding', lang) || 'Adding…') : (editingTxn ? t('update', lang) : t('add_transaction', lang))}</Text></TouchableOpacity>
-              {/* Round 38 — Delete button INSIDE the edit sheet so users
-                  don't have to close the sheet and find the swipe action. */}
-              {editingTxn && (
-                <TouchableOpacity
-                  testID="delete-txn-btn"
-                  accessibilityRole="button"
-                  accessibilityLabel="Delete transaction"
-                  style={styles.deleteSheetBtn}
-                  onPress={() => {
-                    const id = editingTxn.id;
-                    setModalVisible(false);
-                    // Defer slightly so the sheet has finished its slide-out
-                    // animation before the Alert appears (otherwise iOS
-                    // double-stacks the modals).
-                    setTimeout(() => handleDelete(id), 220);
-                  }}
-                  disabled={submitting}
-                  activeOpacity={0.7}
-                >
-                  <Ionicons name="trash-outline" size={16} color={c.state.danger} />
-                  <Text style={styles.deleteSheetTxt}>{t('delete', lang) || 'Delete'} transaction</Text>
-                </TouchableOpacity>
-              )}
-            </ScrollView>
-          </View>
-        </KeyboardAvoidingView>
-      </Modal>
+      {/* Add/Edit Transaction Sheet — Round 65 minimalist redesign */}
+      <TransactionSheet
+        visible={modalVisible}
+        editing={editingTxn ? {
+          id: editingTxn.id,
+          amount: editingTxn.amount,
+          category: editingTxn.category,
+          description: editingTxn.description || '',
+          type: editingTxn.type,
+        } : null}
+        initialType={pendingType ?? undefined}
+        submitting={submitting}
+        isOnline={isOnline}
+        onClose={() => {
+          setModalVisible(false);
+          setEditingTxn(null);
+          setPendingType(null);
+        }}
+        onSubmit={async (payload) => {
+          if (payload.description.length > 200) {
+            Alert.alert(t('error', lang), 'Description too long (max 200 chars)');
+            return;
+          }
+          const isEdit = !!editingTxn;
+          setSubmitting(true);
+          try {
+            if (isEdit && editingTxn) {
+              const patched = { ...editingTxn, amount: payload.amount, category: payload.category, description: payload.description, type: payload.type };
+              mutateTxns((prev) => (prev || []).map((tx: any) => (tx.id === editingTxn.id ? patched : tx)));
+              await updateTransaction(editingTxn.id, { amount: payload.amount, category: payload.category, description: payload.description, type: payload.type as any });
+              Toast.show({ type: 'success', text1: t('txn_updated', lang) });
+            } else {
+              await addTransaction({ amount: payload.amount, category: payload.category, description: payload.description, type: payload.type } as any);
+              Toast.show({ type: 'success', text1: t('txn_added', lang) });
+            }
+            setModalVisible(false);
+            setEditingTxn(null);
+            setPendingType(null);
+            fetchTransactions();
+          } catch (e: any) {
+            const detail = e?.response?.data?.detail;
+            Alert.alert(t('error', lang), typeof detail === 'string' ? detail : t('failed_save', lang));
+            fetchTransactions();
+          } finally {
+            setSubmitting(false);
+          }
+        }}
+        onDelete={(id) => {
+          // Mirror legacy: close sheet then prompt to delete (avoid iOS double-modal stacking)
+          setModalVisible(false);
+          setTimeout(() => handleDelete(id), 220);
+        }}
+      />
 
       {/* SMS Parse Modal — includes Paste Bank Notification */}
       <Modal visible={smsModalVisible} animationType="slide" transparent>
@@ -659,28 +531,28 @@ const useStyles = makeStyles((c) => ({
   pageTitle: { fontSize: 28, fontWeight: '800', color: c.text.primary, letterSpacing: -0.5 },
   pageSubtitle: { fontSize: 13, color: c.text.muted },
   headerActions: { flexDirection: 'row', gap: 10 },
-  addBtn: { width: 44, height: 44, borderRadius: 22, backgroundColor: c.accent.primary, justifyContent: 'center', alignItems: 'center', ...SHADOW.md },
-  filterBtn: { width: 44, height: 44, borderRadius: 22, backgroundColor: 'rgba(255,107,26,0.14)', justifyContent: 'center', alignItems: 'center', borderWidth: 1, borderColor: 'rgba(255,107,26,0.4)', position: 'relative' },
-  filterBadge: { position: 'absolute', top: -2, right: -2, minWidth: 18, height: 18, borderRadius: 9, backgroundColor: c.accent.brand, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 4, borderWidth: 2, borderColor: c.bg.primary },
+  addBtn: { width: 44, height: 44, borderRadius: 0, backgroundColor: c.accent.primary, justifyContent: 'center', alignItems: 'center', ...SHADOW.md },
+  filterBtn: { width: 44, height: 44, borderRadius: 0, backgroundColor: 'rgba(255,107,26,0.14)', justifyContent: 'center', alignItems: 'center', borderWidth: 1, borderColor: 'rgba(255,107,26,0.4)', position: 'relative' },
+  filterBadge: { position: 'absolute', top: -2, right: -2, minWidth: 18, height: 18, borderRadius: 0, backgroundColor: c.accent.brand, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 4, borderWidth: 2, borderColor: c.bg.primary },
   filterBadgeTxt: { fontSize: 10, fontWeight: '800', color: c.bg.elevated },
   // Quick bar
   quickBar: { flexDirection: 'row', paddingHorizontal: SPACING.lg, marginBottom: SPACING.md, gap: 10 },
   quickInputWrap: { flex: 1, flexDirection: 'row', alignItems: 'center', backgroundColor: c.bg.card, borderRadius: RADIUS.full, paddingHorizontal: SPACING.lg, borderWidth: 1, borderColor: c.border.card },
   quickRupee: { fontSize: 18, fontWeight: '700', color: c.accent.primary, marginRight: 6 },
   quickInput: { flex: 1, paddingVertical: 14, fontSize: 15, color: c.text.primary },
-  voiceBtn: { width: 48, height: 48, borderRadius: 24, backgroundColor: c.accent.primary, justifyContent: 'center', alignItems: 'center' },
+  voiceBtn: { width: 48, height: 48, borderRadius: 0, backgroundColor: c.accent.primary, justifyContent: 'center', alignItems: 'center' },
   // List
   listContent: { padding: SPACING.lg, paddingTop: 0, paddingBottom: 140 },
-  txnCard: { flexDirection: 'row', alignItems: 'center', backgroundColor: 'rgba(255,255,255,0.9)', borderRadius: 20, padding: SPACING.lg, marginBottom: 10, borderWidth: 1, borderColor: 'rgba(255,255,255,0.6)', ...SHADOW.sm },
-  txnIcon: { width: 44, height: 44, borderRadius: 16, justifyContent: 'center', alignItems: 'center', marginRight: SPACING.md },
+  txnCard: { flexDirection: 'row', alignItems: 'center', backgroundColor: 'rgba(255,255,255,0.9)', borderRadius: 0, padding: SPACING.lg, marginBottom: 10, borderWidth: 1, borderColor: 'rgba(255,255,255,0.6)', ...SHADOW.sm },
+  txnIcon: { width: 44, height: 44, borderRadius: 0, justifyContent: 'center', alignItems: 'center', marginRight: SPACING.md },
   txnInfo: { flex: 1 },
   txnDesc: { fontSize: 15, fontWeight: '600', color: c.text.primary, flex: 1 },
   txnDescRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
-  gmailBadge: { flexDirection: 'row', alignItems: 'center', backgroundColor: 'rgba(255,107,26,0.14)', borderColor: 'rgba(255,107,26,0.4)', borderWidth: 1, paddingHorizontal: 6, paddingVertical: 2, borderRadius: 6 },
+  gmailBadge: { flexDirection: 'row', alignItems: 'center', backgroundColor: 'rgba(255,107,26,0.14)', borderColor: 'rgba(255,107,26,0.4)', borderWidth: 1, paddingHorizontal: 6, paddingVertical: 2, borderRadius: 0 },
   gmailBadgeText: { fontSize: 9, fontWeight: '800', color: c.accent.brandDark, letterSpacing: 0.3 },
   txnMetaRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 3 },
   txnMeta: { fontSize: 12, color: c.text.muted },
-  cashBadge: { backgroundColor: c.accent.warning + '20', paddingHorizontal: 8, paddingVertical: 2, borderRadius: 6 },
+  cashBadge: { backgroundColor: c.accent.warning + '20', paddingHorizontal: 8, paddingVertical: 2, borderRadius: 0 },
   cashBadgeText: { fontSize: 10, fontWeight: '700', color: c.accent.warning },
   txnAmount: { fontSize: 17, fontWeight: '700' },
   // Smart-grouping section header — Today / Yesterday / This Week / <Month>
@@ -715,7 +587,7 @@ const useStyles = makeStyles((c) => ({
   emptyText: { fontSize: 14, color: c.text.muted, marginTop: 6 },
   // Modal
   modalBg: { flex: 1, justifyContent: 'flex-end', backgroundColor: 'rgba(0,0,0,0.6)' },
-  modalSheet: { backgroundColor: c.bg.secondary, borderTopLeftRadius: 28, borderTopRightRadius: 28, padding: SPACING.xxl, maxHeight: '88%' },
+  modalSheet: { backgroundColor: c.bg.secondary, borderTopLeftRadius: 0, borderTopRightRadius: 0, padding: SPACING.xxl, maxHeight: '88%' },
   sheetHandle: { width: 40, height: 4, borderRadius: 2, backgroundColor: c.text.muted, alignSelf: 'center', marginBottom: SPACING.lg, opacity: 0.3 },
   modalHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: SPACING.xxl },
   modalTitle: { fontSize: 22, fontWeight: '700', color: c.text.primary },

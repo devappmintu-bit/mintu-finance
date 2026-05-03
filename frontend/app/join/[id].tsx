@@ -18,7 +18,6 @@ import React, { useEffect, useState } from 'react';
 import { View, Text, TouchableOpacity, ActivityIndicator, Platform, StyleSheet } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
-import { LinearGradient } from 'expo-linear-gradient';
 import { router, useLocalSearchParams } from 'expo-router';
 import * as Haptics from 'expo-haptics';
 import Toast from 'react-native-toast-message';
@@ -135,11 +134,8 @@ export default function JoinGroupScreen() {
 
       <View style={s.scroll}>
         {/* Group hero card — signature orange gradient */}
-        <LinearGradient
-          colors={[COLORS.accent.brand, COLORS.accent.brandDark]}
-          start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}
-          style={s.hero}
-        >
+        <View
+          style={[s.hero, { backgroundColor: '#0A0A0A' }]}>
           <Text style={s.heroEmoji}>{preview.emoji || '👥'}</Text>
           <Text style={s.overline}>INVITED TO JOIN</Text>
           <Text style={s.heroName} numberOfLines={2}>{preview.name}</Text>
@@ -165,7 +161,7 @@ export default function JoinGroupScreen() {
           <Text style={s.heroMeta}>
             {preview.member_count} {preview.member_count === 1 ? 'member' : 'members'}
           </Text>
-        </LinearGradient>
+        </View>
 
         {/* CTA */}
         {preview.already_member ? (
@@ -215,13 +211,13 @@ const useStyles = makeStyles((c) => ({
     flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
     paddingHorizontal: SPACING.lg, paddingVertical: SPACING.md,
   },
-  iconBtn: { width: 36, height: 36, borderRadius: 18, alignItems: 'center', justifyContent: 'center', backgroundColor: c.bg.secondary },
+  iconBtn: { width: 36, height: 36, borderRadius: 0, alignItems: 'center', justifyContent: 'center', backgroundColor: c.bg.secondary },
   topBarTxt: { fontSize: 15, fontWeight: '900', color: c.text.primary, letterSpacing: -0.2 },
 
   scroll: { padding: SPACING.lg, gap: 14 },
 
   hero: {
-    borderRadius: 24, padding: 24, alignItems: 'center', overflow: 'hidden',
+    borderRadius: 0, padding: 24, alignItems: 'center', overflow: 'hidden',
     shadowColor: COLORS.accent.brandDark, shadowOpacity: 0.2, shadowRadius: 18, shadowOffset: { width: 0, height: 8 }, elevation: 6,
   },
   heroEmoji: { fontSize: 44 },
@@ -232,7 +228,7 @@ const useStyles = makeStyles((c) => ({
 
   stack: { flexDirection: 'row', marginTop: 14 },
   stackAvatar: {
-    width: 34, height: 34, borderRadius: 17,
+    width: 34, height: 34, borderRadius: 0,
     backgroundColor: '#fff', alignItems: 'center', justifyContent: 'center',
     borderWidth: 2, borderColor: COLORS.accent.brandDark,
   },
@@ -248,7 +244,7 @@ const useStyles = makeStyles((c) => ({
   primaryBtn: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8,
     backgroundColor: c.accent.primary,
-    paddingVertical: 15, borderRadius: 14, marginTop: 8,
+    paddingVertical: 15, borderRadius: 0, marginTop: 8,
   },
   primaryTxt: { fontSize: 15, fontWeight: '900', color: '#fff', letterSpacing: -0.2 },
 
@@ -256,7 +252,7 @@ const useStyles = makeStyles((c) => ({
   ghostTxt: { fontSize: 13, fontWeight: '700', color: c.text.muted },
 
   center: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: SPACING.xl },
-  errIcon: { width: 72, height: 72, borderRadius: 36, backgroundColor: c.state.dangerBg, alignItems: 'center', justifyContent: 'center', marginBottom: 14 },
+  errIcon: { width: 72, height: 72, borderRadius: 0, backgroundColor: c.state.dangerBg, alignItems: 'center', justifyContent: 'center', marginBottom: 14 },
   title: { fontSize: 22, fontWeight: '900', color: c.text.primary, letterSpacing: -0.4 },
   subtitle: { fontSize: 14, fontWeight: '500', color: c.text.muted, marginTop: 8, textAlign: 'center', lineHeight: 20, maxWidth: 320 },
   retryBtn: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingVertical: 12, marginTop: 6 },

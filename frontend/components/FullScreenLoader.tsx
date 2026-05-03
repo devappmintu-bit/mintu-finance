@@ -103,7 +103,7 @@ const useStyles = makeStyles((C) => ({
   orb: {
     width: 72,
     height: 72,
-    borderRadius: 36,
+    borderRadius: 0,
     shadowColor: COLORS.accent.brand,
     shadowOffset: { width: 0, height: 6 },
     shadowOpacity: 0.35,

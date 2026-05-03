@@ -12,7 +12,6 @@
 import React from 'react';
 import { View, Text, StyleSheet, Modal, TouchableOpacity, ScrollView, Pressable } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { LinearGradient } from 'expo-linear-gradient';
 import { makeStyles } from '../../utils/makeStyles';
 import { COLORS, GLASS } from '../../utils/theme';
 
@@ -157,9 +156,9 @@ export default function TransactionFilterSheet({ visible, value, onClose, onAppl
             <Text style={s.clearTxt}>Clear all</Text>
           </TouchableOpacity>
           <TouchableOpacity activeOpacity={0.85} onPress={apply} testID="filter-apply" style={{ flex: 1 }}>
-            <LinearGradient colors={[COLORS.accent.brand, COLORS.accent.brandDark]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={s.applyBtn}>
+            <View style={[s.applyBtn, { backgroundColor: '#0A0A0A' }]}>
               <Text style={s.applyTxt}>Apply filter</Text>
-            </LinearGradient>
+            </View>
           </TouchableOpacity>
         </View>
       </View>
@@ -232,19 +231,19 @@ export function filterActiveCount(f: TxnFilter): number {
 
 const useStyles = makeStyles((c) => ({
   backdrop: { flex: 1, backgroundColor: 'rgba(15,23,42,0.5)' },
-  sheet: { position: 'absolute', left: 0, right: 0, bottom: 0, backgroundColor: '#fff', borderTopLeftRadius: 24, borderTopRightRadius: 24, paddingBottom: 16, maxHeight: '88%' },
+  sheet: { position: 'absolute', left: 0, right: 0, bottom: 0, backgroundColor: '#fff', borderTopLeftRadius: 0, borderTopRightRadius: 0, paddingBottom: 16, maxHeight: '88%' },
   grabber: { alignSelf: 'center', width: 44, height: 4, borderRadius: 2, backgroundColor: '#E5E7EB', marginTop: 10, marginBottom: 4 },
   header: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, paddingTop: 8, paddingBottom: 4 },
   title: { flex: 1, fontSize: 18, fontWeight: '800', color: '#111' },
-  closeBtn: { width: 32, height: 32, borderRadius: 16, backgroundColor: '#F3F4F6', alignItems: 'center', justifyContent: 'center' },
+  closeBtn: { width: 32, height: 32, borderRadius: 0, backgroundColor: '#F3F4F6', alignItems: 'center', justifyContent: 'center' },
   sectionTitle: { fontSize: 12, fontWeight: '800', color: COLORS.text.muted, textTransform: 'uppercase', letterSpacing: 0.6, marginBottom: 10 },
   wrapRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
   chip: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 12, paddingVertical: 9, borderRadius: 999, backgroundColor: '#F3F4F6', borderWidth: 1, borderColor: '#E5E7EB' },
   chipOn: { backgroundColor: '#FFF0E0', borderColor: COLORS.accent.brand },
   chipTxt: { fontSize: 13, color: COLORS.text.muted, fontWeight: '600' },
   chipTxtOn: { color: '#7C2D12', fontWeight: '800' },
-  segRow: { flexDirection: 'row', gap: 8, backgroundColor: '#F3F4F6', padding: 4, borderRadius: 14 },
-  segBtn: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, paddingVertical: 11, borderRadius: 10 },
+  segRow: { flexDirection: 'row', gap: 8, backgroundColor: '#F3F4F6', padding: 4, borderRadius: 0 },
+  segBtn: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, paddingVertical: 11, borderRadius: 0 },
   segBtnOn: { backgroundColor: COLORS.accent.brand },
   segTxt: { fontSize: 13, fontWeight: '700', color: COLORS.text.muted },
   segTxtOn: { color: '#fff' },
@@ -252,8 +251,8 @@ const useStyles = makeStyles((c) => ({
   statusDot: { width: 8, height: 8, borderRadius: 4 },
   statusTxt: { fontSize: 13, color: '#374151', fontWeight: '600' },
   footer: { flexDirection: 'row', gap: 10, padding: 16, borderTopWidth: 1, borderTopColor: '#F3F4F6' },
-  clearBtn: { paddingHorizontal: 22, paddingVertical: 14, borderRadius: 14, backgroundColor: '#F3F4F6', alignItems: 'center', justifyContent: 'center' },
+  clearBtn: { paddingHorizontal: 22, paddingVertical: 14, borderRadius: 0, backgroundColor: '#F3F4F6', alignItems: 'center', justifyContent: 'center' },
   clearTxt: { fontSize: 14, fontWeight: '700', color: '#374151' },
-  applyBtn: { paddingVertical: 14, borderRadius: 14, alignItems: 'center', justifyContent: 'center' },
+  applyBtn: { paddingVertical: 14, borderRadius: 0, alignItems: 'center', justifyContent: 'center' },
   applyTxt: { color: '#fff', fontSize: 15, fontWeight: '800' },
 }));

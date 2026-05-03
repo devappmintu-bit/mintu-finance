@@ -6,7 +6,6 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
-import { LinearGradient } from 'expo-linear-gradient';
 import * as Haptics from 'expo-haptics';
 import api from '../utils/api';
 import { useAuthStore } from '../store/authStore';
@@ -255,7 +254,7 @@ export default function GroupChat({ group, onClose, onAddExpense, onManage, onEd
   return (
     <SafeAreaView style={s.container}>
       {/* === PREMIUM HEADER — saffron hero with net-balance + quick actions === */}
-      <LinearGradient colors={heroGradient} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={s.heroHeader}>
+      <View style={[s.heroHeader, { backgroundColor: '#0A0A0A' }]}>
         <View style={s.heroTopRow}>
           <TouchableOpacity onPress={() => { haptic(); onClose(); }} hitSlop={14} style={s.heroBackBtn} testID="gc-back">
             <Ionicons name="arrow-back" size={20} color="#fff" />
@@ -313,7 +312,7 @@ export default function GroupChat({ group, onClose, onAddExpense, onManage, onEd
             </TouchableOpacity>
           )}
         </View>
-      </LinearGradient>
+      </View>
 
       {/* Tabs */}
       <View style={s.tabs}>
@@ -405,16 +404,16 @@ const useStyles = makeStyles((c) => ({
     paddingTop: 4,
     paddingBottom: 14,
     paddingHorizontal: 14,
-    borderBottomLeftRadius: 22,
-    borderBottomRightRadius: 22,
+    borderBottomLeftRadius: 0,
+    borderBottomRightRadius: 0,
     gap: 12,
     shadowColor: '#000', shadowOpacity: 0.15, shadowRadius: 10, shadowOffset: { width: 0, height: 4 }, elevation: 4,
   },
   heroTopRow: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 4 },
-  heroBackBtn: { width: 34, height: 34, borderRadius: 17, backgroundColor: 'rgba(255,255,255,0.2)', justifyContent: 'center', alignItems: 'center' },
-  heroMoreBtn: { width: 34, height: 34, borderRadius: 17, backgroundColor: 'rgba(255,255,255,0.2)', justifyContent: 'center', alignItems: 'center' },
+  heroBackBtn: { width: 34, height: 34, borderRadius: 0, backgroundColor: 'rgba(255,255,255,0.2)', justifyContent: 'center', alignItems: 'center' },
+  heroMoreBtn: { width: 34, height: 34, borderRadius: 0, backgroundColor: 'rgba(255,255,255,0.2)', justifyContent: 'center', alignItems: 'center' },
   heroAvatars: { flexDirection: 'row' },
-  heroAv: { width: 30, height: 30, borderRadius: 15, backgroundColor: 'rgba(255,255,255,0.28)', borderWidth: 2, borderColor: 'rgba(255,255,255,0.4)', justifyContent: 'center', alignItems: 'center' },
+  heroAv: { width: 30, height: 30, borderRadius: 0, backgroundColor: 'rgba(255,255,255,0.28)', borderWidth: 2, borderColor: 'rgba(255,255,255,0.4)', justifyContent: 'center', alignItems: 'center' },
   heroAvT: { fontSize: 12, fontWeight: '900', color: '#fff' },
   heroName: { fontSize: 16, fontWeight: '900', color: '#fff', letterSpacing: -0.2 },
   heroSub: { fontSize: 11, color: 'rgba(255,255,255,0.82)', fontWeight: '700', marginTop: 1 },
@@ -427,7 +426,7 @@ const useStyles = makeStyles((c) => ({
   // Legacy header (kept for reference)
   header: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingHorizontal: 16, paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: c.border.subtle },
   headerAvatars: { flexDirection: 'row' },
-  headerAv: { width: 32, height: 32, borderRadius: 16, justifyContent: 'center', alignItems: 'center', borderWidth: 2, borderColor: c.bg.primary },
+  headerAv: { width: 32, height: 32, borderRadius: 0, justifyContent: 'center', alignItems: 'center', borderWidth: 2, borderColor: c.bg.primary },
   headerAvT: { fontSize: 12, fontWeight: '700' },
   headerName: { fontSize: 16, fontWeight: '700', color: c.text.primary },
   headerSub: { fontSize: 11, color: c.text.muted },
@@ -447,10 +446,10 @@ const useStyles = makeStyles((c) => ({
   msgRow: { flexDirection: 'row', marginBottom: 12 },
   msgRowL: { justifyContent: 'flex-start' },
   msgRowR: { justifyContent: 'flex-end' },
-  avatar: { width: 30, height: 30, borderRadius: 15, justifyContent: 'center', alignItems: 'center', marginRight: 8, marginTop: 16 },
+  avatar: { width: 30, height: 30, borderRadius: 0, justifyContent: 'center', alignItems: 'center', marginRight: 8, marginTop: 16 },
   avatarT: { fontSize: 12, fontWeight: '700' },
   senderName: { fontSize: 11, fontWeight: '600', color: c.accent.primary, marginBottom: 3, marginLeft: 2 },
-  bubble: { borderRadius: 18, paddingHorizontal: 14, paddingVertical: 10, maxWidth: '100%' },
+  bubble: { borderRadius: 0, paddingHorizontal: 14, paddingVertical: 10, maxWidth: '100%' },
   bubbleMe: { backgroundColor: c.accent.primary, borderBottomRightRadius: 4 },
   bubbleOther: { backgroundColor: c.bg.card, borderBottomLeftRadius: 4, borderWidth: 1, borderColor: c.border.card },
   bubbleText: { fontSize: 14, lineHeight: 20, color: c.text.primary },
@@ -464,13 +463,13 @@ const useStyles = makeStyles((c) => ({
   // Expense card
   // Sticker bar
   stickerBar: { paddingHorizontal: 12, paddingVertical: 8, borderTopWidth: 1, borderTopColor: c.border.subtle, backgroundColor: c.bg.card },
-  stickerBtn: { width: 44, height: 44, borderRadius: 12, backgroundColor: c.bg.primary, justifyContent: 'center', alignItems: 'center' },
+  stickerBtn: { width: 44, height: 44, borderRadius: 0, backgroundColor: c.bg.primary, justifyContent: 'center', alignItems: 'center' },
   stickerEmoji: { fontSize: 24 },
   // Input bar
   inputBar: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingHorizontal: 12, paddingVertical: 10, borderTopWidth: 1, borderTopColor: c.border.subtle },
   splitBtn: { backgroundColor: c.accent.primary + '12', paddingHorizontal: 14, paddingVertical: 9, borderRadius: RADIUS.full, borderWidth: 1, borderColor: c.accent.primary + '25' },
   splitBtnT: { fontSize: 12, fontWeight: '700', color: c.accent.primary },
-  msgInput: { flex: 1, backgroundColor: c.bg.card, borderRadius: 20, paddingHorizontal: 14, paddingVertical: 9, fontSize: 14, color: c.text.primary, borderWidth: 1, borderColor: c.border.card },
-  sendBtn: { width: 38, height: 38, borderRadius: 19, backgroundColor: c.accent.primary, justifyContent: 'center', alignItems: 'center' },
+  msgInput: { flex: 1, backgroundColor: c.bg.card, borderRadius: 0, paddingHorizontal: 14, paddingVertical: 9, fontSize: 14, color: c.text.primary, borderWidth: 1, borderColor: c.border.card },
+  sendBtn: { width: 38, height: 38, borderRadius: 0, backgroundColor: c.accent.primary, justifyContent: 'center', alignItems: 'center' },
   // Expenses tab
 }));

@@ -167,7 +167,7 @@ export default React.memo(MoneyScoreCard);
 const useStyles = makeStyles((c) => ({
   card: {
     backgroundColor: GLASS.solidBg,
-    borderRadius: 24, padding: 20, marginBottom: 14,
+    borderRadius: 0, padding: 20, marginBottom: 14,
     borderWidth: StyleSheet.hairlineWidth, borderColor: GLASS.borderLight,
     ...shadowStyle('#111827', 6, 24, 0.06, 4),
   },
@@ -207,7 +207,7 @@ const useStyles = makeStyles((c) => ({
   cta: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6,
     backgroundColor: c.accent.primary,
-    paddingVertical: 12, borderRadius: 14, marginTop: 16,
+    paddingVertical: 12, borderRadius: 0, marginTop: 16,
     ...shadowStyle(c.accent.primary, 3, 10, 0.18, 4),
   },
   ctaTxt: { color: '#FFFFFF', fontSize: 14, fontWeight: '800', letterSpacing: 0.1 },

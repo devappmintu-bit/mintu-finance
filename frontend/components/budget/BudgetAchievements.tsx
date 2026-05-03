@@ -15,7 +15,6 @@ import React, { useEffect, useState, useCallback, useMemo } from 'react';
 import useFocusRefresh from '../../hooks/useFocusRefresh';
 import { View, Text, StyleSheet, ScrollView, Animated, Easing, TouchableOpacity } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { LinearGradient } from 'expo-linear-gradient';
 import api from '../../utils/api';
 import {  COLORS, useAppColors } from '../../utils/theme';
 import { makeStyles } from '../../utils/makeStyles';
@@ -116,13 +115,7 @@ export default function BudgetAchievements({ refreshKey = 0, onBadgePress }: Pro
   return (
     <View style={s.wrap}>
       {/* ── Streak hero card ── */}
-      <LinearGradient
-        colors={streak.current_days >= 3
-          ? [COLORS.accent.brand, COLORS.accent.brandDark]  // active streak: saffron fire
-          : ['#2C1810', '#4A2F1F']} // cool state: deep espresso
-        start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}
-        style={s.hero}
-      >
+      <View style={[s.hero, { backgroundColor: streak.current_days >= 3 ? COLORS.accent.brand : '#2C1810' }]}>
         <View style={{ flex: 1 }}>
           <View style={s.headRow}>
             <Animated.Text style={[s.flame, { transform: [{ scale: flameScale }] }]}>
@@ -154,7 +147,7 @@ export default function BudgetAchievements({ refreshKey = 0, onBadgePress }: Pro
             </>
           )}
         </View>
-      </LinearGradient>
+      </View>
 
       {/* ── MTD stat chips ── */}
       {hasBudgets && (
@@ -221,7 +214,7 @@ const useStyles = makeStyles((c) => ({
   wrap: { marginBottom: 12 },
 
   hero: {
-    borderRadius: 20,
+    borderRadius: 0,
     padding: 18,
     marginBottom: 12,
     shadowColor: c.accent.brandDark,
@@ -246,7 +239,7 @@ const useStyles = makeStyles((c) => ({
 
   chipRow: { flexDirection: 'row', gap: 8, marginBottom: 14 },
   chip: {
-    flex: 1, backgroundColor: CARD, borderRadius: 14, paddingVertical: 10,
+    flex: 1, backgroundColor: CARD, borderRadius: 0, paddingVertical: 10,
     paddingHorizontal: 8, alignItems: 'center', borderWidth: 1, borderColor: BORDER,
   },
   chipVal: { fontSize: 16, fontWeight: '900', color: c.text.primary, letterSpacing: -0.3 },
@@ -261,7 +254,7 @@ const useStyles = makeStyles((c) => ({
 
   badgeList: { gap: 10, paddingBottom: 4, paddingRight: 16 },
   badge: {
-    width: 140, borderRadius: 16, padding: 12,
+    width: 140, borderRadius: 0, padding: 12,
     borderWidth: 1.5,
     backgroundColor: CARD,
     alignItems: 'center',
@@ -275,7 +268,7 @@ const useStyles = makeStyles((c) => ({
 
   unlockedPill: {
     marginTop: 6, flexDirection: 'row', alignItems: 'center', gap: 3,
-    backgroundColor: c.accent.brand, paddingHorizontal: 8, paddingVertical: 3, borderRadius: 10,
+    backgroundColor: c.accent.brand, paddingHorizontal: 8, paddingVertical: 3, borderRadius: 0,
   },
   unlockedT: { color: c.bg.elevated, fontSize: 10, fontWeight: '800', letterSpacing: 0.2 },
 
@@ -285,8 +278,8 @@ const useStyles = makeStyles((c) => ({
   bLabel: { fontSize: 10, fontWeight: '700', color: c.text.tertiary, marginTop: 4 },
 
   skelCard: {
-    backgroundColor: CARD, borderRadius: 20, padding: 18, marginBottom: 12,
+    backgroundColor: CARD, borderRadius: 0, padding: 18, marginBottom: 12,
     borderWidth: 1, borderColor: BORDER, height: 110,
   },
-  skelLine: { height: 14, borderRadius: 7, backgroundColor: c.accent.brandSoft, width: '40%' },
+  skelLine: { height: 14, borderRadius: 0, backgroundColor: c.accent.brandSoft, width: '40%' },
 }));
