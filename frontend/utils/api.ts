@@ -74,6 +74,58 @@ const notifyAuthExpired = async (hadToken: boolean) => {
   }
 };
 
+// ── Round 88 — Silent refresh-token coordinator ──────────────────────
+//
+// On 401 from any /api/* endpoint:
+//   1. If we have a refresh_token in SecureStore, swap it for a fresh
+//      access_token via /api/auth/refresh and replay the original request.
+//   2. If refresh succeeds → no user-visible interruption.
+//   3. If refresh fails → fall through to the existing notifyAuthExpired
+//      path (clear token, soft-lock, route to /unlock).
+//
+// A single in-flight refresh promise serialises concurrent 401s so we
+// never fire the rotation endpoint twice (which would invoke the
+// reuse-detection path on the backend and revoke the whole token family).
+let _refreshInFlight: Promise<string | null> | null = null;
+async function _doRefresh(): Promise<string | null> {
+  try {
+    const { getRefreshToken, saveTokens, clearTokens } = await import('./tokenStore');
+    const { getDeviceContext } = await import('./deviceContext');
+    const refresh = await getRefreshToken();
+    if (!refresh) return null;
+    const device = await getDeviceContext().catch(() => null);
+    // Use a bare axios call so we don't loop through this same interceptor.
+    const resp = await axios.post(
+      `${API_URL}/api/auth/refresh`,
+      { refresh_token: refresh, ...(device || {}) },
+      { timeout: 8000 },
+    );
+    const access = resp?.data?.access_token as string | undefined;
+    const newRefresh = resp?.data?.refresh_token as string | undefined;
+    if (!access) {
+      await clearTokens();
+      return null;
+    }
+    await saveTokens({ access, refresh: newRefresh || refresh });
+    return access;
+  } catch {
+    try {
+      const { clearTokens } = await import('./tokenStore');
+      await clearTokens();
+    } catch { /* noop */ }
+    return null;
+  }
+}
+async function refreshAccessTokenOnce(): Promise<string | null> {
+  if (!_refreshInFlight) {
+    _refreshInFlight = _doRefresh().finally(() => {
+      // Allow the next 401 burst to trigger a fresh attempt.
+      setTimeout(() => { _refreshInFlight = null; }, 0);
+    });
+  }
+  return _refreshInFlight;
+}
+
 // Retry on 429/5xx with exponential backoff + request dedup
 const pendingRequests = new Map<string, Promise<any>>();
 
@@ -146,9 +198,33 @@ api.interceptors.response.use(
       });
     } catch { /* noop */ }
 
-    // Auth expired — clear token + soft-lock
+    // Auth expired — Round 88 silent refresh first; fall back to soft-lock.
     if (status === 401) {
       const sentToken = !!config?.headers?.Authorization;
+      // If we never had a token, treat as a normal not-logged-in 401 (silent).
+      if (!sentToken) {
+        notifyAuthExpired(false);
+        return Promise.reject(error);
+      }
+      // Skip silent refresh on the auth endpoints themselves to avoid loops.
+      const url = (config?.url || '').toString();
+      const isAuthEndpoint =
+        url.includes('/auth/refresh') ||
+        url.includes('/auth/logout') ||
+        url.includes('/auth/verify-otp') ||
+        url.includes('/auth/send-otp');
+      // Per-request guard so a refreshed retry that ALSO 401s doesn't loop.
+      if (!isAuthEndpoint && !config?._refreshTried) {
+        config._refreshTried = true;
+        const newAccess = await refreshAccessTokenOnce();
+        if (newAccess) {
+          // Replay original request with the rotated bearer.
+          config.headers = config.headers || {};
+          config.headers.Authorization = `Bearer ${newAccess}`;
+          return api(config);
+        }
+      }
+      // Refresh exhausted or unavailable → soft-lock the app.
       notifyAuthExpired(sentToken);
       return Promise.reject(error);
     }
@@ -232,6 +308,18 @@ apiSlow.interceptors.response.use(
     const status = error.response?.status;
     if (status === 401) {
       const sentToken = !!config?.headers?.Authorization;
+      // Round 88 — apiSlow also benefits from silent refresh.
+      const url = (config?.url || '').toString();
+      const isAuthEndpoint = url.includes('/auth/');
+      if (sentToken && !isAuthEndpoint && !config?._refreshTried) {
+        config._refreshTried = true;
+        const newAccess = await refreshAccessTokenOnce();
+        if (newAccess) {
+          config.headers = config.headers || {};
+          config.headers.Authorization = `Bearer ${newAccess}`;
+          return apiSlow(config);
+        }
+      }
       notifyAuthExpired(sentToken);
       return Promise.reject(error);
     }

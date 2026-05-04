@@ -16,12 +16,22 @@
  * parent no longer needs to know about any of them.
  */
 import React, { useMemo } from 'react';
-import { View, Text, StyleSheet } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import PressableGlass from '../PressableGlass';
 import EmptyState from '../ui/EmptyState';
 import { C, getGA } from './theme';
 import { t, type LangCode } from '../../utils/i18n';
+
+// Round 83 P3 — Split templates. A curated shortlist of the 4 most
+// common "first group" scenarios. Tapping a chip opens the create
+// sheet with the name + emoji prefilled — "create group in 1 tap".
+export const SPLIT_TEMPLATES: { key: string; label: string; emoji: string; name: string }[] = [
+  { key: 'trip',    label: 'Trip',    emoji: '✈️', name: 'Trip to ' },
+  { key: 'weekend', label: 'Weekend', emoji: '🍻', name: 'Weekend out' },
+  { key: 'rent',    label: 'Rent',    emoji: '🏠', name: 'Flat rent' },
+  { key: 'dinner',  label: 'Dinner',  emoji: '🍕', name: 'Dinner' },
+];
 
 export interface SplitGroupsListProps {
   groups: any[];
@@ -29,7 +39,10 @@ export interface SplitGroupsListProps {
   onPressGroup: (gr: any) => void;
   onAddExpense: (gr: any) => void;
   onManage: (gr: any) => void;
-  onCreateGroup: () => void;
+  /** Round 83 P3 — now accepts an optional template so the empty
+   * state's preset chips ("Trip", "Weekend", "Rent", "Dinner") can
+   * pre-fill the new-group sheet with name + emoji. */
+  onCreateGroup: (template?: { name: string; emoji: string }) => void;
 }
 
 // ─── Pure helpers (moved out of split.tsx) ───────────────────────
@@ -74,13 +87,37 @@ function SplitGroupsListImpl({
     <>
       <Text style={styles.section}>{t('groups', lang)}</Text>
       {groups.length === 0 ? (
-        <EmptyState
-          emoji="👥"
-          title={t('no_groups', lang)}
-          subtitle={t('create_first_group', lang)}
-          ctaLabel="Create group"
-          onCta={onCreateGroup}
-        />
+        <View>
+          {/* Round 83 — guided-activation empty state. Uses the new
+              EmptyState `prompt` + dual-CTA pattern so zero-data
+              screens tell the user EXACTLY what to do next rather
+              than showing a dead silhouette. */}
+          <EmptyState
+            emoji="👥"
+            title={t('no_groups', lang)}
+            prompt="Going out? Create a group in 1 tap to split instantly"
+            actionLabel="Create group"
+            onAction={() => onCreateGroup()}
+          />
+          {/* Template chips — each chip opens the create sheet with
+              a suggested name + emoji so the user never stares at a
+              blank "Name this group" field. */}
+          <View style={styles.templateRow}>
+            {SPLIT_TEMPLATES.map((tp) => (
+              <TouchableOpacity
+                key={tp.key}
+                style={styles.templateChip}
+                onPress={() => onCreateGroup({ name: tp.name, emoji: tp.emoji })}
+                activeOpacity={0.7}
+                accessibilityLabel={`Create ${tp.label} group`}
+                accessibilityRole="button"
+              >
+                <Text style={styles.templateEmoji}>{tp.emoji}</Text>
+                <Text style={styles.templateLabel}>{tp.label}</Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+        </View>
       ) : (
         groups.map((gr: any) => {
           const av = getGA(gr.name);
@@ -189,5 +226,34 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     color: C.text3,
     letterSpacing: 0.5,
+  },
+  // Round 83 P3 — Split template chips (empty state).
+  templateRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 10,
+    justifyContent: 'center',
+    paddingHorizontal: 24,
+    marginTop: -8,
+    marginBottom: 20,
+  },
+  templateChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingHorizontal: 14,
+    paddingVertical: 9,
+    borderRadius: 0,
+    backgroundColor: '#FFFFFF',
+    borderWidth: 1.5,
+    borderColor: C.border,
+    minHeight: 44,
+  },
+  templateEmoji: { fontSize: 16 },
+  templateLabel: {
+    fontSize: 13,
+    fontWeight: '800',
+    color: C.text1,
+    letterSpacing: 0.2,
   },
 });

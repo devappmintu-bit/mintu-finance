@@ -31,6 +31,58 @@ def _hash_password(pw: str) -> str:
     return hash_password(pw)
 
 
+# ── Round 88 — per-device refresh-token session helper ────────────────
+async def _maybe_issue_session(user_id: str, request) -> dict:
+    """If the client sent `device_id` on /auth/verify-otp, create a
+    brand-new refresh-token session + register the device as trusted.
+    Returns a dict of EXTRA fields to merge into the verify-otp
+    response. Empty dict when device_id absent (legacy clients).
+    """
+    device_id = getattr(request, "device_id", None)
+    if not device_id:
+        return {}
+    try:
+        from services import device_service, session_service
+        from services.token_service import ACCESS_TTL_MINUTES, create_access_token
+
+        # Trust this device — OTP just proved phone-possession on it.
+        await device_service.register_device(
+            user_id=user_id,
+            device_id=device_id,
+            device_name=getattr(request, "device_name", None),
+            os_name=getattr(request, "os", None),
+            mark_trusted=True,
+        )
+        # Mint a refresh token bound to this device.
+        refresh_plain, _family = await session_service.create_session(
+            user_id=user_id,
+            device_id=device_id,
+        )
+        # Also mint a short-lived access token so clients can start
+        # using the 15m JWT immediately (falling back to the legacy
+        # 30d `token` only if they don't consume `access_token`).
+        access = create_access_token(user_id=user_id, device_id=device_id)
+        return {
+            "access_token": access["token"],
+            "access_expires_in": access["expires_in"],
+            "refresh_token": refresh_plain,
+            "device_id": device_id,
+            "is_trusted_device": True,
+        }
+    except Exception as e:  # noqa: BLE001
+        # Never fail the login because session plumbing tripped — the
+        # legacy JWT in `token` still works. Log and return empty.
+        import logging as _l
+        _l.getLogger("auth").warning("Silent-auth session issue: %s", e)
+        return {}
+
+
+def _hash_password_deprecated_placeholder(pw: str) -> str:
+    """Intentional no-op — kept only to reserve the name so future
+    forks don't accidentally collide with it."""
+    return pw
+
+
 def _verify_password(pw: str, hashed: str) -> bool:
     from server import verify_password
     return verify_password(pw, hashed)
@@ -208,6 +260,9 @@ async def verify_otp(request: OTPVerifyRequest):
             )
         user_id = str(user["_id"])
         token = _create_token(user_id)
+        # Round 88 — if the client supplied device context, also mint
+        # a refresh-token pair for silent re-auth and trust the device.
+        extras = await _maybe_issue_session(user_id, request)
         return {
             "token": token,
             "is_new_user": False,
@@ -217,6 +272,7 @@ async def verify_otp(request: OTPVerifyRequest):
                 "name": user["name"],
                 "money_score": user.get("money_score", 50),
             },
+            **extras,
         }
 
     if not request.name or not request.name.strip():
@@ -232,6 +288,7 @@ async def verify_otp(request: OTPVerifyRequest):
     result = await db.users.insert_one(new_user)
     user_id = str(result.inserted_id)
     token = _create_token(user_id)
+    extras = await _maybe_issue_session(user_id, request)
 
     return {
         "token": token,
@@ -242,6 +299,7 @@ async def verify_otp(request: OTPVerifyRequest):
             "name": new_user["name"],
             "money_score": new_user["money_score"],
         },
+        **extras,
     }
 
 

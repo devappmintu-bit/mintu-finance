@@ -21,6 +21,7 @@ import { useCallback, useMemo, useState } from 'react';
 import { useFocusEffect } from 'expo-router';
 import api from '../utils/api';
 import { useAuthStore } from '../store/authStore';
+import { useFinContext } from '../store/financialContext';
 import { fetchAnalyticsSummary } from '../services/transactions';
 import { fetchGamificationStatus } from '../services/rewards';
 import { fetchAvatar, uploadAvatar, deleteAvatar } from '../services/user';
@@ -112,6 +113,16 @@ export function useProfileData(): ProfileDataBundle {
       if (weeklyRes.data) setWeekly(weeklyRes.data);
       if (missionsRes.data) setMissionsData(missionsRes.data);
       if (gmailRes.data) setGmailStatus(gmailRes.data);
+
+      // Round 82 — SSoT hydration. Push profile + stats into
+      // useFinContext so downstream AI-Coach / News / Brain
+      // consumers see fresh numbers without re-fetching.
+      try {
+        useFinContext.getState().hydrateFromProfile({
+          identity: identityRes.data,
+          stats:    statsData,
+        });
+      } catch { /* noop */ }
     } catch { /* noop */ }
     finally {
       setRefreshing(false);

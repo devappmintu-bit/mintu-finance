@@ -61,8 +61,8 @@ export default function PremiumHubScreen() {
   const tools: Tool[] = [
     { id: 'reports', title: 'Deep Reports', desc: 'Personalised analytics + downloadable PDF with graphs & tables.', icon: 'stats-chart', tint: COLORS.accent.brand, action: () => router.push('/premium-reports' as any), badge: 'NEW' },
     { id: 'coach',   title: 'AI Smart Coach', desc: 'Unlimited GPT-5.2 chats · priority queue · personalised plans.', icon: 'chatbubbles', tint: '#8B5CF6', action: () => router.push('/(tabs)' as any), badge: 'AI' },
-    { id: 'tax',     title: 'Tax Planner', desc: 'New vs Old regime · 80C/80D suggestions · ITR-ready export.', icon: 'receipt', tint: '#3B82F6', action: () => router.push('/(tabs)/ai-coach?tab=tax' as any) },
-    { id: 'invest',  title: 'Investment Planner', desc: 'SIP allocation · risk profile · fund recommendations.', icon: 'trending-up', tint: COLORS.state.successAlt, action: () => router.push('/(tabs)/ai-coach?tab=invest' as any) },
+    { id: 'tax',     title: 'Tax Planner', desc: 'New vs Old regime · 80C/80D suggestions · ITR-ready export.', icon: 'receipt', tint: '#3B82F6', action: () => router.push('/premium/tax' as any) },
+    { id: 'invest',  title: 'Investment Planner', desc: 'SIP allocation · risk profile · fund recommendations.', icon: 'trending-up', tint: COLORS.state.successAlt, action: () => router.push('/premium/invest' as any) },
     { id: 'school',  title: 'Money School', desc: 'Daily 60-second finance lessons, Indian context.', icon: 'school', tint: COLORS.accent.secondary, action: () => router.push('/money-school' as any) },
     { id: 'cat',     title: 'Auto-Categorise', desc: 'Budgets & txns sorted by AI — edit the taxonomy.', icon: 'sparkles', tint: '#EC4899', action: () => router.push('/(tabs)/budget' as any), badge: 'AI' },
     { id: 'badges',  title: 'Badges & Rewards', desc: 'Exclusive saffron badges, leaderboard ranks, share cards.', icon: 'trophy', tint: '#EAB308', action: () => router.push('/(tabs)/profile' as any) },

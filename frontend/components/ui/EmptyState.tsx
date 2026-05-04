@@ -32,8 +32,17 @@ interface Props {
   mascot?: boolean;
   title: string;
   subtitle?: string;
+  body?: string;
+  /** Round 83 — "action prompt" line rendered as `→ {prompt}` above
+   * the CTAs. Used for guided-activation empty states. */
+  prompt?: string;
   ctaLabel?: string;
   onCta?: () => void;
+  /** Round 83 — DS2.0 aliases forwarded 1:1 to the primitive. */
+  actionLabel?: string;
+  onAction?: () => void;
+  secondaryLabel?: string;
+  onSecondary?: () => void;
   compact?: boolean;
 }
 
@@ -43,8 +52,14 @@ export default function EmptyState({
   mascot,
   title,
   subtitle,
+  body,
+  prompt,
   ctaLabel,
   onCta,
+  actionLabel,
+  onAction,
+  secondaryLabel,
+  onSecondary,
   compact,
 }: Props) {
   // `compact` used to squeeze the padding — we approximate by wrapping
@@ -56,9 +71,12 @@ export default function EmptyState({
       emoji={emoji}
       mascot={mascot}
       title={title}
-      body={subtitle}
-      actionLabel={ctaLabel}
-      onAction={onCta}
+      body={body ?? subtitle}
+      prompt={prompt}
+      actionLabel={actionLabel ?? ctaLabel}
+      onAction={onAction ?? onCta}
+      secondaryLabel={secondaryLabel}
+      onSecondary={onSecondary}
     />
   );
 

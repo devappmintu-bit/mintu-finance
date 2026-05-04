@@ -92,7 +92,7 @@ export default function AIInsightCard({
         title: `Save ${fmtINR(gap)} more to hit ${target}%`,
         sub: `You're at ${savingsRate}%. The 50/30/20 rule recommends 20% savings.`,
         cta: 'Ask AI how',
-        route: '/(tabs)/insights',
+        route: '/spending-insights',
       };
     }
 

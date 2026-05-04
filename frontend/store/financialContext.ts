@@ -15,7 +15,11 @@
  * needed for the Brain).
  */
 import { create } from 'zustand';
-import { api } from '../utils/api';
+// Round 84 — `api` is a default-only export from utils/api. Using the
+// named-import form (`{ api }`) silently resolved to undefined under
+// Metro's strict ESM treatment, blowing up `api.get(...)` calls in
+// `refresh()` whenever the AI Coach's state view first hydrated.
+import api from '../utils/api';
 
 export type Mode =
   | 'score_boost'
@@ -55,6 +59,15 @@ const EMPTY: UserFinancialContext = {
 interface Store extends UserFinancialContext {
   refresh: (force?: boolean) => Promise<void>;
   get: () => UserFinancialContext;
+  /**
+   * Partial hydration from the `/home/bundle` response. Round 82 SSoT
+   * adoption: when the Home screen paints, push its data into the
+   * context so downstream consumers (AIBrainDashboard, NewsCardStack,
+   * useBrainInsight) see fresh numbers without firing their own
+   * duplicate fetches. Leaves goals/splits/nudges untouched (they come
+   * from the full `refresh()` call).
+   */
+  hydrateFromBundle: (bundle: any) => void;
 }
 
 const STALE_MS = 60_000; // refresh only if older than 60s
@@ -64,8 +77,122 @@ export const useFinContext = create<Store>((set, get) => ({
 
   get: () => {
     const s: any = get();
-    const { refresh: _r, get: _g, ...ctx } = s;
+    const { refresh: _r, get: _g, hydrateFromBundle: _h, hydrateFromProfile: _p, hydrateFromControlCenter: _c, ...ctx } = s;
     return ctx as UserFinancialContext;
+  },
+
+  /**
+   * Hydrate profile / score / transactions / streak from the Profile
+   * tab's `/profile/identity` + `/analytics/summary` payloads. Wired
+   * from `useProfileData` so visiting Profile refreshes the SSoT for
+   * downstream AI-Coach / News consumers.
+   */
+  hydrateFromProfile: ({ identity, stats }: { identity?: any; stats?: any } = {}) => {
+    if (!identity && !stats) return;
+    const s: any = get();
+    const id = identity || {};
+    const st = stats || {};
+    const income = Number(st.total_income || 0);
+    const expense = Number(st.total_expense || s.transactions.monthlySpend || 0);
+    const cb = st.category_breakdown || {};
+    const txnCount = Number(st.transaction_count ?? s.transactions.count ?? 0);
+    set({
+      profile: {
+        ...s.profile,
+        name:  id.name      ?? s.profile.name,
+        tier:  id.tier_label ?? s.profile.tier,
+        isPro: !!(id.is_premium ?? s.profile.isPro),
+      },
+      score: {
+        ...s.score,
+        value:   Number(id.money_score   ?? s.score.value ?? 0),
+        delta:   id.weekly_delta         ?? s.score.delta,
+        factors: id.score_factors        ?? s.score.factors,
+      },
+      transactions: {
+        ...s.transactions,
+        count:        txnCount,
+        monthlySpend: expense,
+        categories:   Object.keys(cb).length ? cb : s.transactions.categories,
+      },
+      streak: { days: Number(id.streak ?? s.streak.days ?? 0) },
+      meta: { lastRefreshMs: Date.now(), loaded: true },
+      // Derived side-effect: keep `income` convenience on score.factors
+      // if factors was unset so AI-Coach can show income directly.
+    });
+  },
+
+  /**
+   * Hydrate splits + insights.recommendations from Control Center's
+   * `/split-insights` + `/ai/proactive-nudges` payloads. Wired from
+   * `useControlCenterData` so AI-Coach always sees fresh nudges.
+   */
+  hydrateFromControlCenter: ({ split, nudges }: { split?: any; nudges?: any } = {}) => {
+    if (!split && !nudges) return;
+    const s: any = get();
+    const out: any = {};
+    if (split) {
+      out.splits = {
+        groups: Number(split.groups_count ?? split.groups?.length ?? s.splits.groups ?? 0),
+        owed:   Number(split.outstanding?.you_get ?? split.total_owed_to_you ?? split.owed ?? s.splits.owed ?? 0),
+        owe:    Number(split.outstanding?.you_owe ?? split.total_you_owe   ?? split.owe  ?? s.splits.owe  ?? 0),
+      };
+    }
+    if (nudges?.nudges) {
+      const recs = (nudges.nudges as any[]).slice(0, 3).map((n) => n.text || n.title || n.body || n.message).filter(Boolean);
+      if (recs.length) {
+        out.insights = { ...s.insights, recommendations: recs };
+      }
+    }
+    if (Object.keys(out).length) {
+      out.meta = { lastRefreshMs: Date.now(), loaded: true };
+      set(out);
+    }
+  },
+
+  // Partial hydration — fast-path from `/home/bundle`. Only fills the
+  // fields present in the bundle; leaves goals/splits/nudges untouched.
+  hydrateFromBundle: (bundle: any) => {
+    if (!bundle) return;
+    const s: any = get();
+    const user = bundle.user || {};
+    const stats = bundle.stats || {};
+    const snapshot = bundle.snapshot || {};
+    const insights = (bundle.insights || {}) as any;
+    const txnList = Array.isArray(bundle.recent_txns) ? bundle.recent_txns : [];
+    const monthlySpend = Number(stats.total_expense ?? stats.month?.total_expense ?? s.transactions.monthlySpend ?? 0);
+    const txnCount = Number(
+      stats.transaction_count ?? stats.txn_count ?? stats.total_transactions ??
+      snapshot.transaction_count ?? snapshot.txn_count ?? txnList.length ?? s.transactions.count ?? 0
+    );
+    const lastTxn = txnList[0]?.date || txnList[0]?.created_at || s.transactions.lastTxnDate || null;
+    set({
+      profile: {
+        ...s.profile,
+        name: user.name ?? s.profile.name,
+        tier: user.tier_label ?? s.profile.tier,
+        isPro: !!(user.is_premium ?? s.profile.isPro),
+      },
+      score: {
+        ...s.score,
+        value: Number(user.money_score ?? s.score.value ?? 0),
+        delta: user.weekly_delta ?? s.score.delta,
+        factors: user.score_factors ?? s.score.factors,
+      },
+      transactions: {
+        ...s.transactions,
+        count: txnCount,
+        monthlySpend,
+        lastTxnDate: lastTxn,
+      },
+      streak: { days: Number(user.streak ?? s.streak.days ?? 0) },
+      insights: {
+        ...s.insights,
+        peer: insights.peer || s.insights.peer,
+        mom:  insights.mom  || s.insights.mom,
+      },
+      meta: { lastRefreshMs: Date.now(), loaded: true },
+    });
   },
 
   refresh: async (force = false) => {

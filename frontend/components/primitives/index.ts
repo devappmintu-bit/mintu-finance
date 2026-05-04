@@ -16,7 +16,7 @@ export { default as ParallaxHeader } from './ParallaxHeader';
 
 // ══ Surfaces & primitives ═════════════════════════════════════════
 export { default as PremiumCard } from './PremiumCard';
-export { default as PremiumButton } from './PremiumButton';
+// PremiumButton removed (Round 81). Use <BrutalButton> from components/brutal.
 export { default as SectionHeader } from './SectionHeader';
 
 // ══ Input primitives (DS 2.0 I/O sweep) ═══════════════════════════

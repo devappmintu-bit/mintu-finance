@@ -86,7 +86,25 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   // instead of nuking the user — matches the "relogin via biometric/PIN" flow.
   logout: async () => { await (get().lock()); },
   removeAccount: async () => {
-    await AsyncStorage.removeItem(ASYNC_TOKEN_KEY);
+    // Round 88 — fire /auth/logout server-side first so the session is
+    // revoked in the DB. Best-effort: even if the network is down, we
+    // still clear local state below so the user is logged out locally.
+    try {
+      const { getRefreshToken } = await import('../utils/tokenStore');
+      const refresh = await getRefreshToken();
+      if (refresh) {
+        const { logoutSession } = await import('../services/user');
+        await logoutSession(refresh).catch(() => {});
+      }
+    } catch { /* noop */ }
+    // Wipe BOTH access (AsyncStorage) and refresh (SecureStore) tokens.
+    try {
+      const { clearTokens } = await import('../utils/tokenStore');
+      await clearTokens();
+    } catch {
+      // Belt-and-braces fallback if tokenStore import failed.
+      await AsyncStorage.removeItem(ASYNC_TOKEN_KEY);
+    }
     // Comprehensive cleanup — wipes SWR cache, PIN, premium plan, avatar,
     // search history, push token, biometric prefs, current-user marker.
     // Single source of truth in utils/clearSessionState.ts so this can

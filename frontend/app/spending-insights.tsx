@@ -27,6 +27,7 @@ import Toast from 'react-native-toast-message';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 import api from '../utils/api';
+import { useFinContext } from '../store/financialContext';
 import { COLORS, GLASS, shadowStyle } from '../utils/theme';
 import { makeStyles } from '../utils/makeStyles';
 import { APP_LINK } from '../utils/brand';
@@ -129,19 +130,36 @@ export default function SpendingInsightsScreen() {
     try { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); } catch { /* noop */ }
   }, [load]);
 
+  // Round 82 — SSoT subscription for cross-tab consistency.
+  // `finCtx` always reflects the latest hydrated money data from any
+  // tab the user has visited (Home, Profile, Control Center). We
+  // prefer it over `snap` for derived numbers so the "spending story"
+  // share text always matches what the user just saw on Home.
+  const finCtx = useFinContext((s: any) => ({
+    monthlySpend: s.transactions?.monthlySpend,
+    categories:   s.transactions?.categories,
+    score:        s.score?.value,
+    streak:       s.streak?.days,
+  }));
+
   const storyShareText = useMemo(() => {
-    const spend = fmtINR(snap?.mtd_spend || 0);
-    const top = snap?.top_category?.name || 'Other';
-    const score = snap?.tier?.score ?? 50;
-    const streak = snap?.tier?.streak_days ?? 0;
+    // SSoT-first values (fallback to /home/snapshot fetch if SSoT cold)
+    const spendAmt   = finCtx.monthlySpend != null && finCtx.monthlySpend > 0
+                       ? finCtx.monthlySpend : (snap?.mtd_spend || 0);
+    const cats       = finCtx.categories || {};
+    const topFromCtx = (Object.entries(cats) as Array<[string, number]>)
+                         .sort((a, b) => Number(b[1]) - Number(a[1]))[0]?.[0];
+    const top        = topFromCtx || snap?.top_category?.name || 'Other';
+    const score      = finCtx.score != null ? finCtx.score : (snap?.tier?.score ?? 50);
+    const streak     = finCtx.streak != null ? finCtx.streak : (snap?.tier?.streak_days ?? 0);
     return (
       `📊 My MintU Spending Story\n\n` +
-      `This month: ${spend}\n` +
+      `This month: ${fmtINR(spendAmt)}\n` +
       `Biggest category: ${top}\n` +
       `Money Score: ${score}/100 • ${streak}-day streak\n\n` +
       `Track yours → ${APP_LINK}`
     );
-  }, [snap]);
+  }, [finCtx.monthlySpend, finCtx.categories, finCtx.score, finCtx.streak, snap]);
 
   const onShareStory = useCallback(async () => {
     try {

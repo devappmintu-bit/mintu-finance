@@ -15,9 +15,10 @@
  *   • /api/ai/proactive-nudges → spending anomalies + smart-save
  *   • /api/streak/check-in     → daily streak nudge (today's tap)
  */
-import { useMemo } from 'react';
+import { useMemo, useEffect } from 'react';
 import { router } from 'expo-router';
 import useSwr from './useSwr';
+import { useFinContext } from '../store/financialContext';
 
 export type ActionKind =
   | 'split_settle'    // user owes someone
@@ -80,9 +81,52 @@ export default function useControlCenterData(opts: { paused?: boolean } = {}) {
   const gate = { paused: opts.paused ?? false };
   const { data: split, isLoading: l1 } = useSwr<SplitInsightsShape>('/split-insights', { ttlMs: 60_000, ...gate });
   const { data: nudges, isLoading: l2 } = useSwr<NudgesShape>('/ai/proactive-nudges', { ttlMs: 60_000, ...gate });
+  // Round 83 — Money Command Center unification. Pull smart alerts
+  // (budget warnings, overspend) directly into the ControlCenter so
+  // the Home tab has a SINGLE "do-now" hub instead of 3 separate
+  // alert surfaces competing for attention.
+  const { data: alerts } = useSwr<{ alerts?: any[] }>('/alerts/smart', { ttlMs: 60_000, ...gate });
+
+  // Round 82 — SSoT hydration. Push split + nudges payload into
+  // useFinContext whenever either refreshes, so downstream AI Coach
+  // consumers always see fresh `splits` + `insights.recommendations`.
+  useEffect(() => {
+    if (!split && !nudges) return;
+    try { useFinContext.getState().hydrateFromControlCenter({ split, nudges }); } catch { /* noop */ }
+  }, [split, nudges]);
 
   const actions = useMemo<ControlCenterAction[]>(() => {
     const out: ControlCenterAction[] = [];
+
+    // ── 0. Smart Alerts (budget warnings / overspend / streak save)
+    // Round 83 — unified into Command Center. These previously
+    // rendered as a separate "Smart Alerts" section on Home; now
+    // they live in the single do-now hub.
+    const alertList = Array.isArray(alerts?.alerts) ? alerts!.alerts : [];
+    alertList.slice(0, 3).forEach((a: any, i: number) => {
+      const sev = (a.severity || '').toLowerCase();
+      const kind: ActionKind =
+        sev === 'warning' || sev === 'danger' ? 'overspend'
+        : sev === 'info' ? 'smart_save'
+        : 'budget_alert';
+      out.push({
+        id: a.id || `alert-${i}`,
+        kind,
+        icon: a.emoji ? (ICON_FOR_KIND[kind]) : ICON_FOR_KIND[kind],
+        tone: sev === 'warning' || sev === 'danger' ? 'urgent'
+            : sev === 'success' ? 'success'
+            : TONE_FOR_KIND[kind],
+        title: a.title || 'Heads up',
+        body: a.message || a.body || '',
+        amount: typeof a.amount === 'number' ? a.amount : null,
+        cta_label: a.actions?.[0]?.label || 'Review',
+        on_press: () => {
+          const route = a.actions?.[0]?.route || '/(tabs)/budget';
+          try { router.push(route as any); } catch { /* noop */ }
+        },
+        priority: sev === 'danger' ? 100 : sev === 'warning' ? 92 : 65,
+      });
+    });
 
     // ── 1. Split — you owe someone ──────────────────────────────
     if (split?.top_creditor?.amount && split.top_creditor.amount > 0) {
@@ -171,7 +215,7 @@ export default function useControlCenterData(opts: { paused?: boolean } = {}) {
 
     // Sort high-priority first; cap at 5 rows so the card stays glanceable.
     return out.sort((a, b) => b.priority - a.priority).slice(0, 5);
-  }, [split, nudges]);
+  }, [split, nudges, alerts]);
 
   return {
     actions,

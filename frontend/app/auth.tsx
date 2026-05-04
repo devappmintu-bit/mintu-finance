@@ -7,8 +7,10 @@ import { router } from 'expo-router';
 import { useAuthStore } from '../store/authStore';
 import { useLangStore } from '../store/langStore';
 import { t } from '../utils/i18n';
-import api from '../utils/api';
-import { sendOtp, verifyOtp } from '../services/user';
+import { sendOtp, verifyOtpWithDevice } from '../services/user';
+import { saveTokens } from '../utils/tokenStore';
+import { getDeviceContext } from '../utils/deviceContext';
+import { biometricAvailable, tryBiometric, setBiometricEnabled, supportedBiometricLabel } from '../utils/lockManager';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { COLORS, RADIUS, SPACING, ONBOARDING_IMAGES } from '../utils/theme';
@@ -96,16 +98,26 @@ export default function AuthScreen() {
     if (isNewUser) { setStep('name'); return; }
     setLoading(true);
     try {
-      const res = { data: await verifyOtp(phone.replace(/\D/g, ''), code) };
+      // Round 88 — send device context so backend mints refresh token
+      // and trusts this device for silent re-auth.
+      const device = await getDeviceContext();
+      const data = await verifyOtpWithDevice(phone.replace(/\D/g, ''), code, device);
       // ── CRITICAL: wipe ALL prior-session state BEFORE we set the new
       // token. This is the SECOND of two "every login" call sites; the
       // first is the cold-start safety net in _layout.tsx. Idempotent.
       // Even on same-user re-login this keeps the session deterministic
       // (no stale SWR cache leaking from a previous JWT).
       await clearSessionState();
-      await setToken(res.data.token); setUser(res.data.user);
-      setIsNewUserFlag(!!res.data.is_new_user);
-      await recordCurrentUser(res.data.user.id);
+      // Round 88 — V2 token storage. Prefer the 15m access_token as the
+      // bearer (silent refresh kicks in on 401); persist the 30d
+      // refresh_token to SecureStore. Fall back to legacy `token` if
+      // the backend didn't return a V2 pair (shouldn't happen now that
+      // we always send device_id, but defensive).
+      const accessToken = data.access_token || data.token;
+      await saveTokens({ access: accessToken, refresh: data.refresh_token });
+      await setToken(accessToken); setUser(data.user);
+      setIsNewUserFlag(!!data.is_new_user);
+      await recordCurrentUser(data.user.id);
       // Returning user — offer PIN setup if they've never set one (always
       // true now that clearSessionState wipes the PIN; this re-prompts on
       // every login as part of the security model).
@@ -122,16 +134,42 @@ export default function AuthScreen() {
     if (trimmed.length > 80) { Alert.alert(t('error', lang), 'Name too long (max 80)'); return; }
     setLoading(true);
     try {
-      const res = { data: await api.post('/auth/verify-otp', { phone: phone.replace(/\D/g, ''), otp: otp.join(''), name: trimmed }).then(r => r.data) };
+      // Round 88 — V2 verify with device context for new-user signup too.
+      const device = await getDeviceContext();
+      const data = await verifyOtpWithDevice(phone.replace(/\D/g, ''), otp.join(''), device, trimmed);
       // ── CRITICAL: same as handleVerifyOTP — wipe before setting new
       // token. The brand-new user MUST start with a clean slate.
       await clearSessionState();
-      await setToken(res.data.token); setUser(res.data.user);
-      setIsNewUserFlag(!!res.data.is_new_user);
-      await recordCurrentUser(res.data.user.id);
+      const accessToken = data.access_token || data.token;
+      await saveTokens({ access: accessToken, refresh: data.refresh_token });
+      await setToken(accessToken); setUser(data.user);
+      setIsNewUserFlag(!!data.is_new_user);
+      await recordCurrentUser(data.user.id);
       setPinSetupVisible(true); // fresh user → always prompt for PIN setup
     } catch (err: any) { Alert.alert(t('error', lang), err.response?.data?.detail || 'Something went wrong'); }
     finally { setLoading(false); }
+  };
+
+  /** Round 88 — Mandatory biometric enrollment moment.
+   *  Called after PIN setup completes (or is skipped). If the device has
+   *  enrolled biometrics, we prompt for one successful authentication
+   *  to lock biometric UNLOCK on by default. Cancelling falls back to
+   *  PIN-only — non-blocking by design (we can't hold a fintech app
+   *  hostage on a feature the OS-level enrollment refuses to confirm).
+   */
+  const promptBiometricEnrollment = async (): Promise<void> => {
+    try {
+      if (!(await biometricAvailable())) {
+        await setBiometricEnabled(false);
+        return;
+      }
+      const label = await supportedBiometricLabel();
+      const ok = await tryBiometric(`Enable ${label} for instant unlock`);
+      await setBiometricEnabled(!!ok);
+    } catch {
+      // Never block the welcome flow on biometric plumbing.
+      try { await setBiometricEnabled(false); } catch { /* noop */ }
+    }
   };
 
   const handleResend = async () => {
@@ -232,8 +270,18 @@ export default function AuthScreen() {
       {/* PIN Setup Modal — shown after fresh signup or first returning OTP login */}
       <PinSetupModal
         visible={pinSetupVisible}
-        onDone={() => { setPinSetupVisible(false); setWelcomeAnim(true); }}
-        onSkip={() => { setPinSetupVisible(false); setWelcomeAnim(true); }}
+        onDone={async () => {
+          setPinSetupVisible(false);
+          // Round 88 — mandatory biometric enrollment moment after PIN is set.
+          // Triggers Face ID / fingerprint prompt if hardware is available.
+          await promptBiometricEnrollment();
+          setWelcomeAnim(true);
+        }}
+        onSkip={async () => {
+          setPinSetupVisible(false);
+          await promptBiometricEnrollment();
+          setWelcomeAnim(true);
+        }}
       />
 
       {/* Post-login welcome transition — fades in a saffron overlay then routes to Home */}
@@ -311,6 +359,10 @@ const useStyles = makeStyles((c) => ({
     paddingRight: 0,
     fontSize: 22,
     fontWeight: '900',
+    // Round 87 — Profile-grade brutalist signature: mono numerals on
+    // the OTP boxes. Same visual cadence as Profile's Money Score
+    // metric. `Menlo` is the canonical mono everywhere in the app.
+    fontFamily: Platform.OS === 'ios' ? 'Menlo' : 'monospace',
     lineHeight: 26,
     includeFontPadding: false,
     color: c.text.primary,

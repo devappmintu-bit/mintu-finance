@@ -91,3 +91,12 @@ frontend/.expo/
 .env.local
 test_reports/
 *.log
+-e 
+# Environment and credential files
+.env
+.env.*
+*.env
+credentials.json
+*.pem
+*.key
+.credentials

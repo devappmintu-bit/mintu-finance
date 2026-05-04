@@ -61,10 +61,20 @@ class OTPSendRequest(BaseModel):
 
 
 class OTPVerifyRequest(BaseModel):
-    model_config = ConfigDict(extra="forbid")
+    # Round 88 — relaxed to allow forward-compatible device_id / device_name /
+    # os fields from Expo clients doing silent-auth registration.
+    model_config = ConfigDict(extra="ignore")
     phone: str
     otp: str
     name: Optional[str] = None  # Required for new users
+    # ── Round 88 auth upgrade ────────────────────────────────────────
+    # Optional device context — when present, the verify-otp response
+    # additionally carries a refresh token bound to this device. Old
+    # clients that don't send these fields still work (no refresh
+    # token returned → legacy 30-day JWT path).
+    device_id: Optional[str] = None
+    device_name: Optional[str] = None
+    os: Optional[str] = None
 
     @field_validator("phone", mode="before")
     @classmethod

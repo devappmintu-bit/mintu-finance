@@ -17,7 +17,7 @@ import { Text, StyleSheet, View, ViewStyle, StyleProp } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import GlassCard from './TintedGlassCard';
 import GlowPill from './GlowPill';
-import NeonButton from './NeonButton';
+import BrutalButton from '../brutal/BrutalButton';
 import { COLORS, FONT_FAMILY, GRADIENT, SPACING } from '../../utils/theme';
 import { makeStyles } from '../../utils/makeStyles';
 
@@ -86,7 +86,14 @@ export default function InsightCard({
 
         {/* CTA */}
         {ctaLabel && onPressCta && (
-          <NeonButton label={ctaLabel} onPress={onPressCta} size="sm" style={styles.cta} icon="arrow-forward" />
+          <View style={styles.cta}>
+            <BrutalButton variant="secondary" size="sm" onPress={onPressCta}>
+              <Text style={{ fontSize: 13, fontWeight: '900', letterSpacing: 0.6, color: '#0A0A0A', marginRight: 6 }}>
+                {typeof ctaLabel === 'string' ? ctaLabel.toUpperCase() : ctaLabel}
+              </Text>
+              <Ionicons name="arrow-forward" size={14} color="#0A0A0A" />
+            </BrutalButton>
+          </View>
         )}
       </View>
     </GlassCard>

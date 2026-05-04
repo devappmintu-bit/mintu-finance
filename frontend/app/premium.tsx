@@ -25,6 +25,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 
 import { fetchAnalyticsSummary } from '../services/transactions';
+import { useFinContext } from '../store/financialContext';
 import { PLAN_META, setActivePlan, useActivePlan } from '../utils/premium';
 import type { Plan } from '../utils/premium';
 import CheckoutSheet from '../components/premium/CheckoutSheet';
@@ -45,8 +46,19 @@ export default function PremiumScreen() {
   const [successOpen, setSuccessOpen] = useState(false);
   const [successPlan, setSuccessPlan] = useState<Plan | null>(null);
 
-  // Personalised leakage estimate from analytics summary.
+  // Round 82 Pass 3 — SSoT-first leakage calculation.
+  // useFinContext already has monthlySpend (hydrated from Home bundle,
+  // Profile, or Control Center). Prefer it. Fall back to the fetch
+  // only when SSoT is cold (first app launch before any tab visit).
+  const ssotMonthlySpend = useFinContext((s: any) => s.transactions?.monthlySpend);
   useEffect(() => {
+    if (ssotMonthlySpend != null && ssotMonthlySpend > 0) {
+      // SSoT populated — derive directly, skip the network call.
+      const guess = Math.max(500, Math.min(10000, Math.round(ssotMonthlySpend * 0.1)));
+      if (guess) setLeakage(guess);
+      return;
+    }
+    // Fallback: SSoT cold — preserve the original behaviour exactly.
     fetchAnalyticsSummary()
       .then((data) => {
         const total = Number((data || {})?.total_expense || 0);
@@ -55,7 +67,7 @@ export default function PremiumScreen() {
         if (guess) setLeakage(guess);
       })
       .catch(() => {});
-  }, []);
+  }, [ssotMonthlySpend]);
 
   const amount = useMemo(() => priceFor(selected), [selected]);
 

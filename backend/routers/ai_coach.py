@@ -137,37 +137,34 @@ BUDGETS: {', '.join(f'{b["category"]}: ₹{b["amount"]:,.0f}' for b in budgets) 
         "full": "\nMODE: FULL_DATA — Deliver SPECIFIC, data-grounded recommendations using exact categories and ₹ amounts.",
     }
 
-    system_prompt = f"""You are MintU AI Coach — a product-native financial assistant for Indian users.
+    system_prompt = f"""You are MintU AI Coach — a product-native financial decision assistant for Indian users.
 
 {context}
 {mode_rules[data_mode]}
 
-MANDATORY RESPONSE STRUCTURE — use EXACTLY this 4-block format:
+RESPONSE FORMAT — this is a decision UI, not a report. Be ruthless:
 
-**[Direct Answer]**
-One sentence directly answering the question.
+1. **Core insight** — 1-2 lines. The ONE thing that matters from their data. Lead with a specific number.
+2. *Why (optional, italic, 1 line)* — only if the insight needs backing. Skip if obvious.
+3. **→ Action** — ONE concrete next step. Always present. Starts with a verb.
 
-**Your Snapshot:**
-• Income: ₹<amount> this month
-• Expenses: ₹<amount> this month
-• <one more relevant data point>
-
-**Key Insight:**
-• <ONE specific observation from their actual data OR a detected issue from the list above>
-
-**Next Step:**
-• <ONE concrete action they can take right now>
-
-RULES:
-- Friendly but PROFESSIONAL. Zero slang (never "yaar", "bro", "dude", "yaan").
-- Every line is a bullet or bold header. No paragraphs.
-- Total response: 6-8 lines max.
+HARD RULES:
+- Total response: MAXIMUM 4 lines. Count them. Longer = worse.
+- Never use section headers like "Your Snapshot", "Key Insight", "Next Step". Speak like a human advisor, not a form.
+- Lead with the number. E.g. "₹2,400 over budget on Food this week." not "You are over budget."
+- Friendly + decisive. Zero slang (never "yaar", "bro", "dude", "yaan").
 - Use ₹ with thousands separators (₹12,500).
-- Maximum ONE emoji per response.
+- Maximum ONE emoji per response, and only at end of Core insight if it reinforces tone.
 - NEVER invent numbers — use only values from USER FINANCIAL PROFILE above.
-- If detected issues exist, surface them in Key Insight.
-- Avoid generic advice — every insight must reference a specific category, amount, or behavior.
 - India-specific only (SIPs via Groww/Zerodha, ELSS, NPS, PPF, UPI, Swiggy/Zomato).
+
+EXAMPLE OUTPUT (good):
+₹2,400 over budget on Food this week — your biggest single leak.
+*Food is now 38% of total spend vs your 25% target.*
+**→ Move the next 3 Food expenses to a ₹500 cap; I'll nudge you when you breach.**
+
+EXAMPLE OUTPUT (bad — too long, too structured, headers):
+**[Direct Answer]**\nYou are over budget.\n**Your Snapshot:**\n• Income: ...\n• Expenses: ...\n**Key Insight:**\n• ...\n**Next Step:**\n• ...
 """ + get_lang_instruction(msg.lang or "en")
 
     try:
@@ -197,29 +194,25 @@ RULES:
         }
     except Exception as e:
         logging.error(f"AI Coach error: {e}")
-        # Structured rule-based fallback
+        # Structured rule-based fallback — matches new decision-first format.
         if data_mode == "no_data":
             reply = (
-                "**Let's get started**\n\n"
-                "**Your Snapshot:**\n"
-                "• No transactions tracked this month yet\n\n"
-                "**Key Insight:**\n"
-                "• I cannot provide personalized advice without transaction data\n\n"
-                "**Next Step:**\n"
-                "• Scan your SMS inbox or add your first expense"
+                "No expenses logged yet.\n"
+                "**→ Add your first expense and I'll start spotting patterns.**"
             )
         else:
             top_cat = max(category_spend, key=lambda k: category_spend[k]["total"]) if category_spend else "—"
-            reply = (
-                f"**Quick summary**\n\n"
-                f"**Your Snapshot:**\n"
-                f"• Income: ₹{total_income:,.0f} | Expenses: ₹{total_expense:,.0f}\n"
-                f"• Top category: {top_cat}\n\n"
-                f"**Key Insight:**\n"
-                f"• {detected_issues[0] if detected_issues else f'Tracking {total_txn_count} transactions across {len(category_spend)} categories'}\n\n"
-                f"**Next Step:**\n"
-                f"• {suggested_ctas[0]['label'] if suggested_ctas else 'Keep tracking expenses for sharper insights'}"
-            )
+            if detected_issues:
+                reply = (
+                    f"{detected_issues[0]}\n"
+                    f"*Top category: {top_cat} · {total_txn_count} txns tracked.*\n"
+                    f"**→ {suggested_ctas[0]['label'] if suggested_ctas else 'Open Budget to rebalance.'}**"
+                )
+            else:
+                reply = (
+                    f"₹{total_expense:,.0f} spent vs ₹{total_income:,.0f} earned — {top_cat} is your biggest bucket.\n"
+                    f"**→ {suggested_ctas[0]['label'] if suggested_ctas else 'Keep tracking to unlock sharper insights.'}**"
+                )
         return {
             "reply": reply,
             "mode": data_mode,

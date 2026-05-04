@@ -45,6 +45,7 @@ import DraftsPill from '../../components/split/DraftsPill';
 import PendingSyncBanner from '../../components/split/PendingSyncBanner';
 import InviteGroupSheet from '../../components/split/InviteGroupSheet';
 import EmptyState from '../../components/ui/EmptyState';
+import { PassivePane } from '../../components/brutalist/primitives';
 import useSwr from '../../hooks/useSwr';
 import PremiumUnlockTeaser from '../../components/premium/PremiumUnlockTeaser';
 import SplitGroupsList from '../../components/split/SplitGroupsList';
@@ -78,6 +79,11 @@ function SplitScreen() {
   const [chatGroup, setChatGroup] = useState<any>(null);
   const [remindTarget, setRemindTarget] = useState<DebtRow | null>(null);
   const [editingExpense, setEditingExpense] = useState<any>(null);
+  // Round 83 P3 — Split template prefill. When the user taps a
+  // template chip on the empty state ("Trip", "Weekend", "Rent",
+  // "Dinner"), we stash the {name, emoji} here and read it back
+  // inside <ContactPickerSheet initialName={..} initialEmoji={..} />.
+  const [createTemplate, setCreateTemplate] = useState<{ name: string; emoji: string } | null>(null);
   const settleRowsCacheKey = React.useRef<string>('');
 
   // ── SWR data layer (Round 26) ───────────────────────────────────────
@@ -602,8 +608,12 @@ function SplitScreen() {
 
         {/* AI-powered insights carousel — makes the tab lively & addictive */}
         <SplitInsightsHero />
-        {/* Premium teaser — surfaces group spending insights for non-Pro (auto-hides for Pro) */}
-        {groups.length > 0 && <PremiumUnlockTeaser context="split_insights" />}
+        {/* Premium teaser — PASSIVE (upsell hint, not primary content). */}
+        {groups.length > 0 && (
+          <PassivePane density="compact" style={{ paddingVertical: 0, paddingHorizontal: 0 }}>
+            <PremiumUnlockTeaser context="split_insights" />
+          </PassivePane>
+        )}
 
         <SettleUpCard
           rows={settleRows}
@@ -621,7 +631,10 @@ function SplitScreen() {
           onPressGroup={setChatGroup}
           onAddExpense={openAddExpense}
           onManage={openManage}
-          onCreateGroup={() => setModal('create')}
+          onCreateGroup={(template) => {
+            setCreateTemplate(template || null);
+            setModal('create');
+          }}
         />
 
         <View style={{ height: 30 }} />
@@ -632,9 +645,11 @@ function SplitScreen() {
       {modal === 'create' && (
         <ContactPickerSheet
           visible={true}
-          onClose={close}
+          onClose={() => { close(); setCreateTemplate(null); }}
           onCreate={createGroup}
           existingNames={groups.map((g: any) => g?.name || '').filter(Boolean)}
+          initialName={createTemplate?.name}
+          initialEmoji={createTemplate?.emoji}
         />
       )}
 

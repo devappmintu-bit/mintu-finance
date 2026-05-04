@@ -40,9 +40,15 @@ type Props = {
   /** Phase 1.2 — when present, the step-2 name input shows an inline
    * warning when the typed name collides with an existing group. */
   existingNames?: string[];
+  /** Round 83 P3 — template prefill. When the user taps a template
+   * chip from the empty state ("Trip", "Rent", "Weekend", "Dinner"),
+   * the sheet opens with the suggested group name + emoji already
+   * populated so creation really is "one tap away". */
+  initialName?: string;
+  initialEmoji?: string;
 };
 
-export default function ContactPickerSheet({ visible, onClose, onCreate, existingNames = [] }: Props) {
+export default function ContactPickerSheet({ visible, onClose, onCreate, existingNames = [], initialName, initialEmoji }: Props) {
   const s = useStyles();
   const c = useAppColors();
   const [step, setStep] = useState<1 | 2>(1);
@@ -56,8 +62,8 @@ export default function ContactPickerSheet({ visible, onClose, onCreate, existin
   const [manualPhone, setManualPhone] = useState('');
   const [contactsPermission, setContactsPermission] = useState<'granted' | 'denied' | 'unavailable' | 'loading'>('loading');
   const [permissionPersistentlyDenied, setPermissionPersistentlyDenied] = useState(false);
-  const [groupName, setGroupName] = useState('');
-  const [chosenEmoji, setChosenEmoji] = useState<string | null>(null);
+  const [groupName, setGroupName] = useState(initialName || '');
+  const [chosenEmoji, setChosenEmoji] = useState<string | null>(initialEmoji || null);
 
   useEffect(() => {
     if (!visible) {
@@ -66,8 +72,13 @@ export default function ContactPickerSheet({ visible, onClose, onCreate, existin
       setManualPhone(''); setGroupName(''); setChosenEmoji(null);
       return;
     }
+    // Round 83 P3 — apply template prefill whenever the sheet opens
+    // with one. We re-apply on each open (not just mount) so the same
+    // sheet component can serve multiple templates without remount.
+    if (initialName)  setGroupName(initialName);
+    if (initialEmoji) setChosenEmoji(initialEmoji);
     loadContacts();
-  }, [visible]);
+  }, [visible, initialName, initialEmoji]);
 
   // Phase 3.2 — Debounce the search input so filter() runs at most
   // every 300ms, not on every keystroke. Critical when the contact

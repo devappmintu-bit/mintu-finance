@@ -41,7 +41,7 @@ const DEFAULT_FEATURES: PremiumFeature[] = [
     title: 'Tax Planner',
     tagline: 'New vs Old regime · 80C/80D suggestions · ITR-ready export',
     cta: 'Try it now',
-    route: '/(tabs)/ai-coach?tab=tax',
+    route: '/premium/tax',
     accent: ['#3B82F6', '#1D4ED8'],
   },
   {
@@ -50,7 +50,7 @@ const DEFAULT_FEATURES: PremiumFeature[] = [
     title: 'Investment Planner',
     tagline: 'SIP allocation · risk profile · fund recommendations',
     cta: 'See your plan',
-    route: '/(tabs)/ai-coach?tab=invest',
+    route: '/premium/invest',
     accent: ['#10B981', '#047857'],
   },
   {

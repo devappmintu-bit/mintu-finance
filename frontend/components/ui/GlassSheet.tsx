@@ -91,19 +91,22 @@ GlassSheet.displayName = 'GlassSheet';
 export default GlassSheet;
 
 const useStyles = makeStyles((c) => ({
+  // Round 81 — restyled to Brutalist visuals while keeping the gorhom
+  // snap-gesture foundation. Flat paper fill, 3-px ink top border, ink
+  // drag-handle. No more glass; just hard edges.
   bg: {
-    backgroundColor: c.bg.elevated,
+    backgroundColor: c.bg.card,
     borderTopLeftRadius: 0,
     borderTopRightRadius: 0,
-    borderTopWidth: 1,
-    borderColor: 'rgba(255,255,255,0.08)',
+    borderTopWidth: 3,
+    borderColor: c.text.primary,
   },
   handle: {
-    backgroundColor: c.accent.primary,
+    backgroundColor: c.text.primary,
     width: 48,
     height: 4,
-    borderRadius: 2,
-    opacity: 0.9,
+    borderRadius: 0,
+    opacity: 1,
   },
   content: {
     flex: 1,

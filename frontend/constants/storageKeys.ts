@@ -67,6 +67,7 @@ export const PER_USER_SECURE_KEYS = [
   'mintu_lock_salt_v1',             // PIN salt
   'mintu_bio_enabled_v1',           // biometric opt-in flag
   'app_lock_enabled',               // lock-on-resume preference
+  'mintu.refresh_token_v1',         // Round 88 — V2 refresh token (rotating, 30d)
 ] as const;
 
 // ─────────────────────────────────────────────────────────────────────

@@ -19,9 +19,10 @@ import Toast from 'react-native-toast-message';
 import { TransactionsSkeleton } from '../../components/SkeletonLoader';
 import EmptyState from '../../components/ui/EmptyState';
 import SheetHeader from '../../components/ui/SheetHeader';
-import PrimaryButton from '../../components/ui/PrimaryButton';
+// PrimaryButton removed (Round 81). Use <BrutalButton> from components/brutal.
 import TapTile from '../../components/ui/TapTile';
 import GmailConnectCard from '../../components/transactions/GmailConnectCard';
+import { PassivePane, StructureCard } from '../../components/brutalist/primitives';
 import TransactionSheet from '../../components/transactions/TransactionSheet';
 import {
   fetchTransactions as fetchTxnsSrv, addTransaction, updateTransaction, deleteTransaction,
@@ -30,7 +31,7 @@ import { PieChart } from 'react-native-gifted-charts';
 import SmartInsightsStrip from '../../components/transactions/SmartInsightsStrip';
 import TransactionFilterSheet, { DEFAULT_FILTER, TxnFilter, applyFilterToList, filterActiveCount } from '../../components/transactions/TransactionFilterSheet';
 import TransactionsHero from '../../components/transactions/TransactionsHeroBrutalist';
-import QuickScanFAB from '../../components/transactions/QuickScanFAB';
+// QuickScanFAB removed (Round 83) — input bar is now the single primary CTA.
 import { StaggeredEntrance, SegmentedToggle, CurrencyField, CategorySelector, QuickAmountChips, InputAssistantHeader } from '../../components/primitives';
 import useSwr from '../../hooks/useSwr';
 import { useIsOnline } from '../../hooks/useIsOnline';
@@ -326,11 +327,16 @@ function TransactionsScreen() {
         contentContainerStyle={styles.listContent}
         ListHeaderComponent={
           <StaggeredEntrance delayMs={70} duration={420} distance={14}>
-            {/* Gmail auto-import CTA — shows only when not yet connected. */}
-            <GmailConnectCard />
+            {/* Round 80 — 3-layer cascade.
+                GmailConnectCard (setup hint) = Passive.
+                SmartInsightsStrip (supporting data) = Structure. */}
+            <PassivePane density="compact" style={{ paddingVertical: 0, paddingHorizontal: 0, marginBottom: 8 }}>
+              <GmailConnectCard />
+            </PassivePane>
 
-            {/* Smart Insights — Data-driven spending summary */}
-            <SmartInsightsStrip transactions={transactions} />
+            <StructureCard density="compact" style={{ paddingVertical: 0, paddingHorizontal: 0, marginBottom: 12 }}>
+              <SmartInsightsStrip transactions={transactions} />
+            </StructureCard>
 
             {/* AI Expense Report Card */}
             {waste && waste.ai_recommendation ? (
@@ -511,15 +517,10 @@ function TransactionsScreen() {
         onApply={setFilter}
       />
 
-      {/* Wave 5.9 — Quick Scan FAB (Cash · SMS · Receipt fan-out) */}
-      <QuickScanFAB
-        onAddCash={() => setModalVisible(true)}
-        onScanSms={() => setSmsModalVisible(true)}
-        onUploadReceipt={() => {
-          showSuccess('📸 Receipt OCR coming soon', 'For now, paste the SMS or add it manually');
-        }}
-        bottomInset={96}
-      />
+      {/* Round 83 — FAB removed (user critique). The in-ledger input
+          bar is now the SINGLE primary CTA for adding expenses. SMS
+          scan and receipt flows are reached from the EXPENSE tile's
+          long-press / overflow menu to keep the primary lane clean. */}
     </SafeAreaView>
   );
 }

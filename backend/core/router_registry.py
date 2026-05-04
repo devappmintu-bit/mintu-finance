@@ -25,6 +25,7 @@ def register_domain_routers(api_router: APIRouter) -> None:
     """
     from routers import (
         auth as auth_router,
+        auth_v2 as auth_v2_router,
         news as news_router,
         referral as referral_router,
         gamification as gamification_router,
@@ -62,9 +63,11 @@ def register_domain_routers(api_router: APIRouter) -> None:
         users as users_router,
         mascot as mascot_router,
         pending_nudges as pending_nudges_router,
+        setu_aa as setu_aa_router,
     )
     for r in (
         auth_router,
+        auth_v2_router,
         news_router, referral_router, gamification_router, content_router,
         transactions_router, budgets_router, family_router, analytics_router,
         user_router, splits_router, ai_router, cash_router, notifications_router,
@@ -76,6 +79,7 @@ def register_domain_routers(api_router: APIRouter) -> None:
         profile_identity_router, profile_engine_router,
         streak_router, search_router, split_ws_router, users_router,
         mascot_router, pending_nudges_router,
+        setu_aa_router,
     ):
         api_router.include_router(r.router)
 

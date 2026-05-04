@@ -1,302 +1,235 @@
 /**
- * AuthTransitionOverlay — full-screen animated welcome / lock-out overlay.
+ * AuthTransitionOverlay — Round 89 Strike 2 refine v2.
  *
- * Mascot-powered playful version (v2). Each render picks ONE of five random
- * mascot "actions" to keep repeat logins feeling fresh:
+ * ═══════════════════════════════════════════════════════════════════════
+ * FINAL UX CONTRACT (locked by user review):
  *
- *   • bounce   — the mascot springs up & down on an invisible trampoline
- *   • wave     — it leans + rocks side-to-side waving hello
- *   • thumbsUp — quick pop-in + tiny rotation
- *   • float    — gentle levitate with soft breathe
- *   • spin     — full 360° spin with ease-out
+ *   Full-screen. Big mascot, centered. Insight only.
  *
- * Around the mascot we fire 10 coloured confetti bits + a saffron halo ring
- * that expands and fades. Matches the Toing-style mascot bounce reference.
+ *   Structure (top-to-bottom, centered vertically):
+ *     1. Large mascot tile (128×128, brutalist square)
+ *     2. "Welcome back, NAME 👋"             (title)
+ *     3. Tag pill from priority engine       (e.g. "HEALTHY" / "BUDGET HEAT")
+ *     4. Insight headline (live number)
+ *     5. Supporting why-line
  *
- * Variants:
- *   • 'unlocking' — "Welcome back, {name}" warm saffron background (default)
- *   • 'locking'   — "Securing your session…" muted dark tone with lock
+ *   NO CTA button — the user asked for insights-only.
+ *   NO auto-dismiss button override — a tap-anywhere gesture skips.
+ *   Auto-transitions to Home after 2200ms (enough to read).
  *
- * Zero new deps: uses RN Animated + expo-linear-gradient + expo-image.
+ * Data: the SAME usePriorityInsight() hook used by Home + Coach.
+ * Continuity is the point — what they see here = what Home's TODAY
+ * card will show them a second later.
+ *
+ * Brutalist: paper bg, ink text, orange accent tile for mascot.
+ * No glass. No drop shadows. No rounded corners.
+ * ═══════════════════════════════════════════════════════════════════════
  */
-import React, { useEffect, useMemo, useRef } from 'react';
-import { View, Text, StyleSheet, Animated, Easing, Platform } from 'react-native';
+import React, { useEffect, useRef } from 'react';
+import { View, Text, StyleSheet, Animated, Easing, Pressable, Platform } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { Image } from 'expo-image';
 import { useAuthStore } from '../../store/authStore';
-import { makeStyles } from '../../utils/makeStyles';
-import { COLORS } from '../../utils/theme';
+import { usePriorityInsight } from '../../hooks/usePriorityInsight';
+import { BR_COLORS, BR_TYPE, BR_SPACE, BR_BORDER } from '../../utils/brutalist';
 
 export type AuthTransitionVariant = 'locking' | 'unlocking';
 
 type Props = {
   variant: AuthTransitionVariant;
   onDone: () => void;
+  /** Auto-transition delay in ms. Default 2200. */
   durationMs?: number;
 };
 
-type Action = 'bounce' | 'wave' | 'thumbsUp' | 'float' | 'spin' | 'doubleJump' | 'tada';
+export default function AuthTransitionOverlay({ variant, onDone, durationMs = 2200 }: Props) {
+  if (variant === 'locking') return <LockingScene onDone={onDone} />;
+  return <UnlockingScene onDone={onDone} durationMs={durationMs} />;
+}
 
-const ACTIONS: Action[] = ['bounce', 'wave', 'thumbsUp', 'float', 'spin', 'doubleJump', 'tada'];
-
-export default function AuthTransitionOverlay({ variant, onDone, durationMs = 1500 }: Props) {
-  const s = useStyles();
+// ═════════════════════════════════════════════════════════════════════════
+// Unlocking — FULL-SCREEN insight-first welcome.
+// ═════════════════════════════════════════════════════════════════════════
+function UnlockingScene({ onDone, durationMs }: { onDone: () => void; durationMs: number }) {
   const { user } = useAuthStore();
-  const action = useMemo<Action>(() => ACTIONS[Math.floor(Math.random() * ACTIONS.length)], []);
+  const insight = usePriorityInsight();
+  const firstName = (user?.name || '').split(' ')[0] || 'there';
 
-  // Shared anim values
-  const fade      = useRef(new Animated.Value(0)).current;
-  const scaleIn   = useRef(new Animated.Value(0.5)).current;
-  const halo      = useRef(new Animated.Value(0)).current;
-  const actionAnim = useRef(new Animated.Value(0)).current;
-  const confetti  = useRef(new Animated.Value(0)).current;
+  // Subtle entrance: fade + mascot scale-in, staggered with text.
+  const fade = useRef(new Animated.Value(0)).current;
+  const scale = useRef(new Animated.Value(0.9)).current;
+  const textY = useRef(new Animated.Value(10)).current;
+  const doneCalled = useRef(false);
+
+  const finish = () => {
+    if (doneCalled.current) return;
+    doneCalled.current = true;
+    Animated.timing(fade, { toValue: 0, duration: 220, useNativeDriver: true })
+      .start(() => onDone());
+  };
 
   useEffect(() => {
     Animated.sequence([
-      // 1) Fade-in + pop in mascot
       Animated.parallel([
-        Animated.timing(fade,    { toValue: 1, duration: 220, useNativeDriver: true }),
-        Animated.spring(scaleIn, { toValue: 1, friction: 5, tension: 100, useNativeDriver: true }),
+        Animated.timing(fade,  { toValue: 1, duration: 260, easing: Easing.out(Easing.quad), useNativeDriver: true }),
+        Animated.spring(scale, { toValue: 1, friction: 6, tension: 120, useNativeDriver: true }),
       ]),
-      // 2) Play the random action + halo + confetti concurrently
-      Animated.parallel([
-        Animated.timing(halo,     { toValue: 1, duration: 1100, easing: Easing.out(Easing.cubic), useNativeDriver: true }),
-        Animated.timing(confetti, { toValue: 1, duration: 1100, easing: Easing.out(Easing.quad),  useNativeDriver: true }),
-        actionSequence(action, actionAnim),
-      ]),
-      // 3) Fade out
-      Animated.timing(fade, { toValue: 0, duration: 220, useNativeDriver: true }),
-    ]).start(({ finished }) => { if (finished) onDone(); });
+      Animated.timing(textY, { toValue: 0, duration: 320, easing: Easing.out(Easing.cubic), useNativeDriver: true }),
+    ]).start();
+    const t = setTimeout(finish, durationMs);
+    return () => clearTimeout(t);
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Map the action anim to transforms
-  const mascotTransform = useMemo(() => buildTransform(action, actionAnim), [action, actionAnim]);
-
-  const title = variant === 'locking'
-    ? 'Securing your session…'
-    : `Welcome back${user?.name ? `, ${user.name.split(' ')[0]}` : ''} 👋`;
-  const caption = variant === 'locking'
-    ? 'AES-256 end-to-end encrypted'
-    : 'Biometric verified · session active';
-
-  const haloScale   = halo.interpolate({ inputRange: [0, 1], outputRange: [1, 2.2] });
-  const haloOpacity = halo.interpolate({ inputRange: [0, 1], outputRange: [0.55, 0] });
-
   return (
-    <Animated.View style={[s.wrap, { opacity: fade }]} pointerEvents="auto">
-      <View style={[StyleSheet.absoluteFillObject, { backgroundColor: '#0A0A0A' }]}
-      />
+    <Pressable
+      onPress={finish}
+      accessibilityRole="button"
+      accessibilityLabel="Welcome screen. Tap anywhere to continue."
+      style={styles.fullscreen}
+    >
+      <Animated.View style={[styles.inner, { opacity: fade }]} pointerEvents="none">
+        {/* Big mascot, centered. Orange accent tile, ink border. */}
+        <Animated.View style={[styles.mascotTile, { transform: [{ scale }] }]}>
+          <Image
+            source={require('../../assets/images/mintu-logo.png')}
+            style={styles.mascotImg}
+            contentFit="cover"
+            cachePolicy="memory-disk"
+          />
+        </Animated.View>
 
-      {/* Confetti dots */}
-      {variant === 'unlocking' && <ConfettiDots anim={confetti} />}
-
-      {/* Halo ring expanding out */}
-      <Animated.View style={[s.halo, { transform: [{ scale: haloScale }], opacity: haloOpacity }]} />
-
-      {/* Mascot + pedestal */}
-      <Animated.View style={[s.mascotWrap, { transform: [{ scale: scaleIn }] }]}>
-        {variant === 'unlocking' ? (
-          <>
-            <Animated.View style={[s.mascotTile, mascotTransform]}>
-              <Image
-                source={require('../../assets/images/mintu-logo.png')}
-                style={s.mascotImg}
-                contentFit="cover"
-                cachePolicy="memory-disk"
-              />
-            </Animated.View>
-            {/* Trampoline pedestal — a soft cream puck */}
-            <View style={s.pedestal} />
-          </>
-        ) : (
-          <View style={s.lockBubble}>
-            <Ionicons name="lock-closed" size={40} color="#E65100" />
+        {/* Text block — animated rise-in under mascot. */}
+        <Animated.View style={[styles.textBlock, { transform: [{ translateY: textY }] }]}>
+          <Text style={styles.welcome} numberOfLines={1}>
+            Welcome back, {firstName} <Text style={{ fontSize: 22 }}>👋</Text>
+          </Text>
+          <View style={[styles.tagPill, { backgroundColor: toneBg(insight?.tone) }]}>
+            <Text style={styles.tagTxt}>{insight?.tag || 'TODAY'}</Text>
           </View>
-        )}
+          <Text style={styles.headline} numberOfLines={3}>
+            {insight?.headline || 'Here\'s what matters today.'}
+          </Text>
+          <Text style={styles.bodyLine} numberOfLines={3}>
+            {insight?.body || 'You\'re signed in — everything is up to date.'}
+          </Text>
+        </Animated.View>
       </Animated.View>
 
-      {/* Action label e.g. "Bouncing in…" */}
-      {variant === 'unlocking' && (
-        <Animated.Text style={[s.actionTag, { opacity: fade }]}>
-          {actionCaption(action)}
-        </Animated.Text>
-      )}
+      {/* Tiny hint at the bottom — reinforces tap-to-continue.
+          Low-weight typography; fades along with the overlay. */}
+      <Animated.View style={[styles.hint, { opacity: fade }]} pointerEvents="none">
+        <Text style={styles.hintTxt}>TAP ANYWHERE TO CONTINUE</Text>
+      </Animated.View>
+    </Pressable>
+  );
+}
 
-      <Animated.Text style={[s.title, { opacity: fade }]}>{title}</Animated.Text>
-      <Animated.Text style={[s.caption, { opacity: fade }]}>{caption}</Animated.Text>
+function toneBg(tone: string | undefined): string {
+  switch (tone) {
+    case 'danger':  return BR_COLORS.negative;
+    case 'warning': return BR_COLORS.warning;
+    case 'success': return BR_COLORS.positive;
+    case 'info':    return BR_COLORS.paperAlt;
+    case 'neutral': return BR_COLORS.paperAlt;
+    default:        return BR_COLORS.accent;
+  }
+}
+
+// ═════════════════════════════════════════════════════════════════════════
+// Locking — minimal, SSoT-free.
+// ═════════════════════════════════════════════════════════════════════════
+function LockingScene({ onDone }: { onDone: () => void }) {
+  const fade = useRef(new Animated.Value(0)).current;
+  useEffect(() => {
+    Animated.sequence([
+      Animated.timing(fade, { toValue: 1, duration: 200, useNativeDriver: true }),
+      Animated.delay(800),
+      Animated.timing(fade, { toValue: 0, duration: 200, useNativeDriver: true }),
+    ]).start(({ finished }) => { if (finished) onDone(); });
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  return (
+    <Animated.View style={[styles.fullscreen, { opacity: fade, backgroundColor: BR_COLORS.ink }]} pointerEvents="auto">
+      <View style={styles.inner}>
+        <View style={[styles.mascotTile, { backgroundColor: BR_COLORS.paperAlt }]}>
+          <Ionicons name="lock-closed" size={48} color={BR_COLORS.ink} />
+        </View>
+        <View style={styles.textBlock}>
+          <Text style={[styles.welcome, { color: BR_COLORS.paper }]}>Securing your session…</Text>
+          <Text style={[styles.bodyLine, { color: BR_COLORS.paper, opacity: 0.7 }]}>AES-256 end-to-end encrypted.</Text>
+        </View>
+      </View>
     </Animated.View>
   );
 }
 
 // ═════════════════════════════════════════════════════════════════════════
-// Per-action animation sequences & transforms
+// Styles — FULL-SCREEN brutalist. No card, no modal-in-a-modal.
 // ═════════════════════════════════════════════════════════════════════════
-function actionSequence(a: Action, v: Animated.Value) {
-  switch (a) {
-    case 'bounce':
-      // up-down-up-down
-      return Animated.sequence([
-        Animated.timing(v, { toValue: 1,   duration: 240, easing: Easing.out(Easing.quad), useNativeDriver: true }),
-        Animated.timing(v, { toValue: 0,   duration: 240, easing: Easing.in(Easing.quad),  useNativeDriver: true }),
-        Animated.timing(v, { toValue: 0.6, duration: 200, easing: Easing.out(Easing.quad), useNativeDriver: true }),
-        Animated.timing(v, { toValue: 0,   duration: 200, easing: Easing.in(Easing.quad),  useNativeDriver: true }),
-      ]);
-    case 'wave':
-      return Animated.sequence([
-        Animated.timing(v, { toValue:  1, duration: 180, useNativeDriver: true }),
-        Animated.timing(v, { toValue: -1, duration: 220, useNativeDriver: true }),
-        Animated.timing(v, { toValue:  1, duration: 220, useNativeDriver: true }),
-        Animated.timing(v, { toValue:  0, duration: 180, useNativeDriver: true }),
-      ]);
-    case 'thumbsUp':
-      return Animated.sequence([
-        Animated.spring(v, { toValue: 1, friction: 4, tension: 120, useNativeDriver: true }),
-        Animated.timing(v, { toValue: 0.7, duration: 180, useNativeDriver: true }),
-        Animated.spring(v, { toValue: 1, friction: 4, tension: 120, useNativeDriver: true }),
-      ]);
-    case 'float':
-      return Animated.loop(
-        Animated.sequence([
-          Animated.timing(v, { toValue: 1, duration: 550, easing: Easing.inOut(Easing.sin), useNativeDriver: true }),
-          Animated.timing(v, { toValue: 0, duration: 550, easing: Easing.inOut(Easing.sin), useNativeDriver: true }),
-        ]),
-        { iterations: 2 },
-      );
-    case 'spin':
-      return Animated.timing(v, { toValue: 1, duration: 900, easing: Easing.out(Easing.cubic), useNativeDriver: true });
-    case 'doubleJump':
-      // Two quick jumps with a little hover between them
-      return Animated.sequence([
-        Animated.timing(v, { toValue: 1,   duration: 220, easing: Easing.out(Easing.quad), useNativeDriver: true }),
-        Animated.timing(v, { toValue: 0.4, duration: 150, easing: Easing.in(Easing.quad),  useNativeDriver: true }),
-        Animated.timing(v, { toValue: 1.2, duration: 200, easing: Easing.out(Easing.quad), useNativeDriver: true }),
-        Animated.timing(v, { toValue: 0,   duration: 260, easing: Easing.in(Easing.quad),  useNativeDriver: true }),
-      ]);
-    case 'tada':
-      // Enthusiastic shake+scale — like a celebration burst
-      return Animated.sequence([
-        Animated.timing(v, { toValue:  0.5, duration: 120, useNativeDriver: true }),
-        Animated.timing(v, { toValue: -0.5, duration: 120, useNativeDriver: true }),
-        Animated.timing(v, { toValue:  0.7, duration: 120, useNativeDriver: true }),
-        Animated.timing(v, { toValue: -0.3, duration: 100, useNativeDriver: true }),
-        Animated.spring(v, { toValue: 0, friction: 3, tension: 140, useNativeDriver: true }),
-      ]);
-  }
-}
-
-function buildTransform(a: Action, v: Animated.Value): any {
-  switch (a) {
-    case 'bounce':
-      return { transform: [{ translateY: v.interpolate({ inputRange: [0, 1], outputRange: [0, -34] }) }] };
-    case 'wave':
-      return { transform: [{ rotate: v.interpolate({ inputRange: [-1, 0, 1], outputRange: ['-12deg', '0deg', '12deg'] }) }] };
-    case 'thumbsUp':
-      return { transform: [{ scale: v.interpolate({ inputRange: [0, 1], outputRange: [0.7, 1.1] }) }] };
-    case 'float':
-      return { transform: [{ translateY: v.interpolate({ inputRange: [0, 1], outputRange: [0, -14] }) }] };
-    case 'spin':
-      return { transform: [{ rotate: v.interpolate({ inputRange: [0, 1], outputRange: ['0deg', '360deg'] }) }] };
-    case 'doubleJump':
-      return { transform: [{ translateY: v.interpolate({ inputRange: [0, 1.2], outputRange: [0, -42] }) }] };
-    case 'tada':
-      return {
-        transform: [
-          { rotate: v.interpolate({ inputRange: [-1, 0, 1], outputRange: ['-18deg', '0deg', '18deg'] }) },
-          { scale:  v.interpolate({ inputRange: [-1, 0, 1], outputRange: [0.92, 1, 1.12] }) },
-        ],
-      };
-  }
-}
-
-function actionCaption(a: Action): string {
-  switch (a) {
-    case 'bounce':   return '🚀 Back in action';
-    case 'wave':     return '👋 Hey there';
-    case 'thumbsUp': return '👍 Locked and loaded';
-    case 'float':    return '✨ Smooth sailing';
-    case 'spin':    return '🎉 Let\'s go';
-    case 'doubleJump': return '⚡ Double tap';
-    case 'tada':    return '🎊 Tada!';
-  }
-}
-
-// ═════════════════════════════════════════════════════════════════════════
-// Decorative confetti dots
-// ═════════════════════════════════════════════════════════════════════════
-const DOT_COLORS = ['#FFD166', '#FFB300', '#FEE2CD', '#FFECD3', '#E0F7FA'];
-function ConfettiDots({ anim }: { anim: Animated.Value }) {
-  const s = useStyles();
-  // 10 pre-computed positions so animation is deterministic per mount
-  const dots = useMemo(() => {
-    return Array.from({ length: 10 }, (_, i) => ({
-      dx: (Math.random() - 0.5) * 260,
-      dy: 60 + Math.random() * 80,
-      color: DOT_COLORS[i % DOT_COLORS.length],
-      size: 6 + Math.random() * 6,
-      delay: Math.random() * 0.3,
-    }));
-  }, []);
-  return (
-    <>
-      {dots.map((d, i) => (
-        <Animated.View
-          key={i}
-          style={[
-            s.dot,
-            {
-              backgroundColor: d.color,
-              width: d.size, height: d.size,
-              transform: [
-                { translateX: anim.interpolate({ inputRange: [0, 1], outputRange: [0, d.dx] }) },
-                { translateY: anim.interpolate({ inputRange: [0, 1], outputRange: [0, d.dy] }) },
-              ],
-              opacity: anim.interpolate({ inputRange: [0, 0.2 + d.delay, 0.8, 1], outputRange: [0, 1, 1, 0] }),
-            },
-          ]}
-        />
-      ))}
-    </>
-  );
-}
-
-const useStyles = makeStyles((c) => ({
-  wrap: { position: 'absolute', top: 0, right: 0, bottom: 0, left: 0, alignItems: 'center', justifyContent: 'center', zIndex: 9999 },
-  halo: { position: 'absolute', width: 140, height: 140, borderRadius: 0, borderWidth: 3, borderColor: '#fff' },
-  mascotWrap: { alignItems: 'center' },
+const MASCOT = 128;
+const styles = StyleSheet.create({
+  fullscreen: {
+    position: 'absolute', top: 0, left: 0, right: 0, bottom: 0,
+    backgroundColor: BR_COLORS.paper,
+    zIndex: 9999,
+    ...Platform.select({ web: { cursor: 'pointer' as any } }),
+  },
+  inner: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: BR_SPACE.xl,
+    gap: BR_SPACE.xl,
+  },
+  // Big mascot — the visual center of gravity.
+  // Calm neutral paperAlt bg lets the mascot's own saturated fill
+  // carry the energy without the tile fighting it.
   mascotTile: {
-    width: 120, height: 120, borderRadius: 0,
-    backgroundColor: '#FFF0DE',
+    width: MASCOT, height: MASCOT,
+    backgroundColor: BR_COLORS.paperAlt,
+    borderWidth: BR_BORDER.bold,
+    borderColor: BR_COLORS.ink,
     alignItems: 'center', justifyContent: 'center',
     overflow: 'hidden',
-    borderWidth: 3, borderColor: '#fff',
     ...Platform.select({
-      ios:     { shadowColor: '#000', shadowOpacity: 0.22, shadowRadius: 14, shadowOffset: { width: 0, height: 10 } },
-      android: { elevation: 14 },
-      web:     { boxShadow: '0 10px 22px rgba(0,0,0,0.22)' as any },
+      ios:     { shadowColor: '#000', shadowOpacity: 1, shadowRadius: 0, shadowOffset: { width: 6, height: 6 } },
+      android: { elevation: 0 },
+      web:     { boxShadow: '6px 6px 0 0 #0A0A0A' as any },
     }),
   },
-  mascotImg: { width: '100%', height: '100%' },
-  pedestal: {
-    marginTop: 8,
-    width: 100, height: 8, borderRadius: 0,
-    backgroundColor: 'rgba(0,0,0,0.22)',
+  mascotImg: { width: MASCOT - 16, height: MASCOT - 16 },
+  // Text block — right under the mascot.
+  textBlock: { alignItems: 'center', gap: BR_SPACE.sm, maxWidth: 340 },
+  welcome: {
+    fontSize: 22, fontWeight: '900',
+    color: BR_COLORS.ink, letterSpacing: -0.4,
+    textAlign: 'center',
   },
-  lockBubble: {
-    width: 120, height: 120, borderRadius: 0,
-    backgroundColor: '#fff',
-    alignItems: 'center', justifyContent: 'center',
+  tagPill: {
+    paddingHorizontal: 12, paddingVertical: 4,
+    borderWidth: 2, borderColor: BR_COLORS.ink,
+    marginTop: BR_SPACE.sm,
   },
-  actionTag: {
-    color: '#fff',
-    fontSize: 13, fontWeight: '800',
-    letterSpacing: 0.3,
-    marginTop: 28,
-    opacity: 0.95,
+  tagTxt: { fontSize: 10, fontWeight: '900', letterSpacing: 1.8, color: BR_COLORS.ink },
+  headline: {
+    ...BR_TYPE.h2,
+    fontSize: 24, lineHeight: 28,
+    color: BR_COLORS.ink,
+    textAlign: 'center',
+    marginTop: BR_SPACE.sm,
   },
-  title: { color: '#fff', fontSize: 22, fontWeight: '900', marginTop: 10, letterSpacing: -0.2 },
-  caption: { color: 'rgba(255,255,255,0.88)', fontSize: 12, fontWeight: '700', marginTop: 4, letterSpacing: 0.2 },
-  dot: {
-    position: 'absolute',
-    borderRadius: 100,
+  bodyLine: {
+    ...BR_TYPE.sub,
+    fontSize: 14, lineHeight: 20,
+    color: BR_COLORS.muted,
+    textAlign: 'center',
+    marginTop: 4,
   },
-}));
+  hint: {
+    position: 'absolute', bottom: 40, left: 0, right: 0,
+    alignItems: 'center',
+  },
+  hintTxt: {
+    fontSize: 10, fontWeight: '700',
+    letterSpacing: 2, color: BR_COLORS.muted,
+  },
+});

@@ -1,15 +1,13 @@
 /**
- * ProfileScreen — PILOT of the Brutalist + Swiss design system.
+ * ProfileScreen — Round 89 "Control Center" redesign.
  *
- * Round 77 pivot: the entire visual layer below the header is now rendered
- * by `BrutalistProfileView` (components/brutalist/profile/*) using the
- * tokens in `utils/brutalist.ts`. All data fetching, modal state, and
- * auth/biometric logic is unchanged — only the presentation rebuilds.
+ * Profile is now strictly a control surface. Money Score, AI Coach CTAs,
+ * badges/streak, and premium upsell all moved OUT (to Home, Coach, Rewards).
+ * This screen owns: identity edits, security, money connections,
+ * preferences, help, danger zone.
  *
- * If sign-off fails, revert this file only; none of the legacy
- * components (ProfileIdentityCard, MoneyScoreCard, ProgressInline,
- * BoostCarousel, MissionsEngine, etc.) have been deleted — they remain
- * available under `components/profile/*` for other screens or rollback.
+ * Data hooks and modals are preserved — only the presentation layer +
+ * rewiring shrinks.
  */
 import React, { useState, useCallback } from 'react';
 import { View, Modal } from 'react-native';
@@ -25,17 +23,12 @@ import { useProfileData } from '../../hooks/useProfileData';
 import { useBiometricSettings } from '../../hooks/useBiometricSettings';
 import { sendTestPush } from '../../hooks/usePushNotifications';
 
-// Modals / sheets (kept as-is; only page chrome turns brutalist)
-import ScoreBreakdownModal from '../../components/profile/ScoreBreakdownModal';
-import ScoreBoostModal from '../../components/profile/ScoreBoostModal';
+// Modals / sheets
 import LogoutConfirmSheet from '../../components/profile/LogoutConfirmSheet';
 import ProfilePhotoSheet from '../../components/profile/ProfilePhotoSheet';
-import ShareWeeklyWinModal from '../../components/profile/ShareWeeklyWinModal';
-import { deriveWin } from '../../components/profile/WeeklyWinCard';
 import SubScreenModal from '../../components/profile/SubScreenModal';
 import EditNameSheet from '../../components/profile/EditNameSheet';
 import LanguageSheet from '../../components/profile/LanguageSheet';
-import BudgetAchievements from '../../components/budget/BudgetAchievements';
 import PaymentMethodsV2 from '../../components/profile/PaymentMethodsV2';
 import NotificationSettings from '../../components/profile/NotificationSettings';
 import HelpSupport from '../../components/HelpSupport';
@@ -43,18 +36,17 @@ import PinSetupModal from '../../components/PinSetupModal';
 import AuthTransitionOverlay from '../../components/auth/AuthTransitionOverlay';
 import { SettingsList, SettingsListItem } from '../../components/profile/SettingsList';
 
-// ─── Brutalist visual layer ──────────────────────────────────────────
+// Brutalist visual layer
 import BrutalistProfileView from '../../components/brutalist/profile/BrutalistProfileView';
-import MoreSettingsSheet from '../../components/brutalist/MoreSettingsSheet';
 import ProfileSheet from '../../components/brutalist/profile/ProfileSheet';
-import { useAIPrompt } from '../../store/aiPromptStore';
+import TrustedDevicesSheet from '../../components/brutalist/TrustedDevicesSheet';
 
 function ProfileScreen() {
   const { user, logout, avatar } = useAuthStore();
   const { lang } = useLangStore();
 
   const {
-    identity, rewardsSummary, gamiStatus, weekly, gmailStatus,
+    gmailStatus,
     refreshing, setRefreshing, loadData,
     handleAvatarPicked, handleAvatarRemoved,
   } = useProfileData();
@@ -66,31 +58,21 @@ function ProfileScreen() {
   } = useBiometricSettings();
 
   // Modal/sheet state
-  const [scoreBreakdownVisible, setScoreBreakdownVisible] = useState(false);
   const [langModalVisible, setLangModalVisible] = useState(false);
   const [helpVisible, setHelpVisible] = useState(false);
   const [editNameVisible, setEditNameVisible] = useState(false);
-  const [achievementsModalVisible, setAchievementsModalVisible] = useState(false);
   const [paymentMethodsVisible, setPaymentMethodsVisible] = useState(false);
   const [preferencesVisible, setPreferencesVisible] = useState(false);
   const [notifsVisible, setNotifsVisible] = useState(false);
-  const [scoreBoostVisible, setScoreBoostVisible] = useState(false);
   const [logoutSheet, setLogoutSheet] = useState(false);
   const [logoutAnim, setLogoutAnim] = useState(false);
   const [photoSheetVisible, setPhotoSheetVisible] = useState(false);
-  const [shareWinVisible, setShareWinVisible] = useState(false);
-  const [moreSettingsVisible, setMoreSettingsVisible] = useState(false);
   const [profileSheetVisible, setProfileSheetVisible] = useState(false);
+  const [trustedDevicesVisible, setTrustedDevicesVisible] = useState(false);
 
   const currentLang = LANGUAGES.find(l => l.code === lang);
 
-  const streak = identity?.streak ?? gamiStatus?.streak ?? 0;
-  const badgesEarned = identity?.badges_earned ?? (gamiStatus?.badges_earned?.length ?? 0);
-  const badgesTotal = identity?.badges_total ?? 12;
-  const coinsBalance = identity?.coins_balance ?? rewardsSummary?.coins_balance ?? 0;
-  const isPro = !!(identity?.is_premium || (user as any)?.is_premium);
-
-  // Derive gmail status string
+  // Derive gmail status string (compact single row — spec)
   const gmailText = React.useMemo(() => {
     if (!gmailStatus || !gmailStatus.connected) return 'NOT LINKED';
     const last = gmailStatus.last_synced_at || gmailStatus.last_sync;
@@ -112,23 +94,8 @@ function ProfileScreen() {
 
   const openEditAvatar = useCallback(() => setPhotoSheetVisible(true), []);
   const openEditName = useCallback(() => setEditNameVisible(true), []);
-  const openScoreBreakdown = useCallback(() => setScoreBreakdownVisible(true), []);
-  const openScoreBoost = useCallback(() => {
-    // Route Score Boost through the SAME AI flow per master v9 §Bonus:
-    // v10 mode-aware: carry `score_boost` so the brain tailors the plan.
-    useAIPrompt.getState().set('Help me boost my money score. What should I fix today?', 'score_boost', 'profile');
-    try { router.push('/(tabs)/ai-coach' as any); } catch {}
-  }, []);
-  const openShareWin = useCallback(() => setShareWinVisible(true), []);
-  const openAICoach = useCallback(() => {
-    // v10 mode-aware: BUILD MY PLAN → plan_build (AI brain picks context).
-    useAIPrompt.getState().set('Build my 5-minute money plan — start by analyzing my spending.', 'plan_build', 'profile');
-    try { router.push('/(tabs)/ai-coach' as any); } catch {}
-  }, []);
-  const openPremium = useCallback(() => { try { router.push('/premium' as any); } catch {} }, []);
   const goGoals = useCallback(() => { try { router.push('/goals' as any); } catch {} }, []);
-  const openAchievements = useCallback(() => setAchievementsModalVisible(true), []);
-  const goLeaderboard = useCallback(() => { try { router.push('/leaderboard' as any); } catch {} }, []);
+  const goRewards = useCallback(() => { try { router.push('/(tabs)/rewards' as any); } catch {} }, []);
   const openPaymentMethods = useCallback(() => setPaymentMethodsVisible(true), []);
   const openPreferences = useCallback(() => setPreferencesVisible(true), []);
   const openNotifs = useCallback(() => setNotifsVisible(true), []);
@@ -137,15 +104,12 @@ function ProfileScreen() {
   const goAbout = useCallback(() => { try { router.push('/about' as any); } catch {} }, []);
   const openLogout = useCallback(() => setLogoutSheet(true), []);
   const goDeleteAccount = useCallback(() => { try { router.push('/profile/delete-account' as any); } catch {} }, []);
+  const openTrustedDevices = useCallback(() => setTrustedDevicesVisible(true), []);
 
   const openLangFromPrefs = useCallback(() => {
     setPreferencesVisible(false);
     setTimeout(() => setLangModalVisible(true), 300);
   }, []);
-
-  const goRewards = useCallback(() => { try { router.push('/(tabs)/rewards' as any); } catch {} }, []);
-  const openMoreSettings = useCallback(() => setMoreSettingsVisible(true), []);
-  const onLogExpense = useCallback(() => { try { router.push('/(tabs)/transactions' as any); } catch {} }, []);
 
   const onSendTestPush = useCallback(async () => {
     const { sent, message } = await sendTestPush();
@@ -157,41 +121,25 @@ function ProfileScreen() {
       <BrutalistProfileView
         name={user?.name}
         phone={user?.phone}
+        email={(user as any)?.email || null}
         avatar={avatar}
-        score={identity?.money_score || (user as any)?.money_score || 0}
-        percentile={typeof identity?.percentile === 'number' ? identity.percentile : null}
-        weeklyDelta={typeof weekly?.score_delta === 'number' ? weekly.score_delta : null}
-        tierLabel={identity?.tier_label}
-        tierEmoji={identity?.tier_emoji}
-        streak={streak}
-        badgesEarned={badgesEarned}
-        badgesTotal={badgesTotal}
-        coins={coinsBalance}
-        weeklyPctBetter={weekly?.pct_better ?? null}
-        weeklyCommentary={weekly?.commentary ?? null}
-        weeklyThis={weekly?.this_week ?? null}
-        weeklyLast={weekly?.last_week ?? null}
-        isPro={isPro}
-        gmailText={gmailText}
         bioLabel={bioLabel}
         bioHwAvail={bioHwAvail}
         bioOn={bioOn}
         hasPinSet={hasPinSet}
         appLockOn={appLockOn}
         langLabel={currentLang?.nativeName}
+        gmailText={gmailText}
+        gmailConnected={!!gmailStatus?.connected}
         refreshing={refreshing}
         onRefresh={onRefresh}
         onEditAvatar={openEditAvatar}
         onEditName={openEditName}
-        onOpenScoreBreakdown={openScoreBreakdown}
-        onOpenScoreBoost={openScoreBoost}
-        onShareWin={openShareWin}
-        onOpenAICoach={openAICoach}
-        onOpenPremium={openPremium}
-        onGoGoals={goGoals}
-        onOpenAchievements={openAchievements}
-        onGoLeaderboard={goLeaderboard}
+        onOpenProfileSheet={() => setProfileSheetVisible(true)}
         onOpenPaymentMethods={openPaymentMethods}
+        onGoGoals={goGoals}
+        onGoRewards={goRewards}
+        onOpenTrustedDevices={openTrustedDevices}
         onToggleBio={bioHwAvail ? onToggleBio : undefined}
         onChangePin={onChangePin}
         onToggleAppLock={onToggleAppLock}
@@ -202,29 +150,13 @@ function ProfileScreen() {
         onGoAbout={goAbout}
         onLogout={openLogout}
         onGoDeleteAccount={goDeleteAccount}
-        onOpenMoreSettings={openMoreSettings}
-        onGoRewards={goRewards}
-        onLogExpense={onLogExpense}
-        onOpenProfileSheet={() => setProfileSheetVisible(true)}
       />
 
-      {/* ── Modals / Sheets (unchanged) ─────────────────────────── */}
+      {/* ── Modals / Sheets ─────────────────────────────────────── */}
       <LogoutConfirmSheet
         visible={logoutSheet}
         onCancel={() => setLogoutSheet(false)}
         onConfirm={handleLogout}
-      />
-
-      <ScoreBreakdownModal
-        visible={scoreBreakdownVisible}
-        onClose={() => setScoreBreakdownVisible(false)}
-        fallbackScore={identity?.money_score || (user as any)?.money_score || 0}
-      />
-
-      <ScoreBoostModal
-        visible={scoreBoostVisible}
-        onClose={() => setScoreBoostVisible(false)}
-        currentScore={identity?.money_score || (user as any)?.money_score || 0}
       />
 
       <EditNameSheet
@@ -235,15 +167,9 @@ function ProfileScreen() {
 
       <LanguageSheet visible={langModalVisible} onClose={() => setLangModalVisible(false)} />
 
-      <Modal visible={helpVisible} animationType="slide"><HelpSupport onClose={() => setHelpVisible(false)} /></Modal>
-
-      <SubScreenModal
-        visible={achievementsModalVisible}
-        title="Achievements"
-        onClose={() => setAchievementsModalVisible(false)}
-      >
-        <BudgetAchievements />
-      </SubScreenModal>
+      <Modal visible={helpVisible} animationType="slide">
+        <HelpSupport onClose={() => setHelpVisible(false)} />
+      </Modal>
 
       <SubScreenModal
         visible={paymentMethodsVisible}
@@ -280,8 +206,19 @@ function ProfileScreen() {
         </SettingsList>
       </SubScreenModal>
 
+      <SubScreenModal
+        visible={trustedDevicesVisible}
+        title="Trusted devices"
+        onClose={() => setTrustedDevicesVisible(false)}
+      >
+        <TrustedDevicesSheet />
+      </SubScreenModal>
+
       {logoutAnim && (
-        <AuthTransitionOverlay variant="locking" onDone={() => { setLogoutAnim(false); router.replace('/unlock'); }} />
+        <AuthTransitionOverlay
+          variant="locking"
+          onDone={() => { setLogoutAnim(false); router.replace('/unlock'); }}
+        />
       )}
 
       <ProfilePhotoSheet
@@ -291,24 +228,6 @@ function ProfileScreen() {
         onPicked={handleAvatarPicked}
         onRemoved={handleAvatarRemoved}
       />
-
-      {weekly ? (
-        <ShareWeeklyWinModal
-          visible={shareWinVisible}
-          onClose={() => setShareWinVisible(false)}
-          cardProps={deriveWin({
-            userName: user?.name,
-            score: identity?.money_score ?? (user as any)?.money_score,
-            tierLabel: identity?.tier_label
-              ? `${identity?.tier_emoji || ''} ${identity.tier_label}`.trim()
-              : undefined,
-            pctBetter: weekly?.pct_better || 0,
-            thisWeek: weekly?.this_week || null,
-            lastWeek: weekly?.last_week || null,
-            rewardBadge: weekly?.reward_preview?.badge || null,
-          })}
-        />
-      ) : null}
 
       <PinSetupModal
         visible={pinModalVisible}
@@ -320,7 +239,7 @@ function ProfileScreen() {
         onSkip={() => setPinModalVisible(false)}
       />
 
-      {/* Brutalist v9 — Avatar = Identity Control Node */}
+      {/* Avatar-tap entry point for Identity Control Node */}
       <ProfileSheet
         visible={profileSheetVisible}
         onClose={() => setProfileSheetVisible(false)}
@@ -331,34 +250,6 @@ function ProfileScreen() {
         onChangeAvatar={openEditAvatar}
         onLogout={openLogout}
       />
-
-      {/* Brutalist v4 — collapsed Plan/Security/App/Support sub-sheet */}
-      <SubScreenModal
-        visible={moreSettingsVisible}
-        title="Settings"
-        onClose={() => setMoreSettingsVisible(false)}
-      >
-        <MoreSettingsSheet
-          isPro={isPro}
-          bioLabel={bioLabel}
-          bioHwAvail={bioHwAvail}
-          bioOn={bioOn}
-          hasPinSet={hasPinSet}
-          appLockOn={appLockOn}
-          langLabel={currentLang?.nativeName}
-          gmailText={gmailText}
-          gmailConnected={!!gmailStatus?.connected}
-          onOpenPremium={openPremium}
-          onToggleBio={bioHwAvail ? onToggleBio : undefined}
-          onChangePin={onChangePin}
-          onToggleAppLock={onToggleAppLock}
-          onOpenPreferences={openPreferences}
-          onOpenNotifs={openNotifs}
-          onGoGmail={goGmail}
-          onOpenHelp={openHelp}
-          onGoAbout={goAbout}
-        />
-      </SubScreenModal>
     </>
   );
 }

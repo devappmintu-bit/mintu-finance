@@ -7,7 +7,7 @@
  * it stays smooth even during list re-renders.
  *
  * Usage:
- *   <MoneyNumber value={23450} prefix="₹" style={TYPE.display} />
+ *   <MoneyNumber value={23450} prefix="₹" style={{ fontSize: TYPE.xl3 }} />
  *
  * Props:
  *   value     — target number to count up to

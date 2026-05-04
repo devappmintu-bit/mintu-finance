@@ -8,10 +8,9 @@
  * Used by: Achievements, Payment Methods, Preferences, Notifications.
  */
 import React from 'react';
-import { View, Text, Modal, TouchableOpacity, ScrollView, StyleSheet, Platform } from 'react-native';
+import { View, Text, Modal, TouchableOpacity, ScrollView, StyleSheet } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
-import { BlurView } from 'expo-blur';
 import { useAppColors, GLASS } from '../../utils/theme';
 import { makeStyles } from '../../utils/makeStyles';
 
@@ -31,12 +30,9 @@ export default function SubScreenModal({ visible, title, onClose, children, cont
     <Modal visible={visible} animationType="slide" onRequestClose={onClose}>
       <SafeAreaView style={s.bg} edges={['top', 'left', 'right']}>
         <View style={s.headerWrap}>
-          {/* Frosted blur band behind the header — gives the iOS glass feel. */}
-          {Platform.OS !== 'web' ? (
-            <BlurView intensity={40} tint="light" style={StyleSheet.absoluteFill} />
-          ) : null}
+          {/* Round 89c — flat paper band (Brutalist mandate). */}
           <View
-            style={[StyleSheet.absoluteFill, { backgroundColor: 'rgba(255,255,255,0.85)' }]}
+            style={[StyleSheet.absoluteFill, { backgroundColor: '#F4F1EA' }]}
           />
           <View style={s.header}>
             <TouchableOpacity onPress={onClose} hitSlop={10} accessibilityLabel={`Close ${title}`}>

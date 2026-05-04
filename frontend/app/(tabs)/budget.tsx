@@ -4,7 +4,10 @@ import {
   Modal, TextInput, KeyboardAvoidingView, Platform, ScrollView,
   RefreshControl,
 } from 'react-native';
-import { FlashList } from '@shopify/flash-list';
+// Round 83 P3 — FlashList import removed (unused after we replaced
+// the flat budget list with <BudgetCategoryGroups> collapsible
+// accordion groups). BudgetCard is still used — rendered inside
+// BudgetCategoryGroups.
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
@@ -24,10 +27,12 @@ import BudgetShareCard from '../../components/budget/BudgetShareCard';
 import BudgetSummaryDonut from '../../components/budget/BudgetSummaryDonut';
 import BudgetHealthRing from '../../components/budget/BudgetHealthRing';
 import BudgetSmartSheet from '../../components/budget/BudgetSmartSheet';
+import BudgetCategoryGroups from '../../components/budget/BudgetCategoryGroups';
 // BudgetAchievements moved to Profile tab
 import EmptyState from '../../components/ui/EmptyState';
+import { PassivePane } from '../../components/brutalist/primitives';
 import SheetHeader from '../../components/ui/SheetHeader';
-import PrimaryButton from '../../components/ui/PrimaryButton';
+// PrimaryButton removed (Round 81). Use <BrutalButton> from components/brutal.
 import GlassSheet, { GlassSheetHandle } from '../../components/ui/GlassSheet';
 import PremiumUnlockTeaser from '../../components/premium/PremiumUnlockTeaser';
 import useSwr from '../../hooks/useSwr';
@@ -285,78 +290,110 @@ function BudgetScreen() {
         />
       </View>
 
-      <FlashList
-        data={budgets}
-        renderItem={renderBudget}
-        keyExtractor={(item) => item.id}
+      {/* Round 83 P3 — replaced flat FlashList with collapsible
+          BudgetCategoryGroups so user sees semantic buckets
+          (Essentials / Lifestyle / Commitments / Other) with
+          group-level totals and AI reallocation banner on top.
+          Falls back to EmptyState when no budgets. */}
+      <ScrollView
         contentContainerStyle={s.list}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={COLORS.accent.primary} />}
-        ListHeaderComponent={
-          <StaggeredEntrance delayMs={75} duration={440} distance={14}>
-            {/* Budget streak/achievements moved to Profile tab per design ask */}
-            {/* Wave 5.3 — Radial Health Ring (animated %, emerald→saffron→crimson) */}
-            {totalBudget > 0 ? (
-              <BudgetHealthRing
-                totalSpent={totalSpent}
-                totalBudget={totalBudget}
-                subtitle={
-                  totalSpent > totalBudget
-                    ? `Over by ₹${(totalSpent - totalBudget).toLocaleString('en-IN')}`
-                    : `₹${(totalBudget - totalSpent).toLocaleString('en-IN')} left`
+        showsVerticalScrollIndicator={false}
+      >
+        <StaggeredEntrance delayMs={75} duration={440} distance={14}>
+          {/* Wave 5.3 — Radial Health Ring (animated %, emerald→saffron→crimson) */}
+          {totalBudget > 0 ? (
+            <BudgetHealthRing
+              totalSpent={totalSpent}
+              totalBudget={totalBudget}
+              subtitle={
+                totalSpent > totalBudget
+                  ? `Over by ₹${(totalSpent - totalBudget).toLocaleString('en-IN')}`
+                  : `₹${(totalBudget - totalSpent).toLocaleString('en-IN')} left`
+              }
+              onPress={() => {
+                const over = budgets
+                  .filter((b: any) => (b.spent || 0) > (b.amount || 0))
+                  .sort((a: any, b: any) => (b.spent - b.amount) - (a.spent - a.amount))[0];
+                if (over) {
+                  setInsightsCtx({
+                    category: over.category,
+                    spent: Number(over.spent || 0),
+                    amount: Number(over.amount || over.budget || 0),
+                    daysLeft: Number(over.days_left ?? over.daysLeft ?? 0),
+                  });
                 }
-                onPress={() => {
-                  const over = budgets
-                    .filter((b: any) => (b.spent || 0) > (b.amount || 0))
-                    .sort((a: any, b: any) => (b.spent - b.amount) - (a.spent - a.amount))[0];
-                  if (over) {
-                    setInsightsCtx({
-                      category: over.category,
-                      spent: Number(over.spent || 0),
-                      amount: Number(over.amount || over.budget || 0),
-                      daysLeft: Number(over.days_left ?? over.daysLeft ?? 0),
-                    });
-                  }
-                }}
-              />
-            ) : null}
-            {/* Donut chart + legend — primary summary per design ask.
-                "Budget Health" + "Watching" cards were removed. */}
-            <BudgetSummaryDonut budgets={budgets} />
-            {/* Premium forecast teaser — non-intrusive for free users, auto-hides for Pro */}
+              }}
+            />
+          ) : null}
+          <BudgetSummaryDonut budgets={budgets} />
+          {/* Round 83 P1 — PremiumUnlockTeaser demoted to PASSIVE. */}
+          <PassivePane density="compact" style={{ paddingVertical: 0, paddingHorizontal: 0 }}>
             <PremiumUnlockTeaser context="budget_forecast" />
-            {/* AI Suggestions */}
-            {suggestions?.suggestions?.length > 0 && (
-              <View style={s.suggestCard}>
-                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 6 }}>
-                  <Ionicons name="bulb" size={16} color={c.accent.secondary} />
-                  <Text style={s.suggestTitle}>{t('ai_suggestions', lang)}</Text>
-                </View>
-                <Text style={s.suggestMsg}>{suggestions.message}</Text>
-                {suggestions.suggestions.slice(0, 3).map((sg: any, i: number) => (
-                  <View key={i} style={s.suggestRow}>
-                    <Text style={s.suggestCat}>{sg.category}</Text>
-                    <Text style={s.suggestSave}>Save ₹{sg.savings_potential?.toFixed(0)}</Text>
-                  </View>
-                ))}
-                <TouchableOpacity style={s.applyBtn} onPress={applySmartBudgets}>
-                  {/* Sparkles icon — white-on-saturated-brand-bg (theme-invariant per Round 50 audit). */}
-                  <Ionicons name="sparkles" size={14} color="#FFFFFF" />
-                  <Text style={s.applyText}>{t('auto_apply', lang)}</Text>
-                </TouchableOpacity>
+          </PassivePane>
+          {/* AI Suggestions */}
+          {suggestions?.suggestions?.length > 0 && (
+            <View style={s.suggestCard}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 6 }}>
+                <Ionicons name="bulb" size={16} color={c.accent.secondary} />
+                <Text style={s.suggestTitle}>{t('ai_suggestions', lang)}</Text>
               </View>
-            )}
-          </StaggeredEntrance>
-        }
-        ListEmptyComponent={
-          <EmptyState
-            mascot
-            title={t('no_budgets', lang)}
-            subtitle="Set your first budget and start tracking spending by category."
-            ctaLabel={t('create_budget', lang)}
-            onCta={openAdd}
-          />
-        }
-      />
+              <Text style={s.suggestMsg}>{suggestions.message}</Text>
+              {suggestions.suggestions.slice(0, 3).map((sg: any, i: number) => (
+                <View key={i} style={s.suggestRow}>
+                  <Text style={s.suggestCat}>{sg.category}</Text>
+                  <Text style={s.suggestSave}>Save ₹{sg.savings_potential?.toFixed(0)}</Text>
+                </View>
+              ))}
+              <TouchableOpacity style={s.applyBtn} onPress={applySmartBudgets}>
+                <Ionicons name="sparkles" size={14} color="#FFFFFF" />
+                <Text style={s.applyText}>{t('auto_apply', lang)}</Text>
+              </TouchableOpacity>
+            </View>
+          )}
+
+          {/* Round 83 P3 — collapsible category groups + AI reallocate
+              banner. Replaces the previous flat BudgetCard list. */}
+          {budgets.length === 0 ? (
+            <PassivePane density="compact" style={{ paddingVertical: 0, paddingHorizontal: 0, marginTop: 12 }}>
+              <EmptyState
+                mascot
+                title="🧠 No budgets yet"
+                prompt="Set your first budget to unlock overspend alerts & AI reallocation tips"
+                actionLabel={t('create_budget', lang)}
+                onAction={openAdd}
+                secondaryLabel="AUTO-SUGGEST"
+                onSecondary={openAdd}
+              />
+            </PassivePane>
+          ) : (
+            <BudgetCategoryGroups
+              budgets={budgets}
+              onEdit={openEdit}
+              onDelete={requestDelete}
+              onAddExpense={addExpenseShortcut}
+              onInsights={(ctx) => setInsightsCtx(ctx)}
+              onReallocate={() => {
+                // Seed the InsightsSheet with the WORST overspent
+                // budget so the AI has rich context to propose a
+                // reallocation. The sheet's existing AI prompt path
+                // handles everything downstream.
+                const worst = budgets
+                  .filter((b: any) => (b.spent || 0) > (b.amount || 0))
+                  .sort((a: any, b: any) => (b.spent - b.amount) - (a.spent - a.amount))[0];
+                if (worst) {
+                  setInsightsCtx({
+                    category: worst.category,
+                    spent: Number(worst.spent || 0),
+                    amount: Number(worst.amount || worst.budget || 0),
+                    daysLeft: Number(worst.days_left ?? worst.daysLeft ?? 0),
+                  });
+                }
+              }}
+            />
+          )}
+        </StaggeredEntrance>
+      </ScrollView>
 
       {/* Add/Edit Budget — Smart AI-assisted bottom sheet */}
       <GlassSheet

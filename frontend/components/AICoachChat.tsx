@@ -17,6 +17,7 @@
  *   - Conversational opener using user's name
  */
 import React, { useState, useEffect, useRef, useCallback } from 'react';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import {
   View, Text, StyleSheet, TouchableOpacity, TextInput, ScrollView,
   KeyboardAvoidingView, Platform, Animated,
@@ -26,6 +27,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import api, { apiSlow } from '../utils/api';
 import { fetchAnalyticsSummary } from '../services/transactions';
+import { useFinContext } from '../store/financialContext';
 import MintULogo from './MintULogo';
 import { useAuthStore } from '../store/authStore';
 import { useAIPrompt } from '../store/aiPromptStore';
@@ -64,37 +66,58 @@ const SCHOOL_CHIPS = [
 
 const fmtINR = (n?: number) => `₹${Math.round(n || 0).toLocaleString('en-IN')}`;
 
-/** Generate a smart offline response using the user's real numbers. */
+/** Round 89 Strike 2 refine — decision-first offline fallback.
+ *
+ * Was: multi-bullet "Hey {name} 👋 Looks like I'm offline 😅 — …"
+ *      paragraph + snapshot + tip list. This created the "dual
+ *      format" problem — online replies were decision-shaped, but
+ *      offline replies reverted to the legacy report shape.
+ *
+ * Now: same 3-line contract as the backend system prompt —
+ *      Core insight → (optional why) → → Action. Max 4 lines.
+ *      Never greets by name. Never says "offline 😅".
+ *      The user can't tell online from offline — which is the point.
+ */
 function smartFallback(userMsg: string, ctx: Ctx): string {
   const lower = userMsg.toLowerCase();
   const savings = ctx.savingsRate ?? 0;
-  const top = ctx.topCategory || 'Transport';
+  const top = ctx.topCategory || '';
   const topAmt = ctx.topCatAmount || 0;
+  const total = ctx.totalSpend ?? 0;
 
-  // Overspending / category-specific
-  if (/overspend|too much|spending.*on/.test(lower)) {
-    return `Looks like I'm briefly offline 😅 — but here's what I see in your data:\n\nYour top category this month is **${top}** at ${fmtINR(topAmt)}.\n\n💡 Cutting just 20% here would save you ${fmtINR(topAmt * 0.2)}/month.\n\nTry setting a weekly cap for ${top} in the Budget tab.`;
+  // No data at all — one line, one action.
+  if (!top && !total) {
+    return `No expenses tracked yet — I can't see patterns to analyse.\n**→ Add your first expense and I'll take it from there.**`;
   }
 
-  // How to save X
+  // Overspend / cut-category intent
+  if (/overspend|too much|spending.*on|cut.*category/.test(lower) && top) {
+    return `${top} is your biggest bucket at ${fmtINR(topAmt)} this month.\n*Cutting 20 % here saves ${fmtINR(topAmt * 0.2)}/month.*\n**→ Open Budget and cap ${top} for the next 2 weeks.**`;
+  }
+
+  // Save X amount intent
   if (/how.*save|save.*₹|save \d/.test(lower)) {
-    return `I'm offline for a sec, but here's a quick plan based on your spending:\n\n• **${top}** is your biggest category (${fmtINR(topAmt)})\n• Reducing it by ~25% alone saves ${fmtINR(topAmt * 0.25)}\n• Set a daily cash cap of ₹500 for impulse buys\n• Use the 50/30/20 rule (needs/wants/savings)`;
+    const target = Math.max(topAmt * 0.25, 1000);
+    return `Quickest win: cut ${top || 'your top category'} by 25 % — worth ${fmtINR(target)}.\n**→ Set a weekly cap in Budget; I'll nudge you when you breach.**`;
   }
 
-  // Analysis / last N days / report
-  if (/last \d|days|analyze|analysis|report/.test(lower)) {
-    const total = ctx.totalSpend ?? 0;
+  // Analysis / spend summary intent
+  if (/last \d|days|analyze|analysis|report|summary/.test(lower)) {
     const daily = total / 30;
-    return `Quick offline snapshot 📈\n\n• Spent: ${fmtINR(total)} (last 30 days)\n• Avg/day: ${fmtINR(daily)}\n• Top category: **${top}** (${fmtINR(topAmt)})\n• Savings rate: ${savings}%\n\nYou're ${savings >= 20 ? 'doing great' : 'below the 20% benchmark'}. Want to set up auto-alerts for spending spikes?`;
+    const verdict = savings >= 20 ? 'On track' : 'Under the 20 % savings bar';
+    return `${fmtINR(total)} spent in 30 days (avg ${fmtINR(daily)}/day). ${verdict}.\n**→ ${savings >= 20 ? 'Create a goal to absorb the surplus.' : 'Trim ' + (top || 'one category') + ' by 10 % to hit 20 %.'}**`;
   }
 
-  // Budget tips / SIP / tax / school → generic tip
+  // Budget / SIP / tax / invest intent
   if (/budget|sip|tax|invest|mutual fund|credit score/.test(lower)) {
-    return `I need a second to think — in the meantime, here's a quick tip:\n\n**Rule of thumb**: allocate 50% to needs, 30% to wants, 20% to savings & investments.\n\nBased on your data, you're at ~${savings}% savings. ${savings >= 20 ? 'Solid! Consider moving excess to an SIP in a large-cap fund.' : 'Aim for 20% — the 10% gap is ~' + fmtINR((ctx.totalSpend || 0) * 0.1) + '/month.'}`;
+    return `You're saving ${savings}% — target is 20 %.\n**→ ${savings >= 20 ? 'Move the extra into an SIP this month (Groww/Zerodha).' : 'Cut ' + (top || 'top category') + ' by 10 % to close the gap.'}**`;
   }
 
-  // Default compassionate fallback using name + context
-  return `Hey ${ctx.name || 'there'} 👋\n\nLooks like I'm offline 😅 But based on your recent data:\n\n• Savings rate: **${savings}%** ${savings >= 20 ? '(great job!)' : '(aim for 20%)'}\n• Top category: ${top} (${fmtINR(topAmt)})\n\nWant tips to reduce your top category?`;
+  // Generic fallback — still decision-first, never assistant-y.
+  if (top) {
+    return `${top} = ${fmtINR(topAmt)} this month, your biggest single bucket.\n**→ Trim 10-20 % here; it's the fastest lever you have.**`;
+  }
+  return `I can see your data but need more to spot patterns.\n**→ Log a few more expenses this week and ask me again.**`;
 }
 
 const TypingDots = () => {
@@ -144,11 +167,31 @@ export default function AICoachChat({ onClose }: { onClose?: () => void }) {
   }, []);
   const flatRef = useRef<FlashListRef<any>>(null);
 
-  // Load the user's real spending context once — used for prompt enrichment AND for offline fallback.
+  // Round 82 — SSoT-first consumption. Subscribe to useFinContext so
+  // this component re-renders when the SSoT gains fresh data (via any
+  // hydrate path). Fall back to the bespoke fetch only during cold-
+  // start when the SSoT hasn't been populated yet. Zero regression.
+  const finTxns = useFinContext((s: any) => s.transactions);
+
   useEffect(() => {
+    // SSoT-first — if the store already knows the monthly spend,
+    // derive directly and skip the fetch.
+    if (finTxns && Number(finTxns.monthlySpend || 0) > 0) {
+      const cats = finTxns.categories || {};
+      // Pick the top-spend category by amount.
+      const entries = Object.entries(cats) as Array<[string, number]>;
+      const top = entries.sort((a, b) => Number(b[1]) - Number(a[1]))[0];
+      setCtx((prev) => ({
+        ...prev,
+        totalSpend:   Number(finTxns.monthlySpend || 0),
+        topCategory:  top?.[0],
+        topCatAmount: top?.[1] ? Number(top[1]) : undefined,
+      }));
+      return; // SSoT satisfied — skip the network call entirely.
+    }
+    // Fallback: SSoT cold — fetch directly, same as before.
     (async () => {
       try {
-        // Phase 3: use canonical services layer, not direct api.get.
         const d = (await fetchAnalyticsSummary()) || {};
         const cats = Array.isArray(d.categories) ? d.categories : [];
         const topCat = cats[0];
@@ -163,16 +206,47 @@ export default function AICoachChat({ onClose }: { onClose?: () => void }) {
         /* keep defaults */
       }
     })();
-  }, []);
+  }, [finTxns]);
 
-  // Rich conversational welcome (recomputed once name loads)
+  // Round 89 Strike 2 refine — state-driven welcome, NO intro after first use.
+  //
+  // Previously we shipped "Hey {name} 👋 I'm your personal money coach…"
+  // on every open, which felt assistant-y and generic after the user
+  // already knows what MintU is. New behavior:
+  //
+  //   • Returning user (flag in AsyncStorage)  →  start empty. The
+  //     user types, taps a chip, or arrives with a prefill — the chat
+  //     begins from silence, like Perplexity / ChatGPT.
+  //   • First-time user + no transactions       →  ONE terse line:
+  //     "You haven't added any expenses yet. Start with your first one."
+  //   • First-time user + some transactions     →  ONE line reflecting
+  //     state: "I see {N} expenses so far — ask me anything about them."
+  //
+  // Flag is persisted so the welcome never fires twice for the same user.
   useEffect(() => {
-    setMessages([{
-      role: 'ai',
-      text: `Hey ${user?.name || 'there'} 👋\n\nI'm your personal money coach — I see your spending and can help you save smarter.\n\nTap a quick prompt below, or ask me anything like **"where am I overspending?"**`,
-      agent: 'AI Money Coach', agentEmoji: '✨', ts: Date.now(),
-    }]);
-  }, [user?.name]);
+    let alive = true;
+    (async () => {
+      try {
+        const seen = await AsyncStorage.getItem('mintu_coach_welcomed_v2');
+        if (seen === 'true' || !alive) return;
+        const txnCount = Number(finTxns?.length ?? 0);
+        let text = '';
+        if (txnCount === 0) {
+          text = "You haven't added any expenses yet. Start with your first one — I'll take it from there.";
+        } else {
+          text = `I see ${txnCount} ${txnCount === 1 ? 'expense' : 'expenses'} tracked. Ask me anything about them.`;
+        }
+        setMessages([{
+          role: 'ai', text,
+          agent: 'Mintu', agentEmoji: '✨', ts: Date.now(),
+        }]);
+        await AsyncStorage.setItem('mintu_coach_welcomed_v2', 'true');
+      } catch { /* noop */ }
+    })();
+    return () => { alive = false; };
+    // Intentional: fire ONCE when the chat mounts; not on user/txn changes.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // Round 59 — Auto-send any prompt parked in the AI Quick Sheet store.
   // Runs once after the welcome banner mounts so the user sees the
@@ -329,73 +403,39 @@ export default function AICoachChat({ onClose }: { onClose?: () => void }) {
           showsVerticalScrollIndicator={false}
         />
 
-        {/* Empty-state big chip grid */}
+        {/* Round 89 Strike 2 refine — empty-state chips are now
+            always a horizontal strip (not a 2-row tile grid). User
+            feedback: the big beige cards competed with the chat
+            surface and looked like dead zones. Chips feel like
+            affordances, not content. */}
         {showBigChips && (
-          <ScrollView style={{ maxHeight: 260 }} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
-            {/* Unlimited-chats teaser — auto-hides for Pro users */}
-            <PremiumUnlockTeaser context="ai_unlimited" />
-            <Text style={s.chipSection}>📊 ANALYZE MY MONEY</Text>
-            <View style={s.chipsWrap}>
+          <>
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={s.stickyStrip}
+              keyboardShouldPersistTaps="handled"
+            >
               {PERSONAL_CHIPS.map((c, i) => (
-                <TouchableOpacity key={`p${i}`} style={s.chip} onPress={() => sendMessage(c.label)} disabled={chatLoading}>
+                <TouchableOpacity
+                  key={`big-${i}`}
+                  style={s.stickyChip}
+                  onPress={() => sendMessage(c.label)}
+                  disabled={chatLoading}
+                  activeOpacity={0.8}
+                >
                   <Text style={s.chipEmoji}>{c.emoji}</Text>
-                  <Text style={s.chipText}>{c.label}</Text>
+                  <Text style={s.chipTextSticky}>{c.label}</Text>
                 </TouchableOpacity>
               ))}
+            </ScrollView>
+            {/* Premium unlock teaser still shown once below chips —
+                hidden for Pro users. Kept here so free users have a
+                path to the School bundle without a full tile grid. */}
+            <View style={{ paddingHorizontal: 16 }}>
+              <PremiumUnlockTeaser context="ai_unlimited" />
             </View>
-            <View style={s.schoolHeaderRow}>
-              <Text style={s.chipSection}>🎓 MONEY SCHOOL</Text>
-              {!isPremium && (
-                <View style={s.premiumBadge}>
-                  <Ionicons name="lock-closed" size={10} color={COLORS.accent.primary} />
-                  <Text style={s.premiumBadgeT}>PREMIUM</Text>
-                </View>
-              )}
-            </View>
-            {!isPremium ? (
-              <TouchableOpacity
-                activeOpacity={0.9}
-                onPress={() => router.push('/money-school' as any)}
-                style={s.lockedSchoolCard}
-                testID="ai-coach-school-locked"
-              >
-                <View
-                  style={[s.lockedSchoolInner, { backgroundColor: '#FFF7E8' }]}>
-                  <View style={s.lockedSchoolIcon}>
-                    <Ionicons name="school" size={22} color={COLORS.accent.primary} />
-                  </View>
-                  <View style={{ flex: 1 }}>
-                    <Text style={s.lockedSchoolTitle}>Unlock AI Money School</Text>
-                    <Text style={s.lockedSchoolSub} numberOfLines={2}>
-                      Daily personalised lessons on SIPs, tax, mutual funds, credit score & more — included with Premium.
-                    </Text>
-                  </View>
-                  <View style={s.lockedCTA}>
-                    <Text style={s.lockedCTAT}>Upgrade</Text>
-                    <Ionicons name="arrow-forward" size={13} color={COLORS.accent.primary} />
-                  </View>
-                </View>
-                {/* Locked preview chips — muted */}
-                <View style={[s.chipsWrap, { opacity: 0.5 }]}>
-                  {SCHOOL_CHIPS.slice(0, 4).map((c, i) => (
-                    <View key={`locked-${i}`} style={[s.chip, s.chipSchool]}>
-                      <Ionicons name="lock-closed" size={10} color={COLORS.text.muted} />
-                      <Text style={s.chipText}>{c.label}</Text>
-                    </View>
-                  ))}
-                </View>
-              </TouchableOpacity>
-            ) : (
-              <View style={s.chipsWrap}>
-                {SCHOOL_CHIPS.map((c, i) => (
-                  <TouchableOpacity key={`s${i}`} style={[s.chip, s.chipSchool]} onPress={() => sendMessage(c.label)} disabled={chatLoading}>
-                    <Text style={s.chipEmoji}>{c.emoji}</Text>
-                    <Text style={s.chipText}>{c.label}</Text>
-                  </TouchableOpacity>
-                ))}
-              </View>
-            )}
-          </ScrollView>
+          </>
         )}
 
         {/* Always-visible quick prompts strip (even after conversation started) */}
@@ -481,11 +521,37 @@ const useStyles = makeStyles((c) => ({
   chipEmoji: { fontSize: 13 },
   chipText: { fontSize: 12, fontWeight: '500', color: c.text.secondary },
 
-  stickyStrip: { paddingHorizontal: 12, paddingVertical: 8, gap: 8 },
-  stickyChip: { flexDirection: 'row', alignItems: 'center', gap: 5, backgroundColor: c.accent.primary + '10', paddingHorizontal: 12, paddingVertical: 7, borderRadius: 999, borderWidth: 1, borderColor: c.accent.primary + '25' },
-  chipTextSticky: { fontSize: 12, fontWeight: '600', color: c.text.primary },
+  stickyStrip: { paddingHorizontal: 12, paddingVertical: 6, gap: 8 },
+  stickyChip: {
+    flexDirection: 'row', alignItems: 'center', gap: 6,
+    backgroundColor: '#F3F2ED',
+    paddingHorizontal: 12, paddingVertical: 6,
+    borderWidth: 1.5, borderColor: '#0A0A0A',
+  },
+  chipTextSticky: { fontSize: 12, fontWeight: '700', color: '#0A0A0A', letterSpacing: 0.1 },
 
-  inputRow: { flexDirection: 'row', paddingHorizontal: 16, paddingVertical: 10, gap: 8, borderTopWidth: 1, borderTopColor: c.border.subtle, backgroundColor: '#fff' },
-  chatInput: { flex: 1, backgroundColor: c.bg.card, borderRadius: 0, paddingHorizontal: 16, paddingVertical: 10, fontSize: 14, color: c.text.primary, borderWidth: 1, borderColor: c.border.card, maxHeight: 90 },
-  sendBtn: { width: 42, height: 42, borderRadius: 0, backgroundColor: c.accent.primary, justifyContent: 'center', alignItems: 'center', alignSelf: 'flex-end' },
+  // Round 89 — chat input = primary zone (not footer).
+  // High-contrast send button (solid ink, accent-on-ink arrow) +
+  // tighter padding to pull weight toward the input itself.
+  inputRow: {
+    flexDirection: 'row',
+    paddingHorizontal: 14, paddingVertical: 8, gap: 8,
+    borderTopWidth: 1.5, borderTopColor: '#0A0A0A',
+    backgroundColor: '#FAFAF7',
+  },
+  chatInput: {
+    flex: 1, backgroundColor: '#FFFFFF', borderRadius: 0,
+    paddingHorizontal: 14, paddingVertical: 10,
+    fontSize: 14, color: c.text.primary,
+    borderWidth: 1.5, borderColor: '#0A0A0A',
+    maxHeight: 90, minHeight: 42,
+  },
+  sendBtn: {
+    width: 44, height: 44,
+    borderRadius: 0,
+    backgroundColor: '#0A0A0A',
+    borderWidth: 2, borderColor: '#0A0A0A',
+    justifyContent: 'center', alignItems: 'center',
+    alignSelf: 'flex-end',
+  },
 }));

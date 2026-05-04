@@ -27,6 +27,7 @@ import ErrorBoundary from '../components/ErrorBoundary';
 import OfflineBanner from '../components/OfflineBanner';
 import AppLockOverlay from '../components/AppLockOverlay';
 import SmartEntryHost from '../components/smart-entry/SmartEntryHost';
+import { useFinContext } from '../store/financialContext';
 import { isExpoGo } from '../utils/lockManager';
 
 // Phase 5 Wave 4 — boot-sequence optimization.
@@ -109,6 +110,24 @@ export default function RootLayout() {
     loadLang();
     loadThemePref();
   }, []);
+
+  // Round 82 — financialContext SSoT adoption.
+  // The 200-LOC `financialContext` store exists to be the one source of
+  // truth for money data across the app, but was only populated on a
+  // SmartEntry save. That meant AIBrainDashboard / NewsCardStack saw
+  // empty data on cold-start. Fix: once the user is authenticated, fire
+  // ONE refresh. The store has internal staleness logic (60 s) so this
+  // is cheap to re-trigger on focus/mount. Any screen can now consume
+  // the SSoT via `useFinContext()` instead of rolling its own fetcher.
+  const userId = useAuthStore((s) => s.user?.id);
+  useEffect(() => {
+    if (!userId) return;
+    // Defer behind interactions so the first paint isn't blocked.
+    const handle = InteractionManager.runAfterInteractions(() => {
+      useFinContext.getState().refresh(false).catch(() => {});
+    });
+    return () => { try { handle.cancel?.(); } catch { /* noop */ } };
+  }, [userId]);
 
   // Phase 5 Wave 4 — deferred boot tasks.
   // Sentry init + offline-sync engine both previously ran at module
@@ -253,7 +272,9 @@ export default function RootLayout() {
             <Stack.Screen name="premium-reports" options={{ animation: 'slide_from_right' }} />
             <Stack.Screen name="premium-hub" options={{ animation: 'slide_from_right' }} />
             <Stack.Screen name="money-school" options={{ animation: 'slide_from_right' }} />
-            <Stack.Screen name="rewards-hub" options={{ animation: 'slide_from_right' }} />
+            {/* Round 89 Strike 3 — /rewards-hub deleted (dead route,
+                zero callers). Rewards lives entirely under the
+                /(tabs)/rewards primary tab now. */}
             <Stack.Screen name="leaderboard" options={{ animation: 'slide_from_right' }} />
             <Stack.Screen name="yearly" options={{ animation: 'slide_from_right' }} />
             <Stack.Screen name="legal/[page]" options={{ animation: 'slide_from_right' }} />

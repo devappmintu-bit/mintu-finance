@@ -25,7 +25,7 @@ import { View, StyleSheet, Platform, TouchableOpacity, Text, Dimensions, Animate
 import { Image } from 'expo-image';
 import Svg, { Path, Defs, LinearGradient as SvgLG, Stop } from 'react-native-svg';
 import { BottomTabBarProps } from '@react-navigation/bottom-tabs';
-import { BlurView } from 'expo-blur';
+// BlurView removed — Round 89c Brutalist mandate: no glass.
 import Mascot from '../../components/Mascot';
 import AIQuickSheet from '../../components/AIQuickSheet';
 import { COLORS, FONT_FAMILY, GLOW, useAppColors, getActiveMode } from '../../utils/theme';
@@ -134,7 +134,8 @@ function SideTab({ icon, iconFilled, label, focused, onPress, testID }:
           <Ionicons
             name={(focused ? iconFilled : icon) as any}
             size={focused ? 22 : 20}
-            color={focused ? '#FFFFFF' : 'rgba(255,255,255,0.75)'}
+            // Brutalist: inactive = ink on paper, active = paper on ink.
+            color={focused ? '#FAFAF7' : '#0A0A0A'}
           />
         </Animated.View>
       </View>
@@ -157,18 +158,23 @@ function MintUTabBar({ state, navigation }: BottomTabBarProps) {
   const c = useAppColors();
   const { lang } = useLangStore();
   const screenW = Dimensions.get('window').width;
-  // Round 50 — light/dark detection via theme engine (was hex-equality check).
-  const isLight = getActiveMode() === 'light';
+  // Round 89 Strike 2 refine — BRUTALIST tab bar.
+  //
+  // Was: translucent glass pill (BlurView + rgba(255,255,255,0.70)),
+  //      orange halo pulse, drop-shadow lift, orange glow on active
+  //      chip. Felt iOS-style glassy — inconsistent with the rest of
+  //      the app's brutalist blocks, hard 2px borders, and flat 4px
+  //      stamp shadow.
+  // Now:  solid paper fill, hard 2px ink top border, flat offset stamp,
+  //       square corners. Active tab = solid ink fill (no glow). No
+  //       blur anywhere. One system, one language.
+  const pillBg = '#FAFAF7';
+  const pillBorder = '#0A0A0A';
+
   // Round 59 — AI Quick Prompt sheet visibility (mascot short-tap).
+  // Must stay declared at component scope — referenced by the
+  // <AIQuickSheet> element further below.
   const [aiSheetVisible, setAiSheetVisible] = React.useState(false);
-  // Round 55 — Glass surface on the pill. On native we layer a
-  // BlurView (intensity 40, light tint) underneath a soft translucent
-  // white for the iOS Crystal look. On web we fall back to an opaque
-  // surface because BlurView isn't supported. The `pillBg` variable
-  // is now the fallback color, used both on web and as the backdrop
-  // tint that sits over the BlurView on native.
-  const pillBg = isLight ? 'rgba(255,255,255,0.70)' : '#14151B';
-  const pillBorder = isLight ? 'rgba(255,255,255,0.85)' : 'rgba(255,255,255,0.08)';
 
   const visible = state.routes.filter(r => TAB_META[r.name]);
   const left = visible.slice(0, 2);
@@ -193,9 +199,9 @@ function MintUTabBar({ state, navigation }: BottomTabBarProps) {
 
   return (
     <View style={st.wrap} pointerEvents="box-none">
-      {/* Round 55 — Floating pill with layered glass:
-            native → BlurView backdrop + translucent white overlay
-            web    → solid translucent white fallback                  */}
+      {/* Round 89 Strike 2 refine — BRUTALIST surface. Solid fill +
+          hard 2px ink border + 4px offset stamp. NO BlurView. No
+          translucent layers. One system, top-to-bottom. */}
       <View
         style={[
           st.barContainer,
@@ -203,35 +209,11 @@ function MintUTabBar({ state, navigation }: BottomTabBarProps) {
             width: pillW,
             height: barH,
             borderColor: pillBorder,
-            backgroundColor: Platform.OS === 'web' ? 'rgba(255,255,255,0.92)' : 'transparent',
+            backgroundColor: pillBg,
           },
         ]}
         pointerEvents="none"
-      >
-        {isLight && Platform.OS !== 'web' && (
-          <BlurView
-            intensity={40}
-            tint="light"
-            style={[StyleSheet.absoluteFill, { borderRadius: TOP_RADIUS, overflow: 'hidden' }]}
-          />
-        )}
-        {isLight && Platform.OS !== 'web' && (
-          <View
-            style={[
-              StyleSheet.absoluteFill,
-              { backgroundColor: pillBg, borderRadius: TOP_RADIUS },
-            ]}
-          />
-        )}
-        {!isLight && (
-          <View
-            style={[
-              StyleSheet.absoluteFill,
-              { backgroundColor: pillBg, borderRadius: TOP_RADIUS },
-            ]}
-          />
-        )}
-      </View>
+      />
 
       {/* Tab icons sit inside the pill with a gap in the middle for the raised button */}
       <View style={[st.iconsRow, { width: pillW, height: barH }]}>
@@ -319,9 +301,7 @@ export default function TabLayout() {
         <Tabs.Screen name="ai-coach" options={{ href: null }} />
         <Tabs.Screen name="budget" />
         <Tabs.Screen name="split" />
-        <Tabs.Screen name="insights" options={{ href: null }} />
-        <Tabs.Screen name="profile" options={{ href: null }} />
-        <Tabs.Screen name="rewards" options={{ href: null }} />
+        <Tabs.Screen name="rewards"      options={{ href: null }} />
       </Tabs>
     </View>
   );
@@ -338,15 +318,16 @@ const useStyles = makeStyles((c) => {
       backgroundColor: 'transparent',
       paddingBottom: BAR_INSET_B,
     },
-    // Floating pill capsule (light bg in light mode, obsidian in dark)
+    // Round 89 Strike 2 refine — BRUTALIST. Square corners, flat 4px
+    // offset stamp (NOT drop-shadow). Hard 2px border. Zero blur, zero
+    // gradient. Matches Home's HeroDecision / TodayAction language.
     barContainer: {
-      borderRadius: TOP_RADIUS,
-      borderWidth: 1,
-      // Soft lift shadow beneath pill
+      borderRadius: 0,
+      borderWidth: 2,
       ...Platform.select({
-        ios:     { shadowColor: '#000', shadowOpacity: isLight ? 0.18 : 0.55, shadowRadius: 22, shadowOffset: { width: 0, height: 10 } },
-        android: { elevation: 14 },
-        web:     { boxShadow: isLight ? '0 10px 28px rgba(17,24,39,0.15)' : '0 10px 28px rgba(0,0,0,0.55)' as any },
+        ios:     { shadowColor: '#000', shadowOpacity: 1, shadowRadius: 0, shadowOffset: { width: 4, height: 4 } },
+        android: { elevation: 0 },
+        web:     { boxShadow: '4px 4px 0 0 #0A0A0A' as any },
       }),
     },
     iconsRow: {
@@ -376,42 +357,24 @@ const useStyles = makeStyles((c) => {
       alignItems: 'center',
       justifyContent: 'center',
     },
-    // The pulsing glow ring behind the active icon. Uses brand orange
-    // at low opacity so it reads as a soft aura, not a hard halo.
+    // Halo layer removed from visual loop — kept as invisible
+    // layout shim so SideTab doesn't crash on existing refs.
     sideHalo: {
       position: 'absolute',
-      width: 42,
-      height: 42,
-      borderRadius: 0,
-      backgroundColor: c.accent.primary,
-      // Cross-platform soft outer glow: web boxShadow + native shadow*.
-      ...Platform.select({
-        ios: {
-          shadowColor: c.accent.primary,
-          shadowOpacity: 0.6,
-          shadowRadius: 14,
-          shadowOffset: { width: 0, height: 0 },
-        },
-        android: { elevation: 12 },
-        web: { boxShadow: `0 0 18px ${c.accent.primary}` as any },
-      }),
+      width: 0, height: 0, opacity: 0,
     },
-    // Dark circular chip holding the icon (Paytm-style prominent chip)
+    // Round 89 — BRUTALIST chip. Inactive = paper + ink border.
     sideIconWrap: {
       width: 42, height: 42, borderRadius: 0,
       alignItems: 'center', justifyContent: 'center',
-      backgroundColor: isLight ? '#1B1D27' : '#2A2D3A',
-      borderWidth: isLight ? 0 : 1,
-      borderColor: isLight ? 'transparent' : 'rgba(255,255,255,0.06)',
+      backgroundColor: '#FAFAF7',
+      borderWidth: 1.5,
+      borderColor: '#0A0A0A',
     },
-    // Active icon chip — orange brand halo
+    // Active = solid ink fill, no glow. Icons inside become white.
     sideIconWrapOn: {
-      backgroundColor: c.accent.primary,
-      ...Platform.select({
-        ios:     { shadowColor: c.accent.primary, shadowOpacity: 0.55, shadowRadius: 10, shadowOffset: { width: 0, height: 3 } },
-        android: { elevation: 6 },
-        web:     { boxShadow: '0 4px 14px rgba(255,107,26,0.55)' as any },
-      }),
+      backgroundColor: '#0A0A0A',
+      borderColor: '#0A0A0A',
     },
     sideLabel:   { fontSize: 10.5, color: c.text.secondary, fontFamily: FONT_FAMILY.semibold, letterSpacing: 0.2, marginTop: 2 },
     sideLabelOn: { color: c.accent.primary, fontFamily: FONT_FAMILY.bold },
@@ -429,16 +392,18 @@ const useStyles = makeStyles((c) => {
     },
     raisedOuter: {
       width: PUCK_SIZE, height: PUCK_SIZE,
-      borderRadius: 0,                // rounded-SQUARE (not circle)
-      backgroundColor: isLight ? '#FFFFFF' : '#1A1C24',
+      borderRadius: 0,
+      backgroundColor: '#FAFAF7',
       alignItems: 'center', justifyContent: 'center',
-      // Brand orange accent ring
+      // Round 89 Strike 2 — BRUTALIST puck. Ink border + flat 4px
+      // stamp. No orange glow. No soft drop-shadow. Mascot still pops
+      // because of the offset stamp + scale vs side tabs.
       borderWidth: 2.5,
-      borderColor: c.accent.primary,
+      borderColor: '#0A0A0A',
       ...Platform.select({
-        ios:     { shadowColor: c.accent.primary, shadowOpacity: 0.45, shadowRadius: 14, shadowOffset: { width: 0, height: 4 } },
-        android: { elevation: 18 },
-        web:     { boxShadow: `0 0 18px ${c.accent.primary}66, 0 8px 20px rgba(0,0,0,0.28)` as any },
+        ios:     { shadowColor: '#000', shadowOpacity: 1, shadowRadius: 0, shadowOffset: { width: 4, height: 4 } },
+        android: { elevation: 0 },
+        web:     { boxShadow: '4px 4px 0 0 #0A0A0A' as any },
       }),
     },
     raisedInner: {

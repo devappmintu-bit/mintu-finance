@@ -23,6 +23,7 @@ import { InteractionManager } from 'react-native';
 import { router, useFocusEffect } from 'expo-router';
 import api from '../utils/api';
 import { useAuthStore } from '../store/authStore';
+import { useFinContext } from '../store/financialContext';
 import { fetchCurrentUser, fetchAvatar } from '../services/user';
 import { awardCoins } from '../services/premium';
 import { fetchStatsOverview, fetchTransactions } from '../services/transactions';
@@ -133,6 +134,10 @@ export function useHomeBundleData(lang: string): HomeBundleData {
           if (b.weekly_report) setWeeklyReport(b.weekly_report);
           if (b.ai_predict) setPredict(b.ai_predict);
           if (b.coins) setCoinsStatus(b.coins);
+          // Round 82 — SSoT adoption. Push the bundle into useFinContext
+          // so downstream consumers (AIBrainDashboard, NewsCardStack,
+          // useBrainInsight) see fresh numbers without re-fetching.
+          try { useFinContext.getState().hydrateFromBundle(b); } catch { /* noop */ }
         };
         paint(res.data);
         setLoading(false);

@@ -33,6 +33,15 @@ log() { echo "$(ts) ${LOG_PREFIX} $*"; }
 log "=================================================="
 log "Startup hook firing."
 
+# --- 0. Apply node_modules patches (Metro/tslib, etc.) --------------
+# Round 83 — ensures the tslib ESM-interop patch survives yarn
+# install + container restarts. The script itself is idempotent and
+# is safe to call on every boot.
+if [ -x /app/scripts/apply_metro_patches.sh ]; then
+  log "→ Applying Metro node_modules patches"
+  /app/scripts/apply_metro_patches.sh || log "  ⚠️  Metro patches failed (non-fatal)"
+fi
+
 # --- 1. Compute current source hash ---------------------------------------
 compute_source_hash() {
   # Hash everything that could change the bundle output.

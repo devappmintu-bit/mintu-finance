@@ -41,6 +41,7 @@ import ChallengeProgress from '../../components/rewards/ChallengeProgress';
 import NextMilestone from '../../components/rewards/NextMilestone';
 import ScoreBreakdownSheet from '../../components/rewards/ScoreBreakdownSheet';
 import RewardsHeroBrutalist from '../../components/rewards/RewardsHeroBrutalist';
+import { BrutalButton } from '../../components/brutalist/primitives';
 
 function RewardsScreen() {
   const s = useStyles();
@@ -229,17 +230,21 @@ function RewardsScreen() {
             </View>
           )}
 
-          {/* WhatsApp share CTA (only when there's something to flex) */}
+          {/* WhatsApp share CTA (only when there's something to flex). */}
           {score >= 50 && (
-            <TouchableOpacity
-              testID="share-score-btn"
-              style={s.shareBtn}
-              onPress={() => shareWhatsApp(`My Money Score on MintU is ${score}/100! Track your finances: https://mintu.app`)}
-              activeOpacity={0.85}
-            >
-              <Ionicons name="share-social" size={16} color="#FFFFFF" />
-              <Text style={s.shareTxt}>Share on WhatsApp</Text>
-            </TouchableOpacity>
+            <View style={{ marginTop: 14 }}>
+              <BrutalButton
+                variant="primary"
+                size="md"
+                onPress={() => shareWhatsApp(`My Money Score on MintU is ${score}/100! Track your finances: https://mintu.app`)}
+                accessibilityLabel="Share score on WhatsApp"
+              >
+                <Ionicons name="share-social" size={16} color="#FFFFFF" style={{ marginRight: 8 }} />
+                <Text style={{ color: '#FFF', fontSize: 13, fontWeight: '900', letterSpacing: 0.8 }}>
+                  SHARE ON WHATSAPP
+                </Text>
+              </BrutalButton>
+            </View>
           )}
         </StaggeredEntrance>
 
