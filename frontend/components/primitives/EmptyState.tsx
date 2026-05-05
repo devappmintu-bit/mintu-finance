@@ -21,7 +21,7 @@ import React from 'react';
 import { View, Text, StyleSheet, StyleProp, ViewStyle } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { COLORS, RADIUS, SPACE, TYPO } from '../../utils/theme';
-import BrutalButton from '../brutal/BrutalButton';
+import BrutalButton from '../brutalist/primitives/BrutalButton';
 
 export interface EmptyStateProps {
   icon?: React.ComponentProps<typeof Ionicons>['name'];

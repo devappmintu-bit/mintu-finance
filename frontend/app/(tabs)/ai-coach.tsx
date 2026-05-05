@@ -20,22 +20,54 @@
  * unambiguously a chat surface after first data is logged.
  * ═══════════════════════════════════════════════════════════════════════
  */
-import React from 'react';
+import React, { useEffect } from 'react';
 import { View, StyleSheet, Text } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
+import { useLocalSearchParams } from 'expo-router';
 import AICoachChat from '../../components/AICoachChat';
 import GlowPill from '../../components/ui/GlowPill';
 import AICoachStateView from '../../components/ai-coach/AICoachStateView';
 import { BR_COLORS, BR_TYPE, BR_SPACE, BR_BORDER } from '../../utils/brutalist';
 import { useIsOnline } from '../../hooks/useIsOnline';
 import { useFinContext } from '../../store/financialContext';
+import { useAIPrompt } from '../../store/aiPromptStore';
+
+// Round 90 — Surface 1B proactive deep-link map.
+// `/ai-coach?prompt=<key>` is opened from a push notification; the
+// key is mapped to a fully-formed user prompt and parked in
+// useAIPrompt for AICoachChat to pick up on mount.
+const PROMPT_MAP: Record<string, string> = {
+  plan_salary_month:
+    "My salary just landed. Plan how I should split it across savings, "
+    + "essentials, and discretionary for this month.",
+  overspend_recovery:
+    "I'm overspending on at least one category — what's the fastest way "
+    + "to recover before month end?",
+  weekly_review:
+    "Give me a 1-paragraph review of my week — biggest leak, what worked, "
+    + "and one thing to fix next week.",
+};
 
 function AICoachTab() {
   const isOnline = useIsOnline();
   // Single SSoT read — drives the state machine below.
   const txnCount = useFinContext((s: any) => Number(s?.transactions?.count ?? 0));
   const ctxLoading = useFinContext((s: any) => !!s?.loading);
+
+  // Round 90 Surface 1B — proactive deep-link handler.
+  // `/ai-coach?prompt=<key>` is opened from a push notification.
+  // We translate the key to a fully-formed prompt and stash it in
+  // useAIPrompt; AICoachChat already consumes that on mount.
+  const params = useLocalSearchParams<{ prompt?: string }>();
+  useEffect(() => {
+    const key = (params?.prompt || '') as string;
+    if (!key) return;
+    const text = PROMPT_MAP[key];
+    if (text) {
+      useAIPrompt.getState().set(text, key, 'proactive');
+    }
+  }, [params?.prompt]);
 
   // ── STATE 1 — SSoT still hydrating: show minimal skeleton. No chat,
   // no state-view; showing either while data is unknown causes flicker.

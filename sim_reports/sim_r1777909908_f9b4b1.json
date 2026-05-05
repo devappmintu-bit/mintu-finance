@@ -1,0 +1,305 @@
+{
+  "run_id": "r1777909908_f9b4b1",
+  "generated_at": "2026-05-04T15:53:22.059301+00:00",
+  "config": {
+    "n": 20,
+    "concurrency": 5,
+    "base_url": "http://localhost:8001",
+    "chaos_budget": 100,
+    "cleanup": true,
+    "cleanup_counts": {
+      "transactions": 51,
+      "budgets": 9,
+      "goals": 4,
+      "coach_rewards": 1,
+      "user_coach_context": 14,
+      "coach_trigger_history": 0,
+      "notifications_log": 0,
+      "sessions": 17,
+      "refresh_tokens": 0,
+      "score_history": 0,
+      "users": 17
+    }
+  },
+  "overall": {
+    "total_steps": 124,
+    "ok_steps": 122,
+    "fail_steps": 2,
+    "overall_error_rate": 0.016,
+    "duration_s": 83.7
+  },
+  "persona_mix": {
+    "saver": 3,
+    "overspender": 1,
+    "investor": 1,
+    "avoider": 8,
+    "impulsive_buyer": 3,
+    "debt_trapped": 2,
+    "minimalist": 2,
+    "wealth_optimizer": 0
+  },
+  "funnels": {
+    "onboarding": [
+      {
+        "step": "send_otp",
+        "reached": 17,
+        "drop_off_pct": 0.0
+      },
+      {
+        "step": "verify_otp",
+        "reached": 17,
+        "drop_off_pct": 0.0
+      },
+      {
+        "step": "profile",
+        "reached": 8,
+        "drop_off_pct": 52.9
+      }
+    ],
+    "coach": [
+      {
+        "step": "chat",
+        "reached": 14,
+        "drop_off_pct": 0.0
+      },
+      {
+        "step": "action_execute",
+        "reached": 1,
+        "drop_off_pct": 92.9
+      },
+      {
+        "step": "rewards_recent",
+        "reached": 1,
+        "drop_off_pct": 0.0
+      }
+    ],
+    "budget": [
+      {
+        "step": "upsert_budget",
+        "reached": 9,
+        "drop_off_pct": 0.0
+      },
+      {
+        "step": "add_txn",
+        "reached": 9,
+        "drop_off_pct": 0.0
+      },
+      {
+        "step": "breach_check",
+        "reached": 0,
+        "drop_off_pct": 100.0
+      }
+    ],
+    "goals": [
+      {
+        "step": "create_goal",
+        "reached": 4,
+        "drop_off_pct": 0.0
+      },
+      {
+        "step": "contribute_goal",
+        "reached": 1,
+        "drop_off_pct": 75.0
+      }
+    ]
+  },
+  "by_step": {
+    "onboarding::send_otp": {
+      "count": 17,
+      "ok": 17,
+      "fail": 0,
+      "error_rate": 0.0,
+      "p50_ms": 1847,
+      "p95_ms": 6024,
+      "p99_ms": 6306,
+      "top_errors": []
+    },
+    "onboarding::verify_otp": {
+      "count": 17,
+      "ok": 17,
+      "fail": 0,
+      "error_rate": 0.0,
+      "p50_ms": 3128,
+      "p95_ms": 10613,
+      "p99_ms": 11273,
+      "top_errors": []
+    },
+    "budget::upsert_budget": {
+      "count": 9,
+      "ok": 9,
+      "fail": 0,
+      "error_rate": 0.0,
+      "p50_ms": 604,
+      "p95_ms": 5640,
+      "p99_ms": 5760,
+      "top_errors": []
+    },
+    "coach::chat": {
+      "count": 14,
+      "ok": 14,
+      "fail": 0,
+      "error_rate": 0.0,
+      "p50_ms": 6719,
+      "p95_ms": 10529,
+      "p99_ms": 11541,
+      "top_errors": []
+    },
+    "onboarding::profile": {
+      "count": 8,
+      "ok": 8,
+      "fail": 0,
+      "error_rate": 0.0,
+      "p50_ms": 3545,
+      "p95_ms": 9843,
+      "p99_ms": 9848,
+      "top_errors": []
+    },
+    "budget::add_txn": {
+      "count": 51,
+      "ok": 50,
+      "fail": 1,
+      "error_rate": 0.02,
+      "p50_ms": 1103,
+      "p95_ms": 7322,
+      "p99_ms": 8935,
+      "top_errors": [
+        [
+          "RemoteProtocolError: Server disconnected without sending a response.",
+          1
+        ]
+      ]
+    },
+    "goals::create_goal": {
+      "count": 5,
+      "ok": 4,
+      "fail": 1,
+      "error_rate": 0.2,
+      "p50_ms": 1267,
+      "p95_ms": 3512,
+      "p99_ms": 3519,
+      "top_errors": [
+        [
+          "422: {\"detail\":[{\"type\":\"greater_than\",\"loc\":[\"body\",\"target_amount\"],\"msg\":\"Input should be greater than 0\",\"input\":-288271,",
+          1
+        ]
+      ]
+    },
+    "coach::action_execute": {
+      "count": 1,
+      "ok": 1,
+      "fail": 0,
+      "error_rate": 0.0,
+      "p50_ms": 2924,
+      "p95_ms": 2924,
+      "p99_ms": 2924,
+      "top_errors": []
+    },
+    "coach::rewards_recent": {
+      "count": 1,
+      "ok": 1,
+      "fail": 0,
+      "error_rate": 0.0,
+      "p50_ms": 955,
+      "p95_ms": 955,
+      "p99_ms": 955,
+      "top_errors": []
+    },
+    "goals::contribute_goal": {
+      "count": 1,
+      "ok": 1,
+      "fail": 0,
+      "error_rate": 0.0,
+      "p50_ms": 77,
+      "p95_ms": 77,
+      "p99_ms": 77,
+      "top_errors": []
+    }
+  },
+  "by_persona": {
+    "avoider": {
+      "steps": 15,
+      "ok": 15,
+      "fail": 0,
+      "error_rate": 0.0
+    },
+    "debt_trapped": {
+      "steps": 14,
+      "ok": 14,
+      "fail": 0,
+      "error_rate": 0.0
+    },
+    "saver": {
+      "steps": 35,
+      "ok": 35,
+      "fail": 0,
+      "error_rate": 0.0
+    },
+    "minimalist": {
+      "steps": 18,
+      "ok": 18,
+      "fail": 0,
+      "error_rate": 0.0
+    },
+    "investor": {
+      "steps": 10,
+      "ok": 9,
+      "fail": 1,
+      "error_rate": 0.1
+    },
+    "impulsive_buyer": {
+      "steps": 20,
+      "ok": 19,
+      "fail": 1,
+      "error_rate": 0.05
+    },
+    "overspender": {
+      "steps": 12,
+      "ok": 12,
+      "fail": 0,
+      "error_rate": 0.0
+    }
+  },
+  "chaos": {
+    "events_capacity_remaining": 97,
+    "by_kind": {
+      "negative_amount": 1,
+      "giant_string": 2
+    },
+    "events": [
+      {
+        "persona_id": "sim_r1777909908_f9b4b1_000006",
+        "kind": "negative_amount",
+        "detail": "target_amount negated"
+      },
+      {
+        "persona_id": "sim_r1777909908_f9b4b1_000008",
+        "kind": "giant_string",
+        "detail": "note = 10240 chars"
+      },
+      {
+        "persona_id": "sim_r1777909908_f9b4b1_000008",
+        "kind": "giant_string",
+        "detail": "note = 10240 chars"
+      }
+    ]
+  },
+  "action_items": [
+    {
+      "step": "goals::create_goal",
+      "severity": "\ud83d\udfe0 high",
+      "count": 5,
+      "ok": 4,
+      "fail": 1,
+      "error_rate": 0.2,
+      "p50_ms": 1267,
+      "p95_ms": 3512,
+      "p99_ms": 3519,
+      "top_errors": [
+        [
+          "422: {\"detail\":[{\"type\":\"greater_than\",\"loc\":[\"body\",\"target_amount\"],\"msg\":\"Input should be greater than 0\",\"input\":-288271,",
+          1
+        ]
+      ]
+    }
+  ]
+}

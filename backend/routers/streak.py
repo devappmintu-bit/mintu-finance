@@ -45,12 +45,17 @@ async def status(user_id: str = Depends(get_current_user)):
 
 
 @router.get("/streak/leaderboard")
-async def leaderboard(limit: int = 100, user_id: str = Depends(get_current_user)):
-    """Progressive global top-N leaderboard (ranked by streak_current desc).
+async def leaderboard(limit: int = 100, user_id: str = Depends(get_current_user)):  # noqa: ARG001
+    """[DEPRECATED — Round 92] Leaderboard retired (gamification kill).
 
-    Includes caller's own rank + percentile even if outside the top N.
+    Returns 410 Gone. Use /api/home/diagnostic for personal trend instead.
     """
-    return await streak_service.get_leaderboard(user_id, limit=limit)
+    from fastapi import HTTPException
+    raise HTTPException(status_code=410, detail={
+        "deprecated": True,
+        "reason": "streak_leaderboard_removed",
+        "redirect": "/api/home/diagnostic",
+    })
 
 
 @router.get("/streak/health")

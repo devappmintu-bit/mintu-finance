@@ -272,18 +272,18 @@ export default function RootLayout() {
             <Stack.Screen name="premium-reports" options={{ animation: 'slide_from_right' }} />
             <Stack.Screen name="premium-hub" options={{ animation: 'slide_from_right' }} />
             <Stack.Screen name="money-school" options={{ animation: 'slide_from_right' }} />
-            {/* Round 89 Strike 3 — /rewards-hub deleted (dead route,
-                zero callers). Rewards lives entirely under the
-                /(tabs)/rewards primary tab now. */}
-            <Stack.Screen name="leaderboard" options={{ animation: 'slide_from_right' }} />
+            {/* Round 89 Strike 3 — /rewards-hub deleted.
+                Round 92 — /leaderboard retired (gamification kill).
+                Round 94 — /coin-ledger + /mystery-box deleted. */}
             <Stack.Screen name="yearly" options={{ animation: 'slide_from_right' }} />
+            <Stack.Screen name="insights/[range]" options={{ animation: 'slide_from_right' }} />
+            <Stack.Screen name="onboarding/income" options={{ animation: 'slide_from_right', gestureEnabled: false }} />
             <Stack.Screen name="legal/[page]" options={{ animation: 'slide_from_right' }} />
             <Stack.Screen name="gmail" options={{ animation: 'slide_from_right' }} />
             <Stack.Screen name="gmail-connected" options={{ animation: 'fade' }} />
             <Stack.Screen name="premium-activated" options={{ animation: 'fade' }} />
             <Stack.Screen name="notifications" options={{ animation: 'slide_from_right' }} />
             <Stack.Screen name="search" options={{ animation: 'slide_from_bottom' }} />
-            <Stack.Screen name="coin-ledger" options={{ animation: 'slide_from_right' }} />
           </Stack>
           <Toast config={toastConfig} position="bottom" bottomOffset={100} />
           {/* 300ms CrossFade overlay while the Stack remount re-skins the tree */}

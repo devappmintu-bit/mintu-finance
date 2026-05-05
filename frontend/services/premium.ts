@@ -24,22 +24,16 @@ export async function verifyPremiumPayment(payload: { order_id: string; payment_
 }
 
 export async function awardCoins(action: string, amount: number = 1, dedupeKey?: string): Promise<any> {
-  // Backend contract: {action: string, dedupe_key?: string}
-  //  • `action` is looked up in COIN_RULES for the coin value + daily cap.
-  //  • `dedupe_key` (optional) makes the award idempotent — calling twice
-  //    with the same key awards coins once. Pass the resource ID (e.g.
-  //    transaction_id, expense_id) whose creation earned the coin.
-  //    Closes the Round 29c "farm coins by add+delete+add" micro-abuse.
-  const body: any = { action, amount };
-  if (dedupeKey) body.dedupe_key = dedupeKey;
-  const r = await api.post('/coins/award', body);
-  // Round 59 — coin balance + ledger refresh so the wallet sticker on
-  // home + the coin-ledger screen update immediately.
-  await invalidateAfter('reward.claim');
-  return r.data;
+  // Round 92 — Gamification hard-killed. This is now a NO-OP.
+  // Backend `/coins/award` returns 410 Gone. Habit-loop reward beat
+  // moved to /coach/rewards/recent (projected savings, not coins).
+  // Kept for backwards compatibility with stale call sites — silent no-op.
+  void action; void amount; void dedupeKey;
+  return { awarded: 0, deprecated: true, reason: 'gamification_retired' };
 }
 
-export async function fetchLeaderboard(scope: 'contacts' | 'global' = 'contacts'): Promise<any[]> {
-  const r = await api.get('/leaderboard/unified', { params: { scope } });
-  return r.data || [];
+export async function fetchLeaderboard(_scope: 'contacts' | 'global' = 'contacts'): Promise<any[]> {
+  // Round 92 — Leaderboards retired. Returns empty array silently.
+  void _scope;
+  return [];
 }

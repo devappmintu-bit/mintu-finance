@@ -1,0 +1,276 @@
+{
+  "run_id": "r1777913340_c1bf9a",
+  "generated_at": "2026-05-04T16:50:24.248141+00:00",
+  "config": {
+    "n": 30,
+    "concurrency": 6,
+    "base_url": "http://localhost:8001",
+    "chaos_budget": 100,
+    "cleanup": true,
+    "cleanup_counts": {
+      "transactions": 70,
+      "budgets": 15,
+      "goals": 5,
+      "coach_rewards": 6,
+      "user_coach_context": 18,
+      "coach_trigger_history": 0,
+      "notifications_log": 0,
+      "sessions": 25,
+      "refresh_tokens": 0,
+      "score_history": 0,
+      "users": 25
+    }
+  },
+  "overall": {
+    "total_steps": 180,
+    "ok_steps": 180,
+    "fail_steps": 0,
+    "overall_error_rate": 0.0,
+    "duration_s": 75.7
+  },
+  "persona_mix": {
+    "saver": 4,
+    "overspender": 10,
+    "investor": 1,
+    "avoider": 8,
+    "impulsive_buyer": 2,
+    "debt_trapped": 3,
+    "minimalist": 2,
+    "wealth_optimizer": 0
+  },
+  "funnels": {
+    "onboarding": [
+      {
+        "step": "send_otp",
+        "reached": 25,
+        "drop_off_pct": 0.0
+      },
+      {
+        "step": "verify_otp",
+        "reached": 25,
+        "drop_off_pct": 0.0
+      },
+      {
+        "step": "profile",
+        "reached": 11,
+        "drop_off_pct": 56.0
+      }
+    ],
+    "coach": [
+      {
+        "step": "chat",
+        "reached": 18,
+        "drop_off_pct": 0.0
+      },
+      {
+        "step": "action_execute",
+        "reached": 6,
+        "drop_off_pct": 66.7
+      },
+      {
+        "step": "rewards_recent",
+        "reached": 6,
+        "drop_off_pct": 0.0
+      }
+    ],
+    "budget": [
+      {
+        "step": "upsert_budget",
+        "reached": 11,
+        "drop_off_pct": 0.0
+      },
+      {
+        "step": "add_txn",
+        "reached": 11,
+        "drop_off_pct": 0.0
+      },
+      {
+        "step": "breach_check",
+        "reached": 1,
+        "drop_off_pct": 90.9
+      }
+    ],
+    "goals": [
+      {
+        "step": "create_goal",
+        "reached": 5,
+        "drop_off_pct": 0.0
+      },
+      {
+        "step": "contribute_goal",
+        "reached": 2,
+        "drop_off_pct": 60.0
+      }
+    ]
+  },
+  "by_step": {
+    "onboarding::send_otp": {
+      "count": 25,
+      "ok": 25,
+      "fail": 0,
+      "error_rate": 0.0,
+      "p50_ms": 3142,
+      "p95_ms": 9166,
+      "p99_ms": 9807,
+      "top_errors": []
+    },
+    "onboarding::verify_otp": {
+      "count": 25,
+      "ok": 25,
+      "fail": 0,
+      "error_rate": 0.0,
+      "p50_ms": 3937,
+      "p95_ms": 9630,
+      "p99_ms": 10578,
+      "top_errors": []
+    },
+    "budget::upsert_budget": {
+      "count": 11,
+      "ok": 11,
+      "fail": 0,
+      "error_rate": 0.0,
+      "p50_ms": 192,
+      "p95_ms": 4581,
+      "p99_ms": 5527,
+      "top_errors": []
+    },
+    "onboarding::profile": {
+      "count": 11,
+      "ok": 11,
+      "fail": 0,
+      "error_rate": 0.0,
+      "p50_ms": 151,
+      "p95_ms": 2612,
+      "p99_ms": 3304,
+      "top_errors": []
+    },
+    "coach::chat": {
+      "count": 18,
+      "ok": 18,
+      "fail": 0,
+      "error_rate": 0.0,
+      "p50_ms": 4110,
+      "p95_ms": 8939,
+      "p99_ms": 10529,
+      "top_errors": []
+    },
+    "budget::add_txn": {
+      "count": 70,
+      "ok": 70,
+      "fail": 0,
+      "error_rate": 0.0,
+      "p50_ms": 240,
+      "p95_ms": 5654,
+      "p99_ms": 6253,
+      "top_errors": []
+    },
+    "goals::create_goal": {
+      "count": 5,
+      "ok": 5,
+      "fail": 0,
+      "error_rate": 0.0,
+      "p50_ms": 196,
+      "p95_ms": 2739,
+      "p99_ms": 3028,
+      "top_errors": []
+    },
+    "coach::action_execute": {
+      "count": 6,
+      "ok": 6,
+      "fail": 0,
+      "error_rate": 0.0,
+      "p50_ms": 793,
+      "p95_ms": 4686,
+      "p99_ms": 4997,
+      "top_errors": []
+    },
+    "coach::rewards_recent": {
+      "count": 6,
+      "ok": 6,
+      "fail": 0,
+      "error_rate": 0.0,
+      "p50_ms": 162,
+      "p95_ms": 2576,
+      "p99_ms": 3217,
+      "top_errors": []
+    },
+    "budget::breach_check": {
+      "count": 1,
+      "ok": 1,
+      "fail": 0,
+      "error_rate": 0.0,
+      "p50_ms": 155,
+      "p95_ms": 155,
+      "p99_ms": 155,
+      "top_errors": []
+    },
+    "goals::contribute_goal": {
+      "count": 2,
+      "ok": 2,
+      "fail": 0,
+      "error_rate": 0.0,
+      "p50_ms": 80,
+      "p95_ms": 85,
+      "p99_ms": 86,
+      "top_errors": []
+    }
+  },
+  "by_persona": {
+    "overspender": {
+      "steps": 71,
+      "ok": 71,
+      "fail": 0,
+      "error_rate": 0.0
+    },
+    "debt_trapped": {
+      "steps": 9,
+      "ok": 9,
+      "fail": 0,
+      "error_rate": 0.0
+    },
+    "avoider": {
+      "steps": 17,
+      "ok": 17,
+      "fail": 0,
+      "error_rate": 0.0
+    },
+    "impulsive_buyer": {
+      "steps": 13,
+      "ok": 13,
+      "fail": 0,
+      "error_rate": 0.0
+    },
+    "investor": {
+      "steps": 13,
+      "ok": 13,
+      "fail": 0,
+      "error_rate": 0.0
+    },
+    "saver": {
+      "steps": 45,
+      "ok": 45,
+      "fail": 0,
+      "error_rate": 0.0
+    },
+    "minimalist": {
+      "steps": 12,
+      "ok": 12,
+      "fail": 0,
+      "error_rate": 0.0
+    }
+  },
+  "chaos": {
+    "events_capacity_remaining": 99,
+    "by_kind": {
+      "giant_string": 1
+    },
+    "events": [
+      {
+        "persona_id": "sim_r1777913340_c1bf9a_000009",
+        "kind": "giant_string",
+        "detail": "note = 10240 chars"
+      }
+    ]
+  },
+  "action_items": []
+}

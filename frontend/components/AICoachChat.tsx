@@ -38,7 +38,30 @@ import { FlashList, type FlashListRef } from '@shopify/flash-list';
 import { fetchPremiumStatus } from '../services/premium';
 import PremiumUnlockTeaser from './premium/PremiumUnlockTeaser';
 
-type ChatMsg = { role: 'user' | 'ai'; text: string; loading?: boolean; agent?: string; agentEmoji?: string; ts?: number; isFallback?: boolean };
+type CoachActionCard = {
+  label: string;
+  endpoint: string;
+  payload: Record<string, any>;
+  confirm_text?: string;
+  method?: string;
+  // Round 92 — projected impact shown BEFORE tap (Duolingo move).
+  projected_label?: string;
+  projected_impact?: number;
+};
+
+type ChatMsg = {
+  role: 'user' | 'ai';
+  text: string;
+  loading?: boolean;
+  agent?: string;
+  agentEmoji?: string;
+  ts?: number;
+  isFallback?: boolean;
+  // Round 90 — Coach v2 fields.
+  confidenceLabel?: string;
+  action?: CoachActionCard;
+  actionState?: 'idle' | 'busy' | 'done';
+};
 
 type Ctx = {
   name: string;
@@ -151,10 +174,65 @@ export default function AICoachChat({ onClose }: { onClose?: () => void }) {
   const { user } = useAuthStore();
   const { lang } = useLangStore();
   const [messages, setMessages] = useState<ChatMsg[]>([]);
+  // Round 90 — keep latest messages in a ref so action card handlers
+  // can read up-to-date data without re-creating callbacks.
+  const messagesRef = useRef<ChatMsg[]>([]);
+  useEffect(() => { messagesRef.current = messages; }, [messages]);
   const [input, setInput] = useState('');
   const [chatLoading, setChatLoading] = useState(false);
   const [ctx, setCtx] = useState<Ctx>({ name: user?.name || 'there' });
   const [isPremium, setIsPremium] = useState(false);
+  // Round 90 — LLM-generated suggested chips (refreshed per session).
+  const [suggestedChips, setSuggestedChips] = useState<string[] | null>(null);
+
+  // Load suggestions once on mount; backend returns deterministic
+  // fallback for empty-data users so this is always safe.
+  useEffect(() => {
+    let alive = true;
+    api.get('/coach/suggestions')
+      .then(r => {
+        if (alive && Array.isArray(r?.data?.suggestions)) {
+          setSuggestedChips(r.data.suggestions);
+        }
+      })
+      .catch(() => { /* keep static fallback */ });
+    return () => { alive = false; };
+  }, []);
+
+  // Round 90 — execute an action card.  One tap. No navigation.
+  const executeAction = useCallback(async (msgIdx: number) => {
+    setMessages((prev) => {
+      const m = prev[msgIdx];
+      if (!m?.action || m.actionState === 'busy' || m.actionState === 'done') return prev;
+      const next = [...prev];
+      next[msgIdx] = { ...m, actionState: 'busy' };
+      return next;
+    });
+    try {
+      const m = (messagesRef.current as ChatMsg[] | undefined)?.[msgIdx];
+      const action = m?.action;
+      if (!action) return;
+      await api.post('/coach/actions/execute', {
+        label: action.label,
+        endpoint: action.endpoint,
+        payload: action.payload || {},
+        method: action.method || 'POST',
+      });
+      setMessages((prev) => {
+        const next = [...prev];
+        const cur = next[msgIdx];
+        if (cur) next[msgIdx] = { ...cur, actionState: 'done' };
+        return next;
+      });
+    } catch {
+      setMessages((prev) => {
+        const next = [...prev];
+        const cur = next[msgIdx];
+        if (cur) next[msgIdx] = { ...cur, actionState: 'idle' };
+        return next;
+      });
+    }
+  }, []);
 
   // Fetch premium status — Money School chips are gated behind this
   useEffect(() => {
@@ -274,35 +352,36 @@ export default function AICoachChat({ onClose }: { onClose?: () => void }) {
     setChatLoading(true);
     const sentAt = Date.now();
     try {
-      // Round 51d — use slow-path axios (30s timeout). AI agents often
-      // take 12-25s on cold-CPU; with the default 12s the request would
-      // time out and trigger the offline toast even though the device is
-      // perfectly online and the lesson would have arrived in 16s.
-      const res = await apiSlow.post('/ai/agent-chat', {
+      // Round 90 — migrate to /coach/chat (memory + actions + confidence).
+      const res = await apiSlow.post('/coach/chat', {
         message: text.trim(),
         lang,
-        // Send context so backend can personalise (ignored if backend doesn't use it)
-        context: {
-          total_spend: ctx.totalSpend,
-          savings_rate: ctx.savingsRate,
-          top_category: ctx.topCategory,
-          top_category_amount: ctx.topCatAmount,
-        },
       });
       // Ensure min 600ms "thinking" delay so typing dots feel real, not jumpy.
       const elapsed = Date.now() - sentAt;
       if (elapsed < 600) await new Promise((r) => setTimeout(r, 600 - elapsed));
-      const agentInfo = res.data?.agent;
+      const data = res.data || {};
+      const incomingAction = Array.isArray(data.actions) && data.actions.length > 0
+        ? (data.actions[0] as CoachActionCard)
+        : undefined;
       setMessages((prev) => [
         ...prev.slice(0, -1),
         {
           role: 'ai',
-          text: res.data?.reply || smartFallback(text, ctx),
-          agent: agentInfo?.name || 'AI Coach',
-          agentEmoji: agentInfo?.emoji || '🤖',
+          text: data.reply || smartFallback(text, ctx),
+          agent: 'AI Coach',
+          agentEmoji: '🤖',
           ts: Date.now(),
+          confidenceLabel: typeof data.confidence_label === 'string' ? data.confidence_label : '',
+          action: incomingAction,
+          actionState: incomingAction ? 'idle' : undefined,
         },
       ]);
+      // Refresh chips for next turn (per spec — "refresh on each session").
+      // Fire-and-forget; chips stay stable if the request fails.
+      api.get('/coach/suggestions')
+        .then(r => Array.isArray(r?.data?.suggestions) && setSuggestedChips(r.data.suggestions))
+        .catch(() => {});
     } catch {
       // Smart fallback — NEVER just "server unreachable"
       const elapsed = Date.now() - sentAt;
@@ -347,7 +426,7 @@ export default function AICoachChat({ onClose }: { onClose?: () => void }) {
     return <Text style={s.msgText}>{parts}</Text>;
   };
 
-  const renderMsg = useCallback(({ item }: { item: ChatMsg }) => {
+  const renderMsg = useCallback(({ item, index }: { item: ChatMsg; index: number }) => {
     const isUser = item.role === 'user';
     return (
       <View style={[s.msgRow, isUser ? s.msgRowUser : s.msgRowAi]}>
@@ -364,11 +443,48 @@ export default function AICoachChat({ onClose }: { onClose?: () => void }) {
           <View style={[s.bubble, isUser ? s.bubbleUser : s.bubbleAi]}>
             {item.loading ? <TypingDots /> : formatAIText(item.text, isUser)}
           </View>
+          {/* Round 90 — Confidence trailer (medium / low only). */}
+          {!isUser && !item.loading && !!item.confidenceLabel && (
+            <Text style={s.confidenceTxt}>{item.confidenceLabel}</Text>
+          )}
+          {/* Round 90 — Action card under AI reply. One tap. No nav. */}
+          {!isUser && !item.loading && item.action && (
+            <TouchableOpacity
+              testID="coach-action-card"
+              onPress={() => executeAction(index)}
+              disabled={item.actionState === 'busy' || item.actionState === 'done'}
+              style={[
+                s.actionCard,
+                item.actionState === 'done' && s.actionCardDone,
+              ]}
+              activeOpacity={0.85}
+            >
+              <View style={{ flex: 1 }}>
+                <Text style={s.actionLabel} numberOfLines={2}>
+                  {item.actionState === 'done'
+                    ? (item.action.confirm_text || 'Done')
+                    : item.action.label}
+                </Text>
+                {/* Round 92 — projected savings ghost-pill (consequence
+                    visible BEFORE tap → Duolingo move). */}
+                {!!item.action.projected_label && item.actionState !== 'done' && (
+                  <Text style={s.projectedPill} numberOfLines={1}>
+                    {item.action.projected_label}
+                  </Text>
+                )}
+              </View>
+              <View style={s.actionPill}>
+                <Text style={s.actionPillTxt}>
+                  {item.actionState === 'busy' ? '...' : item.actionState === 'done' ? '✓' : 'TAP'}
+                </Text>
+              </View>
+            </TouchableOpacity>
+          )}
           {!item.loading && <Text style={[s.timeLabel, isUser && { textAlign: 'right' }]}>{formatTime(item.ts)}</Text>}
         </View>
       </View>
     );
-  }, [s]);
+  }, [s, executeAction]);
 
   // Suggested prompts — always visible above input (not only on empty state).
   const showBigChips = messages.length <= 1;
@@ -416,7 +532,10 @@ export default function AICoachChat({ onClose }: { onClose?: () => void }) {
               contentContainerStyle={s.stickyStrip}
               keyboardShouldPersistTaps="handled"
             >
-              {PERSONAL_CHIPS.map((c, i) => (
+              {(suggestedChips && suggestedChips.length > 0
+                ? suggestedChips.map((label) => ({ label, emoji: '💬' }))
+                : PERSONAL_CHIPS
+              ).map((c, i) => (
                 <TouchableOpacity
                   key={`big-${i}`}
                   style={s.stickyChip}
@@ -553,5 +672,49 @@ const useStyles = makeStyles((c) => ({
     borderWidth: 2, borderColor: '#0A0A0A',
     justifyContent: 'center', alignItems: 'center',
     alignSelf: 'flex-end',
+  },
+
+  // Round 90 — confidence trailer + action card.
+  confidenceTxt: {
+    fontSize: 11,
+    color: '#8A8A8A',
+    fontStyle: 'italic',
+    marginTop: 4,
+    paddingHorizontal: 4,
+    lineHeight: 14,
+  },
+  actionCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginTop: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    backgroundColor: '#0A0A0A',
+    borderWidth: 2, borderColor: '#0A0A0A',
+  },
+  actionCardDone: {
+    backgroundColor: '#1A1A1A',
+    opacity: 0.85,
+  },
+  actionLabel: {
+    flex: 1,
+    color: '#FFFFFF',
+    fontSize: 13,
+    fontWeight: '700',
+    marginRight: 10,
+  },
+  actionPill: {
+    backgroundColor: '#E8470A',
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderWidth: 1.5,
+    borderColor: '#0A0A0A',
+  },
+  actionPillTxt: {
+    fontSize: 11,
+    fontWeight: '900',
+    letterSpacing: 1.2,
+    color: '#FFFFFF',
   },
 }));

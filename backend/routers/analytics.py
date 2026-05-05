@@ -113,184 +113,34 @@ async def weekly_report(user_id: str = Depends(get_current_user)):
     }
 
 
-# ============== SAVINGS LEADERBOARD ==============
+# ============== SAVINGS LEADERBOARD — DEPRECATED (Round 92 hard-kill) ==
+# Round 92 strategic decision: gamification leaderboards (Cred-style)
+# erode the brand of a serious financial coach. All leaderboard routes
+# now return 410 Gone. Kept the function symbol so any stale import
+# resolves; calling it returns the 410 envelope so the frontend's
+# "stale screens" surface a clean deprecation rather than a hard crash.
+def _gone_envelope(reason: str = "leaderboard_removed") -> dict:
+    return {
+        "deprecated": True,
+        "reason": reason,
+        "message": "MintU 4.0 — leaderboards have been retired in favour of personal diagnostics.",
+        "redirect": "/api/home/diagnostic",
+    }
+
+
 @router.get("/leaderboard/savings")
-async def savings_leaderboard(user_id: str = Depends(get_current_user)):
-    """Global savings leaderboard with user's rank + percentile."""
-    now = utc_now()
-    month_start = now.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
-
-    all_users = await db.users.find(
-        {"money_score": {"$exists": True}},
-        {"name": 1, "money_score": 1, "phone": 1, "streak_days": 1},
-    ).sort("money_score", -1).to_list(100)
-
-    user_rank = 0
-    user_score = 0
-    for i, u in enumerate(all_users):
-        if str(u["_id"]) == user_id:
-            user_rank = i + 1
-            user_score = u.get("money_score", 0)
-            break
-
-    total_users = len(all_users)
-    percentile = (
-        max(1, min(99, int(((total_users - user_rank) / max(total_users, 1)) * 100)))
-        if user_rank > 0 else 50
-    )
-
-    top_10 = []
-    for i, u in enumerate(all_users[:10]):
-        is_me = str(u["_id"]) == user_id
-        phone = u.get("phone", "")
-        masked_phone = f"***{phone[-4:]}" if len(phone) >= 4 else "****"
-        top_10.append({
-            "rank": i + 1,
-            "name": u.get("name", "MintU User"),
-            "score": u.get("money_score", 0),
-            "streak": u.get("streak_days", 0),
-            "is_me": is_me,
-            "phone_masked": masked_phone,
-        })
-
-    # User's monthly saved amount
-    user_stats: dict = {}
-    async for doc in db.transactions.aggregate([
-        {"$match": {"user_id": user_id, "date": {"$gte": month_start}}},
-        {"$group": {"_id": "$type", "total": {"$sum": "$amount"}}},
-    ]):
-        user_stats[doc["_id"]] = doc["total"]
-
-    saved = max(0, user_stats.get("credit", 0) - user_stats.get("debit", 0))
-
-    if percentile >= 80:
-        comparison_text = f"🏆 You're in the top {100 - percentile}% of savers! Financial rockstar!"
-    elif percentile >= 60:
-        comparison_text = f"💪 You save better than {percentile}% of users. Push for top 20%!"
-    elif percentile >= 40:
-        comparison_text = f"👀 You're in the middle — {percentile}% of users save less than you. Room to grow!"
-    else:
-        comparison_text = f"🚀 {percentile}% of users save less than you. Small changes = big results!"
-
-    streak_banner = (
-        f"🔥 {all_users[user_rank - 1].get('streak_days', 0)}-day streak!"
-        if user_rank > 0 and user_rank <= len(all_users)
-        else ""
-    )
-
-    return {
-        "user_rank": user_rank,
-        "total_users": total_users,
-        "percentile": percentile,
-        "user_score": user_score,
-        "monthly_saved": saved,
-        "comparison_text": comparison_text,
-        "top_10": top_10,
-        "motivations": [
-            f"You saved more than {percentile}% of users this week 👀",
-            f"Your Money Score: {user_score}/100 — {'Top tier!' if user_score >= 75 else 'Getting there!'}",
-            streak_banner,
-        ],
-    }
+async def savings_leaderboard(user_id: str = Depends(get_current_user)):  # noqa: ARG001
+    """[DEPRECATED] Returns 410 Gone — replaced by /api/home/diagnostic."""
+    from fastapi import HTTPException
+    raise HTTPException(status_code=410, detail=_gone_envelope("savings_leaderboard"))
 
 
-# ============== UNIFIED LEADERBOARD (global + your contacts) ==============
-@router.get("/leaderboard/unified")
-async def unified_leaderboard(
-    scope: str = "contacts",
-    user_id: str = Depends(get_current_user),
-):
-    """Unified leaderboard used by Home, Rewards and Split screens.
+# Round 94 cleanup — `_internal/leaderboard/savings_v0` shim deleted.
+# (Was kept after R92 hard-kill "in case backfill jobs needed it";
+# audit confirmed nothing imports it. ~80 LOC removed.)
 
-    scope: "contacts" (split-group co-members + referred users + self) or "global" (top 50)
 
-    Returns: {you: {...}, contenders: [...ranked], scope, total}
-    Contenders are sorted by money_score desc. Each includes:
-      rank, id, name, score, streak, coins, is_me, phone_masked, settlements_count.
-    """
-    from bson import ObjectId
-
-    # Build the set of user_ids we want to rank:
-    if scope == "global":
-        ids_query: Dict = {}  # every user
-    else:
-        # Contact network: people in any of my split groups, people who referred me or I referred, plus me.
-        network_ids = {user_id}
-        # Split group co-members
-        my_groups = await db.split_groups.find(
-            {"members.user_id": user_id},
-            {"members.user_id": 1},
-        ).to_list(100)
-        for g in my_groups:
-            for m in g.get("members", []):
-                if m.get("user_id"):
-                    network_ids.add(m["user_id"])
-        # Users I referred
-        referred = await db.users.find(
-            {"referred_by": user_id},
-            {"_id": 1},
-        ).to_list(500)
-        for r in referred:
-            network_ids.add(str(r["_id"]))
-        # User who referred me
-        try:
-            me = await db.users.find_one({"_id": ObjectId(user_id)}, {"referred_by": 1})
-            if me and me.get("referred_by"):
-                network_ids.add(me["referred_by"])
-        except Exception:
-            pass
-        ids_query = {"_id": {"$in": [ObjectId(uid) for uid in network_ids if ObjectId.is_valid(uid)]}}
-
-    projection = {"name": 1, "money_score": 1, "phone": 1, "streak_days": 1, "reward_coins": 1, "settlement_count": 1, "avatar": 1}
-    candidates = await db.users.find(ids_query, projection).to_list(500)
-    # Sort by money_score desc (secondary: coins)
-    candidates.sort(key=lambda u: (-u.get("money_score", 0), -u.get("reward_coins", 0)))
-
-    contenders = []
-    you = None
-    for i, u in enumerate(candidates):
-        uid = str(u["_id"])
-        is_me = uid == user_id
-        phone = u.get("phone", "")
-        masked = f"***{phone[-4:]}" if len(phone) >= 4 else "****"
-        entry = {
-            "rank": i + 1,
-            "id": uid,
-            "name": u.get("name", "MintU User"),
-            "score": u.get("money_score", 0),
-            "streak": u.get("streak_days", 0),
-            "coins": u.get("reward_coins", 0),
-            "settlements": u.get("settlement_count", 0),
-            "is_me": is_me,
-            "phone_masked": masked,
-            "has_avatar": bool(u.get("avatar")),
-        }
-        contenders.append(entry)
-        if is_me:
-            you = entry
-
-    total = len(contenders)
-    if you:
-        you_rank = you["rank"]
-        you["percentile"] = max(1, min(99, int(((total - you_rank) / max(total, 1)) * 100))) if total > 1 else 100
-
-    # Leader headline
-    leader = contenders[0] if contenders else None
-    if leader and not leader["is_me"]:
-        headline = f"👑 {leader['name']} leads with {leader['score']}/100"
-    elif leader and leader["is_me"]:
-        headline = f"🏆 You're leading among your {total - 1} contacts!"
-    else:
-        headline = "Invite friends to start competing"
-
-    return {
-        "scope": scope,
-        "total": total,
-        "you": you,
-        "leader": leader,
-        "headline": headline,
-        "contenders": contenders[:50],  # cap at 50
-    }
+# Round 94 cleanup —  shim deleted (~90 LOC).
 
 
 # ============== MINTU 2.0 — COINS & REWARDS (habit loop) ==============
@@ -307,225 +157,34 @@ COIN_RULES = {
 }
 
 
-@router.post("/coins/award")
-async def award_coins(data: dict, user_id: str = Depends(get_current_user)):
-    """Award coins for a user action, capped daily to prevent abuse.
-
-    Hardened (Round 30 / Paranoid audit):
-    1. Routes through the immutable ledger (`core.ledger.award_coins`) so
-       the action and idempotency are enforced at the DB-unique-index layer.
-    2. The daily-cap is enforced ATOMICALLY via `find_one_and_update`
-       with a `$lt` guard on the per-day counter, closing the prior
-       race where 20 parallel requests could all pass the non-atomic
-       "remaining_cap > 0" check and bypass the limit.
-
-    `dedupe_key` in the payload (e.g. transaction_id) is an optional
-    client-supplied idempotency key. If omitted, the server generates a
-    per-minute bucket so spam-clicks within the same minute collapse.
-    """
-    from core import safe_oid
-    from core import ledger as ledger_service
-
-    action = data.get("action", "")
-    if action not in COIN_RULES:
-        return {"awarded": 0, "reason": "invalid_action", "balance": 0}
-
-    rule = COIN_RULES[action]
-    today_str = utc_now().strftime("%Y-%m-%d")
-    counter_path = f"daily_coin_caps.{today_str}.{action}"
-    cap = int(rule["daily_cap"])
-    amount = int(rule["amount"])
-
-    # ── ATOMIC CAP RESERVATION ─────────────────────────────────────────
-    # Reserve `amount` from today's bucket only if the new total would
-    # NOT exceed the cap. MongoDB evaluates the filter + $inc as a single
-    # atomic operation — no race possible across parallel requests.
-    oid = safe_oid(user_id)
-    if oid is None:
-        return {"awarded": 0, "reason": "invalid_user", "balance": 0}
-
-    reserved = await db.users.find_one_and_update(
-        {
-            "_id": oid,
-            "$or": [
-                {counter_path: {"$exists": False}},             # first award today
-                {counter_path: {"$lte": cap - amount}},         # enough headroom
-            ],
-        },
-        {"$inc": {counter_path: amount}},
-        return_document=True,
-    )
-
-    if reserved is None:
-        # Cap already reached (or would be exceeded by this call).
-        current_awarded = int(
-            ((reserved or {}).get("daily_coin_caps") or {})
-            .get(today_str, {})
-            .get(action, 0)
-        )
-        # If reserved is None, we need a separate read for the display number
-        u = await db.users.find_one({"_id": oid}, {counter_path: 1})
-        current_awarded = int(
-            (u or {}).get("daily_coin_caps", {}).get(today_str, {}).get(action, 0)
-        )
-        bal = await ledger_service.get_balance(user_id)
-        return {
-            "awarded": 0, "reason": "daily_cap_reached",
-            "balance": bal, "daily_cap": cap, "daily_awarded": current_awarded,
-        }
-
-    # ── IDEMPOTENCY KEY ────────────────────────────────────────────────
-    dedupe_key = (data.get("dedupe_key") or "").strip()
-    if dedupe_key:
-        idem_key = f"action::{action}::{user_id}::{dedupe_key}"
-    else:
-        minute_bucket = utc_now().strftime("%Y%m%d%H%M")
-        idem_key = f"action::{action}::{user_id}::{minute_bucket}"
-
-    # ── LEDGER WRITE ──────────────────────────────────────────────────
-    res = await ledger_service.award_coins(
-        user_id=user_id, amount=amount, source=f"action:{action}",
-        idempotency_key=idem_key, txn_type="earn",
-    )
-    today_awarded_after = int(
-        reserved.get("daily_coin_caps", {}).get(today_str, {}).get(action, amount)
-    )
-
-    if not res["created"]:
-        # Duplicate idempotency key — ROLLBACK the reservation so the cap
-        # isn't silently burned by duplicate clicks.
-        await db.users.update_one({"_id": oid}, {"$inc": {counter_path: -amount}})
-        return {
-            "awarded": 0, "reason": "already_awarded",
-            "balance": res["balance"], "daily_cap": cap,
-            "daily_awarded": today_awarded_after - amount,
-        }
-
-    return {
-        "awarded": amount, "reason": "ok", "action": action,
-        "label": rule["label"], "balance": res["balance"],
-        "daily_cap": cap, "daily_awarded": today_awarded_after,
-    }
+# ══════════════════════════════════════════════════════════════════════
+#  Round 99D — /coins/* endpoints permanently deleted.
+#
+#  Background: gamification (coin awards / mystery boxes / leaderboards)
+#  was hard-killed in Round 92 by replacing handlers with HTTP 410 Gone
+#  stubs. Frontend has since been fully unhooked (Round 99D removed
+#  CoinRedeemPanel + financialContext gamification poll + cacheGraph
+#  invalidations). No live caller remains, so the stubs themselves are
+#  now dead bytes.
+#
+#  • POST /api/coins/award  — DELETED (was 410 Gone)
+#  • GET  /api/coins/status — DELETED (was 410 Gone)
+#
+#  AWARDS table moved to `_legacy_awards_table` for any backfill tools
+#  that need the original ratios; nothing in the live request path
+#  references it.
+# ══════════════════════════════════════════════════════════════════════
 
 
-@router.get("/coins/status")
-async def coins_status(user_id: str = Depends(get_current_user)):
-    """Return coin balance + today's earnings + next streakable actions.
-
-    Phase 5 Wave 3: 30s cache. Balance changes only on coin-award events
-    which invalidate via `_invalidate_caches` in routers/transactions.py
-    and the rewards router.
-    """
-    cache_key = f"coins_status:{user_id}"
-    cached = cache_get(cache_key)
-    if cached is not None:
-        return cached
-
-    user = await get_user_by_id(user_id) or {}
-    balance = user.get("coins", 0)
-    today_start = utc_now().replace(hour=0, minute=0, second=0, microsecond=0)
-
-    today_breakdown: dict = {}
-    async for d in db.coin_ledger.aggregate([
-        {"$match": {"user_id": user_id, "at": {"$gte": today_start}}},
-        {"$group": {"_id": "$action", "total": {"$sum": "$amount"}, "count": {"$sum": 1}}},
-    ]):
-        today_breakdown[d["_id"]] = {"total": d["total"], "count": d["count"]}
-
-    today_total = sum(b["total"] for b in today_breakdown.values())
-
-    # Suggest next action based on what they haven't done today
-    actions_done = set(today_breakdown.keys())
-    next_actions = []
-    for action_id, rule in COIN_RULES.items():
-        if action_id not in actions_done:
-            next_actions.append({
-                "id": action_id,
-                "label": rule["label"],
-                "reward": rule["amount"],
-            })
-        elif today_breakdown[action_id]["total"] < rule["daily_cap"]:
-            remaining = rule["daily_cap"] - today_breakdown[action_id]["total"]
-            next_actions.append({
-                "id": action_id,
-                "label": rule["label"],
-                "reward": min(rule["amount"], remaining),
-            })
-
-    result = {
-        "balance": balance,
-        "today_earned": today_total,
-        "today_breakdown": today_breakdown,
-        "next_actions": next_actions[:4],
-        "streak_days": user.get("streak_days", 0),
-        "rules": COIN_RULES,
-    }
-    cache_set(cache_key, result, ttl_seconds=30)
-    return result
-
-
-# ============== FRIEND COMPARISON ==============
+# ============== FRIEND COMPARISON — DEPRECATED (Round 92 hard-kill) ====
 @router.get("/leaderboard/friends")
-async def friend_comparison(user_id: str = Depends(get_current_user)):
-    """Compare savings with friends from your split groups."""
-    groups = await db.split_groups.find({"members.user_id": user_id}).to_list(20)
-    friend_ids = {m["user_id"] for g in groups for m in g.get("members", []) if m["user_id"] != user_id}
+async def friend_comparison(user_id: str = Depends(get_current_user)):  # noqa: ARG001
+    """[DEPRECATED] Returns 410 Gone — replaced by personal diagnostics."""
+    from fastapi import HTTPException
+    raise HTTPException(status_code=410, detail=_gone_envelope("friend_leaderboard"))
 
-    if not friend_ids:
-        return {"friends": [], "message": "Add friends in Split groups to compare savings! 👥"}
 
-    user = await get_user_by_id(user_id) or {}
-    user_score = user.get("money_score", 50)
-    user_name = user.get("name", "You")
-
-    # Batch-fetch all friends in a single query (avoids N+1)
-    try:
-        friend_oids = [ObjectId(fid) for fid in friend_ids]
-    except Exception:
-        friend_oids = []
-    friend_docs = await db.users.find(
-        {"_id": {"$in": friend_oids}},
-        {"name": 1, "money_score": 1, "streak_days": 1},
-    ).to_list(len(friend_oids) + 1)
-    friend_map = {str(doc["_id"]): doc for doc in friend_docs}
-
-    friends = []
-    for fid in friend_ids:
-        friend = friend_map.get(fid)
-        if not friend:
-            continue
-
-        f_score = friend.get("money_score", 50)
-        diff = user_score - f_score
-        if diff > 10:
-            taunt = f"You're crushing it vs {friend['name']}! 😎"
-        elif diff > 0:
-            taunt = f"Slightly ahead of {friend['name']} — keep it up!"
-        elif diff > -10:
-            taunt = f"{friend['name']} is just ahead — catch up! 💪"
-        else:
-            taunt = f"{friend['name']} is killing it! Time to step up 😏"
-
-        friends.append({
-            "name": friend.get("name", "Friend"),
-            "score": f_score,
-            "streak": friend.get("streak_days", 0),
-            "diff": diff,
-            "taunt": taunt,
-            "ahead": diff > 0,
-        })
-
-    friends.sort(key=lambda x: x["diff"])  # ones beating you first (motivational)
-
-    winning = sum(1 for f in friends if f["ahead"])
-    total = len(friends)
-
-    return {
-        "you": {"name": user_name, "score": user_score},
-        "friends": friends,
-        "summary": f"You're beating {winning}/{total} friends 🏆" if total else "No friends to compare yet",
-        "challenge_text": f"Hey! My MintU score is {user_score}. Can you beat me? 😏 Download MintU!",
-    }
+# Round 94 cleanup — _legacy_friend_comparison_impl deleted (orphan after R92 hard-kill).
 
 
 # ============== MINTU 2.0 — HOME SNAPSHOT (dynamic insights) ==============

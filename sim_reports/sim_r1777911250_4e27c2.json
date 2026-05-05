@@ -1,0 +1,169 @@
+{
+  "run_id": "r1777911250_4e27c2",
+  "generated_at": "2026-05-04T16:14:17.493992+00:00",
+  "config": {
+    "n": 20,
+    "concurrency": 10,
+    "base_url": "http://localhost:8001",
+    "chaos_budget": 100,
+    "cleanup": true,
+    "cleanup_counts": {
+      "users": 0
+    }
+  },
+  "overall": {
+    "total_steps": 16,
+    "ok_steps": 0,
+    "fail_steps": 16,
+    "overall_error_rate": 1.0,
+    "duration_s": 0.2
+  },
+  "persona_mix": {
+    "saver": 2,
+    "overspender": 6,
+    "investor": 0,
+    "avoider": 4,
+    "impulsive_buyer": 1,
+    "debt_trapped": 1,
+    "minimalist": 6,
+    "wealth_optimizer": 0
+  },
+  "funnels": {
+    "onboarding": [
+      {
+        "step": "send_otp",
+        "reached": 0,
+        "drop_off_pct": 0.0
+      },
+      {
+        "step": "verify_otp",
+        "reached": 0,
+        "drop_off_pct": 0.0
+      },
+      {
+        "step": "profile",
+        "reached": 0,
+        "drop_off_pct": 0.0
+      }
+    ],
+    "coach": [
+      {
+        "step": "chat",
+        "reached": 0,
+        "drop_off_pct": 0.0
+      },
+      {
+        "step": "action_execute",
+        "reached": 0,
+        "drop_off_pct": 0.0
+      },
+      {
+        "step": "rewards_recent",
+        "reached": 0,
+        "drop_off_pct": 0.0
+      }
+    ],
+    "budget": [
+      {
+        "step": "upsert_budget",
+        "reached": 0,
+        "drop_off_pct": 0.0
+      },
+      {
+        "step": "add_txn",
+        "reached": 0,
+        "drop_off_pct": 0.0
+      },
+      {
+        "step": "breach_check",
+        "reached": 0,
+        "drop_off_pct": 0.0
+      }
+    ],
+    "goals": [
+      {
+        "step": "create_goal",
+        "reached": 0,
+        "drop_off_pct": 0.0
+      },
+      {
+        "step": "contribute_goal",
+        "reached": 0,
+        "drop_off_pct": 0.0
+      }
+    ]
+  },
+  "by_step": {
+    "onboarding::send_otp": {
+      "count": 16,
+      "ok": 0,
+      "fail": 16,
+      "error_rate": 1.0,
+      "p50_ms": 17,
+      "p95_ms": 24,
+      "p99_ms": 32,
+      "top_errors": [
+        [
+          "ConnectError: All connection attempts failed",
+          16
+        ]
+      ]
+    }
+  },
+  "by_persona": {
+    "overspender": {
+      "steps": 6,
+      "ok": 0,
+      "fail": 6,
+      "error_rate": 1.0
+    },
+    "minimalist": {
+      "steps": 6,
+      "ok": 0,
+      "fail": 6,
+      "error_rate": 1.0
+    },
+    "avoider": {
+      "steps": 1,
+      "ok": 0,
+      "fail": 1,
+      "error_rate": 1.0
+    },
+    "saver": {
+      "steps": 2,
+      "ok": 0,
+      "fail": 2,
+      "error_rate": 1.0
+    },
+    "impulsive_buyer": {
+      "steps": 1,
+      "ok": 0,
+      "fail": 1,
+      "error_rate": 1.0
+    }
+  },
+  "chaos": {
+    "events_capacity_remaining": 100,
+    "by_kind": {},
+    "events": []
+  },
+  "action_items": [
+    {
+      "step": "onboarding::send_otp",
+      "severity": "\ud83d\udd34 critical",
+      "count": 16,
+      "ok": 0,
+      "fail": 16,
+      "error_rate": 1.0,
+      "p50_ms": 17,
+      "p95_ms": 24,
+      "p99_ms": 32,
+      "top_errors": [
+        [
+          "ConnectError: All connection attempts failed",
+          16
+        ]
+      ]
+    }
+  ]
+}

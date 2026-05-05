@@ -445,6 +445,65 @@ async def _start_background_workers(db) -> None:
     except Exception as e:
         logger.warning(f"Could not start LLM cache warmup worker: {e}")
 
+    # ── Unified notifications worker (Round 91 Surface 3) ────────────────
+    # Replaces the prior coach_triggers loop. Iterates active users every
+    # 5 minutes and runs all 8 notification jobs (DAILY_BRIEF, SALARY,
+    # OVERSPEND, GOAL_MILESTONE, WEEKLY_WRAP, MONTH_END_REPORT,
+    # DORMANCY_NUDGE, SPLIT_REMINDER). Per-user per-type prefs + quiet
+    # hours + dedupe windows are enforced inside services.notifications_engine.
+    async def _notifications_loop() -> None:
+        from datetime import timedelta as _td
+        INTERVAL = 5 * 60         # 5 min — gives time-sensitive jobs ±5 min accuracy
+        BATCH = 1000
+        await _asyncio.sleep(45)  # warm-up grace
+        from services import notification_jobs
+        while True:
+            try:
+                cutoff = utc_now() - _td(days=30)
+                cursor = db.users.find(
+                    {
+                        "$or": [
+                            {"last_seen_at": {"$gte": cutoff}},
+                            {"push_token": {"$exists": True, "$ne": None}},
+                        ]
+                    },
+                    # Only the fields we need per user.
+                    {
+                        "_id": 1, "push_token": 1,
+                        "notification_prefs": 1,
+                        "notification_quiet_hours": 1,
+                        "notification_daily_brief_time": 1,
+                        "notification_tz": 1,
+                        "last_seen_at": 1,
+                    },
+                ).limit(BATCH)
+                seen = 0
+                async for u in cursor:
+                    try:
+                        await notification_jobs.run_all_for_user(u)
+                    except Exception as ex:    # noqa: BLE001
+                        logger.warning(f"notif jobs user={u.get('_id')}: {ex}")
+                    seen += 1
+                if seen:
+                    logger.info(f"📬 Notifications swept {seen} users")
+            except Exception as e:    # noqa: BLE001
+                logger.warning(f"notifications iteration failed: {e}")
+            await _asyncio.sleep(INTERVAL)
+
+    try:
+        _asyncio.create_task(_notifications_loop())
+        logger.info(
+            "📬 Notifications worker started (5-min interval; 8 jobs: brief, "
+            "salary, overspend, goal milestone, weekly wrap, month-end, "
+            "dormancy, split reminder)"
+        )
+    except Exception as e:
+        logger.warning(f"Could not start notifications worker: {e}")
+
+    # Round 94 — _coach_triggers_loop (R90b) deleted.
+    # Superseded by _notifications_loop above. Manual /coach/triggers/check
+    # endpoint still wired via services/coach_triggers.py for UI-driven calls.
+
 
 def register_lifecycle(app, db, client) -> None:
     """Attach startup & shutdown event handlers to the FastAPI ``app``."""

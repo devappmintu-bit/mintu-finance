@@ -1,0 +1,261 @@
+{
+  "run_id": "r1777909757_0be6f0",
+  "generated_at": "2026-05-04T15:49:42.876920+00:00",
+  "config": {
+    "n": 5,
+    "concurrency": 5,
+    "base_url": "http://localhost:8001",
+    "chaos_budget": 100,
+    "cleanup": true,
+    "cleanup_counts": {
+      "transactions": 0,
+      "budgets": 1,
+      "goals": 2,
+      "coach_rewards": 0,
+      "user_coach_context": 4,
+      "coach_trigger_history": 0,
+      "notifications_log": 0,
+      "sessions": 5,
+      "refresh_tokens": 0,
+      "score_history": 0,
+      "users": 5
+    }
+  },
+  "overall": {
+    "total_steps": 28,
+    "ok_steps": 19,
+    "fail_steps": 9,
+    "overall_error_rate": 0.321,
+    "duration_s": 20.7
+  },
+  "persona_mix": {
+    "saver": 1,
+    "overspender": 1,
+    "investor": 0,
+    "avoider": 2,
+    "impulsive_buyer": 1,
+    "debt_trapped": 0,
+    "minimalist": 0,
+    "wealth_optimizer": 0
+  },
+  "funnels": {
+    "onboarding": [
+      {
+        "step": "send_otp",
+        "reached": 5,
+        "drop_off_pct": 0.0
+      },
+      {
+        "step": "verify_otp",
+        "reached": 5,
+        "drop_off_pct": 0.0
+      },
+      {
+        "step": "profile",
+        "reached": 1,
+        "drop_off_pct": 80.0
+      }
+    ],
+    "coach": [
+      {
+        "step": "chat",
+        "reached": 4,
+        "drop_off_pct": 0.0
+      },
+      {
+        "step": "action_execute",
+        "reached": 0,
+        "drop_off_pct": 100.0
+      },
+      {
+        "step": "rewards_recent",
+        "reached": 0,
+        "drop_off_pct": 0.0
+      }
+    ],
+    "budget": [
+      {
+        "step": "upsert_budget",
+        "reached": 1,
+        "drop_off_pct": 0.0
+      },
+      {
+        "step": "add_txn",
+        "reached": 0,
+        "drop_off_pct": 100.0
+      },
+      {
+        "step": "breach_check",
+        "reached": 0,
+        "drop_off_pct": 0.0
+      }
+    ],
+    "goals": [
+      {
+        "step": "create_goal",
+        "reached": 2,
+        "drop_off_pct": 0.0
+      },
+      {
+        "step": "contribute_goal",
+        "reached": 1,
+        "drop_off_pct": 50.0
+      }
+    ]
+  },
+  "by_step": {
+    "onboarding::send_otp": {
+      "count": 5,
+      "ok": 5,
+      "fail": 0,
+      "error_rate": 0.0,
+      "p50_ms": 1576,
+      "p95_ms": 1604,
+      "p99_ms": 1606,
+      "top_errors": []
+    },
+    "onboarding::verify_otp": {
+      "count": 5,
+      "ok": 5,
+      "fail": 0,
+      "error_rate": 0.0,
+      "p50_ms": 3138,
+      "p95_ms": 3148,
+      "p99_ms": 3148,
+      "top_errors": []
+    },
+    "budget::upsert_budget": {
+      "count": 3,
+      "ok": 1,
+      "fail": 2,
+      "error_rate": 0.667,
+      "p50_ms": 1089,
+      "p95_ms": 7557,
+      "p99_ms": 8132,
+      "top_errors": [
+        [
+          "400: {\"detail\":\"amount (or limit) must be a non-negative number\"}",
+          2
+        ]
+      ]
+    },
+    "onboarding::profile": {
+      "count": 1,
+      "ok": 1,
+      "fail": 0,
+      "error_rate": 0.0,
+      "p50_ms": 8285,
+      "p95_ms": 8285,
+      "p99_ms": 8285,
+      "top_errors": []
+    },
+    "coach::chat": {
+      "count": 4,
+      "ok": 4,
+      "fail": 0,
+      "error_rate": 0.0,
+      "p50_ms": 5890,
+      "p95_ms": 9162,
+      "p99_ms": 9286,
+      "top_errors": []
+    },
+    "goals::create_goal": {
+      "count": 2,
+      "ok": 2,
+      "fail": 0,
+      "error_rate": 0.0,
+      "p50_ms": 4668,
+      "p95_ms": 8791,
+      "p99_ms": 9158,
+      "top_errors": []
+    },
+    "budget::add_txn": {
+      "count": 7,
+      "ok": 0,
+      "fail": 7,
+      "error_rate": 1.0,
+      "p50_ms": 67,
+      "p95_ms": 2760,
+      "p99_ms": 3331,
+      "top_errors": [
+        [
+          "422: {\"detail\":[{\"type\":\"string_pattern_mismatch\",\"loc\":[\"body\",\"type\"],\"msg\":\"String should match pattern '^(debit|credit)$'",
+          7
+        ]
+      ]
+    },
+    "goals::contribute_goal": {
+      "count": 1,
+      "ok": 1,
+      "fail": 0,
+      "error_rate": 0.0,
+      "p50_ms": 68,
+      "p95_ms": 68,
+      "p99_ms": 68,
+      "top_errors": []
+    }
+  },
+  "by_persona": {
+    "overspender": {
+      "steps": 4,
+      "ok": 3,
+      "fail": 1,
+      "error_rate": 0.25
+    },
+    "saver": {
+      "steps": 7,
+      "ok": 6,
+      "fail": 1,
+      "error_rate": 0.143
+    },
+    "avoider": {
+      "steps": 6,
+      "ok": 6,
+      "fail": 0,
+      "error_rate": 0.0
+    },
+    "impulsive_buyer": {
+      "steps": 11,
+      "ok": 4,
+      "fail": 7,
+      "error_rate": 0.636
+    }
+  },
+  "chaos": {
+    "events_capacity_remaining": 98,
+    "by_kind": {
+      "partial_payload": 2
+    },
+    "events": [
+      {
+        "persona_id": "sim_r1777909757_0be6f0_000003",
+        "kind": "partial_payload",
+        "detail": "dropped amount"
+      },
+      {
+        "persona_id": "sim_r1777909757_0be6f0_000002",
+        "kind": "partial_payload",
+        "detail": "dropped amount"
+      }
+    ]
+  },
+  "action_items": [
+    {
+      "step": "budget::add_txn",
+      "severity": "\ud83d\udd34 critical",
+      "count": 7,
+      "ok": 0,
+      "fail": 7,
+      "error_rate": 1.0,
+      "p50_ms": 67,
+      "p95_ms": 2760,
+      "p99_ms": 3331,
+      "top_errors": [
+        [
+          "422: {\"detail\":[{\"type\":\"string_pattern_mismatch\",\"loc\":[\"body\",\"type\"],\"msg\":\"String should match pattern '^(debit|credit)$'",
+          7
+        ]
+      ]
+    }
+  ]
+}

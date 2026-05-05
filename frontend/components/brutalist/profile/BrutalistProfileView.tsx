@@ -62,6 +62,12 @@ export interface BrutalistProfileProps {
   onGoGoals: () => void;
   onGoRewards: () => void;
   onGoBankConnections?: () => void;
+  /**
+   * Round 99C — Subscriptions screen. Optional so legacy callsites
+   * (older simulators / tests that never wire it) keep compiling;
+   * the row simply no-ops if absent.
+   */
+  onGoSubscriptions?: () => void;
 
   onOpenTrustedDevices: () => void;
   onChangePin: () => void;
@@ -193,6 +199,12 @@ export default function BrutalistProfileView(p: BrutalistProfileProps) {
             label="Bank connections"
             onPress={p.onGoBankConnections || p.onOpenPaymentMethods}
             testID="row-banks"
+          />
+          <Row
+            label="Subscriptions"
+            value="Recurring leaks"
+            onPress={p.onGoSubscriptions}
+            testID="row-subscriptions"
           />
           <Row
             label="Auto-import (Gmail)"

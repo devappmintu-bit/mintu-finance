@@ -1,0 +1,385 @@
+{
+  "run_id": "r1777911276_56d801",
+  "generated_at": "2026-05-04T16:15:34.967502+00:00",
+  "config": {
+    "n": 20,
+    "concurrency": 10,
+    "base_url": "http://localhost:8001",
+    "chaos_budget": 100,
+    "cleanup": true,
+    "cleanup_counts": {
+      "transactions": 42,
+      "budgets": 8,
+      "goals": 5,
+      "coach_rewards": 2,
+      "user_coach_context": 11,
+      "coach_trigger_history": 0,
+      "notifications_log": 0,
+      "sessions": 17,
+      "refresh_tokens": 0,
+      "score_history": 0,
+      "users": 17
+    }
+  },
+  "overall": {
+    "total_steps": 111,
+    "ok_steps": 103,
+    "fail_steps": 8,
+    "overall_error_rate": 0.072,
+    "duration_s": 53.0
+  },
+  "persona_mix": {
+    "saver": 1,
+    "overspender": 3,
+    "investor": 1,
+    "avoider": 5,
+    "impulsive_buyer": 6,
+    "debt_trapped": 2,
+    "minimalist": 2,
+    "wealth_optimizer": 0
+  },
+  "funnels": {
+    "onboarding": [
+      {
+        "step": "send_otp",
+        "reached": 17,
+        "drop_off_pct": 0.0
+      },
+      {
+        "step": "verify_otp",
+        "reached": 14,
+        "drop_off_pct": 17.6
+      },
+      {
+        "step": "profile",
+        "reached": 4,
+        "drop_off_pct": 71.4
+      }
+    ],
+    "coach": [
+      {
+        "step": "chat",
+        "reached": 10,
+        "drop_off_pct": 0.0
+      },
+      {
+        "step": "action_execute",
+        "reached": 2,
+        "drop_off_pct": 80.0
+      },
+      {
+        "step": "rewards_recent",
+        "reached": 2,
+        "drop_off_pct": 0.0
+      }
+    ],
+    "budget": [
+      {
+        "step": "upsert_budget",
+        "reached": 8,
+        "drop_off_pct": 0.0
+      },
+      {
+        "step": "add_txn",
+        "reached": 8,
+        "drop_off_pct": 0.0
+      },
+      {
+        "step": "breach_check",
+        "reached": 0,
+        "drop_off_pct": 100.0
+      }
+    ],
+    "goals": [
+      {
+        "step": "create_goal",
+        "reached": 4,
+        "drop_off_pct": 0.0
+      },
+      {
+        "step": "contribute_goal",
+        "reached": 0,
+        "drop_off_pct": 100.0
+      }
+    ]
+  },
+  "by_step": {
+    "onboarding::send_otp": {
+      "count": 17,
+      "ok": 17,
+      "fail": 0,
+      "error_rate": 0.0,
+      "p50_ms": 2078,
+      "p95_ms": 6026,
+      "p99_ms": 9713,
+      "top_errors": []
+    },
+    "onboarding::verify_otp": {
+      "count": 17,
+      "ok": 14,
+      "fail": 3,
+      "error_rate": 0.176,
+      "p50_ms": 4715,
+      "p95_ms": 12675,
+      "p99_ms": 12682,
+      "top_errors": [
+        [
+          "RemoteProtocolError: peer closed connection without sending complete message body (received 0 bytes, expected 846)",
+          1
+        ],
+        [
+          "RemoteProtocolError: peer closed connection without sending complete message body (received 0 bytes, expected 845)",
+          1
+        ],
+        [
+          "RemoteProtocolError: peer closed connection without sending complete message body (received 0 bytes, expected 847)",
+          1
+        ]
+      ]
+    },
+    "budget::upsert_budget": {
+      "count": 9,
+      "ok": 8,
+      "fail": 1,
+      "error_rate": 0.111,
+      "p50_ms": 3455,
+      "p95_ms": 10626,
+      "p99_ms": 10638,
+      "top_errors": [
+        [
+          "400: {\"detail\":\"amount (or limit) must be a non-negative number\"}",
+          1
+        ]
+      ]
+    },
+    "budget::add_txn": {
+      "count": 42,
+      "ok": 42,
+      "fail": 0,
+      "error_rate": 0.0,
+      "p50_ms": 2120,
+      "p95_ms": 4301,
+      "p99_ms": 7490,
+      "top_errors": []
+    },
+    "onboarding::profile": {
+      "count": 6,
+      "ok": 4,
+      "fail": 2,
+      "error_rate": 0.333,
+      "p50_ms": 225,
+      "p95_ms": 8001,
+      "p99_ms": 10070,
+      "top_errors": [
+        [
+          "RemoteProtocolError: Server disconnected without sending a response.",
+          1
+        ],
+        [
+          "429: {\"detail\": \"Rate limit exceeded. Please slow down.\"}",
+          1
+        ]
+      ]
+    },
+    "coach::chat": {
+      "count": 11,
+      "ok": 10,
+      "fail": 1,
+      "error_rate": 0.091,
+      "p50_ms": 4336,
+      "p95_ms": 12211,
+      "p99_ms": 13397,
+      "top_errors": [
+        [
+          "RemoteProtocolError: Server disconnected without sending a response.",
+          1
+        ]
+      ]
+    },
+    "goals::create_goal": {
+      "count": 5,
+      "ok": 4,
+      "fail": 1,
+      "error_rate": 0.2,
+      "p50_ms": 85,
+      "p95_ms": 8614,
+      "p99_ms": 10280,
+      "top_errors": [
+        [
+          "RemoteProtocolError: Server disconnected without sending a response.",
+          1
+        ]
+      ]
+    },
+    "coach::action_execute": {
+      "count": 2,
+      "ok": 2,
+      "fail": 0,
+      "error_rate": 0.0,
+      "p50_ms": 1730,
+      "p95_ms": 3176,
+      "p99_ms": 3305,
+      "top_errors": []
+    },
+    "coach::rewards_recent": {
+      "count": 2,
+      "ok": 2,
+      "fail": 0,
+      "error_rate": 0.0,
+      "p50_ms": 99,
+      "p95_ms": 116,
+      "p99_ms": 118,
+      "top_errors": []
+    }
+  },
+  "by_persona": {
+    "impulsive_buyer": {
+      "steps": 26,
+      "ok": 21,
+      "fail": 5,
+      "error_rate": 0.192
+    },
+    "avoider": {
+      "steps": 14,
+      "ok": 12,
+      "fail": 2,
+      "error_rate": 0.143
+    },
+    "overspender": {
+      "steps": 20,
+      "ok": 20,
+      "fail": 0,
+      "error_rate": 0.0
+    },
+    "minimalist": {
+      "steps": 24,
+      "ok": 23,
+      "fail": 1,
+      "error_rate": 0.042
+    },
+    "saver": {
+      "steps": 13,
+      "ok": 13,
+      "fail": 0,
+      "error_rate": 0.0
+    },
+    "investor": {
+      "steps": 14,
+      "ok": 14,
+      "fail": 0,
+      "error_rate": 0.0
+    }
+  },
+  "chaos": {
+    "events_capacity_remaining": 99,
+    "by_kind": {
+      "partial_payload": 1
+    },
+    "events": [
+      {
+        "persona_id": "sim_r1777911276_56d801_000019",
+        "kind": "partial_payload",
+        "detail": "dropped amount"
+      }
+    ]
+  },
+  "action_items": [
+    {
+      "step": "onboarding::profile",
+      "severity": "\ud83d\udd34 critical",
+      "count": 6,
+      "ok": 4,
+      "fail": 2,
+      "error_rate": 0.333,
+      "p50_ms": 225,
+      "p95_ms": 8001,
+      "p99_ms": 10070,
+      "top_errors": [
+        [
+          "RemoteProtocolError: Server disconnected without sending a response.",
+          1
+        ],
+        [
+          "429: {\"detail\": \"Rate limit exceeded. Please slow down.\"}",
+          1
+        ]
+      ]
+    },
+    {
+      "step": "goals::create_goal",
+      "severity": "\ud83d\udfe0 high",
+      "count": 5,
+      "ok": 4,
+      "fail": 1,
+      "error_rate": 0.2,
+      "p50_ms": 85,
+      "p95_ms": 8614,
+      "p99_ms": 10280,
+      "top_errors": [
+        [
+          "RemoteProtocolError: Server disconnected without sending a response.",
+          1
+        ]
+      ]
+    },
+    {
+      "step": "onboarding::verify_otp",
+      "severity": "\ud83d\udfe0 high",
+      "count": 17,
+      "ok": 14,
+      "fail": 3,
+      "error_rate": 0.176,
+      "p50_ms": 4715,
+      "p95_ms": 12675,
+      "p99_ms": 12682,
+      "top_errors": [
+        [
+          "RemoteProtocolError: peer closed connection without sending complete message body (received 0 bytes, expected 846)",
+          1
+        ],
+        [
+          "RemoteProtocolError: peer closed connection without sending complete message body (received 0 bytes, expected 845)",
+          1
+        ],
+        [
+          "RemoteProtocolError: peer closed connection without sending complete message body (received 0 bytes, expected 847)",
+          1
+        ]
+      ]
+    },
+    {
+      "step": "budget::upsert_budget",
+      "severity": "\ud83d\udfe0 high",
+      "count": 9,
+      "ok": 8,
+      "fail": 1,
+      "error_rate": 0.111,
+      "p50_ms": 3455,
+      "p95_ms": 10626,
+      "p99_ms": 10638,
+      "top_errors": [
+        [
+          "400: {\"detail\":\"amount (or limit) must be a non-negative number\"}",
+          1
+        ]
+      ]
+    },
+    {
+      "step": "coach::chat",
+      "severity": "\ud83d\udfe1 medium",
+      "count": 11,
+      "ok": 10,
+      "fail": 1,
+      "error_rate": 0.091,
+      "p50_ms": 4336,
+      "p95_ms": 12211,
+      "p99_ms": 13397,
+      "top_errors": [
+        [
+          "RemoteProtocolError: Server disconnected without sending a response.",
+          1
+        ]
+      ]
+    }
+  ]
+}

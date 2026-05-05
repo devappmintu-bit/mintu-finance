@@ -286,7 +286,17 @@ export default function AuthScreen() {
 
       {/* Post-login welcome transition — fades in a saffron overlay then routes to Home */}
       {welcomeAnim && (
-        <AuthTransitionOverlay variant="unlocking" onDone={() => router.replace('/(tabs)')} />
+        <AuthTransitionOverlay
+          variant="unlocking"
+          onDone={() => {
+            // Round 98 — TTFV<45s mandate. NEW users (signup just now)
+            // get the single-slider income screen, which seeds their
+            // coach context + starter cards before Home renders.
+            // Returning users skip straight to /(tabs).
+            const dest = isNewUser ? '/onboarding/income' : '/(tabs)';
+            router.replace(dest as any);
+          }}
+        />
       )}
 
       {/* Language Picker Modal */}

@@ -1,0 +1,209 @@
+{
+  "run_id": "r1777908275_d9efa5",
+  "generated_at": "2026-05-04T15:25:00.395784+00:00",
+  "config": {
+    "n": 5,
+    "concurrency": 5,
+    "base_url": "http://localhost:8001",
+    "chaos_budget": 100,
+    "cleanup": true,
+    "cleanup_counts": {
+      "transactions": 0,
+      "budgets": 1,
+      "goals": 0,
+      "coach_rewards": 1,
+      "user_coach_context": 4,
+      "coach_trigger_history": 0,
+      "notifications_log": 0,
+      "sessions": 4,
+      "refresh_tokens": 0,
+      "score_history": 0,
+      "users": 4
+    }
+  },
+  "overall": {
+    "total_steps": 16,
+    "ok_steps": 15,
+    "fail_steps": 1,
+    "overall_error_rate": 0.062,
+    "duration_s": 19.7
+  },
+  "persona_mix": {
+    "saver": 0,
+    "overspender": 1,
+    "investor": 0,
+    "avoider": 2,
+    "impulsive_buyer": 2,
+    "debt_trapped": 0,
+    "minimalist": 0,
+    "wealth_optimizer": 0
+  },
+  "funnels": {
+    "onboarding": [
+      {
+        "step": "send_otp",
+        "reached": 4,
+        "drop_off_pct": 0.0
+      },
+      {
+        "step": "verify_otp",
+        "reached": 4,
+        "drop_off_pct": 0.0
+      },
+      {
+        "step": "profile",
+        "reached": 1,
+        "drop_off_pct": 75.0
+      }
+    ],
+    "coach": [
+      {
+        "step": "chat",
+        "reached": 4,
+        "drop_off_pct": 0.0
+      },
+      {
+        "step": "action_execute",
+        "reached": 1,
+        "drop_off_pct": 75.0
+      },
+      {
+        "step": "rewards_recent",
+        "reached": 1,
+        "drop_off_pct": 0.0
+      }
+    ],
+    "budget": [
+      {
+        "step": "upsert_budget",
+        "reached": 0,
+        "drop_off_pct": 0.0
+      },
+      {
+        "step": "add_txn",
+        "reached": 0,
+        "drop_off_pct": 0.0
+      },
+      {
+        "step": "breach_check",
+        "reached": 0,
+        "drop_off_pct": 0.0
+      }
+    ],
+    "goals": [
+      {
+        "step": "create_goal",
+        "reached": 0,
+        "drop_off_pct": 0.0
+      },
+      {
+        "step": "contribute_goal",
+        "reached": 0,
+        "drop_off_pct": 0.0
+      }
+    ]
+  },
+  "by_step": {
+    "onboarding::send_otp": {
+      "count": 4,
+      "ok": 4,
+      "fail": 0,
+      "error_rate": 0.0,
+      "p50_ms": 1273,
+      "p95_ms": 1298,
+      "p99_ms": 1300,
+      "top_errors": []
+    },
+    "onboarding::verify_otp": {
+      "count": 4,
+      "ok": 4,
+      "fail": 0,
+      "error_rate": 0.0,
+      "p50_ms": 2466,
+      "p95_ms": 2486,
+      "p99_ms": 2488,
+      "top_errors": []
+    },
+    "budget::upsert_budget": {
+      "count": 1,
+      "ok": 0,
+      "fail": 1,
+      "error_rate": 1.0,
+      "p50_ms": 3811,
+      "p95_ms": 3811,
+      "p99_ms": 3811,
+      "top_errors": [
+        [
+          "405: {\"detail\":\"Method Not Allowed\"}",
+          1
+        ]
+      ]
+    },
+    "coach::chat": {
+      "count": 4,
+      "ok": 4,
+      "fail": 0,
+      "error_rate": 0.0,
+      "p50_ms": 9851,
+      "p95_ms": 11920,
+      "p99_ms": 11922,
+      "top_errors": []
+    },
+    "onboarding::profile": {
+      "count": 1,
+      "ok": 1,
+      "fail": 0,
+      "error_rate": 0.0,
+      "p50_ms": 3826,
+      "p95_ms": 3826,
+      "p99_ms": 3826,
+      "top_errors": []
+    },
+    "coach::action_execute": {
+      "count": 1,
+      "ok": 1,
+      "fail": 0,
+      "error_rate": 0.0,
+      "p50_ms": 72,
+      "p95_ms": 72,
+      "p99_ms": 72,
+      "top_errors": []
+    },
+    "coach::rewards_recent": {
+      "count": 1,
+      "ok": 1,
+      "fail": 0,
+      "error_rate": 0.0,
+      "p50_ms": 21,
+      "p95_ms": 21,
+      "p99_ms": 21,
+      "top_errors": []
+    }
+  },
+  "by_persona": {
+    "impulsive_buyer": {
+      "steps": 6,
+      "ok": 6,
+      "fail": 0,
+      "error_rate": 0.0
+    },
+    "overspender": {
+      "steps": 6,
+      "ok": 5,
+      "fail": 1,
+      "error_rate": 0.167
+    },
+    "avoider": {
+      "steps": 4,
+      "ok": 4,
+      "fail": 0,
+      "error_rate": 0.0
+    }
+  },
+  "chaos": {
+    "events_capacity_remaining": 100,
+    "by_kind": {},
+    "events": []
+  },
+  "action_items": []
+}

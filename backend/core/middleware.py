@@ -39,6 +39,17 @@ import os as _os_rl
 RATE_LIMIT_WINDOW = int(_os_rl.getenv("RATE_LIMIT_WINDOW", "60"))               # seconds
 RATE_LIMIT_MAX_REQUESTS = int(_os_rl.getenv("RATE_LIMIT_MAX_REQUESTS", "1000")) # per window — generous for SPA parallel calls
 AUTH_RATE_LIMIT_MAX = int(_os_rl.getenv("AUTH_RATE_LIMIT_MAX", "30"))           # stricter for /auth/*
+# Round 97 — Trusted-source bypass for QA/sim/CI.
+# When the request carries `X-Sim-Bypass: <token>` matching SIM_BYPASS_TOKEN
+# env, the IP-rate-limit is skipped (the per-phone OTP attempt counter
+# in routers/auth.py still applies, so this isn't an OTP abuse vector —
+# only an IP-keying bypass for shared-source traffic). Default off.
+SIM_BYPASS_TOKEN = _os_rl.getenv("SIM_BYPASS_TOKEN", "")
+# Loopback (127.0.0.1) gets a much higher cap by default so that local
+# admin tooling, CI, and the in-cluster sim runner aren't kneecapped by
+# the same global counter. Production traffic NEVER originates from
+# 127.0.0.1 (k8s ingress provides X-Forwarded-For) so this is safe.
+LOOPBACK_AUTH_RATE_LIMIT_MAX = int(_os_rl.getenv("LOOPBACK_AUTH_RATE_LIMIT_MAX", "5000"))
 BRUTE_FORCE_LOCKOUT_MINUTES = 15
 BRUTE_FORCE_MAX_FAILURES = 5
 SENSITIVE_FIELDS = ["password", "otp_hash", "_id", "otp"]
@@ -77,12 +88,25 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
         if not path.startswith("/api/"):
             return await call_next(request)
 
+        # Round 97 — Trusted-source bypass. When the configured
+        # SIM_BYPASS_TOKEN env is set AND the request carries a matching
+        # X-Sim-Bypass header, skip the IP rate-limit. Phone-level OTP
+        # attempt counters in routers/auth.py still apply.
+        if SIM_BYPASS_TOKEN and request.headers.get("x-sim-bypass") == SIM_BYPASS_TOKEN:
+            return await call_next(request)
+
         # Lazy import — avoid circular import with server.py
         from core import db
 
         now = time.time()
         is_auth = "/auth/" in path
-        max_req = AUTH_RATE_LIMIT_MAX if is_auth else RATE_LIMIT_MAX_REQUESTS
+        # Loopback gets a higher cap (R97) so admin / sim / CI tooling
+        # running in-cluster doesn't share a 30/min budget with itself.
+        is_loopback = client_ip in ("127.0.0.1", "::1", "localhost")
+        if is_auth:
+            max_req = LOOPBACK_AUTH_RATE_LIMIT_MAX if is_loopback else AUTH_RATE_LIMIT_MAX
+        else:
+            max_req = RATE_LIMIT_MAX_REQUESTS
         window_start = now - RATE_LIMIT_WINDOW
         key = f"rate:{client_ip}:{1 if is_auth else 0}"
 

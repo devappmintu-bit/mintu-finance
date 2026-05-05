@@ -24,48 +24,13 @@ from routers.split_common import api_router, SETTLEMENT_BADGES
 #  SETTLEMENT LEADERBOARD
 # ══════════════════════════════════════════════════════════════════════
 @api_router.get("/split/settlement-leaderboard")
-async def settlement_leaderboard(user_id: str = Depends(get_current_user)):
-    """Settlement speed leaderboard with rewards."""
-
-    # Get all users with settlement data
-    users = await db.users.find(
-        {"settlement_count": {"$gt": 0}},
-        {"name": 1, "settlement_count": 1, "reward_coins": 1},
-    ).sort("reward_coins", -1).to_list(20)
-
-    user_data = await get_user_by_id(user_id)
-    my_coins = user_data.get("reward_coins", 0) if user_data else 0
-    my_count = user_data.get("settlement_count", 0) if user_data else 0
-    my_badges = await db.user_badges.find({"user_id": user_id}).to_list(20)
-
-    leaderboard = []
-    my_rank = 0
-    for i, u in enumerate(users):
-        is_me = str(u["_id"]) == user_id
-        if is_me:
-            my_rank = i + 1
-        leaderboard.append({
-            "rank": i + 1,
-            "name": u.get("name", "User"),
-            "coins": u.get("reward_coins", 0),
-            "settlements": u.get("settlement_count", 0),
-            "is_me": is_me,
-        })
-
-    return {
-        "leaderboard": leaderboard[:10],
-        "my_stats": {
-            "rank": my_rank or len(leaderboard) + 1,
-            "coins": my_coins,
-            "settlements": my_count,
-            "cashback_available": round(my_coins * 0.5, 2),
-            "badges": [
-                {"id": b["badge_id"],
-                 **next((bd for bd in SETTLEMENT_BADGES if bd["id"] == b["badge_id"]), {})}
-                for b in my_badges
-            ],
-        },
-    }
+async def settlement_leaderboard(user_id: str = Depends(get_current_user)):  # noqa: ARG001
+    """[DEPRECATED — Round 92] Returns 410 Gone (gamification retired)."""
+    from fastapi import HTTPException
+    raise HTTPException(status_code=410, detail={
+        "deprecated": True,
+        "reason": "settlement_leaderboard_removed",
+    })
 
 
 # ══════════════════════════════════════════════════════════════════════

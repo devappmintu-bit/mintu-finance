@@ -1,10 +1,11 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { View, Text, StyleSheet, Modal, TouchableOpacity, TextInput, Platform, KeyboardAvoidingView, ScrollView } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { COLORS, useAppColors, GLASS } from '../../utils/theme';
 import { makeStyles } from '../../utils/makeStyles';
 import { C, UPI_APPS } from './theme';
-import CoinRedeemPanel from '../premium/CoinRedeemPanel';
+// Round 99D — CoinRedeemPanel deleted (legacy gamification residue).
+// `coinsToUse` is now always 0; consumers ignore the param.
 import SheetHeader from '../ui/SheetHeader';
 import { useIsOnline } from '../../hooks/useIsOnline';
 
@@ -16,8 +17,9 @@ type Props = {
   onPayCash: (coinsToUse?: number) => void;
   onPayPartial: (amount: number, coinsToUse?: number) => void;
   /** When provided, PaySheet shows a Razorpay CTA. Invoked with the effective
-   *  amount (after partial selection) + coins the user chose to redeem. The
-   *  parent handles the WebBrowser + order-create flow. */
+   *  amount (after partial selection). The parent handles the WebBrowser +
+   *  order-create flow. The `coinsToUse` param is preserved for type compat
+   *  but is always 0 since the coin redeem flow was retired in Round 99D. */
   onPayRazorpay?: (amount: number, coinsToUse?: number) => void;
 };
 
@@ -27,15 +29,11 @@ export default function PaySheet({ visible, onClose, target, onPayUPI, onPayCash
   const isOnline = useIsOnline();
   const [partialOn, setPartialOn] = useState(false);
   const [partialAmt, setPartialAmt] = useState('');
-  const [coinRedeem, setCoinRedeem] = useState<{ coinsToUse: number; discount: number; effective: number }>({
-    coinsToUse: 0, discount: 0, effective: 0,
-  });
 
   useEffect(() => {
     if (visible) {
       setPartialOn(false);
       setPartialAmt('');
-      setCoinRedeem({ coinsToUse: 0, discount: 0, effective: 0 });
     }
   }, [visible]);
 
@@ -44,19 +42,12 @@ export default function PaySheet({ visible, onClose, target, onPayUPI, onPayCash
   const isValid = (partialOn ? amt > 0 && amt <= max : true) && isOnline;
   const finalAmt = partialOn ? amt : max;
 
-  // Coin panel operates on the currently selected amount so discount reflects real spend.
-  const coinListPrice = useMemo(() => (partialOn ? amt || max : max), [partialOn, amt, max]);
-
   const triggerPay = (kind: 'upi' | 'cash') => {
     if (!isValid) return;
-    if (partialOn) onPayPartial(finalAmt, coinRedeem.coinsToUse);
-    else if (kind === 'upi') onPayUPI(coinRedeem.coinsToUse);
-    else onPayCash(coinRedeem.coinsToUse);
+    if (partialOn) onPayPartial(finalAmt, 0);
+    else if (kind === 'upi') onPayUPI(0);
+    else onPayCash(0);
   };
-
-  const effectiveDisplay = coinRedeem.coinsToUse > 0 && coinListPrice > 0
-    ? Math.max(0, coinListPrice - coinRedeem.discount)
-    : coinListPrice;
 
   return (
     <Modal visible={visible} animationType="slide" transparent>
@@ -110,33 +101,17 @@ export default function PaySheet({ visible, onClose, target, onPayUPI, onPayCash
               </View>
             )}
 
-            {/* 🪙 Coin redemption slider — spend earned coins to offset this payment */}
-            {coinListPrice > 0 && (
-              <CoinRedeemPanel
-                context="split"
-                amount={coinListPrice}
-                listPrice={coinListPrice}
-                compact
-                onChange={setCoinRedeem}
-              />
-            )}
-
-            {coinRedeem.coinsToUse > 0 && (
-              <View style={s.netBox}>
-                <Text style={s.netLbl}>Cash outflow after coins</Text>
-                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-                  <Text style={s.netStrike}>₹{Math.round(coinListPrice)}</Text>
-                  <Text style={s.netVal}>₹{Math.round(effectiveDisplay)}</Text>
-                </View>
-              </View>
-            )}
+            {/* Round 99D — CoinRedeemPanel + cash-after-coins netBox
+                deleted along with the rest of the legacy gamification
+                surface. Pay flow is now plain split → UPI / Cash /
+                Razorpay with no coin-discount math. */}
 
             <Text style={s.payS}>{!isOnline ? "Offline — payment unavailable" : 'Select payment method'}</Text>
             {onPayRazorpay && (
               <TouchableOpacity
                 style={[s.rzpBtn, !isValid && { opacity: 0.4 }]}
                 disabled={!isValid}
-                onPress={() => { if (isValid) onPayRazorpay(finalAmt, coinRedeem.coinsToUse); }}
+                onPress={() => { if (isValid) onPayRazorpay(finalAmt, 0); }}
                 activeOpacity={0.88}
               >
                 <View

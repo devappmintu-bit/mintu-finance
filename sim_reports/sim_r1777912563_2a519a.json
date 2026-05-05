@@ -1,0 +1,334 @@
+{
+  "run_id": "r1777912563_2a519a",
+  "generated_at": "2026-05-04T16:37:02.610711+00:00",
+  "config": {
+    "n": 50,
+    "concurrency": 8,
+    "base_url": "http://localhost:8001",
+    "chaos_budget": 200,
+    "cleanup": true,
+    "cleanup_counts": {
+      "transactions": 48,
+      "budgets": 8,
+      "goals": 4,
+      "coach_rewards": 1,
+      "user_coach_context": 10,
+      "coach_trigger_history": 0,
+      "notifications_log": 0,
+      "sessions": 14,
+      "refresh_tokens": 0,
+      "score_history": 0,
+      "users": 14
+    }
+  },
+  "overall": {
+    "total_steps": 141,
+    "ok_steps": 106,
+    "fail_steps": 35,
+    "overall_error_rate": 0.248,
+    "duration_s": 52.2
+  },
+  "persona_mix": {
+    "saver": 8,
+    "overspender": 11,
+    "investor": 4,
+    "avoider": 9,
+    "impulsive_buyer": 8,
+    "debt_trapped": 6,
+    "minimalist": 1,
+    "wealth_optimizer": 3
+  },
+  "funnels": {
+    "onboarding": [
+      {
+        "step": "send_otp",
+        "reached": 18,
+        "drop_off_pct": 0.0
+      },
+      {
+        "step": "verify_otp",
+        "reached": 13,
+        "drop_off_pct": 27.8
+      },
+      {
+        "step": "profile",
+        "reached": 4,
+        "drop_off_pct": 69.2
+      }
+    ],
+    "coach": [
+      {
+        "step": "chat",
+        "reached": 10,
+        "drop_off_pct": 0.0
+      },
+      {
+        "step": "action_execute",
+        "reached": 1,
+        "drop_off_pct": 90.0
+      },
+      {
+        "step": "rewards_recent",
+        "reached": 1,
+        "drop_off_pct": 0.0
+      }
+    ],
+    "budget": [
+      {
+        "step": "upsert_budget",
+        "reached": 8,
+        "drop_off_pct": 0.0
+      },
+      {
+        "step": "add_txn",
+        "reached": 8,
+        "drop_off_pct": 0.0
+      },
+      {
+        "step": "breach_check",
+        "reached": 0,
+        "drop_off_pct": 100.0
+      }
+    ],
+    "goals": [
+      {
+        "step": "create_goal",
+        "reached": 4,
+        "drop_off_pct": 0.0
+      },
+      {
+        "step": "contribute_goal",
+        "reached": 0,
+        "drop_off_pct": 100.0
+      }
+    ]
+  },
+  "by_step": {
+    "onboarding::send_otp": {
+      "count": 45,
+      "ok": 18,
+      "fail": 27,
+      "error_rate": 0.6,
+      "p50_ms": 131,
+      "p95_ms": 8172,
+      "p99_ms": 11473,
+      "top_errors": [
+        [
+          "429: {\"detail\": \"Rate limit exceeded. Please slow down.\"}",
+          27
+        ]
+      ]
+    },
+    "onboarding::verify_otp": {
+      "count": 18,
+      "ok": 13,
+      "fail": 5,
+      "error_rate": 0.278,
+      "p50_ms": 2921,
+      "p95_ms": 16429,
+      "p99_ms": 18517,
+      "top_errors": [
+        [
+          "429: {\"detail\": \"Rate limit exceeded. Please slow down.\"}",
+          3
+        ],
+        [
+          "RemoteProtocolError: Server disconnected without sending a response.",
+          2
+        ]
+      ]
+    },
+    "onboarding::profile": {
+      "count": 6,
+      "ok": 4,
+      "fail": 2,
+      "error_rate": 0.333,
+      "p50_ms": 216,
+      "p95_ms": 1035,
+      "p99_ms": 1243,
+      "top_errors": [
+        [
+          "429: {\"detail\": \"Rate limit exceeded. Please slow down.\"}",
+          2
+        ]
+      ]
+    },
+    "budget::upsert_budget": {
+      "count": 8,
+      "ok": 8,
+      "fail": 0,
+      "error_rate": 0.0,
+      "p50_ms": 264,
+      "p95_ms": 2385,
+      "p99_ms": 2461,
+      "top_errors": []
+    },
+    "goals::create_goal": {
+      "count": 4,
+      "ok": 4,
+      "fail": 0,
+      "error_rate": 0.0,
+      "p50_ms": 180,
+      "p95_ms": 3127,
+      "p99_ms": 3539,
+      "top_errors": []
+    },
+    "budget::add_txn": {
+      "count": 48,
+      "ok": 47,
+      "fail": 1,
+      "error_rate": 0.021,
+      "p50_ms": 304,
+      "p95_ms": 4922,
+      "p99_ms": 14050,
+      "top_errors": [
+        [
+          "RemoteProtocolError: Server disconnected without sending a response.",
+          1
+        ]
+      ]
+    },
+    "coach::chat": {
+      "count": 10,
+      "ok": 10,
+      "fail": 0,
+      "error_rate": 0.0,
+      "p50_ms": 5923,
+      "p95_ms": 17880,
+      "p99_ms": 18508,
+      "top_errors": []
+    },
+    "coach::action_execute": {
+      "count": 1,
+      "ok": 1,
+      "fail": 0,
+      "error_rate": 0.0,
+      "p50_ms": 334,
+      "p95_ms": 334,
+      "p99_ms": 334,
+      "top_errors": []
+    },
+    "coach::rewards_recent": {
+      "count": 1,
+      "ok": 1,
+      "fail": 0,
+      "error_rate": 0.0,
+      "p50_ms": 112,
+      "p95_ms": 112,
+      "p99_ms": 112,
+      "top_errors": []
+    }
+  },
+  "by_persona": {
+    "saver": {
+      "steps": 50,
+      "ok": 45,
+      "fail": 5,
+      "error_rate": 0.1
+    },
+    "impulsive_buyer": {
+      "steps": 31,
+      "ok": 26,
+      "fail": 5,
+      "error_rate": 0.161
+    },
+    "avoider": {
+      "steps": 17,
+      "ok": 12,
+      "fail": 5,
+      "error_rate": 0.294
+    },
+    "overspender": {
+      "steps": 28,
+      "ok": 20,
+      "fail": 8,
+      "error_rate": 0.286
+    },
+    "investor": {
+      "steps": 6,
+      "ok": 2,
+      "fail": 4,
+      "error_rate": 0.667
+    },
+    "minimalist": {
+      "steps": 1,
+      "ok": 0,
+      "fail": 1,
+      "error_rate": 1.0
+    },
+    "wealth_optimizer": {
+      "steps": 3,
+      "ok": 0,
+      "fail": 3,
+      "error_rate": 1.0
+    },
+    "debt_trapped": {
+      "steps": 5,
+      "ok": 1,
+      "fail": 4,
+      "error_rate": 0.8
+    }
+  },
+  "chaos": {
+    "events_capacity_remaining": 200,
+    "by_kind": {},
+    "events": []
+  },
+  "action_items": [
+    {
+      "step": "onboarding::send_otp",
+      "severity": "\ud83d\udd34 critical",
+      "count": 45,
+      "ok": 18,
+      "fail": 27,
+      "error_rate": 0.6,
+      "p50_ms": 131,
+      "p95_ms": 8172,
+      "p99_ms": 11473,
+      "top_errors": [
+        [
+          "429: {\"detail\": \"Rate limit exceeded. Please slow down.\"}",
+          27
+        ]
+      ]
+    },
+    {
+      "step": "onboarding::profile",
+      "severity": "\ud83d\udd34 critical",
+      "count": 6,
+      "ok": 4,
+      "fail": 2,
+      "error_rate": 0.333,
+      "p50_ms": 216,
+      "p95_ms": 1035,
+      "p99_ms": 1243,
+      "top_errors": [
+        [
+          "429: {\"detail\": \"Rate limit exceeded. Please slow down.\"}",
+          2
+        ]
+      ]
+    },
+    {
+      "step": "onboarding::verify_otp",
+      "severity": "\ud83d\udfe0 high",
+      "count": 18,
+      "ok": 13,
+      "fail": 5,
+      "error_rate": 0.278,
+      "p50_ms": 2921,
+      "p95_ms": 16429,
+      "p99_ms": 18517,
+      "top_errors": [
+        [
+          "429: {\"detail\": \"Rate limit exceeded. Please slow down.\"}",
+          3
+        ],
+        [
+          "RemoteProtocolError: Server disconnected without sending a response.",
+          2
+        ]
+      ]
+    }
+  ]
+}

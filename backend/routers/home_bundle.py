@@ -79,8 +79,8 @@ async def home_bundle(lang: str = "en", user_id: str = Depends(get_current_user)
     Returns:
       {
         user, stats, recent_txns, avatar, snapshot,
-        money_school, alerts, weekly_report, leaderboard, gamification,
-        card_of_the_day, fomo_feed, ai_predict, coins,
+        money_school, alerts, weekly_report,
+        card_of_the_day, fomo_feed, ai_predict,
         cached_at (iso string, omitted on fresh fetch)
       }
 
@@ -93,12 +93,14 @@ async def home_bundle(lang: str = "en", user_id: str = Depends(get_current_user)
     from routers.user import get_user_profile, get_avatar
     from routers.content import card_of_the_day
     from routers.alerts import smart_alerts
-    from routers.gamification import get_gamification_status
     from routers.referral import fomo_feed
     from routers.analytics import (
-        get_stats_overview, home_snapshot, weekly_report,
-        savings_leaderboard, ai_predict, coins_status,
+        get_stats_overview, home_snapshot, weekly_report, ai_predict,
     )
+    # Round 92 — gamification (leaderboard / coins / gamification status) was
+    # hard-killed. Home bundle no longer fans out to those, shrinking the
+    # payload by ~120 KB and dropping 3 redundant Mongo queries per home open.
+    from routers.diagnostic_score import get_diagnostic
 
     cached = cache_get(key)
     if cached is not None:
@@ -180,9 +182,9 @@ async def home_bundle(lang: str = "en", user_id: str = Depends(get_current_user)
 
     (
         user, stats, recent_txns, avatar, snapshot,
-        alerts, weekly_rep, lb, game,
-        cotd, fomo, pred, coins,
-        peer_mom,
+        alerts, weekly_rep,
+        cotd, fomo, pred,
+        peer_mom, diagnostic,
     ) = await asyncio.gather(
         # Mongo-only slices — fast, tight budget.
         _safe(get_user_profile(user_id=user_id)),
@@ -194,14 +196,13 @@ async def home_bundle(lang: str = "en", user_id: str = Depends(get_current_user)
         # gracefully via the frontend's per-section fallback UI.
         _safe(smart_alerts(user_id=user_id),                         budget=_BUDGET_LLM),
         _safe(weekly_report(user_id=user_id),                        budget=_BUDGET_LLM),
-        _safe(savings_leaderboard(user_id=user_id),                  budget=_BUDGET_FAST),
-        _safe(get_gamification_status(user_id=user_id),              budget=_BUDGET_FAST),
         _safe(card_of_the_day(refresh=False, user_id=user_id),       budget=_BUDGET_LLM),
         _safe(fomo_feed(user_id=user_id),                            budget=_BUDGET_LLM),
         _safe(ai_predict(user_id=user_id),                           budget=_BUDGET_LLM),
-        _safe(coins_status(user_id=user_id),                         budget=_BUDGET_FAST),
         # v10 — peer benchmark + month-over-month (fast, Mongo only).
         _safe(_peer_mom()),
+        # Round 92 — Diagnostic Score (replaces Money Score abstract pill).
+        _safe(get_diagnostic(user_id=user_id)),
     )
 
     bundle = {
@@ -212,14 +213,13 @@ async def home_bundle(lang: str = "en", user_id: str = Depends(get_current_user)
         "snapshot": snapshot,
         "alerts": alerts,
         "weekly_report": weekly_rep,
-        "leaderboard": lb,
-        "gamification": game,
         "card_of_the_day": cotd,
         "fomo_feed": fomo,
         "ai_predict": pred,
-        "coins": coins,
         # v10 insights — consumed by financialContext + ai_context peer/mom modes.
         "insights": peer_mom or {"peer": {}, "mom": {}},
+        # Round 92 — directional 3-line score.
+        "diagnostic": diagnostic,
         "cached_at": utc_now().isoformat(),
         "cache_ttl_s": 25,
     }

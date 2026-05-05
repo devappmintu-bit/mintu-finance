@@ -17,7 +17,7 @@ import { Text, StyleSheet, View, ViewStyle, StyleProp } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import GlassCard from './TintedGlassCard';
 import GlowPill from './GlowPill';
-import BrutalButton from '../brutal/BrutalButton';
+import BrutalButton from '../brutalist/primitives/BrutalButton';
 import { COLORS, FONT_FAMILY, GRADIENT, SPACING } from '../../utils/theme';
 import { makeStyles } from '../../utils/makeStyles';
 

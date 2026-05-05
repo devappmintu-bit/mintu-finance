@@ -15,8 +15,8 @@
  */
 import React from 'react';
 import { Text, Pressable, StyleSheet, ViewStyle, StyleProp, ActivityIndicator, Platform } from 'react-native';
-import { COLORS, TYPE, SPACING, WEIGHT } from '../../utils/theme';
-import { BRUTAL_BORDER, BRUTAL_SHADOW } from '../../utils/brutal';
+import { COLORS, TYPE, SPACING, WEIGHT } from '../../../utils/theme';
+import { BRUTAL_BORDER, BRUTAL_SHADOW } from '../../../utils/brutal';
 
 type Variant = 'primary' | 'secondary' | 'ghost';
 

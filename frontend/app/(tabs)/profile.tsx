@@ -30,7 +30,7 @@ import SubScreenModal from '../../components/profile/SubScreenModal';
 import EditNameSheet from '../../components/profile/EditNameSheet';
 import LanguageSheet from '../../components/profile/LanguageSheet';
 import PaymentMethodsV2 from '../../components/profile/PaymentMethodsV2';
-import NotificationSettings from '../../components/profile/NotificationSettings';
+import NotificationSettings from '../../components/profile/NotificationSettingsV2';
 import HelpSupport from '../../components/HelpSupport';
 import PinSetupModal from '../../components/PinSetupModal';
 import AuthTransitionOverlay from '../../components/auth/AuthTransitionOverlay';
@@ -96,6 +96,7 @@ function ProfileScreen() {
   const openEditName = useCallback(() => setEditNameVisible(true), []);
   const goGoals = useCallback(() => { try { router.push('/goals' as any); } catch {} }, []);
   const goRewards = useCallback(() => { try { router.push('/(tabs)/rewards' as any); } catch {} }, []);
+  const goSubscriptions = useCallback(() => { try { router.push('/subscriptions' as any); } catch {} }, []);
   const openPaymentMethods = useCallback(() => setPaymentMethodsVisible(true), []);
   const openPreferences = useCallback(() => setPreferencesVisible(true), []);
   const openNotifs = useCallback(() => setNotifsVisible(true), []);
@@ -139,6 +140,7 @@ function ProfileScreen() {
         onOpenPaymentMethods={openPaymentMethods}
         onGoGoals={goGoals}
         onGoRewards={goRewards}
+        onGoSubscriptions={goSubscriptions}
         onOpenTrustedDevices={openTrustedDevices}
         onToggleBio={bioHwAvail ? onToggleBio : undefined}
         onChangePin={onChangePin}

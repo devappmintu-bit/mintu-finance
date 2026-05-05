@@ -64,6 +64,12 @@ def register_domain_routers(api_router: APIRouter) -> None:
         mascot as mascot_router,
         pending_nudges as pending_nudges_router,
         setu_aa as setu_aa_router,
+        coach_v2 as coach_v2_router,
+        notifications_v2 as notifications_v2_router,
+        diagnostic_score as diagnostic_score_router,
+        admin_simulate as admin_simulate_router,
+        onboarding as onboarding_router,
+        subscriptions as subscriptions_router,
     )
     for r in (
         auth_router,
@@ -79,7 +85,12 @@ def register_domain_routers(api_router: APIRouter) -> None:
         profile_identity_router, profile_engine_router,
         streak_router, search_router, split_ws_router, users_router,
         mascot_router, pending_nudges_router,
-        setu_aa_router,
+        setu_aa_router, coach_v2_router,
+        notifications_v2_router,
+        diagnostic_score_router,
+        admin_simulate_router,
+        onboarding_router,
+        subscriptions_router,
     ):
         api_router.include_router(r.router)
 

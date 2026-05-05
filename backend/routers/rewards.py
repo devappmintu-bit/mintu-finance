@@ -823,16 +823,9 @@ async def rewards_events(user_id: str = Depends(get_current_user)) -> Dict[str, 
             "cta": "Use the boost",
         })
 
-    # Mystery Box teaser — always present as an "opportunity" card.
-    events.append({
-        "id": "mystery_box_teaser",
-        "title": "MYSTERY BOX",
-        "subtitle": "Spin for hidden rewards",
-        "emoji": "🎁",
-        "color": "#8B5CF6",
-        "ends_in_seconds": None,
-        "cta": "Try your luck",
-    })
+    # Round 92 — Mystery Box removed. The crypto-style "spin for hidden
+    # rewards" surface contradicts MintU's positioning as a serious
+    # financial coach. Daily nudges flow through coach rewards now.
 
     return {"events": events, "server_time": now.isoformat()}
 

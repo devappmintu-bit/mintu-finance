@@ -48,18 +48,20 @@ import TapTile from '../../components/ui/TapTile';
 import { BR_COLORS, BR_TYPE, BR_SPACE } from '../../utils/brutalist';
 
 import { HomeSkeleton } from '../../components/SkeletonLoader';
-import AnimatedCoin from '../../components/AnimatedCoin';
+// Round 94 — AnimatedCoin import removed (gamification kill).
 import HeroDecision from '../../components/home/HeroDecision';
 import TodayAction from '../../components/home/TodayAction';
 import WeekStrip from '../../components/home/WeekStrip';
 import DiscoverDrawer from '../../components/home/DiscoverDrawer';
 import PremiumUpsellRow from '../../components/home/PremiumUpsellRow';
+import StarterPackCard from '../../components/home/StarterPackCard';
 
 import Confetti from '../../components/Confetti';
 import { useHomeNotifications } from '../../hooks/useHomeNotifications';
 import { useAfterFirstPaint, prefetchRoute } from '../../hooks/usePerf';
 import { useHomeBundleData } from '../../hooks/useHomeBundleData';
 import { usePriorityInsight } from '../../hooks/usePriorityInsight';
+import { useStarterCards } from '../../hooks/useStarterCards';
 import { ROUTES } from '../../constants/routes';
 
 function HomeScreen() {
@@ -71,7 +73,7 @@ function HomeScreen() {
   // SSoT — Home bundle (stats, snapshot, confetti lifecycle, etc.)
   const home = useHomeBundleData(lang);
   const {
-    stats, snapshot, coinsStatus,
+    stats, snapshot,
     loading, refreshing, showConfetti,
     onRefresh, onConfettiDone,
     txnCount,
@@ -80,10 +82,16 @@ function HomeScreen() {
   // ONE BRAIN — shared priority engine. Used by Hero + Today + AI Coach.
   const insight = usePriorityInsight();
 
+  // Round 98 — pre-seeded starter deck from `/api/onboarding/seed`.
+  // Only fetches when the user has no transactions yet; otherwise
+  // we skip the round-trip entirely (real data already drives the hero).
+  const { cards: starterCards, anchorPct, anchorCopy, seeded: starterSeeded } =
+    useStarterCards(Number(txnCount ?? 0) === 0);
+
   // Header callbacks (stable refs)
   const goSearch        = useCallback(() => router.push('/search' as any), []);
   const goNotifications = useCallback(() => router.push('/notifications' as any), []);
-  const goCoinLedger    = useCallback(() => router.push('/coin-ledger' as any), []);
+  // Round 94 — `goCoinLedger` removed (gamification kill, /coin-ledger deleted).
   const goProfile       = useCallback(() => router.push(ROUTES.PROFILE), []);
 
   const welcomeGreeting = useMemo(() => t('welcome_back', lang).toUpperCase(), [lang]);
@@ -154,17 +162,7 @@ function HomeScreen() {
               </View>
             )}
           </TouchableOpacity>
-          {coinsStatus && (
-            <TapTile
-              onPress={goCoinLedger}
-              style={styles.coinsChip}
-              feedback="light"
-              testID="header-coins-chip"
-              accessibilityLabel="Coin balance, view history"
-            >
-              <AnimatedCoin value={Number(coinsStatus.balance || 0)} size="sm" />
-            </TapTile>
-          )}
+          {/* Round 94 — coin chip removed (gamification kill, R92). */}
           <TapTile onPress={goProfile} style={styles.avatarWrap} feedback="selection">
             <View style={styles.avatarRing}>
               {avatar ? (
@@ -181,12 +179,27 @@ function HomeScreen() {
         {/* ── 1. HERO — Decision Context ────────────────────────── */}
         {/* Score + risk flag + ONE insight. Taps → AI Coach. */}
         {/* For zero-txn new users we SKIP the hero (no score yet)  */}
-        {/* and let TodayAction carry the whole surface.            */}
+        {/* and let the starter deck / TodayAction carry the surface. */}
         {txnCount > 0 && <HeroDecision insight={insight} />}
+
+        {/* ── 1a. STARTER PACK — Round 98 first-paint deck. ──────── */}
+        {/* Only appears for brand-new users who completed the       */}
+        {/* income slider but haven't logged any transactions yet.   */}
+        {txnCount === 0 && starterSeeded && starterCards.length > 0 && (
+          <StarterPackCard
+            cards={starterCards}
+            anchorPct={anchorPct}
+            anchorCopy={anchorCopy}
+          />
+        )}
 
         {/* ── 2. TODAY — Action Engine ──────────────────────────── */}
         {/* ONE primary action. Optional ONE secondary. Tappable → Coach. */}
-        <TodayAction insight={insight} />
+        {/* Hide Today when the starter deck is doing the work —     */}
+        {/* otherwise we'd stack two "do something" cards.           */}
+        {!(txnCount === 0 && starterSeeded && starterCards.length > 0) && (
+          <TodayAction insight={insight} />
+        )}
 
         {/* ── 3. THIS WEEK — Situational Awareness ──────────────── */}
         {/* ≤3 rows. Omits empty rows. Hidden if nothing to show.  */}

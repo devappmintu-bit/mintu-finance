@@ -12,7 +12,7 @@
  */
 import React from 'react';
 import { View, StyleSheet, ViewStyle, StyleProp } from 'react-native';
-import { brutalSurfaceStyle } from '../../utils/brutal';
+import { brutalSurfaceStyle } from '../../../utils/brutal';
 
 interface Props {
   children: React.ReactNode;

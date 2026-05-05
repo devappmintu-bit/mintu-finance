@@ -1,0 +1,133 @@
+{
+  "run_id": "r1777907776_674667",
+  "generated_at": "2026-05-04T15:16:46.433467+00:00",
+  "config": {
+    "n": 5,
+    "concurrency": 5,
+    "base_url": "http://localhost:8001",
+    "chaos_budget": 100,
+    "cleanup": true,
+    "cleanup_counts": {
+      "users": 0
+    }
+  },
+  "overall": {
+    "total_steps": 4,
+    "ok_steps": 0,
+    "fail_steps": 4,
+    "overall_error_rate": 1.0,
+    "duration_s": 25.2
+  },
+  "persona_mix": {
+    "saver": 3,
+    "overspender": 0,
+    "investor": 0,
+    "avoider": 1,
+    "impulsive_buyer": 1,
+    "debt_trapped": 0,
+    "minimalist": 0,
+    "wealth_optimizer": 0
+  },
+  "funnels": {
+    "onboarding": [
+      {
+        "step": "send_otp",
+        "reached": 0,
+        "drop_off_pct": 0.0
+      },
+      {
+        "step": "verify_otp",
+        "reached": 0,
+        "drop_off_pct": 0.0
+      },
+      {
+        "step": "profile",
+        "reached": 0,
+        "drop_off_pct": 0.0
+      }
+    ],
+    "coach": [
+      {
+        "step": "chat",
+        "reached": 0,
+        "drop_off_pct": 0.0
+      },
+      {
+        "step": "action_execute",
+        "reached": 0,
+        "drop_off_pct": 0.0
+      },
+      {
+        "step": "rewards_recent",
+        "reached": 0,
+        "drop_off_pct": 0.0
+      }
+    ],
+    "budget": [
+      {
+        "step": "upsert_budget",
+        "reached": 0,
+        "drop_off_pct": 0.0
+      },
+      {
+        "step": "add_txn",
+        "reached": 0,
+        "drop_off_pct": 0.0
+      },
+      {
+        "step": "breach_check",
+        "reached": 0,
+        "drop_off_pct": 0.0
+      }
+    ],
+    "goals": [
+      {
+        "step": "create_goal",
+        "reached": 0,
+        "drop_off_pct": 0.0
+      },
+      {
+        "step": "contribute_goal",
+        "reached": 0,
+        "drop_off_pct": 0.0
+      }
+    ]
+  },
+  "by_step": {
+    "onboarding::send_otp": {
+      "count": 4,
+      "ok": 0,
+      "fail": 4,
+      "error_rate": 1.0,
+      "p50_ms": 25047,
+      "p95_ms": 25056,
+      "p99_ms": 25057,
+      "top_errors": [
+        [
+          "timeout",
+          4
+        ]
+      ]
+    }
+  },
+  "by_persona": {
+    "impulsive_buyer": {
+      "steps": 1,
+      "ok": 0,
+      "fail": 1,
+      "error_rate": 1.0
+    },
+    "saver": {
+      "steps": 3,
+      "ok": 0,
+      "fail": 3,
+      "error_rate": 1.0
+    }
+  },
+  "chaos": {
+    "events_capacity_remaining": 100,
+    "by_kind": {},
+    "events": []
+  },
+  "action_items": []
+}

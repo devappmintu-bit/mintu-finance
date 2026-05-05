@@ -32,7 +32,7 @@ import Animated, {
   withTiming,
   Easing,
 } from 'react-native-reanimated';
-import { COLORS } from '../../utils/theme';
+import { COLORS } from '../../../utils/theme';
 
 type Props = {
   visible: boolean;

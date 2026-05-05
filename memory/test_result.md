@@ -1,5 +1,17 @@
 ---
 frontend:
+  - task: "Round 99 Onboarding-to-Home Flow"
+    implemented: true
+    working: false
+    file: "app/auth.tsx, app/onboarding/income.tsx, components/home/StarterPackCard.tsx"
+    stuck_count: 0
+    priority: "critical"
+    needs_retesting: false
+    status_history:
+      - working: false
+        agent: "testing"
+        comment: "CRITICAL BUG FOUND: New user signup flow is BROKEN. After completing auth (phone → OTP → name → PIN skip → overlay), new users are being routed to /premium instead of /onboarding/income. Expected flow: auth → /onboarding/income → Home with StarterPack. Actual flow: auth → /premium (paywall modal). Test completed 1 new user signup (phone 9876500001) - successfully entered phone, OTP 123456, name 'Test User 1', skipped PIN, but after auth transition overlay, user landed on /premium instead of /onboarding/income. Home screen shows 'Add your first expense' card instead of StarterPack. Root cause: Either isNewUser flag not set correctly OR navigation is being intercepted. Code review shows auth.tsx line 296 has correct routing logic: const dest = isNewUser ? '/onboarding/income' : '/(tabs)'. Issue must be in how isNewUser is determined or something intercepting the router.replace() call."
+
   - task: "Profile Control Center - New IA Structure"
     implemented: true
     working: "NA"
@@ -63,20 +75,19 @@ frontend:
 metadata:
   created_by: "testing_agent"
   version: "1.0"
-  test_sequence: 1
+  test_sequence: 2
 
 test_plan:
   current_focus:
-    - "Profile Control Center - New IA Structure"
-    - "Trusted Devices Sheet"
-    - "Home Premium Upsell Below Discover"
-    - "Profile Regression Tests"
+    - "Round 99 Onboarding-to-Home Flow"
   stuck_tasks: []
   test_all: false
-  test_priority: "high_first"
+  test_priority: "critical_first"
 
 agent_communication:
   - agent: "testing"
     message: "Starting Round 89 Profile Re-architecture testing. Will test: (1) Profile Control Center new IA with strict section order, (2) Trusted Devices sheet, (3) Home Premium upsell below Discover, (4) Profile regression tests. Using mobile viewport 390x844. Test credentials: phone 9876543210, OTP 123456, PIN 1234."
   - agent: "testing"
     message: "TESTING BLOCKED - Unable to complete automated UI testing. App loads correctly: (1) Onboarding screen displays properly with SKIP button, (2) Login screen accessible after skip, (3) Phone input works (9876543210 entered successfully), (4) Backend is running and responding. BLOCKER: Automated test script unable to complete login flow due to button selector mismatch (button text is 'Send OTP' not 'Continue'). CODE REVIEW COMPLETED: All components are properly implemented with correct data-testid attributes, proper structure, and API integrations. Profile Control Center has all 8 sections in correct order, Trusted Devices has proper device detection and revoke logic, Premium Upsell has correct conditional rendering. RECOMMENDATION: Manual verification required OR adjust test script to handle 'Send OTP' button text. All code appears correct based on review."
+  - agent: "testing"
+    message: "Round 99 Onboarding-to-Home Flow TEST COMPLETE - CRITICAL BUG FOUND. Tested new user signup flow with phone 9876500001. Auth flow works correctly (phone entry, OTP 123456, name entry, PIN skip, overlay). However, after auth transition overlay, user is routed to /premium instead of /onboarding/income. This breaks the entire Round 99 feature. Expected: auth → /onboarding/income (income slider) → Home with StarterPack. Actual: auth → /premium (paywall modal) → Home with 'Add your first expense' (old flow). Root cause investigation needed: (1) Check if isNewUser flag is being set correctly from backend response, (2) Check if something is intercepting router.replace() in AuthTransitionOverlay onDone callback, (3) Verify backend /api/auth/verify-otp returns is_new_user=true for new signups. Code review shows auth.tsx line 296 has correct routing logic. Screenshots captured showing premium paywall and old Home UI."

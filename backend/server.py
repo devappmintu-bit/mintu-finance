@@ -295,6 +295,14 @@ app.include_router(api_router)
 # ══════════════════════════════════════════════════════════════════════
 #  MIDDLEWARE REGISTRATION (order matters — last added runs first)
 # ══════════════════════════════════════════════════════════════════════
+# Round 99 — Idempotency-Key enforcement on financial mutations.
+# Installed BEFORE the other security middlewares so it runs LAST in
+# the request chain (Starlette stacks middleware in reverse) — meaning
+# Idempotency runs first, gets to short-circuit a replayed call before
+# we even hit auth/audit overhead. Warn-only by default; flip
+# IDEMPOTENCY_REQUIRED=1 in env to hard-enforce.
+from core.idempotency_middleware import IdempotencyMiddleware  # noqa: E402
+app.add_middleware(IdempotencyMiddleware)
 app.add_middleware(SecurityHeadersMiddleware)
 app.add_middleware(RateLimitMiddleware)
 app.add_middleware(AuditLogMiddleware)

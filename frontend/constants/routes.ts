@@ -28,6 +28,9 @@ export const ROUTES = {
   // ── Auth / onboarding ──
   AUTH:          '/auth',
   ONBOARDING:    '/onboarding',
+  // Round 98 — TTFV<45s single-slider step. New users land here
+  // DIRECTLY after OTP success; feeds the Home pre-seed.
+  ONBOARDING_INCOME: '/onboarding/income',
 
   // ── Premium ──
   PREMIUM:           '/premium',

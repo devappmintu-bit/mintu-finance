@@ -1,0 +1,187 @@
+{
+  "run_id": "r1777912724_ad4eae",
+  "generated_at": "2026-05-04T16:41:24.830519+00:00",
+  "config": {
+    "n": 50,
+    "concurrency": 8,
+    "base_url": "http://localhost:8001",
+    "chaos_budget": 200,
+    "cleanup": true,
+    "cleanup_counts": {
+      "users": 0
+    }
+  },
+  "overall": {
+    "total_steps": 47,
+    "ok_steps": 0,
+    "fail_steps": 47,
+    "overall_error_rate": 1.0,
+    "duration_s": 150.5
+  },
+  "persona_mix": {
+    "saver": 6,
+    "overspender": 9,
+    "investor": 2,
+    "avoider": 14,
+    "impulsive_buyer": 13,
+    "debt_trapped": 3,
+    "minimalist": 2,
+    "wealth_optimizer": 1
+  },
+  "funnels": {
+    "onboarding": [
+      {
+        "step": "send_otp",
+        "reached": 0,
+        "drop_off_pct": 0.0
+      },
+      {
+        "step": "verify_otp",
+        "reached": 0,
+        "drop_off_pct": 0.0
+      },
+      {
+        "step": "profile",
+        "reached": 0,
+        "drop_off_pct": 0.0
+      }
+    ],
+    "coach": [
+      {
+        "step": "chat",
+        "reached": 0,
+        "drop_off_pct": 0.0
+      },
+      {
+        "step": "action_execute",
+        "reached": 0,
+        "drop_off_pct": 0.0
+      },
+      {
+        "step": "rewards_recent",
+        "reached": 0,
+        "drop_off_pct": 0.0
+      }
+    ],
+    "budget": [
+      {
+        "step": "upsert_budget",
+        "reached": 0,
+        "drop_off_pct": 0.0
+      },
+      {
+        "step": "add_txn",
+        "reached": 0,
+        "drop_off_pct": 0.0
+      },
+      {
+        "step": "breach_check",
+        "reached": 0,
+        "drop_off_pct": 0.0
+      }
+    ],
+    "goals": [
+      {
+        "step": "create_goal",
+        "reached": 0,
+        "drop_off_pct": 0.0
+      },
+      {
+        "step": "contribute_goal",
+        "reached": 0,
+        "drop_off_pct": 0.0
+      }
+    ]
+  },
+  "by_step": {
+    "onboarding::send_otp": {
+      "count": 47,
+      "ok": 0,
+      "fail": 47,
+      "error_rate": 1.0,
+      "p50_ms": 25061,
+      "p95_ms": 25092,
+      "p99_ms": 25093,
+      "top_errors": [
+        [
+          "timeout",
+          47
+        ]
+      ]
+    }
+  },
+  "by_persona": {
+    "impulsive_buyer": {
+      "steps": 13,
+      "ok": 0,
+      "fail": 13,
+      "error_rate": 1.0
+    },
+    "avoider": {
+      "steps": 13,
+      "ok": 0,
+      "fail": 13,
+      "error_rate": 1.0
+    },
+    "investor": {
+      "steps": 2,
+      "ok": 0,
+      "fail": 2,
+      "error_rate": 1.0
+    },
+    "saver": {
+      "steps": 6,
+      "ok": 0,
+      "fail": 6,
+      "error_rate": 1.0
+    },
+    "minimalist": {
+      "steps": 2,
+      "ok": 0,
+      "fail": 2,
+      "error_rate": 1.0
+    },
+    "overspender": {
+      "steps": 9,
+      "ok": 0,
+      "fail": 9,
+      "error_rate": 1.0
+    },
+    "wealth_optimizer": {
+      "steps": 1,
+      "ok": 0,
+      "fail": 1,
+      "error_rate": 1.0
+    },
+    "debt_trapped": {
+      "steps": 1,
+      "ok": 0,
+      "fail": 1,
+      "error_rate": 1.0
+    }
+  },
+  "chaos": {
+    "events_capacity_remaining": 200,
+    "by_kind": {},
+    "events": []
+  },
+  "action_items": [
+    {
+      "step": "onboarding::send_otp",
+      "severity": "\ud83d\udd34 critical",
+      "count": 47,
+      "ok": 0,
+      "fail": 47,
+      "error_rate": 1.0,
+      "p50_ms": 25061,
+      "p95_ms": 25092,
+      "p99_ms": 25093,
+      "top_errors": [
+        [
+          "timeout",
+          47
+        ]
+      ]
+    }
+  ]
+}

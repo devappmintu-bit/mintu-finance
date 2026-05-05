@@ -115,25 +115,12 @@ async def apply_referral_code(code: dict, user_id: str = Depends(get_current_use
 
 @router.get("/leaderboard")
 async def referral_leaderboard():
-    """Top referrers (publicly accessible)."""
-    pipeline = [
-        {"$group": {"_id": "$referrer_id", "count": {"$sum": 1}}},
-        {"$sort": {"count": -1}},
-        {"$limit": 10},
-    ]
-    results = await db.referrals.aggregate(pipeline).to_list(10)
-    # Round 44 perf — was N+1: one users.find_one per row. Single $in batch.
-    user_ids = [ObjectId(r["_id"]) for r in results if r.get("_id")]
-    user_map: dict[str, dict] = {}
-    if user_ids:
-        async for u in db.users.find({"_id": {"$in": user_ids}}, {"name": 1}):
-            user_map[str(u["_id"])] = u
-    leaderboard = []
-    for r in results:
-        u = user_map.get(str(r["_id"]))
-        if u:
-            leaderboard.append({"name": u.get("name", "Friend"), "referrals": r["count"]})
-    return {"leaderboard": leaderboard}
+    """[DEPRECATED — Round 92] Returns 410 Gone."""
+    from fastapi import HTTPException
+    raise HTTPException(status_code=410, detail={
+        "deprecated": True,
+        "reason": "referral_leaderboard_removed",
+    })
 
 
 @router.get("/enhanced-status")

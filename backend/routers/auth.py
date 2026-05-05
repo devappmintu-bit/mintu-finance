@@ -22,13 +22,29 @@ router = APIRouter(tags=["auth"])
 # ── OTP config ─────────────────────────────────────────────────────────
 OTP_EXPIRY_MINUTES = 5
 MAX_OTP_ATTEMPTS = 3
-MOCK_OTP_MODE = True  # Flip to False after integrating Twilio/MSG91
+# Round 95 — MOCK_OTP_MODE now reads from env so prod can flip it without
+# a code-deploy. In dev (env unset) it stays True for stable test login.
+# Set MOCK_OTP_MODE=false in prod after wiring Twilio/MSG91.
+import os as _os
+MOCK_OTP_MODE = (_os.environ.get("MOCK_OTP_MODE", "true").lower() != "false")
 
 
 # ── Lazy imports — break circular import with server.py ────────────────
+# Round 94 — async bcrypt wrappers prevent the verify-otp event-loop
+# stall the simulation engine surfaced (RemoteProtocolError @ c=10).
 def _hash_password(pw: str) -> str:
     from server import hash_password
     return hash_password(pw)
+
+
+async def _hash_password_async(pw: str) -> str:
+    from core.auth_helpers import hash_password_async
+    return await hash_password_async(pw)
+
+
+async def _verify_password_async(pw: str, hashed: str) -> bool:
+    from core.auth_helpers import verify_password_async
+    return await verify_password_async(pw, hashed)
 
 
 # ── Round 88 — per-device refresh-token session helper ────────────────
@@ -77,12 +93,6 @@ async def _maybe_issue_session(user_id: str, request) -> dict:
         return {}
 
 
-def _hash_password_deprecated_placeholder(pw: str) -> str:
-    """Intentional no-op — kept only to reserve the name so future
-    forks don't accidentally collide with it."""
-    return pw
-
-
 def _verify_password(pw: str, hashed: str) -> bool:
     from server import verify_password
     return verify_password(pw, hashed)
@@ -119,7 +129,7 @@ async def register(user_data: UserCreate):
     user = {
         "phone": user_data.phone,
         "name": user_data.name,
-        "password": _hash_password(user_data.password),
+        "password": await _hash_password_async(user_data.password),
         "money_score": 50,
         "created_at": utc_now(),
     }
@@ -142,7 +152,7 @@ async def register(user_data: UserCreate):
 @router.post("/auth/login")
 async def login(credentials: UserLogin):
     user = await db.users.find_one({"phone": credentials.phone})
-    if not user or not _verify_password(credentials.password, user["password"]):
+    if not user or not await _verify_password_async(credentials.password, user["password"]):
         raise HTTPException(status_code=401, detail="Invalid credentials")
 
     user_id = str(user["_id"])
@@ -178,7 +188,7 @@ async def send_otp(request: OTPSendRequest):
         raise HTTPException(status_code=429, detail="Please wait 30 seconds before requesting another OTP")
 
     otp_code = generate_otp()
-    otp_hash = _hash_password(otp_code)
+    otp_hash = await _hash_password_async(otp_code)
 
     await db.otps.delete_many({"phone": phone})
     await db.otps.insert_one({
@@ -234,7 +244,7 @@ async def verify_otp(request: OTPVerifyRequest):
 
     await db.otps.update_one({"_id": otp_record["_id"]}, {"$inc": {"attempts": 1}})
 
-    if not _verify_password(otp, otp_record["otp_hash"]):
+    if not await _verify_password_async(otp, otp_record["otp_hash"]):
         # Log failed attempt for phone-level tracking
         await db.otp_audit.insert_one({
             "phone": phone,
@@ -281,7 +291,7 @@ async def verify_otp(request: OTPVerifyRequest):
     new_user = {
         "phone": phone,
         "name": request.name.strip(),
-        "password": _hash_password(''.join(random.choices(string.ascii_letters + string.digits, k=16))),
+        "password": await _hash_password_async(''.join(random.choices(string.ascii_letters + string.digits, k=16))),
         "money_score": 50,
         "created_at": utc_now(),
     }

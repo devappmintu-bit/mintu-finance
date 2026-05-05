@@ -25,7 +25,7 @@ import api from '../utils/api';
 import { useAuthStore } from '../store/authStore';
 import { useFinContext } from '../store/financialContext';
 import { fetchCurrentUser, fetchAvatar } from '../services/user';
-import { awardCoins } from '../services/premium';
+// Round 92 — gamification hard-killed. awardCoins is now a no-op stub.
 import { fetchStatsOverview, fetchTransactions } from '../services/transactions';
 import { runWhenIdle } from './usePerf';
 
@@ -37,7 +37,7 @@ export type HomeBundleData = {
   recentTxns: any[];
   smartAlerts: any[];
   weeklyReport: any;
-  coinsStatus: any;
+  // Round 94 — coinsStatus removed (gamification kill).
   news: any[];
   newsUpdatedAt: string | null;
   newsLoading: boolean;
@@ -78,7 +78,7 @@ export function useHomeBundleData(lang: string): HomeBundleData {
   const [recentTxns, setRecentTxns] = useState<any[]>([]);
   const [smartAlerts, setSmartAlerts] = useState<any[]>([]);
   const [weeklyReport, setWeeklyReport] = useState<any>(null);
-  const [coinsStatus, setCoinsStatus] = useState<any>(null);
+  // Round 94 — coinsStatus state removed (gamification kill).
   const [showConfetti, setShowConfetti] = useState(false);
   const [news, setNews] = useState<any[]>([]);
   const [newsUpdatedAt, setNewsUpdatedAt] = useState<string | null>(null);
@@ -133,7 +133,7 @@ export function useHomeBundleData(lang: string): HomeBundleData {
           setSmartAlerts(b.alerts?.alerts || []);
           if (b.weekly_report) setWeeklyReport(b.weekly_report);
           if (b.ai_predict) setPredict(b.ai_predict);
-          if (b.coins) setCoinsStatus(b.coins);
+          // Round 94 — `b.coins` no longer in bundle.
           // Round 82 — SSoT adoption. Push the bundle into useFinContext
           // so downstream consumers (AIBrainDashboard, NewsCardStack,
           // useBrainInsight) see fresh numbers without re-fetching.
@@ -144,9 +144,12 @@ export function useHomeBundleData(lang: string): HomeBundleData {
         if (res.isStale) {
           res.fresh.then((fresh) => { if (fresh) paint(fresh); }).catch(() => {});
         }
-        awardCoins('open_app_daily').then(data => ({ data }))
-          .then((r) => { if (r?.data?.awarded > 0) setShowConfetti(true); })
-          .catch(() => {});
+        // Round 92 — coin awards killed. Confetti/celebration now driven
+        // by /coach/rewards/recent (projected savings) instead.
+        try {
+          const r = await api.get('/coach/rewards/recent');
+          if (r?.data?.reward) setShowConfetti(true);
+        } catch { /* noop */ }
         fetchNews(false);
         setRefreshing(false);
         return;
@@ -168,24 +171,19 @@ export function useHomeBundleData(lang: string): HomeBundleData {
       // Phase 2 — defer non-critical fetches until idle.
       InteractionManager.runAfterInteractions(async () => {
         try {
-          const [avatarRes, snapRes, alertsRes, reportRes, predRes, coinsRes, _openCoinsAward] = await Promise.all([
+          const [avatarRes, snapRes, alertsRes, reportRes, predRes] = await Promise.all([
             fetchAvatar().then(data => ({ data })).catch(() => ({ data: null })),
             api.get('/home/snapshot').catch(() => ({ data: null })),
             api.get('/alerts/smart').catch(() => ({ data: { alerts: [] } })),
             api.get('/reports/weekly').catch(() => ({ data: null })),
             api.get('/ai/predict').catch(() => ({ data: null })),
-            api.get('/coins/status').catch(() => ({ data: null })),
-            awardCoins('open_app_daily').then(data => ({ data })).catch(() => ({ data: null })),
+            // Round 92 — /coins/status + awardCoins polling killed.
           ]);
           if (avatarRes.data?.avatar) setAvatar(avatarRes.data.avatar);
           if (snapRes.data) setSnapshot(snapRes.data);
           setSmartAlerts(alertsRes.data?.alerts || []);
           if (reportRes.data) setWeeklyReport(reportRes.data);
           if (predRes.data) setPredict(predRes.data);
-          if (coinsRes.data) setCoinsStatus(coinsRes.data);
-          if (_openCoinsAward?.data?.awarded && _openCoinsAward.data.awarded > 0) {
-            setShowConfetti(true);
-          }
         } catch (e) { if (__DEV__) console.error('Phase2 err', e); }
         // News fires last so the visible feed paints before remote feeds.
         fetchNews(false);
@@ -281,7 +279,7 @@ export function useHomeBundleData(lang: string): HomeBundleData {
   const moneyScore = Number(user?.money_score || 0);
 
   return {
-    stats, snapshot, predict, recentTxns, smartAlerts, weeklyReport, coinsStatus,
+    stats, snapshot, predict, recentTxns, smartAlerts, weeklyReport,
     news, newsUpdatedAt, newsLoading,
     loading, refreshing, loadError, showConfetti,
     onRefresh, onRefreshNews, onConfettiDone, retry,

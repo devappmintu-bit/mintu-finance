@@ -26,12 +26,15 @@ DESIGN DECISIONS
    we return ``None`` for ``cached`` and the loser is **rejected
    with HTTP 409**. This is intentional — better than serving an
    uncommitted partial.
+5. On 4xx handler responses we ``release_idempotency`` so the user
+   can retry with fixed inputs using the SAME key (Stripe behaviour).
 
 PUBLIC API
 ----------
     await reserve_idempotency(user_id, scope, key)
     await commit_idempotency(user_id, scope, key, response_json)
     await replay_idempotency(user_id, scope, key) -> Optional[dict]
+    await release_idempotency(user_id, scope, key)
 """
 from __future__ import annotations
 
@@ -124,10 +127,36 @@ async def replay_idempotency(user_id: str, scope: str, key: str) -> Optional[Dic
     return doc.get("response")
 
 
+async def release_idempotency(user_id: str, scope: str, key: str) -> bool:
+    """Release a previously reserved (but uncommitted) key so the user
+    can retry with fixed inputs.
+
+    Used by the HTTP middleware when the handler returns 4xx — the
+    handler's response was an input-validation failure, NOT a
+    successful mutation, so the user should be allowed to retry the
+    same logical operation (same Idempotency-Key) with corrected
+    inputs. Stripe documents this exact behaviour.
+
+    Returns True if a reservation was released, False if there was
+    nothing to release (key never existed, or it was already
+    committed — committed rows are NEVER released, that would
+    invalidate the exactly-once guarantee).
+    """
+    _validate_key(key)
+    composite_id = f"{user_id}::{scope}::{key}"
+    # Only delete RESERVED rows; never blow away a committed response.
+    res = await db.idempotency_keys.delete_one({
+        "_id": composite_id,
+        "status": "reserved",
+    })
+    return res.deleted_count > 0
+
+
 __all__ = [
     "IDEMPOTENCY_TTL_SEC",
     "MAX_KEY_LEN",
     "reserve_idempotency",
     "commit_idempotency",
     "replay_idempotency",
+    "release_idempotency",
 ]

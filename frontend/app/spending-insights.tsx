@@ -105,16 +105,14 @@ export default function SpendingInsightsScreen() {
   }, []);
 
   const load = useCallback(async () => {
-    // All three endpoints run in parallel. One failure does NOT blank
-    // the whole screen — we only show the cards that succeeded.
+    // Round 94 — /leaderboard/friends retired (gamification kill, R92).
+    // Two endpoints in parallel. One failure does NOT blank the screen.
     const results = await Promise.allSettled([
       api.get('/home/snapshot'),
-      api.get('/leaderboard/friends'),
       api.get('/analytics/yearly'),
     ]);
-    const [snapRes, friendRes, yearRes] = results;
+    const [snapRes, yearRes] = results;
     if (snapRes.status === 'fulfilled') setSnap(snapRes.value.data);
-    if (friendRes.status === 'fulfilled') setFriends(friendRes.value.data);
     if (yearRes.status === 'fulfilled') setYearly(yearRes.value.data);
     const fails = results.filter(r => r.status === 'rejected').length;
     setErrorCount(fails);

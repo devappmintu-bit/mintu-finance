@@ -22,7 +22,6 @@ import { router } from 'expo-router';
 import { BR_COLORS, BR_TYPE, BR_SPACE, BR_BORDER } from '../../utils/brutalist';
 import { ROUTES } from '../../constants/routes';
 import { useNewsLite, getCachedNewsTop, setSelectedNews, type NewsItem } from '../../hooks/useNewsLite';
-import { router } from 'expo-router';
 
 type Row = {
   icon: keyof typeof Ionicons.glyphMap;

@@ -1,0 +1,299 @@
+{
+  "run_id": "r1777908322_2726cf",
+  "generated_at": "2026-05-04T15:26:01.293773+00:00",
+  "config": {
+    "n": 20,
+    "concurrency": 10,
+    "base_url": "http://localhost:8001",
+    "chaos_budget": 100,
+    "cleanup": true,
+    "cleanup_counts": {
+      "transactions": 0,
+      "budgets": 1,
+      "goals": 0,
+      "coach_rewards": 1,
+      "user_coach_context": 5,
+      "coach_trigger_history": 0,
+      "notifications_log": 0,
+      "sessions": 18,
+      "refresh_tokens": 0,
+      "score_history": 0,
+      "users": 18
+    }
+  },
+  "overall": {
+    "total_steps": 52,
+    "ok_steps": 33,
+    "fail_steps": 19,
+    "overall_error_rate": 0.365,
+    "duration_s": 33.4
+  },
+  "persona_mix": {
+    "saver": 3,
+    "overspender": 6,
+    "investor": 4,
+    "avoider": 3,
+    "impulsive_buyer": 0,
+    "debt_trapped": 3,
+    "minimalist": 1,
+    "wealth_optimizer": 0
+  },
+  "funnels": {
+    "onboarding": [
+      {
+        "step": "send_otp",
+        "reached": 18,
+        "drop_off_pct": 0.0
+      },
+      {
+        "step": "verify_otp",
+        "reached": 7,
+        "drop_off_pct": 61.1
+      },
+      {
+        "step": "profile",
+        "reached": 3,
+        "drop_off_pct": 57.1
+      }
+    ],
+    "coach": [
+      {
+        "step": "chat",
+        "reached": 3,
+        "drop_off_pct": 0.0
+      },
+      {
+        "step": "action_execute",
+        "reached": 1,
+        "drop_off_pct": 66.7
+      },
+      {
+        "step": "rewards_recent",
+        "reached": 1,
+        "drop_off_pct": 0.0
+      }
+    ],
+    "budget": [
+      {
+        "step": "upsert_budget",
+        "reached": 0,
+        "drop_off_pct": 0.0
+      },
+      {
+        "step": "add_txn",
+        "reached": 0,
+        "drop_off_pct": 0.0
+      },
+      {
+        "step": "breach_check",
+        "reached": 0,
+        "drop_off_pct": 0.0
+      }
+    ],
+    "goals": [
+      {
+        "step": "create_goal",
+        "reached": 0,
+        "drop_off_pct": 0.0
+      },
+      {
+        "step": "contribute_goal",
+        "reached": 0,
+        "drop_off_pct": 0.0
+      }
+    ]
+  },
+  "by_step": {
+    "onboarding::send_otp": {
+      "count": 18,
+      "ok": 18,
+      "fail": 0,
+      "error_rate": 0.0,
+      "p50_ms": 3029,
+      "p95_ms": 6353,
+      "p99_ms": 6899,
+      "top_errors": []
+    },
+    "onboarding::verify_otp": {
+      "count": 18,
+      "ok": 7,
+      "fail": 11,
+      "error_rate": 0.611,
+      "p50_ms": 6699,
+      "p95_ms": 12094,
+      "p99_ms": 12462,
+      "top_errors": [
+        [
+          "RemoteProtocolError: Server disconnected without sending a response.",
+          11
+        ]
+      ]
+    },
+    "budget::upsert_budget": {
+      "count": 4,
+      "ok": 0,
+      "fail": 4,
+      "error_rate": 1.0,
+      "p50_ms": 983,
+      "p95_ms": 1626,
+      "p99_ms": 1672,
+      "top_errors": [
+        [
+          "405: {\"detail\":\"Method Not Allowed\"}",
+          4
+        ]
+      ]
+    },
+    "onboarding::profile": {
+      "count": 3,
+      "ok": 3,
+      "fail": 0,
+      "error_rate": 0.0,
+      "p50_ms": 3192,
+      "p95_ms": 6448,
+      "p99_ms": 6738,
+      "top_errors": []
+    },
+    "coach::chat": {
+      "count": 5,
+      "ok": 3,
+      "fail": 2,
+      "error_rate": 0.4,
+      "p50_ms": 6547,
+      "p95_ms": 11327,
+      "p99_ms": 11857,
+      "top_errors": [
+        [
+          "RemoteProtocolError: peer closed connection without sending complete message body (received 0 bytes, expected 569)",
+          1
+        ],
+        [
+          "RemoteProtocolError: Server disconnected without sending a response.",
+          1
+        ]
+      ]
+    },
+    "goals::create_goal": {
+      "count": 2,
+      "ok": 0,
+      "fail": 2,
+      "error_rate": 1.0,
+      "p50_ms": 3407,
+      "p95_ms": 6419,
+      "p99_ms": 6687,
+      "top_errors": [
+        [
+          "422: {\"detail\":[{\"type\":\"missing\",\"loc\":[\"body\",\"name\"],\"msg\":\"Field required\",\"input\":{\"title\":\"Goa trip\",\"target_amount\":22",
+          1
+        ],
+        [
+          "422: {\"detail\":[{\"type\":\"missing\",\"loc\":[\"body\",\"name\"],\"msg\":\"Field required\",\"input\":{\"title\":\"Emergency fund\",\"target_amou",
+          1
+        ]
+      ]
+    },
+    "coach::action_execute": {
+      "count": 1,
+      "ok": 1,
+      "fail": 0,
+      "error_rate": 0.0,
+      "p50_ms": 72,
+      "p95_ms": 72,
+      "p99_ms": 72,
+      "top_errors": []
+    },
+    "coach::rewards_recent": {
+      "count": 1,
+      "ok": 1,
+      "fail": 0,
+      "error_rate": 0.0,
+      "p50_ms": 61,
+      "p95_ms": 61,
+      "p99_ms": 61,
+      "top_errors": []
+    }
+  },
+  "by_persona": {
+    "investor": {
+      "steps": 17,
+      "ok": 11,
+      "fail": 6,
+      "error_rate": 0.353
+    },
+    "overspender": {
+      "steps": 15,
+      "ok": 10,
+      "fail": 5,
+      "error_rate": 0.333
+    },
+    "minimalist": {
+      "steps": 4,
+      "ok": 3,
+      "fail": 1,
+      "error_rate": 0.25
+    },
+    "saver": {
+      "steps": 6,
+      "ok": 3,
+      "fail": 3,
+      "error_rate": 0.5
+    },
+    "debt_trapped": {
+      "steps": 6,
+      "ok": 4,
+      "fail": 2,
+      "error_rate": 0.333
+    },
+    "avoider": {
+      "steps": 4,
+      "ok": 2,
+      "fail": 2,
+      "error_rate": 0.5
+    }
+  },
+  "chaos": {
+    "events_capacity_remaining": 100,
+    "by_kind": {},
+    "events": []
+  },
+  "action_items": [
+    {
+      "step": "onboarding::verify_otp",
+      "severity": "\ud83d\udd34 critical",
+      "count": 18,
+      "ok": 7,
+      "fail": 11,
+      "error_rate": 0.611,
+      "p50_ms": 6699,
+      "p95_ms": 12094,
+      "p99_ms": 12462,
+      "top_errors": [
+        [
+          "RemoteProtocolError: Server disconnected without sending a response.",
+          11
+        ]
+      ]
+    },
+    {
+      "step": "coach::chat",
+      "severity": "\ud83d\udd34 critical",
+      "count": 5,
+      "ok": 3,
+      "fail": 2,
+      "error_rate": 0.4,
+      "p50_ms": 6547,
+      "p95_ms": 11327,
+      "p99_ms": 11857,
+      "top_errors": [
+        [
+          "RemoteProtocolError: peer closed connection without sending complete message body (received 0 bytes, expected 569)",
+          1
+        ],
+        [
+          "RemoteProtocolError: Server disconnected without sending a response.",
+          1
+        ]
+      ]
+    }
+  ]
+}
