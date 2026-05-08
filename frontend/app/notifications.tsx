@@ -1,39 +1,59 @@
 /**
- * Round 37 — Notifications screen.
+ * Notifications screen — R113 brutal convergence.
  *
  * Lists the user's persistent notification feed, newest-first.
- * Unread rows get a bold title + orange dot; tap marks-read + deep-links
- * to the relevant screen per `kind`.
+ * Migrated from custom styles to BrutalCard + brutal tokens —
+ * unread rows pop with `warm` variant, read rows are flat ghosts.
+ * EmptyState now uses BrutalEmptyState; mark-all uses BrutalButton.
  */
 import React, { useCallback, useEffect, useState } from 'react';
 import {
-  View, Text, StyleSheet, FlatList, TouchableOpacity, RefreshControl, Platform, ActivityIndicator,
+  View,
+  Text,
+  StyleSheet,
+  FlatList,
+  Pressable,
+  RefreshControl,
+  Platform,
+  ActivityIndicator,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import * as Haptics from 'expo-haptics';
 import Toast from 'react-native-toast-message';
-import EmptyState from '../components/ui/EmptyState';
+
+import {
+  BrutalCard,
+  BrutalEmptyState,
+  BrutalBadge,
+  BR_COLORS,
+  BR_BORDER,
+  BR_SHADOW,
+  BR_SPACE,
+  BR_FONT,
+  PALETTE,
+} from '../components/brutal';
 import Skeleton from '../components/ui/Skeleton';
 import { StaggeredListItem } from '../components/primitives';
-import { COLORS, SPACING } from '../utils/theme';
 import {
-  fetchNotifications, markRead, markAllRead, seedSampleNotifications,
-  deeplinkFor, timeAgo, NotifItem, NotifKind,
+  fetchNotifications,
+  markRead,
+  markAllRead,
+  seedSampleNotifications,
+  deeplinkFor,
+  timeAgo,
+  NotifItem,
+  NotifKind,
 } from '../services/notifications';
 
-// Categorical icon palette per notification kind. These hex literals are an
-// intentional brand identity per Round 50 audit (similar to CATEGORIES[].color
-// in theme.ts) — each kind gets a distinct, recognizable tint that reads in
-// both light and dark themes.
 const ICONS: Record<NotifKind, { emoji: string; tint: string }> = {
-  transaction:  { emoji: '💸', tint: '#E84A0C' },
-  streak:       { emoji: '🔥', tint: COLORS.accent.secondary },
-  reward:       { emoji: '🎁', tint: '#A21CAF' },
-  split:        { emoji: '👥', tint: COLORS.state.successAlt },
-  goal:         { emoji: '🎯', tint: '#3B82F6' },
-  budget_alert: { emoji: '⚠️', tint: COLORS.state.danger },
+  transaction:  { emoji: '💸', tint: PALETTE.brand },
+  streak:       { emoji: '🔥', tint: PALETTE.warm },
+  reward:       { emoji: '🎁', tint: PALETTE.purple },
+  split:        { emoji: '👥', tint: PALETTE.lime },
+  goal:         { emoji: '🎯', tint: PALETTE.cyan },
+  budget_alert: { emoji: '⚠️', tint: PALETTE.danger },
 };
 
 export default function NotificationsScreen() {
@@ -46,8 +66,6 @@ export default function NotificationsScreen() {
     if (!opts.silent) setLoadError(false);
     try {
       let list = await fetchNotifications(100);
-      // Dev convenience — if the feed is completely empty, seed 4 sample rows
-      // so the screen isn't a one-shot empty state during local testing.
       if (!list.length) {
         await seedSampleNotifications();
         list = await fetchNotifications(100);
@@ -55,15 +73,14 @@ export default function NotificationsScreen() {
       setItems(list);
     } catch {
       setLoadError(true);
-      setItems(items || []);
+      setItems((prev) => prev ?? []);
     }
-  }, [items]);
+  }, []);
 
   useEffect(() => { load(); }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   const onPressItem = useCallback(async (n: NotifItem) => {
     if (Platform.OS !== 'web') { try { Haptics.selectionAsync(); } catch {} }
-    // Optimistic mark-as-read — user expects the dot to disappear instantly.
     if (!n.read) {
       setItems((prev) => (prev || []).map((x) => (x.id === n.id ? { ...x, read: true } : x)));
       markRead(n.id).catch(() => {});
@@ -75,13 +92,12 @@ export default function NotificationsScreen() {
   const onMarkAll = useCallback(async () => {
     if (markingAll) return;
     setMarkingAll(true);
-    // Optimistic — flip everything to read first, roll back on failure.
     const prev = items || [];
     setItems(prev.map((x) => ({ ...x, read: true })));
     try {
       const n = await markAllRead();
       if (Platform.OS !== 'web') { try { Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success); } catch {} }
-      Toast.show({ type: 'success', text1: 'All caught up', text2: n ? `${n} marked as read` : 'Nothing new to mark' });
+      Toast.show({ type: 'success', text1: 'All caught up', text2: n ? `${n} marked as read` : 'Nothing new' });
     } catch {
       setItems(prev);
       Toast.show({ type: 'error', text1: "Couldn't mark all", text2: 'Try again in a moment' });
@@ -102,48 +118,76 @@ export default function NotificationsScreen() {
     const icon = ICONS[item.kind] || ICONS.transaction;
     return (
       <StaggeredListItem index={index}>
-        <TouchableOpacity
+        <BrutalCard
+          variant={item.read ? 'base' : 'warm'}
+          pressable
           onPress={() => onPressItem(item)}
-          style={[s.row, !item.read && s.rowUnread]}
-          accessibilityRole="button"
-          accessibilityLabel={`${item.read ? 'Read' : 'Unread'} notification: ${item.title}`}
-          activeOpacity={0.7}
+          flat={item.read}
+          style={s.row}
+          testID={`notif-row-${item.id}`}
         >
-          <View style={[s.iconWrap, { backgroundColor: icon.tint + '18' }]}>
+          <View style={[s.iconWrap, { backgroundColor: icon.tint }]}>
             <Text style={s.iconEmoji}>{icon.emoji}</Text>
           </View>
           <View style={{ flex: 1 }}>
             <View style={s.rowHead}>
-              <Text numberOfLines={1} style={[s.title, !item.read && s.titleUnread]}>{item.title}</Text>
+              <Text numberOfLines={1} style={[s.title, !item.read && s.titleUnread]}>
+                {item.title}
+              </Text>
               {!item.read && <View style={s.dot} />}
             </View>
             <Text numberOfLines={2} style={s.body}>{item.body}</Text>
             <Text style={s.time}>{timeAgo(item.created_at)}</Text>
           </View>
-        </TouchableOpacity>
+        </BrutalCard>
       </StaggeredListItem>
     );
   }, [onPressItem]);
 
   return (
     <SafeAreaView style={s.safe} edges={['top']}>
+      {/* Brutal header */}
       <View style={s.header}>
-        <TouchableOpacity onPress={() => router.back()} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }} accessibilityRole="button" accessibilityLabel="Back">
-          <Ionicons name="chevron-back" size={24} color={COLORS.text.primary} />
-        </TouchableOpacity>
-        <Text style={s.headerTitle}>Notifications</Text>
+        <Pressable
+          onPress={() => router.back()}
+          hitSlop={10}
+          style={s.headerBtn}
+          accessibilityRole="button"
+          accessibilityLabel="Back"
+        >
+          <Ionicons name="chevron-back" size={22} color={BR_COLORS.ink} />
+        </Pressable>
+        <View style={{ flex: 1 }}>
+          <Text style={s.headerTitle}>NOTIFICATIONS</Text>
+          {unreadCount > 0 && (
+            <Text style={s.headerSub}>{unreadCount} UNREAD</Text>
+          )}
+        </View>
         {unreadCount > 0 ? (
-          <TouchableOpacity onPress={onMarkAll} disabled={markingAll} style={s.markAll} accessibilityRole="button" accessibilityLabel="Mark all as read">
-            {markingAll ? <ActivityIndicator size="small" color={COLORS.accent.primary} /> : <Text style={s.markAllTxt}>Mark all read</Text>}
-          </TouchableOpacity>
-        ) : <View style={{ width: 80 }} />}
+          <Pressable
+            onPress={onMarkAll}
+            disabled={markingAll}
+            style={s.markAll}
+            accessibilityRole="button"
+            accessibilityLabel="Mark all as read"
+          >
+            {markingAll ? (
+              <ActivityIndicator size="small" color={BR_COLORS.ink} />
+            ) : (
+              <Text style={s.markAllTxt}>MARK ALL</Text>
+            )}
+          </Pressable>
+        ) : (
+          <View style={{ width: 80 }}>
+            <BrutalBadge label="✓" tone="positive" />
+          </View>
+        )}
       </View>
 
       {items === null ? (
-        // Skeleton — 3 placeholder rows.
-        <View style={{ padding: SPACING.lg, gap: 12 }}>
+        <View style={{ padding: BR_SPACE['4'], gap: 12 }}>
           {[0, 1, 2].map((i) => (
-            <Skeleton.Box key={i} h={76} radius={16} />
+            <Skeleton.Box key={i} h={84} radius={4} />
           ))}
         </View>
       ) : (
@@ -151,22 +195,33 @@ export default function NotificationsScreen() {
           data={items}
           keyExtractor={(x) => x.id}
           renderItem={renderItem}
-          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={COLORS.accent.primary} />}
-          contentContainerStyle={{ padding: SPACING.lg, paddingBottom: 120, gap: 8 }}
+          refreshControl={
+            <RefreshControl
+              refreshing={refreshing}
+              onRefresh={onRefresh}
+              tintColor={BR_COLORS.ink}
+            />
+          }
+          contentContainerStyle={{
+            padding: BR_SPACE['4'],
+            paddingBottom: 120,
+            gap: BR_SPACE['3'],
+          }}
           ListEmptyComponent={
             loadError ? (
-              <EmptyState
+              <BrutalEmptyState
                 emoji="⚠️"
                 title="Couldn't load notifications"
-                subtitle="Check your connection and try again"
-                ctaLabel="Retry"
+                body="Check your connection and try again."
+                ctaLabel="RETRY"
                 onCta={() => load()}
               />
             ) : (
-              <EmptyState
-                mascot
+              <BrutalEmptyState
+                emoji="🔔"
                 title="You're all caught up"
-                subtitle="New nudges, alerts, and rewards will show up here."
+                body="New nudges, alerts, and rewards will land here."
+                hint="We'll vibrate quietly when something needs you."
               />
             )
           }
@@ -177,27 +232,98 @@ export default function NotificationsScreen() {
 }
 
 const s = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: COLORS.bg.primary },
+  safe: { flex: 1, backgroundColor: BR_COLORS.bg },
+
   header: {
-    flexDirection: 'row', alignItems: 'center', paddingHorizontal: SPACING.lg,
-    paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: COLORS.border.subtle,
-    gap: 12,
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: BR_SPACE['4'],
+    paddingVertical: BR_SPACE['3'],
+    borderBottomWidth: BR_BORDER.base,
+    borderColor: BR_COLORS.ink,
+    backgroundColor: BR_COLORS.bg,
+    gap: BR_SPACE['3'],
   },
-  headerTitle: { flex: 1, fontSize: 20, fontWeight: '900', color: COLORS.text.primary, letterSpacing: -0.3 },
-  markAll: { paddingHorizontal: 10, paddingVertical: 6, borderRadius: 0 },
-  markAllTxt: { fontSize: 12, fontWeight: '800', color: COLORS.accent.primary, letterSpacing: 0.2 },
+  headerBtn: {
+    width: 36,
+    height: 36,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: BR_BORDER.base,
+    borderColor: BR_COLORS.ink,
+    backgroundColor: BR_COLORS.card,
+    ...(BR_SHADOW.xs as any),
+  },
+  headerTitle: {
+    ...BR_FONT.stamp,
+    color: BR_COLORS.ink,
+    fontSize: 15,
+  },
+  headerSub: {
+    ...BR_FONT.caption,
+    color: PALETTE.brand,
+    fontSize: 9,
+    marginTop: 2,
+  },
+  markAll: {
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderWidth: BR_BORDER.base,
+    borderColor: BR_COLORS.ink,
+    backgroundColor: PALETTE.yellow,
+    ...(BR_SHADOW.xs as any),
+  },
+  markAllTxt: {
+    ...BR_FONT.stamp,
+    color: BR_COLORS.ink,
+    fontSize: 10,
+  },
 
   row: {
-    flexDirection: 'row', gap: 12, padding: 14, backgroundColor: COLORS.bg.secondary,
-    borderRadius: 0, borderWidth: 1, borderColor: COLORS.border.subtle,
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: BR_SPACE['3'],
+    padding: BR_SPACE['3'],
   },
-  rowUnread: { backgroundColor: COLORS.accent.brandSoft, borderColor: 'rgba(255,107,26,0.32)' },
-  iconWrap: { width: 44, height: 44, borderRadius: 0, alignItems: 'center', justifyContent: 'center' },
-  iconEmoji: { fontSize: 22 },
-  rowHead: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  title: { flex: 1, fontSize: 14, fontWeight: '600', color: COLORS.text.primary },
+  iconWrap: {
+    width: 44,
+    height: 44,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: BR_BORDER.base,
+    borderColor: BR_COLORS.ink,
+  },
+  iconEmoji: { fontSize: 20 },
+  rowHead: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  title: {
+    flex: 1,
+    fontSize: 14,
+    fontWeight: '700',
+    color: BR_COLORS.ink,
+  },
   titleUnread: { fontWeight: '900' },
-  dot: { width: 8, height: 8, borderRadius: 4, backgroundColor: COLORS.accent.primary },
-  body: { fontSize: 13, color: COLORS.text.secondary, marginTop: 2, lineHeight: 18 },
-  time: { fontSize: 11, color: COLORS.text.muted, marginTop: 4, fontWeight: '600' },
+  dot: {
+    width: 9,
+    height: 9,
+    backgroundColor: PALETTE.brand,
+    borderWidth: 1.5,
+    borderColor: BR_COLORS.ink,
+  },
+  body: {
+    fontSize: 13,
+    color: BR_COLORS.text,
+    marginTop: 2,
+    lineHeight: 18,
+    fontWeight: '500',
+  },
+  time: {
+    ...BR_FONT.stamp,
+    fontSize: 9,
+    color: BR_COLORS.textMuted,
+    marginTop: 6,
+  },
 });

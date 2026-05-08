@@ -1,100 +1,229 @@
 /**
- * About MintU — App description screen.
- * Linked from the profile → "About MintU" menu row.
+ * About MintU — R113 brutal convergence.
+ *
+ * App description / brand intro. Migrated from custom card styles to
+ * BrutalCard primitives + brutal tokens. Hero card uses `accent`
+ * variant (orange brand) so the brand POPS the moment you land.
  */
 import React from 'react';
-import { View, Text, StyleSheet, ScrollView } from 'react-native';
+import {
+  View,
+  Text,
+  StyleSheet,
+  ScrollView,
+  Pressable,
+} from 'react-native';
 import { Image } from 'expo-image';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
-import { TouchableOpacity } from 'react-native';
-import { COLORS } from '../utils/theme';
-import { makeStyles } from '../utils/makeStyles';
+
+import {
+  BrutalCard,
+  BR_COLORS,
+  BR_BORDER,
+  BR_SHADOW,
+  BR_SPACE,
+  BR_FONT,
+} from '../components/brutal';
 import { StaggeredEntrance } from '../components/primitives';
 
+const FEATURES: { emoji: string; text: string }[] = [
+  { emoji: '📩', text: 'Auto expense tracking from bank SMS' },
+  { emoji: '📊', text: 'Daily Money Score — know how today went' },
+  { emoji: '⚡️', text: 'Smart insights that actually mean something' },
+  { emoji: '🚨', text: 'Budget alerts before you blow the month' },
+  { emoji: '🧾', text: 'Clean dashboard. No spreadsheets. Ever.' },
+];
+
 export default function AboutScreen() {
-  const s = useStyles();
   return (
     <SafeAreaView style={s.safe} edges={['top', 'bottom']}>
-      {/* Header */}
+      {/* Brutal header */}
       <View style={s.header}>
-        <TouchableOpacity onPress={() => router.back()} style={s.back} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
-          <Ionicons name="chevron-back" size={22} color={COLORS.text.primary} />
-        </TouchableOpacity>
-        <Text style={s.title}>About MintU</Text>
-        <View style={{ width: 22 }} />
+        <Pressable
+          onPress={() => router.back()}
+          hitSlop={10}
+          style={s.headerBtn}
+          accessibilityLabel="Back"
+        >
+          <Ionicons name="chevron-back" size={22} color={BR_COLORS.ink} />
+        </Pressable>
+        <Text style={s.headerTitle}>ABOUT MINTU</Text>
+        <View style={{ width: 36 }} />
       </View>
 
       <ScrollView contentContainerStyle={s.body} showsVerticalScrollIndicator={false}>
         <StaggeredEntrance delayMs={70} duration={420} distance={14}>
-        {/* Hero */}
-        <View style={s.hero}>
-          <Image
-            source={require('../assets/images/mintu-logo.png')}
-            style={s.logo}
-          />
-          <Text style={s.brand}>MintU</Text>
-          <Text style={s.tagline}>Your daily money companion 💸</Text>
-        </View>
+          {/* Hero — brand orange card */}
+          <BrutalCard variant="accent" style={s.hero}>
+            <Image
+              source={require('../assets/images/mintu-logo.png')}
+              style={s.logo}
+              contentFit="contain"
+            />
+            <Text style={s.brand}>MINTU</Text>
+            <Text style={s.tagline}>Your daily money companion 💸</Text>
+          </BrutalCard>
 
-        <Text style={s.para}>
-          Track your expenses automatically, understand where your money goes, and get smart AI-powered insights to save more every month.
-        </Text>
+          {/* Pitch */}
+          <BrutalCard style={s.section}>
+            <Text style={s.para}>
+              Track expenses automatically. Understand where your money goes.
+              Get smart, AI-powered insights to save more every month.
+            </Text>
+            <Text style={[s.para, { marginTop: BR_SPACE['2'] }]}>
+              No spreadsheets. No manual entry. Just clarity.
+            </Text>
+          </BrutalCard>
 
-        <Text style={s.para}>No spreadsheets. No manual entry. Just clarity.</Text>
+          {/* Features */}
+          <Text style={s.sect}>🔥 FEATURES</Text>
+          <BrutalCard variant="warm" style={s.section}>
+            {FEATURES.map((f, i) => (
+              <View
+                key={f.text}
+                style={[s.bulletRow, i === FEATURES.length - 1 && { marginBottom: 0 }]}
+              >
+                <Text style={s.bulletEmoji}>{f.emoji}</Text>
+                <Text style={s.bulletT}>{f.text}</Text>
+              </View>
+            ))}
+          </BrutalCard>
 
-        <Text style={s.sect}>🔥 Features</Text>
-        {[
-          'Automatic expense tracking via SMS',
-          'Daily Money Score (know how you’re doing)',
-          'Smart insights like “You overspent on food this week”',
-          'Budget alerts and saving tips',
-          'Clean and simple dashboard',
-        ].map((f) => (
-          <View key={f} style={s.bulletRow}>
-            <Text style={s.bullet}>•</Text>
-            <Text style={s.bulletT}>{f}</Text>
-          </View>
-        ))}
+          {/* India */}
+          <Text style={s.sect}>🇮🇳 BUILT FOR INDIA</Text>
+          <BrutalCard variant="lime" style={s.section}>
+            <Text style={s.paraInk}>
+              Works with UPI, bank SMS, and Indian spending habits.
+            </Text>
+          </BrutalCard>
 
-        <Text style={s.sect}>🇮🇳 Built for India</Text>
-        <Text style={s.para}>Works with UPI, bank SMS, and Indian spending habits.</Text>
+          {/* Why */}
+          <Text style={s.sect}>💡 WHY MINTU?</Text>
+          <BrutalCard variant="highlight" style={s.section}>
+            <Text style={s.paraInk}>
+              Because knowing where your money goes is the first step to growing it.
+            </Text>
+          </BrutalCard>
 
-        <Text style={s.sect}>💡 Why MintU?</Text>
-        <Text style={s.para}>Because knowing where your money goes is the first step to growing it.</Text>
+          {/* Closing CTA-style stamp */}
+          <BrutalCard variant="cyan" style={[s.section, s.ctaCard]}>
+            <Text style={s.ctaT}>
+              Start your journey to smarter money today 🚀
+            </Text>
+          </BrutalCard>
 
-        <View style={s.cta}>
-          <Text style={s.ctaT}>Start your journey to smarter money today 🚀</Text>
-        </View>
-
-        <Text style={s.ver}>v1.0.0</Text>
+          <Text style={s.ver}>v1.0.0</Text>
         </StaggeredEntrance>
       </ScrollView>
     </SafeAreaView>
   );
 }
 
-const useStyles = makeStyles((c) => ({
-  safe: { flex: 1, backgroundColor: c.bg.primary },
-  header: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, paddingVertical: 12, justifyContent: 'space-between' },
-  back: { padding: 6, borderRadius: 0, backgroundColor: c.gray[100] },
-  title: { fontSize: 18, fontWeight: '800', color: c.text.primary },
-  body: { padding: 20, paddingBottom: 60 },
-  hero: { alignItems: 'center', marginBottom: 24 },
-  logo: { width: 96, height: 96, borderRadius: 0 },
-  brand: { marginTop: 10, fontSize: 24, fontWeight: '900', color: c.text.primary, letterSpacing: -0.5 },
-  tagline: { marginTop: 4, fontSize: 14, fontWeight: '600', color: c.text.secondary },
-  para: { fontSize: 14.5, lineHeight: 22, color: c.text.secondary, marginBottom: 14 },
-  sect: { fontSize: 16, fontWeight: '800', color: c.text.primary, marginTop: 10, marginBottom: 10 },
-  bulletRow: { flexDirection: 'row', marginBottom: 6, paddingLeft: 2 },
-  bullet: { color: c.accent.primary, fontSize: 18, marginRight: 8, lineHeight: 20 },
-  bulletT: { flex: 1, fontSize: 14, color: c.text.secondary, lineHeight: 20 },
-  cta: {
-    marginTop: 18, marginBottom: 16, padding: 18,
-    backgroundColor: '#FFF0E3', borderRadius: 0, alignItems: 'center',
-    borderWidth: 1, borderColor: c.border.subtle,
+const s = StyleSheet.create({
+  safe: { flex: 1, backgroundColor: BR_COLORS.bg },
+
+  header: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: BR_SPACE['4'],
+    paddingVertical: BR_SPACE['3'],
+    borderBottomWidth: BR_BORDER.base,
+    borderColor: BR_COLORS.ink,
+    justifyContent: 'space-between',
   },
-  ctaT: { fontSize: 14.5, fontWeight: '700', color: c.accent.primary, textAlign: 'center' },
-  ver: { textAlign: 'center', color: c.text.muted, fontSize: 12, marginTop: 12 },
-}));
+  headerBtn: {
+    width: 36,
+    height: 36,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: BR_BORDER.base,
+    borderColor: BR_COLORS.ink,
+    backgroundColor: BR_COLORS.card,
+    ...(BR_SHADOW.xs as any),
+  },
+  headerTitle: { ...BR_FONT.stamp, color: BR_COLORS.ink, fontSize: 14 },
+
+  body: {
+    padding: BR_SPACE['4'],
+    paddingBottom: 60,
+    gap: BR_SPACE['3'],
+  },
+
+  hero: {
+    alignItems: 'center',
+    paddingVertical: BR_SPACE['6'],
+  },
+  logo: { width: 80, height: 80, borderRadius: 0 },
+  brand: {
+    marginTop: BR_SPACE['3'],
+    fontSize: 32,
+    fontWeight: '900',
+    color: '#fff',
+    letterSpacing: -1,
+  },
+  tagline: {
+    marginTop: 6,
+    fontSize: 14,
+    fontWeight: '700',
+    color: '#fff',
+    opacity: 0.95,
+  },
+
+  section: {
+    paddingVertical: BR_SPACE['4'],
+    paddingHorizontal: BR_SPACE['4'],
+  },
+  para: {
+    fontSize: 14.5,
+    lineHeight: 22,
+    color: BR_COLORS.text,
+    fontWeight: '500',
+  },
+  paraInk: {
+    fontSize: 15,
+    lineHeight: 22,
+    color: BR_COLORS.ink,
+    fontWeight: '700',
+  },
+  sect: {
+    ...BR_FONT.stamp,
+    fontSize: 12,
+    color: BR_COLORS.ink,
+    marginTop: BR_SPACE['3'],
+    marginBottom: -BR_SPACE['1'],
+  },
+
+  bulletRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: BR_SPACE['2'],
+    gap: BR_SPACE['3'],
+  },
+  bulletEmoji: { fontSize: 20 },
+  bulletT: {
+    flex: 1,
+    fontSize: 14,
+    color: BR_COLORS.ink,
+    fontWeight: '600',
+    lineHeight: 20,
+  },
+
+  ctaCard: { alignItems: 'center', paddingVertical: BR_SPACE['5'] },
+  ctaT: {
+    fontSize: 14.5,
+    fontWeight: '900',
+    color: BR_COLORS.ink,
+    textAlign: 'center',
+    letterSpacing: 0.3,
+  },
+  ver: {
+    textAlign: 'center',
+    color: BR_COLORS.textMuted,
+    fontSize: 11,
+    fontWeight: '700',
+    marginTop: BR_SPACE['4'],
+    letterSpacing: 1,
+  },
+});

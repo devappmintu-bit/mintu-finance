@@ -39,6 +39,60 @@ import { makeStyles } from '../../utils/makeStyles';
 import { COLORS, useAppColors, GLASS } from '../../utils/theme';
 import { showInfo, showSuccess } from '../../utils/toast';
 
+
+
+// R113 FIX — useStyles hoisted above first render-time call
+// to avoid Metro/SDK52 TDZ error (`Cannot access X before init.`).
+const useStyles = makeStyles((c) => ({
+  backdrop: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(15,23,42,0.55)' },
+  wrap: { flex: 1, justifyContent: 'flex-end' },
+  sheet: { backgroundColor: GLASS.solidBg, borderTopLeftRadius: 0, borderTopRightRadius: 0, borderTopWidth: StyleSheet.hairlineWidth, borderColor: GLASS.borderLight, paddingHorizontal: 20, paddingTop: 8, paddingBottom: 24, maxHeight: '90%' },
+  handle: { width: 40, height: 4, borderRadius: 2, backgroundColor: c.gray[200], alignSelf: 'center', marginVertical: 8 },
+  header: { flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 14 },
+  aiBadge: { width: 40, height: 40, borderRadius: 0, backgroundColor: c.accent.brandSoft, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: '#FED7AA' },
+  title: { fontSize: 17, fontWeight: '800', color: c.text.primary },
+  sub: { fontSize: 11.5, color: c.text.muted, marginTop: 2 },
+
+  sect: { fontSize: 10.5, fontWeight: '800', color: c.gray[400], textTransform: 'uppercase' as const, letterSpacing: 0.5, marginTop: 16, marginBottom: 8 },
+
+  tagRow: { flexDirection: 'row' as const, flexWrap: 'wrap' as const, gap: 6 },
+  tag: { paddingHorizontal: 10, paddingVertical: 5, borderRadius: 0, borderWidth: 1 },
+  tagT: { fontSize: 11.5, fontWeight: '700' },
+
+  tipRow: { flexDirection: 'row' as const, alignItems: 'center' as const, gap: 10, paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: c.gray[100] },
+  bullet: { width: 22, height: 22, borderRadius: 0, backgroundColor: '#FFFBEB', alignItems: 'center' as const, justifyContent: 'center' as const },
+  tipT: { flex: 1, fontSize: 13, color: '#374151', lineHeight: 18 },
+  saveChip: { backgroundColor: '#DCFCE7', paddingHorizontal: 8, paddingVertical: 3, borderRadius: 0 },
+  saveT: { fontSize: 10.5, fontWeight: '800', color: '#065F46' },
+
+  actBtn: { flexDirection: 'row' as const, alignItems: 'center' as const, gap: 10, backgroundColor: c.accent.brandSoft, borderRadius: 0, paddingHorizontal: 14, paddingVertical: 12, marginBottom: 8, borderWidth: 1, borderColor: '#FED7AA' },
+  actT: { flex: 1, fontSize: 13.5, fontWeight: '700', color: '#7C2D12' },
+
+  statsBox: { flexDirection: 'row' as const, marginTop: 16, backgroundColor: c.gray[50], borderRadius: 0, paddingVertical: 12, borderWidth: 1, borderColor: c.gray[200] },
+  stat: { flex: 1, alignItems: 'center' as const },
+  statV: { fontSize: 15, fontWeight: '800', color: c.text.primary },
+  statL: { fontSize: 10, color: c.text.muted, fontWeight: '700', marginTop: 2, textTransform: 'uppercase' as const, letterSpacing: 0.3 },
+  statDiv: { width: 1, backgroundColor: c.gray[200] },
+
+  // Skeleton lines (shimmer-light, no actual animation library required).
+  skelLine: { height: 14, borderRadius: 0, backgroundColor: c.gray[100], marginVertical: 5 },
+
+  // Empty state — friendly, not blank.
+  emptyWrap: { alignItems: 'center' as const, paddingVertical: 28, paddingHorizontal: 12 },
+  emptyTitle: { fontSize: 16, fontWeight: '800', color: c.text.primary, textAlign: 'center' as const, marginBottom: 6 },
+  emptyBody: { fontSize: 13, color: c.text.muted, textAlign: 'center' as const, lineHeight: 18 },
+
+  // Soft offline notice — neutral tone, no red doom.
+  offlineBar: { flexDirection: 'row' as const, alignItems: 'center' as const, gap: 8, marginTop: 14, backgroundColor: c.gray[50], borderRadius: 0, paddingHorizontal: 12, paddingVertical: 10, borderWidth: 1, borderColor: c.gray[200] },
+  offlineT: { flex: 1, fontSize: 12, color: c.text.secondary, fontWeight: '600' },
+  retryBtn: { flexDirection: 'row' as const, alignItems: 'center' as const, gap: 4, backgroundColor: '#FFF7ED', paddingHorizontal: 10, paddingVertical: 5, borderRadius: 0, borderWidth: 1, borderColor: '#FED7AA' },
+  retryT: { fontSize: 11.5, fontWeight: '800', color: COLORS.accent.brand },
+
+  // "Got it" close CTA — clear, full-width, never tiny.
+  gotItBtn: { marginTop: 18, marginBottom: 4, backgroundColor: c.bg.card, borderRadius: 0, paddingVertical: 14, alignItems: 'center' as const, borderWidth: 1, borderColor: c.gray[200] },
+  gotItT: { fontSize: 14, fontWeight: '800', color: c.text.primary, letterSpacing: 0.3 },
+}));
+
 const TONE_COLOR: Record<string, { bg: string; fg: string; border: string }> = {
   success: { bg: '#DCFCE7', fg: '#065F46', border: '#86EFAC' },
   warning: { bg: '#FEF3C7', fg: '#92400E', border: '#FDE68A' },
@@ -466,52 +520,3 @@ export default function BudgetInsightsSheet({ visible, category, budgetCtx, onCl
   );
 }
 
-const useStyles = makeStyles((c) => ({
-  backdrop: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(15,23,42,0.55)' },
-  wrap: { flex: 1, justifyContent: 'flex-end' },
-  sheet: { backgroundColor: GLASS.solidBg, borderTopLeftRadius: 0, borderTopRightRadius: 0, borderTopWidth: StyleSheet.hairlineWidth, borderColor: GLASS.borderLight, paddingHorizontal: 20, paddingTop: 8, paddingBottom: 24, maxHeight: '90%' },
-  handle: { width: 40, height: 4, borderRadius: 2, backgroundColor: c.gray[200], alignSelf: 'center', marginVertical: 8 },
-  header: { flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 14 },
-  aiBadge: { width: 40, height: 40, borderRadius: 0, backgroundColor: c.accent.brandSoft, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: '#FED7AA' },
-  title: { fontSize: 17, fontWeight: '800', color: c.text.primary },
-  sub: { fontSize: 11.5, color: c.text.muted, marginTop: 2 },
-
-  sect: { fontSize: 10.5, fontWeight: '800', color: c.gray[400], textTransform: 'uppercase' as const, letterSpacing: 0.5, marginTop: 16, marginBottom: 8 },
-
-  tagRow: { flexDirection: 'row' as const, flexWrap: 'wrap' as const, gap: 6 },
-  tag: { paddingHorizontal: 10, paddingVertical: 5, borderRadius: 0, borderWidth: 1 },
-  tagT: { fontSize: 11.5, fontWeight: '700' },
-
-  tipRow: { flexDirection: 'row' as const, alignItems: 'center' as const, gap: 10, paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: c.gray[100] },
-  bullet: { width: 22, height: 22, borderRadius: 0, backgroundColor: '#FFFBEB', alignItems: 'center' as const, justifyContent: 'center' as const },
-  tipT: { flex: 1, fontSize: 13, color: '#374151', lineHeight: 18 },
-  saveChip: { backgroundColor: '#DCFCE7', paddingHorizontal: 8, paddingVertical: 3, borderRadius: 0 },
-  saveT: { fontSize: 10.5, fontWeight: '800', color: '#065F46' },
-
-  actBtn: { flexDirection: 'row' as const, alignItems: 'center' as const, gap: 10, backgroundColor: c.accent.brandSoft, borderRadius: 0, paddingHorizontal: 14, paddingVertical: 12, marginBottom: 8, borderWidth: 1, borderColor: '#FED7AA' },
-  actT: { flex: 1, fontSize: 13.5, fontWeight: '700', color: '#7C2D12' },
-
-  statsBox: { flexDirection: 'row' as const, marginTop: 16, backgroundColor: c.gray[50], borderRadius: 0, paddingVertical: 12, borderWidth: 1, borderColor: c.gray[200] },
-  stat: { flex: 1, alignItems: 'center' as const },
-  statV: { fontSize: 15, fontWeight: '800', color: c.text.primary },
-  statL: { fontSize: 10, color: c.text.muted, fontWeight: '700', marginTop: 2, textTransform: 'uppercase' as const, letterSpacing: 0.3 },
-  statDiv: { width: 1, backgroundColor: c.gray[200] },
-
-  // Skeleton lines (shimmer-light, no actual animation library required).
-  skelLine: { height: 14, borderRadius: 0, backgroundColor: c.gray[100], marginVertical: 5 },
-
-  // Empty state — friendly, not blank.
-  emptyWrap: { alignItems: 'center' as const, paddingVertical: 28, paddingHorizontal: 12 },
-  emptyTitle: { fontSize: 16, fontWeight: '800', color: c.text.primary, textAlign: 'center' as const, marginBottom: 6 },
-  emptyBody: { fontSize: 13, color: c.text.muted, textAlign: 'center' as const, lineHeight: 18 },
-
-  // Soft offline notice — neutral tone, no red doom.
-  offlineBar: { flexDirection: 'row' as const, alignItems: 'center' as const, gap: 8, marginTop: 14, backgroundColor: c.gray[50], borderRadius: 0, paddingHorizontal: 12, paddingVertical: 10, borderWidth: 1, borderColor: c.gray[200] },
-  offlineT: { flex: 1, fontSize: 12, color: c.text.secondary, fontWeight: '600' },
-  retryBtn: { flexDirection: 'row' as const, alignItems: 'center' as const, gap: 4, backgroundColor: '#FFF7ED', paddingHorizontal: 10, paddingVertical: 5, borderRadius: 0, borderWidth: 1, borderColor: '#FED7AA' },
-  retryT: { fontSize: 11.5, fontWeight: '800', color: COLORS.accent.brand },
-
-  // "Got it" close CTA — clear, full-width, never tiny.
-  gotItBtn: { marginTop: 18, marginBottom: 4, backgroundColor: c.bg.card, borderRadius: 0, paddingVertical: 14, alignItems: 'center' as const, borderWidth: 1, borderColor: c.gray[200] },
-  gotItT: { fontSize: 14, fontWeight: '800', color: c.text.primary, letterSpacing: 0.3 },
-}));

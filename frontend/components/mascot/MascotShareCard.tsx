@@ -139,7 +139,7 @@ const styles = StyleSheet.create({
   },
   btn: { flex: 1, paddingVertical: 14, alignItems: 'center', justifyContent: 'center' },
   btnGhost: { borderRightWidth: 2, borderRightColor: '#0B0B0B' },
-  btnPrimary: { backgroundColor: '#FF6B1A' },
+  btnPrimary: { backgroundColor: '#FF8C66' },
   btnPressed: { opacity: 0.8 },
   btnGhostText: { fontSize: 12, fontWeight: '900', letterSpacing: 1, color: '#0B0B0B' },
   btnPrimaryText: { fontSize: 12, fontWeight: '900', letterSpacing: 1, color: '#FFFFFF' },

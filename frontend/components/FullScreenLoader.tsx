@@ -20,6 +20,31 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { COLORS, useAppColors, SPACING } from '../utils/theme';
 import { makeStyles } from '../utils/makeStyles';
 
+
+
+// R113 FIX — useStyles hoisted above first render-time call
+// to avoid Metro/SDK52 TDZ error (`Cannot access X before init.`).
+const useStyles = makeStyles((C) => ({
+  root: { flex: 1, backgroundColor: C.bg.primary },
+  center: { flex: 1, alignItems: 'center', justifyContent: 'center' },
+  orb: {
+    width: 72,
+    height: 72,
+    borderRadius: 0,
+    shadowColor: COLORS.accent.brand,
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.35,
+    shadowRadius: 18,
+    elevation: 8,
+  },
+  tagline: {
+    marginTop: SPACING.lg,
+    fontSize: 13,
+    fontWeight: '500',
+    letterSpacing: 0.2,
+  },
+}));
+
 type Props = {
   /** Short 1-line caption shown under the logo after 400 ms. */
   tagline?: string;
@@ -97,23 +122,3 @@ export default function FullScreenLoader({ tagline }: Props) {
   );
 }
 
-const useStyles = makeStyles((C) => ({
-  root: { flex: 1, backgroundColor: C.bg.primary },
-  center: { flex: 1, alignItems: 'center', justifyContent: 'center' },
-  orb: {
-    width: 72,
-    height: 72,
-    borderRadius: 0,
-    shadowColor: COLORS.accent.brand,
-    shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.35,
-    shadowRadius: 18,
-    elevation: 8,
-  },
-  tagline: {
-    marginTop: SPACING.lg,
-    fontSize: 13,
-    fontWeight: '500',
-    letterSpacing: 0.2,
-  },
-}));

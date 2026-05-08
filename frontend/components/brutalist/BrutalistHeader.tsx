@@ -12,7 +12,7 @@ import React, { memo } from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 
 const INK    = '#0A0A0A';
-const ACCENT = '#E84A0C';
+const ACCENT = '#F56E1E';
 
 type Props = {
   eyebrow: string;

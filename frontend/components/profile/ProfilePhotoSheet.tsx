@@ -12,6 +12,40 @@ import * as Haptics from 'expo-haptics';
 import { COLORS, useAppColors, GLASS } from '../../utils/theme';
 import { makeStyles } from '../../utils/makeStyles';
 
+
+
+// R113 FIX — useStyles hoisted above first render-time call
+// to avoid Metro/SDK52 TDZ error (`Cannot access X before init.`).
+const useStyles = makeStyles((c) => ({
+  backdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.55)', justifyContent: 'flex-end' },
+  sheet: {
+    backgroundColor: GLASS.solidBg,
+    borderTopLeftRadius: 0, borderTopRightRadius: 0,
+    borderTopWidth: StyleSheet.hairlineWidth, borderColor: GLASS.borderLight,
+    paddingHorizontal: 20, paddingTop: 10, paddingBottom: Platform.OS === 'ios' ? 32 : 20,
+  },
+  handle: { width: 40, height: 4, borderRadius: 2, backgroundColor: c.border.subtle, alignSelf: 'center', marginBottom: 14 },
+  title: { fontSize: 20, fontWeight: '800', color: c.text.primary, letterSpacing: -0.4 },
+  subtitle: { fontSize: 13, fontWeight: '500', color: c.text.muted, marginTop: 2, marginBottom: 18 },
+
+  grid: { gap: 10 },
+  action: {
+    flexDirection: 'row', alignItems: 'center', gap: 14,
+    backgroundColor: c.bg.primary,
+    borderRadius: 0, paddingVertical: 14, paddingHorizontal: 14,
+    borderWidth: StyleSheet.hairlineWidth, borderColor: c.border.subtle,
+  },
+  iconWrap: {
+    width: 42, height: 42, borderRadius: 0,
+    alignItems: 'center', justifyContent: 'center',
+    borderWidth: 1,
+  },
+  actionTxt: { flex: 1, fontSize: 15.5, fontWeight: '700', color: c.text.primary, letterSpacing: -0.2 },
+
+  cancel: { marginTop: 14, paddingVertical: 14, alignItems: 'center', borderRadius: 0 },
+  cancelTxt: { fontSize: 15, fontWeight: '700', color: c.text.muted },
+}));
+
 interface Props {
   visible: boolean;
   hasAvatar: boolean;
@@ -151,32 +185,3 @@ function Action({
   );
 }
 
-const useStyles = makeStyles((c) => ({
-  backdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.55)', justifyContent: 'flex-end' },
-  sheet: {
-    backgroundColor: GLASS.solidBg,
-    borderTopLeftRadius: 0, borderTopRightRadius: 0,
-    borderTopWidth: StyleSheet.hairlineWidth, borderColor: GLASS.borderLight,
-    paddingHorizontal: 20, paddingTop: 10, paddingBottom: Platform.OS === 'ios' ? 32 : 20,
-  },
-  handle: { width: 40, height: 4, borderRadius: 2, backgroundColor: c.border.subtle, alignSelf: 'center', marginBottom: 14 },
-  title: { fontSize: 20, fontWeight: '800', color: c.text.primary, letterSpacing: -0.4 },
-  subtitle: { fontSize: 13, fontWeight: '500', color: c.text.muted, marginTop: 2, marginBottom: 18 },
-
-  grid: { gap: 10 },
-  action: {
-    flexDirection: 'row', alignItems: 'center', gap: 14,
-    backgroundColor: c.bg.primary,
-    borderRadius: 0, paddingVertical: 14, paddingHorizontal: 14,
-    borderWidth: StyleSheet.hairlineWidth, borderColor: c.border.subtle,
-  },
-  iconWrap: {
-    width: 42, height: 42, borderRadius: 0,
-    alignItems: 'center', justifyContent: 'center',
-    borderWidth: 1,
-  },
-  actionTxt: { flex: 1, fontSize: 15.5, fontWeight: '700', color: c.text.primary, letterSpacing: -0.2 },
-
-  cancel: { marginTop: 14, paddingVertical: 14, alignItems: 'center', borderRadius: 0 },
-  cancelTxt: { fontSize: 15, fontWeight: '700', color: c.text.muted },
-}));

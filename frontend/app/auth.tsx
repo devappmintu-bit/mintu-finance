@@ -16,11 +16,128 @@ import { Ionicons } from '@expo/vector-icons';
 import { COLORS, RADIUS, SPACING, ONBOARDING_IMAGES } from '../utils/theme';
 import { makeStyles } from '../utils/makeStyles';
 import { LANGUAGES, LangCode } from '../utils/i18n';
+import MintuMascot from '../components/MintuMascot';
 import PinSetupModal from '../components/PinSetupModal';
 import AuthTransitionOverlay from '../components/auth/AuthTransitionOverlay';
 import Mascot from '../components/Mascot';
 import MascotMoment from '../components/MascotMoment';
 import { clearSessionState, recordCurrentUser } from '../utils/clearSessionState';
+
+
+
+// R113 FIX — useStyles hoisted above first render-time call
+// to avoid Metro/SDK52 TDZ error (`Cannot access X before init.`).
+const useStyles = makeStyles((c) => ({
+  container: { flex: 1, backgroundColor: c.bg.primary },
+  keyboardView: { flex: 1 },
+  scrollContent: { flexGrow: 1, justifyContent: 'center', padding: SPACING.xxl },
+  backBtn: { width: 44, height: 44, borderRadius: 0, backgroundColor: c.bg.secondary, borderWidth: 2, borderColor: '#0A0A0A', justifyContent: 'center', alignItems: 'center', marginBottom: SPACING.xxl },
+  header: { alignItems: 'center', marginBottom: 40 },
+  logoIcon: { width: 72, height: 72, borderRadius: 0, backgroundColor: c.accent.primary, justifyContent: 'center', alignItems: 'center', marginBottom: 16, borderWidth: 2, borderColor: '#0A0A0A' },
+  mascotWrap: { marginBottom: 16, alignItems: 'center', justifyContent: 'center' },
+  mascotSmallWrap: { marginBottom: 12, alignItems: 'center', justifyContent: 'center' },
+  logoSymbol: { fontSize: 34, fontWeight: '800', color: c.text.inverse },
+  logoText: { fontSize: 34, fontWeight: '900', color: c.text.primary, marginBottom: 4, letterSpacing: -1 },
+  // R100U — Brutalist brand mark replaces the soft mascot on auth screen.
+  // Kept for legacy use elsewhere; no longer used after R101D mascot
+  // re-introduction (Brandology continuity).
+  brandRule: {
+    width: 56,
+    height: 6,
+    backgroundColor: c.text.primary,
+    marginBottom: 18,
+  },
+  // R101D — White mascot plate on the auth header. Same hard-shadow
+  // brutalist language as the onboarding hero plate so the visual
+  // grammar carries from "MEET MINTU →" straight into auth without
+  // a gap in the brand promise.
+  authMascotPlate: {
+    width: 96, height: 96,
+    backgroundColor: '#FFFFFF',
+    borderWidth: 3, borderColor: c.text.primary,
+    alignItems: 'center', justifyContent: 'center',
+    marginBottom: 18,
+    shadowColor: c.text.primary,
+    shadowOffset: { width: 4, height: 4 },
+    shadowOpacity: 1, shadowRadius: 0, elevation: 6,
+  },
+  // R100S — confident static tagline (replaces randomized MascotMoment)
+  authTagline: { fontSize: 15, fontWeight: '600', color: c.text.muted, marginBottom: 6, textAlign: 'center' },
+  authTrust: { fontSize: 11, fontWeight: '700', color: c.text.muted, letterSpacing: 1.4, marginBottom: 24, textTransform: 'uppercase' as const, textAlign: 'center' },
+  otpIconWrap: { width: 80, height: 80, borderRadius: 0, backgroundColor: c.accent.moneyIn + '15', justifyContent: 'center', alignItems: 'center', marginBottom: 20, borderWidth: 2, borderColor: '#0A0A0A' },
+  stepTitle: { fontSize: 26, fontWeight: '900', color: c.text.primary, marginBottom: 8, textAlign: 'center', letterSpacing: -0.8 },
+  stepSubtitle: { fontSize: 15, color: c.text.secondary, textAlign: 'center', lineHeight: 24 },
+  phoneHighlight: { color: c.accent.primary, fontWeight: '800' },
+  phoneRow: { flexDirection: 'row', gap: 8, marginBottom: SPACING.xxl },
+  countryCode: { backgroundColor: c.bg.secondary, borderRadius: 0, paddingHorizontal: 16, justifyContent: 'center', borderWidth: 2, borderColor: '#0A0A0A' },
+  countryText: { fontSize: 17, fontWeight: '800', color: c.text.primary },
+  phoneInput: { flex: 1, backgroundColor: c.bg.secondary, borderRadius: 0, paddingHorizontal: SPACING.lg, paddingVertical: 18, fontSize: 18, fontWeight: '700', color: c.text.primary, borderWidth: 2, borderColor: '#0A0A0A', letterSpacing: 1 },
+  otpRow: { flexDirection: 'row', justifyContent: 'center', gap: 10, marginBottom: SPACING.xxxl },
+  // Round 51e — uniform OTP box sizing across Android & iOS.
+  // Previously the first box rendered visibly larger on Android because:
+  //   • the OS applies its own default `paddingHorizontal` to focused
+  //     TextInputs (the first box receives focus on mount), and
+  //   • Android adds extra `includeFontPadding` to text rendering.
+  // Fix: zero internal padding, disable font padding, set explicit
+  // `lineHeight` + `textAlignVertical: 'center'`, and force `flexGrow: 0`
+  // so flexbox can never widen one box to fill leftover space.
+  otpBox: {
+    width: 48,
+    height: 56,
+    minWidth: 48,
+    maxWidth: 48,
+    flexGrow: 0,
+    flexShrink: 0,
+    borderRadius: 0,
+    backgroundColor: c.bg.secondary,
+    borderWidth: 2,
+    borderColor: '#0A0A0A',
+    textAlign: 'center',
+    textAlignVertical: 'center',
+    paddingTop: 0,
+    paddingBottom: 0,
+    paddingLeft: 0,
+    paddingRight: 0,
+    fontSize: 22,
+    fontWeight: '900',
+    // Round 87 — Profile-grade brutalist signature: mono numerals on
+    // the OTP boxes. Same visual cadence as Profile's Money Score
+    // metric. `Menlo` is the canonical mono everywhere in the app.
+    fontFamily: Platform.OS === 'ios' ? 'Menlo' : 'monospace',
+    lineHeight: 26,
+    includeFontPadding: false,
+    color: c.text.primary,
+  },
+  otpBoxFilled: { borderColor: c.accent.primary, backgroundColor: c.accent.primary + '12' },
+  nameInputWrap: { flexDirection: 'row', alignItems: 'center', backgroundColor: c.bg.secondary, borderRadius: 0, paddingHorizontal: SPACING.lg, borderWidth: 2, borderColor: '#0A0A0A', marginBottom: SPACING.xxl },
+  nameIcon: { marginRight: 12 },
+  nameInput: { flex: 1, paddingVertical: 18, fontSize: 17, color: c.text.primary, fontWeight: '700' },
+  primaryBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, backgroundColor: c.accent.primary, borderRadius: 0, paddingVertical: 18, borderWidth: 2, borderColor: '#0A0A0A' },
+  btnDisabled: { opacity: 0.5 },
+  primaryBtnText: { fontSize: 16, fontWeight: '900', color: c.text.inverse, letterSpacing: 1 },
+  secondaryBtn: { borderRadius: 0, paddingVertical: 16, alignItems: 'center', borderWidth: 2, borderColor: '#0A0A0A', backgroundColor: '#fff' },
+  secondaryBtnText: { fontSize: 14, fontWeight: '900', color: c.text.primary, letterSpacing: 1 },
+  resendBtn: { alignItems: 'center', marginTop: SPACING.xxl },
+  resendText: { fontSize: 13, fontWeight: '900', color: c.accent.primary, letterSpacing: 1 },
+  resendDisabled: { color: c.text.muted },
+  switchLink: { alignItems: 'center', marginTop: SPACING.xxl },
+  switchText: { fontSize: 13, color: c.accent.primary, fontWeight: '800', letterSpacing: 0.5 },
+  mockBanner: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, backgroundColor: c.accent.primary + '15', borderRadius: 0, padding: SPACING.md, marginTop: SPACING.lg, borderWidth: 1, borderColor: c.accent.primary },
+  mockBannerText: { fontSize: 12, color: c.accent.primary, fontWeight: '800', letterSpacing: 0.5 },
+  passwordSection: { marginTop: SPACING.lg, gap: SPACING.md },
+  textInput: { backgroundColor: c.bg.secondary, borderRadius: 0, paddingHorizontal: SPACING.lg, paddingVertical: 18, fontSize: 16, color: c.text.primary, borderWidth: 2, borderColor: '#0A0A0A', fontWeight: '700' },
+  // Language toggle
+  langToggle: { flexDirection: 'row', alignItems: 'center', gap: 6, alignSelf: 'center', backgroundColor: c.bg.secondary, paddingHorizontal: 14, paddingVertical: 8, borderRadius: 0, borderWidth: 2, borderColor: '#0A0A0A', marginBottom: SPACING.lg },
+  langToggleText: { fontSize: 12, fontWeight: '900', color: c.text.primary, letterSpacing: 1 },
+  sheetHandle: { width: 48, height: 3, borderRadius: 0, backgroundColor: '#0A0A0A', alignSelf: 'center', marginBottom: SPACING.lg },
+  langModalBg: { flex: 1, justifyContent: 'flex-end', backgroundColor: 'rgba(0,0,0,0.55)' },
+  langModalSheet: { backgroundColor: c.bg.secondary, borderTopLeftRadius: 0, borderTopRightRadius: 0, padding: SPACING.xxl, maxHeight: '70%', borderTopWidth: 3, borderColor: '#0A0A0A' },
+  langModalTitle: { fontSize: 22, fontWeight: '900', color: c.text.primary, marginBottom: SPACING.lg, textAlign: 'center', letterSpacing: -0.5 },
+  langOption: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingVertical: 14, paddingHorizontal: SPACING.lg, borderRadius: 0, marginBottom: 4, borderBottomWidth: 1, borderColor: '#E4E2DB' },
+  langOptionActive: { backgroundColor: c.accent.primary + '15' },
+  langNative: { fontSize: 17, fontWeight: '800', color: c.text.primary },
+  langEn: { fontSize: 11, color: c.text.muted, marginTop: 2, fontWeight: '600', letterSpacing: 0.5 },
+}));
 
 type AuthStep = 'phone' | 'otp' | 'name';
 
@@ -210,18 +327,25 @@ export default function AuthScreen() {
       </TouchableOpacity>
 
       <View style={s.header}>
-        {/* R100U — Brand reconciliation. The soft 3D mascot was clashing
-            with the brutalist hard-shadow / black-on-paper aesthetic of
-            every other brutalist surface (Profile, Home Hero, Split,
-            Budget). On confidence-critical screens (auth, settings,
-            score cards) we now lead with the wordmark + a brutalist
-            ink rule, not the cuddly mascot. The mascot still owns
-            playful surfaces (rewards, onboarding interstitials, AI
-            mascot moments) where character is the point. */}
-        <View style={s.brandRule} />
+        {/* R101D — Brand continuity fix. The "MEET MINTU \u2192" promise on
+            the last onboarding slide landed the user on a screen with
+            no Mintu in sight \u2014 broken trust on the very first beat.
+            Mascot now appears here in a small white plate so the user
+            sees the same character they were just promised. Plate is
+            white (matches the rest of R101C) so it doesn't clash with
+            the brutalist black/cream chrome below. */}
+        <View style={s.authMascotPlate}>
+          <MintuMascot size={64} state="idle" />
+        </View>
         <Text style={s.logoText}>MintU</Text>
         <Text style={s.authTagline}>Money, simplified.</Text>
-        <Text style={s.authTrust}>Bank-grade · Data stays in India</Text>
+        {/* R101D \u2014 Honesty replaces marketing. "Bank-grade \u00b7 Data stays
+            in India" was the most-promising and least-provable line on
+            the screen (no audit name, no jurisdiction, nothing to back
+            it). Replaced with a concrete, falsifiable expectation:
+            what's about to happen ("OTP via SMS"), how long, and a
+            no-spam promise we can actually keep. */}
+        <Text style={s.authTrust}>OTP via SMS · ~30 seconds · We never share your number</Text>
       </View>
       <View style={s.phoneRow}>
         <View style={s.countryCode}><Text style={s.countryText}>+91</Text></View>
@@ -373,98 +497,3 @@ export default function AuthScreen() {
   );
 }
 
-const useStyles = makeStyles((c) => ({
-  container: { flex: 1, backgroundColor: c.bg.primary },
-  keyboardView: { flex: 1 },
-  scrollContent: { flexGrow: 1, justifyContent: 'center', padding: SPACING.xxl },
-  backBtn: { width: 44, height: 44, borderRadius: 0, backgroundColor: c.bg.secondary, borderWidth: 2, borderColor: '#0A0A0A', justifyContent: 'center', alignItems: 'center', marginBottom: SPACING.xxl },
-  header: { alignItems: 'center', marginBottom: 40 },
-  logoIcon: { width: 72, height: 72, borderRadius: 0, backgroundColor: c.accent.primary, justifyContent: 'center', alignItems: 'center', marginBottom: 16, borderWidth: 2, borderColor: '#0A0A0A' },
-  mascotWrap: { marginBottom: 16, alignItems: 'center', justifyContent: 'center' },
-  mascotSmallWrap: { marginBottom: 12, alignItems: 'center', justifyContent: 'center' },
-  logoSymbol: { fontSize: 34, fontWeight: '800', color: c.text.inverse },
-  logoText: { fontSize: 34, fontWeight: '900', color: c.text.primary, marginBottom: 4, letterSpacing: -1 },
-  // R100U — Brutalist brand mark replaces the soft mascot on auth screen.
-  brandRule: {
-    width: 56,
-    height: 6,
-    backgroundColor: c.text.primary,
-    marginBottom: 18,
-  },
-  // R100S — confident static tagline (replaces randomized MascotMoment)
-  authTagline: { fontSize: 15, fontWeight: '600', color: c.text.muted, marginBottom: 6, textAlign: 'center' },
-  authTrust: { fontSize: 11, fontWeight: '700', color: c.text.muted, letterSpacing: 1.4, marginBottom: 24, textTransform: 'uppercase' as const, textAlign: 'center' },
-  otpIconWrap: { width: 80, height: 80, borderRadius: 0, backgroundColor: c.accent.moneyIn + '15', justifyContent: 'center', alignItems: 'center', marginBottom: 20, borderWidth: 2, borderColor: '#0A0A0A' },
-  stepTitle: { fontSize: 26, fontWeight: '900', color: c.text.primary, marginBottom: 8, textAlign: 'center', letterSpacing: -0.8 },
-  stepSubtitle: { fontSize: 15, color: c.text.secondary, textAlign: 'center', lineHeight: 24 },
-  phoneHighlight: { color: c.accent.primary, fontWeight: '800' },
-  phoneRow: { flexDirection: 'row', gap: 8, marginBottom: SPACING.xxl },
-  countryCode: { backgroundColor: c.bg.secondary, borderRadius: 0, paddingHorizontal: 16, justifyContent: 'center', borderWidth: 2, borderColor: '#0A0A0A' },
-  countryText: { fontSize: 17, fontWeight: '800', color: c.text.primary },
-  phoneInput: { flex: 1, backgroundColor: c.bg.secondary, borderRadius: 0, paddingHorizontal: SPACING.lg, paddingVertical: 18, fontSize: 18, fontWeight: '700', color: c.text.primary, borderWidth: 2, borderColor: '#0A0A0A', letterSpacing: 1 },
-  otpRow: { flexDirection: 'row', justifyContent: 'center', gap: 10, marginBottom: SPACING.xxxl },
-  // Round 51e — uniform OTP box sizing across Android & iOS.
-  // Previously the first box rendered visibly larger on Android because:
-  //   • the OS applies its own default `paddingHorizontal` to focused
-  //     TextInputs (the first box receives focus on mount), and
-  //   • Android adds extra `includeFontPadding` to text rendering.
-  // Fix: zero internal padding, disable font padding, set explicit
-  // `lineHeight` + `textAlignVertical: 'center'`, and force `flexGrow: 0`
-  // so flexbox can never widen one box to fill leftover space.
-  otpBox: {
-    width: 48,
-    height: 56,
-    minWidth: 48,
-    maxWidth: 48,
-    flexGrow: 0,
-    flexShrink: 0,
-    borderRadius: 0,
-    backgroundColor: c.bg.secondary,
-    borderWidth: 2,
-    borderColor: '#0A0A0A',
-    textAlign: 'center',
-    textAlignVertical: 'center',
-    paddingTop: 0,
-    paddingBottom: 0,
-    paddingLeft: 0,
-    paddingRight: 0,
-    fontSize: 22,
-    fontWeight: '900',
-    // Round 87 — Profile-grade brutalist signature: mono numerals on
-    // the OTP boxes. Same visual cadence as Profile's Money Score
-    // metric. `Menlo` is the canonical mono everywhere in the app.
-    fontFamily: Platform.OS === 'ios' ? 'Menlo' : 'monospace',
-    lineHeight: 26,
-    includeFontPadding: false,
-    color: c.text.primary,
-  },
-  otpBoxFilled: { borderColor: c.accent.primary, backgroundColor: c.accent.primary + '12' },
-  nameInputWrap: { flexDirection: 'row', alignItems: 'center', backgroundColor: c.bg.secondary, borderRadius: 0, paddingHorizontal: SPACING.lg, borderWidth: 2, borderColor: '#0A0A0A', marginBottom: SPACING.xxl },
-  nameIcon: { marginRight: 12 },
-  nameInput: { flex: 1, paddingVertical: 18, fontSize: 17, color: c.text.primary, fontWeight: '700' },
-  primaryBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, backgroundColor: c.accent.primary, borderRadius: 0, paddingVertical: 18, borderWidth: 2, borderColor: '#0A0A0A' },
-  btnDisabled: { opacity: 0.5 },
-  primaryBtnText: { fontSize: 16, fontWeight: '900', color: c.text.inverse, letterSpacing: 1 },
-  secondaryBtn: { borderRadius: 0, paddingVertical: 16, alignItems: 'center', borderWidth: 2, borderColor: '#0A0A0A', backgroundColor: '#fff' },
-  secondaryBtnText: { fontSize: 14, fontWeight: '900', color: c.text.primary, letterSpacing: 1 },
-  resendBtn: { alignItems: 'center', marginTop: SPACING.xxl },
-  resendText: { fontSize: 13, fontWeight: '900', color: c.accent.primary, letterSpacing: 1 },
-  resendDisabled: { color: c.text.muted },
-  switchLink: { alignItems: 'center', marginTop: SPACING.xxl },
-  switchText: { fontSize: 13, color: c.accent.primary, fontWeight: '800', letterSpacing: 0.5 },
-  mockBanner: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, backgroundColor: c.accent.primary + '15', borderRadius: 0, padding: SPACING.md, marginTop: SPACING.lg, borderWidth: 1, borderColor: c.accent.primary },
-  mockBannerText: { fontSize: 12, color: c.accent.primary, fontWeight: '800', letterSpacing: 0.5 },
-  passwordSection: { marginTop: SPACING.lg, gap: SPACING.md },
-  textInput: { backgroundColor: c.bg.secondary, borderRadius: 0, paddingHorizontal: SPACING.lg, paddingVertical: 18, fontSize: 16, color: c.text.primary, borderWidth: 2, borderColor: '#0A0A0A', fontWeight: '700' },
-  // Language toggle
-  langToggle: { flexDirection: 'row', alignItems: 'center', gap: 6, alignSelf: 'center', backgroundColor: c.bg.secondary, paddingHorizontal: 14, paddingVertical: 8, borderRadius: 0, borderWidth: 2, borderColor: '#0A0A0A', marginBottom: SPACING.lg },
-  langToggleText: { fontSize: 12, fontWeight: '900', color: c.text.primary, letterSpacing: 1 },
-  sheetHandle: { width: 48, height: 3, borderRadius: 0, backgroundColor: '#0A0A0A', alignSelf: 'center', marginBottom: SPACING.lg },
-  langModalBg: { flex: 1, justifyContent: 'flex-end', backgroundColor: 'rgba(0,0,0,0.55)' },
-  langModalSheet: { backgroundColor: c.bg.secondary, borderTopLeftRadius: 0, borderTopRightRadius: 0, padding: SPACING.xxl, maxHeight: '70%', borderTopWidth: 3, borderColor: '#0A0A0A' },
-  langModalTitle: { fontSize: 22, fontWeight: '900', color: c.text.primary, marginBottom: SPACING.lg, textAlign: 'center', letterSpacing: -0.5 },
-  langOption: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingVertical: 14, paddingHorizontal: SPACING.lg, borderRadius: 0, marginBottom: 4, borderBottomWidth: 1, borderColor: '#E4E2DB' },
-  langOptionActive: { backgroundColor: c.accent.primary + '15' },
-  langNative: { fontSize: 17, fontWeight: '800', color: c.text.primary },
-  langEn: { fontSize: 11, color: c.text.muted, marginTop: 2, fontWeight: '600', letterSpacing: 0.5 },
-}));

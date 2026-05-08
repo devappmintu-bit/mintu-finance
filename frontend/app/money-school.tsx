@@ -22,7 +22,151 @@ import { fetchPremiumStatus } from '../services/premium';
 import { COLORS } from '../utils/theme';
 import { makeStyles } from '../utils/makeStyles';
 import FullScreenLoader from '../components/FullScreenLoader';
+import { BrutalScreenHeader } from '../components/brutal';
 import { StaggeredEntrance } from '../components/primitives';
+
+
+
+// R113 FIX — useStyles hoisted above first render-time call
+// to avoid Metro/SDK52 TDZ error (`Cannot access X before init.`).
+const useStyles = makeStyles((c) => ({
+  bg: { flex: 1, backgroundColor: c.bg.primary },
+
+  topbar: {
+    flexDirection: 'row', alignItems: 'center', gap: 10,
+    paddingHorizontal: 14, paddingVertical: 12,
+    backgroundColor: c.bg.secondary,
+    borderBottomWidth: 1, borderBottomColor: c.border.subtle,
+  },
+  backBtn: {
+    width: 36, height: 36, borderRadius: 0,
+    backgroundColor: c.bg.elevated,
+    alignItems: 'center', justifyContent: 'center',
+  },
+  topTitle: { fontSize: 17, fontWeight: '800', color: c.text.primary },
+  topSub: { fontSize: 11, color: c.text.muted, marginTop: 1 },
+  topBadge: {
+    width: 36, height: 36, borderRadius: 0,
+    backgroundColor: '#FFF0DE',
+    alignItems: 'center', justifyContent: 'center',
+    borderWidth: 1, borderColor: c.accent.primary + '40',
+  },
+
+  // Lock banner
+  lockBanner: {
+    flexDirection: 'row', alignItems: 'center', gap: 12,
+    padding: 14, borderRadius: 0, marginBottom: 16,
+  },
+  lockIconWrap: {
+    width: 44, height: 44, borderRadius: 0,
+    backgroundColor: c.bg.elevated,
+    alignItems: 'center', justifyContent: 'center',
+  },
+  lockTitle: { fontSize: 14, fontWeight: '800', color: c.bg.elevated },
+  lockSub: { fontSize: 11.5, color: 'rgba(255,255,255,0.9)', marginTop: 2, lineHeight: 16 },
+  lockCta: {
+    flexDirection: 'row', alignItems: 'center', gap: 4,
+    backgroundColor: c.bg.elevated,
+    paddingHorizontal: 11, paddingVertical: 8,
+    borderRadius: 999,
+  },
+  lockCtaT: { color: c.accent.primary, fontWeight: '800', fontSize: 12 },
+
+  // Progress card
+  progressCard: {
+    backgroundColor: c.bg.secondary,
+    borderRadius: 0,
+    padding: 14,
+    marginBottom: 14,
+    borderWidth: 1,
+    borderColor: c.border.subtle,
+  },
+  progressTop: { flexDirection: 'row', alignItems: 'center', gap: 12 },
+  levelBadge: {
+    width: 46, height: 46, borderRadius: 0,
+    backgroundColor: '#FFF0DE',
+    alignItems: 'center', justifyContent: 'center',
+    borderWidth: 1, borderColor: c.accent.primary + '33',
+  },
+  levelEmoji: { fontSize: 22 },
+  progressName: { fontSize: 15, fontWeight: '800', color: c.text.primary },
+  progressSub: { fontSize: 11.5, color: c.text.secondary, marginTop: 2 },
+  nextLevel: { alignItems: 'flex-end' },
+  nextLevelT: { fontSize: 9, color: c.text.muted, fontWeight: '700', letterSpacing: 0.5, textTransform: 'uppercase' },
+  nextLevelName: { fontSize: 12, color: c.accent.primary, fontWeight: '800' },
+  xpTrackWrap: {
+    height: 6, backgroundColor: c.bg.elevated,
+    borderRadius: 3, marginTop: 10, overflow: 'hidden',
+  },
+  xpTrackFill: { height: '100%', backgroundColor: c.accent.primary, borderRadius: 3 },
+
+  // Hero lesson
+  hero: {
+    borderRadius: 0,
+    padding: 16,
+    marginBottom: 16,
+    borderWidth: 1,
+    borderColor: c.accent.primary + '2E',
+  },
+  heroEyebrowRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  heroEyebrow: { fontSize: 10.5, fontWeight: '900', color: c.accent.primary, letterSpacing: 1.2 },
+  heroCount: { fontSize: 10.5, fontWeight: '700', color: c.text.muted, letterSpacing: 0.4 },
+  heroTitle: { fontSize: 20, fontWeight: '900', color: c.text.primary, marginTop: 6, letterSpacing: -0.3 },
+  tipBox: {
+    flexDirection: 'row', gap: 8,
+    backgroundColor: c.bg.elevated,
+    padding: 10, borderRadius: 0,
+    marginTop: 12,
+    borderWidth: 1,
+    borderColor: c.accent.primary + '22',
+  },
+  tipT: { flex: 1, fontSize: 12.5, color: c.text.primary, lineHeight: 18, fontWeight: '600' },
+  pointRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 8, paddingVertical: 3 },
+  pointDot: { width: 6, height: 6, borderRadius: 3, backgroundColor: c.accent.primary, marginTop: 7 },
+  pointT: { flex: 1, fontSize: 12.5, color: c.text.secondary, lineHeight: 18 },
+  actionRow: {
+    flexDirection: 'row', alignItems: 'center', gap: 6,
+    marginTop: 10, paddingTop: 10,
+    borderTopWidth: 1, borderTopColor: c.accent.primary + '1E',
+  },
+  actionT: { flex: 1, fontSize: 12, color: c.text.primary, fontWeight: '700' },
+
+  // Cards grid
+  sectionTitle: {
+    fontSize: 11, fontWeight: '900',
+    color: c.text.muted, letterSpacing: 0.8,
+    textTransform: 'uppercase',
+    marginBottom: 10, marginLeft: 2,
+  },
+  cardsGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
+  cardTile: {
+    width: '48%',
+    backgroundColor: c.bg.secondary,
+    borderRadius: 0, padding: 12,
+    borderWidth: 1, borderColor: c.border.subtle,
+    minHeight: 140,
+  },
+  cardTileDone: { backgroundColor: c.accent.brandSoft, borderColor: c.accent.primary + '40' },
+  cardTileLocked: { opacity: 0.75 },
+  cardEmoji: { fontSize: 22, marginBottom: 4 },
+  cardTitle: { fontSize: 12.5, fontWeight: '800', color: c.text.primary, marginTop: 2 },
+  cardBody: { fontSize: 11, color: c.text.secondary, marginTop: 4, lineHeight: 15 },
+  cardFooter: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 8 },
+  xpChip: {
+    flexDirection: 'row', alignItems: 'center', gap: 3,
+    backgroundColor: '#FFF0DE',
+    paddingHorizontal: 7, paddingVertical: 3,
+    borderRadius: 999,
+  },
+  xpChipDone: { backgroundColor: c.accent.primary },
+  xpChipT: { fontSize: 10, fontWeight: '800', color: c.accent.primary, letterSpacing: 0.2 },
+
+  bottomLink: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
+    gap: 5, marginTop: 14, padding: 10,
+  },
+  bottomLinkT: { color: c.accent.primary, fontWeight: '800', fontSize: 12.5 },
+}));
 
 type Card = { id?: string; type?: string; emoji?: string; title?: string; body?: string; xp?: number; color?: string; completed?: boolean };
 type Progress = {
@@ -289,6 +433,15 @@ export default function MoneySchoolScreen() {
 }
 
 function TopBar({ subtitle }: { subtitle?: string }) {
+  return (
+    <BrutalScreenHeader
+      title="MONEY SCHOOL"
+      subtitle={subtitle ? subtitle.toUpperCase() : 'DAILY 60S LESSONS'}
+    />
+  );
+}
+
+function _TopBarLegacy({ subtitle }: { subtitle?: string }) {
   const s = useStyles();
   return (
     <View style={s.topbar}>
@@ -306,141 +459,3 @@ function TopBar({ subtitle }: { subtitle?: string }) {
   );
 }
 
-const useStyles = makeStyles((c) => ({
-  bg: { flex: 1, backgroundColor: c.bg.primary },
-
-  topbar: {
-    flexDirection: 'row', alignItems: 'center', gap: 10,
-    paddingHorizontal: 14, paddingVertical: 12,
-    backgroundColor: c.bg.secondary,
-    borderBottomWidth: 1, borderBottomColor: c.border.subtle,
-  },
-  backBtn: {
-    width: 36, height: 36, borderRadius: 0,
-    backgroundColor: c.bg.elevated,
-    alignItems: 'center', justifyContent: 'center',
-  },
-  topTitle: { fontSize: 17, fontWeight: '800', color: c.text.primary },
-  topSub: { fontSize: 11, color: c.text.muted, marginTop: 1 },
-  topBadge: {
-    width: 36, height: 36, borderRadius: 0,
-    backgroundColor: '#FFF0DE',
-    alignItems: 'center', justifyContent: 'center',
-    borderWidth: 1, borderColor: c.accent.primary + '40',
-  },
-
-  // Lock banner
-  lockBanner: {
-    flexDirection: 'row', alignItems: 'center', gap: 12,
-    padding: 14, borderRadius: 0, marginBottom: 16,
-  },
-  lockIconWrap: {
-    width: 44, height: 44, borderRadius: 0,
-    backgroundColor: c.bg.elevated,
-    alignItems: 'center', justifyContent: 'center',
-  },
-  lockTitle: { fontSize: 14, fontWeight: '800', color: c.bg.elevated },
-  lockSub: { fontSize: 11.5, color: 'rgba(255,255,255,0.9)', marginTop: 2, lineHeight: 16 },
-  lockCta: {
-    flexDirection: 'row', alignItems: 'center', gap: 4,
-    backgroundColor: c.bg.elevated,
-    paddingHorizontal: 11, paddingVertical: 8,
-    borderRadius: 999,
-  },
-  lockCtaT: { color: c.accent.primary, fontWeight: '800', fontSize: 12 },
-
-  // Progress card
-  progressCard: {
-    backgroundColor: c.bg.secondary,
-    borderRadius: 0,
-    padding: 14,
-    marginBottom: 14,
-    borderWidth: 1,
-    borderColor: c.border.subtle,
-  },
-  progressTop: { flexDirection: 'row', alignItems: 'center', gap: 12 },
-  levelBadge: {
-    width: 46, height: 46, borderRadius: 0,
-    backgroundColor: '#FFF0DE',
-    alignItems: 'center', justifyContent: 'center',
-    borderWidth: 1, borderColor: c.accent.primary + '33',
-  },
-  levelEmoji: { fontSize: 22 },
-  progressName: { fontSize: 15, fontWeight: '800', color: c.text.primary },
-  progressSub: { fontSize: 11.5, color: c.text.secondary, marginTop: 2 },
-  nextLevel: { alignItems: 'flex-end' },
-  nextLevelT: { fontSize: 9, color: c.text.muted, fontWeight: '700', letterSpacing: 0.5, textTransform: 'uppercase' },
-  nextLevelName: { fontSize: 12, color: c.accent.primary, fontWeight: '800' },
-  xpTrackWrap: {
-    height: 6, backgroundColor: c.bg.elevated,
-    borderRadius: 3, marginTop: 10, overflow: 'hidden',
-  },
-  xpTrackFill: { height: '100%', backgroundColor: c.accent.primary, borderRadius: 3 },
-
-  // Hero lesson
-  hero: {
-    borderRadius: 0,
-    padding: 16,
-    marginBottom: 16,
-    borderWidth: 1,
-    borderColor: c.accent.primary + '2E',
-  },
-  heroEyebrowRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
-  heroEyebrow: { fontSize: 10.5, fontWeight: '900', color: c.accent.primary, letterSpacing: 1.2 },
-  heroCount: { fontSize: 10.5, fontWeight: '700', color: c.text.muted, letterSpacing: 0.4 },
-  heroTitle: { fontSize: 20, fontWeight: '900', color: c.text.primary, marginTop: 6, letterSpacing: -0.3 },
-  tipBox: {
-    flexDirection: 'row', gap: 8,
-    backgroundColor: c.bg.elevated,
-    padding: 10, borderRadius: 0,
-    marginTop: 12,
-    borderWidth: 1,
-    borderColor: c.accent.primary + '22',
-  },
-  tipT: { flex: 1, fontSize: 12.5, color: c.text.primary, lineHeight: 18, fontWeight: '600' },
-  pointRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 8, paddingVertical: 3 },
-  pointDot: { width: 6, height: 6, borderRadius: 3, backgroundColor: c.accent.primary, marginTop: 7 },
-  pointT: { flex: 1, fontSize: 12.5, color: c.text.secondary, lineHeight: 18 },
-  actionRow: {
-    flexDirection: 'row', alignItems: 'center', gap: 6,
-    marginTop: 10, paddingTop: 10,
-    borderTopWidth: 1, borderTopColor: c.accent.primary + '1E',
-  },
-  actionT: { flex: 1, fontSize: 12, color: c.text.primary, fontWeight: '700' },
-
-  // Cards grid
-  sectionTitle: {
-    fontSize: 11, fontWeight: '900',
-    color: c.text.muted, letterSpacing: 0.8,
-    textTransform: 'uppercase',
-    marginBottom: 10, marginLeft: 2,
-  },
-  cardsGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
-  cardTile: {
-    width: '48%',
-    backgroundColor: c.bg.secondary,
-    borderRadius: 0, padding: 12,
-    borderWidth: 1, borderColor: c.border.subtle,
-    minHeight: 140,
-  },
-  cardTileDone: { backgroundColor: c.accent.brandSoft, borderColor: c.accent.primary + '40' },
-  cardTileLocked: { opacity: 0.75 },
-  cardEmoji: { fontSize: 22, marginBottom: 4 },
-  cardTitle: { fontSize: 12.5, fontWeight: '800', color: c.text.primary, marginTop: 2 },
-  cardBody: { fontSize: 11, color: c.text.secondary, marginTop: 4, lineHeight: 15 },
-  cardFooter: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 8 },
-  xpChip: {
-    flexDirection: 'row', alignItems: 'center', gap: 3,
-    backgroundColor: '#FFF0DE',
-    paddingHorizontal: 7, paddingVertical: 3,
-    borderRadius: 999,
-  },
-  xpChipDone: { backgroundColor: c.accent.primary },
-  xpChipT: { fontSize: 10, fontWeight: '800', color: c.accent.primary, letterSpacing: 0.2 },
-
-  bottomLink: {
-    flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
-    gap: 5, marginTop: 14, padding: 10,
-  },
-  bottomLinkT: { color: c.accent.primary, fontWeight: '800', fontSize: 12.5 },
-}));

@@ -10,6 +10,39 @@ import { makeStyles } from '../utils/makeStyles';
 import { setPin, biometricAvailable, supportedBiometricLabel, enableBiometricByDefault } from '../utils/lockManager';
 import MintULogo from './MintULogo';
 
+
+
+// R113 FIX — useStyles hoisted above first render-time call
+// to avoid Metro/SDK52 TDZ error (`Cannot access X before init.`).
+const useStyles = makeStyles((c) => ({
+  // Round 51e — tightened vertical layout. Previously space-between
+  // distributed dead space between dots and numpad on tall phones,
+  // making the input feel disconnected. Switch to flex-start anchoring
+  // so the dots sit ~24px above the numpad regardless of phone height.
+  container: { flex: 1, backgroundColor: c.bg.primary, alignItems: 'center', paddingVertical: SPACING.xl },
+  top: { alignItems: 'center', marginTop: SPACING.xl, paddingHorizontal: SPACING.lg },
+  title: { fontSize: 22, fontWeight: '800', color: c.text.primary, marginTop: SPACING.md, textAlign: 'center' },
+  sub: { fontSize: 14, color: c.text.muted, marginTop: 8, textAlign: 'center' },
+  // Reduced top/bottom margins from `SPACING.lg` (24) to a tight 16/24
+  // so the dots sit ~40px above the numpad as required.
+  dotsRow: { flexDirection: 'row', gap: 18, marginTop: 24, marginBottom: 24 },
+  dot: { width: 16, height: 16, borderRadius: 0, borderWidth: 2, borderColor: c.accent.primary + '55' },
+  dotFilled: { backgroundColor: c.accent.primary, borderColor: c.accent.primary },
+  dotErr: { borderColor: c.state.danger, backgroundColor: '#FEE2E2' },
+  errorText: { color: c.state.danger, fontSize: 13, marginTop: 4, marginBottom: 4 },
+  keypad: { width: '100%', maxWidth: 320, flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'center', marginBottom: SPACING.lg },
+  key: { width: '33.33%', aspectRatio: 1.6, alignItems: 'center', justifyContent: 'center' },
+  keyText: { fontSize: 26, fontWeight: '600', color: c.text.primary },
+  skipText: { fontSize: 13, color: c.text.muted, fontWeight: '600' },
+  checkCircle: {
+    width: 84, height: 84, borderRadius: 0, backgroundColor: c.state.success,
+    alignItems: 'center', justifyContent: 'center',
+    // Round 51e — moved checkmark up toward the title to reduce dead
+    // space on the "You're all set" stage. Was `SPACING.xl` (32).
+    marginTop: SPACING.lg,
+  },
+}));
+
 interface Props {
   visible: boolean;
   onDone: () => void;
@@ -118,31 +151,3 @@ export default function PinSetupModal({ visible, onDone, onSkip }: Props) {
   );
 }
 
-const useStyles = makeStyles((c) => ({
-  // Round 51e — tightened vertical layout. Previously space-between
-  // distributed dead space between dots and numpad on tall phones,
-  // making the input feel disconnected. Switch to flex-start anchoring
-  // so the dots sit ~24px above the numpad regardless of phone height.
-  container: { flex: 1, backgroundColor: c.bg.primary, alignItems: 'center', paddingVertical: SPACING.xl },
-  top: { alignItems: 'center', marginTop: SPACING.xl, paddingHorizontal: SPACING.lg },
-  title: { fontSize: 22, fontWeight: '800', color: c.text.primary, marginTop: SPACING.md, textAlign: 'center' },
-  sub: { fontSize: 14, color: c.text.muted, marginTop: 8, textAlign: 'center' },
-  // Reduced top/bottom margins from `SPACING.lg` (24) to a tight 16/24
-  // so the dots sit ~40px above the numpad as required.
-  dotsRow: { flexDirection: 'row', gap: 18, marginTop: 24, marginBottom: 24 },
-  dot: { width: 16, height: 16, borderRadius: 0, borderWidth: 2, borderColor: c.accent.primary + '55' },
-  dotFilled: { backgroundColor: c.accent.primary, borderColor: c.accent.primary },
-  dotErr: { borderColor: c.state.danger, backgroundColor: '#FEE2E2' },
-  errorText: { color: c.state.danger, fontSize: 13, marginTop: 4, marginBottom: 4 },
-  keypad: { width: '100%', maxWidth: 320, flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'center', marginBottom: SPACING.lg },
-  key: { width: '33.33%', aspectRatio: 1.6, alignItems: 'center', justifyContent: 'center' },
-  keyText: { fontSize: 26, fontWeight: '600', color: c.text.primary },
-  skipText: { fontSize: 13, color: c.text.muted, fontWeight: '600' },
-  checkCircle: {
-    width: 84, height: 84, borderRadius: 0, backgroundColor: c.state.success,
-    alignItems: 'center', justifyContent: 'center',
-    // Round 51e — moved checkmark up toward the title to reduce dead
-    // space on the "You're all set" stage. Was `SPACING.xl` (32).
-    marginTop: SPACING.lg,
-  },
-}));

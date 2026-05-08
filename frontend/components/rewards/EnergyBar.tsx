@@ -14,6 +14,21 @@ import { Ionicons } from '@expo/vector-icons';
 import { makeStyles } from '../../utils/makeStyles';
 import { useAppColors } from '../../utils/theme';
 
+
+
+// R113 FIX — useStyles hoisted above first render-time call
+// to avoid Metro/SDK52 TDZ error (`Cannot access X before init.`).
+const useStyles = makeStyles((c) => ({
+  wrap: { gap: 8, width: '100%' },
+  rowBetween: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  lblRow: { flexDirection: 'row', alignItems: 'center', gap: 4 },
+  lblTxt: { fontSize: 11, fontWeight: '900', letterSpacing: 1, color: c.text.muted },
+  valTxt: { fontSize: 13, fontWeight: '900' },
+  track: { height: 8, borderRadius: 4, backgroundColor: c.gray[200], overflow: 'hidden' },
+  fill: { height: '100%', borderRadius: 4 },
+  helperTxt: { fontSize: 11, color: c.text.muted, fontWeight: '600', marginTop: 4 },
+}));
+
 type Props = {
   freeSpinsLeft: number;
   coins: number;
@@ -83,13 +98,3 @@ export default function EnergyBar({ freeSpinsLeft, coins, spinCost, coinsToNextS
   );
 }
 
-const useStyles = makeStyles((c) => ({
-  wrap: { gap: 8, width: '100%' },
-  rowBetween: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-  lblRow: { flexDirection: 'row', alignItems: 'center', gap: 4 },
-  lblTxt: { fontSize: 11, fontWeight: '900', letterSpacing: 1, color: c.text.muted },
-  valTxt: { fontSize: 13, fontWeight: '900' },
-  track: { height: 8, borderRadius: 4, backgroundColor: c.gray[200], overflow: 'hidden' },
-  fill: { height: '100%', borderRadius: 4 },
-  helperTxt: { fontSize: 11, color: c.text.muted, fontWeight: '600', marginTop: 4 },
-}));

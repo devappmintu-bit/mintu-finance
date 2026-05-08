@@ -1,18 +1,39 @@
 /**
- * MintU — Legal Pages (dynamic route)
+ * MintU — Legal Pages (R113 brutal convergence).
  * Routes: /legal/privacy · /legal/terms · /legal/data-protection
- * Full long-form legal content for Indian fintech compliance.
+ * Migrated to BrutalCard + brutal tokens. Each section is now a flat
+ * BrutalCard so the long-form copy stays scannable on mobile.
  */
 import React from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity } from 'react-native';
+import {
+  View,
+  Text,
+  StyleSheet,
+  ScrollView,
+  Pressable,
+} from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { router, useLocalSearchParams } from 'expo-router';
-import { COLORS, shadowStyle } from '../../utils/theme';
-import { makeStyles } from '../../utils/makeStyles';
+
+import {
+  BrutalCard,
+  BR_COLORS,
+  BR_BORDER,
+  BR_SHADOW,
+  BR_SPACE,
+  BR_FONT,
+  PALETTE,
+} from '../../components/brutal';
 
 type Section = { heading: string; body: string };
-type LegalDoc = { title: string; emoji: string; lastUpdated: string; intro: string; sections: Section[] };
+type LegalDoc = {
+  title: string;
+  emoji: string;
+  lastUpdated: string;
+  intro: string;
+  sections: Section[];
+};
 
 const EFFECTIVE = 'April 2026';
 
@@ -21,7 +42,8 @@ const DOCS: Record<string, LegalDoc> = {
     title: 'Privacy Policy',
     emoji: '🔒',
     lastUpdated: EFFECTIVE,
-    intro: 'MintU ("we", "our", "us") is committed to protecting your privacy and complying with the Indian IT Act 2000, RBI data localization norms, and globally-recognized GDPR principles. This policy explains what data we collect, how we use it, and the rights you have over it.',
+    intro:
+      'MintU ("we", "our", "us") is committed to protecting your privacy and complying with the Indian IT Act 2000, RBI data localization norms, and globally-recognized GDPR principles. This policy explains what data we collect, how we use it, and the rights you have over it.',
     sections: [
       { heading: '1. Data We Collect', body: 'With your explicit consent, we collect: (a) basic profile data — name, phone number, optional email, profile photo; (b) financial data you log manually or let us parse from SMS — transaction amounts, categories, merchant names, dates; (c) optional UPI handle for settlement links; (d) usage analytics — screens visited, features used, crash reports. We DO NOT collect your bank passwords, OTPs, or raw bank account numbers.' },
       { heading: '2. How We Use Your Data', body: 'Your data powers: (a) expense tracking and budget alerts; (b) AI-generated insights, predictions, and nudges via on-device and server-side models; (c) aggregated anonymised benchmarking (e.g., "You save more than 68% of users") — only aggregate statistics, never individual-level sharing; (d) product improvements via crash and usage analytics.' },
@@ -39,7 +61,8 @@ const DOCS: Record<string, LegalDoc> = {
     title: 'Terms of Service',
     emoji: '📜',
     lastUpdated: EFFECTIVE,
-    intro: 'By using MintU, you agree to the following terms. Please read carefully — these terms govern your use of our mobile app, website, and associated services.',
+    intro:
+      'By using MintU, you agree to the following terms. Please read carefully — these terms govern your use of our mobile app, website, and associated services.',
     sections: [
       { heading: '1. Eligibility & Account', body: 'You must be at least 18 years old and a resident of India to use MintU. You are responsible for maintaining the confidentiality of your account credentials and for all activities under your account. Notify us immediately of any unauthorized access.' },
       { heading: '2. Financial Disclaimer — NOT A FINANCIAL ADVISOR', body: 'MintU is a personal finance TRACKING and INFORMATION tool. We are NOT a SEBI-registered investment advisor, financial planner, or tax consultant. Insights, tax estimates, investment suggestions, and AI recommendations are educational in nature and do not constitute professional advice. Consult a certified financial planner, chartered accountant, or SEBI-registered advisor before making financial decisions.' },
@@ -57,7 +80,8 @@ const DOCS: Record<string, LegalDoc> = {
     title: 'Data Protection Policy',
     emoji: '🛡️',
     lastUpdated: EFFECTIVE,
-    intro: 'MintU applies bank-grade security controls aligned with Indian Digital Personal Data Protection Act (DPDPA), IT Act 2000, and RBI technology guidelines. This document details the technical safeguards protecting your data.',
+    intro:
+      'MintU applies bank-grade security controls aligned with Indian Digital Personal Data Protection Act (DPDPA), IT Act 2000, and RBI technology guidelines. This document details the technical safeguards protecting your data.',
     sections: [
       { heading: '1. Encryption', body: 'Data in transit is protected via TLS 1.3 between the app and our servers — no legacy SSL/TLS 1.0/1.1 supported. Data at rest on MongoDB servers uses AES-256 encryption with keys managed through AWS KMS (India region). Database backups are encrypted with separate keys and stored in India-only S3 buckets.' },
       { heading: '2. Authentication', body: 'Login uses either OTP (6-digit, 5-minute TTL) or bcrypt-hashed passwords (cost factor 12). Session tokens are signed JWTs with a 7-day expiry, refreshed on each active session. Optional biometric lock (fingerprint / face ID) is enforced on mobile devices.' },
@@ -74,43 +98,50 @@ const DOCS: Record<string, LegalDoc> = {
 };
 
 export default function LegalPage() {
-  const s = useStyles();
   const { page } = useLocalSearchParams<{ page: string }>();
   const key = String(page || 'privacy').toLowerCase();
   const doc = DOCS[key] || DOCS.privacy;
 
   return (
     <SafeAreaView style={s.container} edges={['top']}>
+      {/* Brutal header */}
       <View style={s.header}>
-        <TouchableOpacity onPress={() => router.back()} style={s.backBtn}>
-          <Ionicons name="chevron-back" size={22} color={COLORS.text.primary} />
-        </TouchableOpacity>
-        <Text style={s.headerTitle}>{doc.title}</Text>
-        <View style={{ width: 32 }} />
+        <Pressable
+          onPress={() => router.back()}
+          hitSlop={10}
+          style={s.headerBtn}
+          accessibilityLabel="Back"
+        >
+          <Ionicons name="chevron-back" size={22} color={BR_COLORS.ink} />
+        </Pressable>
+        <Text style={s.headerTitle}>{doc.title.toUpperCase()}</Text>
+        <View style={{ width: 36 }} />
       </View>
 
-      <ScrollView contentContainerStyle={s.scroll}>
-        <View style={s.hero}>
+      <ScrollView contentContainerStyle={s.scroll} showsVerticalScrollIndicator={false}>
+        {/* Hero */}
+        <BrutalCard variant="warm" style={s.hero}>
           <Text style={s.heroEmoji}>{doc.emoji}</Text>
           <Text style={s.heroTitle}>{doc.title}</Text>
-          <Text style={s.heroDate}>Last updated · {doc.lastUpdated}</Text>
-        </View>
+          <Text style={s.heroDate}>LAST UPDATED · {doc.lastUpdated.toUpperCase()}</Text>
+        </BrutalCard>
 
         <Text style={s.intro}>{doc.intro}</Text>
 
         {doc.sections.map((sec, i) => (
-          <View key={i} style={s.section}>
-            <Text style={s.sectionTitle}>{sec.heading}</Text>
+          <BrutalCard key={i} flat style={s.section}>
+            <Text style={s.sectionTitle}>{sec.heading.toUpperCase()}</Text>
             <Text style={s.sectionBody}>{sec.body}</Text>
-          </View>
+          </BrutalCard>
         ))}
 
-        <View style={s.footer}>
-          <Ionicons name="shield-checkmark" size={14} color={COLORS.state.successAlt} />
+        {/* Compliance footer stamp */}
+        <BrutalCard variant="lime" style={s.footer}>
+          <Ionicons name="shield-checkmark" size={16} color={BR_COLORS.ink} />
           <Text style={s.footerText}>
-            Aligned with RBI data localization · DPDPA 2023 · IT Act 2000 · GDPR principles
+            RBI DATA LOCALIZATION · DPDPA 2023 · IT ACT 2000 · GDPR
           </Text>
-        </View>
+        </BrutalCard>
 
         <View style={{ height: 40 }} />
       </ScrollView>
@@ -118,20 +149,92 @@ export default function LegalPage() {
   );
 }
 
-const useStyles = makeStyles((c) => ({
-  container: { flex: 1, backgroundColor: c.bg.primary },
-  header: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 12, paddingVertical: 12, backgroundColor: '#FFFFFF', borderBottomWidth: 1, borderBottomColor: c.border.subtle },
-  backBtn: { padding: 6 },
-  headerTitle: { flex: 1, fontSize: 16, fontWeight: '800', color: c.text.primary, textAlign: 'center' },
-  scroll: { padding: 16 },
-  hero: { alignItems: 'center', paddingVertical: 24, backgroundColor: '#FFFFFF', borderRadius: 0, marginBottom: 14, ...shadowStyle('#2E1F1A', 2, 10, 0.05, 2) },
-  heroEmoji: { fontSize: 38, marginBottom: 6 },
-  heroTitle: { fontSize: 18, fontWeight: '900', color: c.text.primary },
-  heroDate: { fontSize: 11, fontWeight: '600', color: c.text.muted, marginTop: 4, letterSpacing: 0.3 },
-  intro: { fontSize: 14, color: c.text.secondary, lineHeight: 22, marginBottom: 16, fontWeight: '500' },
-  section: { backgroundColor: '#FFFFFF', borderRadius: 0, padding: 14, marginBottom: 10, borderWidth: 1, borderColor: c.border.card },
-  sectionTitle: { fontSize: 14, fontWeight: '800', color: '#E65100', marginBottom: 6 },
-  sectionBody: { fontSize: 13, color: c.text.primary, lineHeight: 20, fontWeight: '500' },
-  footer: { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 18, padding: 12, backgroundColor: '#10B98110', borderRadius: 0, borderWidth: 1, borderColor: '#10B98125' },
-  footerText: { flex: 1, fontSize: 11, color: COLORS.state.success, fontWeight: '700', lineHeight: 15 },
-}));
+const s = StyleSheet.create({
+  container: { flex: 1, backgroundColor: BR_COLORS.bg },
+
+  header: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: BR_SPACE['4'],
+    paddingVertical: BR_SPACE['3'],
+    borderBottomWidth: BR_BORDER.base,
+    borderColor: BR_COLORS.ink,
+    backgroundColor: BR_COLORS.bg,
+    justifyContent: 'space-between',
+  },
+  headerBtn: {
+    width: 36,
+    height: 36,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: BR_BORDER.base,
+    borderColor: BR_COLORS.ink,
+    backgroundColor: BR_COLORS.card,
+    ...(BR_SHADOW.xs as any),
+  },
+  headerTitle: { ...BR_FONT.stamp, color: BR_COLORS.ink, fontSize: 13, flex: 1, textAlign: 'center' },
+
+  scroll: {
+    padding: BR_SPACE['4'],
+    gap: BR_SPACE['3'],
+  },
+
+  hero: {
+    alignItems: 'center',
+    paddingVertical: BR_SPACE['6'],
+  },
+  heroEmoji: { fontSize: 44, marginBottom: BR_SPACE['2'] },
+  heroTitle: {
+    ...BR_FONT.h1,
+    fontSize: 22,
+    color: BR_COLORS.ink,
+    textAlign: 'center',
+  },
+  heroDate: {
+    ...BR_FONT.stamp,
+    fontSize: 10,
+    color: BR_COLORS.textMuted,
+    marginTop: 6,
+  },
+
+  intro: {
+    fontSize: 14,
+    color: BR_COLORS.text,
+    lineHeight: 22,
+    fontWeight: '600',
+    paddingHorizontal: BR_SPACE['1'],
+  },
+
+  section: {
+    paddingVertical: BR_SPACE['3'],
+    paddingHorizontal: BR_SPACE['3'],
+  },
+  sectionTitle: {
+    ...BR_FONT.stamp,
+    fontSize: 12,
+    color: PALETTE.brand,
+    marginBottom: BR_SPACE['2'],
+  },
+  sectionBody: {
+    fontSize: 13.5,
+    color: BR_COLORS.ink,
+    lineHeight: 20,
+    fontWeight: '500',
+  },
+
+  footer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    paddingVertical: BR_SPACE['3'],
+    paddingHorizontal: BR_SPACE['4'],
+    marginTop: BR_SPACE['3'],
+  },
+  footerText: {
+    flex: 1,
+    ...BR_FONT.stamp,
+    fontSize: 10,
+    color: BR_COLORS.ink,
+    lineHeight: 14,
+  },
+});

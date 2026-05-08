@@ -36,7 +36,7 @@ export const BR_COLORS = {
   quiet:      '#9E9A92',  // meta labels, timestamps
 
   // THE ONE accent — orange (kept from brand to preserve recognition)
-  accent:     '#E84A0C',  // brand orange, solid
+  accent:     '#F56E1E',  // brand orange, solid
   accentInk:  '#FFFFFF',  // text/icon on accent surface
 
   // Semantic — solid, no pastels

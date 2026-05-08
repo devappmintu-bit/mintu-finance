@@ -12,6 +12,37 @@ import { Ionicons } from '@expo/vector-icons';
 import { COLORS, FONT_FAMILY, RADIUS } from '../../utils/theme';
 import { makeStyles } from '../../utils/makeStyles';
 
+
+
+// R113 FIX — useStyles hoisted above first render-time call
+// to avoid Metro/SDK52 TDZ error (`Cannot access X before init.`).
+const useStyles = makeStyles((c) => ({
+  base: {
+    // R100J — Brutalist enforcement. Pill style hardened: 0-radius
+    // square with a 1.5-px ink border, replacing the soft RADIUS.full
+    // (∞-radius) that read as glassy/floaty. Keeps the same colour
+    // palette per tone for semantic legibility.
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 0,
+    borderWidth: 1.5,
+    alignSelf: 'flex-start',
+  },
+  dot: {
+    // Square indicator dot — matches surrounding brutalist grammar.
+    width: 6, height: 6, borderRadius: 0,
+  },
+  label: {
+    fontSize: 10.5,
+    fontFamily: FONT_FAMILY.bold,
+    letterSpacing: 0.6,
+    textTransform: 'uppercase',
+  },
+}));
+
 type Tone = 'neutral' | 'success' | 'warning' | 'danger' | 'premium' | 'neon';
 
 const tones: Record<Tone, { bg: string; fg: string; border: string }> = {
@@ -60,29 +91,3 @@ export default function GlowPill({ label, tone = 'neutral', icon, pulse = false,
   );
 }
 
-const useStyles = makeStyles((c) => ({
-  base: {
-    // R100J — Brutalist enforcement. Pill style hardened: 0-radius
-    // square with a 1.5-px ink border, replacing the soft RADIUS.full
-    // (∞-radius) that read as glassy/floaty. Keeps the same colour
-    // palette per tone for semantic legibility.
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 5,
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-    borderRadius: 0,
-    borderWidth: 1.5,
-    alignSelf: 'flex-start',
-  },
-  dot: {
-    // Square indicator dot — matches surrounding brutalist grammar.
-    width: 6, height: 6, borderRadius: 0,
-  },
-  label: {
-    fontSize: 10.5,
-    fontFamily: FONT_FAMILY.bold,
-    letterSpacing: 0.6,
-    textTransform: 'uppercase',
-  },
-}));

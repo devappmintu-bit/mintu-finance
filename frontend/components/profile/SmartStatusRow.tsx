@@ -16,6 +16,20 @@ import * as Haptics from 'expo-haptics';
 import { makeStyles } from '../../utils/makeStyles';
 import { COLORS } from '../../utils/theme';
 
+
+
+// R113 FIX — useStyles hoisted above first render-time call
+// to avoid Metro/SDK52 TDZ error (`Cannot access X before init.`).
+const useStyles = makeStyles((c) => ({
+  row: { flexDirection: 'row', alignItems: 'center', gap: 14, paddingVertical: 14, paddingHorizontal: 4 },
+  label: { fontSize: 14.5, fontWeight: '500', color: c.text.primary, letterSpacing: -0.1 },
+  statusRow: { flexDirection: 'row', alignItems: 'center', gap: 5, marginTop: 3 },
+  dot: { width: 6, height: 6, borderRadius: 3 },
+  statusText: { fontSize: 11.5, fontWeight: '700', letterSpacing: 0.1 },
+  fixPill: { paddingHorizontal: 10, paddingVertical: 6, borderRadius: 0, backgroundColor: c.state.danger },
+  fixPillTxt: { fontSize: 11, fontWeight: '800', color: c.bg.elevated, letterSpacing: 0.2 },
+}));
+
 export type RowStatus = 'ok' | 'warn' | 'error' | 'syncing' | 'idle';
 
 export type SmartStatusRowProps = {
@@ -80,12 +94,3 @@ export default function SmartStatusRow({
   );
 }
 
-const useStyles = makeStyles((c) => ({
-  row: { flexDirection: 'row', alignItems: 'center', gap: 14, paddingVertical: 14, paddingHorizontal: 4 },
-  label: { fontSize: 14.5, fontWeight: '500', color: c.text.primary, letterSpacing: -0.1 },
-  statusRow: { flexDirection: 'row', alignItems: 'center', gap: 5, marginTop: 3 },
-  dot: { width: 6, height: 6, borderRadius: 3 },
-  statusText: { fontSize: 11.5, fontWeight: '700', letterSpacing: 0.1 },
-  fixPill: { paddingHorizontal: 10, paddingVertical: 6, borderRadius: 0, backgroundColor: c.state.danger },
-  fixPillTxt: { fontSize: 11, fontWeight: '800', color: c.bg.elevated, letterSpacing: 0.2 },
-}));

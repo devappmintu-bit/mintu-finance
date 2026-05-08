@@ -40,23 +40,34 @@ async def create_split_group(group: SplitGroupCreate, user_id: str = Depends(get
     pending_invites: List[dict] = []
     seen_phones = {user.get("phone")}
 
+    # R101B — Honor `entries` (phone+name) when provided, else fall back
+    # to the legacy `members` list (phones only). The old shape produced
+    # nameless pending_invites which leaked raw phone numbers everywhere
+    # in the UI — fixed at the source.
+    raw_entries: list[tuple[str, str]] = []
+    if group.entries:
+        for e in group.entries:
+            raw_entries.append((str(e.phone or ""), (e.name or "").strip()))
+    else:
+        for ph in (group.members or []):
+            raw_entries.append((str(ph), ""))
+    if not raw_entries:
+        raise HTTPException(status_code=400, detail="Add at least one friend's phone number.")
+
     # Phase 5 fix: batch-fetch all phone→user mappings in a single $in query
     # instead of N serial find_one() calls (the previous N+1 hot-path for
     # group creation, which on groups of 20 members made 20 round-trips).
-    normalized_phones = []
-    for phone in group.members:
+    normalized_entries: list[tuple[str, str]] = []
+    for phone, hint_name in raw_entries:
         p = phone.strip().replace("+91", "").replace(" ", "")[-10:]
         if len(p) == 10 and p.isdigit() and p not in seen_phones:
-            normalized_phones.append(p)
+            normalized_entries.append((p, hint_name))
     phone_to_user = {}
-    if normalized_phones:
-        async for u in db.users.find({"phone": {"$in": normalized_phones}}):
+    if normalized_entries:
+        async for u in db.users.find({"phone": {"$in": [p for p, _ in normalized_entries]}}):
             phone_to_user[u["phone"]] = u
 
-    for phone in group.members:
-        p = phone.strip().replace("+91", "").replace(" ", "")[-10:]
-        if len(p) != 10 or not p.isdigit():
-            continue
+    for p, hint_name in normalized_entries:
         if p in seen_phones:  # Phone-level dedup
             continue
         seen_phones.add(p)
@@ -69,13 +80,20 @@ async def create_split_group(group: SplitGroupCreate, user_id: str = Depends(get
             if not any(m["user_id"] == mid for m in members):  # user_id dedup
                 members.append({
                     "user_id": mid,
-                    "name": existing.get("name") or f"+91 {p}",
+                    # R101B — prefer registered name; otherwise the
+                    # creator-provided hint_name; phone fallback last.
+                    "name": existing.get("name") or hint_name or f"+91 {p}",
                     "phone": p,
                 })
         else:
             # Do NOT auto-create placeholder user. Track as pending invite.
             if not any(pi["phone"] == p for pi in pending_invites):
-                pending_invites.append({"phone": p, "invited_at": utc_now()})
+                invite_doc = {"phone": p, "invited_at": utc_now()}
+                # R101B — keep the creator-provided friendly name so the
+                # group never leaks "+91 9876543210" as a member label.
+                if hint_name:
+                    invite_doc["name"] = hint_name
+                pending_invites.append(invite_doc)
 
     # Minimum 2 members (including creator) to create a group
     total_participants = len(members) + len(pending_invites)
@@ -195,17 +213,60 @@ async def get_split_groups(user_id: str = Depends(get_current_user)):
         if gid in by_group:
             by_group[gid].append(e)
 
-    # Roll up balances per group from the in-memory bucket
+    # Roll up balances per group from the in-memory bucket.
+    #
+    # R101E — TRUST FIX: pending-invitee debt is now SEPARATED from
+    # confirmed-member debt. Before this fix, when an expense splits
+    # across mixed members + pending invites (synthetic ids "pi:<phone>"),
+    # the pending share was silently MOVED to the payer's confirmed
+    # balance — inflating "you're owed ₹X" by amounts that no real user
+    # has actually agreed to pay. That's simulated debt: the single
+    # biggest trust failure a finance app can ship.
+    #
+    # We now bucket pending shares into `pending_balances` (signed paise
+    # per pi-id) and zero them out of the confirmed `balances` so
+    # `g["balances"]` reflects only debt anchored on real, joined users.
     for g in groups:
         expenses = by_group.get(g["id"], [])
         balances: dict[str, float] = {m["user_id"]: 0 for m in g["members"]}
+        # Pending share bucket — keyed by pi:<phone> so the frontend can
+        # pair it with pending_invites[].name for honest "Waiting on
+        # Haraki to join" rendering.
+        pending_signed: dict[str, float] = {}
         for exp in expenses:
             payer = exp["paid_by"]
             for uid, amt in exp.get("splits", {}).items():
-                if uid != payer:
-                    balances[payer] = balances.get(payer, 0) + amt
-                    balances[uid] = balances.get(uid, 0) - amt
+                if uid == payer:
+                    continue
+                if uid.startswith("pi:"):
+                    # Synthetic pending invite — do NOT inflate confirmed
+                    # debt. Track as a separate "potential" claim that
+                    # only crystallises when the invitee signs up.
+                    pending_signed[uid] = pending_signed.get(uid, 0) - amt
+                    # The payer's confirmed balance is also NOT credited
+                    # for pending invitee shares — until the invitee
+                    # confirms by joining, that money isn't real debt
+                    # anyone has accepted.
+                    continue
+                balances[payer] = balances.get(payer, 0) + amt
+                balances[uid] = balances.get(uid, 0) - amt
+        # Confirmed balances — keyed by name for backwards-compat with
+        # the existing frontend rendering.
         g["balances"] = {m["name"]: round(balances.get(m["user_id"], 0), 2) for m in g["members"]}
+        # Pending balances — array of {phone, name, amount} pairs that
+        # the frontend renders in a strictly separate "Waiting to join"
+        # section. amount is positive (₹ owed once confirmed).
+        invite_lookup = {f"pi:{pi.get('phone','')}": pi for pi in (g.get("pending_invites") or [])}
+        pending_out = []
+        for pi_id, signed_amt in pending_signed.items():
+            invite = invite_lookup.get(pi_id, {})
+            pending_out.append({
+                "phone": invite.get("phone") or pi_id.replace("pi:", ""),
+                "name": invite.get("name") or "Waiting to join",
+                "amount": round(abs(signed_amt), 2),
+                "status": "pending_invite",
+            })
+        g["pending_balances"] = pending_out
         g["total_expenses"] = sum(e["amount"] for e in expenses)
     # Round 51 — fix script omission: populate cache so the cache_get
     # above can ever hit. 30s TTL — short enough to feel live, long

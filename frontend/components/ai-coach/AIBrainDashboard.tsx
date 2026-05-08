@@ -37,7 +37,7 @@ const PERSPECTIVES: { key: string; label: string; icon: string }[] = [
 ];
 
 const INK = '#0A0A0A';
-const ACCENT = '#E84A0C';
+const ACCENT = '#F56E1E';
 const PAPER = '#F5F1EA';
 const LINE = '#E4E2DB';
 const MUTED = '#6B6B6B';

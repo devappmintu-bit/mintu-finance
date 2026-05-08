@@ -31,6 +31,7 @@ import {
   ScrollView,
   StyleSheet,
   Text,
+  TextInput,
   View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -46,6 +47,8 @@ import { useAuthStore } from '../../store/authStore';
 import BrutalSheet from '../../components/brutalist/primitives/BrutalSheet';
 import { BR_COLORS, BR_FONT } from '../../utils/brutalist';
 import MintuMascot from '../../components/MintuMascot';
+import SettlementCelebration from '../../components/split/SettlementCelebration';
+import ExpenseCommentsThread from '../../components/split/ExpenseCommentsThread';
 
 // Brand-kit migration (R100B). Local aliases preserved so the rest of
 // this file's StyleSheet entries don't churn — single source of truth
@@ -61,11 +64,13 @@ const {
 } = BR_COLORS;
 const MONO = BR_FONT.mono;
 
-const fmt = (n: number): string => {
-  const v = Math.round(Math.abs(n));
-  if (v >= 100_000) return `₹${(v / 100_000).toFixed(1)}L`;
-  return `₹${v.toLocaleString('en-IN')}`;
-};
+// R101E — Centralised Indian-numbering INR. The local `fmt` was
+// silently abbreviating any amount ≥ ₹1L into "₹1.3L" mid-row, which
+// is bad UX for a finance app: receipts, settlement amounts, single
+// debt rows ALL need the precise figure (₹4,79,979 not ₹4.8L). The
+// brief codified this rule explicitly. We now route through inr() —
+// proper en-IN lakh/crore grouping, no abbreviation.
+import { inr as fmt } from '../../utils/inr';
 
 type Member = { user_id: string; name: string; phone?: string };
 type Expense = {
@@ -75,6 +80,9 @@ type Expense = {
   paid_by: string;
   splits: Record<string, number>;
   created_at: string;
+  /** R107 — count of inline comments under this expense (best-effort
+   *  hint from the server; UI re-syncs when the thread is opened). */
+  comment_count?: number;
 };
 type Settlement = {
   id?: string;
@@ -91,7 +99,7 @@ type GroupSummary = {
   id: string;
   name: string;
   members: Member[];
-  pending_invites?: { phone: string }[];
+  pending_invites?: { phone: string; name?: string }[];
   custom_emoji?: string;
   group_code?: string;
   created_at?: string;
@@ -250,6 +258,10 @@ export default function GroupDetail() {
   // R100N — When the user taps a specific "you owe X" row, scope
   // the SettleSheet down to JUST that person. undefined = show all.
   const [settleTargetId, setSettleTargetId] = useState<string | undefined>(undefined);
+  // R107 — Settlement celebration overlay. Fires when `markOffline`
+  // resolves successfully so the user gets a screen-filling reward
+  // moment instead of just a top toast. Auto-dismiss in 2.2s.
+  const [celebrate, setCelebrate] = useState<{ amount: number; name?: string } | null>(null);
   // R100G — Activity / Expenses tab state. Activity is the default
   // because for active groups it answers "what just happened?" — the
   // top-of-mind question when re-opening a group. Expenses tab is the
@@ -325,18 +337,30 @@ export default function GroupDetail() {
     return tail ? `Member ${tail}` : 'Member';
   };
 
+  // R101E — TRUST FIX: pending invitees no longer participate in the
+  // pairwise net-debt computation. Before this fix, expenses logged on
+  // behalf of a pending invite ("pi:<phone>") were folded into the
+  // user's "owesYou" totals, simulating debt that no real person had
+  // ever accepted ("Haraki owes you ₹1.3L" — except Haraki never
+  // joined). We now keep ONLY confirmed members in the math surface
+  // and render pending invitees in a dedicated "Waiting to join"
+  // section that does NOT contribute to net totals.
   const participants = useMemo<Member[]>(() => {
     if (!group) return [];
-    const real = group.members.map((m) => ({
+    return group.members.map((m) => ({
       user_id: m.user_id,
       name: m.user_id === myId ? 'You' : m.name,
     }));
-    const pending = (group.pending_invites || []).map((p: any) => ({
-      user_id: `pi:${p.phone}`,
+  }, [group, myId]);
+
+  // Pending invitee rows — rendered separately, never in net-debt totals.
+  const pendingInviteRows = useMemo(() => {
+    if (!group) return [];
+    return (group.pending_invites || []).map((p: any) => ({
+      phone: p.phone as string,
       name: friendly(p.name, p.phone),
     }));
-    return [...real, ...pending];
-  }, [group, myId]);
+  }, [group]);
 
   const { youOwe, owesYou } = useMemo(
     () =>
@@ -568,10 +592,91 @@ export default function GroupDetail() {
             </ScrollView>
           ) : null}
 
+          {/* R101E — HONESTY BANNER for pending invitees.
+              The brief: pending invitees must NEVER appear as finalised
+              debt. We now (a) exclude them from net-balance math and
+              (b) surface them in their own section that says exactly
+              what's true: "this person hasn't joined yet, the bill
+              will only count once they do". Replaces the silent debt
+              simulation that produced "Haraki owes you ₹1.3L". */}
+          {pendingInviteRows.length > 0 && (
+            <View style={st.pendingBanner}>
+              <View style={st.pendingBannerHead}>
+                <Ionicons name="hourglass-outline" size={14} color={INK} />
+                <Text style={st.pendingBannerTitle}>
+                  WAITING TO JOIN · {pendingInviteRows.length} invite{pendingInviteRows.length === 1 ? '' : 's'}
+                </Text>
+              </View>
+              <Text style={st.pendingBannerSub}>
+                Splits with these friends activate after they sign up. Until then, nothing is owed.
+              </Text>
+              <View style={st.pendingBannerList}>
+                {pendingInviteRows.map((p) => (
+                  <View key={p.phone} style={st.pendingRow}>
+                    <View style={st.pendingDot} />
+                    <Text style={st.pendingRowName} numberOfLines={1}>{p.name}</Text>
+                    <Text style={st.pendingRowState}>PENDING</Text>
+                  </View>
+                ))}
+              </View>
+            </View>
+          )}
+
+          {/* R101I — SMART SETTLE banner. Surfaces ONLY when the
+              caller has ≥2 outgoing debts in this group: tells them
+              they can clear N debts in one sitting. Tapping opens
+              SettleSheet with all of them so partial-pay + Razorpay/
+              UPI/offline applies row-by-row. Educational + actionable;
+              never lies about consolidating money. */}
+          {youOwe.length >= 2 && (
+            <Pressable
+              onPress={() => {
+                setSettleTargetId(undefined);
+                setSettleOpen(true);
+              }}
+              style={({ pressed }) => [
+                st.smartSettleBanner,
+                pressed && { transform: [{ translateY: 1 }] },
+              ]}
+              testID="smart-settle-banner"
+            >
+              <View style={st.smartSettleHead}>
+                <Ionicons name="flash" size={14} color={INK} />
+                <Text style={st.smartSettleTitle}>SMART SETTLE</Text>
+              </View>
+              <Text style={st.smartSettleBody}>
+                You owe {youOwe.length} people · {fmt(totalYouOwe)} total.
+                Clear all in one place — UPI, cards, or offline.
+              </Text>
+              <View style={st.smartSettleFoot}>
+                <Text style={st.smartSettleCta}>SETTLE ALL →</Text>
+              </View>
+            </Pressable>
+          )}
+
           {/* BALANCE SUMMARY — hidden when there's nothing to summarise. */}
           {mode === 'all_settled' ? (
-            <View style={st.balanceCard}>
+            <View style={[st.balanceCard, st.allSettledCard]}>
+              <Text style={st.allSettledEmoji}>🤝</Text>
               <Text style={st.allSettled}>All settled.</Text>
+              <Text style={st.allSettledSub}>
+                Nobody owes anybody. High five.
+              </Text>
+              {settlements.length > 0 && (
+                <Pressable
+                  onPress={() => setTab('activity')}
+                  style={({ pressed }) => [
+                    st.allSettledLink,
+                    pressed && { opacity: 0.6 },
+                  ]}
+                  hitSlop={6}
+                  testID="view-settlements-link"
+                >
+                  <Text style={st.allSettledLinkTxt}>
+                    SEE ALL {settlements.length} SETTLEMENT{settlements.length === 1 ? '' : 'S'} →
+                  </Text>
+                </Pressable>
+              )}
             </View>
           ) : owesYou.length > 0 || youOwe.length > 0 ? (
             <View style={st.balanceCard}>
@@ -650,7 +755,9 @@ export default function GroupDetail() {
                 );
               })}
               {totalYouOwe >= 0.5 && (
-                <Text style={st.urgency}>Tap a row to settle.</Text>
+                <Text style={st.urgency}>
+                  Tap a row to settle — UPI, cards, or just mark it offline.
+                </Text>
               )}
             </View>
           ) : null}
@@ -804,12 +911,26 @@ export default function GroupDetail() {
         onClose={() => { setSettleOpen(false); setSettleTargetId(undefined); }}
         rows={settleTargetId ? youOwe.filter(r => r.id === settleTargetId) : youOwe}
         groupId={id || ''}
-        onSettled={() => {
+        onSettled={(amt, withName) => {
           setSettleOpen(false);
           setSettleTargetId(undefined);
           load(false);
+          // R107 — Fire the brutal celebration overlay if we have a
+          // resolved amount. Pure UI sugar — never blocks the data
+          // refresh path. Auto-dismisses internally.
+          if (typeof amt === 'number' && amt > 0) {
+            setCelebrate({ amount: amt, name: withName });
+          }
         }}
       />
+      {celebrate && (
+        <SettlementCelebration
+          visible={!!celebrate}
+          amount={celebrate.amount}
+          withName={celebrate.name}
+          onClose={() => setCelebrate(null)}
+        />
+      )}
     </SafeAreaView>
   );
 }
@@ -844,6 +965,15 @@ function ExpenseRow({
         <Text style={st.expSub}>
           {payerIsMe ? 'You' : payerName} paid · {dateStr}
         </Text>
+        {/* R107 — contextual embedded comms. Each row becomes its own
+            mini-thread so flatmates can ask "why is this 1.5x?" without
+            leaving the receipt context. */}
+        {exp.id ? (
+          <ExpenseCommentsThread
+            expenseId={exp.id}
+            seedCount={Number(exp.comment_count || 0)}
+          />
+        ) : null}
       </View>
       <View style={st.expRight}>
         <Text style={st.expAmt}>{fmt(exp.amount)}</Text>
@@ -933,6 +1063,18 @@ function ActivityBubble({
   if (event.kind === 'expense_added') {
     const isMe = event.payer_id === myId;
     const senderName = isMe ? 'You' : event.payer_name;
+    // R101H — Outstanding-days indicator. If an expense is unpaid AND
+    // older than 14 days, surface the wait gently as a chip in the
+    // status row. Past 30 days the chip turns red — emotional UX cue
+    // that this is no longer "young debt" and a friend is waiting.
+    const daysOld = (() => {
+      if (!event.ts) return 0;
+      const t = new Date(event.ts).getTime();
+      if (isNaN(t)) return 0;
+      return Math.floor((Date.now() - t) / 86400000);
+    })();
+    const showStale = !isMe && onPay && daysOld >= 14;
+    const isVeryStale = daysOld >= 30;
     // For expenses logged by me, the bubble is right-aligned; others left.
     return (
       <View style={[st.gpWrap, isMe ? st.gpWrapRight : st.gpWrapLeft]}>
@@ -967,6 +1109,13 @@ function ActivityBubble({
           <View style={st.gpStatusRow}>
             <Ionicons name="time-outline" size={14} color={MUTED} />
             <Text style={st.gpStatusTxt}>Unpaid · {tsText}</Text>
+            {showStale && (
+              <View style={[st.gpStaleChip, isVeryStale && st.gpStaleChipHot]}>
+                <Text style={[st.gpStaleTxt, isVeryStale && st.gpStaleTxtHot]}>
+                  {daysOld}D
+                </Text>
+              </View>
+            )}
             <Ionicons name="chevron-forward" size={14} color={MUTED} style={{ marginLeft: 'auto' }} />
           </View>
           {/* Pay button — only when the current user owes (not the payer) */}
@@ -1033,11 +1182,26 @@ function SettleSheet({
   onClose: () => void;
   rows: { id: string; name: string; amount: number }[];
   groupId: string;
-  onSettled: () => void;
+  /** R107 — onSettled now receives (amount, withName) so the caller
+   *  can render the SettlementCelebration with the actual figure. */
+  onSettled: (amount?: number, withName?: string) => void;
 }) {
   const [busyId, setBusyId] = useState<string | null>(null);
+  // R101G — Per-row partial-amount input. When a value is set the
+  // pay actions use that amount instead of the full debt. Empty/0 →
+  // pay the full row amount (preserves the prior 1-tap UX).
+  const [partial, setPartial] = useState<Record<string, string>>({});
 
-  const payUpi = async (targetId: string, amount: number) => {
+  const effectiveAmount = (rowId: string, fullAmt: number): number => {
+    const raw = (partial[rowId] || '').trim();
+    if (!raw) return fullAmt;
+    const n = parseFloat(raw);
+    if (!isFinite(n) || n <= 0) return fullAmt;
+    return Math.min(n, fullAmt);
+  };
+
+  const payUpi = async (targetId: string, fullAmount: number) => {
+    const amount = effectiveAmount(targetId, fullAmount);
     setBusyId(targetId);
     try {
       const r = await api.get(
@@ -1058,6 +1222,48 @@ function SettleSheet({
     } catch (e: any) {
       const msg = e?.response?.data?.detail || 'Could not open UPI app.';
       Alert.alert('Pay via UPI', String(msg));
+    } finally {
+      setBusyId(null);
+    }
+  };
+
+  // R101G — Razorpay flow. Creates an order and opens the hosted
+  // checkout page in the device browser. The page completes the
+  // pay-and-verify cycle; on return the user pulls-to-refresh and
+  // the settlement appears in the activity feed.
+  const payRazorpay = async (targetId: string, fullAmount: number) => {
+    const amount = effectiveAmount(targetId, fullAmount);
+    setBusyId(targetId);
+    try {
+      const r = await api.post('/split/razorpay-order', {
+        target_user_id: targetId,
+        amount,
+        group_id: groupId,
+      });
+      const url = r?.data?.checkout_url;
+      if (url) {
+        const can = await Linking.canOpenURL(url);
+        if (can) {
+          await Linking.openURL(url);
+          // Soft hint: tap-back will refresh.
+          setTimeout(() => onSettled(), 600);
+        } else {
+          Alert.alert(
+            'Browser unavailable',
+            'Could not open the payment page on this device.'
+          );
+        }
+      } else {
+        Alert.alert(
+          'Cards/Netbanking unavailable',
+          'Payment service is misconfigured. Please use UPI or mark paid offline.'
+        );
+      }
+    } catch (e: any) {
+      const msg =
+        e?.response?.data?.detail ||
+        'Could not start the card / netbanking flow.';
+      Alert.alert('Pay with cards', String(msg));
     } finally {
       setBusyId(null);
     }
@@ -1084,7 +1290,15 @@ function SettleSheet({
           { headers: { 'Idempotency-Key': `mc-${groupId}-${targetId}-${Date.now()}` } }
         )
         .catch(() => {});
-      onSettled();
+      // R107 — fullscreen Brutal celebration owns the dopamine hit
+      // now (handled by parent via onSettled). The toast still
+      // doubles as a screen-reader hook + confirmation strip.
+      try {
+        const { showBrutalToast } = require('../../store/brutalToastStore');
+        showBrutalToast(`Settled ₹${amount.toFixed(0)} — clean slate`, 'positive');
+      } catch { /* never let UX feedback crash the success path */ }
+      const targetName = rows.find(r => r.id === targetId)?.name;
+      onSettled(amount, targetName);
     } catch (e: any) {
       // R100J — better Mark-Paid error UX. Previously: re-tap loop
       // because the alert only said "Could not record settlement"
@@ -1122,41 +1336,99 @@ function SettleSheet({
         {rows.length === 0 ? (
           <Text style={ss.empty}>Nothing to settle in this group.</Text>
         ) : (
-          rows.map((r) => (
-            <View key={r.id} style={ss.row}>
-              <View style={{ flex: 1 }}>
-                <Text style={ss.rowLabel}>You owe</Text>
-                <Text style={ss.rowName}>{r.name}</Text>
-              </View>
-              <Text style={ss.rowAmt}>{fmt(r.amount)}</Text>
-              <View style={ss.rowActions}>
+          rows.map((r) => {
+            const partRaw = (partial[r.id] || '').trim();
+            const partVal = partRaw ? parseFloat(partRaw) : NaN;
+            const partInvalid =
+              partRaw !== '' && (!isFinite(partVal) || partVal <= 0 || partVal > r.amount);
+            const eff = effectiveAmount(r.id, r.amount);
+            const showRemaining = partRaw !== '' && !partInvalid && eff < r.amount;
+            return (
+              <View key={r.id} style={ss.row}>
+                <View style={ss.rowHead}>
+                  <View style={{ flex: 1 }}>
+                    <Text style={ss.rowLabel}>You owe</Text>
+                    <Text style={ss.rowName}>{r.name}</Text>
+                  </View>
+                  <Text style={ss.rowAmt}>{fmt(r.amount)}</Text>
+                </View>
+
+                {/* R101G — Optional partial-amount input. Empty = full pay. */}
+                <View style={ss.partialRow}>
+                  <Text style={ss.partialLbl}>PAY</Text>
+                  <View style={ss.partialBox}>
+                    <Text style={ss.partialRupee}>₹</Text>
+                    <TextInput
+                      value={partial[r.id] || ''}
+                      onChangeText={(v) =>
+                        setPartial((p) => ({ ...p, [r.id]: v.replace(/[^0-9.]/g, '') }))
+                      }
+                      keyboardType="numeric"
+                      placeholder={String(Math.round(r.amount))}
+                      placeholderTextColor={MUTED}
+                      style={ss.partialInput}
+                    />
+                  </View>
+                  <Pressable
+                    onPress={() => setPartial((p) => ({ ...p, [r.id]: '' }))}
+                    style={ss.partialFullBtn}
+                    hitSlop={6}
+                  >
+                    <Text style={ss.partialFullTxt}>FULL</Text>
+                  </Pressable>
+                </View>
+                {partInvalid ? (
+                  <Text style={ss.partialErr}>
+                    Enter a value between ₹1 and {fmt(r.amount)}.
+                  </Text>
+                ) : showRemaining ? (
+                  <Text style={ss.partialNote}>
+                    {`Remaining ${fmt(r.amount - eff)} stays on your tab.`}
+                  </Text>
+                ) : null}
+
+                <View style={ss.rowActions}>
+                  <Pressable
+                    disabled={busyId === r.id || partInvalid}
+                    onPress={() => payUpi(r.id, r.amount)}
+                    style={({ pressed }) => [
+                      ss.btn,
+                      ss.btnPrimary,
+                      pressed && ss.btnPressed,
+                      (busyId === r.id || partInvalid) && ss.btnDisabled,
+                    ]}
+                  >
+                    <Ionicons name="phone-portrait" size={13} color={INK} />
+                    <Text style={ss.btnTextDark}>UPI</Text>
+                  </Pressable>
+                  <Pressable
+                    disabled={busyId === r.id || partInvalid}
+                    onPress={() => payRazorpay(r.id, r.amount)}
+                    style={({ pressed }) => [
+                      ss.btn,
+                      ss.btnDark,
+                      pressed && ss.btnPressed,
+                      (busyId === r.id || partInvalid) && ss.btnDisabled,
+                    ]}
+                  >
+                    <Ionicons name="card" size={13} color="#fff" />
+                    <Text style={ss.btnTextLight}>CARDS</Text>
+                  </Pressable>
+                </View>
                 <Pressable
-                  disabled={busyId === r.id}
-                  onPress={() => payUpi(r.id, r.amount)}
-                  style={({ pressed }) => [
-                    ss.btn,
-                    ss.btnPrimary,
-                    pressed && ss.btnPressed,
-                    busyId === r.id && ss.btnDisabled,
-                  ]}
-                >
-                  <Text style={ss.btnTextPrimary}>UPI</Text>
-                </Pressable>
-                <Pressable
-                  disabled={busyId === r.id}
+                  disabled={busyId === r.id || partInvalid}
                   onPress={() => markOffline(r.id, r.amount)}
                   style={({ pressed }) => [
-                    ss.btn,
-                    ss.btnGhost,
+                    ss.btnGhostFull,
                     pressed && ss.btnPressed,
-                    busyId === r.id && ss.btnDisabled,
+                    (busyId === r.id || partInvalid) && ss.btnDisabled,
                   ]}
                 >
-                  <Text style={ss.btnTextGhost}>MARK PAID</Text>
+                  <Text style={ss.btnTextGhost}>I PAID OFFLINE — MARK SETTLED</Text>
                 </Pressable>
               </View>
-            </View>
-          ))
+            );
+          })
         )}
       </ScrollView>
     </BrutalSheet>
@@ -1214,6 +1486,112 @@ const st = StyleSheet.create({
   memberChipText: { fontSize: 12, fontWeight: '800', color: INK },
   memberChipTextMe: { color: '#fff' },
   memberChipPending: { borderStyle: 'dashed', backgroundColor: 'transparent' },
+  // R101E — Pending invitee honesty banner styles. Lighter brutalist
+  // language than the primary balance card (1.5px border, no offset
+  // shadow, neutral cream backdrop) so it visually de-emphasises
+  // claims that aren't real debt yet — matches the brief's hierarchy
+  // rule that pending must NOT scream like primary balances.
+  pendingBanner: {
+    marginTop: 4,
+    marginBottom: 12,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+    borderWidth: 1.5,
+    borderColor: INK,
+    borderStyle: 'dashed',
+    backgroundColor: BR_COLORS.paper,
+  },
+  pendingBannerHead: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginBottom: 6,
+  },
+  pendingBannerTitle: {
+    fontSize: 11,
+    fontWeight: '900',
+    color: INK,
+    letterSpacing: 1.2,
+  },
+  pendingBannerSub: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: BR_COLORS.muted,
+    lineHeight: 17,
+    marginBottom: 10,
+  },
+  pendingBannerList: {
+    gap: 6,
+  },
+  pendingRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    paddingVertical: 4,
+  },
+  pendingDot: {
+    width: 8, height: 8, borderRadius: 4,
+    backgroundColor: BR_COLORS.muted,
+  },
+  pendingRowName: {
+    flex: 1,
+    fontSize: 13,
+    fontWeight: '700',
+    color: INK,
+  },
+  pendingRowState: {
+    fontSize: 9.5,
+    fontWeight: '900',
+    letterSpacing: 1.2,
+    color: BR_COLORS.muted,
+  },
+  // R101I — Smart Settle banner. Brutalist accent-yellow card with
+  // hard ink border + 2-px stamp shadow. Sits between pending banner
+  // and balance card. Press → opens SettleSheet with all rows.
+  smartSettleBanner: {
+    marginHorizontal: 16,
+    marginTop: 4,
+    marginBottom: 12,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+    borderWidth: 2,
+    borderColor: INK,
+    backgroundColor: ACCENT,
+    shadowColor: INK,
+    shadowOpacity: 1,
+    shadowRadius: 0,
+    shadowOffset: { width: 3, height: 3 },
+    elevation: 0,
+  },
+  smartSettleHead: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    marginBottom: 6,
+  },
+  smartSettleTitle: {
+    fontSize: 11,
+    fontWeight: '900',
+    color: INK,
+    letterSpacing: 1.6,
+  },
+  smartSettleBody: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: INK,
+    lineHeight: 18,
+  },
+  smartSettleFoot: {
+    flexDirection: 'row',
+    justifyContent: 'flex-end',
+    marginTop: 8,
+  },
+  smartSettleCta: {
+    fontSize: 12,
+    fontWeight: '900',
+    color: INK,
+    letterSpacing: 1.4,
+  },
   memberChipPendingText: { fontSize: 11, color: MUTED, fontWeight: '600' },
   balanceCard: {
     marginHorizontal: 16,
@@ -1226,9 +1604,43 @@ const st = StyleSheet.create({
     paddingVertical: 14,
   },
   allSettled: {
-    fontSize: 14,
+    fontSize: 18,
+    color: INK,
+    fontWeight: '900',
+    textAlign: 'center',
+    letterSpacing: -0.3,
+  },
+  allSettledCard: {
+    alignItems: 'center',
+    paddingVertical: 22,
+  },
+  allSettledEmoji: {
+    fontSize: 36,
+    marginBottom: 6,
+  },
+  allSettledSub: {
+    fontSize: 12,
     color: MUTED,
+    fontWeight: '600',
     fontStyle: 'italic',
+    textAlign: 'center',
+    marginTop: 4,
+  },
+  // R101J — link out to the activity feed when there's history.
+  // Closes the loop: "All settled" + "here's what got settled".
+  allSettledLink: {
+    marginTop: 12,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderWidth: 1.5,
+    borderColor: INK,
+    backgroundColor: '#fff',
+  },
+  allSettledLinkTxt: {
+    fontSize: 11,
+    fontWeight: '900',
+    letterSpacing: 1.4,
+    color: INK,
     textAlign: 'center',
   },
   balanceRow: {
@@ -1427,6 +1839,31 @@ const st = StyleSheet.create({
     letterSpacing: 1.6,
     textTransform: 'uppercase' as const,
   },
+  // R101H — Stale-debt indicator chip. Brutalist mini-stamp inline
+  // with the Unpaid · DATE row. 14d+ shows a cream chip; 30d+ flips
+  // to red — emotional UX cue that the friend is waiting.
+  gpStaleChip: {
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    backgroundColor: PAPER,
+    borderWidth: 1,
+    borderColor: MUTED,
+    marginLeft: 6,
+  },
+  gpStaleChipHot: {
+    backgroundColor: '#FEE2E2',
+    borderColor: DANGER,
+  },
+  gpStaleTxt: {
+    fontSize: 9,
+    fontWeight: '900',
+    color: MUTED,
+    letterSpacing: 1,
+    fontFamily: MONO,
+  },
+  gpStaleTxtHot: {
+    color: DANGER,
+  },
 
   // System pill (group_created)
   systemPillWrap: {
@@ -1572,6 +2009,10 @@ const ss = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: LINE,
   },
+  rowHead: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
   rowLabel: { fontSize: 11, color: MUTED, fontWeight: '700', letterSpacing: 1 },
   rowName: { fontSize: 16, fontWeight: '900', color: INK, marginTop: 2 },
   rowAmt: {
@@ -1579,20 +2020,93 @@ const ss = StyleSheet.create({
     fontWeight: '900',
     color: DANGER,
     fontFamily: MONO,
-    marginVertical: 4,
   },
-  rowActions: { flexDirection: 'row', gap: 8, marginTop: 6 },
+  // R101G — partial-amount input row.
+  partialRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginTop: 12,
+  },
+  partialLbl: {
+    fontSize: 10,
+    fontWeight: '900',
+    color: MUTED,
+    letterSpacing: 1.4,
+  },
+  partialBox: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    borderWidth: 1.5,
+    borderColor: INK,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    gap: 4,
+    backgroundColor: '#fff',
+  },
+  partialRupee: { fontSize: 16, fontWeight: '900', color: MUTED },
+  partialInput: {
+    flex: 1,
+    fontFamily: MONO,
+    fontSize: 16,
+    fontWeight: '900',
+    color: INK,
+    paddingVertical: 0,
+  },
+  partialFullBtn: {
+    paddingHorizontal: 10,
+    paddingVertical: 8,
+    backgroundColor: '#fff',
+    borderWidth: 1.5,
+    borderColor: INK,
+  },
+  partialFullTxt: {
+    fontSize: 10,
+    fontWeight: '900',
+    letterSpacing: 1.4,
+    color: INK,
+  },
+  partialErr: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: DANGER,
+    marginTop: 6,
+  },
+  partialNote: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: MUTED,
+    marginTop: 6,
+    fontStyle: 'italic',
+  },
+  rowActions: { flexDirection: 'row', gap: 8, marginTop: 10 },
   btn: {
     flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 5,
     paddingVertical: 12,
     borderWidth: 2,
     borderColor: INK,
-    alignItems: 'center',
   },
   btnPrimary: { backgroundColor: ACCENT },
+  btnDark: { backgroundColor: INK },
   btnGhost: { backgroundColor: '#fff' },
+  btnGhostFull: {
+    marginTop: 8,
+    paddingVertical: 10,
+    borderWidth: 1.5,
+    borderColor: INK,
+    borderStyle: 'dashed',
+    backgroundColor: 'transparent',
+    alignItems: 'center',
+  },
   btnDisabled: { opacity: 0.5 },
   btnPressed: { transform: [{ translateY: 1 }] },
+  btnTextDark: { color: INK, fontWeight: '900', fontSize: 12, letterSpacing: 1.5 },
+  btnTextLight: { color: '#fff', fontWeight: '900', fontSize: 12, letterSpacing: 1.5 },
   btnTextPrimary: { color: '#fff', fontWeight: '900', fontSize: 12, letterSpacing: 1.5 },
   btnTextGhost: { color: INK, fontWeight: '900', fontSize: 12, letterSpacing: 1.5 },
 });

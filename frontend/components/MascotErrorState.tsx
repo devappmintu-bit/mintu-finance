@@ -161,7 +161,7 @@ export default function MascotErrorState({
         disabled={retrying}
       >
         <View
-          style={[s.cta, retrying && { opacity: 0.7 }, { backgroundColor: '#FF6B1A' }]}>
+          style={[s.cta, retrying && { opacity: 0.7 }, { backgroundColor: '#FF8C66' }]}>
           <Ionicons name={retrying ? 'sync' : 'refresh'} size={14} color="#fff" />
           <Text style={s.ctaT}>{retrying ? 'Retrying\u2026' : 'Try again'}</Text>
         </View>

@@ -10,6 +10,26 @@ import * as Haptics from 'expo-haptics';
 import { makeStyles } from '../../utils/makeStyles';
 import { COLORS } from '../../utils/theme';
 
+
+
+// R113 FIX — useStyles hoisted above first render-time call
+// to avoid Metro/SDK52 TDZ error (`Cannot access X before init.`).
+const useStyles = makeStyles((c) => ({
+  card: { backgroundColor: c.bg.secondary, borderRadius: 0, padding: 16, borderWidth: 1, borderColor: c.border.subtle, marginBottom: 14 },
+  head: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 8 },
+  iconBubble: { width: 26, height: 26, borderRadius: 0, alignItems: 'center', justifyContent: 'center', backgroundColor: '#7C3AED1F' },
+  label: { flex: 1, fontSize: 11, fontWeight: '800', color: c.accent.tertiary, letterSpacing: 0.5, textTransform: 'uppercase' },
+  liveDot: { width: 6, height: 6, borderRadius: 3, backgroundColor: c.state.success },
+  liveTxt: { fontSize: 9, fontWeight: '800', color: c.state.success, letterSpacing: 0.5 },
+
+  action: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 12 },
+  actionDivider: { borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: c.border.subtle },
+  actionTitle: { fontSize: 13, fontWeight: '700', color: c.text.primary, lineHeight: 17 },
+  actionSaves: { fontSize: 10.5, fontWeight: '700', color: c.state.success, marginTop: 2 },
+  oneTap: { flexDirection: 'row', alignItems: 'center', gap: 3, paddingHorizontal: 8, paddingVertical: 5, borderRadius: 0, backgroundColor: '#7C3AED14' },
+  oneTapTxt: { fontSize: 10.5, fontWeight: '800', color: c.accent.tertiary },
+}));
+
 type Stats = { monthlySpend: number; savingsRate: number; topCategory: { name: string; amount: number } | null; transactionCount: number; balance: number } | null;
 
 interface Props { stats: Stats; score: number; }
@@ -68,18 +88,3 @@ export default function AICoachOneTap({ stats, score }: Props) {
   );
 }
 
-const useStyles = makeStyles((c) => ({
-  card: { backgroundColor: c.bg.secondary, borderRadius: 0, padding: 16, borderWidth: 1, borderColor: c.border.subtle, marginBottom: 14 },
-  head: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 8 },
-  iconBubble: { width: 26, height: 26, borderRadius: 0, alignItems: 'center', justifyContent: 'center', backgroundColor: '#7C3AED1F' },
-  label: { flex: 1, fontSize: 11, fontWeight: '800', color: c.accent.tertiary, letterSpacing: 0.5, textTransform: 'uppercase' },
-  liveDot: { width: 6, height: 6, borderRadius: 3, backgroundColor: c.state.success },
-  liveTxt: { fontSize: 9, fontWeight: '800', color: c.state.success, letterSpacing: 0.5 },
-
-  action: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 12 },
-  actionDivider: { borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: c.border.subtle },
-  actionTitle: { fontSize: 13, fontWeight: '700', color: c.text.primary, lineHeight: 17 },
-  actionSaves: { fontSize: 10.5, fontWeight: '700', color: c.state.success, marginTop: 2 },
-  oneTap: { flexDirection: 'row', alignItems: 'center', gap: 3, paddingHorizontal: 8, paddingVertical: 5, borderRadius: 0, backgroundColor: '#7C3AED14' },
-  oneTapTxt: { fontSize: 10.5, fontWeight: '800', color: c.accent.tertiary },
-}));

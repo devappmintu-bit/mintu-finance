@@ -29,6 +29,7 @@ from datetime import datetime, timedelta, timezone
 from typing import Any, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, BackgroundTasks
+from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, Field
 
 from core.auth import get_current_user
@@ -77,6 +78,16 @@ class CoachReply(BaseModel):
     source: str = ""
     actions: list[ActionCard] = Field(default_factory=list)
     suggestions: list[str] = Field(default_factory=list)
+    # R102B — Smart follow-up chips returned alongside every reply.
+    # The audit asked for "Why ₹6000? · Change category · Skip for now ·
+    # Show examples" — short pivot prompts the user can tap to drill
+    # deeper without re-typing context. Chips are derived per-stage
+    # from the user's data maturity (see prompt evolution).
+    follow_ups: list[str] = Field(default_factory=list)
+    # R102B — Coach maturity stage, surfaced so the UI can lightly
+    # indicate to the user which level of personalization is active
+    # (Stage 0 = priming, Stage 3 = full insight). Currently informational.
+    stage: int = 0
 
 
 class ActionExecRequest(BaseModel):
@@ -126,23 +137,28 @@ _KNOWN_ACTIONS = {
 
 
 def _confidence_from_mode(data_mode: str, txn_count: int) -> tuple[float, str]:
-    """Map data_mode + activity to a confidence score + UI label."""
+    """Map data_mode + activity to a confidence score + UI label.
+
+    R102 — Killed apologetic phrasing per audit ban list. Frontend
+    only renders this trailer when label matches /low|uncertain|estimate/i,
+    so for `partial` and `full` modes we return empty string → no
+    trailer at all → the chat reads as confident. Only the cold-start
+    `no_data` case still emits a short label, and even that is now
+    spare ("Limited data — best-guess.") rather than the old
+    "I don't have enough data yet — this is a general estimate."
+    """
     if data_mode == "no_data" or txn_count == 0:
-        return 0.30, "I don't have enough data yet — this is a general estimate."
+        return 0.30, "Limited data — best-guess."
+    # partial / full / high data → no trailer (frontend gate filters anyway).
     if data_mode == "partial":
-        return 0.65, "Based on limited recent data — accuracy improves with more entries."
-    # full data
+        return 0.65, ""
     if txn_count < 30:
-        return 0.78, "Based on the last 30 days of data."
-    return 0.92, ""    # high — no trailer.
+        return 0.78, ""
+    return 0.92, ""
 
 
 def _source_from_mode(data_mode: str, txn_count: int) -> str:
     """R100R — One-line provenance shown italic under every AI reply.
-
-    The user requested an explicit citation so the AI never feels like
-    it's hallucinating confidence. This line is grounded in the same
-    real numbers the LLM saw in its system prompt.
 
     Cold-start (no data) returns "" — UI suppresses the line so we
     never claim provenance we don't have.
@@ -153,6 +169,108 @@ def _source_from_mode(data_mode: str, txn_count: int) -> str:
         return f"Based on your last {txn_count} transaction{'s' if txn_count != 1 else ''} this month."
     # full data
     return f"Based on your last 30 days of UPI spends · {txn_count} transactions."
+
+
+# R102B — Coach maturity stages (AI Maturity Model). Mirrors the
+# frontend-side `aiMaturity.ts` thresholds so the LLM gets prompts
+# that match the user's data depth. The audit asked for the coach to
+# "lead, simplify, reduce cognitive load, and progressively reveal
+# complexity" — staged prompting is how that's enforced.
+#
+#   Stage 0 (0-4 txns)    — PRIMING. Keep it warm, single CTA, ban
+#                           personalization claims. The user has no
+#                           data yet — anything beyond a starter cap
+#                           is performative AI.
+#   Stage 1 (5-24 txns)   — BOOTSTRAP. Reference real numbers but
+#                           hedge on patterns ("first signal" not
+#                           "your habit"). Encourage one more category.
+#   Stage 2 (25-99 txns)  — INSIGHT. Full personalization, suggest
+#                           cuts on top categories with %, weekly
+#                           pacing visible.
+#   Stage 3 (100+ txns)   — ADAPTIVE. The coach knows the user. Can
+#                           celebrate streaks, predict month-end,
+#                           connect goals to category trends.
+def _coach_stage(txn_count: int) -> int:
+    if txn_count < 5:
+        return 0
+    if txn_count < 25:
+        return 1
+    if txn_count < 100:
+        return 2
+    return 3
+
+
+def _stage_directives(stage: int) -> str:
+    """Return the per-stage directive block to inject into the system prompt.
+    Keep it tight — the LLM already has the rules; this just colours
+    the tone for the current data depth."""
+    if stage == 0:
+        return (
+            "━━━ STAGE 0 (priming) ━━━\n"
+            "User has 0-4 expenses. Do NOT claim to know habits. Do NOT\n"
+            "say 'your typical', 'your usual', 'you tend to'. Propose ONE\n"
+            "starter cap and one tiny tracking action. Warm but spare."
+        )
+    if stage == 1:
+        return (
+            "━━━ STAGE 1 (bootstrap) ━━━\n"
+            "User has 5-24 expenses. Reference real categories but call\n"
+            "them 'first signal' not 'pattern'. Push for one more category\n"
+            "or one more week of tracking. Avoid percentage claims."
+        )
+    if stage == 2:
+        return (
+            "━━━ STAGE 2 (insight) ━━━\n"
+            "User has 25-99 expenses. Full personalization unlocked.\n"
+            "Use percentages, weekly pacing, suggest 10-15% cuts on top\n"
+            "categories. Reference last week vs this week when relevant."
+        )
+    return (
+        "━━━ STAGE 3 (adaptive) ━━━\n"
+        "User has 100+ expenses. You know them. Celebrate streaks,\n"
+        "predict month-end pacing, connect goals to category trends.\n"
+        "Confident voice. Skip the throat-clearing — get to the action."
+    )
+
+
+def _follow_ups_for(stage: int, top_cat: str | None) -> list[str]:
+    """R102B — Smart follow-up chips returned with every reply.
+
+    Audit asked for: "Why ₹6000? · Change category · Skip for now ·
+    Show examples". These are short pivots the user can tap to drill
+    deeper without re-typing context. Per-stage variants because the
+    same chip ("Show examples") means different things at Stage 0
+    vs Stage 3.
+    """
+    if stage == 0:
+        return [
+            "Why this number?",
+            "Change category",
+            "Show examples",
+            "Skip for now",
+        ]
+    if stage == 1:
+        return [
+            "Why this category?",
+            "Show me the math",
+            "Try a smaller cut",
+            "Different category",
+        ]
+    if stage == 2:
+        cat = top_cat or "top category"
+        return [
+            f"Cut {cat} by 10%",
+            "Show last week vs this",
+            "What's leaking?",
+            "Make this weekly",
+        ]
+    # Stage 3
+    return [
+        "Predict month-end",
+        "Compare to last month",
+        "Connect to my goal",
+        "What changed this week?",
+    ]
 
 
 async def _extract_actions_from_text(text: str, user_id: str) -> tuple[str, list[ActionCard]]:
@@ -281,18 +399,30 @@ async def coach_chat(
     # 3. Build the system prompt with memory block prepended.
     memory_block = coach_context.render_system_block(ctx)
     top_cat = max(cat_spend, key=lambda k: cat_spend[k]["total"]) if cat_spend else None
+    # R102B — Inject the per-stage directive so the LLM's tone matches
+    # the user's current data depth (Stage 0..3).
+    stage = _coach_stage(txn_count)
+    stage_block = _stage_directives(stage)
 
     system_prompt = (
         "You are MintU AI Coach — a decision-first financial assistant for Indian users.\n"
         "You are OPINIONATED. You NEVER give vague choices. You decide for the user.\n\n"
         f"━━━ MEMORY ━━━\n{memory_block}\n\n"
+        f"{stage_block}\n\n"
         f"━━━ THIS MONTH ━━━\n"
         f"Income ₹{total_income:,.0f} · Expense ₹{total_expense:,.0f} · "
         f"Top category: {top_cat or 'n/a'} · Mode: {data_mode}\n\n"
         "━━━ RULES ━━━\n"
-        "1. Lead with a number from the data above. Maximum 4 short lines.\n"
-        "2. End with a → Action line (verb-led).\n"
-        "3. **MANDATORY ACTION MARKER**: If the user's intent maps to ANY of\n"
+        "1. Lead with a number from the data above. Maximum 3 short lines.\n"
+        "   No paragraphs. No essays. Each line ≤ 12 words. Mobile screens.\n"
+        "2. End with a → Action line (verb-led, ≤ 8 words).\n"
+        "3. NEVER apologise for missing data. NEVER say 'I don't have enough\n"
+        "   data', 'general estimate', 'starter caps', 'temporary guardrails',\n"
+        "   'baseline', or 'rough'. Decide. Move forward. If data is thin,\n"
+        "   propose a sensible default and emit the action — don't hedge.\n"
+        "4. NEVER greet by name in mid-conversation. NEVER say 'Hey' or 'Hi'.\n"
+        "   The chat header already identifies you. Just answer.\n"
+        "5. **MANDATORY ACTION MARKER**: If the user's intent maps to ANY of\n"
         "   {set_budget_cap, add_expense, create_goal, revoke_device}, you MUST\n"
         "   append an [ACTION:KEY|JSON_PAYLOAD] marker on a new line. No\n"
         "   exceptions. The user taps to confirm — don't make them re-type.\n\n"
@@ -352,7 +482,189 @@ async def coach_chat(
         source=source,
         actions=actions,
         suggestions=[],     # populated by /coach/suggestions endpoint
+        follow_ups=_follow_ups_for(stage, top_cat),
+        stage=stage,
     )
+
+
+# ─────────────────────────── R108 — SSE streaming chat ──────────
+#
+# Native LLM token streaming via litellm.acompletion(stream=True). The
+# /coach/chat endpoint above remains the source-of-truth for non-stream
+# clients (and for tests). This endpoint is a thin wrapper that:
+#   1. Reuses the same context / system-prompt builder
+#   2. Streams raw token deltas to the client as Server-Sent Events
+#      (`data: {"type":"chunk","delta":"..."}\n\n`)
+#   3. After the stream closes, runs action extraction, confidence,
+#      follow-ups + summarise BG task and emits a final
+#      `data: {"type":"done", ...}\n\n` event
+#
+# Frontend treats chunks as fast progressive paint. The final "done"
+# event carries the action card / metadata so the UI can attach the
+# brutalist confidence chip + follow-up chips at the right moment.
+@router.post("/chat-stream")
+async def coach_chat_stream(
+    body: CoachAsk,
+    bg: BackgroundTasks,
+    user_id: str = Depends(get_current_user),
+):
+    # Reuse: pull context + aggregate the same data the non-stream path uses.
+    ctx = await coach_context.get_context(user_id)
+    user = await get_user_by_id(user_id)
+    if not user:
+        raise HTTPException(404, "User not found")
+
+    from server import db
+    now = utc_now()
+    month_start = now.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+
+    cat_pipe = [
+        {"$match": {"user_id": user_id, "date": {"$gte": month_start}}},
+        {"$group": {"_id": "$category", "total": {"$sum": "$amount"}, "count": {"$sum": 1}}},
+    ]
+    cat_spend: dict[str, dict] = {}
+    async for d in db.transactions.aggregate(cat_pipe):
+        cat_spend[d["_id"]] = {"total": float(d.get("total") or 0), "count": int(d.get("count") or 0)}
+    total_expense = sum(v["total"] for v in cat_spend.values())
+    txn_count = sum(v["count"] for v in cat_spend.values())
+
+    inc_docs = await db.transactions.aggregate([
+        {"$match": {"user_id": user_id, "type": {"$in": ["income", "credit"]}, "date": {"$gte": month_start}}},
+        {"$group": {"_id": None, "total": {"$sum": "$amount"}}},
+    ]).to_list(1)
+    total_income = float(inc_docs[0]["total"]) if inc_docs else 0.0
+
+    if txn_count == 0:
+        data_mode = "no_data"
+    elif txn_count < 5 or total_income == 0:
+        data_mode = "partial"
+    else:
+        data_mode = "full"
+
+    memory_block = coach_context.render_system_block(ctx)
+    top_cat = max(cat_spend, key=lambda k: cat_spend[k]["total"]) if cat_spend else None
+    stage = _coach_stage(txn_count)
+    stage_block = _stage_directives(stage)
+    system_prompt = (
+        "You are MintU AI Coach — a decision-first financial assistant for Indian users.\n"
+        "You are OPINIONATED. You NEVER give vague choices. You decide for the user.\n\n"
+        f"━━━ MEMORY ━━━\n{memory_block}\n\n"
+        f"{stage_block}\n\n"
+        f"━━━ THIS MONTH ━━━\n"
+        f"Income ₹{total_income:,.0f} · Expense ₹{total_expense:,.0f} · "
+        f"Top category: {top_cat or 'n/a'} · Mode: {data_mode}\n\n"
+        "━━━ RULES ━━━\n"
+        "1. Lead with a number. Maximum 3 short lines. Each line ≤ 12 words.\n"
+        "2. End with a → Action line (verb-led, ≤ 8 words).\n"
+        "3. Never apologise for missing data. Pick a sensible default and decide.\n"
+        "4. India context only (₹, SIPs, ELSS, NPS, PPF, UPI).\n"
+        "5. Plain prose. No markdown headers. Max 1 emoji.\n"
+        "6. If intent maps to {set_budget_cap, add_expense, create_goal}, append\n"
+        "   [ACTION:KEY|JSON_PAYLOAD] on a new line. The marker is parsed and hidden."
+    )
+
+    confidence, conf_label = _confidence_from_mode(data_mode, txn_count)
+    source = _source_from_mode(data_mode, txn_count)
+    follow_ups = _follow_ups_for(stage, top_cat)
+
+    async def event_stream():
+        # 1. Open + announce stage so the client can paint metadata immediately.
+        yield "data: " + json.dumps({
+            "type": "open",
+            "stage": stage,
+            "confidence": confidence,
+            "confidence_label": conf_label,
+            "source": source,
+        }) + "\n\n"
+
+        full_text_parts: list[str] = []
+
+        # R108B — Use the same `safe_send` wrapper the non-stream path
+        # uses. This routes through emergentintegrations → Emergent
+        # LiteLLM proxy with the correct auth headers. Calling
+        # `litellm.acompletion` directly with EMERGENT_LLM_KEY does NOT
+        # work — EMERGENT_LLM_KEY is an Emergent-proxy bearer, not a
+        # raw OpenAI key, so the proxy URL must be used.
+        #
+        # Trade-off: we lose true token-level streaming from the LLM
+        # provider, but we still emit word-chunks server-side at
+        # ~30-80ms cadence so the client sees progressive paint and
+        # the UX matches a streaming endpoint perfectly. Wall time
+        # is ~LLM call time + a tiny pacing tail (≤ 1s).
+        try:
+            LlmChat, UserMessage = _llm()
+            llm_key = os.environ.get("EMERGENT_LLM_KEY", "")
+            chat = LlmChat(
+                api_key=llm_key,
+                session_id=f"coach_stream_{user_id}_{utc_now().timestamp()}",
+                system_message=system_prompt,
+            ).with_model("openai", "gpt-5.2")
+
+            raw = await safe_send(
+                chat, UserMessage(text=body.message), timeout=20.0, label="coach_stream"
+            )
+            raw_text = (raw if isinstance(raw, str) else str(raw or "")).strip()
+            if not raw_text:
+                raw_text = "I couldn't reach the model. → Try once more in a moment."
+
+            # Word-chunked streaming. Tokenize on whitespace boundaries
+            # while preserving line breaks so the brutalist text
+            # formatter's blank-line cues survive the wire trip.
+            # eslint-disable-next-line — server side
+            tokens = re.findall(r"\S+\s*|\s+", raw_text) or [raw_text]
+            # Adaptive pacing — more tokens → faster cadence so total
+            # post-LLM wall time stays under ~1.4s.
+            step_ms = max(14, min(60, int(1400 / max(1, len(tokens)))))
+            pacer = step_ms / 1000.0
+            import asyncio
+            for tok in tokens:
+                full_text_parts.append(tok)
+                yield "data: " + json.dumps({"type": "chunk", "delta": tok}) + "\n\n"
+                # tiny await so the event loop can flush each chunk to
+                # the client; otherwise FastAPI batches them at the
+                # transport layer and the UX collapses to a single dump.
+                await asyncio.sleep(pacer)
+        except Exception as exc:
+            logger.warning("coach_chat_stream LLM error: %s", exc)
+            err_text = "I couldn't reach the model. → Try once more in a moment."
+            full_text_parts.append(err_text)
+            yield "data: " + json.dumps({"type": "chunk", "delta": err_text}) + "\n\n"
+
+        raw_text = "".join(full_text_parts).strip()
+        if not raw_text:
+            raw_text = "I couldn't reach the model. → Try once more in a moment."
+            yield "data: " + json.dumps({"type": "chunk", "delta": raw_text}) + "\n\n"
+
+        # Run the same post-processing the non-stream path uses so the
+        # client gets matching metadata.
+        cleaned_text, actions = await _extract_actions_from_text(raw_text, user_id)
+        actions_json = []
+        for a in actions:
+            try:
+                actions_json.append(a.model_dump() if hasattr(a, "model_dump") else dict(a))
+            except Exception:
+                pass
+
+        # Refresh the rolling memory in the background (fire-and-forget).
+        bg.add_task(coach_context.kick_summarise, user_id, body.message, cleaned_text)
+
+        yield "data: " + json.dumps({
+            "type": "done",
+            "reply": cleaned_text,
+            "confidence": confidence,
+            "confidence_label": conf_label,
+            "source": source,
+            "actions": actions_json,
+            "follow_ups": follow_ups,
+            "stage": stage,
+        }) + "\n\n"
+
+    headers = {
+        "Cache-Control": "no-cache",
+        "X-Accel-Buffering": "no",  # disables nginx buffering for live SSE
+        "Connection": "keep-alive",
+    }
+    return StreamingResponse(event_stream(), media_type="text/event-stream", headers=headers)
 
 
 @router.get("/suggestions")

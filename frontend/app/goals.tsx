@@ -30,6 +30,77 @@ import { makeStyles } from '../utils/makeStyles';
 import { COLORS, useAppColors } from '../utils/theme';
 import { showError, showSuccess } from '../utils/toast';
 import BrutalistGoalsHero from '../components/brutalist/BrutalistGoalsHero';
+import { BrutalScreenHeader, BR_COLORS, BR_BORDER, BR_SHADOW, PALETTE } from '../components/brutal';
+
+
+
+// R113 FIX — useStyles hoisted above first render-time call
+// to avoid Metro/SDK52 TDZ error (`Cannot access X before init.`).
+const useStyles = makeStyles((c) => ({
+  bg: { flex: 1, backgroundColor: c.bg.primary },
+  header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 16, paddingVertical: 12 },
+  backBtn: { width: 36, height: 36, borderRadius: 0, backgroundColor: c.gray[100], alignItems: 'center', justifyContent: 'center' },
+  title: { fontSize: 20, fontWeight: '900', color: c.text.primary, letterSpacing: -0.5 },
+  addBtn: { width: 36, height: 36, borderRadius: 0, backgroundColor: c.accent.brand, alignItems: 'center', justifyContent: 'center' },
+  addBtnBrutal: { width: 36, height: 36, alignItems: 'center', justifyContent: 'center', backgroundColor: PALETTE.brand, borderWidth: BR_BORDER.base, borderColor: BR_COLORS.ink, ...(BR_SHADOW.xs as any) },
+  scroll: { padding: 16, paddingBottom: 80 },
+
+  // Summary card — overlaid on a saturated brand gradient. White-on-color
+  // text + dark scrim work consistently in both themes (gradient is bright).
+  summaryCard: { flexDirection: 'row', alignItems: 'center', padding: 20, borderRadius: 0, marginBottom: 20, gap: 16 },
+  sumLbl: { fontSize: 11, fontWeight: '900', color: 'rgba(255,255,255,0.85)', letterSpacing: 1 },
+  sumAmt: { fontSize: 28, fontWeight: '900', color: c.bg.elevated, letterSpacing: -0.8, marginTop: 4 },
+  sumSub: { fontSize: 12, fontWeight: '700', color: 'rgba(255,255,255,0.75)', marginTop: 4 },
+  // Round 51e — orange-on-orange visibility fix.
+  // Track was rgba(0,0,0,0.3) (dark on orange = invisible).
+  // Fill was c.bg.elevated (light, but theme-dependent).
+  // Now: track = white-25%, fill = solid white. Always WCAG-visible
+  // on the orange→amber gradient regardless of theme.
+  sumBar: { height: 8, borderRadius: 4, backgroundColor: 'rgba(255,255,255,0.3)', marginTop: 12, overflow: 'hidden' },
+  sumFill: { height: '100%', backgroundColor: '#FFFFFF', borderRadius: 4 },
+  sumRing: { position: 'relative', alignItems: 'center', justifyContent: 'center' },
+  sumRingPct: { position: 'absolute', fontSize: 14, fontWeight: '900', color: c.bg.elevated },
+
+  // Empty state
+  emptyCard: { alignItems: 'center', padding: 32, borderRadius: 0, backgroundColor: c.bg.elevated, borderWidth: 1, borderColor: c.accent.brandSoft, gap: 12 },
+  emptyEmoji: { fontSize: 52 },
+  emptyTitle: { fontSize: 17, fontWeight: '900', color: c.text.primary },
+  emptySub: { fontSize: 13, fontWeight: '600', color: c.text.muted, textAlign: 'center', lineHeight: 18 },
+  emptyBtn: { flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: c.accent.brand, paddingHorizontal: 20, paddingVertical: 12, borderRadius: 999, marginTop: 8 },
+  emptyBtnTxt: { fontSize: 13, fontWeight: '800', color: c.bg.elevated },
+
+  // Grid
+  grid: { flexDirection: 'row', flexWrap: 'wrap', gap: 12 },
+  goalCard: { width: '47.5%', backgroundColor: c.bg.elevated, borderRadius: 0, padding: 16, alignItems: 'center', borderWidth: 1, borderColor: c.gray[100], shadowColor: c.shadow.primary, shadowOpacity: 1, shadowRadius: 8, shadowOffset: { width: 0, height: 2 }, elevation: 2 },
+  ringWrap: { position: 'relative', alignItems: 'center', justifyContent: 'center' },
+  ringCenter: { position: 'absolute' },
+  ringEmoji: { fontSize: 32 },
+  doneBadge: { position: 'absolute', top: 0, right: -4, width: 24, height: 24, borderRadius: 0, backgroundColor: c.state.success, alignItems: 'center', justifyContent: 'center', borderWidth: 2, borderColor: c.bg.elevated },
+  goalName: { fontSize: 14, fontWeight: '900', color: c.text.primary, marginTop: 8 },
+  goalAmt: { fontSize: 17, fontWeight: '900', color: c.text.primary, marginTop: 4, letterSpacing: -0.3 },
+  goalTarget: { fontSize: 11, fontWeight: '700', color: c.text.muted, marginTop: 0 },
+  linkedChip: { flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 8, paddingHorizontal: 8, paddingVertical: 4, borderRadius: 999, backgroundColor: '#D1FAE5' },
+  linkedChipTxt: { fontSize: 9, fontWeight: '800', color: '#065F46' },
+  goalActions: { flexDirection: 'row', gap: 8, marginTop: 8 },
+  goalAct: { width: 28, height: 28, borderRadius: 0, alignItems: 'center', justifyContent: 'center', backgroundColor: c.gray[50] },
+
+  // Sheet
+  sheetBg: { flex: 1, justifyContent: 'flex-end', backgroundColor: 'rgba(0,0,0,0.5)' },
+  sheetBgTap: { ...StyleSheet.absoluteFillObject },
+  sheet: { backgroundColor: c.bg.elevated, borderTopLeftRadius: 0, borderTopRightRadius: 0, padding: 20, maxHeight: '88%' },
+  sheetHandle: { width: 40, height: 4, borderRadius: 4, backgroundColor: c.gray[300], alignSelf: 'center', marginBottom: 16 },
+  sheetTitle: { fontSize: 20, fontWeight: '900', color: c.text.primary, marginBottom: 16 },
+  fieldLbl: { fontSize: 11, fontWeight: '900', color: c.text.muted, letterSpacing: 0.5, textTransform: 'uppercase', marginBottom: 8, marginTop: 12 },
+  input: { backgroundColor: c.gray[50], borderWidth: 1, borderColor: c.gray[200], borderRadius: 0, paddingHorizontal: 16, paddingVertical: 12, fontSize: 15, color: c.text.primary },
+  emojiRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
+  emojiBtn: { width: 44, height: 44, borderRadius: 0, alignItems: 'center', justifyContent: 'center', backgroundColor: c.gray[50], borderWidth: 2, borderColor: 'transparent' },
+  emojiBtnOn: { borderColor: c.accent.brand, backgroundColor: c.accent.brandSoft },
+  colorRow: { flexDirection: 'row', gap: 8, flexWrap: 'wrap' },
+  colorBtn: { width: 40, height: 40, borderRadius: 0, borderWidth: 3, borderColor: 'transparent' },
+  colorBtnOn: { borderColor: c.text.primary },
+  saveBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, backgroundColor: c.accent.brand, paddingVertical: 16, borderRadius: 999, marginTop: 16 },
+  saveBtnTxt: { fontSize: 14, fontWeight: '900', color: c.bg.elevated },
+}));
 
 type Goal = {
   id: string;
@@ -261,16 +332,21 @@ export default function GoalsScreen() {
     <SafeAreaView style={s.bg} edges={['top']}>
       {/* Milestone celebration — fires full-screen when a goal hits 100% */}
       <Confetti trigger={showConfetti} onDone={() => setShowConfetti(false)} />
-      {/* Header */}
-      <View style={s.header}>
-        <TouchableOpacity onPress={() => router.back()} hitSlop={10} style={s.backBtn}>
-          <Ionicons name="chevron-back" size={22} color={COLORS.text.primary} />
-        </TouchableOpacity>
-        <Text style={s.title}>My Goals</Text>
-        <TouchableOpacity onPress={() => { haptic(); openNew(); }} hitSlop={10} style={s.addBtn}>
-          <Ionicons name="add" size={22} color="#fff" />
-        </TouchableOpacity>
-      </View>
+      {/* Brutal header */}
+      <BrutalScreenHeader
+        title="MY GOALS"
+        subtitle="commitment engine"
+        right={
+          <TouchableOpacity
+            onPress={() => { haptic(); openNew(); }}
+            hitSlop={10}
+            style={s.addBtnBrutal}
+            accessibilityLabel="New goal"
+          >
+            <Ionicons name="add" size={20} color="#fff" />
+          </TouchableOpacity>
+        }
+      />
 
       <ScrollView
         contentContainerStyle={s.scroll}
@@ -421,67 +497,3 @@ export default function GoalsScreen() {
   );
 }
 
-const useStyles = makeStyles((c) => ({
-  bg: { flex: 1, backgroundColor: c.bg.primary },
-  header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 16, paddingVertical: 12 },
-  backBtn: { width: 36, height: 36, borderRadius: 0, backgroundColor: c.gray[100], alignItems: 'center', justifyContent: 'center' },
-  title: { fontSize: 20, fontWeight: '900', color: c.text.primary, letterSpacing: -0.5 },
-  addBtn: { width: 36, height: 36, borderRadius: 0, backgroundColor: c.accent.brand, alignItems: 'center', justifyContent: 'center' },
-  scroll: { padding: 16, paddingBottom: 80 },
-
-  // Summary card — overlaid on a saturated brand gradient. White-on-color
-  // text + dark scrim work consistently in both themes (gradient is bright).
-  summaryCard: { flexDirection: 'row', alignItems: 'center', padding: 20, borderRadius: 0, marginBottom: 20, gap: 16 },
-  sumLbl: { fontSize: 11, fontWeight: '900', color: 'rgba(255,255,255,0.85)', letterSpacing: 1 },
-  sumAmt: { fontSize: 28, fontWeight: '900', color: c.bg.elevated, letterSpacing: -0.8, marginTop: 4 },
-  sumSub: { fontSize: 12, fontWeight: '700', color: 'rgba(255,255,255,0.75)', marginTop: 4 },
-  // Round 51e — orange-on-orange visibility fix.
-  // Track was rgba(0,0,0,0.3) (dark on orange = invisible).
-  // Fill was c.bg.elevated (light, but theme-dependent).
-  // Now: track = white-25%, fill = solid white. Always WCAG-visible
-  // on the orange→amber gradient regardless of theme.
-  sumBar: { height: 8, borderRadius: 4, backgroundColor: 'rgba(255,255,255,0.3)', marginTop: 12, overflow: 'hidden' },
-  sumFill: { height: '100%', backgroundColor: '#FFFFFF', borderRadius: 4 },
-  sumRing: { position: 'relative', alignItems: 'center', justifyContent: 'center' },
-  sumRingPct: { position: 'absolute', fontSize: 14, fontWeight: '900', color: c.bg.elevated },
-
-  // Empty state
-  emptyCard: { alignItems: 'center', padding: 32, borderRadius: 0, backgroundColor: c.bg.elevated, borderWidth: 1, borderColor: c.accent.brandSoft, gap: 12 },
-  emptyEmoji: { fontSize: 52 },
-  emptyTitle: { fontSize: 17, fontWeight: '900', color: c.text.primary },
-  emptySub: { fontSize: 13, fontWeight: '600', color: c.text.muted, textAlign: 'center', lineHeight: 18 },
-  emptyBtn: { flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: c.accent.brand, paddingHorizontal: 20, paddingVertical: 12, borderRadius: 999, marginTop: 8 },
-  emptyBtnTxt: { fontSize: 13, fontWeight: '800', color: c.bg.elevated },
-
-  // Grid
-  grid: { flexDirection: 'row', flexWrap: 'wrap', gap: 12 },
-  goalCard: { width: '47.5%', backgroundColor: c.bg.elevated, borderRadius: 0, padding: 16, alignItems: 'center', borderWidth: 1, borderColor: c.gray[100], shadowColor: c.shadow.primary, shadowOpacity: 1, shadowRadius: 8, shadowOffset: { width: 0, height: 2 }, elevation: 2 },
-  ringWrap: { position: 'relative', alignItems: 'center', justifyContent: 'center' },
-  ringCenter: { position: 'absolute' },
-  ringEmoji: { fontSize: 32 },
-  doneBadge: { position: 'absolute', top: 0, right: -4, width: 24, height: 24, borderRadius: 0, backgroundColor: c.state.success, alignItems: 'center', justifyContent: 'center', borderWidth: 2, borderColor: c.bg.elevated },
-  goalName: { fontSize: 14, fontWeight: '900', color: c.text.primary, marginTop: 8 },
-  goalAmt: { fontSize: 17, fontWeight: '900', color: c.text.primary, marginTop: 4, letterSpacing: -0.3 },
-  goalTarget: { fontSize: 11, fontWeight: '700', color: c.text.muted, marginTop: 0 },
-  linkedChip: { flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 8, paddingHorizontal: 8, paddingVertical: 4, borderRadius: 999, backgroundColor: '#D1FAE5' },
-  linkedChipTxt: { fontSize: 9, fontWeight: '800', color: '#065F46' },
-  goalActions: { flexDirection: 'row', gap: 8, marginTop: 8 },
-  goalAct: { width: 28, height: 28, borderRadius: 0, alignItems: 'center', justifyContent: 'center', backgroundColor: c.gray[50] },
-
-  // Sheet
-  sheetBg: { flex: 1, justifyContent: 'flex-end', backgroundColor: 'rgba(0,0,0,0.5)' },
-  sheetBgTap: { ...StyleSheet.absoluteFillObject },
-  sheet: { backgroundColor: c.bg.elevated, borderTopLeftRadius: 0, borderTopRightRadius: 0, padding: 20, maxHeight: '88%' },
-  sheetHandle: { width: 40, height: 4, borderRadius: 4, backgroundColor: c.gray[300], alignSelf: 'center', marginBottom: 16 },
-  sheetTitle: { fontSize: 20, fontWeight: '900', color: c.text.primary, marginBottom: 16 },
-  fieldLbl: { fontSize: 11, fontWeight: '900', color: c.text.muted, letterSpacing: 0.5, textTransform: 'uppercase', marginBottom: 8, marginTop: 12 },
-  input: { backgroundColor: c.gray[50], borderWidth: 1, borderColor: c.gray[200], borderRadius: 0, paddingHorizontal: 16, paddingVertical: 12, fontSize: 15, color: c.text.primary },
-  emojiRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
-  emojiBtn: { width: 44, height: 44, borderRadius: 0, alignItems: 'center', justifyContent: 'center', backgroundColor: c.gray[50], borderWidth: 2, borderColor: 'transparent' },
-  emojiBtnOn: { borderColor: c.accent.brand, backgroundColor: c.accent.brandSoft },
-  colorRow: { flexDirection: 'row', gap: 8, flexWrap: 'wrap' },
-  colorBtn: { width: 40, height: 40, borderRadius: 0, borderWidth: 3, borderColor: 'transparent' },
-  colorBtnOn: { borderColor: c.text.primary },
-  saveBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, backgroundColor: c.accent.brand, paddingVertical: 16, borderRadius: 999, marginTop: 16 },
-  saveBtnTxt: { fontSize: 14, fontWeight: '900', color: c.bg.elevated },
-}));

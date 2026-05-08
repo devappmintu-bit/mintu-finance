@@ -3,6 +3,35 @@ import { View, Animated, StyleSheet, ViewStyle } from 'react-native';
 import { COLORS, SPACING, RADIUS } from '../utils/theme';
 import { makeStyles } from '../utils/makeStyles';
 
+
+
+// R113 FIX — useStyles hoisted above first render-time call
+// to avoid Metro/SDK52 TDZ error (`Cannot access X before init.`).
+const useStyles = makeStyles((c) => ({
+  container: { paddingHorizontal: SPACING.lg, paddingTop: SPACING.md },
+  row: { flexDirection: 'row', alignItems: 'center' },
+  bar: { backgroundColor: c.bg.card },
+  barHero: { backgroundColor: 'rgba(255,255,255,0.35)' },
+  hero: { marginTop: 16, borderRadius: RADIUS.card, padding: 18, overflow: 'hidden' },
+  heroGlass: {
+    marginTop: 16, borderRadius: 0, padding: 18, paddingTop: 22,
+    backgroundColor: 'rgba(255,255,255,0.72)',
+    borderWidth: StyleSheet.hairlineWidth, borderColor: 'rgba(15,23,42,0.06)',
+    overflow: 'hidden',
+    position: 'relative',
+  },
+  heroAccentStrip: {
+    position: 'absolute', top: 0, left: 0, right: 0, height: 4,
+    backgroundColor: c.accent.primary,
+  },
+  txItem: { flexDirection: 'row', alignItems: 'center', padding: SPACING.md, borderRadius: RADIUS.xl, backgroundColor: c.bg.secondary, marginBottom: SPACING.sm },
+  budgetCard: {
+    marginTop: SPACING.md, padding: SPACING.md,
+    borderRadius: RADIUS.card, backgroundColor: c.bg.secondary,
+    borderWidth: StyleSheet.hairlineWidth, borderColor: c.border.subtle,
+  },
+}));
+
 interface SkeletonProps {
   width?: number | string;
   height?: number;
@@ -109,30 +138,6 @@ export const TransactionSkeleton = () => {
   );
 };
 
-const useStyles = makeStyles((c) => ({
-  container: { paddingHorizontal: SPACING.lg, paddingTop: SPACING.md },
-  row: { flexDirection: 'row', alignItems: 'center' },
-  bar: { backgroundColor: c.bg.card },
-  barHero: { backgroundColor: 'rgba(255,255,255,0.35)' },
-  hero: { marginTop: 16, borderRadius: RADIUS.card, padding: 18, overflow: 'hidden' },
-  heroGlass: {
-    marginTop: 16, borderRadius: 0, padding: 18, paddingTop: 22,
-    backgroundColor: 'rgba(255,255,255,0.72)',
-    borderWidth: StyleSheet.hairlineWidth, borderColor: 'rgba(15,23,42,0.06)',
-    overflow: 'hidden',
-    position: 'relative',
-  },
-  heroAccentStrip: {
-    position: 'absolute', top: 0, left: 0, right: 0, height: 4,
-    backgroundColor: c.accent.primary,
-  },
-  txItem: { flexDirection: 'row', alignItems: 'center', padding: SPACING.md, borderRadius: RADIUS.xl, backgroundColor: c.bg.secondary, marginBottom: SPACING.sm },
-  budgetCard: {
-    marginTop: SPACING.md, padding: SPACING.md,
-    borderRadius: RADIUS.card, backgroundColor: c.bg.secondary,
-    borderWidth: StyleSheet.hairlineWidth, borderColor: c.border.subtle,
-  },
-}));
 
 /**
  * TransactionsSkeleton — 5 pill-shaped day groups + filter chips.

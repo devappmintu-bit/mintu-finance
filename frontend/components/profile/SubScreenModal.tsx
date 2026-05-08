@@ -14,6 +14,25 @@ import { Ionicons } from '@expo/vector-icons';
 import { useAppColors, GLASS } from '../../utils/theme';
 import { makeStyles } from '../../utils/makeStyles';
 
+
+
+// R113 FIX — useStyles hoisted above first render-time call
+// to avoid Metro/SDK52 TDZ error (`Cannot access X before init.`).
+const useStyles = makeStyles((c) => ({
+  bg: { flex: 1, backgroundColor: c.bg.primary },
+  headerWrap: {
+    position: 'relative',
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: GLASS.borderLight,
+    overflow: 'hidden',
+  },
+  header: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
+    paddingHorizontal: 16, paddingVertical: 14,
+  },
+  title: { fontSize: 17, fontWeight: '800', color: c.text.primary, letterSpacing: -0.3, flex: 1, textAlign: 'center' },
+}));
+
 interface Props {
   visible: boolean;
   title: string;
@@ -53,17 +72,3 @@ export default function SubScreenModal({ visible, title, onClose, children, cont
   );
 }
 
-const useStyles = makeStyles((c) => ({
-  bg: { flex: 1, backgroundColor: c.bg.primary },
-  headerWrap: {
-    position: 'relative',
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: GLASS.borderLight,
-    overflow: 'hidden',
-  },
-  header: {
-    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
-    paddingHorizontal: 16, paddingVertical: 14,
-  },
-  title: { fontSize: 17, fontWeight: '800', color: c.text.primary, letterSpacing: -0.3, flex: 1, textAlign: 'center' },
-}));

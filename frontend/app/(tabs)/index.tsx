@@ -42,10 +42,13 @@ import { router } from 'expo-router';
 
 import { useAuthStore } from '../../store/authStore';
 import { useLangStore } from '../../store/langStore';
-import { t } from '../../utils/i18n';
+// R101A — `t()` no longer needed for the greeting line; we now use a
+// time-aware personalGreeting builder instead of the i18n welcome strings.
+// Keeping the langStore import in case other surfaces below grow it back.
 import { makeStyles } from '../../utils/makeStyles';
 import TapTile from '../../components/ui/TapTile';
 import { BR_COLORS, BR_TYPE, BR_SPACE } from '../../utils/brutalist';
+import { buildPersonalGreeting } from '../../utils/personalGreeting';
 
 import { HomeSkeleton } from '../../components/SkeletonLoader';
 // Round 94 — AnimatedCoin import removed (gamification kill).
@@ -67,6 +70,10 @@ import MissionCard from '../../components/home/MissionCard';
 // the user has earned ≥1 streak day.
 import MascotHero from '../../components/mascot/MascotHero';
 import MascotStreakHero from '../../components/mascot/MascotStreakHero';
+// R110 — Live retention loop. Polls /streak/status, surfaces "1 day
+// left" urgency, freeze inventory, and a real check-in CTA. Replaces
+// the proximity-heuristic of MascotStreakHero with backend truth.
+import MascotRetentionHero from '../../components/mascot/MascotRetentionHero';
 import MascotCelebration from '../../components/mascot/MascotCelebration';
 import MascotShareCard from '../../components/mascot/MascotShareCard';
 import useMascotCelebration from '../../hooks/useMascotCelebration';
@@ -83,6 +90,96 @@ import { useHomeBundleData } from '../../hooks/useHomeBundleData';
 import { usePriorityInsight } from '../../hooks/usePriorityInsight';
 import { useStarterCards } from '../../hooks/useStarterCards';
 import { ROUTES } from '../../constants/routes';
+
+
+// R113 FIX — useStyles hoisted above first render-time call
+// to avoid Metro/SDK52 TDZ error (`Cannot access X before init.`).
+const useStyles = makeStyles(() => ({
+  container: { flex: 1, backgroundColor: BR_COLORS.paper },
+  scroll: { paddingHorizontal: BR_SPACE.lg, paddingTop: BR_SPACE.md, paddingBottom: 140 },
+
+  // Header — flat, brutalist, zero decoration.
+  header: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: BR_SPACE.lg,
+    gap: 6,
+  },
+  // R101B — Container for icon + label so PULSE / PROFILE captions
+  // align consistently with their tap targets.
+  headerSlot: {
+    alignItems: 'center',
+    justifyContent: 'flex-start',
+  },
+  headerSlotLabel: {
+    fontSize: 9,
+    fontWeight: '900',
+    letterSpacing: 1.4,
+    color: BR_COLORS.muted,
+    marginTop: 4,
+    textAlign: 'center',
+  },
+  greeting: { ...BR_TYPE.labelSm, color: BR_COLORS.muted },
+  name: {
+    fontSize: 22, fontWeight: '900',
+    color: BR_COLORS.ink,
+    letterSpacing: -0.5,
+    marginTop: 2,
+  },
+  avatarWrap: { position: 'relative' },
+  // R100G — Profile entry combo: avatar + tap-hint chip side-by-side.
+  profileEntry: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  profileChip: {
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderWidth: 1.5,
+    borderColor: BR_COLORS.ink,
+    backgroundColor: BR_COLORS.paperAlt,
+  },
+  profileChipTxt: {
+    fontSize: 9,
+    fontWeight: '900',
+    letterSpacing: 1.4,
+    color: BR_COLORS.ink,
+  },
+  avatarRing: {
+    width: 40, height: 40,
+    borderWidth: 2, borderColor: BR_COLORS.ink,
+    justifyContent: 'center', alignItems: 'center',
+    backgroundColor: BR_COLORS.paper,
+  },
+  avatarImg: { width: 36, height: 36 },
+  avatarPlaceholder: {
+    width: 36, height: 36,
+    backgroundColor: BR_COLORS.paperAlt,
+    alignItems: 'center', justifyContent: 'center',
+  },
+  coinsChip: {
+    flexDirection: 'row', alignItems: 'center',
+    paddingHorizontal: 10, paddingVertical: 6,
+    borderWidth: 1.5, borderColor: BR_COLORS.ink,
+    backgroundColor: BR_COLORS.paperAlt,
+  },
+  headerIconBtn: {
+    width: 40, height: 40,
+    alignItems: 'center', justifyContent: 'center',
+    borderWidth: 1.5, borderColor: BR_COLORS.ink,
+    backgroundColor: BR_COLORS.paper,
+    position: 'relative',
+  },
+  badge: {
+    position: 'absolute', top: -2, right: -2,
+    minWidth: 16, height: 16, paddingHorizontal: 3,
+    backgroundColor: BR_COLORS.negative,
+    borderWidth: 2, borderColor: BR_COLORS.paper,
+    alignItems: 'center', justifyContent: 'center',
+  },
+  badgeTxt: { fontSize: 9, fontWeight: '900', color: BR_COLORS.accentInk },
+}));
 
 function HomeScreen() {
   const styles = useStyles();
@@ -138,14 +235,22 @@ function HomeScreen() {
   // Round 94 — `goCoinLedger` removed (gamification kill, /coin-ledger deleted).
   const goProfile       = useCallback(() => router.push(ROUTES.PROFILE), []);
 
-  // Round 99F — context-aware greeting. "Welcome back" on a user's
-  // first-ever visit is a trust crack — they think the app is broken
-  // or knows them too well. Detect zero-txn + zero open notifications
-  // as the new-user signal and switch to a warmer first-time copy.
-  const isFirstVisit = Number(txnCount ?? 0) === 0;
-  const welcomeGreeting = useMemo(
-    () => (isFirstVisit ? t('welcome_first', lang) : t('welcome_back', lang)).toUpperCase(),
-    [lang, isFirstVisit],
+  // R101A — Personalized, time-aware greeting. Replaces the i18n
+  // "WELCOME BACK / HI" + raw `user.name` combo, which was leaking
+  // placeholder names ("Test User", "User") onto the user's screen
+  // — the single biggest creepy/broken-trust moment in the audit.
+  // The builder:
+  //   • drops placeholder names (Test User / User / Demo etc.)
+  //   • falls back to last-4 of phone (*4321) so the greeting is
+  //     still personal, not anonymous
+  //   • prefixes a time-of-day kicker ("GOOD MORNING")
+  // We deliberately don't translate this yet — copy is short,
+  // non-critical for content meaning, and most i18n locales already
+  // accept first-name greetings unchanged.
+  void lang; // reserved for future i18n hook
+  const greeting = useMemo(
+    () => buildPersonalGreeting({ name: user?.name, phone: user?.phone }),
+    [user?.name, user?.phone],
   );
 
   // Prefetch adjacent routes.
@@ -208,13 +313,18 @@ function HomeScreen() {
       >
         {/* ── HEADER — slim, brutalist ────────────────────────────── */}
         <View style={styles.header}>
-          {/* Pulse mascot — tappable entry to the Money Signal Layer.
-              Per spec this is the LEFT-most element; handles its own
-              glow/badge states via /api/pulse. See PulseMascotButton. */}
-          <PulseMascotButton />
-          <View style={{ flex: 1 }}>
-            <Text style={styles.greeting}>{welcomeGreeting}</Text>
-            <Text style={styles.name}>{user?.name || 'User'}</Text>
+          {/* R101B — Pulse + Profile both labelled now. Audit feedback:
+              two icon-only buttons on opposite corners with no caption
+              left users guessing what they did. Tiny ALL-CAPS labels
+              under each (10pt, mono) make navigation legible without
+              breaking the slim brutalist header. */}
+          <View style={styles.headerSlot}>
+            <PulseMascotButton />
+            <Text style={styles.headerSlotLabel}>PULSE</Text>
+          </View>
+          <View style={{ flex: 1, alignItems: 'center' }}>
+            <Text style={styles.greeting}>{greeting.kicker}</Text>
+            <Text style={styles.name}>{greeting.headline}</Text>
           </View>
           {/* Search + notification-bell removed in R100F per Pulse-first
               direction. Pulse owns "what changed today" (top-left mascot);
@@ -225,17 +335,25 @@ function HomeScreen() {
           {/* R100I — Profile chip removed per user feedback ("looks
               horrible — misaligned"). Reverted to plain avatar
               TapTile; tap still routes to /profile. */}
-          <TapTile onPress={goProfile} style={styles.avatarWrap} feedback="selection">
-            <View style={styles.avatarRing}>
-              {avatar ? (
-                <Image source={{ uri: avatar }} style={styles.avatarImg} />
-              ) : (
-                <View style={styles.avatarPlaceholder}>
-                  <Ionicons name="person" size={20} color={BR_COLORS.ink} />
-                </View>
-              )}
-            </View>
-          </TapTile>
+          <View style={styles.headerSlot}>
+            <TapTile
+              onPress={goProfile}
+              style={styles.avatarWrap}
+              feedback="selection"
+              accessibilityLabel="Open your profile"
+            >
+              <View style={styles.avatarRing}>
+                {avatar ? (
+                  <Image source={{ uri: avatar }} style={styles.avatarImg} />
+                ) : (
+                  <View style={styles.avatarPlaceholder}>
+                    <Ionicons name="person" size={20} color={BR_COLORS.ink} />
+                  </View>
+                )}
+              </View>
+            </TapTile>
+            <Text style={styles.headerSlotLabel}>PROFILE</Text>
+          </View>
         </View>
 
         {/* ── 0. NEO-BRUTAL HERO — Round 100Z face-of-app ────────── */}
@@ -250,6 +368,10 @@ function HomeScreen() {
         {/* Hidden until the user has earned ≥1 streak day. Shows flame */}
         {/* tier + freeze inventory + comeback CTA when at risk.        */}
         <MascotStreakHero />
+        {/* R110 — live retention loop above day-action band. Renders
+            urgent/today/fire/idle states based on real /streak/status
+            backend snapshot. Auto-hides for never-engaged users. */}
+        <MascotRetentionHero />
 
         {/* ── 1. HERO — Decision Context ────────────────────────── */}
         {/* Score + risk flag + ONE insight. Taps → AI Coach. */}
@@ -316,79 +438,10 @@ function HomeScreen() {
   );
 }
 
-const useStyles = makeStyles(() => ({
-  container: { flex: 1, backgroundColor: BR_COLORS.paper },
-  scroll: { paddingHorizontal: BR_SPACE.lg, paddingTop: BR_SPACE.md, paddingBottom: 140 },
-
-  // Header — flat, brutalist, zero decoration.
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: BR_SPACE.lg,
-    gap: 6,
-  },
-  greeting: { ...BR_TYPE.labelSm, color: BR_COLORS.muted },
-  name: {
-    fontSize: 22, fontWeight: '900',
-    color: BR_COLORS.ink,
-    letterSpacing: -0.5,
-    marginTop: 2,
-  },
-  avatarWrap: { position: 'relative' },
-  // R100G — Profile entry combo: avatar + tap-hint chip side-by-side.
-  profileEntry: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-  },
-  profileChip: {
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderWidth: 1.5,
-    borderColor: BR_COLORS.ink,
-    backgroundColor: BR_COLORS.paperAlt,
-  },
-  profileChipTxt: {
-    fontSize: 9,
-    fontWeight: '900',
-    letterSpacing: 1.4,
-    color: BR_COLORS.ink,
-  },
-  avatarRing: {
-    width: 40, height: 40,
-    borderWidth: 2, borderColor: BR_COLORS.ink,
-    justifyContent: 'center', alignItems: 'center',
-    backgroundColor: BR_COLORS.paper,
-  },
-  avatarImg: { width: 36, height: 36 },
-  avatarPlaceholder: {
-    width: 36, height: 36,
-    backgroundColor: BR_COLORS.paperAlt,
-    alignItems: 'center', justifyContent: 'center',
-  },
-  coinsChip: {
-    flexDirection: 'row', alignItems: 'center',
-    paddingHorizontal: 10, paddingVertical: 6,
-    borderWidth: 1.5, borderColor: BR_COLORS.ink,
-    backgroundColor: BR_COLORS.paperAlt,
-  },
-  headerIconBtn: {
-    width: 40, height: 40,
-    alignItems: 'center', justifyContent: 'center',
-    borderWidth: 1.5, borderColor: BR_COLORS.ink,
-    backgroundColor: BR_COLORS.paper,
-    position: 'relative',
-  },
-  badge: {
-    position: 'absolute', top: -2, right: -2,
-    minWidth: 16, height: 16, paddingHorizontal: 3,
-    backgroundColor: BR_COLORS.negative,
-    borderWidth: 2, borderColor: BR_COLORS.paper,
-    alignItems: 'center', justifyContent: 'center',
-  },
-  badgeTxt: { fontSize: 9, fontWeight: '900', color: BR_COLORS.accentInk },
-}));
 
 // Tab-level ErrorBoundary so a crash here doesn't blank the whole app.
 import { withTabBoundary } from '../../components/withTabBoundary';
+
+
+
 export default withTabBoundary(HomeScreen, 'Home');

@@ -529,10 +529,23 @@ async def get_group_expenses(group_id: str, user_id: str = Depends(get_current_u
     if not group:
         raise_group_not_found()
     expenses = await db.split_expenses.find({"group_id": group_id}).sort("created_at", -1).to_list(500)
+    # R107 — bulk-aggregate comment counts so each expense row can
+    # render its discuss-chip with the right badge without N+1 round
+    # trips. Single $group pipeline keyed on expense_id.
+    expense_ids = [str(e["_id"]) for e in expenses]
+    comment_counts: dict[str, int] = {}
+    if expense_ids:
+        pipe = [
+            {"$match": {"expense_id": {"$in": expense_ids}}},
+            {"$group": {"_id": "$expense_id", "n": {"$sum": 1}}},
+        ]
+        async for c in db.split_expense_comments.aggregate(pipe):
+            comment_counts[str(c.get("_id"))] = int(c.get("n", 0))
     for e in expenses:
         e["id"] = str(e["_id"]); del e["_id"]
         payer = next((m["name"] for m in group["members"] if m["user_id"] == e["paid_by"]), "Unknown")
         e["paid_by_name"] = payer
+        e["comment_count"] = int(comment_counts.get(e["id"], 0))
     return {"group": {"name": group["name"], "members": group["members"]}, "expenses": expenses}
 
 

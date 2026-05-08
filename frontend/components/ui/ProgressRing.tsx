@@ -55,7 +55,7 @@ function ProgressRing({
   pct,
   size = 88,
   stroke = 8,
-  color = '#E84A0C',
+  color = '#F56E1E',
   trackColor = '#F3F4F6',
   showLabel = false,
   labelColor,

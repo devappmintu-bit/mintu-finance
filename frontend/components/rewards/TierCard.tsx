@@ -13,6 +13,28 @@ import { Ionicons } from '@expo/vector-icons';
 import { makeStyles } from '../../utils/makeStyles';
 import { COLORS, useAppColors } from '../../utils/theme';
 
+
+
+// R113 FIX — useStyles hoisted above first render-time call
+// to avoid Metro/SDK52 TDZ error (`Cannot access X before init.`).
+const useStyles = makeStyles((c) => ({
+  card: { padding: 16, borderRadius: 0, gap: 12, overflow: 'hidden', position: 'relative', shadowColor: c.shadow.medium, shadowOpacity: 1, shadowRadius: 12, shadowOffset: { width: 0, height: 4 }, elevation: 4 },
+  blob: { position: 'absolute', top: -50, right: -50, width: 140, height: 140, borderRadius: 0, backgroundColor: 'rgba(255,255,255,0.12)' },
+  row: { flexDirection: 'row', alignItems: 'center', gap: 12 },
+  badge: { width: 56, height: 56, borderRadius: 0, backgroundColor: 'rgba(255,255,255,0.25)', justifyContent: 'center', alignItems: 'center', borderWidth: 2, borderColor: 'rgba(255,255,255,0.4)' },
+  emoji: { fontSize: 28 },
+  topRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 },
+  tierName: { fontSize: 14, fontWeight: '900', color: ON_GRADIENT, letterSpacing: 1.2 },
+  xpBadge: { fontSize: 11, fontWeight: '900', color: ON_GRADIENT_SOFT, backgroundColor: SCRIM, paddingHorizontal: 8, paddingVertical: 4, borderRadius: 999 },
+  track: { height: 8, borderRadius: 4, backgroundColor: SCRIM, overflow: 'hidden' },
+  fill: { height: '100%', backgroundColor: ON_GRADIENT, borderRadius: 4 },
+  nextTxt: { fontSize: 11, fontWeight: '700', color: ON_GRADIENT_SOFT, marginTop: 8 },
+  maxTxt: { fontSize: 11, fontWeight: '800', color: ON_GRADIENT, marginTop: 4 },
+  perksRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
+  perkChip: { flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: SCRIM, paddingHorizontal: 8, paddingVertical: 4, borderRadius: 999 },
+  perkTxt: { fontSize: 11, fontWeight: '800', color: ON_GRADIENT, letterSpacing: 0.2 },
+}));
+
 type Tier = {
   id: string;
   name: string;
@@ -90,20 +112,3 @@ export default function TierCard({ tier }: { tier: Tier }) {
   );
 }
 
-const useStyles = makeStyles((c) => ({
-  card: { padding: 16, borderRadius: 0, gap: 12, overflow: 'hidden', position: 'relative', shadowColor: c.shadow.medium, shadowOpacity: 1, shadowRadius: 12, shadowOffset: { width: 0, height: 4 }, elevation: 4 },
-  blob: { position: 'absolute', top: -50, right: -50, width: 140, height: 140, borderRadius: 0, backgroundColor: 'rgba(255,255,255,0.12)' },
-  row: { flexDirection: 'row', alignItems: 'center', gap: 12 },
-  badge: { width: 56, height: 56, borderRadius: 0, backgroundColor: 'rgba(255,255,255,0.25)', justifyContent: 'center', alignItems: 'center', borderWidth: 2, borderColor: 'rgba(255,255,255,0.4)' },
-  emoji: { fontSize: 28 },
-  topRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 },
-  tierName: { fontSize: 14, fontWeight: '900', color: ON_GRADIENT, letterSpacing: 1.2 },
-  xpBadge: { fontSize: 11, fontWeight: '900', color: ON_GRADIENT_SOFT, backgroundColor: SCRIM, paddingHorizontal: 8, paddingVertical: 4, borderRadius: 999 },
-  track: { height: 8, borderRadius: 4, backgroundColor: SCRIM, overflow: 'hidden' },
-  fill: { height: '100%', backgroundColor: ON_GRADIENT, borderRadius: 4 },
-  nextTxt: { fontSize: 11, fontWeight: '700', color: ON_GRADIENT_SOFT, marginTop: 8 },
-  maxTxt: { fontSize: 11, fontWeight: '800', color: ON_GRADIENT, marginTop: 4 },
-  perksRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
-  perkChip: { flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: SCRIM, paddingHorizontal: 8, paddingVertical: 4, borderRadius: 999 },
-  perkTxt: { fontSize: 11, fontWeight: '800', color: ON_GRADIENT, letterSpacing: 0.2 },
-}));

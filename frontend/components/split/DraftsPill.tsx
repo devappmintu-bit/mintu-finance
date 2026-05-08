@@ -26,6 +26,47 @@ import * as Haptics from 'expo-haptics';
 import { fetchDraftExpenses } from '../../services/split';
 import { makeStyles } from '../../utils/makeStyles';
 
+
+
+// R113 FIX — useStyles hoisted above first render-time call
+// to avoid Metro/SDK52 TDZ error (`Cannot access X before init.`).
+const useStyles = makeStyles((c) => ({
+  // Drafts present — solid brand pill
+  wrap: {
+    flexDirection: 'row', alignItems: 'center', gap: 10,
+    backgroundColor: c.accent.primary,
+    marginHorizontal: 16, marginTop: 12,
+    paddingHorizontal: 14, paddingVertical: 10,
+    borderRadius: 0,
+    shadowColor: '#000', shadowOpacity: 0.08, shadowRadius: 6, shadowOffset: { width: 0, height: 2 },
+    elevation: 2,
+  },
+  iconWrap: {
+    width: 28, height: 28, borderRadius: 0,
+    backgroundColor: 'rgba(255,255,255,0.18)',
+    alignItems: 'center', justifyContent: 'center',
+  },
+  title: { color: '#FFFFFF', fontSize: 13.5, fontWeight: '800' },
+  sub: { color: 'rgba(255,255,255,0.85)', fontSize: 11.5, marginTop: 1 },
+
+  // No drafts — gentler ghost CTA, still tinted brand
+  ghostWrap: {
+    flexDirection: 'row', alignItems: 'center', gap: 10,
+    backgroundColor: c.accent.brandDark,
+    marginHorizontal: 16, marginTop: 12,
+    paddingHorizontal: 14, paddingVertical: 10,
+    borderRadius: 0,
+    shadowColor: '#000', shadowOpacity: 0.05, shadowRadius: 5, shadowOffset: { width: 0, height: 1 },
+    elevation: 1,
+  },
+  ghostIconWrap: {
+    width: 26, height: 26, borderRadius: 0,
+    backgroundColor: 'rgba(255,255,255,0.22)',
+    alignItems: 'center', justifyContent: 'center',
+  },
+  ghostTitle: { flex: 1, color: '#FFFFFF', fontSize: 13, fontWeight: '800' },
+}));
+
 export default function DraftsPill() {
   const s = useStyles();
   const [count, setCount] = useState<number>(0);
@@ -99,39 +140,3 @@ export default function DraftsPill() {
   );
 }
 
-const useStyles = makeStyles((c) => ({
-  // Drafts present — solid brand pill
-  wrap: {
-    flexDirection: 'row', alignItems: 'center', gap: 10,
-    backgroundColor: c.accent.primary,
-    marginHorizontal: 16, marginTop: 12,
-    paddingHorizontal: 14, paddingVertical: 10,
-    borderRadius: 0,
-    shadowColor: '#000', shadowOpacity: 0.08, shadowRadius: 6, shadowOffset: { width: 0, height: 2 },
-    elevation: 2,
-  },
-  iconWrap: {
-    width: 28, height: 28, borderRadius: 0,
-    backgroundColor: 'rgba(255,255,255,0.18)',
-    alignItems: 'center', justifyContent: 'center',
-  },
-  title: { color: '#FFFFFF', fontSize: 13.5, fontWeight: '800' },
-  sub: { color: 'rgba(255,255,255,0.85)', fontSize: 11.5, marginTop: 1 },
-
-  // No drafts — gentler ghost CTA, still tinted brand
-  ghostWrap: {
-    flexDirection: 'row', alignItems: 'center', gap: 10,
-    backgroundColor: c.accent.brandDark,
-    marginHorizontal: 16, marginTop: 12,
-    paddingHorizontal: 14, paddingVertical: 10,
-    borderRadius: 0,
-    shadowColor: '#000', shadowOpacity: 0.05, shadowRadius: 5, shadowOffset: { width: 0, height: 1 },
-    elevation: 1,
-  },
-  ghostIconWrap: {
-    width: 26, height: 26, borderRadius: 0,
-    backgroundColor: 'rgba(255,255,255,0.22)',
-    alignItems: 'center', justifyContent: 'center',
-  },
-  ghostTitle: { flex: 1, color: '#FFFFFF', fontSize: 13, fontWeight: '800' },
-}));

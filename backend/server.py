@@ -185,6 +185,12 @@ api_router.include_router(build_admin_router())
 # parked since R99I and is now activated as part of the Mission MVP.
 from routers.missions import router as missions_router  # noqa: E402
 api_router.include_router(missions_router)
+# R109 — power-user data export (CSV / JSON snapshots).
+from routers.export_data import router as export_router  # noqa: E402
+api_router.include_router(export_router)
+# R111 — Money Pulse v2 (Inshorts-for-personal-finance, real RSS pipeline).
+from routers.pulse_v2 import router as pulse_v2_router, pulse_refresher_worker  # noqa: E402
+api_router.include_router(pulse_v2_router)
 
 
 # ── Validation + InvalidId handlers (extracted to core/responses.py) ────

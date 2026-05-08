@@ -1,12 +1,29 @@
 import { makeStyles } from '../utils/makeStyles';
 /**
- * Gen-Z onboarding — chunky type, bold orange, playful doodles, spring transitions.
- * Keeps MintU's saffron palette but borrows the Toing-style energy:
- *  • Huge 48pt headlines with tight letter-spacing
- *  • Solid vibrant backgrounds per slide (slight tint shift)
- *  • Floating emoji doodles (parallax on scroll)
- *  • Chunky rounded CTA with bottom-shadow
- *  • Page dots grow + pulse on active
+ * Onboarding — R101B rebuild.
+ *
+ * Three principles, lifted directly from the artifacts the user shared:
+ *
+ *   1. "It's the OUTCOME, not the features."  (Mobbin / Soyeon Kim)
+ *      Every slide leads with what the user FEELS at the end of the
+ *      promise — never with what we built. "We do the math" beats
+ *      "SMS-based auto-import"; "split with names" beats "phone-based
+ *      pending invites schema."
+ *
+ *   2. Signup → Setup → AHA → Habit                (Reforge activation
+ *      loop). Onboarding's only job is to manufacture the AHA. Three
+ *      cards is plenty; copy must accelerate the user toward the first
+ *      log/expense, not lecture them on capabilities.
+ *
+ *   3. The mascot is a Distinctive Brand Asset.    (Brandology, Reena
+ *      Jagtap). Mintu shows up on EVERY slide — same character, evolving
+ *      mood (curious → thinking → celebrating) — so by the time the
+ *      user lands in the app, the mascot is already a friend, not
+ *      decoration. No emoji puck; a real mascot illustration.
+ *
+ * Architecture is unchanged from the prior version (FlatList, parallax
+ * doodles, dots + chunky CTA, brutalist tokens). Only copy + the hero
+ * surface (emoji → MintuMascot) and a mood progression are new.
  */
 import React, { useRef, useState, useEffect } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Dimensions, Animated, FlatList, Platform } from 'react-native';
@@ -17,15 +34,104 @@ import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import { useLangStore } from '../store/langStore';
 import { t } from '../utils/i18n';
-// Round 75 — consolidated to single Confetti primitive (was
-// ConfettiBurst, deleted; same trigger semantics).
 import Confetti from '../components/Confetti';
-// Round 87 — Profile-grade brutalist token cascade. Replaces ad-hoc
-// saffron-tint slide backgrounds + #1F0A02 / #6B3E1F custom hex with
-// the canonical BR_* token family (utils/brutalist.ts) so onboarding
-// is visually identical in grammar to Profile / AI Coach.
+import MintuMascot, { MintuMascotState } from '../components/MintuMascot';
 import { BR_COLORS, BR_TYPE, BR_FONT, BR_SPACE, BR_BORDER } from '../utils/brutalist';
 import { STORAGE } from '../constants/storage';
+
+
+
+// R113 FIX — useStyles hoisted above first render-time call
+// to avoid Metro/SDK52 TDZ error (`Cannot access X before init.`).
+const useStyles = makeStyles((c) => ({
+  root: { flex: 1, backgroundColor: BR_COLORS.paper },
+  // Skip — R101C: bigger, accent-bordered pill so users can find it
+  // even on small phones. Uses safe-area top inset (~58px on iPhone)
+  // but adds extra zIndex and a hairline shadow so it's never lost
+  // under browser chrome or status bar.
+  skip: {
+    position: 'absolute', top: 58, right: 22, zIndex: 100,
+    paddingHorizontal: BR_SPACE.md, paddingVertical: 8,
+    borderWidth: BR_BORDER.bold, borderColor: BR_COLORS.ink,
+    backgroundColor: BR_COLORS.paper,
+    // Hard-offset stamp for tap affordance.
+    shadowColor: BR_COLORS.ink, shadowOffset: { width: 3, height: 3 },
+    shadowOpacity: 1, shadowRadius: 0, elevation: 4,
+  },
+  skipT: {
+    fontSize: 12, color: BR_COLORS.ink, fontWeight: '900',
+    letterSpacing: 1.6, textTransform: 'uppercase',
+  },
+
+  slide: { flex: 1, alignItems: 'center', paddingTop: height * 0.14, paddingHorizontal: 28 },
+
+  doodle: { position: 'absolute', fontSize: 24, opacity: 0.85 },
+
+  hero: { alignItems: 'center', marginTop: 16, marginBottom: 36 },
+  heroInner: {
+    width: 220, height: 220, borderRadius: 0,
+    // R101C \u2014 Mascot plate is now WHITE across the app. The previous
+    // orange/saffron plate fought with the mascot's own rupee shield
+    // for attention and made the slide read as one big orange blob
+    // (Brandology: a Distinctive Brand Asset reads cleanest against
+    // a NEUTRAL ground, not against itself). The thick ink border
+    // and hard offset shadow do all the brutalism work; the plate
+    // just stages the character.
+    backgroundColor: '#FFFFFF',
+    borderWidth: BR_BORDER.bold, borderColor: BR_COLORS.ink,
+    alignItems: 'center', justifyContent: 'center',
+    transform: [{ rotate: '-4deg' }],
+    // Hard offset stamp \u2014 same Swiss-brutal language as Profile.
+    shadowColor: BR_COLORS.ink, shadowOffset: { width: 8, height: 8 },
+    shadowOpacity: 1, shadowRadius: 0, elevation: 18,
+  },
+  heroEmoji: { fontSize: 112, transform: [{ rotate: '4deg' }] },
+
+  copy: { alignItems: 'center', paddingHorizontal: 4 },
+  eyebrowRow: { flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 10 },
+  rule: { width: 14, height: 3, backgroundColor: BR_COLORS.ink },
+  eyebrow: {
+    fontSize: 10, fontWeight: '900', letterSpacing: 2.2,
+    color: BR_COLORS.ink, textTransform: 'uppercase',
+  },
+  title: {
+    fontSize: 36, fontWeight: '900', color: BR_COLORS.ink,
+    textAlign: 'center', letterSpacing: -1.2, lineHeight: 42,
+  },
+  sub: {
+    fontSize: 15, color: BR_COLORS.muted, textAlign: 'center',
+    marginTop: 14, lineHeight: 22, paddingHorizontal: 12,
+    fontWeight: '500',
+  },
+
+  footer: { paddingHorizontal: 22, paddingBottom: 36, paddingTop: 8, gap: 16 },
+
+  // Page progress — brutalist 4-px ink bars, active stretches.
+  dots: { flexDirection: 'row', justifyContent: 'center', gap: 6, marginBottom: 6 },
+  dot: { width: 18, height: 4, backgroundColor: BR_COLORS.line },
+  dotActive: { width: 34, backgroundColor: BR_COLORS.ink },
+
+  // Primary CTA — accent fill, ink border, accent-ink (paper) text.
+  cta: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 10,
+    backgroundColor: BR_COLORS.accent, paddingVertical: 18,
+    borderWidth: BR_BORDER.bold, borderColor: BR_COLORS.ink,
+  },
+  ctaT: {
+    color: BR_COLORS.accentInk, fontSize: 15, fontWeight: '900',
+    letterSpacing: 1.4, textTransform: 'uppercase',
+  },
+
+  // Terms-of-service line — muted, mono numerals not needed here.
+  tos: {
+    textAlign: 'center', fontSize: 11, color: BR_COLORS.muted,
+    marginTop: 6, fontWeight: '500',
+  },
+  tosLink: {
+    color: BR_COLORS.ink, fontWeight: '800',
+    textDecorationLine: 'underline',
+  },
+}));
 
 const { width, height } = Dimensions.get('window');
 
@@ -33,49 +139,51 @@ const { width, height } = Dimensions.get('window');
 // shifts by a tiny amount for parallax-perceived depth. Anchored on
 // BR_COLORS.paper so the brutalist hairline rules read cleanly.
 const SLIDE_BG = ['#FFEFDC', BR_COLORS.paper, '#FFE9CF'];
-const ACCENT = BR_COLORS.accent;        // #E84A0C
+const ACCENT = BR_COLORS.accent;        // #F56E1E
 const ACCENT_DEEP = '#7C2D12';          // saffron-deep, for shadow only
 
-type Slide = { id: string; emoji: string; title: string; sub: string; doodles: string[] };
+type Slide = {
+  id: string;
+  // R101B — mascot replaces emoji as the visual hero. Mood evolves
+  // across slides to telegraph the relationship-building arc.
+  mood: MintuMascotState;
+  tag: string;             // eyebrow tag, e.g. "01 · AHA"
+  title: string;
+  // OUTCOME-first sub copy — what the user FEELS, no feature jargon.
+  sub: string;
+  doodles: string[];
+};
 
 const S: Slide[] = [
   {
-    // R100P — Lead with the Outcome Guarantee. Mission Backbone
-    // (services/missions.py wired in R100N) is now the app's north
-    // star: a peer-anchored savings target the AI Coach picks for
-    // you on Day-0. Mention it before anything else — auto-import
-    // and AI tools serve THIS goal.
+    // Slide 1 \u2014 the AHA. Opens with the emotional outcome, NOT the
+    // feature. Reforge: this is what activation depends on.
     id: '1',
-    emoji: '🎯',
-    title: 'A goal,\nthen the goal hit.',
-    sub: 'We pick a peer-anchored monthly savings target for you. Every action in MintU pushes you toward it — automatically.',
-    doodles: ['✓', '★', '◆', '↑'],
+    mood: 'idle',
+    tag: '01 \u00b7 THE OUTCOME',
+    title: 'Stop guessing\nwhere it went.',
+    sub: 'Every rupee, accounted for \u2014 without the spreadsheet. You handle life. Mintu handles the math.',
+    doodles: ['\u20b9', '\u2713', '\u25c6', '\u2191'],
   },
   {
-    // R100P — Auto-pilot: SMS + Gmail import is the substrate, AI
-    // Coach + MintU Pulse (IG-story signals) are the surface. Single
-    // slide because together they are the "we do the work" promise.
+    // Slide 2 \u2014 the MISSION. Outcome reframed: the user doesn't have
+    // to set a savings goal. We pick one based on their peer cohort.
     id: '2',
-    emoji: '⚡',
-    title: 'You log it.\nWe do the math.',
-    // R100V — Trust-first onboarding rewrite. Was "Bank SMS + Gmail in.
-    // AI Coach answers, MintU Pulse pings you with money signals — before
-    // things go sideways." That asked for two extremely sensitive
-    // permissions in 4 words and used fear-based framing ("things go
-    // sideways"). New copy: explicit consent line, no fear, optional
-    // import deferred to AFTER value is felt.
-    sub: 'Add expenses your way — manually, voice, or paste a UPI SMS. Auto-import is optional, you can turn it on later.',
-    doodles: ['🔔', '💡', '✦', '⚡'],
+    mood: 'thinking',
+    tag: '02 \u00b7 YOUR GOAL, PICKED FOR YOU',
+    title: 'A goal you\ndidn\'t have to set.',
+    sub: 'Mintu picks a peer-anchored monthly savings target the moment you log your income \u2014 then nudges you toward it. Quietly.',
+    doodles: ['\u2605', '\u25c7', '\u2192', '\u26a1'],
   },
   {
-    // R100P — Split: lead with the differentiator. Names not phones
-    // (R100O), tap-to-settle (R100N), expense on behalf of friends
-    // who haven't joined yet (R100M).
+    // Slide 3 \u2014 the SPLIT outcome. Lead with the social pain killed,
+    // not the technical feature ("phone-anchored pending invites").
     id: '3',
-    emoji: '🤝',
-    title: 'Split with friends,\nnot phone numbers.',
-    sub: 'Track who owes whom by name — even before they sign up. Tap any row to settle on UPI. No awkward DMs.',
-    doodles: ['₹', '✓', '◇', '→'],
+    mood: 'success',
+    tag: '03 \u00b7 SPLIT, FIXED',
+    title: 'Settle with a name.\nNot a Splitwise link.',
+    sub: 'Add friends by name even before they sign up. Tap a row to pay over UPI. No DMs, no awkward reminders, no math.',
+    doodles: ['\ud83e\udd1d', '\u2713', '\u25c7', '\u2192'],
   },
 ];
 
@@ -134,18 +242,21 @@ export default function Onboarding() {
           );
         })}
 
-        {/* Hero emoji puck */}
+        {/* R101B \u2014 Mascot hero. Replaces the emoji puck. Same chunky
+            ink-shadowed orange plate (Brandology consistency) but the
+            face of every slide is now Mintu, mood-evolving across the
+            arc (curious \u2192 thinking \u2192 celebrating). */}
         <Animated.View style={[s.hero, { transform: [{ scale }, { rotate }] }]}>
-          <View style={s.heroInner}><Text style={s.heroEmoji}>{item.emoji}</Text></View>
+          <View style={s.heroInner}>
+            <MintuMascot size={150} state={item.mood} />
+          </View>
         </Animated.View>
 
         <View style={s.copy}>
-          {/* v10 Brutalist eyebrow — slide number + tag */}
+          {/* Outcome eyebrow tag \u2014 brutalist hairline. */}
           <View style={s.eyebrowRow}>
             <View style={s.rule} />
-            <Text style={s.eyebrow}>
-              {String(index + 1).padStart(2, '0')} · {index === 0 ? 'MISSION' : index === 1 ? 'AUTOPILOT' : 'SPLIT'}
-            </Text>
+            <Text style={s.eyebrow}>{item.tag}</Text>
           </View>
           <Text style={s.title}>{item.title}</Text>
           <Text style={s.sub}>{item.sub}</Text>
@@ -157,8 +268,15 @@ export default function Onboarding() {
   return (
     <View style={s.root}>
       <StatusBar style="dark" />
-      <TouchableOpacity style={s.skip} onPress={skip} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
-        <Text style={s.skipT}>{t('skip', lang)}</Text>
+      <TouchableOpacity
+        testID="onboarding-skip-btn"
+        style={s.skip}
+        onPress={skip}
+        hitSlop={{ top: 16, bottom: 16, left: 16, right: 16 }}
+        accessibilityLabel="Skip onboarding"
+        accessibilityRole="button"
+      >
+        <Text style={s.skipT}>SKIP →</Text>
       </TouchableOpacity>
 
       <Animated.FlatList
@@ -191,7 +309,7 @@ export default function Onboarding() {
           })}
         </View>
         <TouchableOpacity activeOpacity={0.85} onPress={go} style={s.cta}>
-          <Text style={s.ctaT}>{idx === S.length - 1 ? "Let's gooo 🚀" : t('next', lang)}</Text>
+          <Text style={s.ctaT}>{idx === S.length - 1 ? 'MEET MINTU →' : t('next', lang)}</Text>
           <Ionicons name="arrow-forward" size={22} color="#fff" />
         </TouchableOpacity>
         <Text style={s.tos}>By continuing you agree to our <Text style={s.tosLink}>Terms</Text> & <Text style={s.tosLink}>Privacy</Text></Text>
@@ -200,79 +318,3 @@ export default function Onboarding() {
   );
 }
 
-const useStyles = makeStyles((c) => ({
-  root: { flex: 1, backgroundColor: BR_COLORS.paper },
-  // Skip — brutalist hairline pill in the upper right.
-  skip: {
-    position: 'absolute', top: 58, right: 22, zIndex: 10,
-    paddingHorizontal: BR_SPACE.md, paddingVertical: BR_SPACE.xs,
-    borderWidth: BR_BORDER.hair, borderColor: BR_COLORS.ink,
-    backgroundColor: BR_COLORS.paper,
-  },
-  skipT: {
-    fontSize: 10.5, color: BR_COLORS.ink, fontWeight: '900',
-    letterSpacing: 1.4, textTransform: 'uppercase',
-  },
-
-  slide: { flex: 1, alignItems: 'center', paddingTop: height * 0.14, paddingHorizontal: 28 },
-
-  doodle: { position: 'absolute', fontSize: 24, opacity: 0.85 },
-
-  hero: { alignItems: 'center', marginTop: 16, marginBottom: 36 },
-  heroInner: {
-    width: 220, height: 220, borderRadius: 0,
-    backgroundColor: BR_COLORS.accent,
-    borderWidth: BR_BORDER.bold, borderColor: BR_COLORS.ink,
-    alignItems: 'center', justifyContent: 'center',
-    transform: [{ rotate: '-4deg' }],
-    // Hard offset stamp — same Swiss-brutal language as Profile.
-    shadowColor: BR_COLORS.ink, shadowOffset: { width: 8, height: 8 },
-    shadowOpacity: 1, shadowRadius: 0, elevation: 18,
-  },
-  heroEmoji: { fontSize: 112, transform: [{ rotate: '4deg' }] },
-
-  copy: { alignItems: 'center', paddingHorizontal: 4 },
-  eyebrowRow: { flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 10 },
-  rule: { width: 14, height: 3, backgroundColor: BR_COLORS.ink },
-  eyebrow: {
-    fontSize: 10, fontWeight: '900', letterSpacing: 2.2,
-    color: BR_COLORS.ink, textTransform: 'uppercase',
-  },
-  title: {
-    fontSize: 36, fontWeight: '900', color: BR_COLORS.ink,
-    textAlign: 'center', letterSpacing: -1.2, lineHeight: 42,
-  },
-  sub: {
-    fontSize: 15, color: BR_COLORS.muted, textAlign: 'center',
-    marginTop: 14, lineHeight: 22, paddingHorizontal: 12,
-    fontWeight: '500',
-  },
-
-  footer: { paddingHorizontal: 22, paddingBottom: 36, paddingTop: 8, gap: 16 },
-
-  // Page progress — brutalist 4-px ink bars, active stretches.
-  dots: { flexDirection: 'row', justifyContent: 'center', gap: 6, marginBottom: 6 },
-  dot: { width: 18, height: 4, backgroundColor: BR_COLORS.line },
-  dotActive: { width: 34, backgroundColor: BR_COLORS.ink },
-
-  // Primary CTA — accent fill, ink border, accent-ink (paper) text.
-  cta: {
-    flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 10,
-    backgroundColor: BR_COLORS.accent, paddingVertical: 18,
-    borderWidth: BR_BORDER.bold, borderColor: BR_COLORS.ink,
-  },
-  ctaT: {
-    color: BR_COLORS.accentInk, fontSize: 15, fontWeight: '900',
-    letterSpacing: 1.4, textTransform: 'uppercase',
-  },
-
-  // Terms-of-service line — muted, mono numerals not needed here.
-  tos: {
-    textAlign: 'center', fontSize: 11, color: BR_COLORS.muted,
-    marginTop: 6, fontWeight: '500',
-  },
-  tosLink: {
-    color: BR_COLORS.ink, fontWeight: '800',
-    textDecorationLine: 'underline',
-  },
-}));

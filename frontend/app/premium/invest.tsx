@@ -18,6 +18,31 @@ import { useActivePlan, FEATURES, canAccess } from '../../utils/premium';
 import { makeStyles } from '../../utils/makeStyles';
 import { COLORS, SPACING } from '../../utils/theme';
 
+
+
+// R113 FIX — useStyles hoisted above first render-time call
+// to avoid Metro/SDK52 TDZ error (`Cannot access X before init.`).
+const useStyles = makeStyles((c) => ({
+  safe: { flex: 1, backgroundColor: c.bg.primary },
+  header: {
+    flexDirection: 'row', alignItems: 'center', gap: SPACING.md,
+    paddingHorizontal: SPACING.lg, paddingVertical: SPACING.md,
+    borderBottomWidth: 1, borderColor: 'rgba(0,0,0,0.06)',
+  },
+  back: {
+    width: 40, height: 40, borderRadius: 0,
+    borderWidth: 2, borderColor: '#0A0A0A', backgroundColor: c.bg.secondary,
+    justifyContent: 'center', alignItems: 'center',
+  },
+  title: { fontSize: 22, fontWeight: '900', color: c.text.primary, letterSpacing: -0.5 },
+  sub: { fontSize: 12, color: c.text.muted, marginTop: 2, fontWeight: '600' },
+  lockedScroll: { padding: SPACING.lg, alignItems: 'center' },
+  lockedHint: {
+    fontSize: 13, color: c.text.secondary, textAlign: 'center',
+    marginTop: SPACING.lg, lineHeight: 20, paddingHorizontal: SPACING.md,
+  },
+}));
+
 export default function PremiumInvestScreen() {
   const s = useStyles();
   const [plan] = useActivePlan();
@@ -49,23 +74,3 @@ export default function PremiumInvestScreen() {
   );
 }
 
-const useStyles = makeStyles((c) => ({
-  safe: { flex: 1, backgroundColor: c.bg.primary },
-  header: {
-    flexDirection: 'row', alignItems: 'center', gap: SPACING.md,
-    paddingHorizontal: SPACING.lg, paddingVertical: SPACING.md,
-    borderBottomWidth: 1, borderColor: 'rgba(0,0,0,0.06)',
-  },
-  back: {
-    width: 40, height: 40, borderRadius: 0,
-    borderWidth: 2, borderColor: '#0A0A0A', backgroundColor: c.bg.secondary,
-    justifyContent: 'center', alignItems: 'center',
-  },
-  title: { fontSize: 22, fontWeight: '900', color: c.text.primary, letterSpacing: -0.5 },
-  sub: { fontSize: 12, color: c.text.muted, marginTop: 2, fontWeight: '600' },
-  lockedScroll: { padding: SPACING.lg, alignItems: 'center' },
-  lockedHint: {
-    fontSize: 13, color: c.text.secondary, textAlign: 'center',
-    marginTop: SPACING.lg, lineHeight: 20, paddingHorizontal: SPACING.md,
-  },
-}));

@@ -49,6 +49,80 @@ export default function NewGroup() {
   ]);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // R101H — Quick paste-import state. Hidden by default to avoid
+  // overwhelming first-time creators; toggles open on demand.
+  const [showPaste, setShowPaste] = useState(false);
+  const [pasteText, setPasteText] = useState('');
+
+  // R101H — Lightweight WhatsApp/contacts parser. Looks for any
+  // 10–13 digit run, normalises to last-10 digits, and tries to
+  // grab a friendly name from whatever non-digit text precedes it
+  // on the same line. Tolerates ":", ",", " - ", "(", "+91", emoji.
+  type Parsed = { name: string; phone: string };
+  const parsePastedContacts = (raw: string): Parsed[] => {
+    if (!raw || !raw.trim()) return [];
+    const out: Parsed[] = [];
+    const seen = new Set<string>();
+    const lines = raw.split(/\r?\n/);
+    for (const line of lines) {
+      const trimmed = line.trim();
+      if (!trimmed) continue;
+      // Find every digit-run with optional country code.
+      const matches = Array.from(trimmed.matchAll(/(\+?\d[\d\s\-]{8,18})/g));
+      for (const m of matches) {
+        const digits = (m[1] || '').replace(/\D/g, '');
+        if (digits.length < 10) continue;
+        const phone = digits.slice(-10);
+        if (seen.has(phone)) continue;
+        seen.add(phone);
+        // Whatever comes BEFORE the matched phone on this line is
+        // the candidate name. Strip trailing ":", "-", ",", and
+        // collapse whitespace. Limit to a sensible length.
+        const idx = m.index ?? trimmed.indexOf(m[1]);
+        let cand = trimmed.slice(0, idx).trim();
+        cand = cand.replace(/[:,\-—]+$/g, '').trim();
+        cand = cand.replace(/\s{2,}/g, ' ').slice(0, 40);
+        out.push({ name: cand, phone });
+      }
+    }
+    return out;
+  };
+
+  const extractedFromPaste = useMemo(
+    () => parsePastedContacts(pasteText),
+    [pasteText]
+  );
+
+  const importPasted = () => {
+    if (extractedFromPaste.length === 0) return;
+    setMembers((prev) => {
+      // Drop blank rows (the default "m0" row when name+phone empty)
+      // so they don't crowd the imported list.
+      const filtered = prev.filter(
+        (m) => m.name.trim() || normalisePhone(m.phone).length === 10
+      );
+      const existingPhones = new Set(
+        filtered.map((m) => normalisePhone(m.phone))
+      );
+      const additions: DraftMember[] = [];
+      for (const e of extractedFromPaste) {
+        if (existingPhones.has(e.phone)) continue;
+        additions.push({
+          id: `pi-${e.phone}-${Math.random().toString(36).slice(2, 6)}`,
+          name: e.name,
+          phone: e.phone,
+        });
+        existingPhones.add(e.phone);
+      }
+      const next = [...filtered, ...additions];
+      // Always leave at least one row.
+      return next.length > 0
+        ? next
+        : [{ id: 'm0', name: '', phone: '' }];
+    });
+    setPasteText('');
+    setShowPaste(false);
+  };
 
   const validMembers = useMemo(
     () =>
@@ -78,6 +152,16 @@ export default function NewGroup() {
     try {
       const payload = {
         name: name.trim(),
+        // R101B — send entries with both phone AND name so the backend
+        // can save the friendly name on pending_invites. Previously we
+        // dropped the name and the UI rendered "+91 XXXXXXXXXX" instead
+        // of "Rohan" / "Priya" until the friend signed up.
+        entries: validMembers.map((m) => ({
+          phone: normalisePhone(m.phone),
+          name: m.name.trim(),
+        })),
+        // Keep `members` for any backend that still parses the legacy
+        // shape; the new endpoint prefers `entries` when present.
         members: validMembers.map((m) => normalisePhone(m.phone)),
       };
       const r = await api.post('/split/groups', payload);
@@ -136,6 +220,57 @@ export default function NewGroup() {
               <Text style={st.sectionLabel}>WHO'S IN?</Text>
               <Text style={st.sectionHint}>Add friends — no app needed</Text>
             </View>
+
+            {/* R101H — Quick paste-import. Users can paste a chunk
+                from WhatsApp / their notes app — we extract every
+                10-digit phone and turn each into a row. The line
+                preceding a number (or whatever non-digit precedes it)
+                becomes the suggested name when present. */}
+            <Pressable
+              onPress={() => setShowPaste((s) => !s)}
+              style={st.pasteToggle}
+              hitSlop={6}
+            >
+              <Ionicons
+                name={showPaste ? 'chevron-down' : 'chevron-forward'}
+                size={14}
+                color={INK}
+              />
+              <Text style={st.pasteToggleTxt}>
+                {showPaste ? 'HIDE PASTE-IMPORT' : 'PASTE FROM WHATSAPP / CONTACTS'}
+              </Text>
+            </Pressable>
+            {showPaste && (
+              <View style={st.pasteBox}>
+                <TextInput
+                  value={pasteText}
+                  onChangeText={setPasteText}
+                  placeholder={"Rohan +91 98765 43210\nPriya 8888888888\nKaran: 9999999999"}
+                  placeholderTextColor={MUTED}
+                  multiline
+                  numberOfLines={4}
+                  style={st.pasteInput}
+                  textAlignVertical="top"
+                />
+                <View style={st.pasteFoot}>
+                  <Text style={st.pasteHint}>
+                    {extractedFromPaste.length} phone
+                    {extractedFromPaste.length === 1 ? '' : 's'} found
+                  </Text>
+                  <Pressable
+                    disabled={extractedFromPaste.length === 0}
+                    onPress={importPasted}
+                    style={({ pressed }) => [
+                      st.pasteImportBtn,
+                      extractedFromPaste.length === 0 && { opacity: 0.4 },
+                      pressed && { transform: [{ translateY: 1 }] },
+                    ]}
+                  >
+                    <Text style={st.pasteImportTxt}>IMPORT</Text>
+                  </Pressable>
+                </View>
+              </View>
+            )}
 
             {members.map((m, idx) => (
               <View key={m.id} style={st.memberRow}>
@@ -281,6 +416,65 @@ const st = StyleSheet.create({
     gap: 6,
   },
   addRowText: { fontSize: 13, fontWeight: '800', color: INK, marginLeft: 4 },
+  // R101H — paste-import block.
+  pasteToggle: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingVertical: 8,
+    paddingHorizontal: 4,
+    marginBottom: 10,
+  },
+  pasteToggleTxt: {
+    fontSize: 11,
+    fontWeight: '900',
+    letterSpacing: 1.4,
+    color: INK,
+  },
+  pasteBox: {
+    borderWidth: 1.5,
+    borderColor: INK,
+    borderStyle: 'dashed',
+    backgroundColor: '#FAF8F1',
+    padding: 12,
+    marginBottom: 14,
+  },
+  pasteInput: {
+    minHeight: 84,
+    fontSize: 13,
+    color: INK,
+    fontWeight: '600',
+    paddingTop: 0,
+    paddingBottom: 0,
+  },
+  pasteFoot: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginTop: 8,
+    paddingTop: 8,
+    borderTopWidth: 1,
+    borderTopColor: LINE,
+  },
+  pasteHint: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: MUTED,
+    fontStyle: 'italic',
+  },
+  pasteImportBtn: {
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    backgroundColor: ACCENT,
+    borderWidth: 2,
+    borderColor: INK,
+  },
+  pasteImportTxt: {
+    fontSize: 11,
+    fontWeight: '900',
+    letterSpacing: 1.4,
+    color: INK,
+  },
   helper: {
     fontSize: 11,
     color: MUTED,

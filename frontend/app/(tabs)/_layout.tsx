@@ -40,6 +40,144 @@ import { t } from '../../utils/i18n';
 // tab background — much louder than the previous mono ink fill.
 import { useNeoPalette } from '../../store/neoTheme';
 
+
+
+// R113 FIX — useStyles hoisted above first render-time call
+// to avoid Metro/SDK52 TDZ error (`Cannot access X before init.`).
+const useStyles = makeStyles((c) => {
+  // Round 50 — light/dark detection via theme engine (was hex-equality check).
+  const isLight = getActiveMode() === 'light';
+  return ({
+    wrap: {
+      position: 'absolute', left: 0, right: 0, bottom: 0,
+      alignItems: 'center',
+      justifyContent: 'flex-end',
+      backgroundColor: 'transparent',
+      paddingBottom: BAR_INSET_B,
+    },
+    // Round 89 Strike 2 refine — BRUTALIST. Square corners, flat 4px
+    // offset stamp (NOT drop-shadow). Hard 2px border. Zero blur, zero
+    // gradient. Matches Home's HeroDecision / TodayAction language.
+    barContainer: {
+      borderRadius: 0,
+      borderWidth: 2,
+      ...Platform.select({
+        ios:     { shadowColor: '#000', shadowOpacity: 1, shadowRadius: 0, shadowOffset: { width: 4, height: 4 } },
+        android: { elevation: 0 },
+        web:     { boxShadow: '4px 4px 0 0 #0A0A0A' as any },
+      }),
+    },
+    iconsRow: {
+      position: 'absolute',
+      bottom: BAR_INSET_B,
+      left: BAR_INSET_X,
+      right: BAR_INSET_X,
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      paddingHorizontal: 6,
+    },
+    side: { flex: 1, flexDirection: 'row', justifyContent: 'space-around', alignItems: 'center' },
+    sideTab: {
+      alignItems: 'center',
+      justifyContent: 'center',
+      flex: 1,
+      paddingVertical: 4,
+      gap: 4,
+    },
+    // Round 60 — wrapper that lets the halo render BEHIND the icon chip
+    // without affecting layout flow. Both children sit on top of each
+    // other; halo is absolute-positioned to the centre.
+    sideIconStack: {
+      width: 42,
+      height: 42,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    // Halo layer removed from visual loop — kept as invisible
+    // layout shim so SideTab doesn't crash on existing refs.
+    sideHalo: {
+      position: 'absolute',
+      width: 0, height: 0, opacity: 0,
+    },
+    // Round 89 — BRUTALIST chip. Inactive = paper + ink border.
+    sideIconWrap: {
+      width: 42, height: 42, borderRadius: 0,
+      alignItems: 'center', justifyContent: 'center',
+      backgroundColor: '#FAFAF7',
+      borderWidth: 1.5,
+      borderColor: '#0A0A0A',
+    },
+    // R107 — stacked icon layer used by the morphing cross-fade. Both
+    // outline + filled glyphs render at the same coords; opacity sells
+    // the swap. Centered via flex on the parent.
+    sideIconLayer: {
+      ...StyleSheet.absoluteFillObject,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    // Active = solid ink fill, no glow. Icons inside become white.
+    sideIconWrapOn: {
+      backgroundColor: '#0A0A0A',
+      borderColor: '#0A0A0A',
+    },
+    sideLabel:   { fontSize: 10.5, color: c.text.secondary, fontFamily: FONT_FAMILY.semibold, letterSpacing: 0.2, marginTop: 2 },
+    sideLabelOn: { color: c.accent.primary, fontFamily: FONT_FAMILY.bold },
+
+    // RAISED rounded-SQUARE center button (larger + orange accent ring)
+    raisedWrap: {
+      position: 'absolute',
+      bottom: BAR_INSET_B + BAR_HEIGHT - PUCK_SIZE / 2 - 4,
+      alignSelf: 'center',
+      width: PUCK_SIZE,
+      height: PUCK_SIZE,
+      alignItems: 'center',
+      justifyContent: 'center',
+      zIndex: 20,
+    },
+    raisedOuter: {
+      width: PUCK_SIZE, height: PUCK_SIZE,
+      borderRadius: 0,
+      backgroundColor: '#FAFAF7',
+      alignItems: 'center', justifyContent: 'center',
+      // Round 89 Strike 2 — BRUTALIST puck. Ink border + flat 4px
+      // stamp. No orange glow. No soft drop-shadow. Mascot still pops
+      // because of the offset stamp + scale vs side tabs.
+      borderWidth: 2.5,
+      borderColor: '#0A0A0A',
+      ...Platform.select({
+        ios:     { shadowColor: '#000', shadowOpacity: 1, shadowRadius: 0, shadowOffset: { width: 4, height: 4 } },
+        android: { elevation: 0 },
+        web:     { boxShadow: '4px 4px 0 0 #0A0A0A' as any },
+      }),
+    },
+    raisedInner: {
+      width: PUCK_INNER, height: PUCK_INNER,
+      borderRadius: 0,                // rounded-square inner — transparent
+      backgroundColor: 'transparent',
+      overflow: 'hidden',
+      alignItems: 'center', justifyContent: 'center',
+    },
+    raisedLabel: {
+      position: 'absolute',
+      bottom: -18,
+      fontSize: 9.5,
+      fontWeight: '900',
+      color: c.accent.primary,
+      letterSpacing: 0.6,
+      textAlign: 'center',
+      fontFamily: FONT_FAMILY.bold,
+      // Subtle outline for readability over any background
+      ...Platform.select({
+        ios:     { textShadowColor: 'rgba(0,0,0,0.08)', textShadowOffset: { width: 0, height: 1 }, textShadowRadius: 2 },
+        android: { textShadowColor: 'rgba(0,0,0,0.08)', textShadowOffset: { width: 0, height: 1 }, textShadowRadius: 2 },
+        web:     {},
+      }),
+    },
+    raisedMascot: { width: '100%', height: '100%' },
+  });
+});
+
 const TAB_META: Record<string, { out: string; fill: string; key: string }> = {
   index:        { out: 'home-outline',       fill: 'home',       key: 'home' },
   transactions: { out: 'receipt-outline',    fill: 'receipt',    key: 'transactions' },
@@ -90,6 +228,11 @@ function SideTab({ icon, iconFilled, label, focused, onPress, testID }:
   const scale = React.useRef(new Animated.Value(focused ? 1 : 0.92)).current;
   const halo  = React.useRef(new Animated.Value(focused ? 1 : 0)).current;
   const lift  = React.useRef(new Animated.Value(focused ? -2 : 0)).current;
+  // R107 — Morphing icon cross-fade. The outline glyph fades to 0 while
+  // the filled glyph fades to 1 (and vice-versa). A tiny rotational
+  // wiggle keeps the swap from feeling like a re-mount and ties into
+  // the brutalist "stamp into existence" language.
+  const morph = React.useRef(new Animated.Value(focused ? 1 : 0)).current;
   // Round 60 — soft outer-glow pulse behind the active chip. Loops only
   // while focused, stopping the moment another tab takes focus so we
   // never run a wasted Animated loop on inactive tabs.
@@ -100,6 +243,9 @@ function SideTab({ icon, iconFilled, label, focused, onPress, testID }:
       Animated.spring(scale, { toValue: focused ? 1.05 : 0.92, friction: 6, tension: 160, useNativeDriver: true }),
       Animated.timing(halo,  { toValue: focused ? 1 : 0, duration: 220, useNativeDriver: true }),
       Animated.spring(lift,  { toValue: focused ? -2 : 0, friction: 7, tension: 140, useNativeDriver: true }),
+      // R107 — Morph the glyph swap. 260ms is just slow enough to read
+      // the change yet quick enough that taps feel responsive.
+      Animated.spring(morph, { toValue: focused ? 1 : 0, friction: 7, tension: 180, useNativeDriver: true }),
     ]).start();
 
     if (focused) {
@@ -115,11 +261,18 @@ function SideTab({ icon, iconFilled, label, focused, onPress, testID }:
     } else {
       glowPulse.setValue(0);
     }
-  }, [focused, scale, halo, lift, glowPulse]);
+  }, [focused, scale, halo, lift, glowPulse, morph]);
 
   // Halo glow scales 1 → 1.35 and fades 0.55 → 0 — a soft breathing aura.
   const glowScale   = glowPulse.interpolate({ inputRange: [0, 1], outputRange: [1, 1.35] });
   const glowOpacity = glowPulse.interpolate({ inputRange: [0, 1], outputRange: [0.55, 0] });
+  // R107 — Morph derivatives.
+  const filledOpacity = morph;                                    // 0 → 1
+  const outlineOpacity = morph.interpolate({ inputRange: [0, 1], outputRange: [1, 0] });
+  const morphRotate = morph.interpolate({
+    inputRange: [0, 0.5, 1],
+    outputRange: ['0deg', '-7deg', '0deg'],
+  });
 
   return (
     <TouchableOpacity testID={testID} style={st.sideTab} onPress={onPress} activeOpacity={0.7}>
@@ -139,15 +292,19 @@ function SideTab({ icon, iconFilled, label, focused, onPress, testID }:
           style={[
             st.sideIconWrap,
             focused && st.sideIconWrapOn,
-            { transform: [{ scale }, { translateY: lift }] },
+            { transform: [{ scale }, { translateY: lift }, { rotate: morphRotate }] },
           ]}
         >
-          <Ionicons
-            name={(focused ? iconFilled : icon) as any}
-            size={focused ? 22 : 20}
-            // Brutalist: inactive = ink on paper, active = paper on ink.
-            color={focused ? '#FAFAF7' : '#0A0A0A'}
-          />
+          {/* R107 — Cross-faded glyph stack. Both icons live at the
+              same coordinates; opacity drives the swap. The active
+              variant always renders white-on-ink, and the outline
+              renders ink-on-paper. */}
+          <Animated.View style={[st.sideIconLayer, { opacity: outlineOpacity }]} pointerEvents="none">
+            <Ionicons name={icon as any} size={20} color={'#0A0A0A'} />
+          </Animated.View>
+          <Animated.View style={[st.sideIconLayer, { opacity: filledOpacity }]} pointerEvents="none">
+            <Ionicons name={iconFilled as any} size={22} color={'#FAFAF7'} />
+          </Animated.View>
         </Animated.View>
       </View>
       <Animated.Text
@@ -315,128 +472,3 @@ export default function TabLayout() {
   );
 }
 
-const useStyles = makeStyles((c) => {
-  // Round 50 — light/dark detection via theme engine (was hex-equality check).
-  const isLight = getActiveMode() === 'light';
-  return ({
-    wrap: {
-      position: 'absolute', left: 0, right: 0, bottom: 0,
-      alignItems: 'center',
-      justifyContent: 'flex-end',
-      backgroundColor: 'transparent',
-      paddingBottom: BAR_INSET_B,
-    },
-    // Round 89 Strike 2 refine — BRUTALIST. Square corners, flat 4px
-    // offset stamp (NOT drop-shadow). Hard 2px border. Zero blur, zero
-    // gradient. Matches Home's HeroDecision / TodayAction language.
-    barContainer: {
-      borderRadius: 0,
-      borderWidth: 2,
-      ...Platform.select({
-        ios:     { shadowColor: '#000', shadowOpacity: 1, shadowRadius: 0, shadowOffset: { width: 4, height: 4 } },
-        android: { elevation: 0 },
-        web:     { boxShadow: '4px 4px 0 0 #0A0A0A' as any },
-      }),
-    },
-    iconsRow: {
-      position: 'absolute',
-      bottom: BAR_INSET_B,
-      left: BAR_INSET_X,
-      right: BAR_INSET_X,
-      flexDirection: 'row',
-      alignItems: 'center',
-      justifyContent: 'space-between',
-      paddingHorizontal: 6,
-    },
-    side: { flex: 1, flexDirection: 'row', justifyContent: 'space-around', alignItems: 'center' },
-    sideTab: {
-      alignItems: 'center',
-      justifyContent: 'center',
-      flex: 1,
-      paddingVertical: 4,
-      gap: 4,
-    },
-    // Round 60 — wrapper that lets the halo render BEHIND the icon chip
-    // without affecting layout flow. Both children sit on top of each
-    // other; halo is absolute-positioned to the centre.
-    sideIconStack: {
-      width: 42,
-      height: 42,
-      alignItems: 'center',
-      justifyContent: 'center',
-    },
-    // Halo layer removed from visual loop — kept as invisible
-    // layout shim so SideTab doesn't crash on existing refs.
-    sideHalo: {
-      position: 'absolute',
-      width: 0, height: 0, opacity: 0,
-    },
-    // Round 89 — BRUTALIST chip. Inactive = paper + ink border.
-    sideIconWrap: {
-      width: 42, height: 42, borderRadius: 0,
-      alignItems: 'center', justifyContent: 'center',
-      backgroundColor: '#FAFAF7',
-      borderWidth: 1.5,
-      borderColor: '#0A0A0A',
-    },
-    // Active = solid ink fill, no glow. Icons inside become white.
-    sideIconWrapOn: {
-      backgroundColor: '#0A0A0A',
-      borderColor: '#0A0A0A',
-    },
-    sideLabel:   { fontSize: 10.5, color: c.text.secondary, fontFamily: FONT_FAMILY.semibold, letterSpacing: 0.2, marginTop: 2 },
-    sideLabelOn: { color: c.accent.primary, fontFamily: FONT_FAMILY.bold },
-
-    // RAISED rounded-SQUARE center button (larger + orange accent ring)
-    raisedWrap: {
-      position: 'absolute',
-      bottom: BAR_INSET_B + BAR_HEIGHT - PUCK_SIZE / 2 - 4,
-      alignSelf: 'center',
-      width: PUCK_SIZE,
-      height: PUCK_SIZE,
-      alignItems: 'center',
-      justifyContent: 'center',
-      zIndex: 20,
-    },
-    raisedOuter: {
-      width: PUCK_SIZE, height: PUCK_SIZE,
-      borderRadius: 0,
-      backgroundColor: '#FAFAF7',
-      alignItems: 'center', justifyContent: 'center',
-      // Round 89 Strike 2 — BRUTALIST puck. Ink border + flat 4px
-      // stamp. No orange glow. No soft drop-shadow. Mascot still pops
-      // because of the offset stamp + scale vs side tabs.
-      borderWidth: 2.5,
-      borderColor: '#0A0A0A',
-      ...Platform.select({
-        ios:     { shadowColor: '#000', shadowOpacity: 1, shadowRadius: 0, shadowOffset: { width: 4, height: 4 } },
-        android: { elevation: 0 },
-        web:     { boxShadow: '4px 4px 0 0 #0A0A0A' as any },
-      }),
-    },
-    raisedInner: {
-      width: PUCK_INNER, height: PUCK_INNER,
-      borderRadius: 0,                // rounded-square inner — transparent
-      backgroundColor: 'transparent',
-      overflow: 'hidden',
-      alignItems: 'center', justifyContent: 'center',
-    },
-    raisedLabel: {
-      position: 'absolute',
-      bottom: -18,
-      fontSize: 9.5,
-      fontWeight: '900',
-      color: c.accent.primary,
-      letterSpacing: 0.6,
-      textAlign: 'center',
-      fontFamily: FONT_FAMILY.bold,
-      // Subtle outline for readability over any background
-      ...Platform.select({
-        ios:     { textShadowColor: 'rgba(0,0,0,0.08)', textShadowOffset: { width: 0, height: 1 }, textShadowRadius: 2 },
-        android: { textShadowColor: 'rgba(0,0,0,0.08)', textShadowOffset: { width: 0, height: 1 }, textShadowRadius: 2 },
-        web:     {},
-      }),
-    },
-    raisedMascot: { width: '100%', height: '100%' },
-  });
-});

@@ -26,6 +26,59 @@ import * as Haptics from 'expo-haptics';
 import { COLORS, GLASS, shadowStyle } from '../../utils/theme';
 import { makeStyles } from '../../utils/makeStyles';
 
+
+
+// R113 FIX — useStyles hoisted above first render-time call
+// to avoid Metro/SDK52 TDZ error (`Cannot access X before init.`).
+const useStyles = makeStyles((c) => ({
+  card: {
+    backgroundColor: GLASS.solidBg,
+    borderRadius: 0, padding: 20, marginBottom: 14,
+    borderWidth: StyleSheet.hairlineWidth, borderColor: GLASS.borderLight,
+    ...shadowStyle('#111827', 6, 24, 0.06, 4),
+  },
+  topRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 },
+  label: { fontSize: 11, fontWeight: '800', color: c.text.muted, letterSpacing: 1.2 },
+  tapHint: { flexDirection: 'row', alignItems: 'center', gap: 2 },
+  tapHintTxt: { fontSize: 11, color: c.text.muted, fontWeight: '700' },
+
+  scoreBlock: { },
+  scoreRow: { flexDirection: 'row', alignItems: 'baseline', gap: 6, marginTop: 4 },
+  scoreNumber: {
+    fontSize: 64, lineHeight: 68, fontWeight: '900',
+    color: c.text.primary, letterSpacing: -2,
+  },
+  scoreOf: { fontSize: 18, fontWeight: '700', color: c.text.muted, letterSpacing: -0.4 },
+
+  segmentRow: { flexDirection: 'row', gap: 4, marginTop: 16 },
+  segmentTrack: {
+    flex: 1, height: 6, borderRadius: 3,
+    backgroundColor: c.gray[200],
+    overflow: 'hidden',
+  },
+  segmentFill: {
+    width: '100%', height: '100%', backgroundColor: c.accent.primary,
+  },
+
+  insightRow: {
+    flexDirection: 'row', alignItems: 'center', gap: 6,
+    marginTop: 14,
+  },
+  insightTxt: { flex: 1, fontSize: 13, color: c.text.primary, fontWeight: '500', lineHeight: 18 },
+
+  secondaryRow: { marginTop: 6 },
+  secondaryTxt: { fontSize: 12, color: c.text.muted, fontWeight: '500' },
+  secondaryStrong: { color: c.text.primary, fontWeight: '800' },
+
+  cta: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6,
+    backgroundColor: c.accent.primary,
+    paddingVertical: 12, borderRadius: 0, marginTop: 16,
+    ...shadowStyle(c.accent.primary, 3, 10, 0.18, 4),
+  },
+  ctaTxt: { color: '#FFFFFF', fontSize: 14, fontWeight: '800', letterSpacing: 0.1 },
+}));
+
 export interface MoneyScoreCardProps {
   /** 0..100 */
   score: number;
@@ -164,51 +217,3 @@ function MoneyScoreCard({
 
 export default React.memo(MoneyScoreCard);
 
-const useStyles = makeStyles((c) => ({
-  card: {
-    backgroundColor: GLASS.solidBg,
-    borderRadius: 0, padding: 20, marginBottom: 14,
-    borderWidth: StyleSheet.hairlineWidth, borderColor: GLASS.borderLight,
-    ...shadowStyle('#111827', 6, 24, 0.06, 4),
-  },
-  topRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 },
-  label: { fontSize: 11, fontWeight: '800', color: c.text.muted, letterSpacing: 1.2 },
-  tapHint: { flexDirection: 'row', alignItems: 'center', gap: 2 },
-  tapHintTxt: { fontSize: 11, color: c.text.muted, fontWeight: '700' },
-
-  scoreBlock: { },
-  scoreRow: { flexDirection: 'row', alignItems: 'baseline', gap: 6, marginTop: 4 },
-  scoreNumber: {
-    fontSize: 64, lineHeight: 68, fontWeight: '900',
-    color: c.text.primary, letterSpacing: -2,
-  },
-  scoreOf: { fontSize: 18, fontWeight: '700', color: c.text.muted, letterSpacing: -0.4 },
-
-  segmentRow: { flexDirection: 'row', gap: 4, marginTop: 16 },
-  segmentTrack: {
-    flex: 1, height: 6, borderRadius: 3,
-    backgroundColor: c.gray[200],
-    overflow: 'hidden',
-  },
-  segmentFill: {
-    width: '100%', height: '100%', backgroundColor: c.accent.primary,
-  },
-
-  insightRow: {
-    flexDirection: 'row', alignItems: 'center', gap: 6,
-    marginTop: 14,
-  },
-  insightTxt: { flex: 1, fontSize: 13, color: c.text.primary, fontWeight: '500', lineHeight: 18 },
-
-  secondaryRow: { marginTop: 6 },
-  secondaryTxt: { fontSize: 12, color: c.text.muted, fontWeight: '500' },
-  secondaryStrong: { color: c.text.primary, fontWeight: '800' },
-
-  cta: {
-    flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6,
-    backgroundColor: c.accent.primary,
-    paddingVertical: 12, borderRadius: 0, marginTop: 16,
-    ...shadowStyle(c.accent.primary, 3, 10, 0.18, 4),
-  },
-  ctaTxt: { color: '#FFFFFF', fontSize: 14, fontWeight: '800', letterSpacing: 0.1 },
-}));

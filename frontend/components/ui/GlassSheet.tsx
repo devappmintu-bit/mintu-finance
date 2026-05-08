@@ -29,6 +29,36 @@ import BottomSheet, {
 import { COLORS } from '../../utils/theme';
 import { makeStyles } from '../../utils/makeStyles';
 
+
+
+// R113 FIX — useStyles hoisted above first render-time call
+// to avoid Metro/SDK52 TDZ error (`Cannot access X before init.`).
+const useStyles = makeStyles((c) => ({
+  // Round 81 — restyled to Brutalist visuals while keeping the gorhom
+  // snap-gesture foundation. Flat paper fill, 3-px ink top border, ink
+  // drag-handle. No more glass; just hard edges.
+  bg: {
+    backgroundColor: c.bg.card,
+    borderTopLeftRadius: 0,
+    borderTopRightRadius: 0,
+    borderTopWidth: 3,
+    borderColor: c.text.primary,
+  },
+  handle: {
+    backgroundColor: c.text.primary,
+    width: 48,
+    height: 4,
+    borderRadius: 0,
+    opacity: 1,
+  },
+  content: {
+    flex: 1,
+    paddingHorizontal: 20,
+    paddingTop: 8,
+    paddingBottom: 24,
+  },
+}));
+
 export type GlassSheetHandle = {
   present: () => void;
   dismiss: () => void;
@@ -91,28 +121,3 @@ const GlassSheet = forwardRef<GlassSheetHandle, Props>(({ snapPoints = ['50%', '
 GlassSheet.displayName = 'GlassSheet';
 export default GlassSheet;
 
-const useStyles = makeStyles((c) => ({
-  // Round 81 — restyled to Brutalist visuals while keeping the gorhom
-  // snap-gesture foundation. Flat paper fill, 3-px ink top border, ink
-  // drag-handle. No more glass; just hard edges.
-  bg: {
-    backgroundColor: c.bg.card,
-    borderTopLeftRadius: 0,
-    borderTopRightRadius: 0,
-    borderTopWidth: 3,
-    borderColor: c.text.primary,
-  },
-  handle: {
-    backgroundColor: c.text.primary,
-    width: 48,
-    height: 4,
-    borderRadius: 0,
-    opacity: 1,
-  },
-  content: {
-    flex: 1,
-    paddingHorizontal: 20,
-    paddingTop: 8,
-    paddingBottom: 24,
-  },
-}));

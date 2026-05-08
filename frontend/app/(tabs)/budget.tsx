@@ -45,6 +45,94 @@ import { BudgetSkeleton } from '../../components/SkeletonLoader';
 import { showError, showInfo, showSuccess } from '../../utils/toast';
 import { StaggeredEntrance } from '../../components/primitives';
 
+
+// R113 FIX — useStyles hoisted above first render-time call
+// to avoid Metro/SDK52 TDZ error (`Cannot access X before init.`).
+const useStyles = makeStyles((c) => ({
+  bg: { flex: 1, backgroundColor: c.bg.primary },
+  heroPad: { paddingHorizontal: SPACING.lg, paddingTop: SPACING.md },
+  header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: SPACING.lg, paddingVertical: SPACING.md },
+  title: { fontSize: 28, fontWeight: '800', color: c.text.primary },
+  sub: { fontSize: 13, color: c.text.muted },
+  addBtn: { width: 44, height: 44, borderRadius: 0, backgroundColor: c.accent.primary, justifyContent: 'center', alignItems: 'center', ...SHADOW.md },
+  shareBtn: { width: 44, height: 44, borderRadius: 0, backgroundColor: 'rgba(255,107,26,0.14)', justifyContent: 'center', alignItems: 'center', borderWidth: 1, borderColor: 'rgba(255,107,26,0.4)' },
+  offscreen: { position: 'absolute', top: -99999, left: -99999, width: 360, opacity: 0 },
+  list: { padding: SPACING.lg, paddingBottom: 140 },
+  // Summary
+  summaryRow: { flexDirection: 'row', gap: 8, marginBottom: SPACING.lg },
+  summaryBox: { flex: 1, backgroundColor: c.bg.card, borderRadius: RADIUS.lg, padding: 14, alignItems: 'center', borderWidth: 1, borderColor: c.border.card },
+  sumLabel: { fontSize: 11, color: c.text.muted, marginBottom: 4 },
+  sumVal: { fontSize: 17, fontWeight: '800', color: c.text.primary },
+  // Card
+  card: { backgroundColor: 'rgba(255,255,255,0.9)', borderRadius: 0, padding: SPACING.lg, marginBottom: 10, borderWidth: 1, borderColor: 'rgba(255,255,255,0.6)', ...SHADOW.sm },
+  cardRow: { flexDirection: 'row', alignItems: 'center', gap: 12 },
+  catDot: { width: 10, height: 10, borderRadius: 0 },
+  catName: { fontSize: 16, fontWeight: '700', color: c.text.primary },
+  period: { fontSize: 11, color: c.text.muted, marginTop: 1 },
+  spentAmt: { fontSize: 18, fontWeight: '800' },
+  limitAmt: { fontSize: 12, color: c.text.muted, marginTop: 1 },
+  overBanner: { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 10, paddingVertical: 6, paddingHorizontal: 10, borderRadius: RADIUS.sm, backgroundColor: 'rgba(255,84,112,0.14)', borderWidth: 1, borderColor: 'rgba(255,84,112,0.4)' },
+  overText: { fontSize: 12, fontWeight: '600', color: c.accent.moneyOut },
+  // AI Suggest — dark glass
+  suggestCard: { backgroundColor: 'rgba(255,176,32,0.1)', borderRadius: RADIUS.card, padding: SPACING.lg, marginBottom: SPACING.lg, borderWidth: 1, borderColor: 'rgba(255,176,32,0.35)' },
+  suggestTitle: { fontSize: 14, fontWeight: '800', color: c.accent.secondary },
+  suggestMsg: { fontSize: 12, color: c.text.secondary, marginBottom: 10 },
+  suggestRow: { flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 8, borderTopWidth: 1, borderTopColor: 'rgba(255,176,32,0.25)' },
+  suggestCat: { fontSize: 14, fontWeight: '600', color: c.text.primary },
+  suggestSave: { fontSize: 13, fontWeight: '700', color: c.accent.moneyIn },
+  applyBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, backgroundColor: c.accent.primary, paddingVertical: 12, borderRadius: RADIUS.full, marginTop: 10 },
+  applyText: { fontSize: 14, fontWeight: '700', color: c.bg.elevated },
+  // Empty
+  empty: { alignItems: 'center', paddingVertical: 60 },
+  emptyTitle: { fontSize: 16, fontWeight: '600', color: c.text.muted, marginTop: 12 },
+  emptyBtn: { backgroundColor: c.accent.primary, paddingHorizontal: 24, paddingVertical: 12, borderRadius: RADIUS.full, marginTop: 16 },
+  emptyBtnText: { fontSize: 14, fontWeight: '600', color: c.bg.elevated },
+  // Modal — dark sheet
+  mBg: { flex: 1, justifyContent: 'flex-end', backgroundColor: 'rgba(0,0,0,0.75)' },
+  sheet: { backgroundColor: c.bg.elevated, borderTopLeftRadius: 0, borderTopRightRadius: 0, padding: 24, maxHeight: '88%', borderTopWidth: 1, borderColor: 'rgba(255,255,255,0.08)' },
+  handle: { width: 40, height: 4, borderRadius: 2, backgroundColor: c.text.muted, alignSelf: 'center', marginBottom: 16, opacity: 0.6 },
+  sheetTitle: { fontSize: 22, fontWeight: '700', color: c.text.primary },
+  formLabel: { fontSize: 13, fontWeight: '600', color: c.text.muted, marginBottom: 10 },
+  chip: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 14, paddingVertical: 10, borderRadius: RADIUS.full, backgroundColor: 'rgba(255,255,255,0.06)', marginRight: 8, borderWidth: 1, borderColor: 'rgba(255,255,255,0.1)' },
+  chipText: { fontSize: 13, color: c.text.secondary, fontWeight: '500' },
+  periodBtn: { flex: 1, paddingVertical: 14, borderRadius: RADIUS.full, borderWidth: 1, borderColor: 'rgba(255,255,255,0.12)', alignItems: 'center' },
+  periodOn: { backgroundColor: c.accent.primary, borderColor: c.accent.primary },
+  periodText: { fontSize: 14, color: c.text.muted, fontWeight: '600' },
+  amtRow: { flexDirection: 'row', alignItems: 'center', backgroundColor: 'rgba(255,255,255,0.05)', borderRadius: RADIUS.xl, paddingHorizontal: SPACING.lg, marginBottom: 24, borderWidth: 1, borderColor: 'rgba(255,255,255,0.1)' },
+  rupee: { fontSize: 24, fontWeight: '700', color: c.accent.primary, marginRight: 8 },
+  amtInput: { flex: 1, fontSize: 28, fontWeight: '700', color: c.text.primary, paddingVertical: 16 },
+  saveBtn: { backgroundColor: c.accent.primary, borderRadius: RADIUS.full, paddingVertical: 18, alignItems: 'center' },
+  saveBtnText: { fontSize: 16, fontWeight: '700', color: c.bg.elevated },
+  // Bar-style category rows — dark glass
+  barRow: {
+    flexDirection: 'row', alignItems: 'center', padding: 14, borderRadius: 0,
+    backgroundColor: 'rgba(26,26,36,0.85)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.08)', marginBottom: 10,
+  },
+  barIcon: { width: 40, height: 40, borderRadius: 0, alignItems: 'center', justifyContent: 'center' },
+  barTop: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 },
+  barName: { fontSize: 14.5, fontWeight: '700', color: c.text.primary, flex: 1, marginRight: 8 },
+  barAmt: { fontSize: 13.5, fontWeight: '800' },
+  barOf: { fontSize: 11, fontWeight: '600', color: c.text.muted },
+  barTrack: { height: 6, borderRadius: 3, backgroundColor: 'rgba(255,255,255,0.08)', overflow: 'hidden' },
+  barFill: { height: '100%', borderRadius: 3 },
+  barFootRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 6 },
+  barPct: { fontSize: 10.5, color: c.text.muted, fontWeight: '700', textTransform: 'uppercase', letterSpacing: 0.3 },
+  barTail: { fontSize: 11, fontWeight: '700' },
+  // Recurring toggle — dark
+  recurringRow: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 12, paddingHorizontal: 14, borderRadius: 0, backgroundColor: 'rgba(255,255,255,0.04)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.08)', marginBottom: 16 },
+  recurringRowOn: { backgroundColor: 'rgba(255,107,26,0.14)', borderColor: 'rgba(255,107,26,0.4)' },
+  recurringIcon: { width: 36, height: 36, borderRadius: 0, alignItems: 'center', justifyContent: 'center' },
+  recurringTitle: { fontSize: 14, fontWeight: '700', color: c.text.primary },
+  recurringSub: { fontSize: 11, color: c.text.muted, marginTop: 2 },
+  toggle: { width: 42, height: 24, borderRadius: 0, backgroundColor: 'rgba(255,255,255,0.12)', padding: 2, justifyContent: 'center' },
+  toggleOn: { backgroundColor: c.accent.primary },
+  toggleKnob: { width: 20, height: 20, borderRadius: 0, backgroundColor: c.bg.elevated },
+  toggleKnobOn: { alignSelf: 'flex-end' },
+  // Other-category description box — dark glass orange
+  otherDescBox: { backgroundColor: 'rgba(255,107,26,0.1)', borderRadius: 0, padding: 12, borderWidth: 1, borderColor: 'rgba(255,107,26,0.3)', marginBottom: 16 },
+  descInput: { fontSize: 14, color: c.text.primary, minHeight: 54, paddingVertical: 6, textAlignVertical: 'top' },
+}));
+
 const PERIODS = ['daily', 'weekly', 'monthly'];
 
 function BudgetScreen() {
@@ -481,93 +569,12 @@ function BudgetScreen() {
   );
 }
 
-const useStyles = makeStyles((c) => ({
-  bg: { flex: 1, backgroundColor: c.bg.primary },
-  heroPad: { paddingHorizontal: SPACING.lg, paddingTop: SPACING.md },
-  header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: SPACING.lg, paddingVertical: SPACING.md },
-  title: { fontSize: 28, fontWeight: '800', color: c.text.primary },
-  sub: { fontSize: 13, color: c.text.muted },
-  addBtn: { width: 44, height: 44, borderRadius: 0, backgroundColor: c.accent.primary, justifyContent: 'center', alignItems: 'center', ...SHADOW.md },
-  shareBtn: { width: 44, height: 44, borderRadius: 0, backgroundColor: 'rgba(255,107,26,0.14)', justifyContent: 'center', alignItems: 'center', borderWidth: 1, borderColor: 'rgba(255,107,26,0.4)' },
-  offscreen: { position: 'absolute', top: -99999, left: -99999, width: 360, opacity: 0 },
-  list: { padding: SPACING.lg, paddingBottom: 140 },
-  // Summary
-  summaryRow: { flexDirection: 'row', gap: 8, marginBottom: SPACING.lg },
-  summaryBox: { flex: 1, backgroundColor: c.bg.card, borderRadius: RADIUS.lg, padding: 14, alignItems: 'center', borderWidth: 1, borderColor: c.border.card },
-  sumLabel: { fontSize: 11, color: c.text.muted, marginBottom: 4 },
-  sumVal: { fontSize: 17, fontWeight: '800', color: c.text.primary },
-  // Card
-  card: { backgroundColor: 'rgba(255,255,255,0.9)', borderRadius: 0, padding: SPACING.lg, marginBottom: 10, borderWidth: 1, borderColor: 'rgba(255,255,255,0.6)', ...SHADOW.sm },
-  cardRow: { flexDirection: 'row', alignItems: 'center', gap: 12 },
-  catDot: { width: 10, height: 10, borderRadius: 0 },
-  catName: { fontSize: 16, fontWeight: '700', color: c.text.primary },
-  period: { fontSize: 11, color: c.text.muted, marginTop: 1 },
-  spentAmt: { fontSize: 18, fontWeight: '800' },
-  limitAmt: { fontSize: 12, color: c.text.muted, marginTop: 1 },
-  overBanner: { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 10, paddingVertical: 6, paddingHorizontal: 10, borderRadius: RADIUS.sm, backgroundColor: 'rgba(255,84,112,0.14)', borderWidth: 1, borderColor: 'rgba(255,84,112,0.4)' },
-  overText: { fontSize: 12, fontWeight: '600', color: c.accent.moneyOut },
-  // AI Suggest — dark glass
-  suggestCard: { backgroundColor: 'rgba(255,176,32,0.1)', borderRadius: RADIUS.card, padding: SPACING.lg, marginBottom: SPACING.lg, borderWidth: 1, borderColor: 'rgba(255,176,32,0.35)' },
-  suggestTitle: { fontSize: 14, fontWeight: '800', color: c.accent.secondary },
-  suggestMsg: { fontSize: 12, color: c.text.secondary, marginBottom: 10 },
-  suggestRow: { flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 8, borderTopWidth: 1, borderTopColor: 'rgba(255,176,32,0.25)' },
-  suggestCat: { fontSize: 14, fontWeight: '600', color: c.text.primary },
-  suggestSave: { fontSize: 13, fontWeight: '700', color: c.accent.moneyIn },
-  applyBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, backgroundColor: c.accent.primary, paddingVertical: 12, borderRadius: RADIUS.full, marginTop: 10 },
-  applyText: { fontSize: 14, fontWeight: '700', color: c.bg.elevated },
-  // Empty
-  empty: { alignItems: 'center', paddingVertical: 60 },
-  emptyTitle: { fontSize: 16, fontWeight: '600', color: c.text.muted, marginTop: 12 },
-  emptyBtn: { backgroundColor: c.accent.primary, paddingHorizontal: 24, paddingVertical: 12, borderRadius: RADIUS.full, marginTop: 16 },
-  emptyBtnText: { fontSize: 14, fontWeight: '600', color: c.bg.elevated },
-  // Modal — dark sheet
-  mBg: { flex: 1, justifyContent: 'flex-end', backgroundColor: 'rgba(0,0,0,0.75)' },
-  sheet: { backgroundColor: c.bg.elevated, borderTopLeftRadius: 0, borderTopRightRadius: 0, padding: 24, maxHeight: '88%', borderTopWidth: 1, borderColor: 'rgba(255,255,255,0.08)' },
-  handle: { width: 40, height: 4, borderRadius: 2, backgroundColor: c.text.muted, alignSelf: 'center', marginBottom: 16, opacity: 0.6 },
-  sheetTitle: { fontSize: 22, fontWeight: '700', color: c.text.primary },
-  formLabel: { fontSize: 13, fontWeight: '600', color: c.text.muted, marginBottom: 10 },
-  chip: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 14, paddingVertical: 10, borderRadius: RADIUS.full, backgroundColor: 'rgba(255,255,255,0.06)', marginRight: 8, borderWidth: 1, borderColor: 'rgba(255,255,255,0.1)' },
-  chipText: { fontSize: 13, color: c.text.secondary, fontWeight: '500' },
-  periodBtn: { flex: 1, paddingVertical: 14, borderRadius: RADIUS.full, borderWidth: 1, borderColor: 'rgba(255,255,255,0.12)', alignItems: 'center' },
-  periodOn: { backgroundColor: c.accent.primary, borderColor: c.accent.primary },
-  periodText: { fontSize: 14, color: c.text.muted, fontWeight: '600' },
-  amtRow: { flexDirection: 'row', alignItems: 'center', backgroundColor: 'rgba(255,255,255,0.05)', borderRadius: RADIUS.xl, paddingHorizontal: SPACING.lg, marginBottom: 24, borderWidth: 1, borderColor: 'rgba(255,255,255,0.1)' },
-  rupee: { fontSize: 24, fontWeight: '700', color: c.accent.primary, marginRight: 8 },
-  amtInput: { flex: 1, fontSize: 28, fontWeight: '700', color: c.text.primary, paddingVertical: 16 },
-  saveBtn: { backgroundColor: c.accent.primary, borderRadius: RADIUS.full, paddingVertical: 18, alignItems: 'center' },
-  saveBtnText: { fontSize: 16, fontWeight: '700', color: c.bg.elevated },
-  // Bar-style category rows — dark glass
-  barRow: {
-    flexDirection: 'row', alignItems: 'center', padding: 14, borderRadius: 0,
-    backgroundColor: 'rgba(26,26,36,0.85)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.08)', marginBottom: 10,
-  },
-  barIcon: { width: 40, height: 40, borderRadius: 0, alignItems: 'center', justifyContent: 'center' },
-  barTop: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 },
-  barName: { fontSize: 14.5, fontWeight: '700', color: c.text.primary, flex: 1, marginRight: 8 },
-  barAmt: { fontSize: 13.5, fontWeight: '800' },
-  barOf: { fontSize: 11, fontWeight: '600', color: c.text.muted },
-  barTrack: { height: 6, borderRadius: 3, backgroundColor: 'rgba(255,255,255,0.08)', overflow: 'hidden' },
-  barFill: { height: '100%', borderRadius: 3 },
-  barFootRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 6 },
-  barPct: { fontSize: 10.5, color: c.text.muted, fontWeight: '700', textTransform: 'uppercase', letterSpacing: 0.3 },
-  barTail: { fontSize: 11, fontWeight: '700' },
-  // Recurring toggle — dark
-  recurringRow: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 12, paddingHorizontal: 14, borderRadius: 0, backgroundColor: 'rgba(255,255,255,0.04)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.08)', marginBottom: 16 },
-  recurringRowOn: { backgroundColor: 'rgba(255,107,26,0.14)', borderColor: 'rgba(255,107,26,0.4)' },
-  recurringIcon: { width: 36, height: 36, borderRadius: 0, alignItems: 'center', justifyContent: 'center' },
-  recurringTitle: { fontSize: 14, fontWeight: '700', color: c.text.primary },
-  recurringSub: { fontSize: 11, color: c.text.muted, marginTop: 2 },
-  toggle: { width: 42, height: 24, borderRadius: 0, backgroundColor: 'rgba(255,255,255,0.12)', padding: 2, justifyContent: 'center' },
-  toggleOn: { backgroundColor: c.accent.primary },
-  toggleKnob: { width: 20, height: 20, borderRadius: 0, backgroundColor: c.bg.elevated },
-  toggleKnobOn: { alignSelf: 'flex-end' },
-  // Other-category description box — dark glass orange
-  otherDescBox: { backgroundColor: 'rgba(255,107,26,0.1)', borderRadius: 0, padding: 12, borderWidth: 1, borderColor: 'rgba(255,107,26,0.3)', marginBottom: 16 },
-  descInput: { fontSize: 14, color: c.text.primary, minHeight: 54, paddingVertical: 6, textAlignVertical: 'top' },
-}));
 
 
 // Round 41 — wrap with tab-level ErrorBoundary so a crash here
 // doesn't blank the whole app; the user sees a Retry CTA instead.
 import { withTabBoundary as _wrapTab_BudgetScreen } from '../../components/withTabBoundary';
+
+
+
 export default _wrapTab_BudgetScreen(BudgetScreen, 'Budget');

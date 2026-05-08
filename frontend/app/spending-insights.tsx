@@ -8,7 +8,7 @@
  *   - /api/analytics/yearly    → trailing 12-month highlights + best months
  *   - /api/reports/weekly      → mood + headline + savings suggestion
  *
- * Design: glass cards on the #FAFAF9 canvas. Every card has a clear
+ * Design: glass cards on the #FAF6EE canvas. Every card has a clear
  * hook (share, invite, act) so the screen is both reflective and viral.
  *
  * Defensive: 4-state render (loading / error / empty / data) so users
@@ -33,6 +33,106 @@ import { makeStyles } from '../utils/makeStyles';
 import { APP_LINK } from '../utils/brand';
 import MascotMoment from '../components/MascotMoment';
 import { StaggeredEntrance } from '../components/primitives';
+import { BrutalScreenHeader } from '../components/brutal';
+
+
+
+// R113 FIX — useStyles hoisted above first render-time call
+// to avoid Metro/SDK52 TDZ error (`Cannot access X before init.`).
+const useStyles = makeStyles((c) => ({
+  bg: { flex: 1, backgroundColor: c.bg.primary },
+  header: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
+    paddingHorizontal: 16, paddingVertical: 12,
+    borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: GLASS.borderLight,
+    backgroundColor: GLASS.solidBg,
+  },
+  headerBtn: { padding: 4 },
+  headerTitle: { fontSize: 17, fontWeight: '800', color: c.text.primary, letterSpacing: -0.3 },
+
+  center: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 32 },
+  loadingText: { color: c.text.muted, marginTop: 12, fontSize: 14 },
+  emptyEmoji: { fontSize: 56, marginBottom: 12 },
+  emptyTitle: { fontSize: 18, fontWeight: '800', color: c.text.primary, marginTop: 12 },
+  emptySub: { fontSize: 14, color: c.text.muted, marginTop: 8, textAlign: 'center', lineHeight: 20 },
+  retryBtn: {
+    marginTop: 18, paddingHorizontal: 24, paddingVertical: 12,
+    backgroundColor: c.accent.primary, borderRadius: 0,
+  },
+  retryTxt: { color: '#FFFFFF', fontWeight: '800', fontSize: 14 },
+
+  warningBar: {
+    flexDirection: 'row', alignItems: 'center', gap: 8,
+    backgroundColor: c.state.warningBg, borderColor: c.state.warningBorder,
+    borderWidth: 1, borderRadius: 0, paddingHorizontal: 12, paddingVertical: 8, marginBottom: 12,
+  },
+  warningText: { flex: 1, fontSize: 12, color: c.text.primary },
+
+  card: {
+    backgroundColor: GLASS.solidBg,
+    borderRadius: 0, padding: 18, marginBottom: 14,
+    borderWidth: StyleSheet.hairlineWidth, borderColor: GLASS.borderLight,
+    ...shadowStyle('#111827', 2, 12, 0.04, 3),
+  },
+  cardHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 },
+  cardTitle: { fontSize: 16, fontWeight: '800', color: c.text.primary, letterSpacing: -0.2 },
+  cardMeta: { fontSize: 11, color: c.text.muted, fontWeight: '600' },
+
+  hero: { alignItems: 'flex-start' },
+  heroLabel: { fontSize: 13, color: c.text.muted, fontWeight: '600', marginBottom: 4 },
+  heroAmount: { fontSize: 36, fontWeight: '900', color: c.text.primary, letterSpacing: -1 },
+  heroRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 12 },
+  tierPill: { paddingHorizontal: 10, paddingVertical: 5, borderRadius: 0, borderWidth: 1 },
+  tierPillTxt: { fontSize: 12, fontWeight: '800' },
+  changePill: {
+    flexDirection: 'row', alignItems: 'center', gap: 4,
+    paddingHorizontal: 10, paddingVertical: 5, borderRadius: 0,
+    backgroundColor: c.bg.elevated, borderWidth: 1, borderColor: c.border.card,
+  },
+  changeTxt: { fontSize: 12, fontWeight: '800' },
+  paceHeadline: { fontSize: 13, color: c.text.secondary, marginTop: 12, lineHeight: 19 },
+
+  catRow: { flexDirection: 'row', alignItems: 'center', gap: 10, marginTop: 10 },
+  catDot: { width: 10, height: 10, borderRadius: 0 },
+  catName: { fontSize: 13, color: c.text.primary, fontWeight: '600', width: 80 },
+  catBarWrap: { flex: 1, height: 6, backgroundColor: c.gray[200], borderRadius: 3, overflow: 'hidden' },
+  catBar: { height: '100%', borderRadius: 3 },
+  catAmt: { fontSize: 12, color: c.text.primary, fontWeight: '700', width: 70, textAlign: 'right' },
+
+  friendSummary: { fontSize: 13, color: c.text.secondary, marginBottom: 10 },
+  friendRow: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 8 },
+  friendRank: { width: 28, height: 28, borderRadius: 0, alignItems: 'center', justifyContent: 'center' },
+  friendRankTxt: { fontSize: 12, fontWeight: '900' },
+  friendName: { fontSize: 14, fontWeight: '700', color: c.text.primary },
+  friendTaunt: { fontSize: 11, color: c.text.muted, marginTop: 2 },
+  friendScore: { fontSize: 16, fontWeight: '800', color: c.accent.primary, minWidth: 36, textAlign: 'right' },
+
+  yearlyHeadline: { fontSize: 13, color: c.text.secondary, marginBottom: 14, lineHeight: 19 },
+  highlightsGrid: { flexDirection: 'row', gap: 10 },
+  highlightBox: {
+    flex: 1, backgroundColor: c.bg.elevated, borderRadius: 0, padding: 12,
+    borderWidth: 1, borderColor: c.border.card, alignItems: 'flex-start',
+  },
+  highlightEmoji: { fontSize: 20, marginBottom: 4 },
+  highlightLabel: { fontSize: 10, color: c.text.muted, fontWeight: '700', textTransform: 'uppercase', letterSpacing: 0.5 },
+  highlightValue: { fontSize: 15, fontWeight: '800', color: c.text.primary, marginTop: 2 },
+  highlightSub: { fontSize: 11, color: c.text.secondary, marginTop: 2 },
+  subtleLink: { marginTop: 12, paddingVertical: 6 },
+  subtleLinkTxt: { fontSize: 12, color: c.accent.primary, fontWeight: '700' },
+
+  ctaBtn: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8,
+    backgroundColor: c.accent.primary, paddingVertical: 11, borderRadius: 0, marginTop: 12,
+  },
+  ctaBtnTxt: { color: '#FFFFFF', fontWeight: '800', fontSize: 13 },
+
+  shareBtn: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8,
+    backgroundColor: c.accent.primary, paddingVertical: 14, borderRadius: 0, marginTop: 6,
+    ...shadowStyle(c.accent.primary, 4, 12, 0.2, 4),
+  },
+  shareBtnTxt: { color: '#FFFFFF', fontWeight: '800', fontSize: 15, letterSpacing: 0.2 },
+}));
 
 // Round 57d — first-open mascot moment storage key. Versioned so we can
 // invalidate it later if the welcome copy changes meaningfully.
@@ -76,7 +176,7 @@ const fmtINR = (n: number | undefined | null): string => {
   return `₹${v.toLocaleString('en-IN')}`;
 };
 
-const SECTION_COLORS = ['#E84A0C', '#3B82F6', '#10B981', '#8B5CF6', '#F59E0B'];
+const SECTION_COLORS = ['#F56E1E', '#3B82F6', '#10B981', '#8B5CF6', '#F59E0B'];
 
 export default function SpendingInsightsScreen() {
   const s = useStyles();
@@ -407,97 +507,3 @@ function Header({ onBack, onShare }: { onBack: () => void; onShare: () => void }
 // ---------------------------------------------------------------
 // Styles
 // ---------------------------------------------------------------
-const useStyles = makeStyles((c) => ({
-  bg: { flex: 1, backgroundColor: c.bg.primary },
-  header: {
-    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
-    paddingHorizontal: 16, paddingVertical: 12,
-    borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: GLASS.borderLight,
-    backgroundColor: GLASS.solidBg,
-  },
-  headerBtn: { padding: 4 },
-  headerTitle: { fontSize: 17, fontWeight: '800', color: c.text.primary, letterSpacing: -0.3 },
-
-  center: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 32 },
-  loadingText: { color: c.text.muted, marginTop: 12, fontSize: 14 },
-  emptyEmoji: { fontSize: 56, marginBottom: 12 },
-  emptyTitle: { fontSize: 18, fontWeight: '800', color: c.text.primary, marginTop: 12 },
-  emptySub: { fontSize: 14, color: c.text.muted, marginTop: 8, textAlign: 'center', lineHeight: 20 },
-  retryBtn: {
-    marginTop: 18, paddingHorizontal: 24, paddingVertical: 12,
-    backgroundColor: c.accent.primary, borderRadius: 0,
-  },
-  retryTxt: { color: '#FFFFFF', fontWeight: '800', fontSize: 14 },
-
-  warningBar: {
-    flexDirection: 'row', alignItems: 'center', gap: 8,
-    backgroundColor: c.state.warningBg, borderColor: c.state.warningBorder,
-    borderWidth: 1, borderRadius: 0, paddingHorizontal: 12, paddingVertical: 8, marginBottom: 12,
-  },
-  warningText: { flex: 1, fontSize: 12, color: c.text.primary },
-
-  card: {
-    backgroundColor: GLASS.solidBg,
-    borderRadius: 0, padding: 18, marginBottom: 14,
-    borderWidth: StyleSheet.hairlineWidth, borderColor: GLASS.borderLight,
-    ...shadowStyle('#111827', 2, 12, 0.04, 3),
-  },
-  cardHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 },
-  cardTitle: { fontSize: 16, fontWeight: '800', color: c.text.primary, letterSpacing: -0.2 },
-  cardMeta: { fontSize: 11, color: c.text.muted, fontWeight: '600' },
-
-  hero: { alignItems: 'flex-start' },
-  heroLabel: { fontSize: 13, color: c.text.muted, fontWeight: '600', marginBottom: 4 },
-  heroAmount: { fontSize: 36, fontWeight: '900', color: c.text.primary, letterSpacing: -1 },
-  heroRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 12 },
-  tierPill: { paddingHorizontal: 10, paddingVertical: 5, borderRadius: 0, borderWidth: 1 },
-  tierPillTxt: { fontSize: 12, fontWeight: '800' },
-  changePill: {
-    flexDirection: 'row', alignItems: 'center', gap: 4,
-    paddingHorizontal: 10, paddingVertical: 5, borderRadius: 0,
-    backgroundColor: c.bg.elevated, borderWidth: 1, borderColor: c.border.card,
-  },
-  changeTxt: { fontSize: 12, fontWeight: '800' },
-  paceHeadline: { fontSize: 13, color: c.text.secondary, marginTop: 12, lineHeight: 19 },
-
-  catRow: { flexDirection: 'row', alignItems: 'center', gap: 10, marginTop: 10 },
-  catDot: { width: 10, height: 10, borderRadius: 0 },
-  catName: { fontSize: 13, color: c.text.primary, fontWeight: '600', width: 80 },
-  catBarWrap: { flex: 1, height: 6, backgroundColor: c.gray[200], borderRadius: 3, overflow: 'hidden' },
-  catBar: { height: '100%', borderRadius: 3 },
-  catAmt: { fontSize: 12, color: c.text.primary, fontWeight: '700', width: 70, textAlign: 'right' },
-
-  friendSummary: { fontSize: 13, color: c.text.secondary, marginBottom: 10 },
-  friendRow: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 8 },
-  friendRank: { width: 28, height: 28, borderRadius: 0, alignItems: 'center', justifyContent: 'center' },
-  friendRankTxt: { fontSize: 12, fontWeight: '900' },
-  friendName: { fontSize: 14, fontWeight: '700', color: c.text.primary },
-  friendTaunt: { fontSize: 11, color: c.text.muted, marginTop: 2 },
-  friendScore: { fontSize: 16, fontWeight: '800', color: c.accent.primary, minWidth: 36, textAlign: 'right' },
-
-  yearlyHeadline: { fontSize: 13, color: c.text.secondary, marginBottom: 14, lineHeight: 19 },
-  highlightsGrid: { flexDirection: 'row', gap: 10 },
-  highlightBox: {
-    flex: 1, backgroundColor: c.bg.elevated, borderRadius: 0, padding: 12,
-    borderWidth: 1, borderColor: c.border.card, alignItems: 'flex-start',
-  },
-  highlightEmoji: { fontSize: 20, marginBottom: 4 },
-  highlightLabel: { fontSize: 10, color: c.text.muted, fontWeight: '700', textTransform: 'uppercase', letterSpacing: 0.5 },
-  highlightValue: { fontSize: 15, fontWeight: '800', color: c.text.primary, marginTop: 2 },
-  highlightSub: { fontSize: 11, color: c.text.secondary, marginTop: 2 },
-  subtleLink: { marginTop: 12, paddingVertical: 6 },
-  subtleLinkTxt: { fontSize: 12, color: c.accent.primary, fontWeight: '700' },
-
-  ctaBtn: {
-    flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8,
-    backgroundColor: c.accent.primary, paddingVertical: 11, borderRadius: 0, marginTop: 12,
-  },
-  ctaBtnTxt: { color: '#FFFFFF', fontWeight: '800', fontSize: 13 },
-
-  shareBtn: {
-    flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8,
-    backgroundColor: c.accent.primary, paddingVertical: 14, borderRadius: 0, marginTop: 6,
-    ...shadowStyle(c.accent.primary, 4, 12, 0.2, 4),
-  },
-  shareBtnTxt: { color: '#FFFFFF', fontWeight: '800', fontSize: 15, letterSpacing: 0.2 },
-}));

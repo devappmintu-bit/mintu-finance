@@ -16,6 +16,37 @@ import * as Haptics from 'expo-haptics';
 import { makeStyles } from '../../utils/makeStyles';
 import { COLORS } from '../../utils/theme';
 
+
+
+// R113 FIX — useStyles hoisted above first render-time call
+// to avoid Metro/SDK52 TDZ error (`Cannot access X before init.`).
+const useStyles = makeStyles((c) => ({
+  group: { marginBottom: 22 },
+  header: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: c.text.muted,
+    letterSpacing: 0.8,
+    textTransform: 'uppercase',
+    marginBottom: 4,
+    paddingHorizontal: 4,
+  },
+  item: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 14,
+    paddingVertical: 14,
+    paddingHorizontal: 4,
+  },
+  label: { flex: 1, fontSize: 14.5, fontWeight: '500', color: c.text.primary, letterSpacing: -0.1 },
+  value: { fontSize: 12.5, fontWeight: '500', color: c.text.muted, marginRight: 4 },
+  divider: {
+    height: StyleSheet.hairlineWidth,
+    backgroundColor: c.border.subtle,
+    marginLeft: 40,
+  },
+}));
+
 export type SettingsListItemProps = {
   icon: keyof typeof Ionicons.glyphMap;
   label: string;
@@ -86,29 +117,3 @@ SettingsList.displayName = 'SettingsList';
 
 const styles = { iconColor: COLORS.text.muted };
 
-const useStyles = makeStyles((c) => ({
-  group: { marginBottom: 22 },
-  header: {
-    fontSize: 11,
-    fontWeight: '700',
-    color: c.text.muted,
-    letterSpacing: 0.8,
-    textTransform: 'uppercase',
-    marginBottom: 4,
-    paddingHorizontal: 4,
-  },
-  item: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 14,
-    paddingVertical: 14,
-    paddingHorizontal: 4,
-  },
-  label: { flex: 1, fontSize: 14.5, fontWeight: '500', color: c.text.primary, letterSpacing: -0.1 },
-  value: { fontSize: 12.5, fontWeight: '500', color: c.text.muted, marginRight: 4 },
-  divider: {
-    height: StyleSheet.hairlineWidth,
-    backgroundColor: c.border.subtle,
-    marginLeft: 40,
-  },
-}));

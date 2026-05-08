@@ -12,6 +12,22 @@ import { COLORS } from '../../utils/theme';
 import { makeStyles } from '../../utils/makeStyles';
 import { useHaptic } from '../../hooks/useHaptic';
 
+
+
+// R113 FIX — useStyles hoisted above first render-time call
+// to avoid Metro/SDK52 TDZ error (`Cannot access X before init.`).
+const useStyles = makeStyles((c) => ({
+  handle: { width: 40, height: 4, borderRadius: 2, backgroundColor: c.gray[300], alignSelf: 'center', marginTop: 8, marginBottom: 8 },
+  row: { flexDirection: 'row', alignItems: 'flex-start', paddingBottom: 12 },
+  title: { fontSize: 19, fontWeight: '800', color: c.text.primary, letterSpacing: -0.3 },
+  sub: { fontSize: 12.5, fontWeight: '600', color: c.text.secondary, marginTop: 3 },
+  closeBtn: {
+    width: 32, height: 32, borderRadius: 0,
+    backgroundColor: c.gray[100],
+    alignItems: 'center', justifyContent: 'center',
+  },
+}));
+
 interface Props {
   title: string;
   subtitle?: string;
@@ -47,14 +63,3 @@ export default function SheetHeader({ title, subtitle, onClose, showHandle = tru
   );
 }
 
-const useStyles = makeStyles((c) => ({
-  handle: { width: 40, height: 4, borderRadius: 2, backgroundColor: c.gray[300], alignSelf: 'center', marginTop: 8, marginBottom: 8 },
-  row: { flexDirection: 'row', alignItems: 'flex-start', paddingBottom: 12 },
-  title: { fontSize: 19, fontWeight: '800', color: c.text.primary, letterSpacing: -0.3 },
-  sub: { fontSize: 12.5, fontWeight: '600', color: c.text.secondary, marginTop: 3 },
-  closeBtn: {
-    width: 32, height: 32, borderRadius: 0,
-    backgroundColor: c.gray[100],
-    alignItems: 'center', justifyContent: 'center',
-  },
-}));

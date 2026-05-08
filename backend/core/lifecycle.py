@@ -269,6 +269,15 @@ async def _start_background_workers(db) -> None:
     except Exception as e:
         logger.warning(f"Could not start news worker: {e}")
 
+    # R111 — Money Pulse v2 background refresher (RSS + lazy LLM polish)
+    try:
+        import asyncio as _asyncio
+        from routers.pulse_v2 import pulse_refresher_worker
+        _asyncio.create_task(pulse_refresher_worker())
+        logger.info("📡 Money Pulse v2 refresher started (12-min interval)")
+    except Exception as e:
+        logger.warning(f"Could not start pulse v2 worker: {e}")
+
     # Gmail sync (15-min interval)
     try:
         from routers.gmail_oauth import start_gmail_worker

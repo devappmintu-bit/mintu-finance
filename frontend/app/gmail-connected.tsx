@@ -1,18 +1,20 @@
+/**
+ * /gmail-connected — R113 brutal convergence.
+ * Landing route hit by Google OAuth redirect after consent.
+ */
 import React, { useEffect } from 'react';
 import { View, Text, StyleSheet, ActivityIndicator, Platform } from 'react-native';
 import { useLocalSearchParams, router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
-import { COLORS } from '../utils/theme';
-import { makeStyles } from '../utils/makeStyles';
+import {
+  BrutalCard,
+  BR_COLORS,
+  BR_SPACE,
+  BR_FONT,
+  PALETTE,
+} from '../components/brutal';
 
-/**
- * Landing route hit by Google OAuth redirect after consent.
- * On web: closes the popup window (or redirects back into /gmail).
- * On native: routed via expo-web-browser close — but if deep-linked into
- * the app shell directly, we navigate to /gmail which shows the connected state.
- */
 export default function GmailConnected() {
-  const s = useStyles();
   const { success, email, error } = useLocalSearchParams<{ success?: string; email?: string; error?: string }>();
 
   useEffect(() => {
@@ -20,7 +22,6 @@ export default function GmailConnected() {
       if (Platform.OS === 'web') {
         try { window.close(); } catch {}
       }
-      // Always navigate back into the Gmail screen so the app reflects the new status
       router.replace('/gmail' as any);
     }, 900);
     return () => clearTimeout(t);
@@ -29,20 +30,27 @@ export default function GmailConnected() {
   const ok = success === '1' && !error;
   return (
     <View style={s.wrap}>
-      <Ionicons name={ok ? 'checkmark-circle' : 'alert-circle'} size={64} color={ok ? COLORS.state.successAlt : COLORS.state.danger} />
-      <Text style={s.title}>{ok ? 'Gmail connected' : 'Connection failed'}</Text>
-      {!!email && <Text style={s.sub}>{email}</Text>}
-      {!!error && <Text style={s.err}>{error}</Text>}
-      <ActivityIndicator color={COLORS.accent.brand} size="small" style={{ marginTop: 18 }} />
-      <Text style={s.hint}>Returning to app…</Text>
+      <BrutalCard variant={ok ? 'lime' : 'peach'} style={s.card}>
+        <Ionicons
+          name={ok ? 'checkmark-circle' : 'alert-circle'}
+          size={64}
+          color={BR_COLORS.ink}
+        />
+        <Text style={s.title}>{ok ? 'GMAIL CONNECTED' : 'CONNECTION FAILED'}</Text>
+        {!!email && <Text style={s.sub}>{email}</Text>}
+        {!!error && <Text style={s.err}>{error}</Text>}
+        <ActivityIndicator color={PALETTE.brand} size="small" style={{ marginTop: BR_SPACE['4'] }} />
+        <Text style={s.hint}>Returning to app…</Text>
+      </BrutalCard>
     </View>
   );
 }
 
-const useStyles = makeStyles((c) => ({
-  wrap: { flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: c.bg.primary, padding: 24 },
-  title: { fontSize: 20, fontWeight: '800', color: c.text.primary, marginTop: 14 },
-  sub: { fontSize: 14, color: c.text.muted, marginTop: 6 },
-  err: { fontSize: 12, color: c.state.danger, marginTop: 8, textAlign: 'center' },
-  hint: { fontSize: 12, color: c.text.muted, marginTop: 8 },
-}));
+const s = StyleSheet.create({
+  wrap: { flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: BR_COLORS.bg, padding: BR_SPACE['5'] },
+  card: { alignItems: 'center', paddingVertical: BR_SPACE['7'], paddingHorizontal: BR_SPACE['5'], minWidth: 280 },
+  title: { ...BR_FONT.h2, fontSize: 18, color: BR_COLORS.ink, marginTop: BR_SPACE['3'], textAlign: 'center' },
+  sub: { fontSize: 13, color: BR_COLORS.text, fontWeight: '600', marginTop: 6 },
+  err: { fontSize: 12, color: PALETTE.danger, fontWeight: '700', marginTop: 8, textAlign: 'center' },
+  hint: { ...BR_FONT.caption, fontSize: 11, color: BR_COLORS.textMuted, marginTop: 8 },
+});

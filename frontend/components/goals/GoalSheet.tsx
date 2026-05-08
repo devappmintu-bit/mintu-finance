@@ -30,6 +30,68 @@ import { COLORS, useAppColors } from '../../utils/theme';
 import { makeStyles } from '../../utils/makeStyles';
 import { ExpandableSection, InputMascot } from '../primitives';
 
+
+
+// R113 FIX — useStyles hoisted above first render-time call
+// to avoid Metro/SDK52 TDZ error (`Cannot access X before init.`).
+const useStyles = makeStyles((c) => ({
+  modalBg: { flex: 1, justifyContent: 'flex-end', backgroundColor: 'rgba(0,0,0,0.45)' },
+  scrim: { ...StyleSheet.absoluteFillObject },
+  sheet: {
+    backgroundColor: c.bg.elevated,
+    borderTopLeftRadius: 0, borderTopRightRadius: 0,
+    paddingHorizontal: 20, paddingTop: 8,
+    maxHeight: '92%', minHeight: '70%',
+  },
+  handleBar: { width: 36, height: 4, borderRadius: 2, backgroundColor: c.gray[200], alignSelf: 'center', marginBottom: 4 },
+
+  topBar: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingVertical: 4 },
+  closeBtn: { width: 36, height: 36, borderRadius: 0, alignItems: 'center', justifyContent: 'center' },
+
+  eyebrow: { marginTop: 8, fontSize: 10.5, fontWeight: '900', letterSpacing: 1.4, color: c.text.muted },
+  hero: { marginTop: 4, fontSize: 26, fontWeight: '900', letterSpacing: -0.6, color: c.text.primary, lineHeight: 32 },
+
+  // Name row (emoji + input)
+  nameRow: { flexDirection: 'row', alignItems: 'center', gap: 10, marginTop: 18, paddingHorizontal: 12, paddingVertical: 12, backgroundColor: c.gray[50], borderRadius: 0 },
+  emojiSmall: { fontSize: 22 },
+  nameInput: { flex: 1, fontSize: 16, fontWeight: '700', color: c.text.primary, padding: 0 },
+
+  // Hero amount
+  amountWrap: { marginTop: 26, flexDirection: 'row', alignItems: 'baseline', justifyContent: 'center' },
+  rupee: { fontSize: 44, fontWeight: '300', color: c.text.muted, letterSpacing: -1, marginRight: 4 },
+  amountInput: { fontSize: 60, fontWeight: '900', color: c.text.primary, letterSpacing: -2.4, padding: 0, minWidth: 80, textAlign: 'left' },
+  amountHint: { textAlign: 'center', fontSize: 11, fontWeight: '700', color: c.text.muted, letterSpacing: 1, marginTop: 4 },
+  errorTxt: { textAlign: 'center', color: c.state.danger, fontSize: 12, fontWeight: '700', marginTop: 6 },
+
+  // Quick chips
+  quickRow: { flexDirection: 'row', justifyContent: 'center', gap: 8, marginTop: 14, flexWrap: 'wrap' },
+  quickChip: { paddingHorizontal: 14, paddingVertical: 8, borderRadius: 999, backgroundColor: c.bg.elevated, borderWidth: 1, borderColor: c.gray[200] },
+  quickTxt: { fontSize: 13, fontWeight: '700', color: c.text.primary },
+
+  // Section labels
+  sectLbl: { fontSize: 10.5, fontWeight: '900', letterSpacing: 1.2, color: c.text.muted, marginTop: 22, marginBottom: 10 },
+
+  // Already saved
+  savedRow: { flexDirection: 'row', alignItems: 'baseline', gap: 4, paddingHorizontal: 12, paddingVertical: 12, backgroundColor: c.gray[50], borderRadius: 0 },
+  rupeeSmall: { fontSize: 16, fontWeight: '600', color: c.text.muted },
+  savedInput: { flex: 1, fontSize: 16, fontWeight: '700', color: c.text.primary, padding: 0 },
+
+  // Color row
+  colorRow: { flexDirection: 'row', gap: 10, flexWrap: 'wrap' },
+  colorBtn: { width: 36, height: 36, borderRadius: 0 },
+
+  // Sticky CTA
+  ctaBar: {
+    position: 'absolute', left: 0, right: 0, bottom: 0,
+    paddingHorizontal: 20, paddingTop: 12, paddingBottom: 20,
+    backgroundColor: c.bg.elevated,
+    borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: c.gray[100],
+    borderBottomLeftRadius: 0, borderBottomRightRadius: 0,
+  },
+  cta: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 10, paddingVertical: 16, borderRadius: 0 },
+  ctaTxt: { fontSize: 15.5, fontWeight: '900', color: '#FFFFFF', letterSpacing: 0.2 },
+}));
+
 export type GoalFormPayload = {
   name: string;
   target_amount: number;
@@ -354,60 +416,3 @@ export default function GoalSheet({
   );
 }
 
-const useStyles = makeStyles((c) => ({
-  modalBg: { flex: 1, justifyContent: 'flex-end', backgroundColor: 'rgba(0,0,0,0.45)' },
-  scrim: { ...StyleSheet.absoluteFillObject },
-  sheet: {
-    backgroundColor: c.bg.elevated,
-    borderTopLeftRadius: 0, borderTopRightRadius: 0,
-    paddingHorizontal: 20, paddingTop: 8,
-    maxHeight: '92%', minHeight: '70%',
-  },
-  handleBar: { width: 36, height: 4, borderRadius: 2, backgroundColor: c.gray[200], alignSelf: 'center', marginBottom: 4 },
-
-  topBar: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingVertical: 4 },
-  closeBtn: { width: 36, height: 36, borderRadius: 0, alignItems: 'center', justifyContent: 'center' },
-
-  eyebrow: { marginTop: 8, fontSize: 10.5, fontWeight: '900', letterSpacing: 1.4, color: c.text.muted },
-  hero: { marginTop: 4, fontSize: 26, fontWeight: '900', letterSpacing: -0.6, color: c.text.primary, lineHeight: 32 },
-
-  // Name row (emoji + input)
-  nameRow: { flexDirection: 'row', alignItems: 'center', gap: 10, marginTop: 18, paddingHorizontal: 12, paddingVertical: 12, backgroundColor: c.gray[50], borderRadius: 0 },
-  emojiSmall: { fontSize: 22 },
-  nameInput: { flex: 1, fontSize: 16, fontWeight: '700', color: c.text.primary, padding: 0 },
-
-  // Hero amount
-  amountWrap: { marginTop: 26, flexDirection: 'row', alignItems: 'baseline', justifyContent: 'center' },
-  rupee: { fontSize: 44, fontWeight: '300', color: c.text.muted, letterSpacing: -1, marginRight: 4 },
-  amountInput: { fontSize: 60, fontWeight: '900', color: c.text.primary, letterSpacing: -2.4, padding: 0, minWidth: 80, textAlign: 'left' },
-  amountHint: { textAlign: 'center', fontSize: 11, fontWeight: '700', color: c.text.muted, letterSpacing: 1, marginTop: 4 },
-  errorTxt: { textAlign: 'center', color: c.state.danger, fontSize: 12, fontWeight: '700', marginTop: 6 },
-
-  // Quick chips
-  quickRow: { flexDirection: 'row', justifyContent: 'center', gap: 8, marginTop: 14, flexWrap: 'wrap' },
-  quickChip: { paddingHorizontal: 14, paddingVertical: 8, borderRadius: 999, backgroundColor: c.bg.elevated, borderWidth: 1, borderColor: c.gray[200] },
-  quickTxt: { fontSize: 13, fontWeight: '700', color: c.text.primary },
-
-  // Section labels
-  sectLbl: { fontSize: 10.5, fontWeight: '900', letterSpacing: 1.2, color: c.text.muted, marginTop: 22, marginBottom: 10 },
-
-  // Already saved
-  savedRow: { flexDirection: 'row', alignItems: 'baseline', gap: 4, paddingHorizontal: 12, paddingVertical: 12, backgroundColor: c.gray[50], borderRadius: 0 },
-  rupeeSmall: { fontSize: 16, fontWeight: '600', color: c.text.muted },
-  savedInput: { flex: 1, fontSize: 16, fontWeight: '700', color: c.text.primary, padding: 0 },
-
-  // Color row
-  colorRow: { flexDirection: 'row', gap: 10, flexWrap: 'wrap' },
-  colorBtn: { width: 36, height: 36, borderRadius: 0 },
-
-  // Sticky CTA
-  ctaBar: {
-    position: 'absolute', left: 0, right: 0, bottom: 0,
-    paddingHorizontal: 20, paddingTop: 12, paddingBottom: 20,
-    backgroundColor: c.bg.elevated,
-    borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: c.gray[100],
-    borderBottomLeftRadius: 0, borderBottomRightRadius: 0,
-  },
-  cta: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 10, paddingVertical: 16, borderRadius: 0 },
-  ctaTxt: { fontSize: 15.5, fontWeight: '900', color: '#FFFFFF', letterSpacing: 0.2 },
-}));

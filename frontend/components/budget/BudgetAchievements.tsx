@@ -19,6 +19,84 @@ import api from '../../utils/api';
 import {  COLORS, useAppColors } from '../../utils/theme';
 import { makeStyles } from '../../utils/makeStyles';
 
+
+
+// R113 FIX — useStyles hoisted above first render-time call
+// to avoid Metro/SDK52 TDZ error (`Cannot access X before init.`).
+const useStyles = makeStyles((c) => ({
+  wrap: { marginBottom: 12 },
+
+  hero: {
+    borderRadius: 0,
+    padding: 18,
+    marginBottom: 12,
+    shadowColor: c.accent.brandDark,
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.18,
+    shadowRadius: 14,
+    elevation: 6,
+  },
+  headRow: { flexDirection: 'row', alignItems: 'center', gap: 12, marginBottom: 10 },
+  flame: { fontSize: 32 },
+  streakDays: { color: c.bg.elevated, fontSize: 32, fontWeight: '900', letterSpacing: -1 },
+  streakDaysSmall: { fontSize: 14, fontWeight: '700', opacity: 0.85 },
+  streakSub: { color: 'rgba(255,255,255,0.92)', fontSize: 13, fontWeight: '600', marginTop: -2 },
+
+  progressTrack: {
+    height: 8, borderRadius: 4, backgroundColor: 'rgba(255,255,255,0.2)',
+    overflow: 'hidden', marginTop: 4,
+  },
+  progressFill: { height: 8, borderRadius: 4, backgroundColor: c.state.warningBg },
+  progRow: { flexDirection: 'row', justifyContent: 'space-between', marginTop: 6 },
+  progressLabel: { color: 'rgba(255,255,255,0.85)', fontSize: 11, fontWeight: '700' },
+
+  chipRow: { flexDirection: 'row', gap: 8, marginBottom: 14 },
+  chip: {
+    flex: 1, backgroundColor: CARD, borderRadius: 0, paddingVertical: 10,
+    paddingHorizontal: 8, alignItems: 'center', borderWidth: 1, borderColor: BORDER,
+  },
+  chipVal: { fontSize: 16, fontWeight: '900', color: c.text.primary, letterSpacing: -0.3 },
+  chipLbl: { fontSize: 10.5, fontWeight: '700', color: c.text.muted, marginTop: 2, textAlign: 'center' },
+
+  badgeHeader: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
+    marginBottom: 8, paddingHorizontal: 2,
+  },
+  badgeTitle: { fontSize: 15, fontWeight: '800', color: c.text.primary, letterSpacing: -0.2 },
+  badgeCount: { fontSize: 11, fontWeight: '700', color: c.text.muted },
+
+  badgeList: { gap: 10, paddingBottom: 4, paddingRight: 16 },
+  badge: {
+    width: 140, borderRadius: 0, padding: 12,
+    borderWidth: 1.5,
+    backgroundColor: CARD,
+    alignItems: 'center',
+  },
+  badgeOn: { borderColor: c.accent.brand, backgroundColor: c.accent.brandSoft },
+  badgeOff: { borderColor: c.gray[200], backgroundColor: c.gray[50], opacity: 0.85 },
+  badgeEmoji: { fontSize: 30, marginBottom: 4 },
+  badgeEmojiOff: { opacity: 0.45 },
+  badgeName: { fontSize: 12.5, fontWeight: '800', color: c.text.primary, textAlign: 'center' },
+  badgeNameOff: { color: c.text.tertiary },
+
+  unlockedPill: {
+    marginTop: 6, flexDirection: 'row', alignItems: 'center', gap: 3,
+    backgroundColor: c.accent.brand, paddingHorizontal: 8, paddingVertical: 3, borderRadius: 0,
+  },
+  unlockedT: { color: c.bg.elevated, fontSize: 10, fontWeight: '800', letterSpacing: 0.2 },
+
+  lockedRow: { width: '100%', marginTop: 6, alignItems: 'center' },
+  bTrack: { width: '100%', height: 4, borderRadius: 2, backgroundColor: c.gray[200], overflow: 'hidden' },
+  bFill: { height: 4, borderRadius: 2, backgroundColor: c.accent.brand },
+  bLabel: { fontSize: 10, fontWeight: '700', color: c.text.tertiary, marginTop: 4 },
+
+  skelCard: {
+    backgroundColor: CARD, borderRadius: 0, padding: 18, marginBottom: 12,
+    borderWidth: 1, borderColor: BORDER, height: 110,
+  },
+  skelLine: { height: 14, borderRadius: 0, backgroundColor: c.accent.brandSoft, width: '40%' },
+}));
+
 type Badge = {
   id: string;
   name: string;
@@ -210,76 +288,3 @@ const BG = '#FFF7ED';
 const CARD = '#FFFFFF';
 const BORDER = '#FED7AA';
 
-const useStyles = makeStyles((c) => ({
-  wrap: { marginBottom: 12 },
-
-  hero: {
-    borderRadius: 0,
-    padding: 18,
-    marginBottom: 12,
-    shadowColor: c.accent.brandDark,
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.18,
-    shadowRadius: 14,
-    elevation: 6,
-  },
-  headRow: { flexDirection: 'row', alignItems: 'center', gap: 12, marginBottom: 10 },
-  flame: { fontSize: 32 },
-  streakDays: { color: c.bg.elevated, fontSize: 32, fontWeight: '900', letterSpacing: -1 },
-  streakDaysSmall: { fontSize: 14, fontWeight: '700', opacity: 0.85 },
-  streakSub: { color: 'rgba(255,255,255,0.92)', fontSize: 13, fontWeight: '600', marginTop: -2 },
-
-  progressTrack: {
-    height: 8, borderRadius: 4, backgroundColor: 'rgba(255,255,255,0.2)',
-    overflow: 'hidden', marginTop: 4,
-  },
-  progressFill: { height: 8, borderRadius: 4, backgroundColor: c.state.warningBg },
-  progRow: { flexDirection: 'row', justifyContent: 'space-between', marginTop: 6 },
-  progressLabel: { color: 'rgba(255,255,255,0.85)', fontSize: 11, fontWeight: '700' },
-
-  chipRow: { flexDirection: 'row', gap: 8, marginBottom: 14 },
-  chip: {
-    flex: 1, backgroundColor: CARD, borderRadius: 0, paddingVertical: 10,
-    paddingHorizontal: 8, alignItems: 'center', borderWidth: 1, borderColor: BORDER,
-  },
-  chipVal: { fontSize: 16, fontWeight: '900', color: c.text.primary, letterSpacing: -0.3 },
-  chipLbl: { fontSize: 10.5, fontWeight: '700', color: c.text.muted, marginTop: 2, textAlign: 'center' },
-
-  badgeHeader: {
-    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
-    marginBottom: 8, paddingHorizontal: 2,
-  },
-  badgeTitle: { fontSize: 15, fontWeight: '800', color: c.text.primary, letterSpacing: -0.2 },
-  badgeCount: { fontSize: 11, fontWeight: '700', color: c.text.muted },
-
-  badgeList: { gap: 10, paddingBottom: 4, paddingRight: 16 },
-  badge: {
-    width: 140, borderRadius: 0, padding: 12,
-    borderWidth: 1.5,
-    backgroundColor: CARD,
-    alignItems: 'center',
-  },
-  badgeOn: { borderColor: c.accent.brand, backgroundColor: c.accent.brandSoft },
-  badgeOff: { borderColor: c.gray[200], backgroundColor: c.gray[50], opacity: 0.85 },
-  badgeEmoji: { fontSize: 30, marginBottom: 4 },
-  badgeEmojiOff: { opacity: 0.45 },
-  badgeName: { fontSize: 12.5, fontWeight: '800', color: c.text.primary, textAlign: 'center' },
-  badgeNameOff: { color: c.text.tertiary },
-
-  unlockedPill: {
-    marginTop: 6, flexDirection: 'row', alignItems: 'center', gap: 3,
-    backgroundColor: c.accent.brand, paddingHorizontal: 8, paddingVertical: 3, borderRadius: 0,
-  },
-  unlockedT: { color: c.bg.elevated, fontSize: 10, fontWeight: '800', letterSpacing: 0.2 },
-
-  lockedRow: { width: '100%', marginTop: 6, alignItems: 'center' },
-  bTrack: { width: '100%', height: 4, borderRadius: 2, backgroundColor: c.gray[200], overflow: 'hidden' },
-  bFill: { height: 4, borderRadius: 2, backgroundColor: c.accent.brand },
-  bLabel: { fontSize: 10, fontWeight: '700', color: c.text.tertiary, marginTop: 4 },
-
-  skelCard: {
-    backgroundColor: CARD, borderRadius: 0, padding: 18, marginBottom: 12,
-    borderWidth: 1, borderColor: BORDER, height: 110,
-  },
-  skelLine: { height: 14, borderRadius: 0, backgroundColor: c.accent.brandSoft, width: '40%' },
-}));

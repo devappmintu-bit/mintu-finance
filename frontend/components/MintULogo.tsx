@@ -12,6 +12,20 @@ import { Image } from 'expo-image';
 import { makeStyles } from '../utils/makeStyles';
 import { COLORS } from '../utils/theme';
 
+
+
+// R113 FIX — useStyles hoisted above first render-time call
+// to avoid Metro/SDK52 TDZ error (`Cannot access X before init.`).
+const useStyles = makeStyles((c) => ({
+  wrap: { alignItems: 'center', justifyContent: 'center' },
+  glow: {
+    position: 'absolute',
+    backgroundColor: COLORS.accent.primaryLight,
+    opacity: 0.32,
+    transform: [{ scale: 1.08 }],
+  },
+}));
+
 interface Props {
   size?: number;
   /** Soft saffron glow halo around the mark (used on the floating tab button). */
@@ -54,12 +68,3 @@ export default function MintULogo({ size = 96, glow = false, source }: Props) {
   );
 }
 
-const useStyles = makeStyles((c) => ({
-  wrap: { alignItems: 'center', justifyContent: 'center' },
-  glow: {
-    position: 'absolute',
-    backgroundColor: COLORS.accent.primaryLight,
-    opacity: 0.32,
-    transform: [{ scale: 1.08 }],
-  },
-}));

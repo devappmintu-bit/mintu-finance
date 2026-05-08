@@ -193,7 +193,15 @@ const st = StyleSheet.create({
     width: MASCOT_SIZE + 4,
     height: MASCOT_SIZE + 4,
     borderRadius: (MASCOT_SIZE + 4) / 2,
-    backgroundColor: BR_COLORS.accent,
+    // R101C — White-only mascot plate. The orange/saffron glow was
+    // doubling up with the home header's accent colour and making the
+    // whole top-left corner read as one orange blob. White plate with
+    // a thin ink hairline keeps the mascot iconic without the colour
+    // overload. State-coloured glow is now reserved for the
+    // 'important' state only (red, see glowImportant).
+    backgroundColor: '#FFFFFF',
+    borderWidth: 1.5,
+    borderColor: BR_COLORS.ink,
   },
   glowImportant: {
     backgroundColor: BR_COLORS.negative,

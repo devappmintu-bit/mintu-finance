@@ -18,6 +18,33 @@ import * as Haptics from 'expo-haptics';
 import { makeStyles } from '../../utils/makeStyles';
 import { COLORS, useAppColors } from '../../utils/theme';
 
+
+
+// R113 FIX — useStyles hoisted above first render-time call
+// to avoid Metro/SDK52 TDZ error (`Cannot access X before init.`).
+const useStyles = makeStyles((c) => ({
+  card: { flexDirection: 'row', alignItems: 'center', gap: 12, padding: 12, backgroundColor: c.bg.elevated, borderRadius: 0, borderWidth: 1, borderColor: c.gray[100] },
+  cardClaimed: { opacity: 0.55 },
+  emojiPill: { width: 44, height: 44, borderRadius: 0, backgroundColor: c.state.warningBg, alignItems: 'center', justifyContent: 'center' },
+  emoji: { fontSize: 24 },
+  title: { fontSize: 13, fontWeight: '800', color: c.text.primary },
+  metaRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 4 },
+  track: { flex: 1, height: 4, borderRadius: 4, backgroundColor: c.gray[100], overflow: 'hidden' },
+  fill: { height: '100%', borderRadius: 4 },
+  progTxt: { fontSize: 11, fontWeight: '900', color: c.text.muted, minWidth: 28, textAlign: 'right' },
+  rewardRow: { flexDirection: 'row', gap: 8, marginTop: 4 },
+  rewardChip: { paddingHorizontal: 8, paddingVertical: 4, borderRadius: 999, backgroundColor: c.state.warningBg },
+  rewardChipPurple: { paddingHorizontal: 8, paddingVertical: 4, borderRadius: 999, backgroundColor: '#EDE9FE' },
+  rewardTxt: { fontSize: 11, fontWeight: '800', color: c.state.warning },
+  rewardTxtPurple: { fontSize: 11, fontWeight: '800', color: '#6D28D9' },
+  cta: { alignItems: 'center', justifyContent: 'center', marginLeft: 4 },
+  btnMuted: { width: 44, height: 44, borderRadius: 0, alignItems: 'center', justifyContent: 'center', backgroundColor: c.gray[200] },
+  btnFaint: { width: 44, height: 44, borderRadius: 0, alignItems: 'center', justifyContent: 'center', backgroundColor: c.gray[100] },
+  pendingTxt: { fontSize: 13, fontWeight: '900', color: c.gray[400] },
+  claimBtn: { paddingHorizontal: 16, paddingVertical: 12, borderRadius: 0, shadowColor: c.state.success, shadowOpacity: 0.35, shadowRadius: 8, shadowOffset: { width: 0, height: 4 }, elevation: 3 },
+  claimTxt: { fontSize: 12, fontWeight: '900', color: c.bg.elevated, letterSpacing: 0.4 },
+}));
+
 type Mission = {
   id: string;
   title: string;
@@ -117,25 +144,3 @@ export default function MissionCard({ mission, onClaim, submitting }: Props) {
   );
 }
 
-const useStyles = makeStyles((c) => ({
-  card: { flexDirection: 'row', alignItems: 'center', gap: 12, padding: 12, backgroundColor: c.bg.elevated, borderRadius: 0, borderWidth: 1, borderColor: c.gray[100] },
-  cardClaimed: { opacity: 0.55 },
-  emojiPill: { width: 44, height: 44, borderRadius: 0, backgroundColor: c.state.warningBg, alignItems: 'center', justifyContent: 'center' },
-  emoji: { fontSize: 24 },
-  title: { fontSize: 13, fontWeight: '800', color: c.text.primary },
-  metaRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 4 },
-  track: { flex: 1, height: 4, borderRadius: 4, backgroundColor: c.gray[100], overflow: 'hidden' },
-  fill: { height: '100%', borderRadius: 4 },
-  progTxt: { fontSize: 11, fontWeight: '900', color: c.text.muted, minWidth: 28, textAlign: 'right' },
-  rewardRow: { flexDirection: 'row', gap: 8, marginTop: 4 },
-  rewardChip: { paddingHorizontal: 8, paddingVertical: 4, borderRadius: 999, backgroundColor: c.state.warningBg },
-  rewardChipPurple: { paddingHorizontal: 8, paddingVertical: 4, borderRadius: 999, backgroundColor: '#EDE9FE' },
-  rewardTxt: { fontSize: 11, fontWeight: '800', color: c.state.warning },
-  rewardTxtPurple: { fontSize: 11, fontWeight: '800', color: '#6D28D9' },
-  cta: { alignItems: 'center', justifyContent: 'center', marginLeft: 4 },
-  btnMuted: { width: 44, height: 44, borderRadius: 0, alignItems: 'center', justifyContent: 'center', backgroundColor: c.gray[200] },
-  btnFaint: { width: 44, height: 44, borderRadius: 0, alignItems: 'center', justifyContent: 'center', backgroundColor: c.gray[100] },
-  pendingTxt: { fontSize: 13, fontWeight: '900', color: c.gray[400] },
-  claimBtn: { paddingHorizontal: 16, paddingVertical: 12, borderRadius: 0, shadowColor: c.state.success, shadowOpacity: 0.35, shadowRadius: 8, shadowOffset: { width: 0, height: 4 }, elevation: 3 },
-  claimTxt: { fontSize: 12, fontWeight: '900', color: c.bg.elevated, letterSpacing: 0.4 },
-}));

@@ -6,6 +6,54 @@ import { makeStyles } from '../../utils/makeStyles';
 import { C, getGA } from './theme';
 import { NudgeBanner } from './NudgeUI';
 
+
+
+// R113 FIX — useStyles hoisted above first render-time call
+// to avoid Metro/SDK52 TDZ error (`Cannot access X before init.`).
+const useStyles = makeStyles((c) => ({
+  mBg: { flex: 1, justifyContent: 'flex-end', backgroundColor: 'rgba(0,0,0,0.5)' },
+  sheet: { backgroundColor: C.sheetBg, borderTopLeftRadius: 0, borderTopRightRadius: 0, padding: 24 },
+  handle: { width: 40, height: 4, borderRadius: 2, backgroundColor: C.text4, alignSelf: 'center', marginBottom: 16 },
+  sheetH: { flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 20 },
+  sheetT: { fontSize: 20, fontWeight: '700', color: C.text1 },
+  groupAv: { width: 36, height: 36, borderRadius: 0, justifyContent: 'center', alignItems: 'center' },
+  sumStats: { flexDirection: 'row', justifyContent: 'space-around', backgroundColor: c.bg.primary, borderRadius: 0, padding: 16, marginBottom: 16, borderWidth: 1, borderColor: C.border },
+  sumStat: { alignItems: 'center' },
+  sumV: { fontSize: 20, fontWeight: '800', color: C.text1 },
+  sumL: { fontSize: 11, color: C.text3, marginTop: 2 },
+  sumSec: { fontSize: 16, fontWeight: '700', color: C.text1, marginBottom: 10, marginTop: 12 },
+  debtRow: { flexDirection: 'row', alignItems: 'center', paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: C.border, gap: 6 },
+  debtInfo: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: 6 },
+  debtN: { fontSize: 14, fontWeight: '600' },
+  debtA: { fontSize: 16, fontWeight: '800', color: C.text1 },
+  payBtn: { flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: 14, paddingVertical: 8, borderRadius: 0 },
+  payBtnT: { fontSize: 13, fontWeight: '700', color: C.inv },
+  waBtn: { width: 36, height: 36, borderRadius: 0, backgroundColor: 'rgba(37,211,102,0.1)', justifyContent: 'center', alignItems: 'center' },
+  actRow: { flexDirection: 'row', alignItems: 'center', paddingVertical: 10, gap: 10 },
+  actDot: { width: 8, height: 8, borderRadius: 4, backgroundColor: C.accent },
+  actDesc: { fontSize: 14, fontWeight: '600', color: C.text1 },
+  actMeta: { fontSize: 12, color: C.text3 },
+  actAmt: { fontSize: 15, fontWeight: '700', color: C.text1 },
+  actIcon: { padding: 4, marginLeft: 4 },
+  primaryBtn: { borderRadius: 0, paddingVertical: 16, alignItems: 'center', justifyContent: 'center', flexDirection: 'row' },
+  primaryBtnText: { fontSize: 16, fontWeight: '700', color: C.inv },
+  // Round 38 — celebratory "all-settled" empty state for the debts section.
+  allSettled: {
+    flexDirection: 'row', alignItems: 'center', gap: 10,
+    backgroundColor: 'rgba(16,185,129,0.10)', borderColor: 'rgba(16,185,129,0.35)',
+    borderWidth: 1, borderRadius: 0, paddingVertical: 14, paddingHorizontal: 16,
+    marginTop: 4, marginBottom: 8,
+  },
+  allSettledTxt: { fontSize: 14, fontWeight: '700', color: c.state.success },
+  // Round 53k — Smart Settle CTA in the Settle Up section header.
+  settleHeaderRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 10, marginTop: 12, gap: 8 },
+  smartBtn: {
+    flexDirection: 'row', alignItems: 'center', gap: 4,
+    paddingHorizontal: 12, paddingVertical: 7, borderRadius: 0,
+  },
+  smartBtnT: { fontSize: 12, fontWeight: '800', color: C.inv, letterSpacing: 0.2 },
+}));
+
 type Props = {
   visible: boolean;
   onClose: () => void;
@@ -198,46 +246,3 @@ export default function GroupSummarySheet({ visible, onClose, summary, onAddExpe
   );
 }
 
-const useStyles = makeStyles((c) => ({
-  mBg: { flex: 1, justifyContent: 'flex-end', backgroundColor: 'rgba(0,0,0,0.5)' },
-  sheet: { backgroundColor: C.sheetBg, borderTopLeftRadius: 0, borderTopRightRadius: 0, padding: 24 },
-  handle: { width: 40, height: 4, borderRadius: 2, backgroundColor: C.text4, alignSelf: 'center', marginBottom: 16 },
-  sheetH: { flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 20 },
-  sheetT: { fontSize: 20, fontWeight: '700', color: C.text1 },
-  groupAv: { width: 36, height: 36, borderRadius: 0, justifyContent: 'center', alignItems: 'center' },
-  sumStats: { flexDirection: 'row', justifyContent: 'space-around', backgroundColor: c.bg.primary, borderRadius: 0, padding: 16, marginBottom: 16, borderWidth: 1, borderColor: C.border },
-  sumStat: { alignItems: 'center' },
-  sumV: { fontSize: 20, fontWeight: '800', color: C.text1 },
-  sumL: { fontSize: 11, color: C.text3, marginTop: 2 },
-  sumSec: { fontSize: 16, fontWeight: '700', color: C.text1, marginBottom: 10, marginTop: 12 },
-  debtRow: { flexDirection: 'row', alignItems: 'center', paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: C.border, gap: 6 },
-  debtInfo: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: 6 },
-  debtN: { fontSize: 14, fontWeight: '600' },
-  debtA: { fontSize: 16, fontWeight: '800', color: C.text1 },
-  payBtn: { flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: 14, paddingVertical: 8, borderRadius: 0 },
-  payBtnT: { fontSize: 13, fontWeight: '700', color: C.inv },
-  waBtn: { width: 36, height: 36, borderRadius: 0, backgroundColor: 'rgba(37,211,102,0.1)', justifyContent: 'center', alignItems: 'center' },
-  actRow: { flexDirection: 'row', alignItems: 'center', paddingVertical: 10, gap: 10 },
-  actDot: { width: 8, height: 8, borderRadius: 4, backgroundColor: C.accent },
-  actDesc: { fontSize: 14, fontWeight: '600', color: C.text1 },
-  actMeta: { fontSize: 12, color: C.text3 },
-  actAmt: { fontSize: 15, fontWeight: '700', color: C.text1 },
-  actIcon: { padding: 4, marginLeft: 4 },
-  primaryBtn: { borderRadius: 0, paddingVertical: 16, alignItems: 'center', justifyContent: 'center', flexDirection: 'row' },
-  primaryBtnText: { fontSize: 16, fontWeight: '700', color: C.inv },
-  // Round 38 — celebratory "all-settled" empty state for the debts section.
-  allSettled: {
-    flexDirection: 'row', alignItems: 'center', gap: 10,
-    backgroundColor: 'rgba(16,185,129,0.10)', borderColor: 'rgba(16,185,129,0.35)',
-    borderWidth: 1, borderRadius: 0, paddingVertical: 14, paddingHorizontal: 16,
-    marginTop: 4, marginBottom: 8,
-  },
-  allSettledTxt: { fontSize: 14, fontWeight: '700', color: c.state.success },
-  // Round 53k — Smart Settle CTA in the Settle Up section header.
-  settleHeaderRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 10, marginTop: 12, gap: 8 },
-  smartBtn: {
-    flexDirection: 'row', alignItems: 'center', gap: 4,
-    paddingHorizontal: 12, paddingVertical: 7, borderRadius: 0,
-  },
-  smartBtnT: { fontSize: 12, fontWeight: '800', color: C.inv, letterSpacing: 0.2 },
-}));

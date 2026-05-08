@@ -51,6 +51,170 @@ import {
   SmartSettleTransfer,
 } from '../../services/split';
 
+
+
+// R113 FIX — useStyles hoisted above first render-time call
+// to avoid Metro/SDK52 TDZ error (`Cannot access X before init.`).
+const useStyles = makeStyles(() => ({
+  backdrop: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    justifyContent: 'flex-end',
+  },
+  sheet: {
+    backgroundColor: C.sheetBg,
+    borderTopLeftRadius: 0,
+    borderTopRightRadius: 0,
+    paddingHorizontal: 20,
+    paddingTop: 8,
+    paddingBottom: 24,
+    maxHeight: '92%',
+  },
+  handle: { width: 40, height: 4, borderRadius: 2, backgroundColor: C.text4, alignSelf: 'center', marginVertical: 8 },
+  header: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    paddingVertical: 8,
+    marginBottom: 6,
+  },
+  headerIcon: {
+    width: 36,
+    height: 36,
+    borderRadius: 0,
+    backgroundColor: C.accentDim,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  title: { fontSize: 18, fontWeight: '800', color: C.text1 },
+  subtitle: { fontSize: 12, color: C.text3, marginTop: 2 },
+  subtext: { fontSize: 13, color: C.text3, marginBottom: 10, marginTop: 2 },
+
+  list: { maxHeight: 280, marginTop: 4 },
+  row: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 12,
+    paddingHorizontal: 12,
+    borderRadius: 0,
+    backgroundColor: 'transparent',
+    marginVertical: 3,
+    borderWidth: 1,
+    borderColor: 'transparent',
+  },
+  rowMine: {
+    backgroundColor: C.accentDim,
+    borderColor: C.accent + '40',
+  },
+  rowIncoming: {
+    backgroundColor: C.greenDim,
+    borderColor: C.green + '30',
+  },
+  rowNames: { flex: 1, flexDirection: 'row', alignItems: 'center', minWidth: 0 },
+  rowName: { fontSize: 14, fontWeight: '700', maxWidth: '45%' },
+  rowAmt: { fontSize: 15, fontWeight: '800', marginLeft: 8 },
+  mineDot: {
+    width: 20,
+    height: 20,
+    borderRadius: 0,
+    backgroundColor: C.accent,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginLeft: 8,
+  },
+
+  netBox: {
+    marginTop: 14,
+    backgroundColor: C.bg,
+    borderRadius: 0,
+    padding: 14,
+    borderWidth: 1,
+    borderColor: C.border,
+  },
+  netRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingVertical: 4,
+  },
+  netLbl: { fontSize: 13, color: C.text2, fontWeight: '600' },
+  netVal: { fontSize: 14, fontWeight: '700' },
+  netDivider: { height: StyleSheet.hairlineWidth, backgroundColor: C.border, marginVertical: 6 },
+
+  cta: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 16,
+    borderRadius: 0,
+    gap: 4,
+  },
+  ctaT: { fontSize: 16, fontWeight: '800', color: C.inv },
+  closeBtn: { paddingVertical: 12, alignItems: 'center', marginTop: 4 },
+  closeT: { fontSize: 14, color: C.text3, fontWeight: '600' },
+
+  center: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 40,
+    paddingHorizontal: 20,
+  },
+  muted: { fontSize: 13, color: C.text3, textAlign: 'center', marginTop: 8 },
+  retryBtn: {
+    marginTop: 12,
+    paddingVertical: 10,
+    paddingHorizontal: 24,
+    borderRadius: 0,
+    backgroundColor: C.accentDim,
+    borderWidth: 1,
+    borderColor: C.accent + '40',
+  },
+  retryT: { fontSize: 14, fontWeight: '700', color: C.accent },
+
+  // Polish: flying-coin overlay (anchored above the CTA, below the
+  // celebration overlay so coins disappear before mascot appears).
+  flyingCoins: {
+    position: 'absolute',
+    bottom: 100,
+    left: 0,
+    right: 0,
+    height: 0,
+    alignItems: 'center',
+    justifyContent: 'center',
+    flexDirection: 'row',
+  },
+  coin: {
+    position: 'absolute',
+    fontSize: 28,
+  },
+
+  // Polish: post-success celebration overlay — fills the sheet with
+  // a translucent backdrop + animated mascot + sparkles.
+  celebrateOverlay: {
+    position: 'absolute',
+    top: 0, left: 0, right: 0, bottom: 0,
+    backgroundColor: C.sheetBg + 'F2',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 32,
+    paddingTop: 32,
+  },
+  celebrateBadge: {
+    marginTop: 14,
+    paddingHorizontal: 14,
+    paddingVertical: 6,
+    borderRadius: 0,
+    backgroundColor: C.accent + '18',
+    borderWidth: 1,
+    borderColor: C.accent + '30',
+  },
+  celebrateBadgeT: { fontSize: 13, fontWeight: '800', color: C.accent, letterSpacing: 0.3 },
+  celebrateAmt: { fontSize: 36, fontWeight: '900', color: C.text1, marginTop: 12 },
+  celebrateSub: { fontSize: 13, color: C.text3, marginTop: 4, fontWeight: '600' },
+  sparkleRow: { flexDirection: 'row', gap: 10, marginTop: 12 },
+  sparkle: { fontSize: 22 },
+}));
+
 type Props = {
   visible: boolean;
   groupId: string | null;
@@ -529,162 +693,3 @@ export default function SmartSettleSheet({ visible, groupId, groupName, currentU
   );
 }
 
-const useStyles = makeStyles(() => ({
-  backdrop: {
-    flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.5)',
-    justifyContent: 'flex-end',
-  },
-  sheet: {
-    backgroundColor: C.sheetBg,
-    borderTopLeftRadius: 0,
-    borderTopRightRadius: 0,
-    paddingHorizontal: 20,
-    paddingTop: 8,
-    paddingBottom: 24,
-    maxHeight: '92%',
-  },
-  handle: { width: 40, height: 4, borderRadius: 2, backgroundColor: C.text4, alignSelf: 'center', marginVertical: 8 },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 10,
-    paddingVertical: 8,
-    marginBottom: 6,
-  },
-  headerIcon: {
-    width: 36,
-    height: 36,
-    borderRadius: 0,
-    backgroundColor: C.accentDim,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  title: { fontSize: 18, fontWeight: '800', color: C.text1 },
-  subtitle: { fontSize: 12, color: C.text3, marginTop: 2 },
-  subtext: { fontSize: 13, color: C.text3, marginBottom: 10, marginTop: 2 },
-
-  list: { maxHeight: 280, marginTop: 4 },
-  row: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingVertical: 12,
-    paddingHorizontal: 12,
-    borderRadius: 0,
-    backgroundColor: 'transparent',
-    marginVertical: 3,
-    borderWidth: 1,
-    borderColor: 'transparent',
-  },
-  rowMine: {
-    backgroundColor: C.accentDim,
-    borderColor: C.accent + '40',
-  },
-  rowIncoming: {
-    backgroundColor: C.greenDim,
-    borderColor: C.green + '30',
-  },
-  rowNames: { flex: 1, flexDirection: 'row', alignItems: 'center', minWidth: 0 },
-  rowName: { fontSize: 14, fontWeight: '700', maxWidth: '45%' },
-  rowAmt: { fontSize: 15, fontWeight: '800', marginLeft: 8 },
-  mineDot: {
-    width: 20,
-    height: 20,
-    borderRadius: 0,
-    backgroundColor: C.accent,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginLeft: 8,
-  },
-
-  netBox: {
-    marginTop: 14,
-    backgroundColor: C.bg,
-    borderRadius: 0,
-    padding: 14,
-    borderWidth: 1,
-    borderColor: C.border,
-  },
-  netRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingVertical: 4,
-  },
-  netLbl: { fontSize: 13, color: C.text2, fontWeight: '600' },
-  netVal: { fontSize: 14, fontWeight: '700' },
-  netDivider: { height: StyleSheet.hairlineWidth, backgroundColor: C.border, marginVertical: 6 },
-
-  cta: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: 16,
-    borderRadius: 0,
-    gap: 4,
-  },
-  ctaT: { fontSize: 16, fontWeight: '800', color: C.inv },
-  closeBtn: { paddingVertical: 12, alignItems: 'center', marginTop: 4 },
-  closeT: { fontSize: 14, color: C.text3, fontWeight: '600' },
-
-  center: {
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: 40,
-    paddingHorizontal: 20,
-  },
-  muted: { fontSize: 13, color: C.text3, textAlign: 'center', marginTop: 8 },
-  retryBtn: {
-    marginTop: 12,
-    paddingVertical: 10,
-    paddingHorizontal: 24,
-    borderRadius: 0,
-    backgroundColor: C.accentDim,
-    borderWidth: 1,
-    borderColor: C.accent + '40',
-  },
-  retryT: { fontSize: 14, fontWeight: '700', color: C.accent },
-
-  // Polish: flying-coin overlay (anchored above the CTA, below the
-  // celebration overlay so coins disappear before mascot appears).
-  flyingCoins: {
-    position: 'absolute',
-    bottom: 100,
-    left: 0,
-    right: 0,
-    height: 0,
-    alignItems: 'center',
-    justifyContent: 'center',
-    flexDirection: 'row',
-  },
-  coin: {
-    position: 'absolute',
-    fontSize: 28,
-  },
-
-  // Polish: post-success celebration overlay — fills the sheet with
-  // a translucent backdrop + animated mascot + sparkles.
-  celebrateOverlay: {
-    position: 'absolute',
-    top: 0, left: 0, right: 0, bottom: 0,
-    backgroundColor: C.sheetBg + 'F2',
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingHorizontal: 32,
-    paddingTop: 32,
-  },
-  celebrateBadge: {
-    marginTop: 14,
-    paddingHorizontal: 14,
-    paddingVertical: 6,
-    borderRadius: 0,
-    backgroundColor: C.accent + '18',
-    borderWidth: 1,
-    borderColor: C.accent + '30',
-  },
-  celebrateBadgeT: { fontSize: 13, fontWeight: '800', color: C.accent, letterSpacing: 0.3 },
-  celebrateAmt: { fontSize: 36, fontWeight: '900', color: C.text1, marginTop: 12 },
-  celebrateSub: { fontSize: 13, color: C.text3, marginTop: 4, fontWeight: '600' },
-  sparkleRow: { flexDirection: 'row', gap: 10, marginTop: 12 },
-  sparkle: { fontSize: 22 },
-}));

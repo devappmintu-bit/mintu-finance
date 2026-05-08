@@ -7,8 +7,8 @@
 
 /**
  * Lighten or darken a hex color by `pct` (-1..+1).
- *   shade('#FF6B1A', -0.2)  →  20% darker
- *   shade('#FF6B1A', +0.15) →  15% lighter
+ *   shade('#FF8C66', -0.2)  →  20% darker
+ *   shade('#FF8C66', +0.15) →  15% lighter
  *
  * Invalid input returns the original string so we never throw in a JSX
  * render path. Previously re-implemented inline in 3 reward components.

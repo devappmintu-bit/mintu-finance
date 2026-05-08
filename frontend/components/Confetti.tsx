@@ -16,6 +16,14 @@ import Animated, {
   runOnJS,
 } from 'react-native-reanimated';
 
+
+
+// R113 FIX — useStyles hoisted above first render-time call
+// to avoid Metro/SDK52 TDZ error (`Cannot access X before init.`).
+const useStyles = makeStyles((c) => ({
+  overlay: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, zIndex: 9999, pointerEvents: 'none' },
+}));
+
 const COLORS = ['#10B981', '#F59E0B', '#E65100', '#EF4444', '#3B82F6', '#EC4899', '#06B6D4', '#FBBF24'];
 const PARTICLE_COUNT = 28;
 const { width: W, height: H } = Dimensions.get('window');
@@ -105,6 +113,3 @@ export default function Confetti({ trigger, onDone, originX, originY }: Props) {
   );
 }
 
-const useStyles = makeStyles((c) => ({
-  overlay: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, zIndex: 9999, pointerEvents: 'none' },
-}));

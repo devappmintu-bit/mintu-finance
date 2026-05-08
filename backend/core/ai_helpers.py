@@ -37,21 +37,62 @@ logger = logging.getLogger(__name__)
 #  SMS PARSER
 # ══════════════════════════════════════════════════════════════════════
 async def parse_sms_with_ai(sms_text: str) -> Optional[Dict]:
-    """Parse an Indian bank/UPI SMS into a transaction dict using LLM."""
+    """Parse an Indian bank/UPI SMS into a transaction dict using LLM.
+
+    R105 — Trust-grade parsing. The output dict now carries explicit
+    provenance so the caller can dedup, confidence-gate, and avoid
+    fabricated dates:
+      • amount            : float ₹
+      • category          : Food | Transport | Shopping | Bills |
+                            Entertainment | Healthcare | Education |
+                            Investment | Salary | Transfer | Other
+      • type              : "debit" | "credit"
+      • merchant          : normalised display name (e.g. "Swiggy")
+      • merchant_raw      : raw token from SMS (e.g. "RAZ*Swiggy")
+      • last4             : last 4 digits of card/account if present
+      • txn_id            : UPI ref / bank txn id if present
+      • datetime_iso      : ISO 8601 of transaction time IF extractable
+                            from SMS — else null. Caller MUST NOT
+                            fabricate a date when this is null.
+      • confidence        : 0..1 — caller may reject below threshold
+      • is_recurring_hint : true if SMS phrasing suggests recurring
+                            (subscription, EMI, auto-debit)
+    """
     if LlmChat is None:
         return None
     try:
         chat = LlmChat(
             api_key=os.environ['EMERGENT_LLM_KEY'],
             session_id=f"sms_parse_{utc_now().timestamp()}",
-            system_message="""You are an expert at parsing Indian bank and payment app SMS messages.
-            Extract transaction details and return ONLY a valid JSON object with these exact keys:
-            {"amount": float, "category": string, "description": string, "type": "debit" or "credit", "merchant": string}
-
-            Categories must be one of: Food, Transport, Shopping, Bills, Entertainment, Healthcare, Education, Investment, Other
-            Type must be either "debit" or "credit"
-            If you cannot parse the SMS, return: {"error": "Could not parse SMS"}
-            """,
+            system_message=(
+                "You are an expert at parsing Indian bank/UPI/wallet SMS.\n"
+                "Return ONLY a valid JSON object with these exact keys:\n"
+                "{\n"
+                '  "amount": float,\n'
+                '  "category": string,\n'
+                '  "type": "debit" or "credit",\n'
+                '  "merchant": string,                // normalised (e.g. "Swiggy")\n'
+                '  "merchant_raw": string,            // raw token from SMS\n'
+                '  "last4": string or null,           // last 4 of card/acct\n'
+                '  "txn_id": string or null,          // UPI ref / bank id\n'
+                '  "datetime_iso": string or null,    // ISO 8601 if SMS has it\n'
+                '  "confidence": float,               // 0..1\n'
+                '  "is_recurring_hint": boolean\n'
+                "}\n\n"
+                "Categories MUST be one of: Food, Transport, Shopping, Bills,\n"
+                "Entertainment, Healthcare, Education, Investment, Salary,\n"
+                "Transfer, Other.\n\n"
+                "RULES:\n"
+                "1. NEVER fabricate datetime_iso. If the SMS has no time/date,\n"
+                "   return null.\n"
+                "2. If you are <60% sure about ANY field, set confidence < 0.6.\n"
+                "3. If the SMS is an OTP, promo, or non-transactional, return\n"
+                '   {"error": "non_transactional"}.\n'
+                "4. Strip merchant prefixes like 'RAZ*', 'PAYTM-', 'POS-',\n"
+                "   'UPI-', 'BIL-' before producing `merchant`.\n"
+                "5. is_recurring_hint = true ONLY if the SMS uses words like\n"
+                "   subscription, autopay, EMI, recurring, NACH, auto-debit."
+            ),
         ).with_model("openai", "gpt-5.2")
 
         response = await safe_send(
@@ -71,6 +112,15 @@ async def parse_sms_with_ai(sms_text: str) -> Optional[Dict]:
         parsed = _json.loads(response_text)
         if "error" in parsed:
             return None
+        # R105 — Defensive defaults so callers can rely on key presence.
+        parsed.setdefault("merchant_raw", parsed.get("merchant", ""))
+        parsed.setdefault("last4", None)
+        parsed.setdefault("txn_id", None)
+        parsed.setdefault("datetime_iso", None)
+        parsed.setdefault("confidence", 0.5)
+        parsed.setdefault("is_recurring_hint", False)
+        # Description back-compat for legacy callers.
+        parsed.setdefault("description", parsed.get("merchant", ""))
         return parsed
     except Exception as e:
         logger.error(f"AI SMS parsing error: {str(e)}")

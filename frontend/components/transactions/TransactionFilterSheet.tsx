@@ -15,6 +15,38 @@ import { Ionicons } from '@expo/vector-icons';
 import { makeStyles } from '../../utils/makeStyles';
 import { COLORS, GLASS } from '../../utils/theme';
 
+
+
+// R113 FIX — useStyles hoisted above first render-time call
+// to avoid Metro/SDK52 TDZ error (`Cannot access X before init.`).
+const useStyles = makeStyles((c) => ({
+  backdrop: { flex: 1, backgroundColor: 'rgba(15,23,42,0.5)' },
+  sheet: { position: 'absolute', left: 0, right: 0, bottom: 0, backgroundColor: '#fff', borderTopLeftRadius: 0, borderTopRightRadius: 0, paddingBottom: 16, maxHeight: '88%' },
+  grabber: { alignSelf: 'center', width: 44, height: 4, borderRadius: 2, backgroundColor: '#E5E7EB', marginTop: 10, marginBottom: 4 },
+  header: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, paddingTop: 8, paddingBottom: 4 },
+  title: { flex: 1, fontSize: 18, fontWeight: '800', color: '#111' },
+  closeBtn: { width: 32, height: 32, borderRadius: 0, backgroundColor: '#F3F4F6', alignItems: 'center', justifyContent: 'center' },
+  sectionTitle: { fontSize: 12, fontWeight: '800', color: COLORS.text.muted, textTransform: 'uppercase', letterSpacing: 0.6, marginBottom: 10 },
+  wrapRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
+  chip: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 12, paddingVertical: 9, borderRadius: 0, backgroundColor: '#F3F4F6', borderWidth: 1, borderColor: '#E5E7EB' },
+  chipOn: { backgroundColor: '#FFF0E0', borderColor: COLORS.accent.brand },
+  chipTxt: { fontSize: 13, color: COLORS.text.muted, fontWeight: '600' },
+  chipTxtOn: { color: '#7C2D12', fontWeight: '800' },
+  segRow: { flexDirection: 'row', gap: 8, backgroundColor: '#F3F4F6', padding: 4, borderRadius: 0 },
+  segBtn: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, paddingVertical: 11, borderRadius: 0 },
+  segBtnOn: { backgroundColor: COLORS.accent.brand },
+  segTxt: { fontSize: 13, fontWeight: '700', color: COLORS.text.muted },
+  segTxtOn: { color: '#fff' },
+  statusChip: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 12, paddingVertical: 9, borderRadius: 0, borderWidth: 1, backgroundColor: '#fff' },
+  statusDot: { width: 8, height: 8, borderRadius: 4 },
+  statusTxt: { fontSize: 13, color: '#374151', fontWeight: '600' },
+  footer: { flexDirection: 'row', gap: 10, padding: 16, borderTopWidth: 1, borderTopColor: '#F3F4F6' },
+  clearBtn: { paddingHorizontal: 22, paddingVertical: 14, borderRadius: 0, backgroundColor: '#F3F4F6', alignItems: 'center', justifyContent: 'center' },
+  clearTxt: { fontSize: 14, fontWeight: '700', color: '#374151' },
+  applyBtn: { paddingVertical: 14, borderRadius: 0, alignItems: 'center', justifyContent: 'center' },
+  applyTxt: { color: '#fff', fontSize: 15, fontWeight: '800' },
+}));
+
 export interface TxnFilter {
   range: 'all' | 'this_month' | 'last_3m' | 'last_6m' | 'this_year';
   sources: string[]; // empty = all
@@ -229,30 +261,3 @@ export function filterActiveCount(f: TxnFilter): number {
   return n;
 }
 
-const useStyles = makeStyles((c) => ({
-  backdrop: { flex: 1, backgroundColor: 'rgba(15,23,42,0.5)' },
-  sheet: { position: 'absolute', left: 0, right: 0, bottom: 0, backgroundColor: '#fff', borderTopLeftRadius: 0, borderTopRightRadius: 0, paddingBottom: 16, maxHeight: '88%' },
-  grabber: { alignSelf: 'center', width: 44, height: 4, borderRadius: 2, backgroundColor: '#E5E7EB', marginTop: 10, marginBottom: 4 },
-  header: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, paddingTop: 8, paddingBottom: 4 },
-  title: { flex: 1, fontSize: 18, fontWeight: '800', color: '#111' },
-  closeBtn: { width: 32, height: 32, borderRadius: 0, backgroundColor: '#F3F4F6', alignItems: 'center', justifyContent: 'center' },
-  sectionTitle: { fontSize: 12, fontWeight: '800', color: COLORS.text.muted, textTransform: 'uppercase', letterSpacing: 0.6, marginBottom: 10 },
-  wrapRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
-  chip: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 12, paddingVertical: 9, borderRadius: 0, backgroundColor: '#F3F4F6', borderWidth: 1, borderColor: '#E5E7EB' },
-  chipOn: { backgroundColor: '#FFF0E0', borderColor: COLORS.accent.brand },
-  chipTxt: { fontSize: 13, color: COLORS.text.muted, fontWeight: '600' },
-  chipTxtOn: { color: '#7C2D12', fontWeight: '800' },
-  segRow: { flexDirection: 'row', gap: 8, backgroundColor: '#F3F4F6', padding: 4, borderRadius: 0 },
-  segBtn: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, paddingVertical: 11, borderRadius: 0 },
-  segBtnOn: { backgroundColor: COLORS.accent.brand },
-  segTxt: { fontSize: 13, fontWeight: '700', color: COLORS.text.muted },
-  segTxtOn: { color: '#fff' },
-  statusChip: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 12, paddingVertical: 9, borderRadius: 0, borderWidth: 1, backgroundColor: '#fff' },
-  statusDot: { width: 8, height: 8, borderRadius: 4 },
-  statusTxt: { fontSize: 13, color: '#374151', fontWeight: '600' },
-  footer: { flexDirection: 'row', gap: 10, padding: 16, borderTopWidth: 1, borderTopColor: '#F3F4F6' },
-  clearBtn: { paddingHorizontal: 22, paddingVertical: 14, borderRadius: 0, backgroundColor: '#F3F4F6', alignItems: 'center', justifyContent: 'center' },
-  clearTxt: { fontSize: 14, fontWeight: '700', color: '#374151' },
-  applyBtn: { paddingVertical: 14, borderRadius: 0, alignItems: 'center', justifyContent: 'center' },
-  applyTxt: { color: '#fff', fontSize: 15, fontWeight: '800' },
-}));

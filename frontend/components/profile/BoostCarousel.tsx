@@ -24,6 +24,41 @@ import { router } from 'expo-router';
 import { COLORS, GLASS, shadowStyle } from '../../utils/theme';
 import { makeStyles } from '../../utils/makeStyles';
 
+
+
+// R113 FIX — useStyles hoisted above first render-time call
+// to avoid Metro/SDK52 TDZ error (`Cannot access X before init.`).
+const useStyles = makeStyles((c) => ({
+  wrap: { marginBottom: 14 },
+  header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 4, marginBottom: 10 },
+  headerTitle: { fontSize: 15, fontWeight: '800', color: c.text.primary, letterSpacing: -0.2 },
+  headerSub: { fontSize: 11, color: c.text.muted, fontWeight: '600' },
+
+  scrollContent: { paddingRight: 8, gap: 12 },
+  card: {
+    width: CARD_WIDTH,
+    backgroundColor: GLASS.solidBg,
+    borderRadius: 0, padding: 14,
+    borderWidth: StyleSheet.hairlineWidth, borderColor: GLASS.borderLight,
+    ...shadowStyle('#111827', 2, 10, 0.04, 3),
+  },
+  cardHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 },
+  cardEmoji: { fontSize: 22 },
+  scorePill: { paddingHorizontal: 8, paddingVertical: 3, borderRadius: 0, borderWidth: 1 },
+  scorePillTxt: { fontSize: 11, fontWeight: '800' },
+
+  cardLabel: { fontSize: 14, fontWeight: '800', color: c.text.primary, letterSpacing: -0.2 },
+  cardHint: { fontSize: 11, color: c.text.muted, marginTop: 3, lineHeight: 15, minHeight: 30 },
+
+  miniBar: { height: 4, borderRadius: 2, backgroundColor: c.gray[200], marginTop: 10, overflow: 'hidden' },
+  miniBarFill: { height: '100%', borderRadius: 2 },
+
+  cardFooter: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 12 },
+  impactTxt: { fontSize: 11, color: c.text.muted, fontWeight: '700', flex: 1 },
+  ctaChip: { flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: 8, paddingVertical: 4, borderRadius: 0 },
+  ctaChipTxt: { color: '#FFFFFF', fontSize: 10, fontWeight: '800', letterSpacing: 0.2 },
+}));
+
 export interface BoostPillar {
   key: string;
   label: string;
@@ -122,33 +157,3 @@ export default React.memo(BoostCarousel);
 
 const CARD_WIDTH = 220;
 
-const useStyles = makeStyles((c) => ({
-  wrap: { marginBottom: 14 },
-  header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 4, marginBottom: 10 },
-  headerTitle: { fontSize: 15, fontWeight: '800', color: c.text.primary, letterSpacing: -0.2 },
-  headerSub: { fontSize: 11, color: c.text.muted, fontWeight: '600' },
-
-  scrollContent: { paddingRight: 8, gap: 12 },
-  card: {
-    width: CARD_WIDTH,
-    backgroundColor: GLASS.solidBg,
-    borderRadius: 0, padding: 14,
-    borderWidth: StyleSheet.hairlineWidth, borderColor: GLASS.borderLight,
-    ...shadowStyle('#111827', 2, 10, 0.04, 3),
-  },
-  cardHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 },
-  cardEmoji: { fontSize: 22 },
-  scorePill: { paddingHorizontal: 8, paddingVertical: 3, borderRadius: 0, borderWidth: 1 },
-  scorePillTxt: { fontSize: 11, fontWeight: '800' },
-
-  cardLabel: { fontSize: 14, fontWeight: '800', color: c.text.primary, letterSpacing: -0.2 },
-  cardHint: { fontSize: 11, color: c.text.muted, marginTop: 3, lineHeight: 15, minHeight: 30 },
-
-  miniBar: { height: 4, borderRadius: 2, backgroundColor: c.gray[200], marginTop: 10, overflow: 'hidden' },
-  miniBarFill: { height: '100%', borderRadius: 2 },
-
-  cardFooter: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 12 },
-  impactTxt: { fontSize: 11, color: c.text.muted, fontWeight: '700', flex: 1 },
-  ctaChip: { flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: 8, paddingVertical: 4, borderRadius: 0 },
-  ctaChipTxt: { color: '#FFFFFF', fontSize: 10, fontWeight: '800', letterSpacing: 0.2 },
-}));

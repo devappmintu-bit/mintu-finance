@@ -6,6 +6,39 @@ import { makeStyles } from '../../utils/makeStyles';
 import PressableGlass from '../PressableGlass';
 import { C, DebtRow } from './theme';
 
+
+
+// R113 FIX — useStyles hoisted above first render-time call
+// to avoid Metro/SDK52 TDZ error (`Cannot access X before init.`).
+const useStyles = makeStyles((c) => ({
+  settleCard: {
+    backgroundColor: 'rgba(255,255,255,0.88)',
+    borderRadius: 0,
+    padding: 14,
+    marginBottom: 16,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.6)',
+    ...SHADOW.md,
+  },
+  settleHead: { flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 10 },
+  settleTitle: { fontSize: 11, fontWeight: '800', letterSpacing: 1, color: C.accent },
+  settleCount: { fontSize: 11, fontWeight: '700', color: C.text3, backgroundColor: C.accentDim, paddingHorizontal: 8, paddingVertical: 2, borderRadius: 0 },
+  settleRow: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingVertical: 10, borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: C.border },
+  settleEmoji: { fontSize: 20 },
+  settleName: { fontSize: 14, fontWeight: '700', color: C.text1 },
+  settleGroup: { fontSize: 11, color: C.text3, marginTop: 1 },
+  settleAmt: { fontSize: 15, fontWeight: '800', marginLeft: 6 },
+  settleBtn: { flexDirection: 'row', alignItems: 'center', gap: 3, paddingHorizontal: 10, paddingVertical: 6, borderRadius: 0 },
+  settleBtnT: { fontSize: 12, fontWeight: '700', color: C.inv },
+  // Bell-only reminder button — no text, per design ask
+  settleBellBtn: { width: 34, height: 34, borderRadius: 0, alignItems: 'center', justifyContent: 'center' },
+  settleIconBtn: {
+    width: 34, height: 34, borderRadius: 0, justifyContent: 'center', alignItems: 'center', marginLeft: 4,
+    backgroundColor: c.bg.primary, borderWidth: 1, borderColor: C.border,
+  },
+  settleMore: { fontSize: 12, color: C.text3, textAlign: 'center', marginTop: 8, fontStyle: 'italic' },
+}));
+
 type Props = {
   rows: DebtRow[];
   onPay: (row: DebtRow) => void;
@@ -65,31 +98,3 @@ export default function SettleUpCard({ rows, onPay, onRemind, onMarkPaid }: Prop
   );
 }
 
-const useStyles = makeStyles((c) => ({
-  settleCard: {
-    backgroundColor: 'rgba(255,255,255,0.88)',
-    borderRadius: 0,
-    padding: 14,
-    marginBottom: 16,
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.6)',
-    ...SHADOW.md,
-  },
-  settleHead: { flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 10 },
-  settleTitle: { fontSize: 11, fontWeight: '800', letterSpacing: 1, color: C.accent },
-  settleCount: { fontSize: 11, fontWeight: '700', color: C.text3, backgroundColor: C.accentDim, paddingHorizontal: 8, paddingVertical: 2, borderRadius: 0 },
-  settleRow: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingVertical: 10, borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: C.border },
-  settleEmoji: { fontSize: 20 },
-  settleName: { fontSize: 14, fontWeight: '700', color: C.text1 },
-  settleGroup: { fontSize: 11, color: C.text3, marginTop: 1 },
-  settleAmt: { fontSize: 15, fontWeight: '800', marginLeft: 6 },
-  settleBtn: { flexDirection: 'row', alignItems: 'center', gap: 3, paddingHorizontal: 10, paddingVertical: 6, borderRadius: 0 },
-  settleBtnT: { fontSize: 12, fontWeight: '700', color: C.inv },
-  // Bell-only reminder button — no text, per design ask
-  settleBellBtn: { width: 34, height: 34, borderRadius: 0, alignItems: 'center', justifyContent: 'center' },
-  settleIconBtn: {
-    width: 34, height: 34, borderRadius: 0, justifyContent: 'center', alignItems: 'center', marginLeft: 4,
-    backgroundColor: c.bg.primary, borderWidth: 1, borderColor: C.border,
-  },
-  settleMore: { fontSize: 12, color: C.text3, textAlign: 'center', marginTop: 8, fontStyle: 'italic' },
-}));

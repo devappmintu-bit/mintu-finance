@@ -13,6 +13,26 @@ import { updateProfile } from '../../services/user';
 import { useAuthStore } from '../../store/authStore';
 import { showError, showSuccess } from '../../utils/toast';
 
+
+
+// R113 FIX — useStyles hoisted above first render-time call
+// to avoid Metro/SDK52 TDZ error (`Cannot access X before init.`).
+const useStyles = makeStyles((c) => ({
+  bg: { flex: 1, backgroundColor: 'rgba(0,0,0,0.45)', justifyContent: 'center', paddingHorizontal: 20 },
+  sheet: { backgroundColor: c.bg.secondary, borderRadius: 0, padding: 20 },
+  handle: { width: 40, height: 4, borderRadius: 2, backgroundColor: c.border.subtle, alignSelf: 'center', marginBottom: 12 },
+  title: { fontSize: 18, fontWeight: '800', color: c.text.primary, marginBottom: 12, letterSpacing: -0.3 },
+  input: {
+    borderWidth: 1, borderColor: c.border.subtle, borderRadius: 0,
+    paddingHorizontal: 14, paddingVertical: 12, fontSize: 16, fontWeight: '600',
+    color: c.text.primary, backgroundColor: c.bg.primary,
+  },
+  saveBtn: { backgroundColor: c.accent.primary, paddingVertical: 13, borderRadius: 0, alignItems: 'center', marginTop: 14 },
+  saveTxt: { color: c.bg.elevated, fontSize: 15, fontWeight: '800', letterSpacing: -0.2 },
+  cancel: { paddingVertical: 10, alignItems: 'center', marginTop: 4 },
+  cancelTxt: { color: c.text.muted, fontSize: 14, fontWeight: '600' },
+}));
+
 interface Props {
   visible: boolean;
   currentName: string;
@@ -77,18 +97,3 @@ export default function EditNameSheet({ visible, currentName, onClose, onSaved }
   );
 }
 
-const useStyles = makeStyles((c) => ({
-  bg: { flex: 1, backgroundColor: 'rgba(0,0,0,0.45)', justifyContent: 'center', paddingHorizontal: 20 },
-  sheet: { backgroundColor: c.bg.secondary, borderRadius: 0, padding: 20 },
-  handle: { width: 40, height: 4, borderRadius: 2, backgroundColor: c.border.subtle, alignSelf: 'center', marginBottom: 12 },
-  title: { fontSize: 18, fontWeight: '800', color: c.text.primary, marginBottom: 12, letterSpacing: -0.3 },
-  input: {
-    borderWidth: 1, borderColor: c.border.subtle, borderRadius: 0,
-    paddingHorizontal: 14, paddingVertical: 12, fontSize: 16, fontWeight: '600',
-    color: c.text.primary, backgroundColor: c.bg.primary,
-  },
-  saveBtn: { backgroundColor: c.accent.primary, paddingVertical: 13, borderRadius: 0, alignItems: 'center', marginTop: 14 },
-  saveTxt: { color: c.bg.elevated, fontSize: 15, fontWeight: '800', letterSpacing: -0.2 },
-  cancel: { paddingVertical: 10, alignItems: 'center', marginTop: 4 },
-  cancelTxt: { color: c.text.muted, fontSize: 14, fontWeight: '600' },
-}));

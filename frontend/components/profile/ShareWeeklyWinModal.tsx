@@ -26,6 +26,51 @@ import { useAppColors, GLASS } from '../../utils/theme';
 import { makeStyles } from '../../utils/makeStyles';
 import { showError } from '../../utils/toast';
 
+
+
+// R113 FIX — useStyles hoisted above first render-time call
+// to avoid Metro/SDK52 TDZ error (`Cannot access X before init.`).
+const useStyles = makeStyles((c) => ({
+  bg: { flex: 1, backgroundColor: c.bg.primary },
+  header: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
+    paddingHorizontal: 16, paddingVertical: 12,
+    borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: c.border.subtle,
+  },
+  hTitle: { fontSize: 17, fontWeight: '800', color: c.text.primary, letterSpacing: -0.3 },
+
+  scroll: { padding: 20, paddingBottom: 40 },
+  eyebrow: { fontSize: 10.5, fontWeight: '900', color: c.text.muted, letterSpacing: 1.2 },
+  subtitle: { fontSize: 14, fontWeight: '600', color: c.text.primary, marginTop: 4, marginBottom: 16 },
+
+  cardHost: { alignItems: 'center', marginBottom: 18 },
+  shotBox: { borderRadius: 0, overflow: 'hidden' },
+
+  captionBox: {
+    backgroundColor: c.bg.secondary, borderRadius: 0,
+    padding: 14, borderWidth: StyleSheet.hairlineWidth, borderColor: c.border.subtle,
+    marginBottom: 18,
+  },
+  capLabel: { fontSize: 10, fontWeight: '900', color: c.text.muted, letterSpacing: 1, marginBottom: 6 },
+  capTxt: { fontSize: 13, fontWeight: '600', color: c.text.primary, lineHeight: 19 },
+
+  primary: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8,
+    backgroundColor: c.accent.primary, paddingVertical: 15, borderRadius: 0,
+    shadowColor: c.accent.primary, shadowOpacity: 0.25, shadowRadius: 12, shadowOffset: { width: 0, height: 6 }, elevation: 4,
+  },
+  primaryTxt: { fontSize: 15, fontWeight: '800', color: c.bg.elevated, letterSpacing: -0.2 },
+
+  secondary: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6,
+    marginTop: 10, paddingVertical: 13, borderRadius: 0,
+    borderWidth: 1, borderColor: c.border.subtle,
+  },
+  secondaryTxt: { fontSize: 13.5, fontWeight: '700', color: c.text.primary },
+
+  hint: { fontSize: 12, fontWeight: '500', color: c.text.muted, marginTop: 16, textAlign: 'center', lineHeight: 17 },
+}));
+
 interface Props {
   visible: boolean;
   onClose: () => void;
@@ -134,43 +179,3 @@ function defaultCaption(p: WeeklyWinCardProps): string {
   return `${base} ${p.tagline}\n\nTracked on MintU · https://mintu.app`;
 }
 
-const useStyles = makeStyles((c) => ({
-  bg: { flex: 1, backgroundColor: c.bg.primary },
-  header: {
-    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
-    paddingHorizontal: 16, paddingVertical: 12,
-    borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: c.border.subtle,
-  },
-  hTitle: { fontSize: 17, fontWeight: '800', color: c.text.primary, letterSpacing: -0.3 },
-
-  scroll: { padding: 20, paddingBottom: 40 },
-  eyebrow: { fontSize: 10.5, fontWeight: '900', color: c.text.muted, letterSpacing: 1.2 },
-  subtitle: { fontSize: 14, fontWeight: '600', color: c.text.primary, marginTop: 4, marginBottom: 16 },
-
-  cardHost: { alignItems: 'center', marginBottom: 18 },
-  shotBox: { borderRadius: 0, overflow: 'hidden' },
-
-  captionBox: {
-    backgroundColor: c.bg.secondary, borderRadius: 0,
-    padding: 14, borderWidth: StyleSheet.hairlineWidth, borderColor: c.border.subtle,
-    marginBottom: 18,
-  },
-  capLabel: { fontSize: 10, fontWeight: '900', color: c.text.muted, letterSpacing: 1, marginBottom: 6 },
-  capTxt: { fontSize: 13, fontWeight: '600', color: c.text.primary, lineHeight: 19 },
-
-  primary: {
-    flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8,
-    backgroundColor: c.accent.primary, paddingVertical: 15, borderRadius: 0,
-    shadowColor: c.accent.primary, shadowOpacity: 0.25, shadowRadius: 12, shadowOffset: { width: 0, height: 6 }, elevation: 4,
-  },
-  primaryTxt: { fontSize: 15, fontWeight: '800', color: c.bg.elevated, letterSpacing: -0.2 },
-
-  secondary: {
-    flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6,
-    marginTop: 10, paddingVertical: 13, borderRadius: 0,
-    borderWidth: 1, borderColor: c.border.subtle,
-  },
-  secondaryTxt: { fontSize: 13.5, fontWeight: '700', color: c.text.primary },
-
-  hint: { fontSize: 12, fontWeight: '500', color: c.text.muted, marginTop: 16, textAlign: 'center', lineHeight: 17 },
-}));

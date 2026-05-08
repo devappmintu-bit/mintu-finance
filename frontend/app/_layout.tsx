@@ -28,6 +28,7 @@ import ErrorBoundary from '../components/ErrorBoundary';
 import OfflineBanner from '../components/OfflineBanner';
 import AppLockOverlay from '../components/AppLockOverlay';
 import SmartEntryHost from '../components/smart-entry/SmartEntryHost';
+import BrutalToastHost from '../components/brutal/BrutalToastHost';
 import { useFinContext } from '../store/financialContext';
 import { isExpoGo } from '../utils/lockManager';
 
@@ -291,6 +292,12 @@ export default function RootLayout() {
             <Stack.Screen name="search" options={{ animation: 'slide_from_bottom' }} />
           </Stack>
           <Toast config={toastConfig} position="bottom" bottomOffset={100} />
+          {/* R103D — Global brutal celebration toast. Any screen can fire
+              `showBrutalToast('🎯 Cap set — baseline started', 'accent')`.
+              Mounted ABOVE the legacy `react-native-toast-message` host so
+              celebrations land at top of viewport (status-style) while
+              regular toasts (errors, info) stay at the bottom. */}
+          <BrutalToastHost />
           {/* 300ms CrossFade overlay while the Stack remount re-skins the tree */}
           <ThemeTransitionOverlay />
           {/* Round 51d — full-screen opaque lock overlay. Mounted LAST so

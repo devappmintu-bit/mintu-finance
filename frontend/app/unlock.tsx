@@ -41,6 +41,152 @@ import {
 import AuthTransitionOverlay from '../components/auth/AuthTransitionOverlay';
 import Toast from 'react-native-toast-message';
 
+
+
+// R113 FIX — useStyles hoisted above first render-time call
+// to avoid Metro/SDK52 TDZ error (`Cannot access X before init.`).
+const useStyles = makeStyles((c) => ({
+  container: { flex: 1, backgroundColor: c.bg.primary, paddingHorizontal: 20 },
+
+  // ── Top bar ────────────────────────────────────────────────────
+  topBar: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: 4 },
+  brandRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  brandMark: { width: 26, height: 26, borderRadius: 0 },
+  brandName: { color: c.text.primary, fontSize: 14, fontWeight: '900', letterSpacing: 2.4 },
+  secBadge: {
+    flexDirection: 'row', alignItems: 'center', gap: 5,
+    backgroundColor: c.state.successBg,
+    borderRadius: 999,
+    paddingHorizontal: 9, paddingVertical: 4,
+    borderWidth: 1, borderColor: c.state.successBorder,
+  },
+  secBadgeT: { fontSize: 10, fontWeight: '800', color: c.state.success, letterSpacing: 0.3 },
+
+  // ── Greeting card ──────────────────────────────────────────────
+  greetCard: {
+    marginTop: 18,
+    borderRadius: 0,
+    padding: 14,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    borderWidth: 1,
+    borderColor: c.border.subtle,
+    ...Platform.select({
+      ios: { shadowColor: c.accent.primary, shadowOpacity: 0.12, shadowRadius: 14, shadowOffset: { width: 0, height: 6 } },
+      android: { elevation: 4 },
+      web: { boxShadow: '0 6px 14px rgba(230,81,0,0.10)' as any },
+    }),
+  },
+  greetLeft: { flex: 1 },
+  hi: { color: c.text.secondary, fontSize: 12.5, fontWeight: '700' },
+  name: { color: c.text.primary, fontSize: 22, fontWeight: '900', letterSpacing: -0.4, marginTop: 2 },
+  phoneRow: { flexDirection: 'row', alignItems: 'center', gap: 5, marginTop: 4 },
+  phoneT: { color: c.text.muted, fontSize: 11.5, fontWeight: '700' },
+  avatarWrap: {
+    width: 56, height: 56, borderRadius: 0,
+    backgroundColor: '#FFF0DE',
+    alignItems: 'center', justifyContent: 'center',
+    borderWidth: 1, borderColor: c.border.subtle,
+    overflow: 'hidden',
+  },
+  avatarImg: { width: '100%', height: '100%' },
+
+  // ── PIN title + dots ───────────────────────────────────────────
+  pinTitle: {
+    color: c.text.primary,
+    fontSize: 13,
+    fontWeight: '800',
+    letterSpacing: 1.6,
+    textTransform: 'uppercase',
+    textAlign: 'center',
+    marginTop: 22,
+  },
+  pinBoxes: { flexDirection: 'row', gap: 12, marginTop: 12, alignSelf: 'center' },
+  pinBox: {
+    width: 48, height: 54, borderRadius: 0,
+    backgroundColor: c.bg.secondary,
+    borderWidth: 1.5, borderColor: c.border.subtle,
+    alignItems: 'center', justifyContent: 'center',
+  },
+  pinBoxFilled: {
+    borderColor: c.accent.primary,
+    backgroundColor: '#FFF0DE',
+  },
+  pinBoxErr: {
+    borderColor: c.state.danger,
+    backgroundColor: c.state.dangerBg,
+  },
+  pinCenterDot: { width: 12, height: 12, borderRadius: 0, backgroundColor: c.accent.primary },
+  errText: {
+    color: c.state.danger,
+    textAlign: 'center', marginTop: 8, fontSize: 12, fontWeight: '700', minHeight: 14,
+  },
+
+  // ── Keypad ─────────────────────────────────────────────────────
+  keypad: {
+    flexDirection: 'row', flexWrap: 'wrap',
+    marginTop: 10,
+    alignSelf: 'center',
+    width: '100%', maxWidth: 340,
+    justifyContent: 'center',
+  },
+  key: {
+    width: '33.33%',
+    paddingVertical: 14,
+    alignItems: 'center', justifyContent: 'center',
+    borderRadius: 0,
+    position: 'relative',
+  },
+  keyPressed: {
+    backgroundColor: '#FFE9D4',
+    transform: [{ scale: 0.96 }],
+  },
+  keyT: {
+    color: c.text.primary,
+    fontSize: 28, fontWeight: '600', letterSpacing: 0.5,
+  },
+  keyTinyT: {
+    color: c.accent.primary,
+    fontSize: 13, fontWeight: '800', letterSpacing: 0.3,
+  },
+
+  // Biometric inline chip
+  bioGlow: {
+    position: 'absolute',
+    width: 72, height: 72, borderRadius: 0,
+    backgroundColor: c.accent.primary,
+  },
+  bioChip: {
+    width: 52, height: 52, borderRadius: 0,
+    backgroundColor: '#FFF0DE',
+    borderWidth: 1.5, borderColor: c.accent.primary,
+    alignItems: 'center', justifyContent: 'center',
+  },
+
+  // ── Footer ─────────────────────────────────────────────────────
+  footerRow: {
+    flexDirection: 'row', justifyContent: 'center', alignItems: 'center',
+    gap: 8, marginTop: 'auto', paddingTop: 6, flexWrap: 'wrap',
+  },
+  footerPill: {
+    flexDirection: 'row', alignItems: 'center', gap: 5,
+    paddingHorizontal: 12, paddingVertical: 7,
+    backgroundColor: '#FFF0DE',
+    borderRadius: 999,
+    borderWidth: 1, borderColor: '#F6D7B5',
+  },
+  footerPillT: {
+    color: c.accent.primary,
+    fontSize: 11.5, fontWeight: '800', letterSpacing: 0.2,
+  },
+  brandFooter: {
+    flexDirection: 'row', justifyContent: 'center', alignItems: 'center',
+    gap: 5, paddingTop: 10, paddingBottom: 4,
+  },
+  brandFooterT: { color: c.text.muted, fontSize: 10.5, fontWeight: '700', letterSpacing: 0.3 },
+}));
+
 export default function UnlockScreen() {
   const s = useStyles();
   const { user, setUser, removeAccount, unlock, token } = useAuthStore();
@@ -426,144 +572,3 @@ function getTimeGreeting(): string {
 // ══════════════════════════════════════════════════════════════════
 // STYLES — cream / saffron palette, NO BLACK
 // ══════════════════════════════════════════════════════════════════
-const useStyles = makeStyles((c) => ({
-  container: { flex: 1, backgroundColor: c.bg.primary, paddingHorizontal: 20 },
-
-  // ── Top bar ────────────────────────────────────────────────────
-  topBar: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: 4 },
-  brandRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  brandMark: { width: 26, height: 26, borderRadius: 0 },
-  brandName: { color: c.text.primary, fontSize: 14, fontWeight: '900', letterSpacing: 2.4 },
-  secBadge: {
-    flexDirection: 'row', alignItems: 'center', gap: 5,
-    backgroundColor: c.state.successBg,
-    borderRadius: 999,
-    paddingHorizontal: 9, paddingVertical: 4,
-    borderWidth: 1, borderColor: c.state.successBorder,
-  },
-  secBadgeT: { fontSize: 10, fontWeight: '800', color: c.state.success, letterSpacing: 0.3 },
-
-  // ── Greeting card ──────────────────────────────────────────────
-  greetCard: {
-    marginTop: 18,
-    borderRadius: 0,
-    padding: 14,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-    borderWidth: 1,
-    borderColor: c.border.subtle,
-    ...Platform.select({
-      ios: { shadowColor: c.accent.primary, shadowOpacity: 0.12, shadowRadius: 14, shadowOffset: { width: 0, height: 6 } },
-      android: { elevation: 4 },
-      web: { boxShadow: '0 6px 14px rgba(230,81,0,0.10)' as any },
-    }),
-  },
-  greetLeft: { flex: 1 },
-  hi: { color: c.text.secondary, fontSize: 12.5, fontWeight: '700' },
-  name: { color: c.text.primary, fontSize: 22, fontWeight: '900', letterSpacing: -0.4, marginTop: 2 },
-  phoneRow: { flexDirection: 'row', alignItems: 'center', gap: 5, marginTop: 4 },
-  phoneT: { color: c.text.muted, fontSize: 11.5, fontWeight: '700' },
-  avatarWrap: {
-    width: 56, height: 56, borderRadius: 0,
-    backgroundColor: '#FFF0DE',
-    alignItems: 'center', justifyContent: 'center',
-    borderWidth: 1, borderColor: c.border.subtle,
-    overflow: 'hidden',
-  },
-  avatarImg: { width: '100%', height: '100%' },
-
-  // ── PIN title + dots ───────────────────────────────────────────
-  pinTitle: {
-    color: c.text.primary,
-    fontSize: 13,
-    fontWeight: '800',
-    letterSpacing: 1.6,
-    textTransform: 'uppercase',
-    textAlign: 'center',
-    marginTop: 22,
-  },
-  pinBoxes: { flexDirection: 'row', gap: 12, marginTop: 12, alignSelf: 'center' },
-  pinBox: {
-    width: 48, height: 54, borderRadius: 0,
-    backgroundColor: c.bg.secondary,
-    borderWidth: 1.5, borderColor: c.border.subtle,
-    alignItems: 'center', justifyContent: 'center',
-  },
-  pinBoxFilled: {
-    borderColor: c.accent.primary,
-    backgroundColor: '#FFF0DE',
-  },
-  pinBoxErr: {
-    borderColor: c.state.danger,
-    backgroundColor: c.state.dangerBg,
-  },
-  pinCenterDot: { width: 12, height: 12, borderRadius: 0, backgroundColor: c.accent.primary },
-  errText: {
-    color: c.state.danger,
-    textAlign: 'center', marginTop: 8, fontSize: 12, fontWeight: '700', minHeight: 14,
-  },
-
-  // ── Keypad ─────────────────────────────────────────────────────
-  keypad: {
-    flexDirection: 'row', flexWrap: 'wrap',
-    marginTop: 10,
-    alignSelf: 'center',
-    width: '100%', maxWidth: 340,
-    justifyContent: 'center',
-  },
-  key: {
-    width: '33.33%',
-    paddingVertical: 14,
-    alignItems: 'center', justifyContent: 'center',
-    borderRadius: 0,
-    position: 'relative',
-  },
-  keyPressed: {
-    backgroundColor: '#FFE9D4',
-    transform: [{ scale: 0.96 }],
-  },
-  keyT: {
-    color: c.text.primary,
-    fontSize: 28, fontWeight: '600', letterSpacing: 0.5,
-  },
-  keyTinyT: {
-    color: c.accent.primary,
-    fontSize: 13, fontWeight: '800', letterSpacing: 0.3,
-  },
-
-  // Biometric inline chip
-  bioGlow: {
-    position: 'absolute',
-    width: 72, height: 72, borderRadius: 0,
-    backgroundColor: c.accent.primary,
-  },
-  bioChip: {
-    width: 52, height: 52, borderRadius: 0,
-    backgroundColor: '#FFF0DE',
-    borderWidth: 1.5, borderColor: c.accent.primary,
-    alignItems: 'center', justifyContent: 'center',
-  },
-
-  // ── Footer ─────────────────────────────────────────────────────
-  footerRow: {
-    flexDirection: 'row', justifyContent: 'center', alignItems: 'center',
-    gap: 8, marginTop: 'auto', paddingTop: 6, flexWrap: 'wrap',
-  },
-  footerPill: {
-    flexDirection: 'row', alignItems: 'center', gap: 5,
-    paddingHorizontal: 12, paddingVertical: 7,
-    backgroundColor: '#FFF0DE',
-    borderRadius: 999,
-    borderWidth: 1, borderColor: '#F6D7B5',
-  },
-  footerPillT: {
-    color: c.accent.primary,
-    fontSize: 11.5, fontWeight: '800', letterSpacing: 0.2,
-  },
-  brandFooter: {
-    flexDirection: 'row', justifyContent: 'center', alignItems: 'center',
-    gap: 5, paddingTop: 10, paddingBottom: 4,
-  },
-  brandFooterT: { color: c.text.muted, fontSize: 10.5, fontWeight: '700', letterSpacing: 0.3 },
-}));

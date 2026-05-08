@@ -42,6 +42,96 @@ import { makeStyles } from '../../utils/makeStyles';
 import { COLORS, useAppColors } from '../../utils/theme';
 import { ExpandableSection, InputMascot } from '../primitives';
 
+
+
+// R113 FIX — useStyles hoisted above first render-time call
+// to avoid Metro/SDK52 TDZ error (`Cannot access X before init.`).
+const useStyles = makeStyles((c) => ({
+  kavRoot: { flex: 1 },
+  container: { flex: 1, backgroundColor: c.bg.elevated, paddingHorizontal: 20, paddingTop: 8 },
+
+  // Top bar
+  topBar: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingVertical: 4 },
+  closeBtn: { width: 36, height: 36, borderRadius: 0, alignItems: 'center', justifyContent: 'center' },
+
+  loadingWrap: { paddingVertical: 80, alignItems: 'center' },
+
+  // Hero
+  eyebrow: { marginTop: 8, fontSize: 10.5, fontWeight: '900', letterSpacing: 1.4, color: c.text.muted },
+  hero: { marginTop: 4, fontSize: 26, fontWeight: '900', letterSpacing: -0.6, color: c.text.primary, lineHeight: 32 },
+
+  // Category strip
+  catStrip: { paddingHorizontal: 20, gap: 4 },
+  divider: { height: StyleSheet.hairlineWidth, backgroundColor: c.gray[100], marginHorizontal: -20, marginTop: 4 },
+
+  // Warn (over-limit)
+  warnRow: { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 16, marginBottom: -4 },
+  warnTxt: { fontSize: 12, color: '#7F1D1D', fontWeight: '600' },
+
+  // Amount hero
+  amountWrap: { marginTop: 30, flexDirection: 'row', alignItems: 'baseline', justifyContent: 'center' },
+  rupee: { fontSize: 44, fontWeight: '300', color: c.text.muted, letterSpacing: -1, marginRight: 4 },
+  amountInput: { fontSize: 64, fontWeight: '900', color: c.text.primary, letterSpacing: -2.4, padding: 0, minWidth: 80, textAlign: 'left' },
+  dailyHint: { textAlign: 'center', fontSize: 12, color: c.text.muted, fontWeight: '600', marginTop: 6 },
+  errorTxt: { textAlign: 'center', color: c.state.danger, fontSize: 12, fontWeight: '700', marginTop: 6 },
+
+  // Quick chips
+  quickRow: { flexDirection: 'row', justifyContent: 'center', gap: 8, marginTop: 18, flexWrap: 'wrap' },
+  quickChip: { paddingHorizontal: 14, paddingVertical: 8, borderRadius: 0, backgroundColor: c.bg.elevated, borderWidth: 1, borderColor: c.gray[200] },
+  quickTxt: { fontSize: 13, fontWeight: '700', color: c.text.primary },
+
+  // AI pill
+  aiPill: {
+    marginTop: 18, marginHorizontal: 0,
+    flexDirection: 'row', alignItems: 'center', gap: 8,
+    paddingHorizontal: 14, paddingVertical: 11,
+    backgroundColor: '#FAFAFB',
+    borderRadius: 0,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: c.gray[100],
+  },
+  aiPillTxt: { flex: 1, fontSize: 12.5, color: c.text.muted, fontWeight: '600' },
+  aiPillCta: { paddingHorizontal: 10, paddingVertical: 5, backgroundColor: c.text.primary, borderRadius: 0 },
+  aiPillCtaTxt: { fontSize: 11, fontWeight: '900', color: '#FFFFFF', letterSpacing: 0.3 },
+
+  // Section labels (inside ExpandableSection)
+  sectLbl: { fontSize: 10.5, fontWeight: '900', letterSpacing: 1.2, color: c.text.muted, marginBottom: 10 },
+
+  // Segmented row (period & scope)
+  segRow: { flexDirection: 'row', gap: 6, flexWrap: 'wrap' },
+  seg: { flex: 1, minWidth: 78, paddingVertical: 10, paddingHorizontal: 12, borderRadius: 0, backgroundColor: c.gray[50], alignItems: 'center', justifyContent: 'center' },
+  segOn: { backgroundColor: c.text.primary },
+  segTxt: { fontSize: 12.5, fontWeight: '700', color: c.text.muted },
+  segTxtOn: { color: '#FFFFFF' },
+
+  // Toggle row (rollover)
+  kvRow: { flexDirection: 'row', alignItems: 'center', gap: 12 },
+  kvK: { fontSize: 13.5, fontWeight: '800', color: c.text.primary },
+  kvV: { fontSize: 11.5, color: c.text.muted, fontWeight: '600', marginTop: 2 },
+  toggle: { width: 42, height: 26, borderRadius: 0, backgroundColor: c.gray[200], padding: 3, justifyContent: 'center' },
+  knob: { width: 20, height: 20, borderRadius: 0, backgroundColor: '#FFFFFF', shadowColor: '#000000', shadowOpacity: 0.18, shadowRadius: 2, shadowOffset: { width: 0, height: 1 }, elevation: 2 },
+
+  // Description input
+  descInput: { minHeight: 44, fontSize: 13.5, color: c.text.primary, paddingHorizontal: 12, paddingVertical: 10, backgroundColor: c.gray[50], borderRadius: 0 },
+
+  // Goals chips
+  goalChip: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 12, paddingVertical: 7, borderRadius: 0, backgroundColor: c.gray[50], borderWidth: 1, borderColor: c.gray[100] },
+  goalChipOn: { backgroundColor: c.gray[100], borderColor: c.text.primary },
+  goalTxt: { fontSize: 12, color: c.text.muted, fontWeight: '700' },
+
+  // Sticky CTA
+  ctaBar: {
+    position: 'absolute', left: 0, right: 0, bottom: 0,
+    paddingHorizontal: 20, paddingTop: 12, paddingBottom: 20,
+    backgroundColor: c.bg.elevated,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: c.gray[100],
+  },
+  ctaBtnTouch: {},
+  cta: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 10, paddingVertical: 16, borderRadius: 0 },
+  ctaTxt: { fontSize: 15.5, fontWeight: '900', color: '#FFFFFF', letterSpacing: 0.2 },
+}));
+
 const CATEGORY_META: Record<string, { color: string; emoji: string }> = {
   Food:           { color: COLORS.accent.brand,        emoji: '🍔' },
   Transport:      { color: '#3B82F6',                  emoji: '🚗' },
@@ -551,88 +641,3 @@ export default function BudgetSmartSheet({ editing, currentSpent, onSubmit, onCl
   );
 }
 
-const useStyles = makeStyles((c) => ({
-  kavRoot: { flex: 1 },
-  container: { flex: 1, backgroundColor: c.bg.elevated, paddingHorizontal: 20, paddingTop: 8 },
-
-  // Top bar
-  topBar: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingVertical: 4 },
-  closeBtn: { width: 36, height: 36, borderRadius: 0, alignItems: 'center', justifyContent: 'center' },
-
-  loadingWrap: { paddingVertical: 80, alignItems: 'center' },
-
-  // Hero
-  eyebrow: { marginTop: 8, fontSize: 10.5, fontWeight: '900', letterSpacing: 1.4, color: c.text.muted },
-  hero: { marginTop: 4, fontSize: 26, fontWeight: '900', letterSpacing: -0.6, color: c.text.primary, lineHeight: 32 },
-
-  // Category strip
-  catStrip: { paddingHorizontal: 20, gap: 4 },
-  divider: { height: StyleSheet.hairlineWidth, backgroundColor: c.gray[100], marginHorizontal: -20, marginTop: 4 },
-
-  // Warn (over-limit)
-  warnRow: { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 16, marginBottom: -4 },
-  warnTxt: { fontSize: 12, color: '#7F1D1D', fontWeight: '600' },
-
-  // Amount hero
-  amountWrap: { marginTop: 30, flexDirection: 'row', alignItems: 'baseline', justifyContent: 'center' },
-  rupee: { fontSize: 44, fontWeight: '300', color: c.text.muted, letterSpacing: -1, marginRight: 4 },
-  amountInput: { fontSize: 64, fontWeight: '900', color: c.text.primary, letterSpacing: -2.4, padding: 0, minWidth: 80, textAlign: 'left' },
-  dailyHint: { textAlign: 'center', fontSize: 12, color: c.text.muted, fontWeight: '600', marginTop: 6 },
-  errorTxt: { textAlign: 'center', color: c.state.danger, fontSize: 12, fontWeight: '700', marginTop: 6 },
-
-  // Quick chips
-  quickRow: { flexDirection: 'row', justifyContent: 'center', gap: 8, marginTop: 18, flexWrap: 'wrap' },
-  quickChip: { paddingHorizontal: 14, paddingVertical: 8, borderRadius: 0, backgroundColor: c.bg.elevated, borderWidth: 1, borderColor: c.gray[200] },
-  quickTxt: { fontSize: 13, fontWeight: '700', color: c.text.primary },
-
-  // AI pill
-  aiPill: {
-    marginTop: 18, marginHorizontal: 0,
-    flexDirection: 'row', alignItems: 'center', gap: 8,
-    paddingHorizontal: 14, paddingVertical: 11,
-    backgroundColor: '#FAFAFB',
-    borderRadius: 0,
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: c.gray[100],
-  },
-  aiPillTxt: { flex: 1, fontSize: 12.5, color: c.text.muted, fontWeight: '600' },
-  aiPillCta: { paddingHorizontal: 10, paddingVertical: 5, backgroundColor: c.text.primary, borderRadius: 0 },
-  aiPillCtaTxt: { fontSize: 11, fontWeight: '900', color: '#FFFFFF', letterSpacing: 0.3 },
-
-  // Section labels (inside ExpandableSection)
-  sectLbl: { fontSize: 10.5, fontWeight: '900', letterSpacing: 1.2, color: c.text.muted, marginBottom: 10 },
-
-  // Segmented row (period & scope)
-  segRow: { flexDirection: 'row', gap: 6, flexWrap: 'wrap' },
-  seg: { flex: 1, minWidth: 78, paddingVertical: 10, paddingHorizontal: 12, borderRadius: 0, backgroundColor: c.gray[50], alignItems: 'center', justifyContent: 'center' },
-  segOn: { backgroundColor: c.text.primary },
-  segTxt: { fontSize: 12.5, fontWeight: '700', color: c.text.muted },
-  segTxtOn: { color: '#FFFFFF' },
-
-  // Toggle row (rollover)
-  kvRow: { flexDirection: 'row', alignItems: 'center', gap: 12 },
-  kvK: { fontSize: 13.5, fontWeight: '800', color: c.text.primary },
-  kvV: { fontSize: 11.5, color: c.text.muted, fontWeight: '600', marginTop: 2 },
-  toggle: { width: 42, height: 26, borderRadius: 0, backgroundColor: c.gray[200], padding: 3, justifyContent: 'center' },
-  knob: { width: 20, height: 20, borderRadius: 0, backgroundColor: '#FFFFFF', shadowColor: '#000000', shadowOpacity: 0.18, shadowRadius: 2, shadowOffset: { width: 0, height: 1 }, elevation: 2 },
-
-  // Description input
-  descInput: { minHeight: 44, fontSize: 13.5, color: c.text.primary, paddingHorizontal: 12, paddingVertical: 10, backgroundColor: c.gray[50], borderRadius: 0 },
-
-  // Goals chips
-  goalChip: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 12, paddingVertical: 7, borderRadius: 0, backgroundColor: c.gray[50], borderWidth: 1, borderColor: c.gray[100] },
-  goalChipOn: { backgroundColor: c.gray[100], borderColor: c.text.primary },
-  goalTxt: { fontSize: 12, color: c.text.muted, fontWeight: '700' },
-
-  // Sticky CTA
-  ctaBar: {
-    position: 'absolute', left: 0, right: 0, bottom: 0,
-    paddingHorizontal: 20, paddingTop: 12, paddingBottom: 20,
-    backgroundColor: c.bg.elevated,
-    borderTopWidth: StyleSheet.hairlineWidth,
-    borderTopColor: c.gray[100],
-  },
-  ctaBtnTouch: {},
-  cta: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 10, paddingVertical: 16, borderRadius: 0 },
-  ctaTxt: { fontSize: 15.5, fontWeight: '900', color: '#FFFFFF', letterSpacing: 0.2 },
-}));

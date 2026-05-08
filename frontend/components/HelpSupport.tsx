@@ -10,6 +10,43 @@ import { router } from 'expo-router';
 import { COLORS, SPACING } from '../utils/theme';
 import { makeStyles } from '../utils/makeStyles';
 
+
+
+// R113 FIX — useStyles hoisted above first render-time call
+// to avoid Metro/SDK52 TDZ error (`Cannot access X before init.`).
+const useStyles = makeStyles((c) => ({
+  container: { flex: 1, backgroundColor: c.bg.primary },
+  header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: SPACING.lg, paddingVertical: SPACING.md, borderBottomWidth: 1, borderBottomColor: c.border.subtle },
+  title: { fontSize: 20, fontWeight: '900', color: c.text.primary, letterSpacing: -0.3 },
+  scroll: { padding: SPACING.lg, gap: 14 },
+
+  searchWrap: { flexDirection: 'row', alignItems: 'center', gap: 9, backgroundColor: c.bg.secondary, borderRadius: 0, paddingHorizontal: 14, borderWidth: 1, borderColor: c.border.subtle },
+  searchInput: { flex: 1, paddingVertical: 12, fontSize: 14, color: c.text.primary },
+
+  aiCard: { flexDirection: 'row', alignItems: 'center', gap: 12, padding: 14, borderRadius: 0, backgroundColor: '#FFF7ED', borderWidth: 1, borderColor: '#FED7AA' },
+  aiIconBubble: { width: 40, height: 40, borderRadius: 0, backgroundColor: COLORS.accent.brandDark, alignItems: 'center', justifyContent: 'center' },
+  aiTitle: { fontSize: 14, fontWeight: '900', color: '#7A2E0A', letterSpacing: -0.2 },
+  aiSub: { fontSize: 11.5, color: '#92400E', marginTop: 2, fontWeight: '600' },
+
+  sectionLbl: { fontSize: 10.5, fontWeight: '900', color: c.text.muted, letterSpacing: 1, marginTop: 6, marginBottom: 2 },
+
+  faqCard: { backgroundColor: c.bg.secondary, borderRadius: 0, padding: 14, borderWidth: 1, borderColor: c.border.subtle },
+  faqCardOpen: { borderColor: c.accent.primary + '60' },
+  faqRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 10 },
+  faqQ: { flex: 1, fontSize: 13.5, fontWeight: '800', color: c.text.primary },
+  faqA: { fontSize: 12.5, color: c.text.secondary, marginTop: 8, lineHeight: 18, fontWeight: '500' },
+
+  emptyCard: { alignItems: 'center', padding: 24, gap: 8, backgroundColor: c.bg.secondary, borderRadius: 0, borderWidth: 1, borderColor: c.border.subtle },
+  emptyT: { fontSize: 14, fontWeight: '800', color: c.text.primary },
+  emptyS: { fontSize: 12, color: c.text.secondary, textAlign: 'center', fontWeight: '500' },
+  emptyCTA: { marginTop: 6, paddingVertical: 10, paddingHorizontal: 20, borderRadius: 0, backgroundColor: c.accent.primary },
+  emptyCTATxt: { fontSize: 13, fontWeight: '800', color: '#fff' },
+
+  contactRow: { flexDirection: 'row', gap: 8, flexWrap: 'wrap' },
+  contactChip: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 5, paddingVertical: 11, paddingHorizontal: 10, borderRadius: 0, backgroundColor: c.bg.secondary, borderWidth: 1, borderColor: c.border.subtle, minWidth: 100 },
+  contactTxt: { fontSize: 12, fontWeight: '800', color: c.text.primary },
+}));
+
 const FAQS = [
   { q: 'How does MintU track my expenses?', a: 'Paste bank SMS in the Scan SMS card — our AI extracts amount, merchant, and category automatically. You can also log manually or connect Gmail for auto-import.', tags: ['track', 'expense', 'sms', 'scan'] },
   { q: 'Is my financial data safe?', a: 'Yes. AES-256 at rest, TLS 1.3 in transit, RBI-aligned data practices, zero third-party sharing.', tags: ['safe', 'secure', 'privacy', 'encryption', 'rbi'] },
@@ -124,35 +161,3 @@ export default function HelpSupport({ onClose }: { onClose: () => void }) {
   );
 }
 
-const useStyles = makeStyles((c) => ({
-  container: { flex: 1, backgroundColor: c.bg.primary },
-  header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: SPACING.lg, paddingVertical: SPACING.md, borderBottomWidth: 1, borderBottomColor: c.border.subtle },
-  title: { fontSize: 20, fontWeight: '900', color: c.text.primary, letterSpacing: -0.3 },
-  scroll: { padding: SPACING.lg, gap: 14 },
-
-  searchWrap: { flexDirection: 'row', alignItems: 'center', gap: 9, backgroundColor: c.bg.secondary, borderRadius: 0, paddingHorizontal: 14, borderWidth: 1, borderColor: c.border.subtle },
-  searchInput: { flex: 1, paddingVertical: 12, fontSize: 14, color: c.text.primary },
-
-  aiCard: { flexDirection: 'row', alignItems: 'center', gap: 12, padding: 14, borderRadius: 0, backgroundColor: '#FFF7ED', borderWidth: 1, borderColor: '#FED7AA' },
-  aiIconBubble: { width: 40, height: 40, borderRadius: 0, backgroundColor: COLORS.accent.brandDark, alignItems: 'center', justifyContent: 'center' },
-  aiTitle: { fontSize: 14, fontWeight: '900', color: '#7A2E0A', letterSpacing: -0.2 },
-  aiSub: { fontSize: 11.5, color: '#92400E', marginTop: 2, fontWeight: '600' },
-
-  sectionLbl: { fontSize: 10.5, fontWeight: '900', color: c.text.muted, letterSpacing: 1, marginTop: 6, marginBottom: 2 },
-
-  faqCard: { backgroundColor: c.bg.secondary, borderRadius: 0, padding: 14, borderWidth: 1, borderColor: c.border.subtle },
-  faqCardOpen: { borderColor: c.accent.primary + '60' },
-  faqRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 10 },
-  faqQ: { flex: 1, fontSize: 13.5, fontWeight: '800', color: c.text.primary },
-  faqA: { fontSize: 12.5, color: c.text.secondary, marginTop: 8, lineHeight: 18, fontWeight: '500' },
-
-  emptyCard: { alignItems: 'center', padding: 24, gap: 8, backgroundColor: c.bg.secondary, borderRadius: 0, borderWidth: 1, borderColor: c.border.subtle },
-  emptyT: { fontSize: 14, fontWeight: '800', color: c.text.primary },
-  emptyS: { fontSize: 12, color: c.text.secondary, textAlign: 'center', fontWeight: '500' },
-  emptyCTA: { marginTop: 6, paddingVertical: 10, paddingHorizontal: 20, borderRadius: 0, backgroundColor: c.accent.primary },
-  emptyCTATxt: { fontSize: 13, fontWeight: '800', color: '#fff' },
-
-  contactRow: { flexDirection: 'row', gap: 8, flexWrap: 'wrap' },
-  contactChip: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 5, paddingVertical: 11, paddingHorizontal: 10, borderRadius: 0, backgroundColor: c.bg.secondary, borderWidth: 1, borderColor: c.border.subtle, minWidth: 100 },
-  contactTxt: { fontSize: 12, fontWeight: '800', color: c.text.primary },
-}));

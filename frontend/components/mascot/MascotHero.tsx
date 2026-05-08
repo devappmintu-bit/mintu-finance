@@ -44,7 +44,7 @@ const MOOD_COLORS: Record<string, string> = {
   proud: '#16A34A',
   celebrating: '#F59E0B',
   encouraging: '#10B981',
-  focused: '#FF6B1A',
+  focused: '#FF8C66',
   idle: '#0B0B0B',
 };
 

@@ -161,7 +161,7 @@ export default function PaymentMethodsV2() {
                   <View style={{
                     width: 36, height: 36,
                     borderWidth: 2, borderColor: '#0A0A0A',
-                    backgroundColor: '#E84A0C',
+                    backgroundColor: '#F56E1E',
                     alignItems: 'center', justifyContent: 'center',
                   }}>
                     <Ionicons name="flash" size={18} color="#fff" />

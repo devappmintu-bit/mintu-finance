@@ -5,6 +5,19 @@ import { C } from './theme';
 import { makeStyles } from '../../utils/makeStyles';
 import { useAppColors } from '../../utils/theme';
 
+
+
+// R113 FIX — useStyles hoisted above first render-time call
+// to avoid Metro/SDK52 TDZ error (`Cannot access X before init.`).
+const useStyles = makeStyles((c) => ({
+  banner: { backgroundColor: '#FEF3C7', borderRadius: 0, padding: 14, marginBottom: 12, borderWidth: 1, borderColor: '#FDE68A' },
+  head: { flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 6 },
+  title: { fontSize: 12, fontWeight: '800', letterSpacing: 0.5, color: '#92400E' },
+  row: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 6 },
+  text: { fontSize: 13, color: '#78350F', lineHeight: 18 },
+  note: { fontSize: 12, color: '#92400E', fontStyle: 'italic', marginTop: 2 },
+}));
+
 type Reminder = { id: string; sender_name: string; amount: number; note?: string };
 
 type Props = { received: Reminder[]; onDismiss: (id: string) => void };
@@ -40,11 +53,3 @@ export default function RemindersBanner({ received, onDismiss }: Props) {
   );
 }
 
-const useStyles = makeStyles((c) => ({
-  banner: { backgroundColor: '#FEF3C7', borderRadius: 0, padding: 14, marginBottom: 12, borderWidth: 1, borderColor: '#FDE68A' },
-  head: { flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 6 },
-  title: { fontSize: 12, fontWeight: '800', letterSpacing: 0.5, color: '#92400E' },
-  row: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 6 },
-  text: { fontSize: 13, color: '#78350F', lineHeight: 18 },
-  note: { fontSize: 12, color: '#92400E', fontStyle: 'italic', marginTop: 2 },
-}));

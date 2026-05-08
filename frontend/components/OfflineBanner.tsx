@@ -23,6 +23,24 @@ import { useIsOnline } from '../hooks/useIsOnline';
 import { makeStyles } from '../utils/makeStyles';
 import { useAppColors } from '../utils/theme';
 
+
+
+// R113 FIX — useStyles hoisted above first render-time call
+// to avoid Metro/SDK52 TDZ error (`Cannot access X before init.`).
+const useStyles = makeStyles((c) => ({
+  banner: {
+    position: 'absolute', top: 0, left: 0, right: 0,
+    zIndex: 999, elevation: 999,
+    ...Platform.select({
+      ios: { shadowColor: c.shadow.medium, shadowOffset: { width: 0, height: 2 }, shadowOpacity: 1, shadowRadius: 6 },
+      android: {},
+    }),
+  },
+  inner: { height: HEIGHT, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 16 },
+  // White text on the colored bg works on both light and dark themes.
+  txt: { color: '#FFFFFF', fontSize: 12, fontWeight: '800', letterSpacing: 0.3 },
+}));
+
 const HEIGHT = 32;
 const ANIM_MS = 220;
 const BACK_ONLINE_MS = 1400;
@@ -96,16 +114,3 @@ export default function OfflineBanner() {
   );
 }
 
-const useStyles = makeStyles((c) => ({
-  banner: {
-    position: 'absolute', top: 0, left: 0, right: 0,
-    zIndex: 999, elevation: 999,
-    ...Platform.select({
-      ios: { shadowColor: c.shadow.medium, shadowOffset: { width: 0, height: 2 }, shadowOpacity: 1, shadowRadius: 6 },
-      android: {},
-    }),
-  },
-  inner: { height: HEIGHT, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 16 },
-  // White text on the colored bg works on both light and dark themes.
-  txt: { color: '#FFFFFF', fontSize: 12, fontWeight: '800', letterSpacing: 0.3 },
-}));

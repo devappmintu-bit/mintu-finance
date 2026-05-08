@@ -132,7 +132,7 @@ const styles = StyleSheet.create({
     lineHeight: 20,
   },
   shareBtn: {
-    backgroundColor: '#FF6B1A',
+    backgroundColor: '#FF8C66',
     borderWidth: 2,
     borderColor: '#0B0B0B',
     paddingHorizontal: 18,

@@ -127,6 +127,13 @@ export default function SmartEntryHost() {
                   period: payload.period || 'monthly',
                 } as any);
                 Toast.show({ type: 'success', text1: 'Budget saved' });
+                // R103E — Brutal celebration banner. Audit ask: "setting a
+                // cap should never feel empty". Mascot orange tone keeps
+                // the moment on-brand.
+                try {
+                  const { showBrutalToast } = require('../../store/brutalToastStore');
+                  showBrutalToast(`🎯 ${payload.category} cap set — Mintu's watching`, 'accent');
+                } catch { /* non-fatal */ }
                 await bumpBrain();
                 budgetSheetRef.current?.dismiss?.();
                 close();
@@ -162,6 +169,12 @@ export default function SmartEntryHost() {
                 color: payload.color,
               });
               Toast.show({ type: 'success', text1: 'Goal created' });
+              // R103E — Brutal celebration. Premium-purple tone for goals
+              // because they're aspirational / future-self moments.
+              try {
+                const { showBrutalToast } = require('../../store/brutalToastStore');
+                showBrutalToast(`🏆 ${payload.name} — let's make it happen`, 'premium');
+              } catch { /* non-fatal */ }
               await bumpBrain();
               close();
             } catch (e: any) {

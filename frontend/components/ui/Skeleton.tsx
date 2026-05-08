@@ -16,6 +16,14 @@ import { Animated, StyleSheet, View, ViewStyle, StyleProp, Platform, Easing } fr
 import { COLORS } from '../../utils/theme';
 import { makeStyles } from '../../utils/makeStyles';
 
+
+
+// R113 FIX — useStyles hoisted above first render-time call
+// to avoid Metro/SDK52 TDZ error (`Cannot access X before init.`).
+const useStyles = makeStyles((c) => ({
+  base: { backgroundColor: c.bg.elevated, overflow: 'hidden', ...(Platform.OS === 'web' ? { } : {}) },
+}));
+
 const ShimmerBase = ({ style }: { style?: StyleProp<ViewStyle> }) => {
   const st = useStyles();
   const anim = useRef(new Animated.Value(0)).current;
@@ -53,6 +61,3 @@ function Group({ children, style }: { children: React.ReactNode; style?: StylePr
 const Skeleton = { Box, Line, Circle, Group };
 export default Skeleton;
 
-const useStyles = makeStyles((c) => ({
-  base: { backgroundColor: c.bg.elevated, overflow: 'hidden', ...(Platform.OS === 'web' ? { } : {}) },
-}));

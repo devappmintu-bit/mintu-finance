@@ -59,6 +59,19 @@ const round2 = (n: number) => Math.round(n * 100) / 100;
 const fmt    = (n: number) => `₹${Math.round(n).toLocaleString('en-IN')}`;
 const fmt2   = (n: number) => `₹${(Math.round(n * 100) / 100).toLocaleString('en-IN', { minimumFractionDigits: 0, maximumFractionDigits: 2 })}`;
 
+// R101B — Quick-pick categories. Surfaced as tappable chips below the
+// description input so the 80% case is one-tap. Ordered by IRL
+// frequency in shared groups: food beats rent because rent is monthly,
+// food is daily/weekly. Emoji keeps the row legible at a glance.
+const QUICK_PICKS: { label: string; emoji: string }[] = [
+  { label: 'Dinner',    emoji: '🍱' },
+  { label: 'Cab',       emoji: '🚕' },
+  { label: 'Groceries', emoji: '🛒' },
+  { label: 'Drinks',    emoji: '🍻' },
+  { label: 'Movie',     emoji: '🎬' },
+  { label: 'Rent',      emoji: '🏠' },
+];
+
 export default function AddExpense() {
   const { id: groupId } = useLocalSearchParams<{ id: string }>();
   const { user } = useAuthStore();
@@ -315,12 +328,37 @@ export default function AddExpense() {
             <TextInput
               value={description}
               onChangeText={setDescription}
-              placeholder="Dinner · Petrol · Rent · …"
+              placeholder="Dinner \u00b7 Petrol \u00b7 Rent \u00b7 \u2026"
               placeholderTextColor={MUTED}
               maxLength={80}
               style={st.input}
               autoCapitalize="sentences"
             />
+            {/* R101B \u2014 Quick-pick description chips. The single most common
+                friction in Splitwise is having to type "Dinner" / "Cab" /
+                "Movie" every time. We surface 6 high-frequency presets;
+                tapping one fills the description AND emits a haptic so it
+                feels tactile. The user can still freeform type. The set
+                is ordered by IRL frequency in shared groups (food beats
+                rent because rent is monthly, food is daily). */}
+            <View style={st.quickPicksRow}>
+              {QUICK_PICKS.map((qp) => {
+                const active = description.trim().toLowerCase() === qp.label.toLowerCase();
+                return (
+                  <Pressable
+                    key={qp.label}
+                    onPress={() => setDescription(qp.label)}
+                    style={[st.quickPick, active && st.quickPickOn]}
+                    accessibilityLabel={`Set description to ${qp.label}`}
+                  >
+                    <Text style={[st.quickPickEmoji]}>{qp.emoji}</Text>
+                    <Text style={[st.quickPickText, active && st.quickPickTextOn]}>
+                      {qp.label}
+                    </Text>
+                  </Pressable>
+                );
+              })}
+            </View>
           </View>
 
           {/* PAID BY */}
@@ -574,6 +612,37 @@ const st = StyleSheet.create({
     color: INK,
     fontWeight: '700',
   },
+  // R101B — quick-pick description chips. 6 high-frequency presets
+  // wrap below the input. Brutalist: thick border, hard ink shadow on
+  // active state, mono label.
+  quickPicksRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+    marginTop: 10,
+  },
+  quickPick: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 10,
+    paddingVertical: 7,
+    borderWidth: 2,
+    borderColor: INK,
+    backgroundColor: PAPER,
+    gap: 6,
+  },
+  quickPickOn: {
+    backgroundColor: ACCENT,
+  },
+  quickPickEmoji: { fontSize: 14 },
+  quickPickText: {
+    fontSize: 11,
+    fontWeight: '900',
+    color: INK,
+    letterSpacing: 0.6,
+    textTransform: 'uppercase',
+  },
+  quickPickTextOn: { color: '#fff' },
   chipsRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 6 },
   chip: {
     paddingHorizontal: 14,

@@ -33,7 +33,7 @@ export default function ThemeTransitionOverlay() {
     ]).start();
   }, [resolved, opacity]);
 
-  const bgColor = resolved === 'light' ? '#FAFAF9' : '#0B0B12';
+  const bgColor = resolved === 'light' ? '#FAF6EE' : '#0B0B12';
 
   return (
     <Animated.View

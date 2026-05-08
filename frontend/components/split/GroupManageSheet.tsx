@@ -14,6 +14,50 @@ import { makeStyles } from '../../utils/makeStyles';
 import { C, MEMBER_COLORS } from './theme';
 import { showError } from '../../utils/toast';
 
+
+
+// R113 FIX — useStyles hoisted above first render-time call
+// to avoid Metro/SDK52 TDZ error (`Cannot access X before init.`).
+const useStyles = makeStyles((c) => ({
+  mBg: { flex: 1, justifyContent: 'flex-end', backgroundColor: 'rgba(15,23,42,0.55)' },
+  sheet: { backgroundColor: C.sheetBg, borderTopLeftRadius: 0, borderTopRightRadius: 0, padding: 20, maxHeight: '92%' },
+  handle: { width: 40, height: 4, borderRadius: 2, backgroundColor: C.text4, alignSelf: 'center', marginBottom: 12 },
+  topBar: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 },
+  topTitle: { fontSize: 18, fontWeight: '800', color: C.text1 },
+
+  heroCard: { alignItems: 'center', marginBottom: 16 },
+  avStack: { flexDirection: 'row' },
+  av: { width: 50, height: 50, borderRadius: 0, justifyContent: 'center', alignItems: 'center', borderWidth: 3, borderColor: C.sheetBg },
+  avInit: { fontSize: 17, fontWeight: '800' },
+  groupName: { fontSize: 22, fontWeight: '800', color: C.text1, marginTop: 12, textAlign: 'center' },
+  groupMeta: { fontSize: 12, color: C.text3, marginTop: 4 },
+
+  statsRow: { flexDirection: 'row', gap: 8, marginBottom: 20 },
+  statCard: { flex: 1, backgroundColor: c.bg.primary, borderRadius: 0, padding: 12, borderWidth: 1, borderColor: C.border, alignItems: 'center' },
+  statVal: { fontSize: 16, fontWeight: '800', color: C.text1, maxWidth: '100%' },
+  statLbl: { fontSize: 10, color: C.text3, marginTop: 4, letterSpacing: 0.3 },
+
+  sectionTitle: { fontSize: 12, fontWeight: '700', color: C.text3, marginBottom: 8, marginTop: 14, letterSpacing: 0.5 },
+  actionGroup: { backgroundColor: C.card, borderRadius: 0, borderWidth: 1, borderColor: C.border, overflow: 'hidden' },
+
+  actionRow: { flexDirection: 'row', alignItems: 'center', gap: 14, paddingVertical: 12, paddingHorizontal: 14, borderBottomWidth: 1, borderBottomColor: C.border },
+  actIcon: { width: 34, height: 34, borderRadius: 0, alignItems: 'center', justifyContent: 'center' },
+  actLabel: { flex: 1, fontSize: 14, fontWeight: '600' },
+
+  inlineRow: { flexDirection: 'row', gap: 8, padding: 10, borderBottomWidth: 1, borderBottomColor: C.border },
+  input: { flex: 1, backgroundColor: c.bg.primary, borderRadius: 0, paddingHorizontal: 12, paddingVertical: 10, fontSize: 14, color: C.text1, borderWidth: 1, borderColor: C.border },
+  iconBtn: { width: 40, height: 40, borderRadius: 0, justifyContent: 'center', alignItems: 'center' },
+
+  memRow: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 10, paddingHorizontal: 14 },
+  memRowBorder: { borderBottomWidth: 1, borderBottomColor: C.border },
+  memAv: { width: 36, height: 36, borderRadius: 0, alignItems: 'center', justifyContent: 'center' },
+  memInit: { fontSize: 14, fontWeight: '700' },
+  memName: { fontSize: 14, fontWeight: '600', color: C.text1 },
+  youTag: { fontSize: 10, color: C.accent, fontWeight: '700', letterSpacing: 0.5, marginTop: 2 },
+  adminBadge: { backgroundColor: C.accent + '20', paddingHorizontal: 8, paddingVertical: 3, borderRadius: 0 },
+  adminTxt: { fontSize: 10, fontWeight: '700', color: C.accent, letterSpacing: 0.3 },
+}));
+
 // Cross-platform confirmation — native Alert is unreliable on react-native-web.
 function confirmThen(title: string, msg: string, onYes: () => void, yesLabel = 'Confirm', destructive = false) {
   if (Platform.OS === 'web') {
@@ -216,42 +260,3 @@ function ActionRow({ icon, label, onPress, danger }: { icon: string; label: stri
   );
 }
 
-const useStyles = makeStyles((c) => ({
-  mBg: { flex: 1, justifyContent: 'flex-end', backgroundColor: 'rgba(15,23,42,0.55)' },
-  sheet: { backgroundColor: C.sheetBg, borderTopLeftRadius: 0, borderTopRightRadius: 0, padding: 20, maxHeight: '92%' },
-  handle: { width: 40, height: 4, borderRadius: 2, backgroundColor: C.text4, alignSelf: 'center', marginBottom: 12 },
-  topBar: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 },
-  topTitle: { fontSize: 18, fontWeight: '800', color: C.text1 },
-
-  heroCard: { alignItems: 'center', marginBottom: 16 },
-  avStack: { flexDirection: 'row' },
-  av: { width: 50, height: 50, borderRadius: 0, justifyContent: 'center', alignItems: 'center', borderWidth: 3, borderColor: C.sheetBg },
-  avInit: { fontSize: 17, fontWeight: '800' },
-  groupName: { fontSize: 22, fontWeight: '800', color: C.text1, marginTop: 12, textAlign: 'center' },
-  groupMeta: { fontSize: 12, color: C.text3, marginTop: 4 },
-
-  statsRow: { flexDirection: 'row', gap: 8, marginBottom: 20 },
-  statCard: { flex: 1, backgroundColor: c.bg.primary, borderRadius: 0, padding: 12, borderWidth: 1, borderColor: C.border, alignItems: 'center' },
-  statVal: { fontSize: 16, fontWeight: '800', color: C.text1, maxWidth: '100%' },
-  statLbl: { fontSize: 10, color: C.text3, marginTop: 4, letterSpacing: 0.3 },
-
-  sectionTitle: { fontSize: 12, fontWeight: '700', color: C.text3, marginBottom: 8, marginTop: 14, letterSpacing: 0.5 },
-  actionGroup: { backgroundColor: C.card, borderRadius: 0, borderWidth: 1, borderColor: C.border, overflow: 'hidden' },
-
-  actionRow: { flexDirection: 'row', alignItems: 'center', gap: 14, paddingVertical: 12, paddingHorizontal: 14, borderBottomWidth: 1, borderBottomColor: C.border },
-  actIcon: { width: 34, height: 34, borderRadius: 0, alignItems: 'center', justifyContent: 'center' },
-  actLabel: { flex: 1, fontSize: 14, fontWeight: '600' },
-
-  inlineRow: { flexDirection: 'row', gap: 8, padding: 10, borderBottomWidth: 1, borderBottomColor: C.border },
-  input: { flex: 1, backgroundColor: c.bg.primary, borderRadius: 0, paddingHorizontal: 12, paddingVertical: 10, fontSize: 14, color: C.text1, borderWidth: 1, borderColor: C.border },
-  iconBtn: { width: 40, height: 40, borderRadius: 0, justifyContent: 'center', alignItems: 'center' },
-
-  memRow: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 10, paddingHorizontal: 14 },
-  memRowBorder: { borderBottomWidth: 1, borderBottomColor: C.border },
-  memAv: { width: 36, height: 36, borderRadius: 0, alignItems: 'center', justifyContent: 'center' },
-  memInit: { fontSize: 14, fontWeight: '700' },
-  memName: { fontSize: 14, fontWeight: '600', color: C.text1 },
-  youTag: { fontSize: 10, color: C.accent, fontWeight: '700', letterSpacing: 0.5, marginTop: 2 },
-  adminBadge: { backgroundColor: C.accent + '20', paddingHorizontal: 8, paddingVertical: 3, borderRadius: 0 },
-  adminTxt: { fontSize: 10, fontWeight: '700', color: C.accent, letterSpacing: 0.3 },
-}));

@@ -55,6 +55,13 @@ export function useMascotCelebration(): CelebrationState & { dismiss: () => void
   const streakDays = useFinContext((s) => s.streak?.days ?? 0);
   const topGoal = useFinContext((s) => s.goals?.topGoal);
   const txnCount = useFinContext((s) => s.transactions?.count ?? 0);
+  // R101A \u2014 month-over-month delta % from the backend brain.
+  // Negative number = spending DOWN vs prior month, the win we want
+  // to celebrate. Null/undefined when not available.
+  const momPct = useFinContext((s: any) => {
+    const v = s?.insights?.mom?.delta_pct;
+    return typeof v === 'number' ? v : null;
+  });
   const loaded = useFinContext((s) => s.meta?.loaded);
 
   const [state, setState] = useState<CelebrationState>({ visible: false, title: '' });
@@ -108,8 +115,32 @@ export function useMascotCelebration(): CelebrationState & { dismiss: () => void
         }
       }
       lastTxnCount.current = txnCount;
+
+      // 4) Major month-over-month spending drop. Only fires after the
+      //    user has earned the right to be told something positive
+      //    (Stage 1+ \u2014 \u22655 txns) AND the drop is large enough to
+      //    matter (\u226530%). Honest data: pulls directly from the
+      //    backend's MoM analysis (insights.mom.delta_pct), never
+      //    fabricates. Dedupe key includes month so we re-fire on a
+      //    new month if the win repeats.
+      if (txnCount >= 5 && momPct !== null && Number.isFinite(momPct) && momPct <= -30) {
+        const month = new Date().toISOString().slice(0, 7); // YYYY-MM
+        const sig = `mom-drop-${month}`;
+        if (!(await alreadyFired(sig))) {
+          await markFired(sig);
+          const dropPct = Math.abs(Math.round(momPct));
+          setState({
+            visible: true,
+            title: `Spending down ${dropPct}%`,
+            subtitle:
+              dropPct >= 60
+                ? "That's huge. Whatever you changed this month, it worked."
+                : 'Quietly proud \u2014 your money habits are tightening up.',
+          });
+        }
+      }
     })();
-  }, [streakDays, topGoal?.name, topGoal?.saved, topGoal?.target, txnCount, loaded]);
+  }, [streakDays, topGoal?.name, topGoal?.saved, topGoal?.target, txnCount, momPct, loaded]);
 
   return {
     ...state,

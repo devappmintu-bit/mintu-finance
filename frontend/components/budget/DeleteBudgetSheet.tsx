@@ -8,6 +8,26 @@ import { Ionicons } from '@expo/vector-icons';
 import { CATEGORIES, useAppColors, GLASS } from '../../utils/theme';
 import { makeStyles } from '../../utils/makeStyles';
 
+
+
+// R113 FIX — useStyles hoisted above first render-time call
+// to avoid Metro/SDK52 TDZ error (`Cannot access X before init.`).
+const useStyles = makeStyles((c) => ({
+  backdrop: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(15,23,42,0.55)' },
+  wrap: { flex: 1, justifyContent: 'flex-end' },
+  sheet: { backgroundColor: GLASS.solidBg, borderTopLeftRadius: 0, borderTopRightRadius: 0, borderTopWidth: StyleSheet.hairlineWidth, borderColor: GLASS.borderLight, paddingHorizontal: 22, paddingTop: 10, paddingBottom: 28, alignItems: 'center' },
+  handle: { width: 44, height: 4, borderRadius: 2, backgroundColor: c.gray[200], marginBottom: 14 },
+  icon: { width: 64, height: 64, borderRadius: 0, alignItems: 'center', justifyContent: 'center', marginBottom: 14 },
+  title: { fontSize: 19, fontWeight: '800', color: c.text.primary, marginBottom: 8 },
+  desc: { fontSize: 13.5, color: c.text.muted, textAlign: 'center', lineHeight: 19, paddingHorizontal: 8, marginBottom: 20 },
+  row: { flexDirection: 'row', gap: 10, alignSelf: 'stretch' },
+  btn: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, paddingVertical: 14, borderRadius: 0 },
+  btnGhost: { backgroundColor: c.gray[100] },
+  btnGhostT: { fontSize: 14, fontWeight: '700', color: c.text.secondary },
+  btnDanger: { backgroundColor: c.state.danger },
+  btnDangerT: { fontSize: 14, fontWeight: '800', color: c.bg.elevated },
+}));
+
 type Props = {
   visible: boolean;
   category?: string;
@@ -51,18 +71,3 @@ export default function DeleteBudgetSheet({ visible, category, amount, onCancel,
   );
 }
 
-const useStyles = makeStyles((c) => ({
-  backdrop: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(15,23,42,0.55)' },
-  wrap: { flex: 1, justifyContent: 'flex-end' },
-  sheet: { backgroundColor: GLASS.solidBg, borderTopLeftRadius: 0, borderTopRightRadius: 0, borderTopWidth: StyleSheet.hairlineWidth, borderColor: GLASS.borderLight, paddingHorizontal: 22, paddingTop: 10, paddingBottom: 28, alignItems: 'center' },
-  handle: { width: 44, height: 4, borderRadius: 2, backgroundColor: c.gray[200], marginBottom: 14 },
-  icon: { width: 64, height: 64, borderRadius: 0, alignItems: 'center', justifyContent: 'center', marginBottom: 14 },
-  title: { fontSize: 19, fontWeight: '800', color: c.text.primary, marginBottom: 8 },
-  desc: { fontSize: 13.5, color: c.text.muted, textAlign: 'center', lineHeight: 19, paddingHorizontal: 8, marginBottom: 20 },
-  row: { flexDirection: 'row', gap: 10, alignSelf: 'stretch' },
-  btn: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, paddingVertical: 14, borderRadius: 0 },
-  btnGhost: { backgroundColor: c.gray[100] },
-  btnGhostT: { fontSize: 14, fontWeight: '700', color: c.text.secondary },
-  btnDanger: { backgroundColor: c.state.danger },
-  btnDangerT: { fontSize: 14, fontWeight: '800', color: c.bg.elevated },
-}));

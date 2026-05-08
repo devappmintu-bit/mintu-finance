@@ -15,6 +15,64 @@ import SwipeableRow from '../SwipeableRow';
 import { useLangStore } from '../../store/langStore';
 import { t } from '../../utils/i18n';
 
+
+
+// R113 FIX — useStyles hoisted above first render-time call
+// to avoid Metro/SDK52 TDZ error (`Cannot access X before init.`).
+const useStyles = makeStyles((c) => ({
+  // Hero
+  hero: { borderRadius: 0, padding: 18, overflow: 'hidden' },
+  heroHead: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  heroLbl: { color: 'rgba(255,255,255,0.9)', fontSize: 11, fontWeight: '800', textTransform: 'uppercase', letterSpacing: 0.7 },
+  heroAmt: { color: c.bg.elevated, fontSize: 34, fontWeight: '800', marginTop: 4, letterSpacing: -0.5 },
+  heroSplits: { flexDirection: 'row', alignItems: 'center', marginTop: 12, paddingTop: 12, borderTopWidth: 1, borderTopColor: 'rgba(255,255,255,0.25)' },
+  heroSplit: { flex: 1, alignItems: 'flex-start' },
+  heroDot: { width: 8, height: 8, borderRadius: 4, marginBottom: 4 },
+  heroSplitLbl: { color: 'rgba(255,255,255,0.85)', fontSize: 10, fontWeight: '700', textTransform: 'uppercase', letterSpacing: 0.5 },
+  heroSplitVal: { color: c.bg.elevated, fontSize: 18, fontWeight: '800', marginTop: 2 },
+  heroSplitDiv: { width: 1, height: 38, backgroundColor: 'rgba(255,255,255,0.25)' },
+
+  // Quick actions
+  quickRow: { flexDirection: 'row', gap: 10, marginTop: 14 },
+  quickBtn: { flex: 1, alignItems: 'center', gap: 6, backgroundColor: C.card, padding: 12, borderRadius: 0, borderWidth: 1, borderColor: C.cardBorder },
+  quickIcon: { width: 38, height: 38, borderRadius: 0, alignItems: 'center', justifyContent: 'center' },
+  quickIconSaff: { width: 38, height: 38, borderRadius: 0, alignItems: 'center', justifyContent: 'center' },
+  quickTxt: { fontSize: 11, fontWeight: '700', color: C.text1 },
+
+  // Section
+  sectHead: { fontSize: 11, fontWeight: '800', color: C.text3, textTransform: 'uppercase', letterSpacing: 0.6, marginBottom: 10, marginLeft: 4 },
+
+  // Debt tile
+  debtCard: { flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: C.card, borderRadius: 0, padding: 12, marginBottom: 8, borderWidth: 1, borderColor: C.cardBorder },
+  avatarLarge: { width: 42, height: 42, borderRadius: 0, alignItems: 'center', justifyContent: 'center', borderWidth: 1.5 },
+  avatarTxt: { fontSize: 16, fontWeight: '800' },
+  debtTitle: { fontSize: 14, fontWeight: '700', color: C.text1 },
+  debtSub: { fontSize: 18, fontWeight: '800', color: C.accent, marginTop: 2 },
+  payBtn: { borderRadius: 999, overflow: 'hidden' },
+  payBtnGrad: { flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: 14, paddingVertical: 8 },
+  payBtnTxt: { color: c.bg.elevated, fontSize: 13, fontWeight: '800' },
+  bellOnly: { width: 38, height: 38, borderRadius: 0, backgroundColor: C.gold, alignItems: 'center', justifyContent: 'center' },
+
+  // Expense card
+  expCard: { flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: C.card, borderRadius: 0, padding: 12, marginBottom: 8, borderWidth: 1, borderColor: C.cardBorder },
+  expIcon: { width: 40, height: 40, borderRadius: 0, alignItems: 'center', justifyContent: 'center' },
+  expDesc: { fontSize: 14, fontWeight: '700', color: C.text1 },
+  expMetaRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 4 },
+  paidByChip: { paddingHorizontal: 8, paddingVertical: 2, borderRadius: 999 },
+  paidByTxt: { fontSize: 10.5, fontWeight: '700' },
+  expDate: { fontSize: 10.5, color: C.text3, fontWeight: '600' },
+  expAmt: { fontSize: 15, fontWeight: '800', color: C.text1 },
+  expShare: { fontSize: 10.5, color: C.text2, marginTop: 2, fontWeight: '600' },
+  progWrap: { flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 6 },
+  progTrack: { flex: 1, height: 3, backgroundColor: C.border, borderRadius: 2, overflow: 'hidden' },
+  progFill: { height: '100%', borderRadius: 2 },
+  progLbl: { fontSize: 9.5, fontWeight: '800', color: C.accent, letterSpacing: 0.2 },
+
+  empty: { alignItems: 'center', paddingVertical: 36 },
+  emptyTitle: { fontSize: 15, fontWeight: '800', color: C.text1, marginTop: 10 },
+  emptySub: { fontSize: 12, color: C.text2, marginTop: 4, textAlign: 'center', maxWidth: 260 },
+}));
+
 interface Props {
   summary: any;
   currentUserId?: string;
@@ -264,56 +322,3 @@ export default function ExpensesTab({ summary, currentUserId, onAddExpense, onEd
   );
 }
 
-const useStyles = makeStyles((c) => ({
-  // Hero
-  hero: { borderRadius: 0, padding: 18, overflow: 'hidden' },
-  heroHead: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-  heroLbl: { color: 'rgba(255,255,255,0.9)', fontSize: 11, fontWeight: '800', textTransform: 'uppercase', letterSpacing: 0.7 },
-  heroAmt: { color: c.bg.elevated, fontSize: 34, fontWeight: '800', marginTop: 4, letterSpacing: -0.5 },
-  heroSplits: { flexDirection: 'row', alignItems: 'center', marginTop: 12, paddingTop: 12, borderTopWidth: 1, borderTopColor: 'rgba(255,255,255,0.25)' },
-  heroSplit: { flex: 1, alignItems: 'flex-start' },
-  heroDot: { width: 8, height: 8, borderRadius: 4, marginBottom: 4 },
-  heroSplitLbl: { color: 'rgba(255,255,255,0.85)', fontSize: 10, fontWeight: '700', textTransform: 'uppercase', letterSpacing: 0.5 },
-  heroSplitVal: { color: c.bg.elevated, fontSize: 18, fontWeight: '800', marginTop: 2 },
-  heroSplitDiv: { width: 1, height: 38, backgroundColor: 'rgba(255,255,255,0.25)' },
-
-  // Quick actions
-  quickRow: { flexDirection: 'row', gap: 10, marginTop: 14 },
-  quickBtn: { flex: 1, alignItems: 'center', gap: 6, backgroundColor: C.card, padding: 12, borderRadius: 0, borderWidth: 1, borderColor: C.cardBorder },
-  quickIcon: { width: 38, height: 38, borderRadius: 0, alignItems: 'center', justifyContent: 'center' },
-  quickIconSaff: { width: 38, height: 38, borderRadius: 0, alignItems: 'center', justifyContent: 'center' },
-  quickTxt: { fontSize: 11, fontWeight: '700', color: C.text1 },
-
-  // Section
-  sectHead: { fontSize: 11, fontWeight: '800', color: C.text3, textTransform: 'uppercase', letterSpacing: 0.6, marginBottom: 10, marginLeft: 4 },
-
-  // Debt tile
-  debtCard: { flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: C.card, borderRadius: 0, padding: 12, marginBottom: 8, borderWidth: 1, borderColor: C.cardBorder },
-  avatarLarge: { width: 42, height: 42, borderRadius: 0, alignItems: 'center', justifyContent: 'center', borderWidth: 1.5 },
-  avatarTxt: { fontSize: 16, fontWeight: '800' },
-  debtTitle: { fontSize: 14, fontWeight: '700', color: C.text1 },
-  debtSub: { fontSize: 18, fontWeight: '800', color: C.accent, marginTop: 2 },
-  payBtn: { borderRadius: 999, overflow: 'hidden' },
-  payBtnGrad: { flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: 14, paddingVertical: 8 },
-  payBtnTxt: { color: c.bg.elevated, fontSize: 13, fontWeight: '800' },
-  bellOnly: { width: 38, height: 38, borderRadius: 0, backgroundColor: C.gold, alignItems: 'center', justifyContent: 'center' },
-
-  // Expense card
-  expCard: { flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: C.card, borderRadius: 0, padding: 12, marginBottom: 8, borderWidth: 1, borderColor: C.cardBorder },
-  expIcon: { width: 40, height: 40, borderRadius: 0, alignItems: 'center', justifyContent: 'center' },
-  expDesc: { fontSize: 14, fontWeight: '700', color: C.text1 },
-  expMetaRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 4 },
-  paidByChip: { paddingHorizontal: 8, paddingVertical: 2, borderRadius: 999 },
-  paidByTxt: { fontSize: 10.5, fontWeight: '700' },
-  expDate: { fontSize: 10.5, color: C.text3, fontWeight: '600' },
-  expAmt: { fontSize: 15, fontWeight: '800', color: C.text1 },
-  expShare: { fontSize: 10.5, color: C.text2, marginTop: 2, fontWeight: '600' },
-  progWrap: { flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 6 },
-  progTrack: { flex: 1, height: 3, backgroundColor: C.border, borderRadius: 2, overflow: 'hidden' },
-  progFill: { height: '100%', borderRadius: 2 },
-  progLbl: { fontSize: 9.5, fontWeight: '800', color: C.accent, letterSpacing: 0.2 },
-
-  empty: { alignItems: 'center', paddingVertical: 36 },
-  emptyTitle: { fontSize: 15, fontWeight: '800', color: C.text1, marginTop: 10 },
-  emptySub: { fontSize: 12, color: C.text2, marginTop: 4, textAlign: 'center', maxWidth: 260 },
-}));

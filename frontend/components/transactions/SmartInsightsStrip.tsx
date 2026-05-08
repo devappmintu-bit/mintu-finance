@@ -10,6 +10,34 @@ import { Ionicons } from '@expo/vector-icons';
 import { COLORS } from '../../utils/theme';
 import { makeStyles } from '../../utils/makeStyles';
 
+
+
+// R113 FIX — useStyles hoisted above first render-time call
+// to avoid Metro/SDK52 TDZ error (`Cannot access X before init.`).
+const useStyles = makeStyles((c) => ({
+  wrap: { marginBottom: 12 },
+  header: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 16, marginBottom: 8 },
+  title: { fontSize: 13, fontWeight: '800', color: c.text.primary, flex: 1 },
+  chip: { backgroundColor: c.accent.primary + '15', paddingHorizontal: 8, paddingVertical: 2, borderRadius: 0 },
+  chipText: { fontSize: 10, fontWeight: '800', color: c.accent.primary },
+
+  strip: { paddingHorizontal: 16, gap: 10, paddingVertical: 2 },
+  card: {
+    width: 160,
+    padding: 12,
+    backgroundColor: '#fff',
+    borderRadius: 0,
+    borderWidth: 1,
+    borderColor: c.border.card,
+    borderLeftWidth: 3,
+    gap: 4,
+  },
+  iconBox: { width: 30, height: 30, borderRadius: 0, justifyContent: 'center', alignItems: 'center', marginBottom: 2 },
+  cardLabel: { fontSize: 9, fontWeight: '900', letterSpacing: 0.8 },
+  cardValue: { fontSize: 14, fontWeight: '800', color: c.text.primary, lineHeight: 18 },
+  cardSub: { fontSize: 10, color: c.text.muted, fontWeight: '600' },
+}));
+
 type Txn = {
   id: string;
   amount: number;
@@ -155,26 +183,3 @@ function Card({ icon, tint, label, value, sub }: { icon: string; tint: string; l
   );
 }
 
-const useStyles = makeStyles((c) => ({
-  wrap: { marginBottom: 12 },
-  header: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 16, marginBottom: 8 },
-  title: { fontSize: 13, fontWeight: '800', color: c.text.primary, flex: 1 },
-  chip: { backgroundColor: c.accent.primary + '15', paddingHorizontal: 8, paddingVertical: 2, borderRadius: 0 },
-  chipText: { fontSize: 10, fontWeight: '800', color: c.accent.primary },
-
-  strip: { paddingHorizontal: 16, gap: 10, paddingVertical: 2 },
-  card: {
-    width: 160,
-    padding: 12,
-    backgroundColor: '#fff',
-    borderRadius: 0,
-    borderWidth: 1,
-    borderColor: c.border.card,
-    borderLeftWidth: 3,
-    gap: 4,
-  },
-  iconBox: { width: 30, height: 30, borderRadius: 0, justifyContent: 'center', alignItems: 'center', marginBottom: 2 },
-  cardLabel: { fontSize: 9, fontWeight: '900', letterSpacing: 0.8 },
-  cardValue: { fontSize: 14, fontWeight: '800', color: c.text.primary, lineHeight: 18 },
-  cardSub: { fontSize: 10, color: c.text.muted, fontWeight: '600' },
-}));

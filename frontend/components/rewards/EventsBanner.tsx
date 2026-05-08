@@ -15,6 +15,24 @@ import * as Haptics from 'expo-haptics';
 import { makeStyles } from '../../utils/makeStyles';
 import { shade } from '../../utils/color';
 
+
+
+// R113 FIX — useStyles hoisted above first render-time call
+// to avoid Metro/SDK52 TDZ error (`Cannot access X before init.`).
+const useStyles = makeStyles((c) => ({
+  card: { width: 240, padding: 12, borderRadius: 0, gap: 12, overflow: 'hidden', position: 'relative', shadowColor: c.shadow.medium, shadowOpacity: 1, shadowRadius: 8, shadowOffset: { width: 0, height: 4 }, elevation: 3 },
+  blob: { position: 'absolute', top: -32, right: -32, width: 100, height: 100, borderRadius: 0, backgroundColor: 'rgba(255,255,255,0.14)' },
+  row: { flexDirection: 'row', alignItems: 'center', gap: 12 },
+  emoji: { fontSize: 28 },
+  title: { fontSize: 13, fontWeight: '900', color: ON_BRAND, letterSpacing: 0.8 },
+  sub: { fontSize: 11, fontWeight: '700', color: ON_BRAND_SOFT, marginTop: 0 },
+  footer: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  countdown: { flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: 8, paddingVertical: 4, borderRadius: 999, backgroundColor: SCRIM_DARK },
+  countdownTxt: { fontSize: 11, fontWeight: '900', color: ON_BRAND, letterSpacing: 0.2 },
+  ctaPill: { flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: 12, paddingVertical: 4, borderRadius: 999, backgroundColor: SCRIM_LIGHT },
+  ctaTxt: { fontSize: 11, fontWeight: '900', color: ON_BRAND, letterSpacing: 0.2 },
+}));
+
 type Event = {
   id: string;
   title: string;
@@ -98,16 +116,3 @@ export default function EventsBanner({ events, onPress }: { events: Event[]; onP
 const evMountedAt = Date.now();
 
 
-const useStyles = makeStyles((c) => ({
-  card: { width: 240, padding: 12, borderRadius: 0, gap: 12, overflow: 'hidden', position: 'relative', shadowColor: c.shadow.medium, shadowOpacity: 1, shadowRadius: 8, shadowOffset: { width: 0, height: 4 }, elevation: 3 },
-  blob: { position: 'absolute', top: -32, right: -32, width: 100, height: 100, borderRadius: 0, backgroundColor: 'rgba(255,255,255,0.14)' },
-  row: { flexDirection: 'row', alignItems: 'center', gap: 12 },
-  emoji: { fontSize: 28 },
-  title: { fontSize: 13, fontWeight: '900', color: ON_BRAND, letterSpacing: 0.8 },
-  sub: { fontSize: 11, fontWeight: '700', color: ON_BRAND_SOFT, marginTop: 0 },
-  footer: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-  countdown: { flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: 8, paddingVertical: 4, borderRadius: 999, backgroundColor: SCRIM_DARK },
-  countdownTxt: { fontSize: 11, fontWeight: '900', color: ON_BRAND, letterSpacing: 0.2 },
-  ctaPill: { flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: 12, paddingVertical: 4, borderRadius: 999, backgroundColor: SCRIM_LIGHT },
-  ctaTxt: { fontSize: 11, fontWeight: '900', color: ON_BRAND, letterSpacing: 0.2 },
-}));

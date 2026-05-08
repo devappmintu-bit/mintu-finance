@@ -40,6 +40,141 @@ import { useIsOnline } from '../../hooks/useIsOnline';
 import { groupTransactionsByDate, type TxnRowItem } from '../../utils/groupTransactionsByDate';
 import { showSuccess } from '../../utils/toast';
 
+
+// R113 FIX — useStyles hoisted above first render-time call
+// to avoid Metro/SDK52 TDZ error (`Cannot access X before init.`).
+const useStyles = makeStyles((c) => ({
+  container: { flex: 1, backgroundColor: c.bg.primary },
+  heroPad: { paddingHorizontal: SPACING.lg, paddingTop: SPACING.md },
+  header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: SPACING.lg, paddingVertical: SPACING.md },
+  pageTitle: { fontSize: 28, fontWeight: '800', color: c.text.primary, letterSpacing: -0.5 },
+  pageSubtitle: { fontSize: 13, color: c.text.muted },
+  headerActions: { flexDirection: 'row', gap: 10 },
+  addBtn: { width: 44, height: 44, borderRadius: 0, backgroundColor: c.accent.primary, justifyContent: 'center', alignItems: 'center', ...SHADOW.md },
+  filterBtn: { width: 44, height: 44, borderRadius: 0, backgroundColor: 'rgba(255,107,26,0.14)', justifyContent: 'center', alignItems: 'center', borderWidth: 1, borderColor: 'rgba(255,107,26,0.4)', position: 'relative' },
+  filterBadge: { position: 'absolute', top: -2, right: -2, minWidth: 18, height: 18, borderRadius: 0, backgroundColor: c.accent.brand, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 4, borderWidth: 2, borderColor: c.bg.primary },
+  filterBadgeTxt: { fontSize: 10, fontWeight: '800', color: c.bg.elevated },
+  // Quick bar
+  quickBar: { flexDirection: 'row', paddingHorizontal: SPACING.lg, marginBottom: SPACING.md, gap: 10 },
+  quickInputWrap: { flex: 1, flexDirection: 'row', alignItems: 'center', backgroundColor: c.bg.card, borderRadius: RADIUS.full, paddingHorizontal: SPACING.lg, borderWidth: 1, borderColor: c.border.card },
+  quickRupee: { fontSize: 18, fontWeight: '700', color: c.accent.primary, marginRight: 6 },
+  quickInput: { flex: 1, paddingVertical: 14, fontSize: 15, color: c.text.primary },
+  voiceBtn: { width: 48, height: 48, borderRadius: 0, backgroundColor: c.accent.primary, justifyContent: 'center', alignItems: 'center' },
+  // List
+  listContent: { padding: SPACING.lg, paddingTop: 0, paddingBottom: 140 },
+  // R101C — "View all" footer button. Brutalist hairline pill that
+  // sits below the (capped) transaction list and tells the user there
+  // are N more receipts they can pull in. Designed to be clearly
+  // tappable but visually quieter than the primary input bar.
+  viewAllBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    paddingVertical: 14,
+    marginTop: 8,
+    marginHorizontal: 6,
+    borderWidth: 1.5,
+    borderColor: c.text.primary,
+    backgroundColor: c.bg.elevated,
+  },
+  viewAllT: {
+    fontSize: 11,
+    fontWeight: '900',
+    color: c.text.primary,
+    letterSpacing: 1.4,
+    textTransform: 'uppercase',
+  },
+  txnCard: { flexDirection: 'row', alignItems: 'center', backgroundColor: 'rgba(255,255,255,0.9)', borderRadius: 0, padding: SPACING.lg, marginBottom: 10, borderWidth: 1, borderColor: 'rgba(255,255,255,0.6)', ...SHADOW.sm },
+  txnIcon: { width: 44, height: 44, borderRadius: 0, justifyContent: 'center', alignItems: 'center', marginRight: SPACING.md },
+  txnInfo: { flex: 1 },
+  txnDesc: { fontSize: 15, fontWeight: '600', color: c.text.primary, flex: 1 },
+  txnDescRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  gmailBadge: { flexDirection: 'row', alignItems: 'center', backgroundColor: 'rgba(255,107,26,0.14)', borderColor: 'rgba(255,107,26,0.4)', borderWidth: 1, paddingHorizontal: 6, paddingVertical: 2, borderRadius: 0 },
+  gmailBadgeText: { fontSize: 9, fontWeight: '800', color: c.accent.brandDark, letterSpacing: 0.3 },
+  txnMetaRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 3 },
+  txnMeta: { fontSize: 12, color: c.text.muted },
+  cashBadge: { backgroundColor: c.accent.warning + '20', paddingHorizontal: 8, paddingVertical: 2, borderRadius: 0 },
+  cashBadgeText: { fontSize: 10, fontWeight: '700', color: c.accent.warning },
+  txnAmount: { fontSize: 17, fontWeight: '700' },
+  // Smart-grouping section header — Today / Yesterday / This Week / <Month>
+  sectionHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 4,
+    paddingTop: 12,
+    paddingBottom: 6,
+  },
+  sectionHeaderLabel: {
+    fontSize: 12,
+    fontWeight: '900',
+    letterSpacing: 1.4,
+    color: c.text.muted,
+    textTransform: 'uppercase',
+  },
+  sectionHeaderCount: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: c.text.muted,
+    opacity: 0.75,
+  },
+  sectionHeaderTotal: {
+    fontSize: 13,
+    fontWeight: '800',
+    letterSpacing: -0.2,
+  },
+  empty: { alignItems: 'center', paddingVertical: 80 },
+  emptyTitle: { fontSize: 18, fontWeight: '700', color: c.text.secondary, marginTop: 16 },
+  emptyText: { fontSize: 14, color: c.text.muted, marginTop: 6 },
+  // Modal
+  modalBg: { flex: 1, justifyContent: 'flex-end', backgroundColor: 'rgba(0,0,0,0.6)' },
+  modalSheet: { backgroundColor: c.bg.secondary, borderTopLeftRadius: 0, borderTopRightRadius: 0, padding: SPACING.xxl, maxHeight: '88%' },
+  sheetHandle: { width: 40, height: 4, borderRadius: 2, backgroundColor: c.text.muted, alignSelf: 'center', marginBottom: SPACING.lg, opacity: 0.3 },
+  modalHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: SPACING.xxl },
+  modalTitle: { fontSize: 22, fontWeight: '700', color: c.text.primary },
+  typeRow: { flexDirection: 'row', gap: 12, marginBottom: SPACING.xxl },
+  typeBtn: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, paddingVertical: 14, borderRadius: RADIUS.full, borderWidth: 1, borderColor: c.border.subtle },
+  typeBtnActive: { backgroundColor: c.accent.primary, borderColor: c.accent.primary },
+  typeBtnText: { fontSize: 15, color: c.text.muted, fontWeight: '600' },
+  typeBtnTextActive: { color: c.bg.primary },
+  formLabel: { fontSize: 13, fontWeight: '600', color: c.text.muted, marginBottom: 10, letterSpacing: 0.3 },
+  amountRow: { flexDirection: 'row', alignItems: 'center', backgroundColor: c.bg.primary, borderRadius: RADIUS.xl, paddingHorizontal: SPACING.lg, marginBottom: SPACING.xxl, borderWidth: 1, borderColor: c.border.subtle },
+  rupee: { fontSize: 24, fontWeight: '700', color: c.accent.primary, marginRight: 8 },
+  amountInput: { flex: 1, fontSize: 28, fontWeight: '700', color: c.text.primary, paddingVertical: 16 },
+  chipScroll: { marginBottom: SPACING.xxl },
+  chip: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 14, paddingVertical: 10, borderRadius: RADIUS.full, backgroundColor: c.bg.primary, marginRight: 8, borderWidth: 1, borderColor: c.border.subtle },
+  chipActive: { backgroundColor: c.accent.primary, borderColor: c.accent.primary },
+  chipText: { fontSize: 13, color: c.text.secondary, fontWeight: '500' },
+  chipTextActive: { color: c.bg.primary, fontWeight: '600' },
+  textInput: { backgroundColor: c.bg.primary, borderRadius: RADIUS.xl, paddingHorizontal: SPACING.lg, paddingVertical: 16, fontSize: 16, color: c.text.primary, borderWidth: 1, borderColor: c.border.subtle, marginBottom: SPACING.xxl },
+  submitBtn: { backgroundColor: c.accent.primary, borderRadius: RADIUS.full, paddingVertical: 18, alignItems: 'center' },
+  submitText: { fontSize: 16, fontWeight: '700', color: c.bg.primary },
+  // Round 38 — destructive delete button inside the edit sheet.
+  deleteSheetBtn: {
+    flexDirection: 'row', gap: 8, alignItems: 'center', justifyContent: 'center',
+    paddingVertical: 14, marginTop: 12,
+    borderRadius: RADIUS.full, borderWidth: 1, borderColor: 'rgba(220,38,38,0.4)',
+    backgroundColor: 'rgba(220,38,38,0.08)',
+  },
+  deleteSheetTxt: { fontSize: 14, fontWeight: '700', color: c.state.danger, letterSpacing: 0.2 },
+  smsBanner: { flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: c.accent.warning + '12', borderRadius: RADIUS.lg, padding: SPACING.md, marginBottom: SPACING.lg },
+  smsBannerText: { fontSize: 13, color: c.accent.warning, fontWeight: '500' },
+  smsInput: { backgroundColor: c.bg.primary, borderRadius: RADIUS.xl, padding: SPACING.lg, fontSize: 15, color: c.text.primary, borderWidth: 1, borderColor: c.border.subtle, minHeight: 120, marginBottom: SPACING.sm },
+  pasteBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, paddingVertical: 10, paddingHorizontal: 14, backgroundColor: c.accent.primary + '12', borderRadius: RADIUS.full, borderWidth: 1, borderColor: c.accent.primary + '30', alignSelf: 'flex-start', marginBottom: SPACING.lg },
+  pasteBtnText: { fontSize: 12, fontWeight: '700', color: c.accent.primary },
+  // Notification paste card
+  // Waste Detector & Pie Chart
+  sectionLabel: { fontSize: 14, fontWeight: '700', color: c.text.muted, marginBottom: 8, marginTop: 4 },
+  // AI Report Card
+  reportCard: { backgroundColor: 'rgba(255,255,255,0.92)', borderRadius: RADIUS.xl, padding: 16, marginBottom: 14, borderWidth: 1, borderColor: 'rgba(238,221,204,0.6)', ...shadowStyle('#2E1F1A', 2, 10, 0.04, 2) },
+  reportTitle: { fontSize: 15, fontWeight: '700', color: c.text.primary },
+  trendRow: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 12, paddingVertical: 8, borderRadius: RADIUS.full, marginBottom: 10 },
+  insightRow: { paddingVertical: 8, borderBottomWidth: 1, borderBottomColor: c.border.subtle },
+  aiRecBox: { flexDirection: 'row', gap: 8, backgroundColor: 'rgba(255,176,32,0.12)', padding: 12, borderRadius: RADIUS.lg, marginTop: 10, borderWidth: 1, borderColor: 'rgba(255,176,32,0.4)' },
+  aiRecTxt: { flex: 1, fontSize: 12, fontWeight: '500', color: c.text.muted, lineHeight: 18 },
+}));
+
 // Pure, memoized row — prevents re-renders on unrelated parent state changes (e.g. modals).
 // Per UX spec: Transactions get DELETE-only swipe (no edit gesture).
 // Users can still open the edit modal by tapping the row itself.
@@ -149,6 +284,13 @@ function TransactionsScreen() {
   // Filter state
   const [filterVisible, setFilterVisible] = useState(false);
   const [filter, setFilter] = useState<TxnFilter>(DEFAULT_FILTER);
+  // R101C — Declutter: by default we render only the 15 most recent
+  // matching transactions and show a "VIEW ALL N" footer button. The
+  // SmartInsightsStrip + Hero already give the user the *meaning* of
+  // their spending; an endless scroll of every receipt below it
+  // buried the insights. Tapping VIEW ALL flips the cap off.
+  const [showAll, setShowAll] = useState(false);
+  const RECENT_CAP = 15;
 
   useEffect(() => {
     if (params.openAdd === '1') {
@@ -269,9 +411,18 @@ function TransactionsScreen() {
     [transactions, filter]
   );
   const activeFilterCount = filterActiveCount(filter);
+  // R101C — Declutter cap. When the user has more than RECENT_CAP txns
+  // and hasn't tapped "VIEW ALL", we show only the most recent slice.
+  // Backend already returns these in date-desc order so a simple
+  // .slice(0, N) on the filtered list is correct.
+  const visibleTransactions = useMemo(() => {
+    if (showAll || filteredTransactions.length <= RECENT_CAP) return filteredTransactions;
+    return filteredTransactions.slice(0, RECENT_CAP);
+  }, [filteredTransactions, showAll]);
+  const hiddenCount = Math.max(0, filteredTransactions.length - visibleTransactions.length);
   const groupedItems = useMemo(
-    () => groupTransactionsByDate(filteredTransactions),
-    [filteredTransactions]
+    () => groupTransactionsByDate(visibleTransactions),
+    [visibleTransactions]
   );
 
   // R100AC — Theme-aware bg via neo palette. Hook MUST sit ABOVE
@@ -316,11 +467,15 @@ function TransactionsScreen() {
             </TouchableOpacity>
           ) : null}
         </View>
-        {/* SMS Paste button — replaces Voice (Phase 10 cleanup) */}
+        {/* SMS Paste button — replaces Voice (Phase 10 cleanup).
+            R106 — Now opens the full-screen Live Scanning experience
+            instead of an inline modal. The fullscreen flow runs the
+            user through: Trust primer → Live scan animation → Result
+            celebration with confidence stamps + dedup counters. */}
         <TouchableOpacity
           testID="sms-input-btn"
           style={styles.voiceBtn}
-          onPress={() => setSmsModalVisible(true)}
+          onPress={() => router.push('/sms-import' as any)}
           activeOpacity={0.8}
         >
           <Ionicons name="chatbubble-ellipses" size={20} color={COLORS.bg.primary} />
@@ -346,36 +501,47 @@ function TransactionsScreen() {
               <SmartInsightsStrip transactions={transactions} />
             </StructureCard>
 
-            {/* AI Expense Report Card */}
-            {waste && waste.ai_recommendation ? (
-              <View style={styles.reportCard}>
-                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 8 }}>
-                  <Ionicons name="sparkles" size={16} color={COLORS.accent.primary} />
-                  <Text style={styles.reportTitle}>AI Expense Report</Text>
-                </View>
-                {waste.overall_trend_pct !== undefined && waste.prev_month_total > 0 && (
-                  <View style={[styles.trendRow, { backgroundColor: waste.overall_trend_pct > 0 ? c.state.dangerBg : c.state.successBg }]}>
-                    <Ionicons name={waste.overall_trend_pct > 0 ? 'trending-up' : 'trending-down'} size={14} color={waste.overall_trend_pct > 0 ? c.state.danger : c.state.success} />
-                    <Text style={{ fontSize: 12, fontWeight: '700', color: waste.overall_trend_pct > 0 ? c.state.danger : c.state.success }}>
-                      {Math.abs(waste.overall_trend_pct).toFixed(0)}% {waste.overall_trend_pct > 0 ? 'more' : 'less'} than last month
-                    </Text>
-                    <Text style={{ fontSize: 11, color: COLORS.text.muted, marginLeft: 'auto' }}>₹{waste.total_monthly_expense?.toLocaleString()}</Text>
-                  </View>
-                )}
-                {waste.category_waste?.slice(0, 3).map((w: any, i: number) => (
-                  <View key={i} style={styles.insightRow}>
-                    <Text style={{ fontSize: 13, fontWeight: '600', color: COLORS.text.primary }}>{w.shock_text}</Text>
-                    {w.peer_comparison?.text ? <Text style={{ fontSize: 11, color: c.text.muted, marginTop: 2 }}>👥 {w.peer_comparison.text}</Text> : null}
-                  </View>
-                ))}
-                <View style={styles.aiRecBox}>
-                  <Ionicons name="bulb" size={14} color={c.accent.secondary} />
-                  <Text style={styles.aiRecTxt}>{waste.ai_recommendation}</Text>
-                </View>
-              </View>
-            ) : null}
-            <Text style={styles.sectionLabel}>Transactions</Text>
+            {/* R101C — AI Expense Report card REMOVED from default
+                view. It duplicated SmartInsightsStrip's job, ate
+                ~280px of vertical space, and was the single biggest
+                contributor to "I have to scroll forever to find a
+                receipt". The category-waste data still lives at
+                /waste-detector — surfaced via Pulse + Coach. */}
+            <Text style={styles.sectionLabel}>
+              {showAll ? 'All transactions' : 'Recent transactions'}
+            </Text>
           </StaggeredEntrance>
+        }
+        ListFooterComponent={
+          // R101C — "View all" expander. Only renders when there are
+          // more transactions hidden than the cap. After expansion,
+          // it flips to a "Show recent only" toggle so power users
+          // can collapse the list back to the lean view.
+          hiddenCount > 0 ? (
+            <TouchableOpacity
+              testID="txn-view-all-btn"
+              activeOpacity={0.85}
+              onPress={() => setShowAll(true)}
+              style={styles.viewAllBtn}
+              accessibilityRole="button"
+              accessibilityLabel={`View all ${filteredTransactions.length} transactions`}
+            >
+              <Ionicons name="chevron-down" size={16} color={c.text.primary} />
+              <Text style={styles.viewAllT}>VIEW ALL · {hiddenCount} MORE</Text>
+            </TouchableOpacity>
+          ) : showAll && filteredTransactions.length > RECENT_CAP ? (
+            <TouchableOpacity
+              testID="txn-collapse-btn"
+              activeOpacity={0.85}
+              onPress={() => setShowAll(false)}
+              style={styles.viewAllBtn}
+              accessibilityRole="button"
+              accessibilityLabel="Show recent transactions only"
+            >
+              <Ionicons name="chevron-up" size={16} color={c.text.primary} />
+              <Text style={styles.viewAllT}>SHOW RECENT ONLY</Text>
+            </TouchableOpacity>
+          ) : null
         }
         ListEmptyComponent={
           hasLoadError ? (
@@ -533,117 +699,12 @@ function TransactionsScreen() {
   );
 }
 
-const useStyles = makeStyles((c) => ({
-  container: { flex: 1, backgroundColor: c.bg.primary },
-  heroPad: { paddingHorizontal: SPACING.lg, paddingTop: SPACING.md },
-  header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: SPACING.lg, paddingVertical: SPACING.md },
-  pageTitle: { fontSize: 28, fontWeight: '800', color: c.text.primary, letterSpacing: -0.5 },
-  pageSubtitle: { fontSize: 13, color: c.text.muted },
-  headerActions: { flexDirection: 'row', gap: 10 },
-  addBtn: { width: 44, height: 44, borderRadius: 0, backgroundColor: c.accent.primary, justifyContent: 'center', alignItems: 'center', ...SHADOW.md },
-  filterBtn: { width: 44, height: 44, borderRadius: 0, backgroundColor: 'rgba(255,107,26,0.14)', justifyContent: 'center', alignItems: 'center', borderWidth: 1, borderColor: 'rgba(255,107,26,0.4)', position: 'relative' },
-  filterBadge: { position: 'absolute', top: -2, right: -2, minWidth: 18, height: 18, borderRadius: 0, backgroundColor: c.accent.brand, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 4, borderWidth: 2, borderColor: c.bg.primary },
-  filterBadgeTxt: { fontSize: 10, fontWeight: '800', color: c.bg.elevated },
-  // Quick bar
-  quickBar: { flexDirection: 'row', paddingHorizontal: SPACING.lg, marginBottom: SPACING.md, gap: 10 },
-  quickInputWrap: { flex: 1, flexDirection: 'row', alignItems: 'center', backgroundColor: c.bg.card, borderRadius: RADIUS.full, paddingHorizontal: SPACING.lg, borderWidth: 1, borderColor: c.border.card },
-  quickRupee: { fontSize: 18, fontWeight: '700', color: c.accent.primary, marginRight: 6 },
-  quickInput: { flex: 1, paddingVertical: 14, fontSize: 15, color: c.text.primary },
-  voiceBtn: { width: 48, height: 48, borderRadius: 0, backgroundColor: c.accent.primary, justifyContent: 'center', alignItems: 'center' },
-  // List
-  listContent: { padding: SPACING.lg, paddingTop: 0, paddingBottom: 140 },
-  txnCard: { flexDirection: 'row', alignItems: 'center', backgroundColor: 'rgba(255,255,255,0.9)', borderRadius: 0, padding: SPACING.lg, marginBottom: 10, borderWidth: 1, borderColor: 'rgba(255,255,255,0.6)', ...SHADOW.sm },
-  txnIcon: { width: 44, height: 44, borderRadius: 0, justifyContent: 'center', alignItems: 'center', marginRight: SPACING.md },
-  txnInfo: { flex: 1 },
-  txnDesc: { fontSize: 15, fontWeight: '600', color: c.text.primary, flex: 1 },
-  txnDescRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
-  gmailBadge: { flexDirection: 'row', alignItems: 'center', backgroundColor: 'rgba(255,107,26,0.14)', borderColor: 'rgba(255,107,26,0.4)', borderWidth: 1, paddingHorizontal: 6, paddingVertical: 2, borderRadius: 0 },
-  gmailBadgeText: { fontSize: 9, fontWeight: '800', color: c.accent.brandDark, letterSpacing: 0.3 },
-  txnMetaRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 3 },
-  txnMeta: { fontSize: 12, color: c.text.muted },
-  cashBadge: { backgroundColor: c.accent.warning + '20', paddingHorizontal: 8, paddingVertical: 2, borderRadius: 0 },
-  cashBadgeText: { fontSize: 10, fontWeight: '700', color: c.accent.warning },
-  txnAmount: { fontSize: 17, fontWeight: '700' },
-  // Smart-grouping section header — Today / Yesterday / This Week / <Month>
-  sectionHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: 4,
-    paddingTop: 12,
-    paddingBottom: 6,
-  },
-  sectionHeaderLabel: {
-    fontSize: 12,
-    fontWeight: '900',
-    letterSpacing: 1.4,
-    color: c.text.muted,
-    textTransform: 'uppercase',
-  },
-  sectionHeaderCount: {
-    fontSize: 11,
-    fontWeight: '700',
-    color: c.text.muted,
-    opacity: 0.75,
-  },
-  sectionHeaderTotal: {
-    fontSize: 13,
-    fontWeight: '800',
-    letterSpacing: -0.2,
-  },
-  empty: { alignItems: 'center', paddingVertical: 80 },
-  emptyTitle: { fontSize: 18, fontWeight: '700', color: c.text.secondary, marginTop: 16 },
-  emptyText: { fontSize: 14, color: c.text.muted, marginTop: 6 },
-  // Modal
-  modalBg: { flex: 1, justifyContent: 'flex-end', backgroundColor: 'rgba(0,0,0,0.6)' },
-  modalSheet: { backgroundColor: c.bg.secondary, borderTopLeftRadius: 0, borderTopRightRadius: 0, padding: SPACING.xxl, maxHeight: '88%' },
-  sheetHandle: { width: 40, height: 4, borderRadius: 2, backgroundColor: c.text.muted, alignSelf: 'center', marginBottom: SPACING.lg, opacity: 0.3 },
-  modalHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: SPACING.xxl },
-  modalTitle: { fontSize: 22, fontWeight: '700', color: c.text.primary },
-  typeRow: { flexDirection: 'row', gap: 12, marginBottom: SPACING.xxl },
-  typeBtn: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, paddingVertical: 14, borderRadius: RADIUS.full, borderWidth: 1, borderColor: c.border.subtle },
-  typeBtnActive: { backgroundColor: c.accent.primary, borderColor: c.accent.primary },
-  typeBtnText: { fontSize: 15, color: c.text.muted, fontWeight: '600' },
-  typeBtnTextActive: { color: c.bg.primary },
-  formLabel: { fontSize: 13, fontWeight: '600', color: c.text.muted, marginBottom: 10, letterSpacing: 0.3 },
-  amountRow: { flexDirection: 'row', alignItems: 'center', backgroundColor: c.bg.primary, borderRadius: RADIUS.xl, paddingHorizontal: SPACING.lg, marginBottom: SPACING.xxl, borderWidth: 1, borderColor: c.border.subtle },
-  rupee: { fontSize: 24, fontWeight: '700', color: c.accent.primary, marginRight: 8 },
-  amountInput: { flex: 1, fontSize: 28, fontWeight: '700', color: c.text.primary, paddingVertical: 16 },
-  chipScroll: { marginBottom: SPACING.xxl },
-  chip: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 14, paddingVertical: 10, borderRadius: RADIUS.full, backgroundColor: c.bg.primary, marginRight: 8, borderWidth: 1, borderColor: c.border.subtle },
-  chipActive: { backgroundColor: c.accent.primary, borderColor: c.accent.primary },
-  chipText: { fontSize: 13, color: c.text.secondary, fontWeight: '500' },
-  chipTextActive: { color: c.bg.primary, fontWeight: '600' },
-  textInput: { backgroundColor: c.bg.primary, borderRadius: RADIUS.xl, paddingHorizontal: SPACING.lg, paddingVertical: 16, fontSize: 16, color: c.text.primary, borderWidth: 1, borderColor: c.border.subtle, marginBottom: SPACING.xxl },
-  submitBtn: { backgroundColor: c.accent.primary, borderRadius: RADIUS.full, paddingVertical: 18, alignItems: 'center' },
-  submitText: { fontSize: 16, fontWeight: '700', color: c.bg.primary },
-  // Round 38 — destructive delete button inside the edit sheet.
-  deleteSheetBtn: {
-    flexDirection: 'row', gap: 8, alignItems: 'center', justifyContent: 'center',
-    paddingVertical: 14, marginTop: 12,
-    borderRadius: RADIUS.full, borderWidth: 1, borderColor: 'rgba(220,38,38,0.4)',
-    backgroundColor: 'rgba(220,38,38,0.08)',
-  },
-  deleteSheetTxt: { fontSize: 14, fontWeight: '700', color: c.state.danger, letterSpacing: 0.2 },
-  smsBanner: { flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: c.accent.warning + '12', borderRadius: RADIUS.lg, padding: SPACING.md, marginBottom: SPACING.lg },
-  smsBannerText: { fontSize: 13, color: c.accent.warning, fontWeight: '500' },
-  smsInput: { backgroundColor: c.bg.primary, borderRadius: RADIUS.xl, padding: SPACING.lg, fontSize: 15, color: c.text.primary, borderWidth: 1, borderColor: c.border.subtle, minHeight: 120, marginBottom: SPACING.sm },
-  pasteBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, paddingVertical: 10, paddingHorizontal: 14, backgroundColor: c.accent.primary + '12', borderRadius: RADIUS.full, borderWidth: 1, borderColor: c.accent.primary + '30', alignSelf: 'flex-start', marginBottom: SPACING.lg },
-  pasteBtnText: { fontSize: 12, fontWeight: '700', color: c.accent.primary },
-  // Notification paste card
-  // Waste Detector & Pie Chart
-  sectionLabel: { fontSize: 14, fontWeight: '700', color: c.text.muted, marginBottom: 8, marginTop: 4 },
-  // AI Report Card
-  reportCard: { backgroundColor: 'rgba(255,255,255,0.92)', borderRadius: RADIUS.xl, padding: 16, marginBottom: 14, borderWidth: 1, borderColor: 'rgba(238,221,204,0.6)', ...shadowStyle('#2E1F1A', 2, 10, 0.04, 2) },
-  reportTitle: { fontSize: 15, fontWeight: '700', color: c.text.primary },
-  trendRow: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 12, paddingVertical: 8, borderRadius: RADIUS.full, marginBottom: 10 },
-  insightRow: { paddingVertical: 8, borderBottomWidth: 1, borderBottomColor: c.border.subtle },
-  aiRecBox: { flexDirection: 'row', gap: 8, backgroundColor: 'rgba(255,176,32,0.12)', padding: 12, borderRadius: RADIUS.lg, marginTop: 10, borderWidth: 1, borderColor: 'rgba(255,176,32,0.4)' },
-  aiRecTxt: { flex: 1, fontSize: 12, fontWeight: '500', color: c.text.muted, lineHeight: 18 },
-}));
 
 
 // Round 41 — wrap with tab-level ErrorBoundary so a crash here
 // doesn't blank the whole app; the user sees a Retry CTA instead.
 import { withTabBoundary as _wrapTab_TransactionsScreen } from '../../components/withTabBoundary';
+
+
+
 export default _wrapTab_TransactionsScreen(TransactionsScreen, 'Transactions');

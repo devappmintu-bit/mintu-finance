@@ -45,6 +45,19 @@ SETU_LIVE = os.getenv("SETU_LIVE", "false").lower() == "true"
 SETU_CLIENT_ID = os.getenv("SETU_CLIENT_ID", "")
 SETU_CLIENT_SECRET = os.getenv("SETU_CLIENT_SECRET", "")
 SETU_BASE_URL = os.getenv("SETU_BASE_URL", "https://fiu-sandbox.setu.co")
+# R104H — Trust contract. When `SETU_LIVE=false`, the module returns
+# canned demo data so the UI can be wired without an actual Setu key.
+# The Trust brief explicitly forbids "showing fake balances / dummy
+# transactions / fabricating trends" — so we now:
+#   1. Refuse to serve mock data unless `ALLOW_SETU_MOCK=true` is
+#      EXPLICITLY set in env (production deploys must opt in).
+#   2. Tag every mock response with `is_mock: true` + `notice`
+#      so the UI can render an unmissable "SANDBOX DATA" banner.
+ALLOW_SETU_MOCK = os.getenv("ALLOW_SETU_MOCK", "false").lower() == "true"
+MOCK_NOTICE = (
+    "SANDBOX DATA — these accounts and transactions are demo records, "
+    "not real bank data. Switch to live consent to see your actual accounts."
+)
 
 # ───────────────────────────── models ───────────────────────────────
 
@@ -207,19 +220,40 @@ async def fi_data_fetch(user_id: str = Depends(get_current_user)):
     """Pull transactions from all ACTIVE consents for this user.
 
     Production: runs the FI-Data-Request dance (CreateSession → Fetch).
-    Mock: returns a small realistic dataset so the UI can demo.
+    Mock: returns a small realistic dataset so the UI can demo —
+    REQUIRES `ALLOW_SETU_MOCK=true` env opt-in (R104H trust contract).
     """
     # Pick any active consent for this user — prod code would iterate.
     consent = await db.setu_consents.find_one({"user_id": user_id, "status": "ACTIVE"})
     if not consent:
         raise HTTPException(status_code=409, detail="No active consent — initiate one first.")
 
+    # R104H — Refuse to serve fake bank data unless the deployment
+    # has EXPLICITLY opted into mock mode. Production deploys must
+    # never silently inject 3 fake transactions into a user's flow.
+    if not SETU_LIVE and not ALLOW_SETU_MOCK:
+        raise HTTPException(
+            status_code=503,
+            detail=(
+                "Bank data unavailable. Setu is not configured on this "
+                "deployment. Track expenses manually or via the Add screen "
+                "until consent goes live."
+            ),
+        )
+
     accounts = [Account(linked_at=_utc_now().isoformat(), **a) for a in _MOCK_ACCOUNTS]
-    return TxnPullResponse(
+    payload = TxnPullResponse(
         accounts=accounts,
         transactions=_MOCK_TRANSACTIONS,
         last_synced_at=_utc_now().isoformat(),
     )
+    # R104H — Tag the response so the UI can render an unmissable
+    # "SANDBOX DATA" banner. We patch the dict on egress because the
+    # pydantic model wasn't extended (back-compat for live-mode shape).
+    out = payload.model_dump()
+    out["is_mock"] = True
+    out["notice"] = MOCK_NOTICE
+    return out
 
 
 @router.get("/accounts")
@@ -228,8 +262,25 @@ async def list_accounts(user_id: str = Depends(get_current_user)):
     consent = await db.setu_consents.find_one({"user_id": user_id, "status": "ACTIVE"})
     if not consent:
         return {"accounts": [], "connected": False}
+    # R104H — Same trust contract as /fi-data/fetch. Don't silently
+    # return fake HDFC + ICICI accounts unless mock mode is opt-in.
+    if not SETU_LIVE and not ALLOW_SETU_MOCK:
+        return {
+            "accounts": [],
+            "connected": False,
+            "is_mock": False,
+            "notice": (
+                "Bank link unavailable on this deployment. Setu integration "
+                "is not configured."
+            ),
+        }
     accounts = [Account(linked_at=_utc_now().isoformat(), **a) for a in _MOCK_ACCOUNTS]
-    return {"accounts": [a.model_dump() for a in accounts], "connected": True}
+    return {
+        "accounts": [a.model_dump() for a in accounts],
+        "connected": True,
+        "is_mock": True,
+        "notice": MOCK_NOTICE,
+    }
 
 
 @router.get("/status")

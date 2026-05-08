@@ -31,6 +31,67 @@ import { useAuthStore } from '../store/authStore';
 import Toast from 'react-native-toast-message';
 import { shareSmart } from '../utils/share';
 import { StaggeredEntrance } from '../components/primitives';
+import { BrutalScreenHeader } from '../components/brutal';
+
+
+
+// R113 FIX — useStyles hoisted above first render-time call
+// to avoid Metro/SDK52 TDZ error (`Cannot access X before init.`).
+const useStyles = makeStyles((c) => ({
+  bg: { flex: 1, backgroundColor: '#FAF6EE' },
+  topbar: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingHorizontal: 14, paddingVertical: 12, backgroundColor: c.bg.elevated, borderBottomWidth: 1, borderBottomColor: c.gray[100] },
+  backBtn: { width: 36, height: 36, borderRadius: 0, backgroundColor: c.gray[100], alignItems: 'center', justifyContent: 'center' },
+  iconBtn: { width: 36, height: 36, borderRadius: 0, backgroundColor: '#FEF3C7', alignItems: 'center', justifyContent: 'center' },
+  topTitle: { fontSize: 17, fontWeight: '800', color: c.text.primary },
+  topSub: { fontSize: 11, color: '#9A5B1C', fontWeight: '600', marginTop: 1 },
+
+  chipsRow: { flexDirection: 'row', gap: 8, paddingHorizontal: 14, paddingVertical: 10, backgroundColor: c.bg.elevated, borderBottomWidth: 1, borderBottomColor: c.gray[100] },
+  chip: { paddingHorizontal: 14, paddingVertical: 6, borderRadius: 0, backgroundColor: c.gray[100] },
+  chipOn: { backgroundColor: c.accent.brand },
+  chipTxt: { fontSize: 12, fontWeight: '700', color: c.text.muted },
+  chipTxtOn: { color: c.bg.elevated },
+
+  summaryCard: { backgroundColor: c.text.primary, borderRadius: 0, padding: 14, marginBottom: 14 },
+  sumHeader: { flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 8 },
+  sumTitle: { color: '#FBBF24', fontSize: 11, fontWeight: '800', textTransform: 'uppercase', letterSpacing: 0.5 },
+  sumBody: { color: c.gray[50], fontSize: 13, lineHeight: 19 },
+
+  kpiGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 14 },
+  kpi: { width: '48%', padding: 10, borderRadius: 0, backgroundColor: c.bg.elevated, borderWidth: 1, position: 'relative', overflow: 'hidden' },
+  kpiBar: { position: 'absolute', left: 0, top: 0, bottom: 0, width: 4 },
+  kpiLbl: { fontSize: 11, color: c.text.muted, fontWeight: '700', textTransform: 'uppercase', letterSpacing: 0.3, marginLeft: 4 },
+  kpiVal: { fontSize: 18, fontWeight: '800', marginTop: 2, marginLeft: 4 },
+
+  card: { backgroundColor: c.bg.elevated, borderRadius: 0, padding: 14, marginBottom: 14, borderWidth: 1, borderColor: c.gray[100] },
+  cardTitle: { fontSize: 13, fontWeight: '800', color: c.text.primary, letterSpacing: 0.2 },
+
+  legendRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', marginTop: 6 },
+  legendDot: { width: 10, height: 10, borderRadius: 0 },
+  legendTxt: { marginLeft: 6, fontSize: 11, color: c.text.muted, fontWeight: '600' },
+
+  thRow: { flexDirection: 'row', alignItems: 'center', paddingVertical: 6, borderBottomWidth: 1, borderBottomColor: c.gray[100], marginTop: 10 },
+  th: { fontSize: 10, fontWeight: '800', color: c.text.muted, letterSpacing: 0.5, textTransform: 'uppercase' },
+  tr: { flexDirection: 'row', alignItems: 'center', paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: c.gray[50] },
+  td: { fontSize: 13, color: c.text.primary, flex: 1 },
+  tdRight: { textAlign: 'right' },
+  pctDot: { width: 10, height: 10, borderRadius: 0, marginRight: 8 },
+
+  projectionBox: { flex: 1, padding: 12, borderRadius: 0, borderWidth: 1 },
+  projLbl: { fontSize: 11, color: c.text.muted, fontWeight: '700', textTransform: 'uppercase', letterSpacing: 0.3 },
+  projVal: { fontSize: 18, fontWeight: '800', marginTop: 4 },
+  momBox: { flexDirection: 'row', gap: 8, alignItems: 'center', paddingVertical: 10, marginTop: 6, borderTopWidth: 1, borderTopColor: c.gray[100] },
+  momTxt: { fontSize: 12, color: '#374151' },
+
+  ctaRow: { flexDirection: 'row', gap: 10, marginTop: 6, marginBottom: 20 },
+  actionBtn: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, paddingVertical: 14, borderRadius: 0 },
+  actionTxt: { fontWeight: '800', fontSize: 14, color: c.text.primary },
+
+  errBox: { alignItems: 'center', paddingVertical: 50, paddingHorizontal: 20 },
+  errTitle: { fontSize: 14, fontWeight: '700', color: c.text.primary, marginTop: 12, textAlign: 'center' },
+  ctaBtn: { marginTop: 16, borderRadius: 999, overflow: 'hidden' },
+  ctaGrad: { paddingHorizontal: 24, paddingVertical: 12 },
+  ctaText: { color: c.bg.elevated, fontWeight: '800', fontSize: 14 },
+}));
 
 type Cat = { name: string; amount: number; pct: number };
 type Merch = { name: string; amount: number; pct: number };
@@ -184,21 +245,20 @@ export default function PremiumReportsScreen() {
 
   return (
     <SafeAreaView style={s.bg} edges={['top']}>
-      <View style={s.topbar}>
-        <TouchableOpacity onPress={() => router.back()} style={s.backBtn}>
-          <Ionicons name="chevron-back" size={22} color="#111" />
-        </TouchableOpacity>
-        <View style={{ flex: 1 }}>
-          <Text style={s.topTitle}>Deep Reports</Text>
-          <Text style={s.topSub}>Premium · {months} months</Text>
-        </View>
-        <TouchableOpacity onPress={onShareSummary} style={s.iconBtn}>
-          <Ionicons name="share-social-outline" size={20} color={COLORS.accent.brand} />
-        </TouchableOpacity>
-        <TouchableOpacity onPress={onDownloadPdf} disabled={!data || sharing} style={[s.iconBtn, { backgroundColor: COLORS.accent.brand }]}>
-          {sharing ? <ActivityIndicator color="#fff" /> : <Ionicons name="download-outline" size={20} color="#fff" />}
-        </TouchableOpacity>
-      </View>
+      <BrutalScreenHeader
+        title="DEEP REPORTS"
+        subtitle={`PREMIUM · ${months} MONTHS`}
+        right={
+          <View style={{ flexDirection: 'row', gap: 6 }}>
+            <TouchableOpacity onPress={onShareSummary} style={s.iconBtn}>
+              <Ionicons name="share-social-outline" size={18} color={COLORS.accent.brand} />
+            </TouchableOpacity>
+            <TouchableOpacity onPress={onDownloadPdf} disabled={!data || sharing} style={[s.iconBtn, { backgroundColor: COLORS.accent.brand }]}>
+              {sharing ? <ActivityIndicator color="#fff" /> : <Ionicons name="download-outline" size={18} color="#fff" />}
+            </TouchableOpacity>
+          </View>
+        }
+      />
 
       {/* Range selector */}
       <View style={s.chipsRow}>
@@ -383,58 +443,3 @@ function TableHeader({ cols }: { cols: string[] }) {
   );
 }
 
-const useStyles = makeStyles((c) => ({
-  bg: { flex: 1, backgroundColor: '#FAFAF9' },
-  topbar: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingHorizontal: 14, paddingVertical: 12, backgroundColor: c.bg.elevated, borderBottomWidth: 1, borderBottomColor: c.gray[100] },
-  backBtn: { width: 36, height: 36, borderRadius: 0, backgroundColor: c.gray[100], alignItems: 'center', justifyContent: 'center' },
-  iconBtn: { width: 36, height: 36, borderRadius: 0, backgroundColor: '#FEF3C7', alignItems: 'center', justifyContent: 'center' },
-  topTitle: { fontSize: 17, fontWeight: '800', color: c.text.primary },
-  topSub: { fontSize: 11, color: '#9A5B1C', fontWeight: '600', marginTop: 1 },
-
-  chipsRow: { flexDirection: 'row', gap: 8, paddingHorizontal: 14, paddingVertical: 10, backgroundColor: c.bg.elevated, borderBottomWidth: 1, borderBottomColor: c.gray[100] },
-  chip: { paddingHorizontal: 14, paddingVertical: 6, borderRadius: 0, backgroundColor: c.gray[100] },
-  chipOn: { backgroundColor: c.accent.brand },
-  chipTxt: { fontSize: 12, fontWeight: '700', color: c.text.muted },
-  chipTxtOn: { color: c.bg.elevated },
-
-  summaryCard: { backgroundColor: c.text.primary, borderRadius: 0, padding: 14, marginBottom: 14 },
-  sumHeader: { flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 8 },
-  sumTitle: { color: '#FBBF24', fontSize: 11, fontWeight: '800', textTransform: 'uppercase', letterSpacing: 0.5 },
-  sumBody: { color: c.gray[50], fontSize: 13, lineHeight: 19 },
-
-  kpiGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 14 },
-  kpi: { width: '48%', padding: 10, borderRadius: 0, backgroundColor: c.bg.elevated, borderWidth: 1, position: 'relative', overflow: 'hidden' },
-  kpiBar: { position: 'absolute', left: 0, top: 0, bottom: 0, width: 4 },
-  kpiLbl: { fontSize: 11, color: c.text.muted, fontWeight: '700', textTransform: 'uppercase', letterSpacing: 0.3, marginLeft: 4 },
-  kpiVal: { fontSize: 18, fontWeight: '800', marginTop: 2, marginLeft: 4 },
-
-  card: { backgroundColor: c.bg.elevated, borderRadius: 0, padding: 14, marginBottom: 14, borderWidth: 1, borderColor: c.gray[100] },
-  cardTitle: { fontSize: 13, fontWeight: '800', color: c.text.primary, letterSpacing: 0.2 },
-
-  legendRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', marginTop: 6 },
-  legendDot: { width: 10, height: 10, borderRadius: 0 },
-  legendTxt: { marginLeft: 6, fontSize: 11, color: c.text.muted, fontWeight: '600' },
-
-  thRow: { flexDirection: 'row', alignItems: 'center', paddingVertical: 6, borderBottomWidth: 1, borderBottomColor: c.gray[100], marginTop: 10 },
-  th: { fontSize: 10, fontWeight: '800', color: c.text.muted, letterSpacing: 0.5, textTransform: 'uppercase' },
-  tr: { flexDirection: 'row', alignItems: 'center', paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: c.gray[50] },
-  td: { fontSize: 13, color: c.text.primary, flex: 1 },
-  tdRight: { textAlign: 'right' },
-  pctDot: { width: 10, height: 10, borderRadius: 0, marginRight: 8 },
-
-  projectionBox: { flex: 1, padding: 12, borderRadius: 0, borderWidth: 1 },
-  projLbl: { fontSize: 11, color: c.text.muted, fontWeight: '700', textTransform: 'uppercase', letterSpacing: 0.3 },
-  projVal: { fontSize: 18, fontWeight: '800', marginTop: 4 },
-  momBox: { flexDirection: 'row', gap: 8, alignItems: 'center', paddingVertical: 10, marginTop: 6, borderTopWidth: 1, borderTopColor: c.gray[100] },
-  momTxt: { fontSize: 12, color: '#374151' },
-
-  ctaRow: { flexDirection: 'row', gap: 10, marginTop: 6, marginBottom: 20 },
-  actionBtn: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, paddingVertical: 14, borderRadius: 0 },
-  actionTxt: { fontWeight: '800', fontSize: 14, color: c.text.primary },
-
-  errBox: { alignItems: 'center', paddingVertical: 50, paddingHorizontal: 20 },
-  errTitle: { fontSize: 14, fontWeight: '700', color: c.text.primary, marginTop: 12, textAlign: 'center' },
-  ctaBtn: { marginTop: 16, borderRadius: 999, overflow: 'hidden' },
-  ctaGrad: { paddingHorizontal: 24, paddingVertical: 12 },
-  ctaText: { color: c.bg.elevated, fontWeight: '800', fontSize: 14 },
-}));

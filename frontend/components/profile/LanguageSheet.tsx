@@ -12,6 +12,34 @@ import { makeStyles } from '../../utils/makeStyles';
 import { LANGUAGES, t } from '../../utils/i18n';
 import { useLangStore } from '../../store/langStore';
 
+
+
+// R113 FIX — useStyles hoisted above first render-time call
+// to avoid Metro/SDK52 TDZ error (`Cannot access X before init.`).
+const useStyles = makeStyles((c) => ({
+  bg: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'flex-end' },
+  sheet: {
+    backgroundColor: GLASS.solidBg,
+    borderTopLeftRadius: 0, borderTopRightRadius: 0,
+    borderTopWidth: StyleSheet.hairlineWidth, borderColor: GLASS.borderLight,
+    paddingHorizontal: 20, paddingTop: 10, paddingBottom: 32,
+    maxHeight: '70%',
+  },
+  handle: { width: 40, height: 4, borderRadius: 2, backgroundColor: c.border.subtle, alignSelf: 'center', marginBottom: 14 },
+  header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 },
+  title: { fontSize: 18, fontWeight: '800', color: c.text.primary, letterSpacing: -0.3 },
+
+  opt: {
+    flexDirection: 'row', alignItems: 'center', gap: 12,
+    paddingVertical: 14, paddingHorizontal: 14, borderRadius: 0,
+    backgroundColor: c.bg.primary, marginBottom: 8,
+    borderWidth: StyleSheet.hairlineWidth, borderColor: c.border.subtle,
+  },
+  optActive: { borderColor: c.accent.primary, backgroundColor: c.accent.primary + '0E' },
+  native: { fontSize: 15.5, fontWeight: '700', color: c.text.primary, letterSpacing: -0.2 },
+  english: { fontSize: 12.5, fontWeight: '500', color: c.text.muted, marginTop: 2 },
+}));
+
 interface Props {
   visible: boolean;
   onClose: () => void;
@@ -59,26 +87,3 @@ export default function LanguageSheet({ visible, onClose }: Props) {
   );
 }
 
-const useStyles = makeStyles((c) => ({
-  bg: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'flex-end' },
-  sheet: {
-    backgroundColor: GLASS.solidBg,
-    borderTopLeftRadius: 0, borderTopRightRadius: 0,
-    borderTopWidth: StyleSheet.hairlineWidth, borderColor: GLASS.borderLight,
-    paddingHorizontal: 20, paddingTop: 10, paddingBottom: 32,
-    maxHeight: '70%',
-  },
-  handle: { width: 40, height: 4, borderRadius: 2, backgroundColor: c.border.subtle, alignSelf: 'center', marginBottom: 14 },
-  header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 },
-  title: { fontSize: 18, fontWeight: '800', color: c.text.primary, letterSpacing: -0.3 },
-
-  opt: {
-    flexDirection: 'row', alignItems: 'center', gap: 12,
-    paddingVertical: 14, paddingHorizontal: 14, borderRadius: 0,
-    backgroundColor: c.bg.primary, marginBottom: 8,
-    borderWidth: StyleSheet.hairlineWidth, borderColor: c.border.subtle,
-  },
-  optActive: { borderColor: c.accent.primary, backgroundColor: c.accent.primary + '0E' },
-  native: { fontSize: 15.5, fontWeight: '700', color: c.text.primary, letterSpacing: -0.2 },
-  english: { fontSize: 12.5, fontWeight: '500', color: c.text.muted, marginTop: 2 },
-}));

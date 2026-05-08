@@ -110,7 +110,7 @@ export default function WeekStrip({ mtdSpend, monthlyBudget, scoreDelta }: Props
         accessibilityLabel={`Spend ${fmtINR(mtdSpend)} of ${fmtINR(monthlyBudget)} budget, ${pct} percent used`}
         style={styles.row}
       >
-        <Text style={styles.rowLabel}>SPEND VS BUDGET</Text>
+        <Text style={styles.rowLabel}>MTD SPEND · BUDGET</Text>
         <View style={styles.rowRight}>
           <Text style={styles.rowNum}>{fmtINR(mtdSpend)} / {fmtINR(monthlyBudget)}</Text>
           <View style={[styles.deltaChip, { backgroundColor: over ? BR_COLORS.negative : BR_COLORS.positive }]}>
@@ -171,7 +171,7 @@ export default function WeekStrip({ mtdSpend, monthlyBudget, scoreDelta }: Props
 
   return (
     <View style={styles.card}>
-      <Text style={styles.kicker}>THIS WEEK</Text>
+      <Text style={styles.kicker}>THIS WEEK · AT A GLANCE</Text>
       <View style={styles.rowsWrap}>
         {rows.map((r, i) => (
           <View key={i} style={i === 0 ? null : styles.divider}>{r}</View>

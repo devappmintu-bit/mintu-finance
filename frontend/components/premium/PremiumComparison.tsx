@@ -25,6 +25,111 @@ import { makeStyles } from '../../utils/makeStyles';
 import { COLORS } from '../../utils/theme';
 import PulseCTA from './PulseCTA';
 
+
+
+// R113 FIX — useStyles hoisted above first render-time call
+// to avoid Metro/SDK52 TDZ error (`Cannot access X before init.`).
+const useStyles = makeStyles((c) => ({
+  wrap: {
+    borderRadius: 0,
+    overflow: 'hidden',
+    backgroundColor: c.bg.card,
+    borderWidth: 1,
+    borderColor: c.border.subtle,
+  },
+
+  hero: { paddingHorizontal: 14, paddingVertical: 12 },
+  heroTop: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  heroTitle: { flex: 1, color: '#fff', fontSize: 14, fontWeight: '800' },
+  heroSub: { color: '#FFE4CC', fontSize: 10.5, marginTop: 4, fontWeight: '600' },
+  closeBtn: { width: 24, height: 24, borderRadius: 0, backgroundColor: 'rgba(255,255,255,0.2)', alignItems: 'center', justifyContent: 'center' },
+
+  // Column header row — fixed widths, no horizontal scroll.
+  // 110 (label) + 80*3 (cols) = 350px, fits 360+ phones.
+  headRow: {
+    flexDirection: 'row',
+    backgroundColor: c.bg.elevated,
+    borderBottomWidth: 1.5,
+    borderBottomColor: c.border.subtle,
+  },
+  rowLabelHead: { width: 110, paddingHorizontal: 10 },
+  colHead: {
+    width: 80,
+    paddingTop: 14,
+    paddingBottom: 10,
+    alignItems: 'center',
+    borderTopWidth: 3,
+    position: 'relative',
+    borderWidth: 1.5,
+    borderColor: 'transparent',
+    marginHorizontal: 1,
+  },
+  colHeadActive:   { borderWidth: 1.5 },
+  colHeadSelected: { borderWidth: 1.5, borderStyle: 'dashed' as const },
+  planBadge: {
+    position: 'absolute',
+    top: -1,
+    paddingHorizontal: 6,
+    paddingVertical: 1.5,
+    borderRadius: 999,
+  },
+  planBadgeTxt: { color: '#fff', fontSize: 8, fontWeight: '900', letterSpacing: 0.5 },
+  colTitle: { fontSize: 11, fontWeight: '800', color: c.text.primary, textTransform: 'uppercase', letterSpacing: 0.5, marginTop: 6 },
+  colPrice: { fontSize: 18, fontWeight: '900', marginTop: 2 },
+  colSub: { fontSize: 9.5, color: c.text.muted, fontWeight: '700', marginTop: 1 },
+
+  yourPlanPill: {
+    marginTop: 6,
+    paddingHorizontal: 7,
+    paddingVertical: 2,
+    borderRadius: 999,
+  },
+  yourPlanPillTxt: { color: '#fff', fontSize: 8.5, fontWeight: '900', letterSpacing: 0.4 },
+
+  // Section grouping headers (e.g. "AI & Insights")
+  sectionHeader: {
+    paddingHorizontal: 12,
+    paddingTop: 14,
+    paddingBottom: 6,
+    backgroundColor: c.bg.card,
+  },
+  sectionHeaderTxt: {
+    fontSize: 10,
+    fontWeight: '900',
+    color: c.accent.primary,
+    letterSpacing: 1,
+    textTransform: 'uppercase' as const,
+  },
+
+  featRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 9,
+    borderBottomWidth: 1,
+    borderBottomColor: c.border.subtle,
+  },
+  featRowAlt: { backgroundColor: c.bg.elevated },
+  rowLabel: { width: 110, paddingHorizontal: 12 },
+  rowLabelTxt: { fontSize: 12, color: c.text.primary, fontWeight: '600', lineHeight: 16 },
+  cell: {
+    width: 80,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 4,
+    marginHorizontal: 1,
+  },
+  cellTxt: { fontSize: 10.5, fontWeight: '800', color: c.accent.brand },
+
+  fineprint: {
+    fontSize: 10,
+    color: c.text.muted,
+    textAlign: 'center' as const,
+    fontStyle: 'italic' as const,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+  },
+}));
+
 type Plan = 'intro' | 'monthly' | 'yearly';
 type Cell = boolean | string;
 type Row  = { label: string; intro: Cell; monthly: Cell; yearly: Cell };
@@ -183,103 +288,3 @@ export default function PremiumComparison({ onClose, activeTier, selectedTier, o
   );
 }
 
-const useStyles = makeStyles((c) => ({
-  wrap: {
-    borderRadius: 0,
-    overflow: 'hidden',
-    backgroundColor: c.bg.card,
-    borderWidth: 1,
-    borderColor: c.border.subtle,
-  },
-
-  hero: { paddingHorizontal: 14, paddingVertical: 12 },
-  heroTop: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  heroTitle: { flex: 1, color: '#fff', fontSize: 14, fontWeight: '800' },
-  heroSub: { color: '#FFE4CC', fontSize: 10.5, marginTop: 4, fontWeight: '600' },
-  closeBtn: { width: 24, height: 24, borderRadius: 0, backgroundColor: 'rgba(255,255,255,0.2)', alignItems: 'center', justifyContent: 'center' },
-
-  // Column header row — fixed widths, no horizontal scroll.
-  // 110 (label) + 80*3 (cols) = 350px, fits 360+ phones.
-  headRow: {
-    flexDirection: 'row',
-    backgroundColor: c.bg.elevated,
-    borderBottomWidth: 1.5,
-    borderBottomColor: c.border.subtle,
-  },
-  rowLabelHead: { width: 110, paddingHorizontal: 10 },
-  colHead: {
-    width: 80,
-    paddingTop: 14,
-    paddingBottom: 10,
-    alignItems: 'center',
-    borderTopWidth: 3,
-    position: 'relative',
-    borderWidth: 1.5,
-    borderColor: 'transparent',
-    marginHorizontal: 1,
-  },
-  colHeadActive:   { borderWidth: 1.5 },
-  colHeadSelected: { borderWidth: 1.5, borderStyle: 'dashed' as const },
-  planBadge: {
-    position: 'absolute',
-    top: -1,
-    paddingHorizontal: 6,
-    paddingVertical: 1.5,
-    borderRadius: 999,
-  },
-  planBadgeTxt: { color: '#fff', fontSize: 8, fontWeight: '900', letterSpacing: 0.5 },
-  colTitle: { fontSize: 11, fontWeight: '800', color: c.text.primary, textTransform: 'uppercase', letterSpacing: 0.5, marginTop: 6 },
-  colPrice: { fontSize: 18, fontWeight: '900', marginTop: 2 },
-  colSub: { fontSize: 9.5, color: c.text.muted, fontWeight: '700', marginTop: 1 },
-
-  yourPlanPill: {
-    marginTop: 6,
-    paddingHorizontal: 7,
-    paddingVertical: 2,
-    borderRadius: 999,
-  },
-  yourPlanPillTxt: { color: '#fff', fontSize: 8.5, fontWeight: '900', letterSpacing: 0.4 },
-
-  // Section grouping headers (e.g. "AI & Insights")
-  sectionHeader: {
-    paddingHorizontal: 12,
-    paddingTop: 14,
-    paddingBottom: 6,
-    backgroundColor: c.bg.card,
-  },
-  sectionHeaderTxt: {
-    fontSize: 10,
-    fontWeight: '900',
-    color: c.accent.primary,
-    letterSpacing: 1,
-    textTransform: 'uppercase' as const,
-  },
-
-  featRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingVertical: 9,
-    borderBottomWidth: 1,
-    borderBottomColor: c.border.subtle,
-  },
-  featRowAlt: { backgroundColor: c.bg.elevated },
-  rowLabel: { width: 110, paddingHorizontal: 12 },
-  rowLabelTxt: { fontSize: 12, color: c.text.primary, fontWeight: '600', lineHeight: 16 },
-  cell: {
-    width: 80,
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: 4,
-    marginHorizontal: 1,
-  },
-  cellTxt: { fontSize: 10.5, fontWeight: '800', color: c.accent.brand },
-
-  fineprint: {
-    fontSize: 10,
-    color: c.text.muted,
-    textAlign: 'center' as const,
-    fontStyle: 'italic' as const,
-    paddingHorizontal: 12,
-    paddingVertical: 10,
-  },
-}));

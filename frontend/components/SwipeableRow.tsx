@@ -10,6 +10,37 @@ import { Ionicons } from '@expo/vector-icons';
 import { COLORS, RADIUS } from '../utils/theme';
 import { makeStyles } from '../utils/makeStyles';
 
+
+
+// R113 FIX — useStyles hoisted above first render-time call
+// to avoid Metro/SDK52 TDZ error (`Cannot access X before init.`).
+const useStyles = makeStyles((c) => ({
+  rightAction: { backgroundColor: COLORS.state.danger, justifyContent: 'center', alignItems: 'center', width: 90, borderRadius: RADIUS.lg, marginBottom: 10, marginLeft: 8 },
+  leftAction: { backgroundColor: '#3B82F6', justifyContent: 'center', alignItems: 'center', width: 90, borderRadius: RADIUS.lg, marginBottom: 10, marginRight: 8 },
+  actionText: { color: '#fff', fontSize: 11, fontWeight: '700', marginTop: 2 },
+
+  webHandle: {
+    width: 30, height: 30, borderRadius: 0,
+    backgroundColor: '#F3F4F6',
+    alignItems: 'center', justifyContent: 'center',
+    marginLeft: 6,
+  },
+  webBar: {
+    flexDirection: 'row', gap: 8,
+    paddingHorizontal: 10, paddingVertical: 8,
+    marginTop: -6,
+    backgroundColor: '#F9FAFB',
+    borderBottomLeftRadius: RADIUS.lg, borderBottomRightRadius: RADIUS.lg,
+    borderWidth: 1, borderTopWidth: 0,
+    borderColor: '#E5E7EB',
+  },
+  webBarBtn: {
+    flexDirection: 'row', gap: 5, alignItems: 'center',
+    paddingHorizontal: 12, paddingVertical: 6, borderRadius: 999,
+  },
+  webBarText: { color: '#fff', fontSize: 12, fontWeight: '700' },
+}));
+
 interface Props {
   children: React.ReactNode;
   onEdit?: () => void;
@@ -124,29 +155,3 @@ export default function SwipeableRow({
   );
 }
 
-const useStyles = makeStyles((c) => ({
-  rightAction: { backgroundColor: COLORS.state.danger, justifyContent: 'center', alignItems: 'center', width: 90, borderRadius: RADIUS.lg, marginBottom: 10, marginLeft: 8 },
-  leftAction: { backgroundColor: '#3B82F6', justifyContent: 'center', alignItems: 'center', width: 90, borderRadius: RADIUS.lg, marginBottom: 10, marginRight: 8 },
-  actionText: { color: '#fff', fontSize: 11, fontWeight: '700', marginTop: 2 },
-
-  webHandle: {
-    width: 30, height: 30, borderRadius: 0,
-    backgroundColor: '#F3F4F6',
-    alignItems: 'center', justifyContent: 'center',
-    marginLeft: 6,
-  },
-  webBar: {
-    flexDirection: 'row', gap: 8,
-    paddingHorizontal: 10, paddingVertical: 8,
-    marginTop: -6,
-    backgroundColor: '#F9FAFB',
-    borderBottomLeftRadius: RADIUS.lg, borderBottomRightRadius: RADIUS.lg,
-    borderWidth: 1, borderTopWidth: 0,
-    borderColor: '#E5E7EB',
-  },
-  webBarBtn: {
-    flexDirection: 'row', gap: 5, alignItems: 'center',
-    paddingHorizontal: 12, paddingVertical: 6, borderRadius: 999,
-  },
-  webBarText: { color: '#fff', fontSize: 12, fontWeight: '700' },
-}));

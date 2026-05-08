@@ -9,7 +9,7 @@ import uuid as uuid_lib
 from contextlib import asynccontextmanager
 from datetime import datetime, timezone
 from urllib.parse import quote
-from typing import Optional, Dict, Any
+from typing import Optional, Dict, Any, List
 from bson import ObjectId
 from fastapi import Depends, Header, HTTPException
 from pymongo.errors import DuplicateKeyError
@@ -296,6 +296,11 @@ async def get_overall_balances(user_id: str = Depends(get_current_user)):
     all_expenses = await db.split_expenses.find(
         {"group_id": {"$in": group_ids}}
     ).to_list(5000) if group_ids else []
+    # R101F — initialise pending_signed BEFORE any early-return path so
+    # the response builder below never crashes on `pending_signed.items()`
+    # for users with zero groups. Previous R101E placement was after the
+    # for-loop, which left it undefined on the empty-groups path → 500.
+    pending_signed: Dict[str, float] = {}
     for exp in all_expenses:
         payer = exp["paid_by"]
         for uid, amt in (exp.get("splits") or {}).items():
@@ -338,11 +343,38 @@ async def get_overall_balances(user_id: str = Depends(get_current_user)):
         else:
             you_owe[nm] = round(abs(v), 2)
 
+    # R101E — Resolve pending invitees to their friendly names by
+    # cross-referencing the user's groups. Frontend uses this to show
+    # an honest "Waiting for Haraki to confirm — ₹1,300 once they join"
+    # row that NEVER lands in `total_owed_to_you`.
+    pending_invites: List[Dict[str, Any]] = []
+    pi_lookup: Dict[str, Dict[str, Any]] = {}
+    for g in groups:
+        for inv in (g.get("pending_invites") or []):
+            ph = inv.get("phone")
+            if ph:
+                pi_lookup[f"pi:{ph}"] = inv
+    for pi_id, signed in pending_signed.items():
+        amt = abs(signed)
+        if amt < 0.5:
+            continue
+        meta = pi_lookup.get(pi_id, {})
+        pending_invites.append({
+            "phone": meta.get("phone") or pi_id.replace("pi:", ""),
+            "name": meta.get("name") or "Waiting to join",
+            "amount": round(amt, 2),
+        })
+
     return {
         "total_owed_to_you": round(sum(owe_you.values()), 2),
         "total_you_owe": round(sum(you_owe.values()), 2),
         "owe_you": owe_you,
-        "you_owe": you_owe
+        "you_owe": you_owe,
+        # R101E — separate, honest pending-invite bucket. Frontend MUST
+        # render this in its own "Waiting to join" section and MUST NOT
+        # add it to total_owed_to_you.
+        "pending_invites": pending_invites,
+        "pending_total": round(sum(p["amount"] for p in pending_invites), 2),
     }
 
 

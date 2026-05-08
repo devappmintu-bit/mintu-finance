@@ -10,6 +10,33 @@ import * as Haptics from 'expo-haptics';
 import { useAppColors, RADIUS, SPACING, shadowStyle, COLORS } from '../utils/theme';
 import { makeStyles } from '../utils/makeStyles';
 
+
+
+// R113 FIX — useStyles hoisted above first render-time call
+// to avoid Metro/SDK52 TDZ error (`Cannot access X before init.`).
+const useStyles = makeStyles(() => ({
+  toast: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    marginHorizontal: SPACING.lg,
+    paddingHorizontal: SPACING.md,
+    paddingVertical: SPACING.sm + 4,
+    borderRadius: RADIUS.xl,
+    borderWidth: 1,
+    minHeight: 60,
+    ...shadowStyle('#000', 6, 16, 0.16, 8),
+  },
+  iconChip: {
+    width: 36, height: 36, borderRadius: 0,
+    alignItems: 'center', justifyContent: 'center',
+  },
+  textWrap: { flex: 1 },
+  title:   { fontSize: 14.5, fontWeight: '800', letterSpacing: -0.2 },
+  message: { fontSize: 12.5, fontWeight: '500', marginTop: 2, lineHeight: 17 },
+  action:  { fontSize: 13, fontWeight: '800', paddingHorizontal: 6, paddingVertical: 4, letterSpacing: -0.1 },
+}));
+
 export type ToastVariant = 'success' | 'error' | 'warning' | 'info' | 'neutral';
 
 interface BaseProps {
@@ -89,25 +116,3 @@ export const toastConfig = {
   neutral: (p: any) => <ToastBase variant="neutral" text1={p.text1} text2={p.text2} action={p.props?.action || null} />,
 };
 
-const useStyles = makeStyles(() => ({
-  toast: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-    marginHorizontal: SPACING.lg,
-    paddingHorizontal: SPACING.md,
-    paddingVertical: SPACING.sm + 4,
-    borderRadius: RADIUS.xl,
-    borderWidth: 1,
-    minHeight: 60,
-    ...shadowStyle('#000', 6, 16, 0.16, 8),
-  },
-  iconChip: {
-    width: 36, height: 36, borderRadius: 0,
-    alignItems: 'center', justifyContent: 'center',
-  },
-  textWrap: { flex: 1 },
-  title:   { fontSize: 14.5, fontWeight: '800', letterSpacing: -0.2 },
-  message: { fontSize: 12.5, fontWeight: '500', marginTop: 2, lineHeight: 17 },
-  action:  { fontSize: 13, fontWeight: '800', paddingHorizontal: 6, paddingVertical: 4, letterSpacing: -0.1 },
-}));

@@ -10,7 +10,8 @@ import { StyleSheet, Text, View } from 'react-native';
 import { router } from 'expo-router';
 import MascotPresence from '../mascot/MascotPresence';
 import NBButton from './NBButton';
-import NBSticker from './NBSticker';
+// R100AG — NBSticker import removed; Memphis decoration stripped from
+// production surfaces. Component file kept for any future use.
 import { useNeoPalette } from '../../store/neoTheme';
 import { useFinContext } from '../../store/financialContext';
 import { useMascotMood } from '../../hooks/useMascotMood';
@@ -25,31 +26,48 @@ export default function NBHero() {
   const streakDays = useFinContext((s) => s.streak?.days ?? 0);
   const monthlySpend = useFinContext((s) => s.transactions?.monthlySpend ?? 0);
 
-  // R100AE — Mono-brand role mapping. Drop yellow rewards entirely.
-  // - celebrating/proud → savings (bold orange) — louder & more brand-coherent
-  // - panicked/sad      → coach (deeper orange) — Mintu IS the coach
-  // - else              → primary (orange)
-  const heroRole: 'savings' | 'coach' | 'primary' = useMemo(() => {
-    if (mood === 'celebrating' || mood === 'proud') return 'savings';
-    if (mood === 'panicked' || mood === 'sad') return 'coach';
-    return 'primary';
+  // R100AF — Hero stays on brand chrome (orange) for primary/proud/
+  // celebrating — semantic colors (green/red/blue/yellow/purple) are
+  // RESERVED for category badges, status pills, chart bars — never on
+  // the hero card. Result: hero is iconic & instantly MintU regardless
+  // of mood; semantic accents communicate state via small surfaces.
+  const heroRole: 'primary' | 'coach' | 'alert' = useMemo(() => {
+    if (mood === 'panicked') return 'alert';      // semantic red surface
+    if (mood === 'sad') return 'coach';           // semantic purple surface
+    return 'primary';                              // brand orange (default)
   }, [mood]);
   const r = roleColor(palette, heroRole);
 
   // For cold-start users we keep the Hero with a different copy that
   // teaches first-action, no fake gamification.
   const isCold = gated || txnCount === 0;
+
+  // R101A — Add explicit time windows everywhere on Home. The
+  // headline "Tracking ₹1.6K" was abstract — UX audit (P0): the user
+  // can't tell whether that's lifetime / month / week. We now break
+  // the figure across two lines: amount up top, period kicker
+  // ("THIS MONTH SO FAR") in the sub. Streak headlines retain their
+  // own framing because "Day 5" / "5 days strong" are inherently
+  // time-anchored.
+  const monthName = useMemo(() => {
+    try {
+      return new Date().toLocaleString('en-US', { month: 'short' }).toUpperCase();
+    } catch { return ''; }
+  }, []);
+
   const headline = isCold
     ? 'Money,\nbut make it fun.'
     : streakDays >= 7
     ? `${streakDays} days\nstrong.`
     : streakDays >= 1
     ? `Day ${streakDays}.\nKeep going.`
-    : `Tracking\n₹${fmt(monthlySpend)}`;
+    : `\u20b9${fmt(monthlySpend)}\nthis month.`;
 
   const sub = isCold
     ? 'Log your first expense and meet Mintu — your money companion.'
-    : line;
+    : streakDays >= 1
+    ? line
+    : `Spent in ${monthName} so far. ${line}`;
 
   const ctaLabel = isCold ? 'LOG FIRST EXPENSE' : 'CHAT WITH MINTU';
   const ctaIcon = isCold ? 'add' : 'sparkles';
@@ -76,10 +94,9 @@ export default function NBHero() {
           },
         ]}
       >
-        {/* Sticker chaos around the card edges */}
-        <NBSticker shape="asterisk" color="pink" size={32} rotate="spin1" top={-14} left={-12} />
-        <NBSticker shape="zigzag" color="sky" size={28} rotate="tilt5" bottom={-10} right={-10} />
-        <NBSticker shape="dot" color="yellow" size={20} rotate="none" top={18} right={-8} />
+        {/* R100AG — Memphis sticker decoration removed (asterisks/zigzags/dots).
+            The hero is now structural-only: thick border, hard shadow,
+            big type, mascot. No decorative chaos. Disciplined. */}
 
         <View style={styles.row}>
           <View style={styles.body}>

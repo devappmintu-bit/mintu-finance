@@ -16,6 +16,62 @@ import { makeStyles } from '../utils/makeStyles';
 import { useActivePlan, FEATURES, canAccess } from '../utils/premium';
 import { YearlySkeleton } from '../components/SkeletonLoader';
 import { StaggeredEntrance } from '../components/primitives';
+import { BrutalScreenHeader } from '../components/brutal';
+
+
+
+// R113 FIX — useStyles hoisted above first render-time call
+// to avoid Metro/SDK52 TDZ error (`Cannot access X before init.`).
+const useStyles = makeStyles((c) => ({
+  container: { flex: 1, backgroundColor: c.bg.primary },
+  header: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 12, paddingVertical: 12, backgroundColor: c.bg.elevated, borderBottomWidth: 1, borderBottomColor: c.border.subtle },
+  backBtn: { padding: 6 },
+  headerTitle: { flex: 1, fontSize: 17, fontWeight: '800', color: c.text.primary, textAlign: 'center' },
+  hero: { margin: 12, padding: 18, borderRadius: 0, ...shadowStyle(c.accent.brandDeeper, 6, 16, 0.25, 6) },
+  heroLabel: { color: 'rgba(255,255,255,0.8)', fontSize: 11, fontWeight: '800', letterSpacing: 1 },
+  heroHeadline: { color: c.bg.elevated, fontSize: 16, fontWeight: '800', marginTop: 4, lineHeight: 22 },
+  heroStats: { flexDirection: 'row', marginTop: 16, paddingTop: 14, borderTopWidth: 1, borderTopColor: 'rgba(255,255,255,0.25)' },
+  heroStat: { flex: 1, alignItems: 'center' },
+  heroStatV: { color: c.bg.elevated, fontSize: 16, fontWeight: '900' },
+  heroStatL: { color: 'rgba(255,255,255,0.85)', fontSize: 11, fontWeight: '700', marginTop: 2 },
+  heroDiv: { width: 1, height: 28, backgroundColor: 'rgba(255,255,255,0.3)', alignSelf: 'center' },
+  /* Brand-tinted shadow + brand-tinted border are intentional per Round 50. */
+  card: { backgroundColor: c.bg.elevated, margin: 12, padding: 16, borderRadius: 0, borderWidth: 1, borderColor: c.border.card, ...shadowStyle('#2E1F1A', 2, 10, 0.05, 2) },
+  cardTitle: { fontSize: 15, fontWeight: '800', color: c.text.primary },
+  cardSub: { fontSize: 11, color: c.text.muted, marginTop: 2, marginBottom: 10 },
+  legendRow: { flexDirection: 'row', justifyContent: 'center', gap: 16, marginTop: 8 },
+  legendItem: { flexDirection: 'row', alignItems: 'center', gap: 5 },
+  legendDot: { width: 10, height: 10, borderRadius: 2 },
+  legendText: { fontSize: 11, color: c.text.muted, fontWeight: '600' },
+  /* Brand-tinted alpha border + soft fill — intentional warm-orange identity per Round 50. */
+  selectedCard: { marginTop: 10, padding: 12, backgroundColor: c.bg.elevated, borderRadius: 0, borderWidth: 1, borderColor: c.accent.brandDeeper + '40' },
+  selectedLabel: { fontSize: 13, fontWeight: '800', color: c.accent.brandDeeper, marginBottom: 8 },
+  selectedGrid: { flexDirection: 'row' },
+  selectedCell: { flex: 1, alignItems: 'center' },
+  selectedVal: { fontSize: 14, fontWeight: '800' },
+  selectedSub: { fontSize: 10, color: c.text.muted, fontWeight: '600', marginTop: 2 },
+  selectedTop: { fontSize: 11, color: c.text.secondary, textAlign: 'center', marginTop: 8, fontStyle: 'italic' },
+  momentumRow: { flexDirection: 'row', alignItems: 'center', gap: 12 },
+  momentumTitle: { fontSize: 13, fontWeight: '800', color: c.text.primary, letterSpacing: 0.3 },
+  momentumDetail: { fontSize: 12, color: c.text.secondary, marginTop: 2 },
+  catRow: { flexDirection: 'row', alignItems: 'center', gap: 10, marginTop: 10 },
+  catRank: { width: 24, height: 24, borderRadius: 0, backgroundColor: c.accent.brandDeeper + '15', justifyContent: 'center', alignItems: 'center' },
+  catRankNum: { fontSize: 11, fontWeight: '800', color: c.accent.brandDeeper },
+  catName: { fontSize: 13, fontWeight: '700', color: c.text.primary },
+  catBar: { height: 5, backgroundColor: c.bg.elevated, borderRadius: 999, overflow: 'hidden', marginTop: 4 },
+  catBarFill: { height: '100%', borderRadius: 999 },
+  catAmt: { fontSize: 12, fontWeight: '800', color: c.text.primary },
+  catPct: { fontSize: 10, fontWeight: '700', color: c.text.muted },
+  highRow: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: c.border.subtle },
+  highEmoji: { fontSize: 20 },
+  highTitle: { fontSize: 12, fontWeight: '800', color: c.text.muted, letterSpacing: 0.3 },
+  highSub: { fontSize: 13, fontWeight: '700', color: c.text.primary, marginTop: 2 },
+  avgGrid: { flexDirection: 'row', alignItems: 'center', marginTop: 8 },
+  avgCell: { flex: 1, alignItems: 'center' },
+  avgVal: { fontSize: 15, fontWeight: '800' },
+  avgLbl: { fontSize: 11, fontWeight: '600', color: c.text.muted, marginTop: 2 },
+  avgDiv: { width: 1, height: 32, backgroundColor: c.border.subtle },
+}));
 
 const CHART_H = 180;
 const BAR_WIDTH = 22;
@@ -180,13 +236,7 @@ export default function YearlyDashboard() {
   if (locked) {
     return (
       <SafeAreaView style={s.container} edges={['top']}>
-        <View style={s.header}>
-          <TouchableOpacity onPress={() => router.back()} style={s.backBtn}>
-            <Ionicons name="chevron-back" size={22} color={COLORS.text.primary} />
-          </TouchableOpacity>
-          <Text style={s.headerTitle}>Yearly Dashboard</Text>
-          <View style={{ width: 32 }} />
-        </View>
+      <BrutalScreenHeader title="YEARLY DASHBOARD" subtitle="LOCKED · PREMIUM" />
         <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', padding: 32 }}>
           <View style={{ width: 80, height: 80, borderRadius: 0, backgroundColor: COLORS.accent.primary + '15', justifyContent: 'center', alignItems: 'center', marginBottom: 16 }}>
             <Ionicons name="lock-closed" size={32} color={COLORS.accent.primary} />
@@ -224,13 +274,7 @@ export default function YearlyDashboard() {
 
   return (
     <SafeAreaView style={s.container} edges={['top']}>
-      <View style={s.header}>
-        <TouchableOpacity onPress={() => router.back()} style={s.backBtn}>
-          <Ionicons name="chevron-back" size={22} color={COLORS.text.primary} />
-        </TouchableOpacity>
-        <Text style={s.headerTitle}>Yearly Dashboard</Text>
-        <View style={{ width: 32 }} />
-      </View>
+      <BrutalScreenHeader title="YEARLY DASHBOARD" subtitle="MOMENTUM · CATEGORIES · HIGHLIGHTS" />
 
       <ScrollView
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); load(); }} tintColor={tc.accent.brandDeeper} />}
@@ -369,53 +413,3 @@ export default function YearlyDashboard() {
   );
 }
 
-const useStyles = makeStyles((c) => ({
-  container: { flex: 1, backgroundColor: c.bg.primary },
-  header: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 12, paddingVertical: 12, backgroundColor: c.bg.elevated, borderBottomWidth: 1, borderBottomColor: c.border.subtle },
-  backBtn: { padding: 6 },
-  headerTitle: { flex: 1, fontSize: 17, fontWeight: '800', color: c.text.primary, textAlign: 'center' },
-  hero: { margin: 12, padding: 18, borderRadius: 0, ...shadowStyle(c.accent.brandDeeper, 6, 16, 0.25, 6) },
-  heroLabel: { color: 'rgba(255,255,255,0.8)', fontSize: 11, fontWeight: '800', letterSpacing: 1 },
-  heroHeadline: { color: c.bg.elevated, fontSize: 16, fontWeight: '800', marginTop: 4, lineHeight: 22 },
-  heroStats: { flexDirection: 'row', marginTop: 16, paddingTop: 14, borderTopWidth: 1, borderTopColor: 'rgba(255,255,255,0.25)' },
-  heroStat: { flex: 1, alignItems: 'center' },
-  heroStatV: { color: c.bg.elevated, fontSize: 16, fontWeight: '900' },
-  heroStatL: { color: 'rgba(255,255,255,0.85)', fontSize: 11, fontWeight: '700', marginTop: 2 },
-  heroDiv: { width: 1, height: 28, backgroundColor: 'rgba(255,255,255,0.3)', alignSelf: 'center' },
-  /* Brand-tinted shadow + brand-tinted border are intentional per Round 50. */
-  card: { backgroundColor: c.bg.elevated, margin: 12, padding: 16, borderRadius: 0, borderWidth: 1, borderColor: c.border.card, ...shadowStyle('#2E1F1A', 2, 10, 0.05, 2) },
-  cardTitle: { fontSize: 15, fontWeight: '800', color: c.text.primary },
-  cardSub: { fontSize: 11, color: c.text.muted, marginTop: 2, marginBottom: 10 },
-  legendRow: { flexDirection: 'row', justifyContent: 'center', gap: 16, marginTop: 8 },
-  legendItem: { flexDirection: 'row', alignItems: 'center', gap: 5 },
-  legendDot: { width: 10, height: 10, borderRadius: 2 },
-  legendText: { fontSize: 11, color: c.text.muted, fontWeight: '600' },
-  /* Brand-tinted alpha border + soft fill — intentional warm-orange identity per Round 50. */
-  selectedCard: { marginTop: 10, padding: 12, backgroundColor: c.bg.elevated, borderRadius: 0, borderWidth: 1, borderColor: c.accent.brandDeeper + '40' },
-  selectedLabel: { fontSize: 13, fontWeight: '800', color: c.accent.brandDeeper, marginBottom: 8 },
-  selectedGrid: { flexDirection: 'row' },
-  selectedCell: { flex: 1, alignItems: 'center' },
-  selectedVal: { fontSize: 14, fontWeight: '800' },
-  selectedSub: { fontSize: 10, color: c.text.muted, fontWeight: '600', marginTop: 2 },
-  selectedTop: { fontSize: 11, color: c.text.secondary, textAlign: 'center', marginTop: 8, fontStyle: 'italic' },
-  momentumRow: { flexDirection: 'row', alignItems: 'center', gap: 12 },
-  momentumTitle: { fontSize: 13, fontWeight: '800', color: c.text.primary, letterSpacing: 0.3 },
-  momentumDetail: { fontSize: 12, color: c.text.secondary, marginTop: 2 },
-  catRow: { flexDirection: 'row', alignItems: 'center', gap: 10, marginTop: 10 },
-  catRank: { width: 24, height: 24, borderRadius: 0, backgroundColor: c.accent.brandDeeper + '15', justifyContent: 'center', alignItems: 'center' },
-  catRankNum: { fontSize: 11, fontWeight: '800', color: c.accent.brandDeeper },
-  catName: { fontSize: 13, fontWeight: '700', color: c.text.primary },
-  catBar: { height: 5, backgroundColor: c.bg.elevated, borderRadius: 999, overflow: 'hidden', marginTop: 4 },
-  catBarFill: { height: '100%', borderRadius: 999 },
-  catAmt: { fontSize: 12, fontWeight: '800', color: c.text.primary },
-  catPct: { fontSize: 10, fontWeight: '700', color: c.text.muted },
-  highRow: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: c.border.subtle },
-  highEmoji: { fontSize: 20 },
-  highTitle: { fontSize: 12, fontWeight: '800', color: c.text.muted, letterSpacing: 0.3 },
-  highSub: { fontSize: 13, fontWeight: '700', color: c.text.primary, marginTop: 2 },
-  avgGrid: { flexDirection: 'row', alignItems: 'center', marginTop: 8 },
-  avgCell: { flex: 1, alignItems: 'center' },
-  avgVal: { fontSize: 15, fontWeight: '800' },
-  avgLbl: { fontSize: 11, fontWeight: '600', color: c.text.muted, marginTop: 2 },
-  avgDiv: { width: 1, height: 32, backgroundColor: c.border.subtle },
-}));

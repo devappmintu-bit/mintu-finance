@@ -12,6 +12,63 @@ import { StaggeredEntrance } from '../components/primitives';
 import { COLORS, SPACING, RADIUS, useAppColors } from '../utils/theme';
 import { makeStyles } from '../utils/makeStyles';
 import { showError, showSuccess } from '../utils/toast';
+import { BrutalScreenHeader } from '../components/brutal';
+
+
+
+// R113 FIX — useStyles hoisted above first render-time call
+// to avoid Metro/SDK52 TDZ error (`Cannot access X before init.`).
+const useStyles = makeStyles((c) => ({
+  container: { flex: 1, backgroundColor: c.bg.primary },
+  header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: SPACING.lg, paddingVertical: SPACING.md },
+  title: { fontSize: 17, fontWeight: '800', color: c.text.primary, letterSpacing: -0.3 },
+
+  hero: { borderRadius: 0, padding: 22, marginBottom: 14 },
+  heroIcon: { alignSelf: 'flex-start', padding: 6, marginBottom: 8 },
+  heroTitle: { color: c.bg.elevated, fontSize: 22, fontWeight: '800', letterSpacing: -0.3 },
+  heroSub: { color: 'rgba(255,255,255,0.9)', fontSize: 13, marginTop: 6, lineHeight: 19 },
+  heroStats: { flexDirection: 'row', marginTop: 14, paddingTop: 12, borderTopWidth: 1, borderTopColor: 'rgba(255,255,255,0.25)' },
+  heroStat: { flex: 1 },
+  heroStatVal: { color: c.bg.elevated, fontSize: 18, fontWeight: '800' },
+  heroStatLbl: { color: 'rgba(255,255,255,0.85)', fontSize: 11, fontWeight: '700', marginTop: 2, textTransform: 'uppercase', letterSpacing: 0.4 },
+  heroStatDiv: { width: 1, backgroundColor: 'rgba(255,255,255,0.25)', marginHorizontal: 12 },
+
+  cta: { borderRadius: 0, overflow: 'hidden' },
+  ctaBg: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 10, paddingVertical: 15 },
+  ctaT: { color: c.bg.elevated, fontSize: 15, fontWeight: '800' },
+
+  secondary: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, paddingVertical: 12, backgroundColor: c.state.dangerBg, borderRadius: 0 },
+  secondaryT: { color: c.state.danger, fontSize: 14, fontWeight: '700' },
+
+  sect: { fontSize: 11, fontWeight: '800', color: c.gray[400], textTransform: 'uppercase', letterSpacing: 0.6, marginTop: 24, marginBottom: 10 },
+
+  bankGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
+  bankChip: { flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: c.bg.elevated, borderRadius: 999, paddingHorizontal: 10, paddingVertical: 6, borderWidth: 1, borderColor: c.gray[100] },
+  bankEmoji: { fontSize: 12 },
+  bankName: { fontSize: 12, fontWeight: '700', color: c.text.primary },
+
+  stepsCard: { backgroundColor: c.bg.elevated, borderRadius: 0, padding: 14, gap: 12, borderWidth: 1, borderColor: c.gray[100] },
+  step: { flexDirection: 'row', gap: 12 },
+  /* Pill border — brand-soft alpha (intentional aesthetic per Round 50). */
+  stepNumBg: { width: 26, height: 26, borderRadius: 0, backgroundColor: c.accent.brandSoft, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: c.accent.brand + '33' },
+  stepNum: { fontSize: 12, fontWeight: '800', color: c.accent.brandDark },
+  stepT: { fontSize: 14, fontWeight: '700', color: c.text.primary },
+  stepD: { fontSize: 12, color: c.text.muted, marginTop: 2 },
+
+  // Phase 2 — Trust badge row (3 visual badges replace verbose privacy block)
+  badgeRow: { flexDirection: 'row', gap: 8, marginBottom: 14 },
+  badge: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: 7, backgroundColor: c.state.successBg, borderWidth: 1, borderColor: c.state.successBorder, borderRadius: 0, paddingVertical: 10, paddingHorizontal: 10 },
+  badgeTxt: { fontSize: 10, fontWeight: '800', color: c.state.success, lineHeight: 13 },
+  // Phase 2 — condensed bullet card (replaces 4-step wordy block)
+  bulletCard: { backgroundColor: c.bg.elevated, borderRadius: 0, padding: 14, gap: 12, borderWidth: 1, borderColor: c.gray[100] },
+  bulletRow: { flexDirection: 'row', alignItems: 'center', gap: 10 },
+  bulletTxt: { flex: 1, fontSize: 12.5, color: c.text.secondary, fontWeight: '600', lineHeight: 17 },
+  bulletBold: { fontWeight: '900', color: c.text.primary },
+
+  privacy: { flexDirection: 'row', gap: 10, backgroundColor: c.state.successBg, borderRadius: 0, padding: 12, marginTop: 16, borderWidth: 1, borderColor: c.state.successBorder },
+  privacyT: { fontSize: 13, fontWeight: '800', color: c.state.success },
+  privacyD: { fontSize: 12, color: c.state.success, marginTop: 4, lineHeight: 17 },
+}));
 
 type Status = {
   connected: boolean;
@@ -195,13 +252,10 @@ export default function GmailConnectScreen() {
 
   return (
     <SafeAreaView style={s.container}>
-      <View style={s.header}>
-        <TouchableOpacity onPress={() => router.back()} hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}>
-          <Ionicons name="arrow-back" size={24} color={COLORS.text.primary} />
-        </TouchableOpacity>
-        <Text style={s.title}>Gmail Auto-Import</Text>
-        <View style={{ width: 24 }} />
-      </View>
+      <BrutalScreenHeader
+        title="GMAIL AUTO-IMPORT"
+        subtitle={connected ? 'CONNECTED · SYNCING' : 'READ-ONLY · BANK ALERTS ONLY'}
+      />
 
       <ScrollView contentContainerStyle={{ padding: SPACING.lg, paddingBottom: 60 }} showsVerticalScrollIndicator={false}>
         <StaggeredEntrance delayMs={70} duration={420} distance={14}>
@@ -310,54 +364,3 @@ export default function GmailConnectScreen() {
   );
 }
 
-const useStyles = makeStyles((c) => ({
-  container: { flex: 1, backgroundColor: c.bg.primary },
-  header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: SPACING.lg, paddingVertical: SPACING.md },
-  title: { fontSize: 17, fontWeight: '800', color: c.text.primary, letterSpacing: -0.3 },
-
-  hero: { borderRadius: 0, padding: 22, marginBottom: 14 },
-  heroIcon: { alignSelf: 'flex-start', padding: 6, marginBottom: 8 },
-  heroTitle: { color: c.bg.elevated, fontSize: 22, fontWeight: '800', letterSpacing: -0.3 },
-  heroSub: { color: 'rgba(255,255,255,0.9)', fontSize: 13, marginTop: 6, lineHeight: 19 },
-  heroStats: { flexDirection: 'row', marginTop: 14, paddingTop: 12, borderTopWidth: 1, borderTopColor: 'rgba(255,255,255,0.25)' },
-  heroStat: { flex: 1 },
-  heroStatVal: { color: c.bg.elevated, fontSize: 18, fontWeight: '800' },
-  heroStatLbl: { color: 'rgba(255,255,255,0.85)', fontSize: 11, fontWeight: '700', marginTop: 2, textTransform: 'uppercase', letterSpacing: 0.4 },
-  heroStatDiv: { width: 1, backgroundColor: 'rgba(255,255,255,0.25)', marginHorizontal: 12 },
-
-  cta: { borderRadius: 0, overflow: 'hidden' },
-  ctaBg: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 10, paddingVertical: 15 },
-  ctaT: { color: c.bg.elevated, fontSize: 15, fontWeight: '800' },
-
-  secondary: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, paddingVertical: 12, backgroundColor: c.state.dangerBg, borderRadius: 0 },
-  secondaryT: { color: c.state.danger, fontSize: 14, fontWeight: '700' },
-
-  sect: { fontSize: 11, fontWeight: '800', color: c.gray[400], textTransform: 'uppercase', letterSpacing: 0.6, marginTop: 24, marginBottom: 10 },
-
-  bankGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
-  bankChip: { flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: c.bg.elevated, borderRadius: 999, paddingHorizontal: 10, paddingVertical: 6, borderWidth: 1, borderColor: c.gray[100] },
-  bankEmoji: { fontSize: 12 },
-  bankName: { fontSize: 12, fontWeight: '700', color: c.text.primary },
-
-  stepsCard: { backgroundColor: c.bg.elevated, borderRadius: 0, padding: 14, gap: 12, borderWidth: 1, borderColor: c.gray[100] },
-  step: { flexDirection: 'row', gap: 12 },
-  /* Pill border — brand-soft alpha (intentional aesthetic per Round 50). */
-  stepNumBg: { width: 26, height: 26, borderRadius: 0, backgroundColor: c.accent.brandSoft, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: c.accent.brand + '33' },
-  stepNum: { fontSize: 12, fontWeight: '800', color: c.accent.brandDark },
-  stepT: { fontSize: 14, fontWeight: '700', color: c.text.primary },
-  stepD: { fontSize: 12, color: c.text.muted, marginTop: 2 },
-
-  // Phase 2 — Trust badge row (3 visual badges replace verbose privacy block)
-  badgeRow: { flexDirection: 'row', gap: 8, marginBottom: 14 },
-  badge: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: 7, backgroundColor: c.state.successBg, borderWidth: 1, borderColor: c.state.successBorder, borderRadius: 0, paddingVertical: 10, paddingHorizontal: 10 },
-  badgeTxt: { fontSize: 10, fontWeight: '800', color: c.state.success, lineHeight: 13 },
-  // Phase 2 — condensed bullet card (replaces 4-step wordy block)
-  bulletCard: { backgroundColor: c.bg.elevated, borderRadius: 0, padding: 14, gap: 12, borderWidth: 1, borderColor: c.gray[100] },
-  bulletRow: { flexDirection: 'row', alignItems: 'center', gap: 10 },
-  bulletTxt: { flex: 1, fontSize: 12.5, color: c.text.secondary, fontWeight: '600', lineHeight: 17 },
-  bulletBold: { fontWeight: '900', color: c.text.primary },
-
-  privacy: { flexDirection: 'row', gap: 10, backgroundColor: c.state.successBg, borderRadius: 0, padding: 12, marginTop: 16, borderWidth: 1, borderColor: c.state.successBorder },
-  privacyT: { fontSize: 13, fontWeight: '800', color: c.state.success },
-  privacyD: { fontSize: 12, color: c.state.success, marginTop: 4, lineHeight: 17 },
-}));

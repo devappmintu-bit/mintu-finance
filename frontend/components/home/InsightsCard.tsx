@@ -14,6 +14,56 @@ import { Ionicons } from '@expo/vector-icons';
 import {  COLORS, RADIUS, SPACING, shadowStyle, useAppColors, GLASS } from '../../utils/theme';
 import { makeStyles } from '../../utils/makeStyles';
 
+
+
+// R113 FIX — useStyles hoisted above first render-time call
+// to avoid Metro/SDK52 TDZ error (`Cannot access X before init.`).
+const useStyles = makeStyles((c) => ({
+  // Round 56 — Glassmorphic card. Translucent white on the warm canvas
+  // (#FAF6EE) with a hairline border for the iOS-Crystal effect. Falls
+  // back gracefully on Android (opacity handled by alpha channel).
+  card: {
+    backgroundColor: GLASS.solidBg,
+    borderRadius: 0,
+    padding: 18,
+    marginBottom: 14,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: GLASS.borderLight,
+    ...shadowStyle('#111827', 4, 18, 0.05, 3),
+  },
+  tierRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 },
+  tierBadge: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 12, paddingVertical: 6, borderRadius: 0, borderWidth: 1 },
+  tierEmoji: { fontSize: 15 },
+  tierName: { fontSize: 12, fontWeight: '800', letterSpacing: 0.3 },
+  scorePill: { flexDirection: 'row', alignItems: 'baseline' },
+  scoreNum: { fontSize: 26, fontWeight: '900', color: c.text.primary },
+  scoreMax: { fontSize: 13, fontWeight: '700', color: c.text.muted },
+  progressBlock: { marginBottom: 14 },
+  progressTrack: { height: 6, backgroundColor: c.border.subtle, borderRadius: 3, overflow: 'hidden' },
+  progressFill: { height: '100%', borderRadius: 3 },
+  progressLabelRow: { flexDirection: 'row', justifyContent: 'space-between', marginTop: 6 },
+  progressLabel: { fontSize: 11, fontWeight: '600', color: c.text.muted },
+  progressLabelR: { fontSize: 11, fontWeight: '700', color: c.text.secondary },
+  paceBox: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingVertical: 10, paddingHorizontal: 12, backgroundColor: c.accent.primary + '08', borderRadius: 0, marginBottom: 14 },
+  paceEmoji: { fontSize: 18 },
+  paceText: { flex: 1, fontSize: 13, fontWeight: '700', color: c.text.primary, lineHeight: 18 },
+  sparkHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 },
+  sparkTitle: { fontSize: 12, fontWeight: '700', color: c.text.muted, letterSpacing: 0.5 },
+  sparkSub: { fontSize: 16, fontWeight: '800', color: c.text.primary, marginTop: 2 },
+  trendPill: { flexDirection: 'row', alignItems: 'center', gap: 3, paddingHorizontal: 10, paddingVertical: 4, borderRadius: 0 },
+  trendText: { fontSize: 11, fontWeight: '800' },
+  sparkWrap: { alignItems: 'center', marginVertical: 6 },
+  sparkLabels: { flexDirection: 'row', justifyContent: 'space-between', width: CHART_W - PAD * 2, marginTop: 2, paddingHorizontal: PAD },
+  sparkLabel: { flex: 1, fontSize: 10, color: c.text.muted, fontWeight: '600', textAlign: 'center' },
+  emptySparkBox: { alignItems: 'center', padding: 20, backgroundColor: c.bg.elevated, borderRadius: 0, marginVertical: 10, gap: 8 },
+  emptySparkText: { fontSize: 12, color: c.text.muted, fontWeight: '500', textAlign: 'center' },
+  statsGrid: { flexDirection: 'row', alignItems: 'center', paddingTop: 14, borderTopWidth: 1, borderTopColor: c.border.subtle, marginTop: 4 },
+  statCell: { flex: 1, alignItems: 'center', gap: 3 },
+  statLabel: { fontSize: 10, fontWeight: '700', color: c.text.muted, letterSpacing: 0.5 },
+  statVal: { fontSize: 15, fontWeight: '800' },
+  statDiv: { width: 1, height: 28, backgroundColor: c.border.subtle },
+}));
+
 type SparkPoint = { day: string; date: string; amount: number };
 type Tier = { current: any; next: any | null; progress_pct: number; score: number; streak_days: number };
 
@@ -191,48 +241,3 @@ export default function InsightsCard({ snapshot, onPressSparkline }: Props) {
   );
 }
 
-const useStyles = makeStyles((c) => ({
-  // Round 56 — Glassmorphic card. Translucent white on the warm canvas
-  // (#FAFAF9) with a hairline border for the iOS-Crystal effect. Falls
-  // back gracefully on Android (opacity handled by alpha channel).
-  card: {
-    backgroundColor: GLASS.solidBg,
-    borderRadius: 0,
-    padding: 18,
-    marginBottom: 14,
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: GLASS.borderLight,
-    ...shadowStyle('#111827', 4, 18, 0.05, 3),
-  },
-  tierRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 },
-  tierBadge: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 12, paddingVertical: 6, borderRadius: 0, borderWidth: 1 },
-  tierEmoji: { fontSize: 15 },
-  tierName: { fontSize: 12, fontWeight: '800', letterSpacing: 0.3 },
-  scorePill: { flexDirection: 'row', alignItems: 'baseline' },
-  scoreNum: { fontSize: 26, fontWeight: '900', color: c.text.primary },
-  scoreMax: { fontSize: 13, fontWeight: '700', color: c.text.muted },
-  progressBlock: { marginBottom: 14 },
-  progressTrack: { height: 6, backgroundColor: c.border.subtle, borderRadius: 3, overflow: 'hidden' },
-  progressFill: { height: '100%', borderRadius: 3 },
-  progressLabelRow: { flexDirection: 'row', justifyContent: 'space-between', marginTop: 6 },
-  progressLabel: { fontSize: 11, fontWeight: '600', color: c.text.muted },
-  progressLabelR: { fontSize: 11, fontWeight: '700', color: c.text.secondary },
-  paceBox: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingVertical: 10, paddingHorizontal: 12, backgroundColor: c.accent.primary + '08', borderRadius: 0, marginBottom: 14 },
-  paceEmoji: { fontSize: 18 },
-  paceText: { flex: 1, fontSize: 13, fontWeight: '700', color: c.text.primary, lineHeight: 18 },
-  sparkHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 },
-  sparkTitle: { fontSize: 12, fontWeight: '700', color: c.text.muted, letterSpacing: 0.5 },
-  sparkSub: { fontSize: 16, fontWeight: '800', color: c.text.primary, marginTop: 2 },
-  trendPill: { flexDirection: 'row', alignItems: 'center', gap: 3, paddingHorizontal: 10, paddingVertical: 4, borderRadius: 0 },
-  trendText: { fontSize: 11, fontWeight: '800' },
-  sparkWrap: { alignItems: 'center', marginVertical: 6 },
-  sparkLabels: { flexDirection: 'row', justifyContent: 'space-between', width: CHART_W - PAD * 2, marginTop: 2, paddingHorizontal: PAD },
-  sparkLabel: { flex: 1, fontSize: 10, color: c.text.muted, fontWeight: '600', textAlign: 'center' },
-  emptySparkBox: { alignItems: 'center', padding: 20, backgroundColor: c.bg.elevated, borderRadius: 0, marginVertical: 10, gap: 8 },
-  emptySparkText: { fontSize: 12, color: c.text.muted, fontWeight: '500', textAlign: 'center' },
-  statsGrid: { flexDirection: 'row', alignItems: 'center', paddingTop: 14, borderTopWidth: 1, borderTopColor: c.border.subtle, marginTop: 4 },
-  statCell: { flex: 1, alignItems: 'center', gap: 3 },
-  statLabel: { fontSize: 10, fontWeight: '700', color: c.text.muted, letterSpacing: 0.5 },
-  statVal: { fontSize: 15, fontWeight: '800' },
-  statDiv: { width: 1, height: 28, backgroundColor: c.border.subtle },
-}));

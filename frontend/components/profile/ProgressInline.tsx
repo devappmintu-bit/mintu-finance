@@ -11,6 +11,30 @@ import AnimatedStreak from '../AnimatedStreak';
 import AnimatedCoin from '../AnimatedCoin';
 import { COLORS } from '../../utils/theme';
 
+
+
+// R113 FIX — useStyles hoisted above first render-time call
+// to avoid Metro/SDK52 TDZ error (`Cannot access X before init.`).
+const useStyles = makeStyles((c) => ({
+  card: {
+    backgroundColor: c.bg.secondary,
+    borderRadius: 0,
+    padding: 16,
+    borderWidth: 1,
+    borderColor: c.border.subtle,
+    marginBottom: 14,
+  },
+  row: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  item: { flexDirection: 'row', alignItems: 'center', gap: 6, flex: 1, justifyContent: 'center' },
+  emoji: { fontSize: 16 },
+  value: { fontSize: 15, fontWeight: '700', color: c.text.primary },
+  label: { fontSize: 11, fontWeight: '500', color: c.text.muted },
+  divider: { width: StyleSheet.hairlineWidth, height: 24, backgroundColor: c.border.subtle },
+
+  linkRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 4, marginTop: 10, paddingTop: 10, borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: c.border.subtle },
+  link: { fontSize: 12, fontWeight: '700', color: c.accent.primary },
+}));
+
 interface Props {
   streak: number;
   badgesEarned: number;
@@ -55,22 +79,3 @@ export default function ProgressInline({
   );
 }
 
-const useStyles = makeStyles((c) => ({
-  card: {
-    backgroundColor: c.bg.secondary,
-    borderRadius: 0,
-    padding: 16,
-    borderWidth: 1,
-    borderColor: c.border.subtle,
-    marginBottom: 14,
-  },
-  row: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-  item: { flexDirection: 'row', alignItems: 'center', gap: 6, flex: 1, justifyContent: 'center' },
-  emoji: { fontSize: 16 },
-  value: { fontSize: 15, fontWeight: '700', color: c.text.primary },
-  label: { fontSize: 11, fontWeight: '500', color: c.text.muted },
-  divider: { width: StyleSheet.hairlineWidth, height: 24, backgroundColor: c.border.subtle },
-
-  linkRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 4, marginTop: 10, paddingTop: 10, borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: c.border.subtle },
-  link: { fontSize: 12, fontWeight: '700', color: c.accent.primary },
-}));

@@ -23,6 +23,38 @@ import { makeStyles } from '../../utils/makeStyles';
 import { sendTestPush } from '../../hooks/usePushNotifications';
 import { showError, showSuccess } from '../../utils/toast';
 
+
+
+// R113 FIX — useStyles hoisted above first render-time call
+// to avoid Metro/SDK52 TDZ error (`Cannot access X before init.`).
+const useStyles = makeStyles((c) => ({
+  card: { backgroundColor: 'rgba(255,255,255,0.92)', borderRadius: 0, padding: 14, marginBottom: 14, borderWidth: 1, borderColor: 'rgba(238,221,204,0.6)', ...shadowStyle('#2E1F1A', 2, 10, 0.04, 2) },
+  header: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 4 },
+  iconBox: { width: 40, height: 40, borderRadius: 0, backgroundColor: '#4338CA15', justifyContent: 'center', alignItems: 'center' },
+  title: { fontSize: 16, fontWeight: '800', color: c.text.primary },
+  sub: { fontSize: 12, color: c.text.muted, marginTop: 2 },
+  body: { marginTop: 12, gap: 10 },
+  masterRow: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 12, paddingVertical: 10, backgroundColor: c.accent.brandSoft, borderRadius: 0, borderWidth: 1, borderColor: c.accent.primary + '2E' },
+  masterT: { fontSize: 13.5, fontWeight: '800', color: c.text.primary },
+  masterSub: { fontSize: 11, color: c.text.secondary, marginTop: 2 },
+  groupTitle: { fontSize: 10.5, fontWeight: '900', color: c.text.muted, letterSpacing: 0.9, textTransform: 'uppercase', marginTop: 10, marginBottom: 2 },
+  toggleRow: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 8 },
+  toggleLabel: { flex: 1, fontSize: 13, fontWeight: '700', color: c.text.primary },
+  toggleDesc: { fontSize: 10.5, color: c.text.muted, marginTop: 1 },
+  catIcon: { width: 26, height: 26, borderRadius: 0, alignItems: 'center', justifyContent: 'center' },
+  freqRow: { flexDirection: 'row', gap: 8 },
+  freqChip: { flex: 1, padding: 10, borderRadius: 0, backgroundColor: c.bg.primary, borderWidth: 1, borderColor: c.border.subtle, alignItems: 'center' },
+  freqChipOn: { backgroundColor: c.accent.primary, borderColor: c.accent.primary },
+  freqLabel: { fontSize: 13, fontWeight: '800', color: c.text.primary },
+  freqLabelOn: { color: c.bg.elevated },
+  freqSub: { fontSize: 10, color: c.text.muted, marginTop: 2 },
+  freqSubOn: { color: 'rgba(255,255,255,0.85)' },
+  testBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, backgroundColor: c.accent.primary + '15', paddingVertical: 10, borderRadius: 0, marginTop: 6, borderWidth: 1, borderColor: c.accent.primary + '2E' },
+  testBtnT: { fontSize: 12.5, fontWeight: '800', color: c.accent.primary },
+  savingChip: { flexDirection: 'row', alignItems: 'center', gap: 6, alignSelf: 'center', marginTop: 6 },
+  savingT: { fontSize: 11, color: c.text.muted },
+}));
+
 type Prefs = {
   master_enabled: boolean;
   channels: Record<string, boolean>;
@@ -227,30 +259,3 @@ export default function NotificationSettings() {
   );
 }
 
-const useStyles = makeStyles((c) => ({
-  card: { backgroundColor: 'rgba(255,255,255,0.92)', borderRadius: 0, padding: 14, marginBottom: 14, borderWidth: 1, borderColor: 'rgba(238,221,204,0.6)', ...shadowStyle('#2E1F1A', 2, 10, 0.04, 2) },
-  header: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 4 },
-  iconBox: { width: 40, height: 40, borderRadius: 0, backgroundColor: '#4338CA15', justifyContent: 'center', alignItems: 'center' },
-  title: { fontSize: 16, fontWeight: '800', color: c.text.primary },
-  sub: { fontSize: 12, color: c.text.muted, marginTop: 2 },
-  body: { marginTop: 12, gap: 10 },
-  masterRow: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 12, paddingVertical: 10, backgroundColor: c.accent.brandSoft, borderRadius: 0, borderWidth: 1, borderColor: c.accent.primary + '2E' },
-  masterT: { fontSize: 13.5, fontWeight: '800', color: c.text.primary },
-  masterSub: { fontSize: 11, color: c.text.secondary, marginTop: 2 },
-  groupTitle: { fontSize: 10.5, fontWeight: '900', color: c.text.muted, letterSpacing: 0.9, textTransform: 'uppercase', marginTop: 10, marginBottom: 2 },
-  toggleRow: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 8 },
-  toggleLabel: { flex: 1, fontSize: 13, fontWeight: '700', color: c.text.primary },
-  toggleDesc: { fontSize: 10.5, color: c.text.muted, marginTop: 1 },
-  catIcon: { width: 26, height: 26, borderRadius: 0, alignItems: 'center', justifyContent: 'center' },
-  freqRow: { flexDirection: 'row', gap: 8 },
-  freqChip: { flex: 1, padding: 10, borderRadius: 0, backgroundColor: c.bg.primary, borderWidth: 1, borderColor: c.border.subtle, alignItems: 'center' },
-  freqChipOn: { backgroundColor: c.accent.primary, borderColor: c.accent.primary },
-  freqLabel: { fontSize: 13, fontWeight: '800', color: c.text.primary },
-  freqLabelOn: { color: c.bg.elevated },
-  freqSub: { fontSize: 10, color: c.text.muted, marginTop: 2 },
-  freqSubOn: { color: 'rgba(255,255,255,0.85)' },
-  testBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, backgroundColor: c.accent.primary + '15', paddingVertical: 10, borderRadius: 0, marginTop: 6, borderWidth: 1, borderColor: c.accent.primary + '2E' },
-  testBtnT: { fontSize: 12.5, fontWeight: '800', color: c.accent.primary },
-  savingChip: { flexDirection: 'row', alignItems: 'center', gap: 6, alignSelf: 'center', marginTop: 6 },
-  savingT: { fontSize: 11, color: c.text.muted },
-}));

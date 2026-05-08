@@ -11,6 +11,14 @@ import { Image } from 'expo-image';
 import { COLORS } from '../utils/theme';
 import { makeStyles } from '../utils/makeStyles';
 
+
+
+// R113 FIX — useStyles hoisted above first render-time call
+// to avoid Metro/SDK52 TDZ error (`Cannot access X before init.`).
+const useStyles = makeStyles((c) => ({
+  wrap: { alignItems: 'center', justifyContent: 'center' },
+}));
+
 const MASCOT = require('../assets/images/mintu-logo.png');
 
 type Props = {
@@ -43,6 +51,3 @@ const glowStyle = (size: number): ViewStyle => ({
   }),
 });
 
-const useStyles = makeStyles((c) => ({
-  wrap: { alignItems: 'center', justifyContent: 'center' },
-}));

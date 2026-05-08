@@ -21,6 +21,68 @@ import BrutalButton from '../brutalist/primitives/BrutalButton';
 import { COLORS, FONT_FAMILY, GRADIENT, SPACING } from '../../utils/theme';
 import { makeStyles } from '../../utils/makeStyles';
 
+
+
+// R113 FIX — useStyles hoisted above first render-time call
+// to avoid Metro/SDK52 TDZ error (`Cannot access X before init.`).
+const useStyles = makeStyles((c) => ({
+  wrap: {
+    overflow: 'hidden',
+  },
+  accentBar: {
+    height: 3,
+    width: '100%',
+  },
+  body: {
+    padding: SPACING.lg,
+    gap: SPACING.md,
+  },
+  header: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+  },
+  iconBubble: {
+    width: 36, height: 36, borderRadius: 0,
+    alignItems: 'center', justifyContent: 'center',
+  },
+  bigRow: {
+    flexDirection: 'row',
+    alignItems: 'baseline',
+    gap: 8,
+    marginTop: 4,
+  },
+  bigValue: {
+    fontSize: 38,
+    fontFamily: FONT_FAMILY.black,
+    color: c.text.primary,
+    letterSpacing: -1,
+  },
+  bigSuffix: {
+    fontSize: 13,
+    fontFamily: FONT_FAMILY.medium,
+    color: c.text.secondary,
+    letterSpacing: 0.3,
+  },
+  headline: {
+    fontSize: 18,
+    fontFamily: FONT_FAMILY.bold,
+    color: c.text.primary,
+    letterSpacing: -0.3,
+    lineHeight: 24,
+  },
+  bodyText: {
+    fontSize: 14,
+    fontFamily: FONT_FAMILY.regular,
+    color: c.text.secondary,
+    lineHeight: 21,
+  },
+  cta: {
+    alignSelf: 'flex-start',
+    marginTop: 4,
+  },
+}));
+
 type Props = {
   icon?: string;
   tag?: string;
@@ -100,60 +162,3 @@ export default function InsightCard({
   );
 }
 
-const useStyles = makeStyles((c) => ({
-  wrap: {
-    overflow: 'hidden',
-  },
-  accentBar: {
-    height: 3,
-    width: '100%',
-  },
-  body: {
-    padding: SPACING.lg,
-    gap: SPACING.md,
-  },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 10,
-  },
-  iconBubble: {
-    width: 36, height: 36, borderRadius: 0,
-    alignItems: 'center', justifyContent: 'center',
-  },
-  bigRow: {
-    flexDirection: 'row',
-    alignItems: 'baseline',
-    gap: 8,
-    marginTop: 4,
-  },
-  bigValue: {
-    fontSize: 38,
-    fontFamily: FONT_FAMILY.black,
-    color: c.text.primary,
-    letterSpacing: -1,
-  },
-  bigSuffix: {
-    fontSize: 13,
-    fontFamily: FONT_FAMILY.medium,
-    color: c.text.secondary,
-    letterSpacing: 0.3,
-  },
-  headline: {
-    fontSize: 18,
-    fontFamily: FONT_FAMILY.bold,
-    color: c.text.primary,
-    letterSpacing: -0.3,
-    lineHeight: 24,
-  },
-  bodyText: {
-    fontSize: 14,
-    fontFamily: FONT_FAMILY.regular,
-    color: c.text.secondary,
-    lineHeight: 21,
-  },
-  cta: {
-    alignSelf: 'flex-start',
-    marginTop: 4,
-  },
-}));

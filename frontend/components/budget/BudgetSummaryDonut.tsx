@@ -12,6 +12,31 @@ import { PieChart } from 'react-native-gifted-charts';
 import { makeStyles } from '../../utils/makeStyles';
 import { COLORS } from '../../utils/theme';
 
+
+
+// R113 FIX — useStyles hoisted above first render-time call
+// to avoid Metro/SDK52 TDZ error (`Cannot access X before init.`).
+const useStyles = makeStyles((c) => ({
+  wrap: { backgroundColor: c.bg.secondary, padding: 16, borderRadius: 0, marginBottom: 14, borderWidth: 1, borderColor: c.border.subtle },
+  header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 },
+  title: { fontSize: 14, fontWeight: '800', color: c.text.primary },
+  pctPill: { paddingHorizontal: 10, paddingVertical: 4, borderRadius: 999, borderWidth: 1 },
+  pctTxt: { fontSize: 10, fontWeight: '800', letterSpacing: 0.4 },
+
+  chartRow: { flexDirection: 'row', alignItems: 'center', gap: 14 },
+  chartBox: { width: 140, height: 140, alignItems: 'center', justifyContent: 'center' },
+  centerLbl: { fontSize: 9.5, color: c.text.secondary, fontWeight: '700', textTransform: 'uppercase', letterSpacing: 0.4 },
+  centerVal: { fontSize: 14, fontWeight: '800', color: c.text.primary, marginTop: 2 },
+  centerSub: { fontSize: 10, color: c.text.muted, marginTop: 1 },
+
+  legendCol: { flex: 1, gap: 6 },
+  legendRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  dot: { width: 10, height: 10, borderRadius: 0 },
+  legendLbl: { flex: 1, fontSize: 12, color: c.text.primary, fontWeight: '600' },
+  legendAmt: { fontSize: 12, color: c.text.secondary, fontWeight: '700' },
+  moreTxt: { fontSize: 10, color: c.text.muted, fontStyle: 'italic', marginTop: 4 },
+}));
+
 type Budget = {
   id: string;
   category: string;
@@ -86,23 +111,3 @@ export default function BudgetSummaryDonut({ budgets }: { budgets: Budget[] }) {
   );
 }
 
-const useStyles = makeStyles((c) => ({
-  wrap: { backgroundColor: c.bg.secondary, padding: 16, borderRadius: 0, marginBottom: 14, borderWidth: 1, borderColor: c.border.subtle },
-  header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 },
-  title: { fontSize: 14, fontWeight: '800', color: c.text.primary },
-  pctPill: { paddingHorizontal: 10, paddingVertical: 4, borderRadius: 999, borderWidth: 1 },
-  pctTxt: { fontSize: 10, fontWeight: '800', letterSpacing: 0.4 },
-
-  chartRow: { flexDirection: 'row', alignItems: 'center', gap: 14 },
-  chartBox: { width: 140, height: 140, alignItems: 'center', justifyContent: 'center' },
-  centerLbl: { fontSize: 9.5, color: c.text.secondary, fontWeight: '700', textTransform: 'uppercase', letterSpacing: 0.4 },
-  centerVal: { fontSize: 14, fontWeight: '800', color: c.text.primary, marginTop: 2 },
-  centerSub: { fontSize: 10, color: c.text.muted, marginTop: 1 },
-
-  legendCol: { flex: 1, gap: 6 },
-  legendRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  dot: { width: 10, height: 10, borderRadius: 0 },
-  legendLbl: { flex: 1, fontSize: 12, color: c.text.primary, fontWeight: '600' },
-  legendAmt: { fontSize: 12, color: c.text.secondary, fontWeight: '700' },
-  moreTxt: { fontSize: 10, color: c.text.muted, fontStyle: 'italic', marginTop: 4 },
-}));

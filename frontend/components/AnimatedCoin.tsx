@@ -15,6 +15,15 @@ import { View, Text, StyleSheet, Animated, Easing } from 'react-native';
 import { COLORS } from '../utils/theme';
 import { makeStyles } from '../utils/makeStyles';
 
+
+
+// R113 FIX — useStyles hoisted above first render-time call
+// to avoid Metro/SDK52 TDZ error (`Cannot access X before init.`).
+const useStyles = makeStyles((c) => ({
+  wrap: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 8, paddingVertical: 4, borderRadius: 999 },
+  glow: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, borderRadius: 999 },
+}));
+
 type Size = 'xs' | 'sm' | 'md' | 'lg';
 
 interface Props {
@@ -82,7 +91,3 @@ export default function AnimatedCoin({
   );
 }
 
-const useStyles = makeStyles((c) => ({
-  wrap: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 8, paddingVertical: 4, borderRadius: 999 },
-  glow: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, borderRadius: 999 },
-}));

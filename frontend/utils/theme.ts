@@ -18,53 +18,51 @@ import { Platform } from 'react-native';
 import { useSyncExternalStore } from 'react';
 
 // ══════════════════════════════════════════════════════════════════════
-//  LIGHT PALETTE — clean, minimal, financial clarity
+//  LIGHT PALETTE — Neo-Brutalism (R103F force-update)
+//  Cream canvas · mascot orange · hard ink borders · stamp shadows
 // ══════════════════════════════════════════════════════════════════════
 const LIGHT_PALETTE = {
   bg: {
-    primary:   '#FAFAF9',        // Warm off-white canvas
+    primary:   '#FAF6EE',        // R103F — Cream brutalist canvas (was #FAF6EE)
     secondary: '#FFFFFF',        // Elevated surface
     card:      '#FFFFFF',
     elevated:  '#FFFFFF',
-    dark:      '#F3F4F6',        // Softer tier (ironic naming kept for API)
+    dark:      '#F1F5F9',        // Cool alt surface
   },
   accent: {
-    primary:      '#E84A0C',     // Neon orange, slightly deeper for light-bg contrast
-    primaryLight: '#FF6B1A',
-    primaryDark:  '#B83A05',     // Round 50 — pressed/dark variant of primary (was hardcoded #C14A06 in 77 places)
-    secondary:    '#F59E0B',     // Saffron
-    tertiary:     '#A21CAF',     // Premium magenta
-    moneyIn:      '#059669',     // Emerald
-    moneyOut:     '#DC2626',     // Crimson
+    primary:      '#F56E1E',     // R103F — Mascot orange (was #F56E1E deep saffron)
+    primaryLight: '#FF8C66',     // Peach hover
+    primaryDark:  '#C14A06',     // Pressed
+    secondary:    '#FFD93D',     // R103F — Brutal yellow highlight (was saffron)
+    tertiary:     '#A78BFA',     // R103F — Electric purple premium (was magenta)
+    moneyIn:      '#059669',
+    moneyOut:     '#DC2626',
     warning:      '#D97706',
-    // Round 36 — expose brand shades that were appearing as orphan hex in
-    // screens (#F56E1E, #C14A06, #E65100). Named so future code can reach
-    // for a token instead of coping-and-pasting a hex.
-    brand:        '#F56E1E',     // Bright orange — splash / onboarding CTA
-    brandDark:    '#C14A06',     // Deep orange — pressed / active state
-    brandDeeper:  '#E65100',     // Indigo-orange accent
-    brandSoft:    '#FFF7ED',     // Round 50 — warm-orange tint bg (was hardcoded in 26 places)
+    brand:        '#F56E1E',     // Same as primary now — single source
+    brandDark:    '#C14A06',
+    brandDeeper:  '#E65100',
+    brandSoft:    '#FFF7ED',
   },
   text: {
-    primary:   '#111827',        // Near-black
-    secondary: '#4B5563',        // Slate
-    muted:     '#6B7280',
-    tertiary:  '#6B7280',
+    primary:   '#0A0A0A',        // R103F — Matte black ink (was #111827)
+    secondary: '#3A3A3A',        // R103F — Stronger contrast (was #4B5563)
+    muted:     '#5A5A5A',        // R103F — Smoke grey
+    tertiary:  '#5A5A5A',
     inverse:   '#FFFFFF',
   },
   border: {
-    subtle: 'rgba(17,24,39,0.08)',
-    focus:  '#E84A0C',
-    card:   'rgba(17,24,39,0.08)',
+    subtle: 'rgba(10,10,10,0.18)',  // R103F — Visible 18% ink (was 8%)
+    focus:  '#0A0A0A',              // R103F — Hard ink focus (was orange)
+    card:   '#0A0A0A',              // R103F — Hard ink frame (was 8% rgba)
   },
-  // Round 50 — explicit shadow + skeleton tokens (light)
+  // R103F — Hard ink stamp shadows on LIGHT_PALETTE too (was 0.08/0.12/0.18 blurs)
   shadow: {
-    primary: 'rgba(17,24,39,0.08)',  // light shadow on white card
-    medium:  'rgba(17,24,39,0.12)',
-    strong:  'rgba(17,24,39,0.18)',
+    primary: 'rgba(10,10,10,0.55)',
+    medium:  'rgba(10,10,10,0.85)',
+    strong:  'rgba(10,10,10,1.0)',
   },
   skeleton: {
-    bg:      '#F3F4F6',
+    bg:      '#F1F5F9',
     shimmer: '#FFFFFF',
   },
   state: {
@@ -114,43 +112,42 @@ export const getActiveMode = (): ThemeMode => ACTIVE_MODE;
 
 // ══════════════════════════════════════════════════════════════════════
 //  CORE PALETTE — mutable proxy that always reflects the active theme
-//  Round 55 — Inlined values now come from LIGHT_PALETTE so initial
-//  StyleSheet.create() captures (which happen at module-load BEFORE
-//  applyTheme() ever runs) hold the correct light tokens.
+//  R103F — Force-updated to brutal-aligned tokens. Cream canvas, mascot
+//  orange primary, hard ink borders, stamp-style shadows.
 // ══════════════════════════════════════════════════════════════════════
 export const COLORS = {
   bg: {
-    primary:   '#FAFAF9',        // Warm off-white canvas (matches LIGHT_PALETTE)
-    secondary: '#FFFFFF',        // Elevated surface
-    card:      '#FFFFFF',        // Solid card fallback (when glass not used)
-    elevated:  '#FFFFFF',        // Elevated card (modals/sheets)
-    dark:      '#F3F4F6',        // Darkest tier (legacy name kept for API)
+    primary:   '#FAF6EE',        // R103F — Cream brutalist canvas
+    secondary: '#FFFFFF',
+    card:      '#FFFFFF',
+    elevated:  '#FFFFFF',
+    dark:      '#F1F5F9',
   },
   accent: {
-    primary:      '#E84A0C',     // MintU Orange (light-bg tuned)
-    primaryLight: '#FF6B1A',     // Bright orange highlight
-    primaryDark:  '#B83A05',     // Pressed/dark variant
-    secondary:    '#F59E0B',     // Saffron
-    tertiary:     '#A21CAF',     // Premium magenta
-    moneyIn:      '#059669',     // Emerald (credits)
-    moneyOut:     '#DC2626',     // Crimson (debits)
-    warning:      '#D97706',     // Amber-orange
-    brand:        '#F56E1E',     // Bright orange — splash / onboarding CTA
-    brandDark:    '#C14A06',     // Deep orange — pressed / active state
-    brandDeeper:  '#E65100',     // Indigo-orange accent
-    brandSoft:    '#FFF7ED',     // Warm-orange tint bg
+    primary:      '#F56E1E',     // R103F — Mascot orange (was #F56E1E)
+    primaryLight: '#FF8C66',
+    primaryDark:  '#C14A06',
+    secondary:    '#FFD93D',     // R103F — Brutal yellow highlight
+    tertiary:     '#A78BFA',     // R103F — Electric purple
+    moneyIn:      '#059669',
+    moneyOut:     '#DC2626',
+    warning:      '#D97706',
+    brand:        '#F56E1E',     // Same as primary now
+    brandDark:    '#C14A06',
+    brandDeeper:  '#E65100',
+    brandSoft:    '#FFF7ED',
   },
   text: {
-    primary:   '#111827',        // Near-black
-    secondary: '#4B5563',        // Slate (WCAG AA on #FAFAF9 = 8.76:1)
-    muted:     '#6B7280',        // Captions
-    tertiary:  '#6B7280',        // alias of muted
-    inverse:   '#FFFFFF',        // Light text on dark accents (CTAs)
+    primary:   '#0A0A0A',        // R103F — Matte ink (was #111827)
+    secondary: '#3A3A3A',        // R103F — Stronger contrast
+    muted:     '#5A5A5A',
+    tertiary:  '#5A5A5A',
+    inverse:   '#FFFFFF',
   },
   border: {
-    subtle: 'rgba(17,24,39,0.08)',
-    focus:  '#E84A0C',
-    card:   'rgba(17,24,39,0.08)',
+    subtle: 'rgba(10,10,10,0.18)',  // R103F — Visible 18% ink (was 8%)
+    focus:  '#0A0A0A',              // R103F — Hard ink focus
+    card:   '#0A0A0A',              // R103F — Hard ink frame (was 8% rgba)
   },
   // ── Semantic state colors — tuned for light bg ───────────────
   state: {
@@ -181,14 +178,16 @@ export const COLORS = {
     800: '#1F2937',
     900: '#111827',
   },
-  // Round 55 — soft shadows for light theme (per spec: 0.05–0.1 opacity)
+  // R103F — Hard ink stamp shadows (was soft 0.06/0.10/0.16 blurs).
+  // These propagate everywhere `COLORS.shadow.*` is consumed, instantly
+  // converting soft drop-shadows into brutalist offset stamps.
   shadow: {
-    primary: 'rgba(0,0,0,0.06)',
-    medium:  'rgba(0,0,0,0.10)',
-    strong:  'rgba(0,0,0,0.16)',
+    primary: 'rgba(10,10,10,0.55)',
+    medium:  'rgba(10,10,10,0.85)',
+    strong:  'rgba(10,10,10,1.0)',
   },
   skeleton: {
-    bg:      '#F3F4F6',
+    bg:      '#F1F5F9',
     shimmer: '#E5E7EB',
   },
 };
@@ -406,11 +405,11 @@ export const GLASS = {
 // ══════════════════════════════════════════════════════════════════════
 export const GRADIENT = {
   // Hero neon accent (buttons, chips, glows)
-  neon:       ['#FF8C42', '#FF6B1A', '#E84A0C'] as const,
+  neon:       ['#FF8C42', '#FF8C66', '#F56E1E'] as const,
   // Reverse for pressed state
-  neonSoft:   ['#FFB547', '#FF8C42', '#FF6B1A'] as const,
+  neonSoft:   ['#FFB547', '#FF8C42', '#FF8C66'] as const,
   // Premium purple-orange (AI bots & premium cards)
-  premium:    ['#FF6B1A', '#C026D3', '#7C3AED'] as const,
+  premium:    ['#FF8C66', '#C026D3', '#7C3AED'] as const,
   // Success green-cyan
   success:    ['#10E0A0', '#0AA88C'] as const,
   // Glass tint on top of hero image (legibility)
@@ -429,7 +428,7 @@ export const GLOW = {
   // Usage: ...GLOW.neon (spread into a StyleSheet entry)
   neon: Platform.select({
     ios: {
-      shadowColor: '#FF6B1A',
+      shadowColor: '#FF8C66',
       shadowOpacity: 0.55,
       shadowRadius: 16,
       shadowOffset: { width: 0, height: 6 },

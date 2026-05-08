@@ -9,6 +9,24 @@ import { hasPin, biometricAvailable } from '../utils/lockManager';
 import MintULogo from '../components/MintULogo';
 import { STORAGE } from '../constants/storage';
 
+
+
+// R113 FIX — useStyles hoisted above first render-time call
+// to avoid Metro/SDK52 TDZ error (`Cannot access X before init.`).
+const useStyles = makeStyles((c) => ({
+  container: { flex: 1, backgroundColor: c.bg.primary, justifyContent: 'center', alignItems: 'center' },
+  glowCircle: { position: 'absolute', width: 300, height: 300, borderRadius: 150, backgroundColor: c.accent.secondary, opacity: 0.08 },
+  logoContainer: { alignItems: 'center' },
+  logoIcon: {
+    width: 96, height: 96, borderRadius: 0, backgroundColor: c.accent.primary,
+    justifyContent: 'center', alignItems: 'center', marginBottom: 20,
+    ...shadowStyle(c.accent.primary, 8, 20, 0.3, 12),
+  },
+  logoEmoji: { fontSize: 46, fontWeight: '800', color: c.text.inverse },
+  logoText: { fontSize: 48, fontWeight: '800', color: c.text.primary, letterSpacing: -1 },
+  tagline: { fontSize: 16, color: c.text.secondary, marginTop: 12 },
+}));
+
 export default function SplashIndex() {
   const styles = useStyles();
   const { token, isLoading } = useAuthStore();
@@ -53,16 +71,3 @@ export default function SplashIndex() {
   );
 }
 
-const useStyles = makeStyles((c) => ({
-  container: { flex: 1, backgroundColor: c.bg.primary, justifyContent: 'center', alignItems: 'center' },
-  glowCircle: { position: 'absolute', width: 300, height: 300, borderRadius: 150, backgroundColor: c.accent.secondary, opacity: 0.08 },
-  logoContainer: { alignItems: 'center' },
-  logoIcon: {
-    width: 96, height: 96, borderRadius: 0, backgroundColor: c.accent.primary,
-    justifyContent: 'center', alignItems: 'center', marginBottom: 20,
-    ...shadowStyle(c.accent.primary, 8, 20, 0.3, 12),
-  },
-  logoEmoji: { fontSize: 46, fontWeight: '800', color: c.text.inverse },
-  logoText: { fontSize: 48, fontWeight: '800', color: c.text.primary, letterSpacing: -1 },
-  tagline: { fontSize: 16, color: c.text.secondary, marginTop: 12 },
-}));

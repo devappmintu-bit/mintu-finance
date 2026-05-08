@@ -11,6 +11,28 @@ import Skeleton from '../ui/Skeleton';
 import { makeStyles } from '../../utils/makeStyles';
 import { GLASS } from '../../utils/theme';
 
+
+
+// R113 FIX — useStyles hoisted above first render-time call
+// to avoid Metro/SDK52 TDZ error (`Cannot access X before init.`).
+const useStyles = makeStyles((c) => ({
+  wrap: { padding: 16, gap: 14 },
+  card: {
+    backgroundColor: GLASS.solidBg,
+    borderRadius: 0, padding: 18,
+    borderWidth: StyleSheet.hairlineWidth, borderColor: GLASS.borderLight,
+  },
+  avatar: {
+    width: 64, height: 64, borderRadius: 0,
+    backgroundColor: c.gray[200],
+  },
+  segmentRow: { flexDirection: 'row', gap: 4 },
+  segment: { flex: 1, height: 6, borderRadius: 3, backgroundColor: c.gray[200] },
+  row: { flexDirection: 'row', gap: 12 },
+  tile: { flex: 1, height: 150, borderRadius: 0 },
+  bigCard: { height: 120, borderRadius: 0 },
+}));
+
 export default function ProfileSkeleton() {
   const s = useStyles();
   return (
@@ -54,20 +76,3 @@ export default function ProfileSkeleton() {
   );
 }
 
-const useStyles = makeStyles((c) => ({
-  wrap: { padding: 16, gap: 14 },
-  card: {
-    backgroundColor: GLASS.solidBg,
-    borderRadius: 0, padding: 18,
-    borderWidth: StyleSheet.hairlineWidth, borderColor: GLASS.borderLight,
-  },
-  avatar: {
-    width: 64, height: 64, borderRadius: 0,
-    backgroundColor: c.gray[200],
-  },
-  segmentRow: { flexDirection: 'row', gap: 4 },
-  segment: { flex: 1, height: 6, borderRadius: 3, backgroundColor: c.gray[200] },
-  row: { flexDirection: 'row', gap: 12 },
-  tile: { flex: 1, height: 150, borderRadius: 0 },
-  bigCard: { height: 120, borderRadius: 0 },
-}));

@@ -20,6 +20,59 @@ import api from '../../utils/api';
 import {  COLORS, useAppColors } from '../../utils/theme';
 import { makeStyles } from '../../utils/makeStyles';
 
+
+
+// R113 FIX — useStyles hoisted above first render-time call
+// to avoid Metro/SDK52 TDZ error (`Cannot access X before init.`).
+const useStyles = makeStyles((c) => ({
+  wrap: { marginHorizontal: -16, marginBottom: 18 },
+  headerRow: { flexDirection: 'row', alignItems: 'center', gap: 5, paddingHorizontal: 16, marginBottom: 8 },
+  heading: {
+    fontSize: 10.5, fontWeight: '900',
+    color: c.text.muted, letterSpacing: 1.3,
+  },
+  // Featured hero card (full-width)
+  featWrap: { paddingHorizontal: 16, marginBottom: 4 },
+  featCard: {
+    borderRadius: 0, padding: 16, gap: 8, overflow: 'hidden', position: 'relative',
+    shadowColor: '#000000', shadowOpacity: 0.15, shadowRadius: 12, shadowOffset: { width: 0, height: 6 }, elevation: 4,
+  },
+  featBlob: { position: 'absolute', top: -40, right: -40, width: 130, height: 130, borderRadius: 0, backgroundColor: 'rgba(255,255,255,0.12)' },
+  featHeaderRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  featEmojiPill: { width: 42, height: 42, borderRadius: 0, backgroundColor: 'rgba(255,255,255,0.26)', alignItems: 'center', justifyContent: 'center' },
+  featEmoji: { fontSize: 22 },
+  featPill: { flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: 8, paddingVertical: 4, borderRadius: 999, backgroundColor: 'rgba(0,0,0,0.22)' },
+  featPillTxt: { fontSize: 9, fontWeight: '900', letterSpacing: 1, color: c.bg.elevated },
+  featTitle: { fontSize: 19, fontWeight: '900', color: c.bg.elevated, letterSpacing: -0.4, marginTop: 4 },
+  featSubtitle: { fontSize: 12.5, fontWeight: '600', color: 'rgba(255,255,255,0.92)', lineHeight: 17 },
+  // Compact cards
+  // Round 51e — increased card border alpha (`+44` → handled inline as `+88`)
+  // and added a subtle elevation/shadow so cards visually separate from
+  // the page background instead of melting into it. Width 1.5px gives a
+  // crisper edge at 2x DPI than the previous 1px.
+  card: {
+    width: 182,
+    borderRadius: 0,
+    borderWidth: 1.5,
+    backgroundColor: c.bg.secondary,
+    overflow: 'hidden',
+    shadowColor: '#000000',
+    shadowOpacity: 0.06,
+    shadowRadius: 8,
+    shadowOffset: { width: 0, height: 2 },
+    elevation: 2,
+  },
+  cardInner: { padding: 12, minHeight: 110, gap: 5 },
+  emojiPill: {
+    width: 34, height: 34, borderRadius: 0,
+    alignItems: 'center', justifyContent: 'center',
+    marginBottom: 3,
+  },
+  emoji: { fontSize: 18 },
+  title: { fontSize: 17, fontWeight: '900', letterSpacing: -0.3 },
+  subtitle: { fontSize: 11, color: c.text.secondary, lineHeight: 15 },
+}));
+
 type InsightCard = {
   id: string;
   emoji: string;
@@ -184,51 +237,3 @@ function AnimatedCard({ card, index }: { card: InsightCard; index: number }) {
   );
 }
 
-const useStyles = makeStyles((c) => ({
-  wrap: { marginHorizontal: -16, marginBottom: 18 },
-  headerRow: { flexDirection: 'row', alignItems: 'center', gap: 5, paddingHorizontal: 16, marginBottom: 8 },
-  heading: {
-    fontSize: 10.5, fontWeight: '900',
-    color: c.text.muted, letterSpacing: 1.3,
-  },
-  // Featured hero card (full-width)
-  featWrap: { paddingHorizontal: 16, marginBottom: 4 },
-  featCard: {
-    borderRadius: 0, padding: 16, gap: 8, overflow: 'hidden', position: 'relative',
-    shadowColor: '#000000', shadowOpacity: 0.15, shadowRadius: 12, shadowOffset: { width: 0, height: 6 }, elevation: 4,
-  },
-  featBlob: { position: 'absolute', top: -40, right: -40, width: 130, height: 130, borderRadius: 0, backgroundColor: 'rgba(255,255,255,0.12)' },
-  featHeaderRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-  featEmojiPill: { width: 42, height: 42, borderRadius: 0, backgroundColor: 'rgba(255,255,255,0.26)', alignItems: 'center', justifyContent: 'center' },
-  featEmoji: { fontSize: 22 },
-  featPill: { flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: 8, paddingVertical: 4, borderRadius: 999, backgroundColor: 'rgba(0,0,0,0.22)' },
-  featPillTxt: { fontSize: 9, fontWeight: '900', letterSpacing: 1, color: c.bg.elevated },
-  featTitle: { fontSize: 19, fontWeight: '900', color: c.bg.elevated, letterSpacing: -0.4, marginTop: 4 },
-  featSubtitle: { fontSize: 12.5, fontWeight: '600', color: 'rgba(255,255,255,0.92)', lineHeight: 17 },
-  // Compact cards
-  // Round 51e — increased card border alpha (`+44` → handled inline as `+88`)
-  // and added a subtle elevation/shadow so cards visually separate from
-  // the page background instead of melting into it. Width 1.5px gives a
-  // crisper edge at 2x DPI than the previous 1px.
-  card: {
-    width: 182,
-    borderRadius: 0,
-    borderWidth: 1.5,
-    backgroundColor: c.bg.secondary,
-    overflow: 'hidden',
-    shadowColor: '#000000',
-    shadowOpacity: 0.06,
-    shadowRadius: 8,
-    shadowOffset: { width: 0, height: 2 },
-    elevation: 2,
-  },
-  cardInner: { padding: 12, minHeight: 110, gap: 5 },
-  emojiPill: {
-    width: 34, height: 34, borderRadius: 0,
-    alignItems: 'center', justifyContent: 'center',
-    marginBottom: 3,
-  },
-  emoji: { fontSize: 18 },
-  title: { fontSize: 17, fontWeight: '900', letterSpacing: -0.3 },
-  subtitle: { fontSize: 11, color: c.text.secondary, lineHeight: 15 },
-}));

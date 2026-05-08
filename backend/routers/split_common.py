@@ -94,9 +94,20 @@ def _finite_positive(v: float) -> float:
     return round(v, 2)
 
 
+class SplitGroupMemberEntry(BaseModel):
+    phone: str
+    name: Optional[str] = None
+
+
 class SplitGroupCreate(BaseModel):
     name: str = Field(..., min_length=1, max_length=60)
-    members: List[str] = Field(..., min_length=1, max_length=50)
+    # R101B — accept EITHER:
+    #   • members: ["9876543210", ...]                          (legacy)
+    #   • entries: [{"phone": "9876543210", "name": "Rohan"}]   (new, names preserved)
+    # When `entries` is provided, names are saved on pending_invites so
+    # the UI never has to leak raw phone numbers as labels.
+    members: List[str] = Field(default_factory=list, max_length=50)
+    entries: Optional[List[SplitGroupMemberEntry]] = None
     custom_emoji: Optional[str] = None
 
 

@@ -73,7 +73,7 @@
       "favicon": "./assets/images/favicon.png",
       "name": "MintU — Money, simplified",
       "shortName": "MintU",
-      "themeColor": "#FF6B1A",
+      "themeColor": "#F56E1E",
       "backgroundColor": "#0B0B12"
     },
     "plugins": [

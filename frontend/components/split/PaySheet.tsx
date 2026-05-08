@@ -9,6 +9,48 @@ import { C, UPI_APPS } from './theme';
 import SheetHeader from '../ui/SheetHeader';
 import { useIsOnline } from '../../hooks/useIsOnline';
 
+
+
+// R113 FIX — useStyles hoisted above first render-time call
+// to avoid Metro/SDK52 TDZ error (`Cannot access X before init.`).
+const useStyles = makeStyles((c) => ({
+  mBg: { flex: 1, justifyContent: 'flex-end', backgroundColor: 'rgba(0,0,0,0.5)' },
+  sheet: { backgroundColor: C.sheetBg, borderTopLeftRadius: 0, borderTopRightRadius: 0, paddingHorizontal: 24, paddingTop: 8, paddingBottom: 24, maxHeight: '92%' },
+  handle: { width: 40, height: 4, borderRadius: 2, backgroundColor: C.text4, alignSelf: 'center', marginVertical: 10 },
+  sheetT: { fontSize: 20, fontWeight: '700', color: C.text1 },
+  modeRow: { flexDirection: 'row', gap: 8, marginTop: 12, marginBottom: 8 },
+  modeChip: { flex: 1, paddingVertical: 10, borderRadius: 0, borderWidth: 1, borderColor: C.border, alignItems: 'center' },
+  modeOn: { backgroundColor: C.accentDim, borderColor: C.accent },
+  modeT: { fontSize: 14, fontWeight: '600', color: C.text3 },
+  modeTOn: { color: C.accent, fontWeight: '700' },
+  partialBox: { backgroundColor: c.bg.primary, borderRadius: 0, padding: 14, marginBottom: 12, borderWidth: 1, borderColor: C.border },
+  amtRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center' },
+  rupee: { fontSize: 28, fontWeight: '300', color: C.text3, marginRight: 4 },
+  amtInput: { fontSize: 32, fontWeight: '800', color: C.text1, minWidth: 60, textAlign: 'center' },
+  maxLabel: { fontSize: 14, color: C.text3, marginLeft: 6 },
+  errT: { fontSize: 12, color: C.red, textAlign: 'center', marginTop: 4 },
+  partialNote: { fontSize: 12, color: C.accent, textAlign: 'center', marginTop: 4, fontWeight: '600' },
+  quickRow: { flexDirection: 'row', gap: 8, marginTop: 10, justifyContent: 'center' },
+  quickBtn: { paddingVertical: 6, paddingHorizontal: 14, borderRadius: 0, backgroundColor: C.accentDim },
+  quickT: { fontSize: 13, fontWeight: '700', color: C.accent },
+  netBox: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', backgroundColor: c.state.successBg, borderRadius: 0, padding: 12, marginBottom: 10, borderWidth: 1, borderColor: c.state.successBorder },
+  netLbl: { fontSize: 11, fontWeight: '800', color: c.state.success, textTransform: 'uppercase', letterSpacing: 0.4 },
+  netStrike: { fontSize: 13, color: c.gray[400], fontWeight: '600', textDecorationLine: 'line-through' },
+  netVal: { fontSize: 18, fontWeight: '800', color: c.state.success },
+  payS: { fontSize: 14, color: C.text3, marginBottom: 8, marginTop: 4 },
+  upiRow: { flexDirection: 'row', alignItems: 'center', paddingVertical: 14, borderBottomWidth: 1, borderBottomColor: C.border },
+  upiIcon: { width: 44, height: 44, borderRadius: 0, justifyContent: 'center', alignItems: 'center', marginRight: 12 },
+  upiName: { flex: 1, fontSize: 16, fontWeight: '600', color: C.text1 },
+  cashBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, paddingVertical: 14, marginTop: 12, borderRadius: 0, backgroundColor: C.accentDim },
+  cashBtnT: { fontSize: 15, fontWeight: '600', color: C.accent },
+  rzpBtn: { borderRadius: 0, overflow: 'hidden', marginBottom: 10, shadowColor: c.accent.brandDark, shadowOffset: { width: 0, height: 6 }, shadowOpacity: 0.22, shadowRadius: 10, elevation: 5 },
+  rzpInner: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 14, paddingHorizontal: 14 },
+  rzpIcon: { width: 36, height: 36, borderRadius: 0, backgroundColor: 'rgba(255,255,255,0.22)', alignItems: 'center', justifyContent: 'center' },
+  rzpTitle: { color: c.bg.elevated, fontSize: 15, fontWeight: '900', letterSpacing: 0.2 },
+  rzpSub: { color: 'rgba(255,255,255,0.85)', fontSize: 11, fontWeight: '700', marginTop: 1 },
+  cancelT: { textAlign: 'center', fontSize: 15, color: C.text3, paddingVertical: 14 },
+}));
+
 type Props = {
   visible: boolean;
   onClose: () => void;
@@ -157,40 +199,3 @@ export default function PaySheet({ visible, onClose, target, onPayUPI, onPayCash
   );
 }
 
-const useStyles = makeStyles((c) => ({
-  mBg: { flex: 1, justifyContent: 'flex-end', backgroundColor: 'rgba(0,0,0,0.5)' },
-  sheet: { backgroundColor: C.sheetBg, borderTopLeftRadius: 0, borderTopRightRadius: 0, paddingHorizontal: 24, paddingTop: 8, paddingBottom: 24, maxHeight: '92%' },
-  handle: { width: 40, height: 4, borderRadius: 2, backgroundColor: C.text4, alignSelf: 'center', marginVertical: 10 },
-  sheetT: { fontSize: 20, fontWeight: '700', color: C.text1 },
-  modeRow: { flexDirection: 'row', gap: 8, marginTop: 12, marginBottom: 8 },
-  modeChip: { flex: 1, paddingVertical: 10, borderRadius: 0, borderWidth: 1, borderColor: C.border, alignItems: 'center' },
-  modeOn: { backgroundColor: C.accentDim, borderColor: C.accent },
-  modeT: { fontSize: 14, fontWeight: '600', color: C.text3 },
-  modeTOn: { color: C.accent, fontWeight: '700' },
-  partialBox: { backgroundColor: c.bg.primary, borderRadius: 0, padding: 14, marginBottom: 12, borderWidth: 1, borderColor: C.border },
-  amtRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center' },
-  rupee: { fontSize: 28, fontWeight: '300', color: C.text3, marginRight: 4 },
-  amtInput: { fontSize: 32, fontWeight: '800', color: C.text1, minWidth: 60, textAlign: 'center' },
-  maxLabel: { fontSize: 14, color: C.text3, marginLeft: 6 },
-  errT: { fontSize: 12, color: C.red, textAlign: 'center', marginTop: 4 },
-  partialNote: { fontSize: 12, color: C.accent, textAlign: 'center', marginTop: 4, fontWeight: '600' },
-  quickRow: { flexDirection: 'row', gap: 8, marginTop: 10, justifyContent: 'center' },
-  quickBtn: { paddingVertical: 6, paddingHorizontal: 14, borderRadius: 0, backgroundColor: C.accentDim },
-  quickT: { fontSize: 13, fontWeight: '700', color: C.accent },
-  netBox: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', backgroundColor: c.state.successBg, borderRadius: 0, padding: 12, marginBottom: 10, borderWidth: 1, borderColor: c.state.successBorder },
-  netLbl: { fontSize: 11, fontWeight: '800', color: c.state.success, textTransform: 'uppercase', letterSpacing: 0.4 },
-  netStrike: { fontSize: 13, color: c.gray[400], fontWeight: '600', textDecorationLine: 'line-through' },
-  netVal: { fontSize: 18, fontWeight: '800', color: c.state.success },
-  payS: { fontSize: 14, color: C.text3, marginBottom: 8, marginTop: 4 },
-  upiRow: { flexDirection: 'row', alignItems: 'center', paddingVertical: 14, borderBottomWidth: 1, borderBottomColor: C.border },
-  upiIcon: { width: 44, height: 44, borderRadius: 0, justifyContent: 'center', alignItems: 'center', marginRight: 12 },
-  upiName: { flex: 1, fontSize: 16, fontWeight: '600', color: C.text1 },
-  cashBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, paddingVertical: 14, marginTop: 12, borderRadius: 0, backgroundColor: C.accentDim },
-  cashBtnT: { fontSize: 15, fontWeight: '600', color: C.accent },
-  rzpBtn: { borderRadius: 0, overflow: 'hidden', marginBottom: 10, shadowColor: c.accent.brandDark, shadowOffset: { width: 0, height: 6 }, shadowOpacity: 0.22, shadowRadius: 10, elevation: 5 },
-  rzpInner: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 14, paddingHorizontal: 14 },
-  rzpIcon: { width: 36, height: 36, borderRadius: 0, backgroundColor: 'rgba(255,255,255,0.22)', alignItems: 'center', justifyContent: 'center' },
-  rzpTitle: { color: c.bg.elevated, fontSize: 15, fontWeight: '900', letterSpacing: 0.2 },
-  rzpSub: { color: 'rgba(255,255,255,0.85)', fontSize: 11, fontWeight: '700', marginTop: 1 },
-  cancelT: { textAlign: 'center', fontSize: 15, color: C.text3, paddingVertical: 14 },
-}));

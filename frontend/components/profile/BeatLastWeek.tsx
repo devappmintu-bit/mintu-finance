@@ -9,6 +9,36 @@ import * as Haptics from 'expo-haptics';
 import { makeStyles } from '../../utils/makeStyles';
 import { COLORS } from '../../utils/theme';
 
+
+
+// R113 FIX — useStyles hoisted above first render-time call
+// to avoid Metro/SDK52 TDZ error (`Cannot access X before init.`).
+const useStyles = makeStyles((c) => ({
+  card: { backgroundColor: c.bg.secondary, borderRadius: 0, padding: 16, borderWidth: 1, borderColor: c.border.subtle, marginBottom: 14 },
+  head: { flexDirection: 'row', alignItems: 'flex-start', gap: 10 },
+  label: { fontSize: 10.5, fontWeight: '700', color: c.text.muted, letterSpacing: 0.6, textTransform: 'uppercase' },
+  commentary: { fontSize: 14, fontWeight: '700', marginTop: 4, letterSpacing: -0.2, lineHeight: 18 },
+  deltaChip: { flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: 9, paddingVertical: 4, borderRadius: 0 },
+  deltaTxt: { fontSize: 11.5, fontWeight: '900' },
+
+  barsRow: { flexDirection: 'row', gap: 12, marginTop: 14 },
+  barCol: { flex: 1 },
+  barLbl: { fontSize: 10, fontWeight: '700', color: c.text.muted, letterSpacing: 0.3, textTransform: 'uppercase' },
+  barTrack: { height: 6, borderRadius: 3, backgroundColor: c.bg.primary, marginTop: 6, overflow: 'hidden' },
+  barFill: { height: '100%', borderRadius: 3 },
+  barVal: { fontSize: 12.5, fontWeight: '700', color: c.text.primary, marginTop: 6 },
+
+  rewardRow: { flexDirection: 'row', gap: 6, marginTop: 12, flexWrap: 'wrap' },
+  rewardChip: { flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: 8, paddingVertical: 4, borderRadius: 0, backgroundColor: c.bg.primary, borderWidth: 1, borderColor: c.border.subtle },
+  rewardEmoji: { fontSize: 11 },
+  rewardTxt: { fontSize: 11, fontWeight: '700', color: c.text.primary },
+
+  ctaRow: { marginTop: 10, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 10 },
+  ctaTxt: { fontSize: 12, fontWeight: '800' },
+  sharePill: { flexDirection: 'row', alignItems: 'center', gap: 5, paddingHorizontal: 10, paddingVertical: 6, borderRadius: 0, borderWidth: 1 },
+  shareTxt: { fontSize: 11.5, fontWeight: '800', letterSpacing: -0.1 },
+}));
+
 interface Props {
   thisWeek: { saved: number; expense: number; txn_count: number } | null;
   lastWeek: { saved: number; expense: number; txn_count: number } | null;
@@ -136,28 +166,3 @@ function beatEqual(a: Props, b: Props): boolean {
 const BeatLastWeek = React.memo(BeatLastWeekBase, beatEqual);
 export default BeatLastWeek;
 
-const useStyles = makeStyles((c) => ({
-  card: { backgroundColor: c.bg.secondary, borderRadius: 0, padding: 16, borderWidth: 1, borderColor: c.border.subtle, marginBottom: 14 },
-  head: { flexDirection: 'row', alignItems: 'flex-start', gap: 10 },
-  label: { fontSize: 10.5, fontWeight: '700', color: c.text.muted, letterSpacing: 0.6, textTransform: 'uppercase' },
-  commentary: { fontSize: 14, fontWeight: '700', marginTop: 4, letterSpacing: -0.2, lineHeight: 18 },
-  deltaChip: { flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: 9, paddingVertical: 4, borderRadius: 0 },
-  deltaTxt: { fontSize: 11.5, fontWeight: '900' },
-
-  barsRow: { flexDirection: 'row', gap: 12, marginTop: 14 },
-  barCol: { flex: 1 },
-  barLbl: { fontSize: 10, fontWeight: '700', color: c.text.muted, letterSpacing: 0.3, textTransform: 'uppercase' },
-  barTrack: { height: 6, borderRadius: 3, backgroundColor: c.bg.primary, marginTop: 6, overflow: 'hidden' },
-  barFill: { height: '100%', borderRadius: 3 },
-  barVal: { fontSize: 12.5, fontWeight: '700', color: c.text.primary, marginTop: 6 },
-
-  rewardRow: { flexDirection: 'row', gap: 6, marginTop: 12, flexWrap: 'wrap' },
-  rewardChip: { flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: 8, paddingVertical: 4, borderRadius: 0, backgroundColor: c.bg.primary, borderWidth: 1, borderColor: c.border.subtle },
-  rewardEmoji: { fontSize: 11 },
-  rewardTxt: { fontSize: 11, fontWeight: '700', color: c.text.primary },
-
-  ctaRow: { marginTop: 10, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 10 },
-  ctaTxt: { fontSize: 12, fontWeight: '800' },
-  sharePill: { flexDirection: 'row', alignItems: 'center', gap: 5, paddingHorizontal: 10, paddingVertical: 6, borderRadius: 0, borderWidth: 1 },
-  shareTxt: { fontSize: 11.5, fontWeight: '800', letterSpacing: -0.1 },
-}));

@@ -19,6 +19,51 @@ import PulseCTA from './PulseCTA';
 import { makeStyles } from '../../utils/makeStyles';
 import { COLORS } from '../../utils/theme';
 
+
+
+// R113 FIX — useStyles hoisted above first render-time call
+// to avoid Metro/SDK52 TDZ error (`Cannot access X before init.`).
+const useStyles = makeStyles((c) => ({
+  wrap: {
+    backgroundColor: c.bg.secondary,
+    borderRadius: 0,
+    padding: 16,
+    borderWidth: 1,
+    borderColor: c.border.subtle,
+    gap: 14,
+  },
+  wrapCompact: { padding: 12, gap: 10 },
+
+  lossRow: { flexDirection: 'row', alignItems: 'center', gap: 10 },
+  lossIcon: { width: 32, height: 32, borderRadius: 0, backgroundColor: '#FEE2E2', alignItems: 'center', justifyContent: 'center' },
+  lossLabel: { fontSize: 9.5, fontWeight: '900', color: '#B91C1C', letterSpacing: 1 },
+  lossAmount: { fontSize: 22, fontWeight: '900', color: c.text.primary, letterSpacing: -0.6 },
+  lossPeriod: { fontSize: 12, fontWeight: '700', color: c.text.muted },
+
+  teaserList: { gap: 7 },
+  teaserRow: { flexDirection: 'row', gap: 8, alignItems: 'flex-start' },
+  bullet: { width: 5, height: 5, borderRadius: 2.5, backgroundColor: c.accent.primary, marginTop: 6 },
+  teaserTxt: { flex: 1, fontSize: 12.5, color: c.text.secondary, fontWeight: '600', lineHeight: 17 },
+
+  blurHost: { position: 'relative', borderRadius: 0, overflow: 'hidden' },
+  fakeRows: { gap: 8, padding: 10 },
+  fakeRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 10 },
+  fakeBar: { height: 9, borderRadius: 4, backgroundColor: 'rgba(0,0,0,0.1)' },
+  blurOverlay: { ...{ position: 'absolute' }, top: 0, left: 0, right: 0, bottom: 0, alignItems: 'center', justifyContent: 'center' },
+  webFog: { backgroundColor: 'rgba(255,255,255,0.78)' },
+  blurInner: { flexDirection: 'row', alignItems: 'center', gap: 5, backgroundColor: 'rgba(255,255,255,0.95)', paddingHorizontal: 10, paddingVertical: 5, borderRadius: 0, borderWidth: 1, borderColor: 'rgba(193,74,6,0.2)' },
+  blurTxt: { fontSize: 11, fontWeight: '800', color: '#7A2E0A' },
+
+  trustRow: { flexDirection: 'row', gap: 6 },
+  trustBadge: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 3, paddingVertical: 5, paddingHorizontal: 6, borderRadius: 0, backgroundColor: c.bg.primary, borderWidth: 1, borderColor: c.border.subtle },
+  trustTxt: { fontSize: 10, fontWeight: '800', color: c.text.secondary },
+
+  ctaBtn: { borderRadius: 0, overflow: 'hidden' },
+  ctaGrad: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 7, paddingVertical: 13, paddingHorizontal: 16 },
+  ctaTxt: { fontSize: 14, fontWeight: '900', color: '#fff', letterSpacing: -0.2 },
+  subCta: { fontSize: 10.5, fontWeight: '700', color: c.text.muted, textAlign: 'center', marginTop: -6 },
+}));
+
 type Props = {
   lossAmount?: number;         // "You're missing ₹X"
   teaserLines?: string[];      // 1-3 visible bullet points (pre-blur)
@@ -140,43 +185,3 @@ function SoftPaywall({
 
 export default memo(SoftPaywall);
 
-const useStyles = makeStyles((c) => ({
-  wrap: {
-    backgroundColor: c.bg.secondary,
-    borderRadius: 0,
-    padding: 16,
-    borderWidth: 1,
-    borderColor: c.border.subtle,
-    gap: 14,
-  },
-  wrapCompact: { padding: 12, gap: 10 },
-
-  lossRow: { flexDirection: 'row', alignItems: 'center', gap: 10 },
-  lossIcon: { width: 32, height: 32, borderRadius: 0, backgroundColor: '#FEE2E2', alignItems: 'center', justifyContent: 'center' },
-  lossLabel: { fontSize: 9.5, fontWeight: '900', color: '#B91C1C', letterSpacing: 1 },
-  lossAmount: { fontSize: 22, fontWeight: '900', color: c.text.primary, letterSpacing: -0.6 },
-  lossPeriod: { fontSize: 12, fontWeight: '700', color: c.text.muted },
-
-  teaserList: { gap: 7 },
-  teaserRow: { flexDirection: 'row', gap: 8, alignItems: 'flex-start' },
-  bullet: { width: 5, height: 5, borderRadius: 2.5, backgroundColor: c.accent.primary, marginTop: 6 },
-  teaserTxt: { flex: 1, fontSize: 12.5, color: c.text.secondary, fontWeight: '600', lineHeight: 17 },
-
-  blurHost: { position: 'relative', borderRadius: 0, overflow: 'hidden' },
-  fakeRows: { gap: 8, padding: 10 },
-  fakeRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 10 },
-  fakeBar: { height: 9, borderRadius: 4, backgroundColor: 'rgba(0,0,0,0.1)' },
-  blurOverlay: { ...{ position: 'absolute' }, top: 0, left: 0, right: 0, bottom: 0, alignItems: 'center', justifyContent: 'center' },
-  webFog: { backgroundColor: 'rgba(255,255,255,0.78)' },
-  blurInner: { flexDirection: 'row', alignItems: 'center', gap: 5, backgroundColor: 'rgba(255,255,255,0.95)', paddingHorizontal: 10, paddingVertical: 5, borderRadius: 0, borderWidth: 1, borderColor: 'rgba(193,74,6,0.2)' },
-  blurTxt: { fontSize: 11, fontWeight: '800', color: '#7A2E0A' },
-
-  trustRow: { flexDirection: 'row', gap: 6 },
-  trustBadge: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 3, paddingVertical: 5, paddingHorizontal: 6, borderRadius: 0, backgroundColor: c.bg.primary, borderWidth: 1, borderColor: c.border.subtle },
-  trustTxt: { fontSize: 10, fontWeight: '800', color: c.text.secondary },
-
-  ctaBtn: { borderRadius: 0, overflow: 'hidden' },
-  ctaGrad: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 7, paddingVertical: 13, paddingHorizontal: 16 },
-  ctaTxt: { fontSize: 14, fontWeight: '900', color: '#fff', letterSpacing: -0.2 },
-  subCta: { fontSize: 10.5, fontWeight: '700', color: c.text.muted, textAlign: 'center', marginTop: -6 },
-}));

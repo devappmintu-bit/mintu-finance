@@ -22,6 +22,50 @@ import * as Haptics from 'expo-haptics';
 import { COLORS,  CATEGORIES, shadowStyle, useAppColors } from '../../utils/theme';
 import { makeStyles } from '../../utils/makeStyles';
 
+
+
+// R113 FIX — useStyles hoisted above first render-time call
+// to avoid Metro/SDK52 TDZ error (`Cannot access X before init.`).
+const useStyles = makeStyles((c) => ({
+  card: { borderRadius: 0, padding: 14, marginBottom: 10, borderWidth: 1 },
+  cardBody: {},
+
+  row1: { flexDirection: 'row', alignItems: 'center' },
+  icon: { width: 40, height: 40, borderRadius: 0, alignItems: 'center', justifyContent: 'center' },
+  name: { fontSize: 15, fontWeight: '800', color: c.text.primary },
+  period: { fontSize: 10, color: c.text.muted, fontWeight: '700', letterSpacing: 0.3, marginTop: 2 },
+  amt: { fontSize: 16, fontWeight: '800' },
+  of: { fontSize: 11, color: c.text.muted, fontWeight: '600', marginTop: 2 },
+
+  track: { height: 7, borderRadius: 4, backgroundColor: 'rgba(0,0,0,0.06)', overflow: 'hidden', marginTop: 10 },
+  fill: { height: '100%', borderRadius: 4 },
+
+  row2: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: 6 },
+  pct: { fontSize: 10.5, color: c.text.muted, fontWeight: '700', textTransform: 'uppercase', letterSpacing: 0.3 },
+  tail: { fontSize: 11, fontWeight: '800' },
+
+  chipsRow: { flexDirection: 'row', gap: 6, marginTop: 10, flexWrap: 'wrap' },
+  chip: { flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: 'rgba(255,255,255,0.7)', borderWidth: 1, borderColor: c.gray[200], borderRadius: 0, paddingHorizontal: 8, paddingVertical: 3 },
+  chipT: { fontSize: 10.5, color: c.text.secondary, fontWeight: '700' },
+
+  warnBanner: { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 10, paddingVertical: 6, paddingHorizontal: 10, borderRadius: 0, backgroundColor: c.accent.brandSoft, borderWidth: 1, borderColor: c.accent.brandSoft },
+  warnT: { fontSize: 11.5, fontWeight: '700', color: '#9A3412', flex: 1 },
+  overBanner: { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 10, paddingVertical: 6, paddingHorizontal: 10, borderRadius: 0, backgroundColor: c.state.dangerBg, borderWidth: 1, borderColor: c.state.dangerBorder },
+  overT: { fontSize: 11.5, fontWeight: '800', color: c.state.danger, flex: 1 },
+
+  rightAct: { backgroundColor: c.state.danger, justifyContent: 'center', alignItems: 'center', width: 92, borderRadius: 0, marginBottom: 10, marginLeft: 8 },
+  leftActEdit: { backgroundColor: c.state.info, justifyContent: 'center', alignItems: 'center', width: 78, borderRadius: 0, marginBottom: 10, marginRight: 6 },
+  leftActAdd: { backgroundColor: c.state.success, justifyContent: 'center', alignItems: 'center', width: 82, borderRadius: 0, marginBottom: 10, marginRight: 6 },
+  actTxt: { color: c.bg.elevated, fontSize: 11, fontWeight: '800', marginTop: 3 },
+
+  dotsBtn: { position: 'absolute', top: 10, right: 10, width: 28, height: 28, borderRadius: 0, backgroundColor: 'rgba(255,255,255,0.85)', alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: c.gray[200] },
+  aiBtn_web: { position: 'absolute', top: 10, right: 44, width: 28, height: 28, borderRadius: 0, backgroundColor: c.accent.brandSoft, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: c.accent.brandSoft },
+  aiBtn: { position: 'absolute', bottom: 10, right: 10, width: 28, height: 28, borderRadius: 0, backgroundColor: c.accent.brandSoft, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: c.accent.brandSoft },
+  menu: { position: 'absolute', top: 42, right: 8, backgroundColor: c.bg.elevated, borderRadius: 0, paddingVertical: 6, paddingHorizontal: 4, borderWidth: 1, borderColor: c.gray[200], zIndex: 10, minWidth: 130, ...shadowStyle('#000000', 8, 14, 0.1, 10) },
+  menuItem: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingHorizontal: 10, paddingVertical: 8, borderRadius: 0 },
+  menuT: { fontSize: 13, fontWeight: '700' },
+}));
+
 type Props = {
   item: any;
   onEdit: () => void;
@@ -113,16 +157,21 @@ const BudgetCard = memo(function BudgetCard({ item, onEdit, onDelete, onAddExpen
             burnRate={burnRate} daysLeft={daysLeft} projectedOver={projectedOver} projectedSpend={projectedSpend}
             fillAnim={fillAnim} isOver={isOver} isWarn={isWarn} isRisk={isRisk} status={status} />
         </TouchableOpacity>
-        {onInsights && (
-          <TouchableOpacity style={s.aiBtn_web} onPress={tap(onInsights, Haptics.ImpactFeedbackStyle.Medium)} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
-            <Text style={{ fontSize: 14 }}>🧠</Text>
-          </TouchableOpacity>
-        )}
+        {/* R101C — AI brain button is no longer a free-floating top-right
+            sibling to the 3-dot menu (the two icons crowded each other and
+            looked overlapping at small widths). It now lives INSIDE the
+            overflow menu as "🧠 AI Insights" — discoverable, never
+            colliding, and consistent with native long-press behaviour. */}
         <TouchableOpacity style={s.dotsBtn} onPress={() => setMenuOpen(v => !v)} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
           <Ionicons name="ellipsis-horizontal" size={16} color={c.text.muted} />
         </TouchableOpacity>
         {menuOpen && (
           <View style={s.menu}>
+            {onInsights && (
+              <TouchableOpacity style={s.menuItem} onPress={tap(() => { setMenuOpen(false); onInsights(); }, Haptics.ImpactFeedbackStyle.Medium)}>
+                <Text style={{ fontSize: 14 }}>🧠</Text><Text style={[s.menuT, { color: c.text.primary }]}>AI Insights</Text>
+              </TouchableOpacity>
+            )}
             <TouchableOpacity style={s.menuItem} onPress={tap(() => { setMenuOpen(false); onEdit(); })}>
               <Ionicons name="create-outline" size={16} color={c.state.info} /><Text style={[s.menuT, { color: c.state.info }]}>Edit</Text>
             </TouchableOpacity>
@@ -288,42 +337,3 @@ function CardContent({ item, emoji, catColor, statusColor, limit, spent, pct, ov
   );
 }
 
-const useStyles = makeStyles((c) => ({
-  card: { borderRadius: 0, padding: 14, marginBottom: 10, borderWidth: 1 },
-  cardBody: {},
-
-  row1: { flexDirection: 'row', alignItems: 'center' },
-  icon: { width: 40, height: 40, borderRadius: 0, alignItems: 'center', justifyContent: 'center' },
-  name: { fontSize: 15, fontWeight: '800', color: c.text.primary },
-  period: { fontSize: 10, color: c.text.muted, fontWeight: '700', letterSpacing: 0.3, marginTop: 2 },
-  amt: { fontSize: 16, fontWeight: '800' },
-  of: { fontSize: 11, color: c.text.muted, fontWeight: '600', marginTop: 2 },
-
-  track: { height: 7, borderRadius: 4, backgroundColor: 'rgba(0,0,0,0.06)', overflow: 'hidden', marginTop: 10 },
-  fill: { height: '100%', borderRadius: 4 },
-
-  row2: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: 6 },
-  pct: { fontSize: 10.5, color: c.text.muted, fontWeight: '700', textTransform: 'uppercase', letterSpacing: 0.3 },
-  tail: { fontSize: 11, fontWeight: '800' },
-
-  chipsRow: { flexDirection: 'row', gap: 6, marginTop: 10, flexWrap: 'wrap' },
-  chip: { flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: 'rgba(255,255,255,0.7)', borderWidth: 1, borderColor: c.gray[200], borderRadius: 0, paddingHorizontal: 8, paddingVertical: 3 },
-  chipT: { fontSize: 10.5, color: c.text.secondary, fontWeight: '700' },
-
-  warnBanner: { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 10, paddingVertical: 6, paddingHorizontal: 10, borderRadius: 0, backgroundColor: c.accent.brandSoft, borderWidth: 1, borderColor: c.accent.brandSoft },
-  warnT: { fontSize: 11.5, fontWeight: '700', color: '#9A3412', flex: 1 },
-  overBanner: { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 10, paddingVertical: 6, paddingHorizontal: 10, borderRadius: 0, backgroundColor: c.state.dangerBg, borderWidth: 1, borderColor: c.state.dangerBorder },
-  overT: { fontSize: 11.5, fontWeight: '800', color: c.state.danger, flex: 1 },
-
-  rightAct: { backgroundColor: c.state.danger, justifyContent: 'center', alignItems: 'center', width: 92, borderRadius: 0, marginBottom: 10, marginLeft: 8 },
-  leftActEdit: { backgroundColor: c.state.info, justifyContent: 'center', alignItems: 'center', width: 78, borderRadius: 0, marginBottom: 10, marginRight: 6 },
-  leftActAdd: { backgroundColor: c.state.success, justifyContent: 'center', alignItems: 'center', width: 82, borderRadius: 0, marginBottom: 10, marginRight: 6 },
-  actTxt: { color: c.bg.elevated, fontSize: 11, fontWeight: '800', marginTop: 3 },
-
-  dotsBtn: { position: 'absolute', top: 10, right: 10, width: 28, height: 28, borderRadius: 0, backgroundColor: 'rgba(255,255,255,0.85)', alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: c.gray[200] },
-  aiBtn_web: { position: 'absolute', top: 10, right: 44, width: 28, height: 28, borderRadius: 0, backgroundColor: c.accent.brandSoft, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: c.accent.brandSoft },
-  aiBtn: { position: 'absolute', bottom: 10, right: 10, width: 28, height: 28, borderRadius: 0, backgroundColor: c.accent.brandSoft, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: c.accent.brandSoft },
-  menu: { position: 'absolute', top: 42, right: 8, backgroundColor: c.bg.elevated, borderRadius: 0, paddingVertical: 6, paddingHorizontal: 4, borderWidth: 1, borderColor: c.gray[200], zIndex: 10, minWidth: 130, ...shadowStyle('#000000', 8, 14, 0.1, 10) },
-  menuItem: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingHorizontal: 10, paddingVertical: 8, borderRadius: 0 },
-  menuT: { fontSize: 13, fontWeight: '700' },
-}));

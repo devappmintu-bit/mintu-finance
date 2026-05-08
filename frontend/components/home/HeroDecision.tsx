@@ -27,6 +27,7 @@ import { ROUTES } from '../../constants/routes';
 import { useAIPrompt } from '../../store/aiPromptStore';
 import type { PriorityInsight, RiskLevel } from '../../hooks/usePriorityInsight';
 import { useDiagnosticScore } from '../../hooks/useDiagnosticScore';
+import { useAIMaturity } from '../../utils/aiMaturity';
 
 interface Props {
   insight: PriorityInsight;
@@ -60,22 +61,25 @@ export default function HeroDecision({ insight }: Props) {
   const headline = diag?.headline;
   const weakestCat = diag?.weakest_category;
 
-  // R100S — Honest cold-start gate. The hero card was previously
-  // rendering a confident "80/100, ▲ +28 vs last wk, All categories on
-  // baseline" composite for users who had logged 0-3 weeks of data —
-  // i.e. the score was being printed BEFORE there was anything to
-  // score. UX audit (R100S) flagged this as the single biggest trust
-  // violation in the app: a finance app cannot show fabricated metrics.
-  //
-  // Rule: until we have at least 4 calendar weeks of data ( the same
-  // bar percentile_basis === 'own_history' uses ), we render an
-  // EMPTY-STATE card explaining what's still being learned and what
-  // the user should do next. Single CTA, no fake delta, no fake
-  // percentile, no fake "categories on baseline" line.
+  // R101A — AI Maturity Model gate.
+  // The single law of MintU: never show a confident score (or AI
+  // "suggestion" CTA) until the user has crossed Stage 2 (≥25 txns).
+  // This replaces the older `historyCount >= 4` heuristic which still
+  // let the score render at low data depth and produced the "80/100
+  // BUILDING" contradiction the audit flagged. Now: if the user is in
+  // Stage 0 or 1 we render an honest BUILDING card with no number,
+  // no fake delta, no premature suggestion CTA — just a transparent
+  // "X txns to unlock" progress label.
+  const maturity = useAIMaturity();
   const historyCount = diag?.history_count ?? 0;
   const hasEnoughHistory =
     diag?.percentile_basis === 'own_history' && historyCount >= 4;
-  const isColdStart = !hasEnoughHistory;
+  // Strict gate: BOTH thresholds must pass — Maturity stage 2+ AND
+  // ≥4 weeks of history. This is intentional; it stops a 30-txn user
+  // who only logged for 1 week from getting an unstable score, and
+  // stops a 4-week-old user who only logged 8 txns from getting one
+  // either. Defence in depth.
+  const isColdStart = !(maturity.canShowScore && hasEnoughHistory);
 
   const handlePress = () => {
     try {
@@ -92,41 +96,78 @@ export default function HeroDecision({ insight }: Props) {
   };
 
   // ─────────────────────────────────────────────────────────
-  // COLD-START render — no fake numbers, no fake provenance.
+  // COLD-START render — no fake numbers, no fake provenance,
+  // no premature AI "suggestion" CTA. Pure honesty pill +
+  // transparent unlock progress.
   // ─────────────────────────────────────────────────────────
   if (isColdStart) {
     const weeksToGo = Math.max(0, 4 - historyCount);
+    const txnsToUnlock = maturity.txnsToNext;
+    const txnGated = !maturity.canShowScore;     // Stage 0/1 \u2014 score locked by txn count
+    const histGated = !hasEnoughHistory;          // <4 weeks \u2014 score locked by recency
+
+    // Honest unlock message: pick whichever bar the user has further
+    // to climb. Never claim both are blocking unless they really are.
+    let buildMsg: string;
+    if (maturity.txnCount === 0) {
+      buildMsg =
+        "Log your first expense and I'll start learning your money pattern.";
+    } else if (txnGated) {
+      buildMsg = `${txnsToUnlock} more expense${txnsToUnlock === 1 ? '' : 's'} to unlock your score. I won't fake numbers I haven't earned.`;
+    } else if (histGated) {
+      buildMsg = `Pattern forming \u00b7 ${historyCount}/4 weeks logged. ${weeksToGo} week${weeksToGo === 1 ? '' : 's'} to go.`;
+    } else {
+      buildMsg = 'Almost there \u2014 give me a couple more days of activity.';
+    }
+
     return (
       <BrutalistPressable
         onPress={handlePress}
         stamp="md"
-        accessibilityLabel="Money score not ready yet. Tap to ask Mintu what to log."
+        accessibilityLabel={`Money score not ready. ${buildMsg}`}
         style={styles.card}
       >
         <View style={styles.top}>
           <Text style={styles.kicker}>YOUR MONEY SCORE</Text>
           <View style={[styles.pill, { backgroundColor: BR_COLORS.muted }]}>
-            <Text style={[styles.pillTxt, { color: BR_COLORS.accentInk }]}>BUILDING</Text>
+            <Text style={[styles.pillTxt, { color: BR_COLORS.accentInk }]}>
+              {maturity.label}
+            </Text>
           </View>
         </View>
 
         <View style={styles.scoreRow}>
           <Text style={[styles.scoreNum, { color: BR_COLORS.muted }]}>—</Text>
           <Text style={styles.scoreOf}>/100</Text>
+          {/* Inline unlock progress chip \u2014 replaces the fake delta chip. */}
+          {txnGated && (
+            <View style={[styles.deltaChip, { borderColor: BR_COLORS.muted }]}>
+              <Text style={[styles.deltaTxt, { color: BR_COLORS.muted }]}>
+                {maturity.txnCount}/{maturity.nextThreshold} TXNS
+              </Text>
+            </View>
+          )}
         </View>
 
         <View style={styles.lineWrap}>
           <Text style={styles.kicker}>BUILDING YOUR PATTERN</Text>
-          <Text style={styles.lineTxt} numberOfLines={3}>
-            {historyCount === 0
-              ? 'A score needs ~4 weeks of your real spending. Log a few expenses and I\'ll start learning your pattern.'
-              : `Learning your pattern · ${historyCount} of 4 weeks logged. ${weeksToGo} to go before your score unlocks.`}
-          </Text>
+          <Text style={styles.lineTxt} numberOfLines={3}>{buildMsg}</Text>
         </View>
 
+        {/* R101A \u2014 \"GET A SUGGESTION\" CTA REMOVED for cold-start.
+            Suggestion CTAs in BUILDING were the textbook \"performative
+            AI\" failure: the app advertised intelligence it couldn't
+            yet deliver. The card is still tappable (parent Pressable)
+            but the footer now reads as honest progress, not a promise. */}
         <View style={styles.footer}>
-          <Text style={styles.foot}>GET A SUGGESTION</Text>
-          <Ionicons name="arrow-forward" size={14} color={BR_COLORS.ink} />
+          <Text style={[styles.foot, { color: BR_COLORS.muted }]}>
+            {txnGated
+              ? `LOG ${txnsToUnlock} MORE TO UNLOCK`
+              : histGated
+                ? `${weeksToGo}W TO UNLOCK`
+                : 'UNLOCKING SOON'}
+          </Text>
+          <Ionicons name="time-outline" size={14} color={BR_COLORS.muted} />
         </View>
       </BrutalistPressable>
     );

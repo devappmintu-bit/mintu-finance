@@ -12,6 +12,25 @@ import { COLORS } from '../../utils/theme';
 import { makeStyles } from '../../utils/makeStyles';
 import { fetchGmailStatus } from '../../services/gmail';
 
+
+
+// R113 FIX — useStyles hoisted above first render-time call
+// to avoid Metro/SDK52 TDZ error (`Cannot access X before init.`).
+const useStyles = makeStyles((c) => ({
+  wrap: { marginHorizontal: 16, marginTop: 10, marginBottom: 6 },
+  card: {
+    flexDirection: 'row', alignItems: 'center', gap: 12,
+    padding: 14, borderRadius: 0,
+    borderWidth: 1, borderColor: '#FED7AA',
+  },
+  icon: {
+    width: 38, height: 38, borderRadius: 0,
+    backgroundColor: '#FFFFFF', alignItems: 'center', justifyContent: 'center',
+  },
+  title: { fontSize: 14, fontWeight: '800', color: c.text.primary },
+  sub: { fontSize: 11.5, color: c.text.secondary, marginTop: 2, lineHeight: 15 },
+}));
+
 export default function GmailConnectCard() {
   const s = useStyles();
   const [show, setShow] = useState(false);
@@ -47,17 +66,3 @@ export default function GmailConnectCard() {
   );
 }
 
-const useStyles = makeStyles((c) => ({
-  wrap: { marginHorizontal: 16, marginTop: 10, marginBottom: 6 },
-  card: {
-    flexDirection: 'row', alignItems: 'center', gap: 12,
-    padding: 14, borderRadius: 0,
-    borderWidth: 1, borderColor: '#FED7AA',
-  },
-  icon: {
-    width: 38, height: 38, borderRadius: 0,
-    backgroundColor: '#FFFFFF', alignItems: 'center', justifyContent: 'center',
-  },
-  title: { fontSize: 14, fontWeight: '800', color: c.text.primary },
-  sub: { fontSize: 11.5, color: c.text.secondary, marginTop: 2, lineHeight: 15 },
-}));

@@ -16,6 +16,47 @@ import api from '../../utils/api';
 import { makeStyles } from '../../utils/makeStyles';
 import { COLORS, useAppColors, GLASS } from '../../utils/theme';
 
+
+
+// R113 FIX — useStyles hoisted above first render-time call
+// to avoid Metro/SDK52 TDZ error (`Cannot access X before init.`).
+const useStyles = makeStyles((c) => ({
+  backdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.55)', justifyContent: 'flex-end' },
+  sheet: { backgroundColor: GLASS.solidBg, borderTopLeftRadius: 0, borderTopRightRadius: 0, borderTopWidth: StyleSheet.hairlineWidth, borderColor: GLASS.borderLight, padding: 20, paddingBottom: 32, maxHeight: '86%' },
+  grip: { width: 40, height: 4, borderRadius: 2, backgroundColor: c.border.subtle, alignSelf: 'center', marginBottom: 16 },
+  header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14 },
+  sheetLabel: { fontSize: 11, fontWeight: '700', color: c.text.muted, letterSpacing: 0.6, textTransform: 'uppercase' },
+  sheetTitle: { fontSize: 30, fontWeight: '900', color: c.text.primary, letterSpacing: -1, marginTop: 3 },
+  sheetTitleOf: { fontSize: 15, fontWeight: '700', color: c.text.muted },
+  closeBtn: { width: 34, height: 34, borderRadius: 0, backgroundColor: c.bg.primary, alignItems: 'center', justifyContent: 'center' },
+
+  predictive: { flexDirection: 'row', alignItems: 'center', gap: 6, padding: 12, borderRadius: 0, backgroundColor: '#F56E1E14', borderWidth: 1, borderColor: '#F56E1E33', marginBottom: 14 },
+  predictiveTxt: { flex: 1, fontSize: 12.5, fontWeight: '700', color: c.accent.brandDark },
+
+  pillar: { flexDirection: 'row', alignItems: 'center', gap: 14, paddingVertical: 12, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: c.border.subtle },
+  ringWrap: { position: 'relative', alignItems: 'center', justifyContent: 'center' },
+  ringEmoji: { position: 'absolute', fontSize: 24 },
+  pillarLabel: { fontSize: 11.5, fontWeight: '700', color: c.text.muted, letterSpacing: 0.3, textTransform: 'uppercase' },
+  pillarScore: { fontSize: 22, fontWeight: '900', marginTop: 3, letterSpacing: -0.6 },
+  pillarScoreOf: { fontSize: 12, fontWeight: '700', color: c.text.muted },
+  pillarHint: { fontSize: 11.5, fontWeight: '600', color: c.text.secondary, marginTop: 2, lineHeight: 15 },
+
+  footerTip: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingTop: 14 },
+  footerTipTxt: { fontSize: 11, fontWeight: '500', color: c.text.muted },
+
+  // Round 51e — error/empty state UI for /profile/score-breakdown failures.
+  errorWrap: { alignItems: 'center', justifyContent: 'center', paddingVertical: 36, paddingHorizontal: 16, gap: 10 },
+  errorIconWrap: { width: 64, height: 64, borderRadius: 0, backgroundColor: c.bg.primary, alignItems: 'center', justifyContent: 'center' },
+  errorTitle: { fontSize: 16, fontWeight: '800', color: c.text.primary, textAlign: 'center', marginTop: 4 },
+  errorSub: { fontSize: 12.5, color: c.text.muted, textAlign: 'center', lineHeight: 18, marginBottom: 6 },
+  errorRetry: {
+    flexDirection: 'row', alignItems: 'center', gap: 6,
+    backgroundColor: c.accent.primary, paddingHorizontal: 16, paddingVertical: 10,
+    borderRadius: 0, marginTop: 4,
+  },
+  errorRetryTxt: { color: '#FFFFFF', fontWeight: '800', fontSize: 13 },
+}));
+
 type Pillar = { key: string; label: string; score: number; emoji: string; hint: string };
 type Data = {
   current_score: number;
@@ -162,39 +203,3 @@ export default function ScoreBreakdownModal({ visible, onClose, fallbackScore = 
   );
 }
 
-const useStyles = makeStyles((c) => ({
-  backdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.55)', justifyContent: 'flex-end' },
-  sheet: { backgroundColor: GLASS.solidBg, borderTopLeftRadius: 0, borderTopRightRadius: 0, borderTopWidth: StyleSheet.hairlineWidth, borderColor: GLASS.borderLight, padding: 20, paddingBottom: 32, maxHeight: '86%' },
-  grip: { width: 40, height: 4, borderRadius: 2, backgroundColor: c.border.subtle, alignSelf: 'center', marginBottom: 16 },
-  header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14 },
-  sheetLabel: { fontSize: 11, fontWeight: '700', color: c.text.muted, letterSpacing: 0.6, textTransform: 'uppercase' },
-  sheetTitle: { fontSize: 30, fontWeight: '900', color: c.text.primary, letterSpacing: -1, marginTop: 3 },
-  sheetTitleOf: { fontSize: 15, fontWeight: '700', color: c.text.muted },
-  closeBtn: { width: 34, height: 34, borderRadius: 0, backgroundColor: c.bg.primary, alignItems: 'center', justifyContent: 'center' },
-
-  predictive: { flexDirection: 'row', alignItems: 'center', gap: 6, padding: 12, borderRadius: 0, backgroundColor: '#F56E1E14', borderWidth: 1, borderColor: '#F56E1E33', marginBottom: 14 },
-  predictiveTxt: { flex: 1, fontSize: 12.5, fontWeight: '700', color: c.accent.brandDark },
-
-  pillar: { flexDirection: 'row', alignItems: 'center', gap: 14, paddingVertical: 12, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: c.border.subtle },
-  ringWrap: { position: 'relative', alignItems: 'center', justifyContent: 'center' },
-  ringEmoji: { position: 'absolute', fontSize: 24 },
-  pillarLabel: { fontSize: 11.5, fontWeight: '700', color: c.text.muted, letterSpacing: 0.3, textTransform: 'uppercase' },
-  pillarScore: { fontSize: 22, fontWeight: '900', marginTop: 3, letterSpacing: -0.6 },
-  pillarScoreOf: { fontSize: 12, fontWeight: '700', color: c.text.muted },
-  pillarHint: { fontSize: 11.5, fontWeight: '600', color: c.text.secondary, marginTop: 2, lineHeight: 15 },
-
-  footerTip: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingTop: 14 },
-  footerTipTxt: { fontSize: 11, fontWeight: '500', color: c.text.muted },
-
-  // Round 51e — error/empty state UI for /profile/score-breakdown failures.
-  errorWrap: { alignItems: 'center', justifyContent: 'center', paddingVertical: 36, paddingHorizontal: 16, gap: 10 },
-  errorIconWrap: { width: 64, height: 64, borderRadius: 0, backgroundColor: c.bg.primary, alignItems: 'center', justifyContent: 'center' },
-  errorTitle: { fontSize: 16, fontWeight: '800', color: c.text.primary, textAlign: 'center', marginTop: 4 },
-  errorSub: { fontSize: 12.5, color: c.text.muted, textAlign: 'center', lineHeight: 18, marginBottom: 6 },
-  errorRetry: {
-    flexDirection: 'row', alignItems: 'center', gap: 6,
-    backgroundColor: c.accent.primary, paddingHorizontal: 16, paddingVertical: 10,
-    borderRadius: 0, marginTop: 4,
-  },
-  errorRetryTxt: { color: '#FFFFFF', fontWeight: '800', fontSize: 13 },
-}));

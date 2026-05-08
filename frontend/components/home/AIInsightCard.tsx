@@ -17,6 +17,35 @@ import { router } from 'expo-router';
 import {  COLORS, useAppColors } from '../../utils/theme';
 import { makeStyles } from '../../utils/makeStyles';
 
+
+
+// R113 FIX — useStyles hoisted above first render-time call
+// to avoid Metro/SDK52 TDZ error (`Cannot access X before init.`).
+const useStyles = makeStyles((c) => ({
+  card: {
+    backgroundColor: c.bg.elevated,
+    borderRadius: 0,
+    padding: 16,
+    marginBottom: 12,
+    borderWidth: 1,
+    borderColor: c.border.card,
+    gap: 10,
+  },
+  header: { flexDirection: 'row', gap: 12, alignItems: 'center' },
+  iconBox: { width: 48, height: 48, borderRadius: 0, justifyContent: 'center', alignItems: 'center' },
+  icon: { fontSize: 26 },
+  headerLabelRow: { flexDirection: 'row', alignItems: 'center', gap: 4, marginBottom: 2 },
+  headerLabel: { fontSize: 9, fontWeight: '800', letterSpacing: 1, color: c.accent.primary },
+  title: { fontSize: 14, fontWeight: '800', color: c.text.primary, lineHeight: 19 },
+  sub: { fontSize: 12, color: c.text.secondary, lineHeight: 17, marginLeft: 60 },
+  cta: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 4,
+    paddingVertical: 10, borderRadius: 0, alignSelf: 'flex-start',
+    paddingHorizontal: 18, marginLeft: 60, marginTop: 2,
+  },
+  ctaText: { fontSize: 12, fontWeight: '800', color: c.bg.elevated, letterSpacing: 0.3 },
+}));
+
 type Props = {
   transactions?: any[];
   totalSpend?: number;
@@ -146,27 +175,3 @@ export default function AIInsightCard({
   );
 }
 
-const useStyles = makeStyles((c) => ({
-  card: {
-    backgroundColor: c.bg.elevated,
-    borderRadius: 0,
-    padding: 16,
-    marginBottom: 12,
-    borderWidth: 1,
-    borderColor: c.border.card,
-    gap: 10,
-  },
-  header: { flexDirection: 'row', gap: 12, alignItems: 'center' },
-  iconBox: { width: 48, height: 48, borderRadius: 0, justifyContent: 'center', alignItems: 'center' },
-  icon: { fontSize: 26 },
-  headerLabelRow: { flexDirection: 'row', alignItems: 'center', gap: 4, marginBottom: 2 },
-  headerLabel: { fontSize: 9, fontWeight: '800', letterSpacing: 1, color: c.accent.primary },
-  title: { fontSize: 14, fontWeight: '800', color: c.text.primary, lineHeight: 19 },
-  sub: { fontSize: 12, color: c.text.secondary, lineHeight: 17, marginLeft: 60 },
-  cta: {
-    flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 4,
-    paddingVertical: 10, borderRadius: 0, alignSelf: 'flex-start',
-    paddingHorizontal: 18, marginLeft: 60, marginTop: 2,
-  },
-  ctaText: { fontSize: 12, fontWeight: '800', color: c.bg.elevated, letterSpacing: 0.3 },
-}));

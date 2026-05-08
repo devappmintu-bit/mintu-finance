@@ -27,6 +27,64 @@ import { makeStyles } from '../../utils/makeStyles';
 import { COLORS, SPACING } from '../../utils/theme';
 import { showError } from '../../utils/toast';
 
+
+
+// R113 FIX — useStyles hoisted above first render-time call
+// to avoid Metro/SDK52 TDZ error (`Cannot access X before init.`).
+const useStyles = makeStyles((c) => ({
+  bg: { flex: 1, backgroundColor: c.bg.primary },
+  topBar: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
+    paddingHorizontal: SPACING.lg, paddingVertical: SPACING.md,
+  },
+  iconBtn: { width: 36, height: 36, borderRadius: 0, alignItems: 'center', justifyContent: 'center', backgroundColor: c.bg.secondary },
+  topBarTxt: { fontSize: 15, fontWeight: '900', color: c.text.primary, letterSpacing: -0.2 },
+
+  scroll: { padding: SPACING.lg, gap: 14 },
+
+  hero: {
+    borderRadius: 0, padding: 24, alignItems: 'center', overflow: 'hidden',
+    shadowColor: COLORS.accent.brandDark, shadowOpacity: 0.2, shadowRadius: 18, shadowOffset: { width: 0, height: 8 }, elevation: 6,
+  },
+  heroEmoji: { fontSize: 44 },
+  overline: { fontSize: 10.5, fontWeight: '900', color: 'rgba(255,255,255,0.78)', letterSpacing: 1.4, marginTop: 12 },
+  heroName: { fontSize: 28, fontWeight: '900', color: '#fff', letterSpacing: -0.8, marginTop: 4, textAlign: 'center' },
+  heroBy: { fontSize: 13, fontWeight: '700', color: 'rgba(255,255,255,0.88)', marginTop: 4 },
+  heroMeta: { fontSize: 12, fontWeight: '700', color: 'rgba(255,255,255,0.88)', marginTop: 10 },
+
+  stack: { flexDirection: 'row', marginTop: 14 },
+  stackAvatar: {
+    width: 34, height: 34, borderRadius: 0,
+    backgroundColor: '#fff', alignItems: 'center', justifyContent: 'center',
+    borderWidth: 2, borderColor: COLORS.accent.brandDark,
+  },
+  stackInitials: { fontSize: 12, fontWeight: '900', color: COLORS.accent.brandDark },
+  stackMore: { backgroundColor: 'rgba(0,0,0,0.3)', borderColor: '#fff' },
+  stackMoreTxt: { fontSize: 10.5, fontWeight: '900', color: '#fff' },
+
+  joinHint: { fontSize: 13, fontWeight: '600', color: c.text.muted, textAlign: 'center', marginTop: 4, lineHeight: 18 },
+
+  alreadyBadgeRow: { flexDirection: 'row', alignItems: 'center', gap: 6, justifyContent: 'center', marginTop: 4 },
+  alreadyTxt: { fontSize: 13, fontWeight: '700', color: c.state.success },
+
+  primaryBtn: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8,
+    backgroundColor: c.accent.primary,
+    paddingVertical: 15, borderRadius: 0, marginTop: 8,
+  },
+  primaryTxt: { fontSize: 15, fontWeight: '900', color: '#fff', letterSpacing: -0.2 },
+
+  ghostBtn: { paddingVertical: 12, alignItems: 'center', marginTop: 4 },
+  ghostTxt: { fontSize: 13, fontWeight: '700', color: c.text.muted },
+
+  center: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: SPACING.xl },
+  errIcon: { width: 72, height: 72, borderRadius: 0, backgroundColor: c.state.dangerBg, alignItems: 'center', justifyContent: 'center', marginBottom: 14 },
+  title: { fontSize: 22, fontWeight: '900', color: c.text.primary, letterSpacing: -0.4 },
+  subtitle: { fontSize: 14, fontWeight: '500', color: c.text.muted, marginTop: 8, textAlign: 'center', lineHeight: 20, maxWidth: 320 },
+  retryBtn: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingVertical: 12, marginTop: 6 },
+  retryTxt: { fontSize: 13, fontWeight: '700', color: c.text.muted },
+}));
+
 const getInitials = (n?: string) => {
   if (!n) return '?';
   const p = n.trim().split(/\s+/).slice(0, 2);
@@ -205,56 +263,3 @@ export default function JoinGroupScreen() {
   );
 }
 
-const useStyles = makeStyles((c) => ({
-  bg: { flex: 1, backgroundColor: c.bg.primary },
-  topBar: {
-    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
-    paddingHorizontal: SPACING.lg, paddingVertical: SPACING.md,
-  },
-  iconBtn: { width: 36, height: 36, borderRadius: 0, alignItems: 'center', justifyContent: 'center', backgroundColor: c.bg.secondary },
-  topBarTxt: { fontSize: 15, fontWeight: '900', color: c.text.primary, letterSpacing: -0.2 },
-
-  scroll: { padding: SPACING.lg, gap: 14 },
-
-  hero: {
-    borderRadius: 0, padding: 24, alignItems: 'center', overflow: 'hidden',
-    shadowColor: COLORS.accent.brandDark, shadowOpacity: 0.2, shadowRadius: 18, shadowOffset: { width: 0, height: 8 }, elevation: 6,
-  },
-  heroEmoji: { fontSize: 44 },
-  overline: { fontSize: 10.5, fontWeight: '900', color: 'rgba(255,255,255,0.78)', letterSpacing: 1.4, marginTop: 12 },
-  heroName: { fontSize: 28, fontWeight: '900', color: '#fff', letterSpacing: -0.8, marginTop: 4, textAlign: 'center' },
-  heroBy: { fontSize: 13, fontWeight: '700', color: 'rgba(255,255,255,0.88)', marginTop: 4 },
-  heroMeta: { fontSize: 12, fontWeight: '700', color: 'rgba(255,255,255,0.88)', marginTop: 10 },
-
-  stack: { flexDirection: 'row', marginTop: 14 },
-  stackAvatar: {
-    width: 34, height: 34, borderRadius: 0,
-    backgroundColor: '#fff', alignItems: 'center', justifyContent: 'center',
-    borderWidth: 2, borderColor: COLORS.accent.brandDark,
-  },
-  stackInitials: { fontSize: 12, fontWeight: '900', color: COLORS.accent.brandDark },
-  stackMore: { backgroundColor: 'rgba(0,0,0,0.3)', borderColor: '#fff' },
-  stackMoreTxt: { fontSize: 10.5, fontWeight: '900', color: '#fff' },
-
-  joinHint: { fontSize: 13, fontWeight: '600', color: c.text.muted, textAlign: 'center', marginTop: 4, lineHeight: 18 },
-
-  alreadyBadgeRow: { flexDirection: 'row', alignItems: 'center', gap: 6, justifyContent: 'center', marginTop: 4 },
-  alreadyTxt: { fontSize: 13, fontWeight: '700', color: c.state.success },
-
-  primaryBtn: {
-    flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8,
-    backgroundColor: c.accent.primary,
-    paddingVertical: 15, borderRadius: 0, marginTop: 8,
-  },
-  primaryTxt: { fontSize: 15, fontWeight: '900', color: '#fff', letterSpacing: -0.2 },
-
-  ghostBtn: { paddingVertical: 12, alignItems: 'center', marginTop: 4 },
-  ghostTxt: { fontSize: 13, fontWeight: '700', color: c.text.muted },
-
-  center: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: SPACING.xl },
-  errIcon: { width: 72, height: 72, borderRadius: 0, backgroundColor: c.state.dangerBg, alignItems: 'center', justifyContent: 'center', marginBottom: 14 },
-  title: { fontSize: 22, fontWeight: '900', color: c.text.primary, letterSpacing: -0.4 },
-  subtitle: { fontSize: 14, fontWeight: '500', color: c.text.muted, marginTop: 8, textAlign: 'center', lineHeight: 20, maxWidth: 320 },
-  retryBtn: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingVertical: 12, marginTop: 6 },
-  retryTxt: { fontSize: 13, fontWeight: '700', color: c.text.muted },
-}));

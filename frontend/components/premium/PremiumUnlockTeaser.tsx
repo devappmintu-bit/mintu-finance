@@ -16,6 +16,37 @@ import { useAppColors } from '../../utils/theme';
 import { makeStyles } from '../../utils/makeStyles';
 import { useActivePlan } from '../../utils/premium';
 
+
+
+// R113 FIX — useStyles hoisted above first render-time call
+// to avoid Metro/SDK52 TDZ error (`Cannot access X before init.`).
+const useStyles = makeStyles((c) => ({
+  card: {
+    flexDirection: 'row', alignItems: 'center', gap: 12,
+    marginHorizontal: 16, marginVertical: 8, padding: 12,
+    borderRadius: 0,
+    backgroundColor: c.accent.primary + '10',
+    borderWidth: 1,
+    borderColor: c.accent.primary + '40',
+  },
+  emojiBox: {
+    width: 38, height: 38, borderRadius: 0,
+    backgroundColor: c.bg.elevated,
+    alignItems: 'center', justifyContent: 'center',
+  },
+  emoji: { fontSize: 20 },
+  titleRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  title: { fontSize: 13.5, fontWeight: '800', color: c.text.primary, flexShrink: 1 },
+  sub: { fontSize: 11, color: c.text.muted, marginTop: 2, fontWeight: '600' },
+  crown: {
+    flexDirection: 'row', alignItems: 'center', gap: 3,
+    paddingHorizontal: 6, paddingVertical: 2, borderRadius: 999,
+    backgroundColor: '#FFB020' + '22',
+    borderWidth: 1, borderColor: '#FFB020' + '60',
+  },
+  crownT: { fontSize: 9, fontWeight: '900', color: '#FFB020', letterSpacing: 0.5 },
+}));
+
 type Context =
   | 'leaderboard_global'   // "See how you rank in your city"
   | 'streak_boost'         // "2x streak bonuses with Premium"
@@ -83,29 +114,3 @@ export default function PremiumUnlockTeaser({ context, ctaRoute = '/premium', hi
   );
 }
 
-const useStyles = makeStyles((c) => ({
-  card: {
-    flexDirection: 'row', alignItems: 'center', gap: 12,
-    marginHorizontal: 16, marginVertical: 8, padding: 12,
-    borderRadius: 0,
-    backgroundColor: c.accent.primary + '10',
-    borderWidth: 1,
-    borderColor: c.accent.primary + '40',
-  },
-  emojiBox: {
-    width: 38, height: 38, borderRadius: 0,
-    backgroundColor: c.bg.elevated,
-    alignItems: 'center', justifyContent: 'center',
-  },
-  emoji: { fontSize: 20 },
-  titleRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  title: { fontSize: 13.5, fontWeight: '800', color: c.text.primary, flexShrink: 1 },
-  sub: { fontSize: 11, color: c.text.muted, marginTop: 2, fontWeight: '600' },
-  crown: {
-    flexDirection: 'row', alignItems: 'center', gap: 3,
-    paddingHorizontal: 6, paddingVertical: 2, borderRadius: 999,
-    backgroundColor: '#FFB020' + '22',
-    borderWidth: 1, borderColor: '#FFB020' + '60',
-  },
-  crownT: { fontSize: 9, fontWeight: '900', color: '#FFB020', letterSpacing: 0.5 },
-}));

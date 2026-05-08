@@ -21,6 +21,87 @@ import { FlashList, type FlashListRef } from '@shopify/flash-list';
 import useGroupChat from '../hooks/useGroupChat';
 import { showError, showInfo } from '../utils/toast';
 
+
+
+// R113 FIX — useStyles hoisted above first render-time call
+// to avoid Metro/SDK52 TDZ error (`Cannot access X before init.`).
+const useStyles = makeStyles((c) => ({
+  container: { flex: 1, backgroundColor: c.bg.primary },
+  // === Premium Hero Header ===
+  heroHeader: {
+    paddingTop: 4,
+    paddingBottom: 14,
+    paddingHorizontal: 14,
+    borderBottomLeftRadius: 0,
+    borderBottomRightRadius: 0,
+    gap: 12,
+    shadowColor: '#000', shadowOpacity: 0.15, shadowRadius: 10, shadowOffset: { width: 0, height: 4 }, elevation: 4,
+  },
+  heroTopRow: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 4 },
+  heroBackBtn: { width: 34, height: 34, borderRadius: 0, backgroundColor: 'rgba(255,255,255,0.2)', justifyContent: 'center', alignItems: 'center' },
+  heroMoreBtn: { width: 34, height: 34, borderRadius: 0, backgroundColor: 'rgba(255,255,255,0.2)', justifyContent: 'center', alignItems: 'center' },
+  heroAvatars: { flexDirection: 'row' },
+  heroAv: { width: 30, height: 30, borderRadius: 0, backgroundColor: 'rgba(255,255,255,0.28)', borderWidth: 2, borderColor: 'rgba(255,255,255,0.4)', justifyContent: 'center', alignItems: 'center' },
+  heroAvT: { fontSize: 12, fontWeight: '900', color: '#fff' },
+  heroName: { fontSize: 16, fontWeight: '900', color: '#fff', letterSpacing: -0.2 },
+  heroSub: { fontSize: 11, color: 'rgba(255,255,255,0.82)', fontWeight: '700', marginTop: 1 },
+  netRow: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingHorizontal: 4, paddingTop: 2 },
+  netEyebrow: { fontSize: 9.5, fontWeight: '900', letterSpacing: 1.1, color: 'rgba(255,255,255,0.85)' },
+  netAmount: { fontSize: 30, fontWeight: '900', color: '#fff', letterSpacing: -1, marginTop: 2 },
+  settleChip: { flexDirection: 'row', alignItems: 'center', gap: 5, paddingHorizontal: 12, paddingVertical: 8, borderRadius: 999, backgroundColor: '#fff' },
+  settleChipTxt: { fontSize: 12, fontWeight: '900', color: COLORS.accent.brandDark, letterSpacing: -0.1 },
+
+  // Legacy header (kept for reference)
+  header: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingHorizontal: 16, paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: c.border.subtle },
+  headerAvatars: { flexDirection: 'row' },
+  headerAv: { width: 32, height: 32, borderRadius: 0, justifyContent: 'center', alignItems: 'center', borderWidth: 2, borderColor: c.bg.primary },
+  headerAvT: { fontSize: 12, fontWeight: '700' },
+  headerName: { fontSize: 16, fontWeight: '700', color: c.text.primary },
+  headerSub: { fontSize: 11, color: c.text.muted },
+  // Tabs
+  tabs: { flexDirection: 'row', borderBottomWidth: 2, borderBottomColor: c.border.subtle },
+  tab: { flex: 1, paddingVertical: 12, alignItems: 'center' },
+  tabOn: { borderBottomWidth: 2, borderBottomColor: c.accent.primary, marginBottom: -2 },
+  tabText: { fontSize: 14, fontWeight: '600', color: c.text.muted },
+  tabTextOn: { color: c.accent.primary },
+  // Chat
+  chatList: { padding: 16, paddingBottom: 8 },
+  emptyChat: { alignItems: 'center', paddingTop: 60, paddingHorizontal: 40 },
+  emptyChatEmoji: { fontSize: 48, marginBottom: 12 },
+  emptyChatTitle: { fontSize: 20, fontWeight: '700', color: c.text.primary, marginBottom: 8 },
+  emptyChatSub: { fontSize: 14, color: c.text.muted, textAlign: 'center', lineHeight: 21 },
+  // Messages
+  msgRow: { flexDirection: 'row', marginBottom: 12 },
+  msgRowL: { justifyContent: 'flex-start' },
+  msgRowR: { justifyContent: 'flex-end' },
+  avatar: { width: 30, height: 30, borderRadius: 0, justifyContent: 'center', alignItems: 'center', marginRight: 8, marginTop: 16 },
+  avatarT: { fontSize: 12, fontWeight: '700' },
+  senderName: { fontSize: 11, fontWeight: '600', color: c.accent.primary, marginBottom: 3, marginLeft: 2 },
+  bubble: { borderRadius: 0, paddingHorizontal: 14, paddingVertical: 10, maxWidth: '100%' },
+  bubbleMe: { backgroundColor: c.accent.primary, borderBottomRightRadius: 4 },
+  bubbleOther: { backgroundColor: c.bg.card, borderBottomLeftRadius: 4, borderWidth: 1, borderColor: c.border.card },
+  bubbleText: { fontSize: 14, lineHeight: 20, color: c.text.primary },
+  time: { fontSize: 9, color: c.text.muted, marginTop: 3, marginLeft: 2 },
+  // Sticker
+  stickerText: { fontSize: 44, marginVertical: 4 },
+  // System
+  systemRow: { flexDirection: 'row', alignItems: 'center', marginVertical: 8, gap: 8 },
+  systemLine: { flex: 1, height: 1, backgroundColor: c.border.subtle },
+  systemText: { fontSize: 11, color: c.text.muted, textAlign: 'center' },
+  // Expense card
+  // Sticker bar
+  stickerBar: { paddingHorizontal: 12, paddingVertical: 8, borderTopWidth: 1, borderTopColor: c.border.subtle, backgroundColor: c.bg.card },
+  stickerBtn: { width: 44, height: 44, borderRadius: 0, backgroundColor: c.bg.primary, justifyContent: 'center', alignItems: 'center' },
+  stickerEmoji: { fontSize: 24 },
+  // Input bar
+  inputBar: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingHorizontal: 12, paddingVertical: 10, borderTopWidth: 1, borderTopColor: c.border.subtle },
+  splitBtn: { backgroundColor: c.accent.primary + '12', paddingHorizontal: 14, paddingVertical: 9, borderRadius: RADIUS.full, borderWidth: 1, borderColor: c.accent.primary + '25' },
+  splitBtnT: { fontSize: 12, fontWeight: '700', color: c.accent.primary },
+  msgInput: { flex: 1, backgroundColor: c.bg.card, borderRadius: 0, paddingHorizontal: 14, paddingVertical: 9, fontSize: 14, color: c.text.primary, borderWidth: 1, borderColor: c.border.card },
+  sendBtn: { width: 38, height: 38, borderRadius: 0, backgroundColor: c.accent.primary, justifyContent: 'center', alignItems: 'center' },
+  // Expenses tab
+}));
+
 // Format currency for display (₹1.2K, ₹12K, ₹1.2L)
 const fmtCompact = (n: number) => {
   const v = Math.round(Math.abs(n));
@@ -397,79 +478,3 @@ export default function GroupChat({ group, onClose, onAddExpense, onManage, onEd
   );
 }
 
-const useStyles = makeStyles((c) => ({
-  container: { flex: 1, backgroundColor: c.bg.primary },
-  // === Premium Hero Header ===
-  heroHeader: {
-    paddingTop: 4,
-    paddingBottom: 14,
-    paddingHorizontal: 14,
-    borderBottomLeftRadius: 0,
-    borderBottomRightRadius: 0,
-    gap: 12,
-    shadowColor: '#000', shadowOpacity: 0.15, shadowRadius: 10, shadowOffset: { width: 0, height: 4 }, elevation: 4,
-  },
-  heroTopRow: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 4 },
-  heroBackBtn: { width: 34, height: 34, borderRadius: 0, backgroundColor: 'rgba(255,255,255,0.2)', justifyContent: 'center', alignItems: 'center' },
-  heroMoreBtn: { width: 34, height: 34, borderRadius: 0, backgroundColor: 'rgba(255,255,255,0.2)', justifyContent: 'center', alignItems: 'center' },
-  heroAvatars: { flexDirection: 'row' },
-  heroAv: { width: 30, height: 30, borderRadius: 0, backgroundColor: 'rgba(255,255,255,0.28)', borderWidth: 2, borderColor: 'rgba(255,255,255,0.4)', justifyContent: 'center', alignItems: 'center' },
-  heroAvT: { fontSize: 12, fontWeight: '900', color: '#fff' },
-  heroName: { fontSize: 16, fontWeight: '900', color: '#fff', letterSpacing: -0.2 },
-  heroSub: { fontSize: 11, color: 'rgba(255,255,255,0.82)', fontWeight: '700', marginTop: 1 },
-  netRow: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingHorizontal: 4, paddingTop: 2 },
-  netEyebrow: { fontSize: 9.5, fontWeight: '900', letterSpacing: 1.1, color: 'rgba(255,255,255,0.85)' },
-  netAmount: { fontSize: 30, fontWeight: '900', color: '#fff', letterSpacing: -1, marginTop: 2 },
-  settleChip: { flexDirection: 'row', alignItems: 'center', gap: 5, paddingHorizontal: 12, paddingVertical: 8, borderRadius: 999, backgroundColor: '#fff' },
-  settleChipTxt: { fontSize: 12, fontWeight: '900', color: COLORS.accent.brandDark, letterSpacing: -0.1 },
-
-  // Legacy header (kept for reference)
-  header: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingHorizontal: 16, paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: c.border.subtle },
-  headerAvatars: { flexDirection: 'row' },
-  headerAv: { width: 32, height: 32, borderRadius: 0, justifyContent: 'center', alignItems: 'center', borderWidth: 2, borderColor: c.bg.primary },
-  headerAvT: { fontSize: 12, fontWeight: '700' },
-  headerName: { fontSize: 16, fontWeight: '700', color: c.text.primary },
-  headerSub: { fontSize: 11, color: c.text.muted },
-  // Tabs
-  tabs: { flexDirection: 'row', borderBottomWidth: 2, borderBottomColor: c.border.subtle },
-  tab: { flex: 1, paddingVertical: 12, alignItems: 'center' },
-  tabOn: { borderBottomWidth: 2, borderBottomColor: c.accent.primary, marginBottom: -2 },
-  tabText: { fontSize: 14, fontWeight: '600', color: c.text.muted },
-  tabTextOn: { color: c.accent.primary },
-  // Chat
-  chatList: { padding: 16, paddingBottom: 8 },
-  emptyChat: { alignItems: 'center', paddingTop: 60, paddingHorizontal: 40 },
-  emptyChatEmoji: { fontSize: 48, marginBottom: 12 },
-  emptyChatTitle: { fontSize: 20, fontWeight: '700', color: c.text.primary, marginBottom: 8 },
-  emptyChatSub: { fontSize: 14, color: c.text.muted, textAlign: 'center', lineHeight: 21 },
-  // Messages
-  msgRow: { flexDirection: 'row', marginBottom: 12 },
-  msgRowL: { justifyContent: 'flex-start' },
-  msgRowR: { justifyContent: 'flex-end' },
-  avatar: { width: 30, height: 30, borderRadius: 0, justifyContent: 'center', alignItems: 'center', marginRight: 8, marginTop: 16 },
-  avatarT: { fontSize: 12, fontWeight: '700' },
-  senderName: { fontSize: 11, fontWeight: '600', color: c.accent.primary, marginBottom: 3, marginLeft: 2 },
-  bubble: { borderRadius: 0, paddingHorizontal: 14, paddingVertical: 10, maxWidth: '100%' },
-  bubbleMe: { backgroundColor: c.accent.primary, borderBottomRightRadius: 4 },
-  bubbleOther: { backgroundColor: c.bg.card, borderBottomLeftRadius: 4, borderWidth: 1, borderColor: c.border.card },
-  bubbleText: { fontSize: 14, lineHeight: 20, color: c.text.primary },
-  time: { fontSize: 9, color: c.text.muted, marginTop: 3, marginLeft: 2 },
-  // Sticker
-  stickerText: { fontSize: 44, marginVertical: 4 },
-  // System
-  systemRow: { flexDirection: 'row', alignItems: 'center', marginVertical: 8, gap: 8 },
-  systemLine: { flex: 1, height: 1, backgroundColor: c.border.subtle },
-  systemText: { fontSize: 11, color: c.text.muted, textAlign: 'center' },
-  // Expense card
-  // Sticker bar
-  stickerBar: { paddingHorizontal: 12, paddingVertical: 8, borderTopWidth: 1, borderTopColor: c.border.subtle, backgroundColor: c.bg.card },
-  stickerBtn: { width: 44, height: 44, borderRadius: 0, backgroundColor: c.bg.primary, justifyContent: 'center', alignItems: 'center' },
-  stickerEmoji: { fontSize: 24 },
-  // Input bar
-  inputBar: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingHorizontal: 12, paddingVertical: 10, borderTopWidth: 1, borderTopColor: c.border.subtle },
-  splitBtn: { backgroundColor: c.accent.primary + '12', paddingHorizontal: 14, paddingVertical: 9, borderRadius: RADIUS.full, borderWidth: 1, borderColor: c.accent.primary + '25' },
-  splitBtnT: { fontSize: 12, fontWeight: '700', color: c.accent.primary },
-  msgInput: { flex: 1, backgroundColor: c.bg.card, borderRadius: 0, paddingHorizontal: 14, paddingVertical: 9, fontSize: 14, color: c.text.primary, borderWidth: 1, borderColor: c.border.card },
-  sendBtn: { width: 38, height: 38, borderRadius: 0, backgroundColor: c.accent.primary, justifyContent: 'center', alignItems: 'center' },
-  // Expenses tab
-}));

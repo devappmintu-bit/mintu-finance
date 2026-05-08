@@ -1,21 +1,29 @@
 /**
- * Round 37 — Unified search screen.
+ * Unified search screen — R113 brutal convergence.
  *
- * Debounced input (300ms) queries GET /search and renders grouped results.
- * Before typing: recent searches from AsyncStorage.
- * No results: helpful CTA to add a transaction.
+ * Debounced input (300ms) queries GET /search and renders grouped
+ * results. Migrated to BrutalCard + brutal tokens.
  */
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
-  View, Text, StyleSheet, TextInput, TouchableOpacity, SectionList, ActivityIndicator,
+  View, Text, StyleSheet, TextInput, Pressable, SectionList, ActivityIndicator,
   Platform, Keyboard,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import * as Haptics from 'expo-haptics';
-import EmptyState from '../components/ui/EmptyState';
-import { COLORS, SPACING, useAppColors } from '../utils/theme';
+
+import {
+  BrutalCard,
+  BrutalEmptyState,
+  BR_COLORS,
+  BR_BORDER,
+  BR_SHADOW,
+  BR_SPACE,
+  BR_FONT,
+  PALETTE,
+} from '../components/brutal';
 import {
   runSearch, pushRecentSearch, getRecentSearches, clearRecentSearches,
   SearchResults,
@@ -25,7 +33,6 @@ import { useIsOnline } from '../hooks/useIsOnline';
 const DEBOUNCE_MS = 300;
 
 export default function SearchScreen() {
-  const c = useAppColors();
   const isOnline = useIsOnline();
   const [q, setQ] = useState('');
   const [results, setResults] = useState<SearchResults | null>(null);
@@ -35,17 +42,13 @@ export default function SearchScreen() {
   const debounceRef = useRef<any>(null);
   const abortRef = useRef<AbortController | null>(null);
 
-  // Load recent searches on mount.
   useEffect(() => { getRecentSearches().then(setRecent); }, []);
 
-  // Debounced fetch. Cancels in-flight request if user keeps typing.
   useEffect(() => {
     if (!q.trim()) {
       setResults(null); setError(null); setLoading(false);
       return;
     }
-    // Round 42 — when offline, don't fire requests (they'd 0-out anyway and
-    // surface a generic "Search unavailable"). Show a clear offline note instead.
     if (!isOnline) {
       setLoading(false);
       setError('offline');
@@ -56,7 +59,6 @@ export default function SearchScreen() {
     setError(null);
     if (debounceRef.current) clearTimeout(debounceRef.current);
     debounceRef.current = setTimeout(async () => {
-      // Cancel prior request if still pending.
       if (abortRef.current) abortRef.current.abort();
       abortRef.current = new AbortController();
       try {
@@ -83,7 +85,7 @@ export default function SearchScreen() {
     setRecent([]);
   }, []);
 
-  const onPressTxn = (id: string) => {
+  const onPressTxn = (_id: string) => {
     commitSearch();
     try { Haptics.selectionAsync(); } catch {}
     router.push('/(tabs)/transactions' as any);
@@ -92,137 +94,142 @@ export default function SearchScreen() {
   const onPressGoal = () => { commitSearch(); try { Haptics.selectionAsync(); } catch {} router.push('/goals' as any); };
   const onPressGroup = () => { commitSearch(); try { Haptics.selectionAsync(); } catch {} router.push('/(tabs)/split' as any); };
 
-  // Section list data — only include sections that have hits.
   const sections: Array<{ title: string; data: any[]; kind: string }> = [];
   if (results) {
-    if (results.transactions.length) sections.push({ title: 'Transactions', data: results.transactions, kind: 'txn' });
-    if (results.budgets.length) sections.push({ title: 'Budgets', data: results.budgets, kind: 'budget' });
-    if (results.goals.length) sections.push({ title: 'Goals', data: results.goals, kind: 'goal' });
-    if (results.groups.length) sections.push({ title: 'Groups', data: results.groups, kind: 'group' });
+    if (results.transactions.length) sections.push({ title: 'TRANSACTIONS', data: results.transactions, kind: 'txn' });
+    if (results.budgets.length) sections.push({ title: 'BUDGETS', data: results.budgets, kind: 'budget' });
+    if (results.goals.length) sections.push({ title: 'GOALS', data: results.goals, kind: 'goal' });
+    if (results.groups.length) sections.push({ title: 'GROUPS', data: results.groups, kind: 'group' });
   }
 
   const fmt = (n: number) => `₹${Math.round(n).toLocaleString('en-IN')}`;
 
-  // Round 44 perf — wrap in useCallback so SectionList doesn't get a new
-  // function reference on every render (which would invalidate row memoization).
-  const renderItem = React.useCallback(({ item, section }: any) => {
+  const renderItem = useCallback(({ item, section }: any) => {
+    const tile = (bg: string, emoji: string, title: string, sub: string, right: React.ReactNode, onPress: () => void) => (
+      <Pressable
+        onPress={onPress}
+        style={({ pressed }) => [s.row, pressed && BR_SHADOW.pressShift]}
+      >
+        <View style={[s.iconWrap, { backgroundColor: bg }]}>
+          <Text style={s.iconEmoji}>{emoji}</Text>
+        </View>
+        <View style={{ flex: 1 }}>
+          <Text style={s.rowTitle} numberOfLines={1}>{title}</Text>
+          <Text style={s.rowSub} numberOfLines={1}>{sub}</Text>
+        </View>
+        {right}
+      </Pressable>
+    );
+
     if (section.kind === 'txn') {
-      return (
-        <TouchableOpacity style={s.row} onPress={() => onPressTxn(item.id)} activeOpacity={0.7}>
-          <View style={[s.iconWrap, { backgroundColor: c.accent.brandSoft }]}>
-            <Text style={s.iconEmoji}>{item.type === 'credit' ? '💰' : '💸'}</Text>
-          </View>
-          <View style={{ flex: 1 }}>
-            <Text style={s.rowTitle} numberOfLines={1}>{item.merchant || item.description || 'Transaction'}</Text>
-            <Text style={s.rowSub} numberOfLines={1}>{item.category}  ·  {new Date(item.date).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })}</Text>
-          </View>
-          <Text style={[s.rowAmt, { color: item.type === 'credit' ? c.state.success : c.text.primary }]}>
-            {item.type === 'credit' ? '+' : ''}{fmt(item.amount)}
-          </Text>
-        </TouchableOpacity>
+      return tile(
+        item.type === 'credit' ? PALETTE.lime : PALETTE.peach,
+        item.type === 'credit' ? '💰' : '💸',
+        item.merchant || item.description || 'Transaction',
+        `${item.category}  ·  ${new Date(item.date).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })}`,
+        <Text style={[s.rowAmt, { color: item.type === 'credit' ? PALETTE.success : BR_COLORS.ink }]}>
+          {item.type === 'credit' ? '+' : ''}{fmt(item.amount)}
+        </Text>,
+        () => onPressTxn(item.id),
       );
     }
     if (section.kind === 'budget') {
-      return (
-        <TouchableOpacity style={s.row} onPress={onPressBudget} activeOpacity={0.7}>
-          <View style={[s.iconWrap, { backgroundColor: c.accent.brandSoft }]}><Text style={s.iconEmoji}>🎯</Text></View>
-          <View style={{ flex: 1 }}>
-            <Text style={s.rowTitle}>{item.category}</Text>
-            <Text style={s.rowSub}>{item.period}  ·  {fmt(item.amount)} limit</Text>
-          </View>
-          <Ionicons name="chevron-forward" size={18} color={COLORS.text.muted} />
-        </TouchableOpacity>
+      return tile(
+        PALETTE.brand, '🎯', item.category, `${item.period}  ·  ${fmt(item.amount)} limit`,
+        <Ionicons name="chevron-forward" size={18} color={BR_COLORS.textMuted} />, onPressBudget,
       );
     }
     if (section.kind === 'goal') {
-      return (
-        <TouchableOpacity style={s.row} onPress={onPressGoal} activeOpacity={0.7}>
-          <View style={[s.iconWrap, { backgroundColor: c.state.infoBg }]}><Text style={s.iconEmoji}>{item.emoji}</Text></View>
-          <View style={{ flex: 1 }}>
-            <Text style={s.rowTitle}>{item.name}</Text>
-            <Text style={s.rowSub}>{fmt(item.saved_amount)} / {fmt(item.target_amount)}  ·  {item.pct}%</Text>
-          </View>
-          <Ionicons name="chevron-forward" size={18} color={COLORS.text.muted} />
-        </TouchableOpacity>
+      return tile(
+        PALETTE.cyan, item.emoji, item.name,
+        `${fmt(item.saved_amount)} / ${fmt(item.target_amount)}  ·  ${item.pct}%`,
+        <Ionicons name="chevron-forward" size={18} color={BR_COLORS.textMuted} />, onPressGoal,
       );
     }
     if (section.kind === 'group') {
-      return (
-        <TouchableOpacity style={s.row} onPress={onPressGroup} activeOpacity={0.7}>
-          <View style={[s.iconWrap, { backgroundColor: c.state.successBg }]}><Text style={s.iconEmoji}>{item.emoji}</Text></View>
-          <View style={{ flex: 1 }}>
-            <Text style={s.rowTitle}>{item.name}</Text>
-            <Text style={s.rowSub}>{item.member_count} member{item.member_count === 1 ? '' : 's'}</Text>
-          </View>
-          <Ionicons name="chevron-forward" size={18} color={COLORS.text.muted} />
-        </TouchableOpacity>
+      return tile(
+        PALETTE.lime, item.emoji, item.name,
+        `${item.member_count} member${item.member_count === 1 ? '' : 's'}`,
+        <Ionicons name="chevron-forward" size={18} color={BR_COLORS.textMuted} />, onPressGroup,
       );
     }
     return null;
-  }, [onPressTxn, onPressBudget]);
+  }, [commitSearch]);
 
   const body = (() => {
-    // Before user types — recent searches or hint.
     if (!q.trim()) {
       if (recent.length === 0) {
         return (
-          <EmptyState
-            mascot
+          <BrutalEmptyState
+            emoji="🔎"
             title="Search your finances"
-            subtitle="Find transactions, budgets, goals, or split groups — all in one place."
+            body="Find transactions, budgets, goals, or split groups — all in one place."
           />
         );
       }
       return (
-        <View style={{ padding: SPACING.lg }}>
+        <View style={{ padding: BR_SPACE['4'] }}>
           <View style={s.recentHead}>
-            <Text style={s.recentLabel}>Recent searches</Text>
-            <TouchableOpacity onPress={clearRecent} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
-              <Text style={s.clearTxt}>Clear</Text>
-            </TouchableOpacity>
+            <Text style={s.recentLabel}>RECENT SEARCHES</Text>
+            <Pressable onPress={clearRecent} hitSlop={8}>
+              <Text style={s.clearTxt}>CLEAR</Text>
+            </Pressable>
           </View>
-          {recent.map((term) => (
-            <TouchableOpacity key={term} style={s.recentRow} onPress={() => setQ(term)} activeOpacity={0.7}>
-              <Ionicons name="time-outline" size={18} color={COLORS.text.muted} />
-              <Text style={s.recentTxt} numberOfLines={1}>{term}</Text>
-              <Ionicons name="arrow-up-outline" size={16} color={COLORS.text.muted} style={{ transform: [{ rotate: '-45deg' }] }} />
-            </TouchableOpacity>
-          ))}
+          <BrutalCard flat style={{ paddingVertical: 4 }}>
+            {recent.map((term, i) => (
+              <Pressable
+                key={term}
+                style={[s.recentRow, i === recent.length - 1 && { borderBottomWidth: 0 }]}
+                onPress={() => setQ(term)}
+              >
+                <Ionicons name="time-outline" size={18} color={BR_COLORS.textMuted} />
+                <Text style={s.recentTxt} numberOfLines={1}>{term}</Text>
+                <Ionicons name="arrow-up-outline" size={16} color={BR_COLORS.textMuted} style={{ transform: [{ rotate: '-45deg' }] }} />
+              </Pressable>
+            ))}
+          </BrutalCard>
         </View>
       );
     }
     if (loading) {
       return (
         <View style={{ padding: 40, alignItems: 'center' }}>
-          <ActivityIndicator color={COLORS.accent.primary} />
-          <Text style={{ marginTop: 12, color: COLORS.text.muted, fontWeight: '600' }}>Searching…</Text>
+          <ActivityIndicator color={PALETTE.brand} />
+          <Text style={{ marginTop: 12, color: BR_COLORS.textMuted, fontWeight: '700' }}>Searching…</Text>
         </View>
       );
     }
     if (error) {
       if (error === 'offline') {
         return (
-          <EmptyState
+          <BrutalEmptyState
             emoji="📶"
             title="You're offline"
-            subtitle="Search needs an internet connection. Reconnect and try again — your recent searches stay saved."
+            body="Search needs an internet connection. Reconnect and try again — your recent searches stay saved."
           />
         );
       }
-      return <EmptyState emoji="⚠️" title="Search unavailable" subtitle={error} ctaLabel="Retry" onCta={() => setQ(q)} />;
+      return (
+        <BrutalEmptyState
+          emoji="⚠️"
+          title="Search unavailable"
+          body={error}
+          ctaLabel="RETRY"
+          onCta={() => setQ(q)}
+        />
+      );
     }
     if (results && results.total === 0) {
       return (
-        <EmptyState
+        <BrutalEmptyState
           emoji="🔎"
           title={`No results for "${q}"`}
-          subtitle="Try a merchant name, category, or goal name. Or start tracking a new expense."
-          ctaLabel="Add transaction"
+          body="Try a merchant name, category, or goal name. Or start tracking a new expense."
+          ctaLabel="ADD TRANSACTION"
           onCta={() => router.push({ pathname: '/(tabs)/transactions' as any, params: { openAdd: '1' } })}
         />
       );
     }
-    // Results list.
     return (
       <SectionList
         sections={sections}
@@ -230,7 +237,7 @@ export default function SearchScreen() {
         renderItem={renderItem}
         renderSectionHeader={({ section }) => <Text style={s.sectionHeader}>{section.title}</Text>}
         keyboardShouldPersistTaps="handled"
-        contentContainerStyle={{ padding: SPACING.lg, paddingBottom: 120, gap: 8 }}
+        contentContainerStyle={{ padding: BR_SPACE['4'], paddingBottom: 120, gap: BR_SPACE['2'] }}
         stickySectionHeadersEnabled={false}
       />
     );
@@ -239,15 +246,24 @@ export default function SearchScreen() {
   return (
     <SafeAreaView style={s.safe} edges={['top']}>
       <View style={s.header}>
-        <TouchableOpacity onPress={() => router.back()} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }} accessibilityRole="button" accessibilityLabel="Back">
-          <Ionicons name="chevron-back" size={24} color={COLORS.text.primary} />
-        </TouchableOpacity>
+        <Pressable
+          onPress={() => router.back()}
+          hitSlop={10}
+          style={s.headerBtn}
+          accessibilityLabel="Back"
+        >
+          <Ionicons name="chevron-back" size={20} color={BR_COLORS.ink} />
+        </Pressable>
         <View style={s.searchBox}>
-          <Ionicons name={isOnline ? "search" : "cloud-offline"} size={18} color={isOnline ? COLORS.text.muted : c.state.warning} />
+          <Ionicons
+            name={isOnline ? 'search' : 'cloud-offline'}
+            size={18}
+            color={isOnline ? BR_COLORS.ink : PALETTE.warn}
+          />
           <TextInput
             autoFocus
-            placeholder={isOnline ? "Search transactions, budgets, goals…" : "Offline — search unavailable"}
-            placeholderTextColor={COLORS.text.muted}
+            placeholder={isOnline ? 'Search transactions, budgets, goals…' : 'Offline — search unavailable'}
+            placeholderTextColor={BR_COLORS.textMuted}
             value={q}
             onChangeText={setQ}
             onSubmitEditing={() => { commitSearch(); Keyboard.dismiss(); }}
@@ -257,9 +273,9 @@ export default function SearchScreen() {
             editable={isOnline}
           />
           {q.length > 0 && (
-            <TouchableOpacity onPress={() => setQ('')} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
-              <Ionicons name="close-circle" size={18} color={COLORS.text.muted} />
-            </TouchableOpacity>
+            <Pressable onPress={() => setQ('')} hitSlop={8}>
+              <Ionicons name="close-circle" size={18} color={BR_COLORS.textMuted} />
+            </Pressable>
           )}
         </View>
       </View>
@@ -269,34 +285,78 @@ export default function SearchScreen() {
 }
 
 const s = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: COLORS.bg.primary },
+  safe: { flex: 1, backgroundColor: BR_COLORS.bg },
+
   header: {
-    flexDirection: 'row', alignItems: 'center', paddingHorizontal: SPACING.lg,
-    paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: COLORS.border.subtle, gap: 10,
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: BR_SPACE['4'],
+    paddingVertical: BR_SPACE['3'],
+    borderBottomWidth: BR_BORDER.base,
+    borderColor: BR_COLORS.ink,
+    gap: BR_SPACE['3'],
+  },
+  headerBtn: {
+    width: 36, height: 36,
+    alignItems: 'center', justifyContent: 'center',
+    borderWidth: BR_BORDER.base, borderColor: BR_COLORS.ink,
+    backgroundColor: BR_COLORS.card,
+    ...(BR_SHADOW.xs as any),
   },
   searchBox: {
-    flex: 1, flexDirection: 'row', alignItems: 'center', gap: 8,
-    backgroundColor: COLORS.bg.secondary, borderRadius: 0,
-    paddingHorizontal: 14, paddingVertical: Platform.OS === 'ios' ? 10 : 4,
-    borderWidth: 1, borderColor: COLORS.border.subtle,
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    backgroundColor: BR_COLORS.card,
+    paddingHorizontal: 12,
+    paddingVertical: Platform.OS === 'ios' ? 10 : 4,
+    borderWidth: BR_BORDER.base,
+    borderColor: BR_COLORS.ink,
   },
-  input: { flex: 1, fontSize: 15, color: COLORS.text.primary, padding: 0 },
+  input: {
+    flex: 1, fontSize: 14, color: BR_COLORS.ink, padding: 0,
+    fontWeight: '600',
+  },
 
-  sectionHeader: { fontSize: 11, fontWeight: '900', color: COLORS.text.muted, letterSpacing: 1, marginTop: 14, marginBottom: 4 },
-  row: {
-    flexDirection: 'row', gap: 12, alignItems: 'center',
-    padding: 12, backgroundColor: COLORS.bg.secondary,
-    borderRadius: 0, borderWidth: 1, borderColor: COLORS.border.subtle,
+  sectionHeader: {
+    ...BR_FONT.stamp,
+    fontSize: 11,
+    color: BR_COLORS.textMuted,
+    marginTop: BR_SPACE['3'],
+    marginBottom: 6,
   },
-  iconWrap: { width: 40, height: 40, borderRadius: 0, alignItems: 'center', justifyContent: 'center' },
-  iconEmoji: { fontSize: 20 },
-  rowTitle: { fontSize: 14, fontWeight: '700', color: COLORS.text.primary },
-  rowSub: { fontSize: 12, color: COLORS.text.muted, marginTop: 2 },
-  rowAmt: { fontSize: 14, fontWeight: '800' },
+  row: {
+    flexDirection: 'row',
+    gap: 12,
+    alignItems: 'center',
+    padding: BR_SPACE['3'],
+    backgroundColor: BR_COLORS.card,
+    borderWidth: BR_BORDER.base,
+    borderColor: BR_COLORS.ink,
+    ...(BR_SHADOW.sm as any),
+  },
+  iconWrap: {
+    width: 40, height: 40,
+    alignItems: 'center', justifyContent: 'center',
+    borderWidth: BR_BORDER.fine, borderColor: BR_COLORS.ink,
+  },
+  iconEmoji: { fontSize: 18 },
+  rowTitle: { fontSize: 14, fontWeight: '700', color: BR_COLORS.ink },
+  rowSub: { fontSize: 12, color: BR_COLORS.textMuted, marginTop: 2, fontWeight: '500' },
+  rowAmt: { fontSize: 14, fontWeight: '900' },
 
   recentHead: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 },
-  recentLabel: { fontSize: 11, fontWeight: '900', color: COLORS.text.muted, letterSpacing: 1 },
-  clearTxt: { fontSize: 12, fontWeight: '700', color: COLORS.accent.primary },
-  recentRow: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: COLORS.border.subtle },
-  recentTxt: { flex: 1, fontSize: 14, color: COLORS.text.primary, fontWeight: '600' },
+  recentLabel: { ...BR_FONT.stamp, fontSize: 11, color: BR_COLORS.textMuted },
+  clearTxt: { ...BR_FONT.stamp, fontSize: 11, color: PALETTE.brand },
+  recentRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    paddingVertical: BR_SPACE['3'],
+    paddingHorizontal: BR_SPACE['3'],
+    borderBottomWidth: BR_BORDER.fine,
+    borderColor: BR_COLORS.line,
+  },
+  recentTxt: { flex: 1, fontSize: 14, color: BR_COLORS.ink, fontWeight: '600' },
 });

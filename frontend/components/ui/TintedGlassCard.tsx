@@ -16,6 +16,19 @@ import { BlurView } from 'expo-blur';
 import { COLORS, GLASS, RADIUS, SHADOW } from '../../utils/theme';
 import { makeStyles } from '../../utils/makeStyles';
 
+
+
+// R113 FIX — useStyles hoisted above first render-time call
+// to avoid Metro/SDK52 TDZ error (`Cannot access X before init.`).
+const useStyles = makeStyles((c) => ({
+  base: {
+    borderWidth: 1,
+  },
+  solid: {
+    backgroundColor: GLASS.solidBg,
+  },
+}));
+
 type Tint = 'neutral' | 'orange' | 'success' | 'danger';
 
 const tintBorder: Record<Tint, string> = {
@@ -66,11 +79,3 @@ export default function GlassCard({ children, style, tint = 'neutral', radius = 
   );
 }
 
-const useStyles = makeStyles((c) => ({
-  base: {
-    borderWidth: 1,
-  },
-  solid: {
-    backgroundColor: GLASS.solidBg,
-  },
-}));

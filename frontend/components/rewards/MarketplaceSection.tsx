@@ -16,6 +16,37 @@ import { makeStyles } from '../../utils/makeStyles';
 import { COLORS, useAppColors } from '../../utils/theme';
 import { shade } from '../../utils/color';
 
+
+
+// R113 FIX — useStyles hoisted above first render-time call
+// to avoid Metro/SDK52 TDZ error (`Cannot access X before init.`).
+const useStyles = makeStyles((c) => ({
+  laneHead: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 16, marginBottom: 10 },
+  laneEmoji: { fontSize: 17 },
+  laneTitle: { fontSize: 15, fontWeight: '900', color: c.text.primary, letterSpacing: -0.2 },
+  laneSub: { fontSize: 10.5, fontWeight: '700', color: c.text.muted, marginTop: 1 },
+  unlockTxt: { fontSize: 11.5, fontWeight: '900', color: c.accent.brand, letterSpacing: 0.2 },
+
+  card: { width: 160, backgroundColor: c.bg.elevated, borderRadius: 0, borderWidth: 1, borderColor: c.gray[100], overflow: 'hidden', shadowColor: '#000000', shadowOpacity: 0.06, shadowRadius: 6, shadowOffset: { width: 0, height: 2 }, elevation: 2 },
+  cardLocked: { opacity: 0.9 },
+  cardBand: { height: 68, alignItems: 'center', justifyContent: 'center', position: 'relative' },
+  cardEmoji: { fontSize: 34 },
+  logoFrame: { width: 54, height: 42, backgroundColor: c.bg.elevated, borderRadius: 0, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 6, paddingVertical: 4 },
+  logoImg: { width: '100%', height: '100%' },
+  urgencyPill: { position: 'absolute', top: 6, right: 6, paddingHorizontal: 6, paddingVertical: 2, borderRadius: 999 },
+  urgencyTxt: { fontSize: 8.5, fontWeight: '900', color: c.bg.elevated, letterSpacing: 0.5 },
+  lockOverlay: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.3)', alignItems: 'center', justifyContent: 'center' },
+
+  cardBody: { padding: 10, gap: 3 },
+  brandTxt: { fontSize: 13, fontWeight: '900', color: c.text.primary, letterSpacing: -0.1 },
+  discTxt: { fontSize: 12, fontWeight: '800', color: c.accent.brand },
+  minTxt: { fontSize: 10, fontWeight: '600', color: c.gray[400] },
+  popRow: { flexDirection: 'row', alignItems: 'center', gap: 3, marginTop: 4 },
+  popTxt: { fontSize: 9.5, fontWeight: '700', color: c.text.muted },
+  claimBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 4, marginTop: 6, paddingVertical: 7, borderRadius: 0, backgroundColor: c.accent.brand },
+  coinTxt: { fontSize: 11, fontWeight: '900', color: c.bg.elevated },
+}));
+
 // Clearbit free brand logo API — falls back gracefully to emoji if image
 // fails to load (e.g. offline, rate-limited, or unknown domain).
 const BRAND_LOGOS: Record<string, string> = {
@@ -208,29 +239,3 @@ function RewardCard({ reward, userCoins, onClaim, testID }: { reward: Reward; us
 }
 
 
-const useStyles = makeStyles((c) => ({
-  laneHead: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 16, marginBottom: 10 },
-  laneEmoji: { fontSize: 17 },
-  laneTitle: { fontSize: 15, fontWeight: '900', color: c.text.primary, letterSpacing: -0.2 },
-  laneSub: { fontSize: 10.5, fontWeight: '700', color: c.text.muted, marginTop: 1 },
-  unlockTxt: { fontSize: 11.5, fontWeight: '900', color: c.accent.brand, letterSpacing: 0.2 },
-
-  card: { width: 160, backgroundColor: c.bg.elevated, borderRadius: 0, borderWidth: 1, borderColor: c.gray[100], overflow: 'hidden', shadowColor: '#000000', shadowOpacity: 0.06, shadowRadius: 6, shadowOffset: { width: 0, height: 2 }, elevation: 2 },
-  cardLocked: { opacity: 0.9 },
-  cardBand: { height: 68, alignItems: 'center', justifyContent: 'center', position: 'relative' },
-  cardEmoji: { fontSize: 34 },
-  logoFrame: { width: 54, height: 42, backgroundColor: c.bg.elevated, borderRadius: 0, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 6, paddingVertical: 4 },
-  logoImg: { width: '100%', height: '100%' },
-  urgencyPill: { position: 'absolute', top: 6, right: 6, paddingHorizontal: 6, paddingVertical: 2, borderRadius: 999 },
-  urgencyTxt: { fontSize: 8.5, fontWeight: '900', color: c.bg.elevated, letterSpacing: 0.5 },
-  lockOverlay: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.3)', alignItems: 'center', justifyContent: 'center' },
-
-  cardBody: { padding: 10, gap: 3 },
-  brandTxt: { fontSize: 13, fontWeight: '900', color: c.text.primary, letterSpacing: -0.1 },
-  discTxt: { fontSize: 12, fontWeight: '800', color: c.accent.brand },
-  minTxt: { fontSize: 10, fontWeight: '600', color: c.gray[400] },
-  popRow: { flexDirection: 'row', alignItems: 'center', gap: 3, marginTop: 4 },
-  popTxt: { fontSize: 9.5, fontWeight: '700', color: c.text.muted },
-  claimBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 4, marginTop: 6, paddingVertical: 7, borderRadius: 0, backgroundColor: c.accent.brand },
-  coinTxt: { fontSize: 11, fontWeight: '900', color: c.bg.elevated },
-}));

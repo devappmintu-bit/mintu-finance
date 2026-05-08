@@ -30,101 +30,107 @@
 import type { ViewStyle, TextStyle } from 'react-native';
 
 // ─────────────────────────────────────────────────────────────────────
-// 1. LIGHT THEME PALETTE — MintU mono-brand (orange + black + cream)
+// 1. LIGHT THEME PALETTE — MintU mono-brand + semantic accents
 // ─────────────────────────────────────────────────────────────────────
 //
-// Round 100AE: Yellow dropped entirely. Rebuilt from scratch as a
-// disciplined mono-brand palette: ORANGE + BLACK + CREAM + WHITE.
-// Closer to CRED / Stripe / Robinhood — serious finance with one
-// hero color, no decorative loudness.
+// Round 100AF: Brand chrome stays mono (orange + black + cream — the
+// disciplined identity from R100AE), but semantic colors return as
+// CATEGORY/STATE ACCENTS only. This is the Stripe/Linear approach:
+//   - Orange  = brand chrome (CTAs, hero, tab bar)
+//   - Green   = savings / positive deltas
+//   - Red     = overspend / destructive
+//   - Blue    = analytics / insights
+//   - Yellow  = alerts / rewards (NOT brand chrome)
+//   - Purple  = AI / coach (NOT brand chrome)
 //
-//   • Mintu's body  → ORANGE       (#FF6B1A — primary brand)
-//   • Mintu's outline → BLACK      (#0A0A0A — borders, premium)
-//   • Mintu's face  → CREAM        (#FFF8F2 — warm bg)
-//   • Surface       → WHITE        (#FFFFFF — cards)
-//   • Soft warmth   → PEACH        (#FFEDD5 — secondary cards)
-//   • Deep accent   → ORANGE-DEEP  (#E84A0C — hover/pressed)
-//
-// Plus narrow semantic-only:
-//   • #16A34A success green (confirmations)
-//   • #DC2626 danger red    (destructive)
-//
-// Legacy multi-color keys (lime/purple/sky/pink/mint/coral/yellow)
-// are KEPT as aliases — every one now maps to the orange-family
-// or semantic green/red. So legacy components don't crash on import;
-// they render with the disciplined mono palette automatically.
+// The semantic accents appear on chips, badges, chart bars, status
+// pills — NEVER on primary CTAs or hero cards (those stay orange).
+// Result: one brand identity + clear category signaling.
 export const NB_LIGHT = {
   // Ground
   bg:         '#FFF8F2',  // warm cream
-  surface:    '#FFFFFF',  // paper-pure card surface
-  surfaceAlt: '#FFEDD5',  // peach contrast card (warm)
-  ink:        '#0A0A0A',  // borders, body text, icons
-  inkSoft:    '#3F3F46',  // secondary text
-  muted:      '#71717A',  // meta, timestamps
+  surface:    '#FFFFFF',  // paper-pure
+  surfaceAlt: '#FFEDD5',  // peach soft
+  ink:        '#0A0A0A',
+  inkSoft:    '#3F3F46',
+  muted:      '#71717A',
 
-  // Brand trio (the only colors that should ever appear on chrome)
-  orange:     '#FF6B1A',  // PRIMARY — Mintu's body
-  orangeDeep: '#E84A0C',  // hover/pressed/coach (deeper warmth)
-  orangeSoft: '#FFEDD5',  // peach soft surface (low-contrast warmth)
-  black:      '#0A0A0A',  // premium surface
-  blackInk:   '#FF6B1A',  // type ON black uses orange (CRED move)
+  // Brand chrome (the only colors on primary CTAs / hero)
+  orange:     '#FF8C66',  // PRIMARY — Mintu's body
+  orangeDeep: '#F56E1E',  // hover/pressed
+  orangeSoft: '#FFEDD5',  // peach soft surface
+  black:      '#0A0A0A',
+  blackInk:   '#FF8C66',
 
-  // Semantic-only colors (kept narrow — only for state communication)
-  success:    '#16A34A',  // green — confirmations only
-  danger:     '#DC2626',  // red   — destructive only
+  // Semantic accents (category / state communication ONLY — never chrome)
+  success:    '#16A34A',  // savings / growth
+  successSoft:'#DCFCE7',
+  danger:     '#DC2626',  // overspend / destructive
+  dangerSoft: '#FEE2E2',
+  info:       '#2563EB',  // analytics / insights
+  infoSoft:   '#DBEAFE',
+  warn:       '#F59E0B',  // alerts / rewards (semantic yellow — NOT brand)
+  warnSoft:   '#FEF3C7',
+  ai:         '#8B5CF6',  // AI / coach (semantic purple — NOT brand)
+  aiSoft:     '#EDE9FE',
 
-  // Legacy aliases — all REMAP to brand or semantic via roleColor().
-  // Listed here for backward compat with components that still read
-  // `palette.lime`/`palette.yellow`/etc. directly. They all resolve
-  // to safe mono-brand values; the UI reads as ONE identity.
-  lime:       '#FF6B1A',  // → orange
+  // Legacy aliases — remap to semantic accents
+  lime:       '#16A34A',  // → success
   limeInk:    '#FFFFFF',
-  yellow:     '#FFEDD5',  // → peach soft (no more loud yellow)
+  yellow:     '#F59E0B',  // → warn
   yellowInk:  '#0A0A0A',
-  coral:      '#DC2626',  // → danger red (alerts only)
+  coral:      '#DC2626',  // → danger
   coralInk:   '#FFFFFF',
-  purple:     '#E84A0C',  // → orangeDeep
+  purple:     '#8B5CF6',  // → ai
   purpleInk:  '#FFFFFF',
-  sky:        '#0A0A0A',  // → black surface
-  skyInk:     '#FF6B1A',
-  pink:       '#FFEDD5',  // → peach soft
+  sky:        '#2563EB',  // → info
+  skyInk:     '#FFFFFF',
+  pink:       '#FFEDD5',
   pinkInk:    '#0A0A0A',
-  mint:       '#16A34A',  // → success green
+  mint:       '#16A34A',
   mintInk:    '#FFFFFF',
 } as const;
 
 // ─────────────────────────────────────────────────────────────────────
-// 2. DARK THEME PALETTE — Mono-brand on charcoal
+// 2. DARK THEME PALETTE — Cyber MintU + neonified semantics
 // ─────────────────────────────────────────────────────────────────────
 export const NB_DARK = {
-  bg:         '#0E0E10',  // charcoal (NOT pure black)
-  surface:    '#18181B',  // elevated card
-  surfaceAlt: '#27272A',  // alternative card
-  ink:        '#FAFAFA',  // borders, body text
+  bg:         '#0E0E10',
+  surface:    '#18181B',
+  surfaceAlt: '#27272A',
+  ink:        '#FAFAFA',
   inkSoft:    '#D4D4D8',
   muted:      '#A1A1AA',
 
-  // Brand trio — punchier on charcoal for visibility, but no yellow
-  orange:     '#FF8538',  // brighter on charcoal
-  orangeDeep: '#FF6B1A',
-  orangeSoft: '#3D2A1F',  // dark peach for soft surfaces
-  black:      '#FAFAFA',  // inverts on dark
+  orange:     '#FF8538',
+  orangeDeep: '#FF8C66',
+  orangeSoft: '#3D2A1F',
+  black:      '#FAFAFA',
   blackInk:   '#FF8538',
 
+  // Neonified semantic accents — punchier, retain category meaning
   success:    '#22C55E',
+  successSoft:'#1E3D2A',
   danger:     '#EF4444',
+  dangerSoft: '#3D1F1F',
+  info:       '#3B82F6',
+  infoSoft:   '#1E2D3D',
+  warn:       '#FBBF24',
+  warnSoft:   '#3D2F1E',
+  ai:         '#A78BFA',
+  aiSoft:     '#2A1E3D',
 
-  // Legacy aliases → all remap to brand
-  lime:       '#FF8538',
+  // Legacy aliases
+  lime:       '#22C55E',
   limeInk:    '#0A0A0A',
-  yellow:     '#3D2A1F',
-  yellowInk:  '#FAFAFA',
+  yellow:     '#FBBF24',
+  yellowInk:  '#0A0A0A',
   coral:      '#EF4444',
   coralInk:   '#FAFAFA',
-  purple:     '#FF6B1A',
-  purpleInk:  '#FAFAFA',
-  sky:        '#FAFAFA',
-  skyInk:     '#FF8538',
+  purple:     '#A78BFA',
+  purpleInk:  '#0A0A0A',
+  sky:        '#3B82F6',
+  skyInk:     '#FAFAFA',
   pink:       '#3D2A1F',
   pinkInk:    '#FAFAFA',
   mint:       '#22C55E',
@@ -178,13 +184,17 @@ export const NB_BORDER = {
 } as const;
 
 // ─────────────────────────────────────────────────────────────────────
-// 5. RADIUS — Memphis sweet spot (NOT zero, NOT pill)
+// 5. RADIUS — Round 100AF: bumped to brutalist sweet spot 20-32px
 // ─────────────────────────────────────────────────────────────────────
+//
+// Old: 0/8/14/20/pill (Memphis)
+// New: 0/16/24/32/pill — chunkier, more sticker-like, more tactile.
+// Cards/CTAs/heroes feel oversized and collectible. Chips stay pill.
 export const NB_RADIUS = {
-  none:  0,    // brutalist micro-elements
-  sm:    8,    // chips, small cards
-  md:    14,   // default cards (Memphis sweet spot)
-  lg:    20,   // hero cards, modals
+  none:  0,    // brutalist micro-elements (rare)
+  sm:    16,   // chips, small cards (was 8)
+  md:    24,   // default cards (was 14)
+  lg:    32,   // hero cards, modals (was 20)
   pill:  999,  // category chips, mascot rings
 } as const;
 
@@ -266,18 +276,19 @@ export type NeoRole =
   | 'neutral';   // surface fallback
 
 export function roleColor(p: NeoPalette, r: NeoRole): { bg: string; ink: string } {
-  // R100AE — Mono-brand role mapping. NO yellow anywhere. Every role
-  // resolves to orange-family or narrow semantic green/red. Result:
-  // disciplined CRED-style identity. Hierarchy now communicated by
-  // weight/depth rather than color spread.
+  // R100AF — Mono-brand chrome + semantic accents.
+  // Primary CTAs and hero stay ORANGE (brand chrome). Category and
+  // state roles use semantic accents (preserves MintU's existing
+  // color meanings: green=savings, red=overspend, yellow=alerts/rewards,
+  // purple=AI, blue=analytics).
   switch (r) {
-    case 'rewards': return { bg: p.orangeSoft, ink: '#0A0A0A' };  // soft peach (earned, not loud)
-    case 'savings': return { bg: p.orange,     ink: '#FFFFFF' };  // brand orange
-    case 'coach':   return { bg: p.orangeDeep, ink: '#FFFFFF' };  // deeper orange — Mintu IS the coach
-    case 'split':   return { bg: p.black,      ink: '#FF6B1A' };  // premium black + orange accent
-    case 'alert':   return { bg: p.danger,     ink: '#FFFFFF' };  // red — destructive only
-    case 'success': return { bg: p.success,    ink: '#FFFFFF' };  // green — confirmations only
-    case 'premium': return { bg: p.black,      ink: '#FF6B1A' };  // black surface + orange ink (CRED move)
+    case 'rewards': return { bg: p.warn,       ink: '#0A0A0A' };  // semantic yellow — alerts/rewards
+    case 'savings': return { bg: p.success,    ink: '#FFFFFF' };  // semantic green — growth/savings
+    case 'coach':   return { bg: p.ai,         ink: '#FFFFFF' };  // semantic purple — AI/coach
+    case 'split':   return { bg: p.info,       ink: '#FFFFFF' };  // semantic blue — analytics/social
+    case 'alert':   return { bg: p.danger,     ink: '#FFFFFF' };  // semantic red — overspend/destructive
+    case 'success': return { bg: p.success,    ink: '#FFFFFF' };  // semantic green — confirmations
+    case 'premium': return { bg: p.black,      ink: '#FF8C66' };  // black + orange ink (CRED move)
     case 'primary': return { bg: p.orange,     ink: '#FFFFFF' };  // brand orange CTA
     case 'neutral':
     default:        return { bg: p.surface,    ink: p.ink };

@@ -10,7 +10,7 @@
  *   • The accent orange is now used ONLY on the avatar's gradient ring
  *     and the optional weekly delta chip, not as a full background.
  *   • The card itself uses GLASS.solidBg (translucent white) on the warm
- *     #FAFAF9 canvas, hairline borders for the iOS-Crystal cue, and a
+ *     #FAF6EE canvas, hairline borders for the iOS-Crystal cue, and a
  *     soft long shadow for depth.
  *   • Identity hierarchy: Name (bold, primary ink) → Tier (small
  *     pill) → Phone (muted, masked).
@@ -26,12 +26,82 @@ import * as Haptics from 'expo-haptics';
 import { COLORS, GLASS, shadowStyle } from '../../utils/theme';
 import { makeStyles } from '../../utils/makeStyles';
 
+
+
+// R113 FIX — useStyles hoisted above first render-time call
+// to avoid Metro/SDK52 TDZ error (`Cannot access X before init.`).
+const useStyles = makeStyles((c) => ({
+  card: {
+    flexDirection: 'row', alignItems: 'center', gap: 14,
+    backgroundColor: GLASS.solidBg,
+    borderRadius: 0, padding: 16, marginBottom: 14,
+    borderWidth: StyleSheet.hairlineWidth, borderColor: GLASS.borderLight,
+    ...shadowStyle('#111827', 4, 18, 0.05, 3),
+  },
+  avatarWrap: { position: 'relative' },
+  avatarRing: {
+    width: AVATAR_SIZE + RING_PADDING * 2,
+    height: AVATAR_SIZE + RING_PADDING * 2,
+    borderRadius: (AVATAR_SIZE + RING_PADDING * 2) / 2,
+    padding: RING_PADDING,
+  },
+  avatarInner: {
+    width: AVATAR_SIZE, height: AVATAR_SIZE,
+    borderRadius: AVATAR_SIZE / 2,
+    backgroundColor: c.bg.elevated,
+    overflow: 'hidden',
+    justifyContent: 'center', alignItems: 'center',
+  },
+  avatarImg: { width: '100%', height: '100%' },
+  avatarFallback: {
+    width: '100%', height: '100%',
+    backgroundColor: c.gray[100],
+    justifyContent: 'center', alignItems: 'center',
+  },
+  avatarInitials: {
+    fontSize: 22, fontWeight: '800', color: c.text.primary,
+    letterSpacing: -0.5,
+  },
+  cameraBadge: {
+    position: 'absolute', right: -2, bottom: -2,
+    width: 22, height: 22, borderRadius: 0,
+    backgroundColor: c.bg.elevated,
+    borderWidth: StyleSheet.hairlineWidth, borderColor: GLASS.borderLight,
+    justifyContent: 'center', alignItems: 'center',
+    ...shadowStyle('#111827', 1, 4, 0.08, 2),
+  },
+  identityCol: { flex: 1, minWidth: 0 },
+  nameRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  name: {
+    fontSize: 19, fontWeight: '800', color: c.text.primary,
+    letterSpacing: -0.4, flex: 1,
+  },
+  metaRow: { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 6, flexWrap: 'wrap' },
+  tierPill: {
+    flexDirection: 'row', alignItems: 'center', gap: 4,
+    paddingHorizontal: 8, paddingVertical: 3,
+    borderRadius: 0, borderWidth: 1,
+    maxWidth: 160,
+  },
+  tierEmoji: { fontSize: 11 },
+  tierLabel: { fontSize: 11, fontWeight: '800', letterSpacing: 0.2 },
+  deltaChip: {
+    flexDirection: 'row', alignItems: 'center', gap: 3,
+    paddingHorizontal: 7, paddingVertical: 3, borderRadius: 0,
+    borderWidth: 1,
+  },
+  deltaUp: { backgroundColor: c.state.successBg, borderColor: c.state.successBorder },
+  deltaDown: { backgroundColor: c.state.dangerBg, borderColor: c.state.dangerBorder },
+  deltaTxt: { fontSize: 10, fontWeight: '800' },
+  phone: { fontSize: 12, color: c.text.muted, fontWeight: '500', marginTop: 6 },
+}));
+
 const TIERS: Record<string, { label: string; emoji: string; color: string }> = {
   rookie:        { label: 'Beginner',       emoji: '🌱', color: '#6B7280' },
   growing:       { label: 'Growing Saver',  emoji: '🌿', color: '#10B981' },
   smart:         { label: 'Smart Spender',  emoji: '⚡',  color: '#3B82F6' },
   elite:         { label: 'Elite Saver',    emoji: '⭐', color: '#8B5CF6' },
-  wealth:        { label: 'Wealth Builder', emoji: '💎', color: '#E84A0C' },
+  wealth:        { label: 'Wealth Builder', emoji: '💎', color: '#F56E1E' },
   master:        { label: 'Wealth Master',  emoji: '👑', color: '#FFB020' },
 };
 
@@ -174,68 +244,3 @@ export default React.memo(ProfileIdentityCard);
 const AVATAR_SIZE = 64;
 const RING_PADDING = 3;
 
-const useStyles = makeStyles((c) => ({
-  card: {
-    flexDirection: 'row', alignItems: 'center', gap: 14,
-    backgroundColor: GLASS.solidBg,
-    borderRadius: 0, padding: 16, marginBottom: 14,
-    borderWidth: StyleSheet.hairlineWidth, borderColor: GLASS.borderLight,
-    ...shadowStyle('#111827', 4, 18, 0.05, 3),
-  },
-  avatarWrap: { position: 'relative' },
-  avatarRing: {
-    width: AVATAR_SIZE + RING_PADDING * 2,
-    height: AVATAR_SIZE + RING_PADDING * 2,
-    borderRadius: (AVATAR_SIZE + RING_PADDING * 2) / 2,
-    padding: RING_PADDING,
-  },
-  avatarInner: {
-    width: AVATAR_SIZE, height: AVATAR_SIZE,
-    borderRadius: AVATAR_SIZE / 2,
-    backgroundColor: c.bg.elevated,
-    overflow: 'hidden',
-    justifyContent: 'center', alignItems: 'center',
-  },
-  avatarImg: { width: '100%', height: '100%' },
-  avatarFallback: {
-    width: '100%', height: '100%',
-    backgroundColor: c.gray[100],
-    justifyContent: 'center', alignItems: 'center',
-  },
-  avatarInitials: {
-    fontSize: 22, fontWeight: '800', color: c.text.primary,
-    letterSpacing: -0.5,
-  },
-  cameraBadge: {
-    position: 'absolute', right: -2, bottom: -2,
-    width: 22, height: 22, borderRadius: 0,
-    backgroundColor: c.bg.elevated,
-    borderWidth: StyleSheet.hairlineWidth, borderColor: GLASS.borderLight,
-    justifyContent: 'center', alignItems: 'center',
-    ...shadowStyle('#111827', 1, 4, 0.08, 2),
-  },
-  identityCol: { flex: 1, minWidth: 0 },
-  nameRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  name: {
-    fontSize: 19, fontWeight: '800', color: c.text.primary,
-    letterSpacing: -0.4, flex: 1,
-  },
-  metaRow: { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 6, flexWrap: 'wrap' },
-  tierPill: {
-    flexDirection: 'row', alignItems: 'center', gap: 4,
-    paddingHorizontal: 8, paddingVertical: 3,
-    borderRadius: 0, borderWidth: 1,
-    maxWidth: 160,
-  },
-  tierEmoji: { fontSize: 11 },
-  tierLabel: { fontSize: 11, fontWeight: '800', letterSpacing: 0.2 },
-  deltaChip: {
-    flexDirection: 'row', alignItems: 'center', gap: 3,
-    paddingHorizontal: 7, paddingVertical: 3, borderRadius: 0,
-    borderWidth: 1,
-  },
-  deltaUp: { backgroundColor: c.state.successBg, borderColor: c.state.successBorder },
-  deltaDown: { backgroundColor: c.state.dangerBg, borderColor: c.state.dangerBorder },
-  deltaTxt: { fontSize: 10, fontWeight: '800' },
-  phone: { fontSize: 12, color: c.text.muted, fontWeight: '500', marginTop: 6 },
-}));

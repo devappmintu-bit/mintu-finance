@@ -27,6 +27,80 @@ import {
 } from '../utils/mascotAnimations';
 import Mascot from './Mascot';
 
+
+
+// R113 FIX — useStyles hoisted above first render-time call
+// to avoid Metro/SDK52 TDZ error (`Cannot access X before init.`).
+const useStyles = makeStyles((c) => ({
+  wrap: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    alignSelf: 'flex-start',
+  },
+  wrapHome: {
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+  },
+  wrapCoach: {
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+  },
+  // Round 53l.2 — login surface: premium feel, vertical column (mascot
+  // above text) so it reads as a hero, not a sidebar widget.
+  wrapLogin: {
+    paddingHorizontal: 0,
+    paddingVertical: 0,
+    alignSelf: 'center',
+    flexDirection: 'column',
+  },
+  rowLogin: {
+    flexDirection: 'column',
+    alignItems: 'center',
+    gap: 14,
+  },
+  row: { flexDirection: 'row', alignItems: 'center', gap: 10 },
+  bubble: {
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 0,
+    maxWidth: 240,
+    borderWidth: StyleSheet.hairlineWidth,
+  },
+  bubbleHome: {
+    backgroundColor: c.bg.card,
+    borderColor: c.border.subtle,
+  },
+  bubbleCoach: {
+    backgroundColor: c.accent.primary + '14',
+    borderColor: c.accent.primary + '35',
+  },
+  bubbleLogin: {
+    paddingHorizontal: 0,
+    paddingVertical: 0,
+    backgroundColor: 'transparent',
+    borderColor: 'transparent',
+    maxWidth: 280,
+  },
+  text: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: c.text.primary,
+    lineHeight: 18,
+  },
+  textCoach: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: c.accent.primary,
+  },
+  textLogin: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: c.text.primary,
+    textAlign: 'center',
+    lineHeight: 22,
+  },
+}));
+
 type Props = {
   mode?: MascotMode;
   /** When set, the widget reloads (and replays) whenever this value changes. */
@@ -235,72 +309,3 @@ export default function MascotMoment({
   );
 }
 
-const useStyles = makeStyles((c) => ({
-  wrap: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    alignSelf: 'flex-start',
-  },
-  wrapHome: {
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-  },
-  wrapCoach: {
-    paddingHorizontal: 16,
-    paddingVertical: 10,
-  },
-  // Round 53l.2 — login surface: premium feel, vertical column (mascot
-  // above text) so it reads as a hero, not a sidebar widget.
-  wrapLogin: {
-    paddingHorizontal: 0,
-    paddingVertical: 0,
-    alignSelf: 'center',
-    flexDirection: 'column',
-  },
-  rowLogin: {
-    flexDirection: 'column',
-    alignItems: 'center',
-    gap: 14,
-  },
-  row: { flexDirection: 'row', alignItems: 'center', gap: 10 },
-  bubble: {
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    borderRadius: 0,
-    maxWidth: 240,
-    borderWidth: StyleSheet.hairlineWidth,
-  },
-  bubbleHome: {
-    backgroundColor: c.bg.card,
-    borderColor: c.border.subtle,
-  },
-  bubbleCoach: {
-    backgroundColor: c.accent.primary + '14',
-    borderColor: c.accent.primary + '35',
-  },
-  bubbleLogin: {
-    paddingHorizontal: 0,
-    paddingVertical: 0,
-    backgroundColor: 'transparent',
-    borderColor: 'transparent',
-    maxWidth: 280,
-  },
-  text: {
-    fontSize: 13,
-    fontWeight: '600',
-    color: c.text.primary,
-    lineHeight: 18,
-  },
-  textCoach: {
-    fontSize: 14,
-    fontWeight: '700',
-    color: c.accent.primary,
-  },
-  textLogin: {
-    fontSize: 16,
-    fontWeight: '700',
-    color: c.text.primary,
-    textAlign: 'center',
-    lineHeight: 22,
-  },
-}));

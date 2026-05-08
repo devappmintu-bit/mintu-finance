@@ -27,6 +27,64 @@ import { useAIPrompt } from '../store/aiPromptStore';
 // data yet" first AI experience for zero-txn users.
 import { useFinContext } from '../store/financialContext';
 
+
+
+// R113 FIX — useStyles hoisted above first render-time call
+// to avoid Metro/SDK52 TDZ error (`Cannot access X before init.`).
+const useStyles = makeStyles((c) => ({
+  backdrop: { flex: 1, justifyContent: 'flex-end' },
+  backdropTouch: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(0,0,0,0.45)' },
+  sheet: {
+    backgroundColor: GLASS.solidBg,
+    borderTopLeftRadius: 0, borderTopRightRadius: 0,
+    borderTopWidth: StyleSheet.hairlineWidth, borderColor: GLASS.borderLight,
+    paddingHorizontal: 20, paddingTop: 12, paddingBottom: Platform.OS === 'ios' ? 32 : 20,
+    ...shadowStyle('#111827', 12, 32, 0.10, 12),
+  },
+  handle: {
+    width: 40, height: 4, borderRadius: 2,
+    backgroundColor: c.gray[300], alignSelf: 'center', marginBottom: 14,
+  },
+  header: { marginBottom: 14 },
+  titleRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  aiBadge: {
+    width: 26, height: 26, borderRadius: 0,
+    backgroundColor: c.accent.primary + '14',
+    borderWidth: 1, borderColor: c.accent.primary + '33',
+    justifyContent: 'center', alignItems: 'center',
+  },
+  title: { fontSize: 19, fontWeight: '900', color: c.text.primary, letterSpacing: -0.4 },
+  subtitle: { fontSize: 12, color: c.text.muted, marginTop: 4, marginLeft: 34, fontWeight: '500' },
+
+  promptList: { gap: 8, marginBottom: 14 },
+  promptRow: {
+    flexDirection: 'row', alignItems: 'center', gap: 12,
+    paddingHorizontal: 14, paddingVertical: 13, borderRadius: 0,
+    backgroundColor: c.bg.elevated,
+    borderWidth: 1, borderColor: c.border.card,
+  },
+  promptEmoji: { fontSize: 18 },
+  promptTxt: { flex: 1, fontSize: 14, fontWeight: '600', color: c.text.primary, lineHeight: 19 },
+
+  inputRow: {
+    flexDirection: 'row', alignItems: 'center', gap: 8,
+    backgroundColor: c.bg.elevated,
+    borderRadius: 0, paddingLeft: 16, paddingRight: 6, paddingVertical: 4,
+    borderWidth: 1, borderColor: c.border.card,
+  },
+  input: {
+    flex: 1, fontSize: 14, color: c.text.primary, paddingVertical: 10,
+    minHeight: Platform.OS === 'ios' ? 36 : 40,
+  },
+  sendBtn: {
+    width: 38, height: 38, borderRadius: 0,
+    backgroundColor: c.accent.primary,
+    justifyContent: 'center', alignItems: 'center',
+    ...shadowStyle(c.accent.primary, 2, 8, 0.25, 3),
+  },
+  sendBtnDisabled: { backgroundColor: c.gray[400], shadowOpacity: 0 },
+}));
+
 interface Prompt {
   icon: keyof typeof Ionicons.glyphMap;
   text: string;
@@ -164,56 +222,3 @@ export default function AIQuickSheet({ visible, onClose }: Props) {
   );
 }
 
-const useStyles = makeStyles((c) => ({
-  backdrop: { flex: 1, justifyContent: 'flex-end' },
-  backdropTouch: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(0,0,0,0.45)' },
-  sheet: {
-    backgroundColor: GLASS.solidBg,
-    borderTopLeftRadius: 0, borderTopRightRadius: 0,
-    borderTopWidth: StyleSheet.hairlineWidth, borderColor: GLASS.borderLight,
-    paddingHorizontal: 20, paddingTop: 12, paddingBottom: Platform.OS === 'ios' ? 32 : 20,
-    ...shadowStyle('#111827', 12, 32, 0.10, 12),
-  },
-  handle: {
-    width: 40, height: 4, borderRadius: 2,
-    backgroundColor: c.gray[300], alignSelf: 'center', marginBottom: 14,
-  },
-  header: { marginBottom: 14 },
-  titleRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  aiBadge: {
-    width: 26, height: 26, borderRadius: 0,
-    backgroundColor: c.accent.primary + '14',
-    borderWidth: 1, borderColor: c.accent.primary + '33',
-    justifyContent: 'center', alignItems: 'center',
-  },
-  title: { fontSize: 19, fontWeight: '900', color: c.text.primary, letterSpacing: -0.4 },
-  subtitle: { fontSize: 12, color: c.text.muted, marginTop: 4, marginLeft: 34, fontWeight: '500' },
-
-  promptList: { gap: 8, marginBottom: 14 },
-  promptRow: {
-    flexDirection: 'row', alignItems: 'center', gap: 12,
-    paddingHorizontal: 14, paddingVertical: 13, borderRadius: 0,
-    backgroundColor: c.bg.elevated,
-    borderWidth: 1, borderColor: c.border.card,
-  },
-  promptEmoji: { fontSize: 18 },
-  promptTxt: { flex: 1, fontSize: 14, fontWeight: '600', color: c.text.primary, lineHeight: 19 },
-
-  inputRow: {
-    flexDirection: 'row', alignItems: 'center', gap: 8,
-    backgroundColor: c.bg.elevated,
-    borderRadius: 0, paddingLeft: 16, paddingRight: 6, paddingVertical: 4,
-    borderWidth: 1, borderColor: c.border.card,
-  },
-  input: {
-    flex: 1, fontSize: 14, color: c.text.primary, paddingVertical: 10,
-    minHeight: Platform.OS === 'ios' ? 36 : 40,
-  },
-  sendBtn: {
-    width: 38, height: 38, borderRadius: 0,
-    backgroundColor: c.accent.primary,
-    justifyContent: 'center', alignItems: 'center',
-    ...shadowStyle(c.accent.primary, 2, 8, 0.25, 3),
-  },
-  sendBtnDisabled: { backgroundColor: c.gray[400], shadowOpacity: 0 },
-}));
