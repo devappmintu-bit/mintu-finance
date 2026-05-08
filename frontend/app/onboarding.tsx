@@ -40,25 +40,42 @@ type Slide = { id: string; emoji: string; title: string; sub: string; doodles: s
 
 const S: Slide[] = [
   {
+    // R100P — Lead with the Outcome Guarantee. Mission Backbone
+    // (services/missions.py wired in R100N) is now the app's north
+    // star: a peer-anchored savings target the AI Coach picks for
+    // you on Day-0. Mention it before anything else — auto-import
+    // and AI tools serve THIS goal.
     id: '1',
-    emoji: '💸',
-    title: 'Money moves,\nminus the mess.',
-    sub: 'Track every rupee without lifting a finger. Yes, auto-import bank SMS + Gmail.',
-    doodles: ['✨', '💳', '🎉', '★'],
+    emoji: '🎯',
+    title: 'A goal,\nthen the goal hit.',
+    sub: 'We pick a peer-anchored monthly savings target for you. Every action in MintU pushes you toward it — automatically.',
+    doodles: ['✓', '★', '◆', '↑'],
   },
   {
+    // R100P — Auto-pilot: SMS + Gmail import is the substrate, AI
+    // Coach + MintU Pulse (IG-story signals) are the surface. Single
+    // slide because together they are the "we do the work" promise.
     id: '2',
-    emoji: '🧠',
-    title: 'AI that actually\nspends smart.',
-    sub: 'Budgets that adjust themselves. Alerts before you overspend. Insights that slap.',
-    doodles: ['🔥', '⚡', '💡', '◆'],
+    emoji: '⚡',
+    title: 'You log it.\nWe do the math.',
+    // R100V — Trust-first onboarding rewrite. Was "Bank SMS + Gmail in.
+    // AI Coach answers, MintU Pulse pings you with money signals — before
+    // things go sideways." That asked for two extremely sensitive
+    // permissions in 4 words and used fear-based framing ("things go
+    // sideways"). New copy: explicit consent line, no fear, optional
+    // import deferred to AFTER value is felt.
+    sub: 'Add expenses your way — manually, voice, or paste a UPI SMS. Auto-import is optional, you can turn it on later.',
+    doodles: ['🔔', '💡', '✦', '⚡'],
   },
   {
+    // R100P — Split: lead with the differentiator. Names not phones
+    // (R100O), tap-to-settle (R100N), expense on behalf of friends
+    // who haven't joined yet (R100M).
     id: '3',
-    emoji: '🏆',
-    title: 'Split, settle,\nearn coins.',
-    sub: 'Group expenses, instant UPI, real rewards. Pay the bill, unlock the flex.',
-    doodles: ['🪙', '💪', '⭐', '🚀'],
+    emoji: '🤝',
+    title: 'Split with friends,\nnot phone numbers.',
+    sub: 'Track who owes whom by name — even before they sign up. Tap any row to settle on UPI. No awkward DMs.',
+    doodles: ['₹', '✓', '◇', '→'],
   },
 ];
 
@@ -127,7 +144,7 @@ export default function Onboarding() {
           <View style={s.eyebrowRow}>
             <View style={s.rule} />
             <Text style={s.eyebrow}>
-              {String(index + 1).padStart(2, '0')} · {index === 0 ? 'INTRO' : index === 1 ? 'AI BRAIN' : 'REWARDS'}
+              {String(index + 1).padStart(2, '0')} · {index === 0 ? 'MISSION' : index === 1 ? 'AUTOPILOT' : 'SPLIT'}
             </Text>
           </View>
           <Text style={s.title}>{item.title}</Text>

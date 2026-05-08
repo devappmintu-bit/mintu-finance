@@ -205,7 +205,7 @@ const styles = StyleSheet.create({
   },
   ctaBtn: {
     paddingHorizontal: 14, paddingVertical: 8,
-    borderRadius: 999,
+    borderRadius: 0,
     minWidth: 64,
     alignItems: 'center', justifyContent: 'center',
   },

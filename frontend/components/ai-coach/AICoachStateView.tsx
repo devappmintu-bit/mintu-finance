@@ -39,12 +39,13 @@
  * Emits exactly one `onAsk(prefill)` whenever the user taps a chip.
  * Parent (ai-coach.tsx) opens the chat modal on that callback.
  */
-import React, { useCallback, useMemo } from 'react';
+import React, { useCallback, useMemo, useState, useEffect } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import { useFinContext } from '../../store/financialContext';
 import MintuMascot from '../MintuMascot';
+import MascotPresence from '../mascot/MascotPresence';
 import { ROUTES } from '../../constants/routes';
 import { deriveInsightFromCtx as _sharedDerive } from '../../hooks/usePriorityInsight';
 import {
@@ -199,9 +200,49 @@ interface Props {
 export default function AICoachStateView({ onAsk, bottomInset = 160 }: Props) {
   const ctx = useFinContext();
   const refresh = useFinContext((s: any) => s.refresh);
+  const load = useFinContext((s: any) => s.load);
   const txnCount = Number(ctx?.transactions?.count ?? 0);
 
-  const state: CoachDataState = txnCount === 0 ? 'no_data' : txnCount <= 10 ? 'low_data' : 'active';
+  // R100V/W — Hydration race guard. Without this, the no_data branch
+  // renders for ~1s on cold tab open EVEN for active users (because
+  // FinContext hasn't hydrated yet → txnCount===0).  We:
+  //   1. Trigger an immediate refresh on mount (warm cache if cold).
+  //   2. Wait until EITHER (a) meta.loaded flips true OR (b) 1500ms
+  //      grace timer elapses — whichever first.
+  //   3. Until then, render the 'low_data' branch (which is a soft
+  //      skeleton, not an empty-state, so we never claim "no expenses
+  //      logged" before we've finished loading).
+  const hydrated = useFinContext((s: any) => s?.meta?.loaded === true);
+  const [graceUp, setGraceUp] = useState(false);
+  useEffect(() => {
+    // Trigger a refresh on mount so cold-tab opens hydrate even if
+    // home screen wasn't visited first this session.
+    try {
+      if (typeof load === 'function') load(false);
+      else if (typeof refresh === 'function') refresh();
+    } catch { /* noop */ }
+    const t = setTimeout(() => setGraceUp(true), 1500);
+    return () => clearTimeout(t);
+  }, [load, refresh]);
+  // Round 100X — Tightened flicker fix: ONLY flip to "no_data" when we
+  // have CONFIRMED hydration AND a concrete txnCount===0. The grace
+  // timer is a safety net for the skeleton-vs-empty decision, not for
+  // the no-data verdict. Rationale: the previous logic let `graceUp`
+  // alone unlock "no_data" — which on a slow network meant a returning
+  // active user saw "Log your first expense" for ~1s before the real
+  // count landed. Now we never claim "no transactions" without proof.
+  const ready = hydrated || graceUp;
+  const verifiedNoData = hydrated && txnCount === 0;
+
+  // While not ready we render the skeleton path (handled below). Once
+  // ready, derive the 3-state model from real data.
+  const state: CoachDataState = !ready
+    ? 'low_data'                              // safe middle state — shows skeleton
+    : verifiedNoData
+    ? 'no_data'
+    : txnCount <= 10
+    ? 'low_data'
+    : 'active';
 
   // Round 89 Strike 2 — ONE BRAIN. Use the shared priority engine at
   // hooks/usePriorityInsight.ts so Home (HeroDecision + TodayAction)
@@ -240,7 +281,7 @@ export default function AICoachStateView({ onAsk, bottomInset = 160 }: Props) {
       <View style={[styles.wrap, { paddingBottom: bottomInset }]}>
         <View style={[styles.heroCard, BR_STAMP.md]}>
           <View style={styles.zeroMascotWrap}>
-            <MintuMascot size={72} state="idle" />
+            <MascotPresence size={72} mood="encouraging" showWhenGated />
           </View>
           <Text style={[BR_TYPE.h2, styles.zeroTitle]}>YOUR MONEY STORY STARTS HERE</Text>
           <Text style={[BR_TYPE.body, styles.zeroBody]}>

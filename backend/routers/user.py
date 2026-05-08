@@ -78,7 +78,14 @@ async def upload_avatar(data: dict, user_id: str = Depends(get_current_user)):
     """Create/Update or Remove profile photo.
 
     Pass ``avatar`` as a base64 data URI to set, or empty string to remove.
-    Max size ~500KB raw / ~700KB base64.
+
+    R100W — Server-side resize. Original implementation accepted up to
+    700KB base64 strings and stored them as-is. Avatars then weighed
+    150–200KB on the wire on every Profile mount (8 KB target). We now
+    decode the upload, resize to 256×256 max, re-encode as JPEG quality
+    78, and store as a base64 data URI. Typical output: 6–10KB. Falls
+    back to the original payload if Pillow can't decode (e.g. exotic
+    formats) so we never block the user.
     """
     avatar_b64 = data.get("avatar", "") if isinstance(data, dict) else ""
     if not isinstance(avatar_b64, str):
@@ -87,10 +94,35 @@ async def upload_avatar(data: dict, user_id: str = Depends(get_current_user)):
     if not avatar_b64:
         await db.users.update_one({"_id": ObjectId(user_id)}, {"$unset": {"avatar": ""}})
         return {"message": "Avatar removed", "avatar": ""}
-    if len(avatar_b64) > 700_000:
-        raise HTTPException(status_code=400, detail="Image too large. Max 500KB")
-    await db.users.update_one({"_id": ObjectId(user_id)}, {"$set": {"avatar": avatar_b64}})
-    return {"message": "Avatar updated!", "avatar": avatar_b64}
+    if len(avatar_b64) > 2_000_000:
+        # Hard cap on input — protect server, even after resize will run.
+        raise HTTPException(status_code=400, detail="Image too large. Max ~1.5MB raw")
+
+    # ──────────────────────────────────────────────────────────────
+    # R100W resize pipeline. Best-effort: never block on failure.
+    # ──────────────────────────────────────────────────────────────
+    resized_b64 = avatar_b64
+    try:
+        import base64 as _b64
+        from io import BytesIO
+        from PIL import Image
+        # Strip optional "data:image/png;base64," prefix.
+        raw = avatar_b64.split(",", 1)[-1] if "," in avatar_b64 else avatar_b64
+        img_bytes = _b64.b64decode(raw)
+        img = Image.open(BytesIO(img_bytes))
+        # Convert to RGB (JPEG can't carry alpha; we drop it intentionally).
+        if img.mode in ("RGBA", "LA", "P"):
+            img = img.convert("RGB")
+        img.thumbnail((256, 256), Image.Resampling.LANCZOS)
+        out = BytesIO()
+        img.save(out, format="JPEG", quality=78, optimize=True)
+        resized_b64 = "data:image/jpeg;base64," + _b64.b64encode(out.getvalue()).decode("ascii")
+    except Exception:
+        # Couldn't decode — store original. Never block the user on this.
+        resized_b64 = avatar_b64
+
+    await db.users.update_one({"_id": ObjectId(user_id)}, {"$set": {"avatar": resized_b64}})
+    return {"message": "Avatar updated!", "avatar": resized_b64}
 
 
 @router.delete("/avatar")
@@ -103,7 +135,38 @@ async def delete_avatar(user_id: str = Depends(get_current_user)):
 @router.get("/avatar")
 async def get_avatar(user_id: str = Depends(get_current_user)):
     user = await db.users.find_one({"_id": ObjectId(user_id)}, {"avatar": 1, "name": 1}) or {}
-    return {"avatar": user.get("avatar", ""), "name": user.get("name", "")}
+    avatar = user.get("avatar", "")
+
+    # R100W — Lazy migration. Old uploads (pre-R100W) sit at 150–200KB.
+    # On every GET we shrink them in-place if they're still > 30 KB.
+    # One-shot per user — afterward the stored copy is ~6–10 KB and
+    # subsequent reads short-circuit. Falls back to original on any
+    # decode error so we never break existing data.
+    try:
+        if avatar and isinstance(avatar, str) and len(avatar) > 30_000:
+            import base64 as _b64
+            from io import BytesIO
+            from PIL import Image
+            raw = avatar.split(",", 1)[-1] if "," in avatar else avatar
+            img_bytes = _b64.b64decode(raw)
+            img = Image.open(BytesIO(img_bytes))
+            if img.mode in ("RGBA", "LA", "P"):
+                img = img.convert("RGB")
+            img.thumbnail((256, 256), Image.Resampling.LANCZOS)
+            out = BytesIO()
+            img.save(out, format="JPEG", quality=78, optimize=True)
+            shrunk = "data:image/jpeg;base64," + _b64.b64encode(out.getvalue()).decode("ascii")
+            if len(shrunk) < len(avatar):
+                # Persist the shrunk copy so future GETs are cheap.
+                await db.users.update_one(
+                    {"_id": ObjectId(user_id)},
+                    {"$set": {"avatar": shrunk}},
+                )
+                avatar = shrunk
+    except Exception:
+        pass
+
+    return {"avatar": avatar, "name": user.get("name", "")}
 
 
 @router.post("/upi")

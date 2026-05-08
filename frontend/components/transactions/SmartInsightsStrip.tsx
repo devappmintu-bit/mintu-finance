@@ -73,6 +73,11 @@ export default function SmartInsightsStrip({ transactions }: { transactions: Txn
   }, [transactions]);
 
   if (!insights) return null;
+  // R100S — Smart Insights gate. Showing "TOP MERCHANT", "AVG TICKET",
+  // "TOP DAY" derived from 1-3 transactions is statistical noise dressed
+  // as wisdom — the UX audit (R100S) flagged this as a trust violation.
+  // We require ≥5 debit transactions before any "insight" is meaningful.
+  if (insights.count < 5) return null;
 
   return (
     <View style={s.wrap}>
@@ -154,7 +159,7 @@ const useStyles = makeStyles((c) => ({
   wrap: { marginBottom: 12 },
   header: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 16, marginBottom: 8 },
   title: { fontSize: 13, fontWeight: '800', color: c.text.primary, flex: 1 },
-  chip: { backgroundColor: c.accent.primary + '15', paddingHorizontal: 8, paddingVertical: 2, borderRadius: 999 },
+  chip: { backgroundColor: c.accent.primary + '15', paddingHorizontal: 8, paddingVertical: 2, borderRadius: 0 },
   chipText: { fontSize: 10, fontWeight: '800', color: c.accent.primary },
 
   strip: { paddingHorizontal: 16, gap: 10, paddingVertical: 2 },

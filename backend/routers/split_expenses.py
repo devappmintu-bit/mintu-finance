@@ -66,6 +66,16 @@ async def add_split_expense(
         raise_group_not_found()
 
     member_ids = [m["user_id"] for m in group["members"]]
+    # R100M — Allow expenses on behalf of pending invites. We extend
+    # the participant set with synthetic ids of the form `pi:<phone>`
+    # so the user can log "Rohan paid ₹500" before Rohan signs up. The
+    # synthetic ids flow through the same split-math + ledger
+    # pipeline as real user_ids; balances are computed in the same
+    # way. When the real user signs up later, a follow-up migration
+    # will swap their real user_id for the synthetic one (deferred).
+    pending_phones = [pi.get("phone", "") for pi in (group.get("pending_invites") or []) if pi.get("phone")]
+    pending_ids = [f"pi:{ph}" for ph in pending_phones]
+    member_ids = member_ids + pending_ids
     # Default paid_by to the current user if not specified
     paid_by = expense.paid_by or user_id
 
@@ -113,9 +123,23 @@ async def add_split_expense(
     # action mode on standalone Mongo). If the chat insert fails for
     # any reason, the orphaned expense is rolled back / removed so
     # users never see a phantom expense without its chat card.
-    payer_name = next((m["name"] for m in group["members"] if m["user_id"] == paid_by), "Someone")
+    payer_name = next((m["name"] for m in group["members"] if m["user_id"] == paid_by), None)
+    if not payer_name:
+        # R100M — paid_by may be a synthetic `pi:<phone>` id when the
+        # expense is logged on behalf of a pending invite.
+        if paid_by.startswith("pi:"):
+            payer_name = f"+91 {paid_by[3:]}"
+        else:
+            payer_name = "Someone"
     member_count = len(splits)
-    split_member_names = [next((m["name"] for m in group["members"] if m["user_id"] == uid), "?") for uid in splits.keys()]
+    def _resolve_name(uid: str) -> str:
+        m = next((m for m in group["members"] if m["user_id"] == uid), None)
+        if m:
+            return m["name"]
+        if uid.startswith("pi:"):
+            return f"+91 {uid[3:]}"
+        return "?"
+    split_member_names = [_resolve_name(uid) for uid in splits.keys()]
     _msg_now = utc_now()
 
     expense_id_holder: Dict[str, Optional[str]] = {"id": None}

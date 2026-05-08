@@ -18,6 +18,16 @@ import { BR_COLORS, BR_TYPE, BR_SPACE, BR_BORDER } from '../../utils/brutalist';
 const MONO = Platform.select({ ios: 'Menlo', android: 'monospace' });
 const MIN = 15000, MAX = 500000, STEP = 5000;
 
+// Round 99F — band labels for the peer-anchor copy. Replaces the
+// inscrutable "households like yours" with a concrete bracket.
+function incomeBandLabel(n: number): string {
+  if (n < 25000)  return 'households earning under ₹25k';
+  if (n < 50000)  return 'households at ₹25k–₹50k';
+  if (n < 100000) return 'households at ₹50k–₹1L';
+  if (n < 200000) return 'households at ₹1L–₹2L';
+  return 'households earning ₹2L+';
+}
+
 function fmtINR(n: number): string {
   return '₹' + Math.round(n).toLocaleString('en-IN');
 }
@@ -50,7 +60,11 @@ export default function OnboardingIncome() {
   return (
     <SafeAreaView style={styles.container}>
       <View style={styles.inner}>
-        <Text style={styles.kicker}>STEP 1/1</Text>
+        {/* Round 99G — "STEP 1/1" was confusing: either it's the only
+            step (so why number it?) or implies more steps (a lie that
+            erodes trust on the FIRST screen of TTFV<45s). Replaced
+            with an honest, anchoring kicker. */}
+        <Text style={styles.kicker}>QUICK SETUP · 30 SECONDS</Text>
         <Text style={styles.h1}>What's your monthly take-home?</Text>
         <Text style={styles.sub}>
           We use this to seed your diagnostic score and find your biggest leak.
@@ -72,15 +86,27 @@ export default function OnboardingIncome() {
           maximumTrackTintColor={BR_COLORS.line}
           thumbTintColor={BR_COLORS.ink}
         />
+        {/* Round 99F — explicit 5-tick anchors. The slider thumb at
+            ₹50K sits at ~7% of the [15K-500K] range and visually looks
+            like the slider didn't move. Tick labels give the user a
+            mental map of where they actually are. */}
         <View style={styles.markers}>
           <Text style={styles.marker}>₹15k</Text>
+          <Text style={styles.marker}>₹50k</Text>
+          <Text style={styles.marker}>₹1L</Text>
+          <Text style={styles.marker}>₹2L</Text>
           <Text style={styles.marker}>₹5L</Text>
         </View>
 
         <View style={styles.anchor}>
           <Text style={styles.anchorNum}>{anchorPct}%</Text>
           <Text style={styles.anchorTxt}>
-            is what households like yours typically save.{'\n'}Top 25% save much more.
+            {/* Round 99F — coherent copy. Old: "is what households like
+                yours typically save. Top 25% save much more." was
+                contradictory ("typically" implies majority; "Top 25%"
+                implies median). New: states the median directly. */}
+            {`is the median savings rate for ${incomeBandLabel(income)}.`}{'\n'}
+            <Text style={styles.anchorTxtBold}>{`We'll show you how to beat it.`}</Text>
           </Text>
         </View>
 
@@ -127,6 +153,7 @@ const styles = StyleSheet.create({
   },
   anchorNum: { fontSize: 34, fontWeight: '900', color: BR_COLORS.ink, fontFamily: MONO },
   anchorTxt: { flex: 1, fontSize: 12, color: BR_COLORS.ink, lineHeight: 16 },
+  anchorTxtBold: { fontWeight: '900', color: BR_COLORS.accent, letterSpacing: -0.1 },
   err: { fontSize: 12, color: BR_COLORS.negative ?? '#C62828', marginTop: 12 },
   cta: {
     marginTop: BR_SPACE.lg, backgroundColor: BR_COLORS.ink,

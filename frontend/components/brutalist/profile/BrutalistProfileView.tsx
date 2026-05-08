@@ -21,12 +21,47 @@
  *   • Danger zone = outline red, no fill.
  */
 import React from 'react';
-import { View, Text, ScrollView, StyleSheet, Pressable, RefreshControl } from 'react-native';
+import { View, Text, ScrollView, StyleSheet, Pressable, RefreshControl, Linking, Platform } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Image } from 'expo-image';
 import { Ionicons } from '@expo/vector-icons';
+import Toast from 'react-native-toast-message';
+import { router } from 'expo-router';
 
 import { BR_COLORS, BR_SPACE, BR_TYPE, BR_BORDER } from '../../../utils/brutalist';
+import PremiumPlanSection from '../../profile/PremiumPlanSection';
+// Round 100X — Mascot evolution surface on Profile. Honestly gated:
+// hidden for txnCount === 0 (cold-start), then evolves Spark → Saver
+// → Sage → Legend based on REAL streak days. Tier is earned, not faked.
+import MascotLevelCard from '../../mascot/MascotLevelCard';
+// Round 100Z — Light/Dark/System theme toggle for the new
+// Neo-Brutalism palette. Lives under "PREFERENCES" in the Profile.
+import NBThemeToggle from '../../neo/NBThemeToggle';
+
+// R100I — soft-route helper. New Profile rows reference screens
+// that may not exist yet (export, feedback, rate, permissions).
+// Instead of crashing into +not-found, we show a polite "Coming
+// soon" toast — keeping the section visible while signalling that
+// the affordance is real and on the roadmap.
+const softRoute = (path: string, fallbackTitle: string) => () => {
+  try { router.push(path as any); }
+  catch {
+    Toast.show({
+      type: 'info',
+      text1: fallbackTitle,
+      text2: 'Coming soon',
+      position: 'bottom',
+    });
+  }
+};
+const openStoreReview = () => {
+  const url = Platform.OS === 'ios'
+    ? 'itms-apps://apps.apple.com/app/id0000000000?action=write-review'
+    : 'market://details?id=app.mintu';
+  Linking.openURL(url).catch(() => {
+    Toast.show({ type: 'info', text1: 'Rate MintU', text2: 'Coming soon to your store', position: 'bottom' });
+  });
+};
 
 // ─── Props ──────────────────────────────────────────────────────────
 export interface BrutalistProfileProps {
@@ -83,6 +118,19 @@ export interface BrutalistProfileProps {
 
   onLogout: () => void;
   onGoDeleteAccount: () => void;
+
+  /**
+   * R100G — Premium card was moved OUT of Home into Profile per user
+   * directive ("Move the premium card to profile without fail").
+   * Optional so legacy callsites that haven't wired the route yet
+   * still compile; the section degrades to a no-op tap if absent.
+   */
+  onGoPremium?: () => void;
+
+  /** R100T — gate for monetization surfaces (Premium plan card).
+   *  When false, suppresses the upsell so cold-start users see Profile
+   *  as a clean Control Center, not a paywall. Default true (legacy). */
+  showUpsells?: boolean;
 }
 
 // ─── Component ──────────────────────────────────────────────────────
@@ -146,6 +194,9 @@ export default function BrutalistProfileView(p: BrutalistProfileProps) {
               hitSlop={4}
               style={styles.emailRow}
             >
+              {/* R100U — When no email is set, show a soft optional hint
+                  instead of a bare "Add email" placeholder that read like
+                  the app was demanding more from the user without reason. */}
               <Text
                 style={[
                   styles.emailTxt,
@@ -153,7 +204,7 @@ export default function BrutalistProfileView(p: BrutalistProfileProps) {
                 ]}
                 numberOfLines={1}
               >
-                {p.email || 'Add email'}
+                {p.email || 'Email — optional, for receipts'}
               </Text>
             </Pressable>
           </View>
@@ -172,29 +223,72 @@ export default function BrutalistProfileView(p: BrutalistProfileProps) {
         </View>
 
         {/* ══════ 02 QUICK CONTROLS — compact 3-chip row ════════════ */}
+        {/* R100U — Renamed "Progress" → "Reports". "Progress" was
+            ambiguous (progress on what? goals? mission? streaks?) and
+            duplicated meaning with the Goals chip next to it. "Reports"
+            is unambiguous and matches what the destination actually shows. */}
         <View style={styles.chipRow}>
           <Chip icon="card-outline"   label="Payments" onPress={p.onOpenPaymentMethods} testID="chip-payments" />
           <Chip icon="flag-outline"   label="Goals"    onPress={p.onGoGoals}           testID="chip-goals" />
-          <Chip icon="trophy-outline" label="Progress" onPress={p.onGoRewards}         testID="chip-progress" />
+          <Chip icon="bar-chart-outline" label="Reports" onPress={p.onGoRewards}        testID="chip-progress" />
         </View>
 
+        {/* ══════ 02b PLAN — Premium card (R100G + R100T gate) ═══════
+            R100T — Suppressed for cold-start users. The Premium upsell
+            now only renders for users who have crossed the "earned the
+            pitch" threshold (≥3 txns OR ≥1 budget OR ≥1 split group).
+            New users see Profile without an upgrade pitch they can't
+            even contextualize yet. */}
+        {p.showUpsells !== false ? (
+          <PremiumPlanSection onPress={p.onGoPremium} />
+        ) : null}
+
+        {/* ══════ R100X · MASCOT EVOLUTION ══════════════════════════════
+            Mintu's progression card (Spark → Saver → Sage → Legend).
+            Self-gates via txnCount === 0 → returns null. The view is
+            inserted between Premium and Security so it sits in the
+            "rewards/identity" zone of the Profile, not the utility
+            zone. Tier is earned from REAL streak days only. */}
+        <MascotLevelCard />
+
         {/* ══════ 03 SECURITY ═══════════════════════════════════════ */}
+        {/* R100U — Added one-line subtitles to demystify mPIN vs App lock
+            vs Biometric. Three lock concepts on one screen confused
+            first-time users ("which one is which?"). Now each row tells
+            you what it is and when it triggers, in plain language. */}
         <Section title="Security">
           <Row label="Trusted devices" onPress={p.onOpenTrustedDevices} testID="row-devices" />
-          <Row label={p.hasPinSet ? 'Change mPIN' : 'Set mPIN'} value={pinValue} onPress={p.onChangePin} testID="row-pin" />
+          <Row
+            label={p.hasPinSet ? 'Change mPIN' : 'Set mPIN'}
+            value={pinValue}
+            sub="4-digit code · used when biometric fails"
+            onPress={p.onChangePin}
+            testID="row-pin"
+          />
           <Row
             label={`${p.bioLabel} login`}
             value={bioValue}
+            sub="Face / fingerprint to open MintU"
             onPress={p.bioHwAvail ? p.onToggleBio : undefined}
             testID="row-bio"
           />
-          <Row label="App lock" value={appLockValue} onPress={p.onToggleAppLock} last testID="row-app-lock" />
+          <Row
+            label="App lock"
+            value={appLockValue}
+            sub="Re-asks for unlock when you reopen the app"
+            onPress={p.onToggleAppLock}
+            last
+            testID="row-app-lock"
+          />
         </Section>
 
-        {/* ══════ 04 MONEY ══════════════════════════════════════════ */}
-        {/* Payments lives in Quick Controls above. Money section owns
-            connection-level concerns only (banks + Gmail auto-import). */}
-        <Section title="Money">
+        {/* ══════ 04 MONEY & LINKED ACCOUNTS (merged R100U) ════════════
+            Previously this lived in two adjacent sections (MONEY and
+            LINKED ACCOUNTS). They cover the same conceptual area —
+            "what is connected to my money" — so we collapsed them into
+            one. Reduces total Profile sections from 9 → 8 and removes
+            a duplicate Gmail row that confused users. */}
+        <Section title="Money & linked accounts">
           <Row
             label="Bank connections"
             onPress={p.onGoBankConnections || p.onOpenPaymentMethods}
@@ -202,17 +296,25 @@ export default function BrutalistProfileView(p: BrutalistProfileProps) {
           />
           <Row
             label="Subscriptions"
-            value="Recurring leaks"
+            value="Your subscriptions"
             onPress={p.onGoSubscriptions}
             testID="row-subscriptions"
           />
           <Row
             label="Auto-import (Gmail)"
-            value={gmailText}
+            value={p.gmailConnected ? 'CONNECTED' : 'NOT LINKED'}
             muted={!p.gmailConnected}
+            sub="Reads bank alerts only — never personal mail"
             onPress={p.onGoGmail}
-            last
             testID="row-gmail"
+          />
+          <Row
+            label="UPI ID"
+            value="Add for instant settlements"
+            muted
+            onPress={p.onOpenPaymentMethods}
+            last
+            testID="row-upi"
           />
         </Section>
 
@@ -222,17 +324,83 @@ export default function BrutalistProfileView(p: BrutalistProfileProps) {
           <Row label="Notifications" onPress={p.onOpenNotifs} last testID="row-notifs" />
         </Section>
 
+        {/* Round 100Z — Light/Dark/System theme toggle for the new
+            Neo-Brutalism palette. Sits in Preferences as a segmented
+            control, not a Row, because it's a 3-state selector. */}
+        <NBThemeToggle />
+
+        {/* ══════ 06b PRIVACY & PERMISSIONS — R100I ════════════════ */}
+        {/* User feedback: Profile Control Center was missing critical
+            sections (privacy, permissions, data export, linked
+            accounts). These sit between Preferences and Help. */}
+        <Section title="Privacy & Permissions">
+          <Row
+            label="App permissions"
+            value="Camera · SMS · Notifications"
+            onPress={softRoute('/profile/permissions', 'App permissions')}
+            testID="row-permissions"
+          />
+          <Row
+            label="Privacy policy"
+            onPress={softRoute('/legal/privacy', 'Privacy policy')}
+            testID="row-privacy"
+          />
+          <Row
+            label="Terms of service"
+            onPress={softRoute('/legal/terms', 'Terms of service')}
+            testID="row-terms"
+          />
+          <Row
+            label="Export my data"
+            value="JSON · CSV"
+            onPress={softRoute('/profile/export-data', 'Export my data')}
+            last
+            testID="row-export"
+          />
+        </Section>
+
+        {/* ══════ 06c LINKED ACCOUNTS — merged into Money section above (R100U) ══════ */}
+
         {/* ══════ 07 HELP ═══════════════════════════════════════════ */}
         <Section title="Help">
           <Row label="Help & support" onPress={p.onOpenHelp} testID="row-help" />
+          <Row
+            label="Send feedback"
+            onPress={softRoute('/profile/feedback', 'Send feedback')}
+            testID="row-feedback"
+          />
+          <Row
+            label="Rate MintU"
+            value="Help us grow"
+            onPress={openStoreReview}
+            testID="row-rate"
+          />
           <Row label="About MintU" onPress={p.onGoAbout} last testID="row-about" />
         </Section>
 
-        {/* ══════ 08 DANGER ZONE ════════════════════════════════════ */}
+        {/* ══════ 07b LOG OUT ═══════════════════════════════════════
+            R100T — Logout pulled OUT of Danger Zone. Logging out is
+            a normal, recoverable action; pairing it next to "Delete
+            account" inflated anxiety for no reason. It now sits in
+            its own neutral row above the danger zone. */}
+        <View style={{ marginTop: BR_SPACE.xl }}>
+          <SectionHeader title="Account" />
+          <View style={{ marginTop: BR_SPACE.md }}>
+            <Row
+              label="Log out"
+              value="See you soon"
+              onPress={p.onLogout}
+              last
+              testID="row-logout"
+            />
+          </View>
+        </View>
+
+        {/* ══════ 08 DANGER ZONE ════════════════════════════════════
+            Now contains only truly destructive, irreversible actions. */}
         <View style={{ marginTop: BR_SPACE.xl }}>
           <SectionHeader title="Danger zone" danger />
           <View style={{ marginTop: BR_SPACE.md, gap: BR_SPACE.sm }}>
-            <DangerBtn label="Log out"        onPress={p.onLogout}           testID="danger-logout" />
             <DangerBtn label="Delete account" onPress={p.onGoDeleteAccount}  testID="danger-delete" />
           </View>
         </View>
@@ -241,7 +409,7 @@ export default function BrutalistProfileView(p: BrutalistProfileProps) {
         <View style={styles.footer}>
           <View style={styles.footerRule} />
           <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginTop: BR_SPACE.sm }}>
-            <Text style={[BR_TYPE.labelSm, { color: BR_COLORS.muted }]}>BANK-GRADE · DATA IN INDIA</Text>
+            <Text style={[BR_TYPE.labelSm, { color: BR_COLORS.muted }]}>BANK-GRADE · DATA STAYS IN INDIA</Text>
             <Text style={[BR_TYPE.labelSm, { color: BR_COLORS.muted }]}>V1.0.0</Text>
           </View>
         </View>
@@ -272,10 +440,14 @@ function Section({ title, children }: { title: string; children: React.ReactNode
 }
 
 function Row({
-  label, value, onPress, muted, last, testID,
+  label, value, sub, onPress, muted, last, testID,
 }: {
   label: string;
   value?: string;
+  /** R100U — Optional one-line clarifier shown below the label.
+   *  Used to demystify dense settings rows (e.g. "mPIN", "App lock")
+   *  where a 1-word label isn't enough for first-time users. */
+  sub?: string;
   onPress?: () => void;
   muted?: boolean;
   last?: boolean;
@@ -283,9 +455,24 @@ function Row({
 }) {
   const content = (
     <View style={[styles.row, !last && styles.rowDivider]}>
-      <Text style={[BR_TYPE.body, styles.rowLabel]} numberOfLines={1}>
-        {label}
-      </Text>
+      <View style={{ flex: 1, minWidth: 0 }}>
+        <Text style={[BR_TYPE.body, styles.rowLabel]} numberOfLines={1}>
+          {label}
+        </Text>
+        {sub ? (
+          <Text
+            style={{
+              fontSize: 11,
+              color: BR_COLORS.quiet,
+              marginTop: 2,
+              lineHeight: 14,
+            }}
+            numberOfLines={1}
+          >
+            {sub}
+          </Text>
+        ) : null}
+      </View>
       {value ? (
         <Text
           style={[

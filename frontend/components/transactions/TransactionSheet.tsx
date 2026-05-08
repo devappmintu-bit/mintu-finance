@@ -394,7 +394,7 @@ const useStyles = makeStyles((c) => ({
 
   // Quick chips
   quickRow: { flexDirection: 'row', justifyContent: 'center', gap: 8, marginTop: 14, flexWrap: 'wrap' },
-  quickChip: { paddingHorizontal: 14, paddingVertical: 8, borderRadius: 999, backgroundColor: c.bg.elevated, borderWidth: 1, borderColor: c.gray[200] },
+  quickChip: { paddingHorizontal: 14, paddingVertical: 8, borderRadius: 0, backgroundColor: c.bg.elevated, borderWidth: 1, borderColor: c.gray[200] },
   quickTxt: { fontSize: 13, fontWeight: '700', color: c.text.primary },
 
   // Section labels

@@ -307,7 +307,7 @@ const useStyles = makeStyles((c) => ({
   tail: { fontSize: 11, fontWeight: '800' },
 
   chipsRow: { flexDirection: 'row', gap: 6, marginTop: 10, flexWrap: 'wrap' },
-  chip: { flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: 'rgba(255,255,255,0.7)', borderWidth: 1, borderColor: c.gray[200], borderRadius: 999, paddingHorizontal: 8, paddingVertical: 3 },
+  chip: { flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: 'rgba(255,255,255,0.7)', borderWidth: 1, borderColor: c.gray[200], borderRadius: 0, paddingHorizontal: 8, paddingVertical: 3 },
   chipT: { fontSize: 10.5, color: c.text.secondary, fontWeight: '700' },
 
   warnBanner: { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 10, paddingVertical: 6, paddingHorizontal: 10, borderRadius: 0, backgroundColor: c.accent.brandSoft, borderWidth: 1, borderColor: c.accent.brandSoft },

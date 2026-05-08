@@ -118,13 +118,19 @@ function EmptyStateImpl({
 }
 
 // Wrapped in its own component so the import only happens when needed —
-// MintuMascot pulls in react-native-reanimated worklets which we don't
+// MascotPresence pulls in react-native-reanimated worklets which we don't
 // want loaded on every Home/Transactions screen that uses EmptyState.
+//
+// Round 100X — upgraded from plain MintuMascot to MascotPresence so the
+// empty-state mascot now reflects the user's actual mood (panicked /
+// sleepy / encouraging / etc.) via the global `useMascotMood` engine.
+// `showWhenGated` is true here because empty-states ARE the cold-start
+// surface — users without txns SHOULD see Mintu in this exact context.
 const MascotSlot = React.memo(function MascotSlot() {
-  const MintuMascot = require('../MintuMascot').default;
+  const MascotPresence = require('../mascot/MascotPresence').default;
   return (
     <View style={{ marginBottom: SPACE.sm }}>
-      <MintuMascot size={120} state="idle" />
+      <MascotPresence size={120} showWhenGated />
     </View>
   );
 });

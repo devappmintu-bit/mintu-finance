@@ -141,7 +141,7 @@ const useStyles = makeStyles((c) => ({
   head: { flexDirection: 'row', alignItems: 'flex-start', gap: 10 },
   label: { fontSize: 10.5, fontWeight: '700', color: c.text.muted, letterSpacing: 0.6, textTransform: 'uppercase' },
   commentary: { fontSize: 14, fontWeight: '700', marginTop: 4, letterSpacing: -0.2, lineHeight: 18 },
-  deltaChip: { flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: 9, paddingVertical: 4, borderRadius: 999 },
+  deltaChip: { flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: 9, paddingVertical: 4, borderRadius: 0 },
   deltaTxt: { fontSize: 11.5, fontWeight: '900' },
 
   barsRow: { flexDirection: 'row', gap: 12, marginTop: 14 },
@@ -152,12 +152,12 @@ const useStyles = makeStyles((c) => ({
   barVal: { fontSize: 12.5, fontWeight: '700', color: c.text.primary, marginTop: 6 },
 
   rewardRow: { flexDirection: 'row', gap: 6, marginTop: 12, flexWrap: 'wrap' },
-  rewardChip: { flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: 8, paddingVertical: 4, borderRadius: 999, backgroundColor: c.bg.primary, borderWidth: 1, borderColor: c.border.subtle },
+  rewardChip: { flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: 8, paddingVertical: 4, borderRadius: 0, backgroundColor: c.bg.primary, borderWidth: 1, borderColor: c.border.subtle },
   rewardEmoji: { fontSize: 11 },
   rewardTxt: { fontSize: 11, fontWeight: '700', color: c.text.primary },
 
   ctaRow: { marginTop: 10, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 10 },
   ctaTxt: { fontSize: 12, fontWeight: '800' },
-  sharePill: { flexDirection: 'row', alignItems: 'center', gap: 5, paddingHorizontal: 10, paddingVertical: 6, borderRadius: 999, borderWidth: 1 },
+  sharePill: { flexDirection: 'row', alignItems: 'center', gap: 5, paddingHorizontal: 10, paddingVertical: 6, borderRadius: 0, borderWidth: 1 },
   shareTxt: { fontSize: 11.5, fontWeight: '800', letterSpacing: -0.1 },
 }));

@@ -17,6 +17,8 @@ import {
   createBudget, updateBudget, deleteBudget,
 } from '../../services/budgets';
 import { COLORS, RADIUS, SPACING, CATEGORIES, CATEGORY_LIST, SHADOW, useAppColors } from '../../utils/theme';
+// R100AC — Neo palette for theme-aware bg.
+import { useNeoPalette } from '../../store/neoTheme';
 import { makeStyles } from '../../utils/makeStyles';
 import PressableGlass from '../../components/PressableGlass';
 import BudgetCard from '../../components/budget/BudgetCard';
@@ -277,10 +279,15 @@ function BudgetScreen() {
     } finally { setSharing(false); }
   };
 
-  if (loading) return <SafeAreaView style={s.bg}><BudgetSkeleton /></SafeAreaView>;
+  // R100AC — Theme-aware bg via neo palette. Hook MUST sit ABOVE
+  // any early-return below to keep hook count stable across renders.
+  const neoPalette = useNeoPalette();
+  const safeBg = { backgroundColor: neoPalette.bg };
+
+  if (loading) return <SafeAreaView style={[s.bg, safeBg]}><BudgetSkeleton /></SafeAreaView>;
 
   return (
-    <SafeAreaView style={s.bg}>
+    <SafeAreaView style={[s.bg, safeBg]}>
       {/* HERO — v10 Brutalist. Opens SmartEntry internally. */}
       <View style={s.heroPad}>
         <BudgetHero
@@ -327,19 +334,32 @@ function BudgetScreen() {
             />
           ) : null}
           <BudgetSummaryDonut budgets={budgets} />
-          {/* Round 83 P1 — PremiumUnlockTeaser demoted to PASSIVE. */}
-          <PassivePane density="compact" style={{ paddingVertical: 0, paddingHorizontal: 0 }}>
-            <PremiumUnlockTeaser context="budget_forecast" />
-          </PassivePane>
-          {/* AI Suggestions */}
-          {suggestions?.suggestions?.length > 0 && (
+          {/* R100T — Suppress Premium teaser on cold-start. No point */}
+          {/* upselling "90-day spending forecast" before the user has */}
+          {/* configured a single budget or logged enough spend to forecast. */}
+          {budgets.length >= 1 ? (
+            <PassivePane density="compact" style={{ paddingVertical: 0, paddingHorizontal: 0 }}>
+              <PremiumUnlockTeaser context="budget_forecast" />
+            </PassivePane>
+          ) : null}
+          {/* AI Suggestions — R100S gate: only render when (a) we have
+              budgets to suggest changes to, AND (b) at least one
+              suggestion has a NON-ZERO savings potential. Previously
+              this card showed "food → Save ₹0" and other empty
+              recommendations on cold-start accounts, breaking the
+              "no fake AI on empty data" trust contract. */}
+          {budgets.length > 0 &&
+            (suggestions?.suggestions?.filter((s: any) => Number(s.savings_potential || 0) >= 1).length || 0) > 0 && (
             <View style={s.suggestCard}>
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 6 }}>
                 <Ionicons name="bulb" size={16} color={c.accent.secondary} />
                 <Text style={s.suggestTitle}>{t('ai_suggestions', lang)}</Text>
               </View>
               <Text style={s.suggestMsg}>{suggestions.message}</Text>
-              {suggestions.suggestions.slice(0, 3).map((sg: any, i: number) => (
+              {suggestions.suggestions
+                .filter((sg: any) => Number(sg.savings_potential || 0) >= 1)
+                .slice(0, 3)
+                .map((sg: any, i: number) => (
                 <View key={i} style={s.suggestRow}>
                   <Text style={s.suggestCat}>{sg.category}</Text>
                   <Text style={s.suggestSave}>Save ₹{sg.savings_potential?.toFixed(0)}</Text>
@@ -352,18 +372,19 @@ function BudgetScreen() {
             </View>
           )}
 
-          {/* Round 83 P3 — collapsible category groups + AI reallocate
-              banner. Replaces the previous flat BudgetCard list. */}
+          {/* R100T — Cleaned redundant CTAs in cold-start. The hero already
+              has a "NEW BUDGET" button at the top of this screen. The empty
+              state card below previously duplicated it (CREATE BUDGET) AND
+              added a confusingly-named "AUTO-SUGGEST" twin that opened the
+              same sheet. We now show ONE empty-state with NO action chips —
+              the user already sees the primary CTA in the hero. Less noise,
+              less decision paralysis. */}
           {budgets.length === 0 ? (
             <PassivePane density="compact" style={{ paddingVertical: 0, paddingHorizontal: 0, marginTop: 12 }}>
               <EmptyState
                 mascot
-                title="🧠 No budgets yet"
-                prompt="Set your first budget to unlock overspend alerts & AI reallocation tips"
-                actionLabel={t('create_budget', lang)}
-                onAction={openAdd}
-                secondaryLabel="AUTO-SUGGEST"
-                onSecondary={openAdd}
+                title="No budgets yet"
+                prompt="Tap NEW BUDGET above to set your first cap. I'll watch your spend and flag overshoots."
               />
             </PassivePane>
           ) : (

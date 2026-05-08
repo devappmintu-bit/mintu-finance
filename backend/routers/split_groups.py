@@ -220,17 +220,27 @@ async def get_split_groups(user_id: str = Depends(get_current_user)):
 async def add_members_to_group(group_id: str, data: dict, user_id: str = Depends(get_current_user)):
     """Add new members to an existing split group.
 
-    Hardened (Round 30): No longer auto-creates placeholder user docs for
-    unregistered phones — that created a spam vector (any caller could
-    flood the users collection by adding random phones). Instead we now
-    mirror the contract of POST /split/groups: registered phones become
-    real members, unregistered phones go into `pending_invites` and
-    auto-convert to members when that phone signs up later.
+    Round 100O — accepts EITHER:
+      • {"phones": ["9876543210", ...]}                       (legacy)
+      • {"entries": [{"phone": "9876543210", "name": "Rohan"}]} (new)
+    Names attached to pending_invites get echoed back through /manage,
+    so the chat feed renders proper labels instead of leaking raw phone
+    numbers ("+91 9497846497" → "Rohan").
     """
     if not ObjectId.is_valid(group_id):
         raise_invalid_id("group_id")
-    phones = data.get("phones", [])
-    if not phones:
+
+    # Build a (phone, name) tuple list from either input shape.
+    raw_entries: list[tuple[str, str]] = []
+    if data.get("entries"):
+        for e in data["entries"]:
+            if isinstance(e, dict):
+                raw_entries.append((str(e.get("phone", "")), str(e.get("name", "")).strip()))
+    elif data.get("phones"):
+        for ph in data["phones"]:
+            raw_entries.append((str(ph), ""))
+
+    if not raw_entries:
         raise HTTPException(status_code=400, detail="Provide phone numbers to add")
 
     group = await db.split_groups.find_one({"_id": safe_oid(group_id, field_name="group_id"), "members.user_id": user_id})
@@ -245,20 +255,17 @@ async def add_members_to_group(group_id: str, data: dict, user_id: str = Depends
     # Phase 5 fix: batch-fetch phone→user mappings in a single $in query
     # instead of N serial find_one() calls (previously an N+1 hot path on
     # bulk-add operations).
-    normalized_phones = []
-    for phone in phones:
+    normalized: list[tuple[str, str]] = []
+    for phone, name in raw_entries:
         p = phone.strip().replace("+91", "").replace(" ", "")[-10:]
         if len(p) == 10 and p.isdigit() and p not in existing_phones and p not in existing_invites:
-            normalized_phones.append(p)
+            normalized.append((p, name))
     phone_to_user = {}
-    if normalized_phones:
-        async for u in db.users.find({"phone": {"$in": normalized_phones}}):
+    if normalized:
+        async for u in db.users.find({"phone": {"$in": [p for p, _ in normalized]}}):
             phone_to_user[u["phone"]] = u
 
-    for phone in phones:
-        p = phone.strip().replace("+91", "").replace(" ", "")[-10:]
-        if len(p) != 10 or not p.isdigit():
-            continue
+    for p, hint_name in normalized:
         if p in existing_phones or p in existing_invites:
             continue
 
@@ -266,7 +273,7 @@ async def add_members_to_group(group_id: str, data: dict, user_id: str = Depends
         if member:
             new_member = {
                 "user_id": str(member["_id"]),
-                "name": member.get("name", f"+91 {p}"),
+                "name": member.get("name") or hint_name or f"+91 {p}",
                 "phone": p,
             }
             await db.split_groups.update_one(
@@ -276,14 +283,18 @@ async def add_members_to_group(group_id: str, data: dict, user_id: str = Depends
             existing_phones.add(p)
             added.append(new_member["name"])
         else:
-            # Not a registered user yet — queue as pending invite, do NOT
-            # auto-create a placeholder user doc (spam vector closed).
+            # Not a registered user yet — queue as pending invite with
+            # the friendly hint_name so we never have to leak the raw
+            # phone in UI again.
+            invite_doc = {"phone": p, "invited_at": utc_now()}
+            if hint_name:
+                invite_doc["name"] = hint_name
             await db.split_groups.update_one(
                 {"_id": safe_oid(group_id, field_name="group_id")},
-                {"$push": {"pending_invites": {"phone": p, "invited_at": utc_now()}}},
+                {"$push": {"pending_invites": invite_doc}},
             )
             existing_invites.add(p)
-            invited.append(f"+91 {p}")
+            invited.append(hint_name or f"+91 {p}")
 
     if not added and not invited:
         return {
@@ -322,15 +333,38 @@ async def get_group_management(group_id: str, user_id: str = Depends(get_current
             "is_admin": is_admin,
             "initial": (m.get("name", "?")[0]).upper(),
         })
-    
+
+    # Pending invites — phones added during create/add-members that
+    # don't yet correspond to a registered MintU user. Surfacing them
+    # here is the fix for the UX bug where the group list said
+    # "6 members" but settings said "1 member" (because /manage was
+    # silently dropping invitees). Returning them lets the UI render a
+    # consistent "INVITED" row and dedupe new phone entries.
+    pending = []
+    for pi in (group.get("pending_invites") or []):
+        ph = pi.get("phone", "")
+        if not ph:
+            continue
+        pending.append({
+            "phone": ph,
+            "name": pi.get("name") or "",
+            "invited_at": (pi.get("invited_at").isoformat()
+                           if pi.get("invited_at") and hasattr(pi.get("invited_at"), "isoformat")
+                           else pi.get("invited_at")),
+        })
+
     return {
         "id": str(group["_id"]),
         "name": group.get("name", ""),
         "members": members,
+        "pending_invites": pending,
         "member_count": len(members),
+        "pending_count": len(pending),
+        "total_count": len(members) + len(pending),
         "created_by": group.get("created_by", members[0]["user_id"] if members else ""),
         "is_admin": user_id == group.get("created_by", members[0]["user_id"] if members else ""),
         "invite_code": f"MINTU-{str(group['_id'])[-6:].upper()}",
+        "group_code": group.get("group_code"),
     }
 
 

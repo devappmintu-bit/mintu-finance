@@ -34,6 +34,10 @@ const en: Translations = {
   // ---- Common / Actions ----
   app_name: 'MintU',
   welcome_back: 'WELCOME BACK',
+  // Round 99F — first-visit greeting. Used when txnCount===0 (i.e. the
+  // very first Home open). Avoids the trust-cracking "WELCOME BACK"
+  // on a screen the user has literally never seen before.
+  welcome_first: 'HI',
   hello: 'Hi',
   save: 'Save',
   update: 'Update',

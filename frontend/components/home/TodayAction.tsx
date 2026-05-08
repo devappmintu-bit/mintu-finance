@@ -44,7 +44,7 @@ export default function TodayAction({ insight }: Props) {
       accessibilityLabel={`Today's action: ${insight.headline}. Tap to ask Mintu.`}
       style={({ pressed }) => [styles.card, BR_STAMP.accent, pressed && styles.pressed]}
     >
-      <Text style={styles.kicker}>TODAY · DO THIS</Text>
+      <Text style={styles.kicker}>TODAY</Text>
       <Text style={styles.headline} numberOfLines={2}>{insight.headline}</Text>
       <Text style={styles.body} numberOfLines={2}>{insight.body}</Text>
 

@@ -18,14 +18,14 @@
  *   // open: sheetRef.current?.present();  close: sheetRef.current?.dismiss();
  */
 import React, { forwardRef, useCallback, useImperativeHandle, useMemo, useRef } from 'react';
-import { StyleSheet, View, Platform } from 'react-native';
+import { StyleSheet, View } from 'react-native';
 import BottomSheet, {
   BottomSheetModal,
   BottomSheetView,
   BottomSheetBackdrop,
   BottomSheetBackdropProps,
 } from '@gorhom/bottom-sheet';
-import { BlurView } from 'expo-blur';
+// R100J — Brutalist enforcement: BlurView dropped (no glass).
 import { COLORS } from '../../utils/theme';
 import { makeStyles } from '../../utils/makeStyles';
 
@@ -40,6 +40,11 @@ type Props = {
   onDismiss?: () => void;
 };
 
+// R100J — Brutalist enforcement. The legacy BlurView dimmer was the
+// last "glass" residue in this primitive (Round 81 already flattened
+// the sheet body itself). Replaced with a solid ink scrim — same
+// visual hierarchy minus the iOS blur cost. Android already used
+// the solid path.
 const BlurBackdrop = (props: BottomSheetBackdropProps) => (
   <BottomSheetBackdrop
     {...props}
@@ -47,12 +52,8 @@ const BlurBackdrop = (props: BottomSheetBackdropProps) => (
     disappearsOnIndex={-1}
     pressBehavior="close"
     opacity={0.7}
-    style={[props.style, StyleSheet.absoluteFillObject, { backgroundColor: 'rgba(0,0,0,0.6)' }]}
-  >
-    {Platform.OS !== 'android' ? (
-      <BlurView intensity={18} tint="dark" style={StyleSheet.absoluteFillObject} />
-    ) : null}
-  </BottomSheetBackdrop>
+    style={[props.style, StyleSheet.absoluteFillObject, { backgroundColor: 'rgba(10,10,10,0.78)' }]}
+  />
 );
 
 const GlassSheet = forwardRef<GlassSheetHandle, Props>(({ snapPoints = ['50%', '90%'], children, onDismiss }, ref) => {

@@ -479,13 +479,13 @@ const useStyles = makeStyles((c) => ({
   sect: { fontSize: 10.5, fontWeight: '800', color: c.gray[400], textTransform: 'uppercase' as const, letterSpacing: 0.5, marginTop: 16, marginBottom: 8 },
 
   tagRow: { flexDirection: 'row' as const, flexWrap: 'wrap' as const, gap: 6 },
-  tag: { paddingHorizontal: 10, paddingVertical: 5, borderRadius: 999, borderWidth: 1 },
+  tag: { paddingHorizontal: 10, paddingVertical: 5, borderRadius: 0, borderWidth: 1 },
   tagT: { fontSize: 11.5, fontWeight: '700' },
 
   tipRow: { flexDirection: 'row' as const, alignItems: 'center' as const, gap: 10, paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: c.gray[100] },
   bullet: { width: 22, height: 22, borderRadius: 0, backgroundColor: '#FFFBEB', alignItems: 'center' as const, justifyContent: 'center' as const },
   tipT: { flex: 1, fontSize: 13, color: '#374151', lineHeight: 18 },
-  saveChip: { backgroundColor: '#DCFCE7', paddingHorizontal: 8, paddingVertical: 3, borderRadius: 999 },
+  saveChip: { backgroundColor: '#DCFCE7', paddingHorizontal: 8, paddingVertical: 3, borderRadius: 0 },
   saveT: { fontSize: 10.5, fontWeight: '800', color: '#065F46' },
 
   actBtn: { flexDirection: 'row' as const, alignItems: 'center' as const, gap: 10, backgroundColor: c.accent.brandSoft, borderRadius: 0, paddingHorizontal: 14, paddingVertical: 12, marginBottom: 8, borderWidth: 1, borderColor: '#FED7AA' },
@@ -508,7 +508,7 @@ const useStyles = makeStyles((c) => ({
   // Soft offline notice — neutral tone, no red doom.
   offlineBar: { flexDirection: 'row' as const, alignItems: 'center' as const, gap: 8, marginTop: 14, backgroundColor: c.gray[50], borderRadius: 0, paddingHorizontal: 12, paddingVertical: 10, borderWidth: 1, borderColor: c.gray[200] },
   offlineT: { flex: 1, fontSize: 12, color: c.text.secondary, fontWeight: '600' },
-  retryBtn: { flexDirection: 'row' as const, alignItems: 'center' as const, gap: 4, backgroundColor: '#FFF7ED', paddingHorizontal: 10, paddingVertical: 5, borderRadius: 999, borderWidth: 1, borderColor: '#FED7AA' },
+  retryBtn: { flexDirection: 'row' as const, alignItems: 'center' as const, gap: 4, backgroundColor: '#FFF7ED', paddingHorizontal: 10, paddingVertical: 5, borderRadius: 0, borderWidth: 1, borderColor: '#FED7AA' },
   retryT: { fontSize: 11.5, fontWeight: '800', color: COLORS.accent.brand },
 
   // "Got it" close CTA — clear, full-width, never tiny.

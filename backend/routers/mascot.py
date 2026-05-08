@@ -197,6 +197,30 @@ _FALLBACK_LIBRARY: tuple[dict, ...] = (
     {"action": "tap", "text": "Let's make today count.", "tone": "motivating", "tag": "fb-login-tap-01"},
     {"action": "wave", "text": "Hey, welcome aboard \u2728", "tone": "playful", "tag": "fb-login-wave-02"},
     {"action": "float", "text": "Settling in \u2014 just a sec.", "tone": "calm", "tag": "fb-login-float-02"},
+    # ── Round 100X — Finance-contextual moments (mood-driven) ─────────
+    # These are written so the LLM has concrete examples of the
+    # personality voice to match. Tones cover the full Duolingo-grade
+    # range without breaking the home/login tone caps.
+    {"action": "peek", "text": "Coffee count looking suspicious \u2615\ufe0f", "tone": "witty", "tag": "fb-coffee-watch-01"},
+    {"action": "stretch", "text": "Salary day! Don\u2019t blow it in 24 hours.", "tone": "playful", "tag": "fb-salary-01"},
+    {"action": "tap", "text": "Food spending crossed budget. Yikes.", "tone": "witty", "tag": "fb-food-over-01"},
+    {"action": "sleep", "text": "11pm spending? Future you hates this.", "tone": "calm", "tag": "fb-late-night-01"},
+    {"action": "celebrate", "text": "Goal smashed! Quietly proud.", "tone": "celebratory", "tag": "fb-goal-hit-01"},
+    {"action": "wave", "text": "Three days. Keep showing up.", "tone": "motivating", "tag": "fb-streak-3-01"},
+    {"action": "celebrate", "text": "One week. You\u2019re built different.", "tone": "celebratory", "tag": "fb-streak-7-01"},
+    {"action": "fly", "text": "Under budget this week. Vibes.", "tone": "motivating", "tag": "fb-under-budget-01"},
+    {"action": "peek", "text": "Subscriptions adding up. Let\u2019s prune.", "tone": "witty", "tag": "fb-subs-01"},
+    {"action": "juggle", "text": "Splits piling up \u2014 wanna settle one?", "tone": "playful", "tag": "fb-split-pile-01"},
+    {"action": "stretch", "text": "Mid-month check-in \u2014 we good?", "tone": "calm", "tag": "fb-midmonth-01"},
+    {"action": "tap", "text": "Impulse alert. Take a breath first.", "tone": "witty", "tag": "fb-impulse-01"},
+    {"action": "spin", "text": "Patterns spotted. Let me show you.", "tone": "confident", "tag": "fb-patterns-01"},
+    {"action": "wave", "text": "Friday energy. Spend wisely.", "tone": "playful", "tag": "fb-friday-01"},
+    {"action": "celebrate", "text": "Smart-settled. That\u2019s peak adult.", "tone": "celebratory", "tag": "fb-smart-settle-01"},
+    {"action": "float", "text": "Quiet day on your books. Refreshing.", "tone": "calm", "tag": "fb-quiet-day-01"},
+    {"action": "bounce", "text": "Your money\u2019s working harder. Nice.", "tone": "motivating", "tag": "fb-money-working-01"},
+    {"action": "peek", "text": "Zomato again? I\u2019m noting it down.", "tone": "witty", "tag": "fb-zomato-01"},
+    {"action": "tap", "text": "30 days of consistency. That\u2019s rare.", "tone": "celebratory", "tag": "fb-streak-30-01"},
+    {"action": "wave", "text": "Pause. Check the budget. Then decide.", "tone": "calm", "tag": "fb-pause-01"},
 )
 
 

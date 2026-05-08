@@ -70,6 +70,7 @@ def register_domain_routers(api_router: APIRouter) -> None:
         admin_simulate as admin_simulate_router,
         onboarding as onboarding_router,
         subscriptions as subscriptions_router,
+        pulse as pulse_router,
     )
     for r in (
         auth_router,
@@ -91,6 +92,7 @@ def register_domain_routers(api_router: APIRouter) -> None:
         admin_simulate_router,
         onboarding_router,
         subscriptions_router,
+        pulse_router,
     ):
         api_router.include_router(r.router)
 

@@ -11,6 +11,8 @@ import { format } from 'date-fns/format';
 import { useLangStore } from '../../store/langStore';
 import { t, type LangCode } from '../../utils/i18n';
 import { COLORS, RADIUS, SPACING, CATEGORIES, CATEGORY_LIST, SHADOW, shadowStyle, useAppColors } from '../../utils/theme';
+// R100AC — Neo palette for theme-aware bg.
+import { useNeoPalette } from '../../store/neoTheme';
 import { makeStyles } from '../../utils/makeStyles';
 import { FlashList } from '@shopify/flash-list';
 import PressableGlass from '../../components/PressableGlass';
@@ -272,10 +274,16 @@ function TransactionsScreen() {
     [filteredTransactions]
   );
 
-  if (loading) return <SafeAreaView style={styles.container}><TransactionsSkeleton /></SafeAreaView>;
+  // R100AC — Theme-aware bg via neo palette. Hook MUST sit ABOVE
+  // any early-return below (`if (loading)`) to keep hook count
+  // stable across renders (lesson learned in R100Z home crash).
+  const neoPalette = useNeoPalette();
+  const safeBg = { backgroundColor: neoPalette.bg };
+
+  if (loading) return <SafeAreaView style={[styles.container, safeBg]}><TransactionsSkeleton /></SafeAreaView>;
 
   return (
-    <SafeAreaView style={styles.container}>
+    <SafeAreaView style={[styles.container, safeBg]}>
       {/* HERO — v10 Brutalist ledger card. Onboard via SmartEntry directly. */}
       <View style={styles.heroPad}>
         <TransactionsHero

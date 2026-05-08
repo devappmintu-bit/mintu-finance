@@ -70,6 +70,11 @@ class CoachReply(BaseModel):
     reply: str
     confidence: float = 0.85           # 0..1
     confidence_label: str = ""         # human-friendly trailer (empty if high)
+    # R100R — Source citation. A short italic provenance line shown
+    # under every AI reply ("Based on your last 30 days of UPI spends · 47 txns").
+    # Empty for cold-start (no data) — UI suppresses the line entirely
+    # so we never claim provenance we don't have.
+    source: str = ""
     actions: list[ActionCard] = Field(default_factory=list)
     suggestions: list[str] = Field(default_factory=list)
 
@@ -130,6 +135,24 @@ def _confidence_from_mode(data_mode: str, txn_count: int) -> tuple[float, str]:
     if txn_count < 30:
         return 0.78, "Based on the last 30 days of data."
     return 0.92, ""    # high — no trailer.
+
+
+def _source_from_mode(data_mode: str, txn_count: int) -> str:
+    """R100R — One-line provenance shown italic under every AI reply.
+
+    The user requested an explicit citation so the AI never feels like
+    it's hallucinating confidence. This line is grounded in the same
+    real numbers the LLM saw in its system prompt.
+
+    Cold-start (no data) returns "" — UI suppresses the line so we
+    never claim provenance we don't have.
+    """
+    if data_mode == "no_data" or txn_count == 0:
+        return ""
+    if data_mode == "partial":
+        return f"Based on your last {txn_count} transaction{'s' if txn_count != 1 else ''} this month."
+    # full data
+    return f"Based on your last 30 days of UPI spends · {txn_count} transactions."
 
 
 async def _extract_actions_from_text(text: str, user_id: str) -> tuple[str, list[ActionCard]]:
@@ -317,6 +340,7 @@ async def coach_chat(
 
     # 6. Confidence label.
     confidence, conf_label = _confidence_from_mode(data_mode, txn_count)
+    source = _source_from_mode(data_mode, txn_count)
 
     # 7. Background — refresh the rolling session summary.
     await coach_context.kick_summarise(user_id, body.message, cleaned_text)
@@ -325,6 +349,7 @@ async def coach_chat(
         reply=cleaned_text,
         confidence=confidence,
         confidence_label=conf_label,
+        source=source,
         actions=actions,
         suggestions=[],     # populated by /coach/suggestions endpoint
     )

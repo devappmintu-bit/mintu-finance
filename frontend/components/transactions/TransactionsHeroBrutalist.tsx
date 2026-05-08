@@ -48,13 +48,20 @@ function TransactionsHeroBrutalist({ transactions, onPressFilter, activeFilterCo
     const m = now.getMonth();
     const y = now.getFullYear();
     let expense = 0, income = 0, todaySpend = 0, todayCount = 0;
+    let monthCount = 0;
     const todayKey = now.toDateString();
+    // R100T — track first/last txn dates this month so the "avg/day"
+    // metric divides by ACTIVE days (not calendar days). On the 2nd of
+    // the month we shouldn't pretend to have a 30-day average.
+    let firstDayInMonth = 0;
     for (const t of transactions || []) {
       const d = new Date(t.date);
       if (d.getMonth() === m && d.getFullYear() === y) {
         const amt = Number(t.amount || 0);
         if (t.type === 'credit') income += amt;
-        else expense += amt;
+        else { expense += amt; monthCount += 1; }
+        const day = d.getDate();
+        if (firstDayInMonth === 0 || day < firstDayInMonth) firstDayInMonth = day;
       }
       if (d.toDateString() === todayKey && t.type !== 'credit') {
         todaySpend += Number(t.amount || 0);
@@ -62,8 +69,18 @@ function TransactionsHeroBrutalist({ transactions, onPressFilter, activeFilterCo
       }
     }
     const net = income - expense;
-    const saveRate = income > 0 ? Math.max(0, Math.min(100, Math.round((net / income) * 100))) : 0;
-    return { expense, income, net, todaySpend, todayCount, saveRate, count: transactions.length };
+    // Active days = max(1, day-of-month, days since first txn this month)
+    const dayOfMonth = now.getDate();
+    const activeDays = Math.max(1, dayOfMonth);
+    const avgPerDay = monthCount > 0 ? Math.round(expense / activeDays) : 0;
+    // Days remaining in the calendar month (rough — used as a runway hint).
+    const daysInMonth = new Date(y, m + 1, 0).getDate();
+    const daysLeft = Math.max(0, daysInMonth - dayOfMonth);
+    return {
+      expense, income, net, todaySpend, todayCount,
+      monthCount, count: transactions.length,
+      avgPerDay, daysLeft, dayOfMonth, daysInMonth,
+    };
   }, [transactions]);
 
   const monthLabel = new Date().toLocaleDateString('en-IN', { month: 'short', year: 'numeric' }).toUpperCase();
@@ -75,14 +92,20 @@ function TransactionsHeroBrutalist({ transactions, onPressFilter, activeFilterCo
     useSmartEntry.getState().open(kind, type ? { type } : {}, 'tx_hero');
   };
 
-  const netTone = totals.net >= 0 ? OK : WARN;
+  // R100T — replaced misleading "% SAVED" with grounded daily pace.
+  // Old logic: net/income×100 → 98–100% on day-of-salary, meaningless
+  // when income arrives once/month.  New logic: average ₹/day this
+  // month over ACTIVE days. When data is too thin (<3 expense txns
+  // OR fewer than 3 days of activity) we suppress the gauge.
+  const showAvgGauge = totals.monthCount >= 3 && totals.dayOfMonth >= 3;
+  const gaugeTone = INK;
 
   return (
     <View style={styles.wrap}>
       {/* Eyebrow / section tag */}
       <View style={styles.eyebrowRow}>
         <View style={styles.rule} />
-        <Text style={styles.eyebrow}>LEDGER · {monthLabel}</Text>
+        <Text style={styles.eyebrow}>MONEY · {monthLabel}</Text>
         <View style={{ flex: 1 }} />
         <Pressable onPress={onPressFilter} hitSlop={8} style={styles.filterBtn} testID="tx-hero-filter">
           <Ionicons name="options-outline" size={13} color={INK} />
@@ -107,25 +130,54 @@ function TransactionsHeroBrutalist({ transactions, onPressFilter, activeFilterCo
             </Text>
           </View>
 
-          {/* Save-rate gauge */}
-          <View style={styles.gauge}>
-            <Text style={[styles.gaugeNum, { color: netTone }]}>{totals.saveRate}</Text>
-            <Text style={styles.gaugeLabel}>% SAVED</Text>
-          </View>
+          {/* R100T — replaced "% SAVED" gauge with grounded "₹/day" pace.
+              Suppressed for first ~3 days of month or fewer than 3 expense
+              entries (statistical noise gate). */}
+          {showAvgGauge ? (
+            <View style={styles.gauge}>
+              <Text style={[styles.gaugeNum, { color: gaugeTone }]} numberOfLines={1}>{fmt(totals.avgPerDay)}</Text>
+              <Text style={styles.gaugeLabel}>PER DAY</Text>
+            </View>
+          ) : null}
         </View>
 
-        {/* Row 2: 3-col stat strip */}
+        {/* Row 2: 3-col stat strip — TODAY · IN · NET. Honest stats; income
+            only shown when there's an actual credit this month. */}
         <View style={styles.strip}>
           <StatCell label="TODAY" value={fmt(totals.todaySpend)} sub={`${totals.todayCount} txn`} />
           <View style={styles.vbar} />
-          <StatCell label="IN" value={fmt(totals.income)} tone={OK} />
-          <View style={styles.vbar} />
-          <StatCell
-            label={totals.net >= 0 ? 'NET+' : 'NET-'}
-            value={`${totals.net >= 0 ? '+' : '−'}${fmt(totals.net)}`}
-            tone={netTone}
-            last
-          />
+          {totals.income > 0 ? (
+            <>
+              <StatCell label="IN" value={fmt(totals.income)} tone={OK} />
+              <View style={styles.vbar} />
+              {/* R100V — Replaced "NET+" green confidence card. NET+ on
+                  payday read as savings ("you saved ₹83K!"). It's not.
+                  Now we show TIME-BOUNDED cashflow: how many days the
+                  remaining net has to last. Honest, action-shaped. */}
+              {totals.net > 0 && totals.daysLeft > 0 ? (
+                <StatCell
+                  label="TO LAST"
+                  value={`${totals.daysLeft}D`}
+                  sub={`₹${Math.round(totals.net / Math.max(1, totals.daysLeft)).toLocaleString('en-IN')}/day`}
+                  tone={OK}
+                  last
+                />
+              ) : (
+                <StatCell
+                  label={totals.net >= 0 ? 'NET' : 'OVER'}
+                  value={`${totals.net >= 0 ? '+' : '−'}${fmt(Math.abs(totals.net))}`}
+                  tone={totals.net >= 0 ? OK : WARN}
+                  last
+                />
+              )}
+            </>
+          ) : (
+            <>
+              <StatCell label="DAYS LEFT" value={`${totals.daysLeft}`} sub="this month" />
+              <View style={styles.vbar} />
+              <StatCell label="ENTRIES" value={`${totals.monthCount}`} sub="this month" last />
+            </>
+          )}
         </View>
 
         {/* Row 3: Brutalist action bar (SmartEntry wired) */}

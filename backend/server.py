@@ -180,6 +180,12 @@ from core.route_stats import RouteStatsRecorder, build_admin_router  # noqa: E40
 app.add_middleware(RouteStatsRecorder)
 api_router.include_router(build_admin_router())
 
+# Round 100N — Mission Backbone (Outcome Guarantee System).
+# Mounts /api/missions/{current,seed,contribute}. The router was
+# parked since R99I and is now activated as part of the Mission MVP.
+from routers.missions import router as missions_router  # noqa: E402
+api_router.include_router(missions_router)
+
 
 # ── Validation + InvalidId handlers (extracted to core/responses.py) ────
 from core.responses import (  # noqa: E402,F401

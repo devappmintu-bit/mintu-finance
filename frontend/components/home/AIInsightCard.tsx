@@ -165,7 +165,7 @@ const useStyles = makeStyles((c) => ({
   sub: { fontSize: 12, color: c.text.secondary, lineHeight: 17, marginLeft: 60 },
   cta: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 4,
-    paddingVertical: 10, borderRadius: 999, alignSelf: 'flex-start',
+    paddingVertical: 10, borderRadius: 0, alignSelf: 'flex-start',
     paddingHorizontal: 18, marginLeft: 60, marginTop: 2,
   },
   ctaText: { fontSize: 12, fontWeight: '800', color: c.bg.elevated, letterSpacing: 0.3 },

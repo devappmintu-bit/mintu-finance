@@ -189,7 +189,7 @@ const s = StyleSheet.create({
   projNow: { fontSize: 26, fontWeight: '900', color: COLORS.text.primary, letterSpacing: -1 },
   projNew: { fontSize: 26, fontWeight: '900', color: COLORS.accent.brand, letterSpacing: -1 },
   projArrow: { paddingHorizontal: 6 },
-  deltaPill: { flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: '#D1FAE5', paddingHorizontal: 10, paddingVertical: 4, borderRadius: 999 },
+  deltaPill: { flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: '#D1FAE5', paddingHorizontal: 10, paddingVertical: 4, borderRadius: 0 },
   deltaTxt: { fontSize: 11.5, fontWeight: '900', color: '#065F46' },
   projBar: { marginTop: 10, height: 8, borderRadius: 4, backgroundColor: '#FED7AA', overflow: 'hidden', position: 'relative' },
   projBarCurrent: { position: 'absolute', left: 0, top: 0, height: '100%', backgroundColor: COLORS.accent.brandDark },
@@ -204,7 +204,7 @@ const s = StyleSheet.create({
   boostTitle: { fontSize: 13.5, fontWeight: '900', color: COLORS.text.primary, letterSpacing: -0.1 },
   boostSub: { fontSize: 11, fontWeight: '600', color: COLORS.text.muted, marginTop: 2, lineHeight: 14 },
   ptsCol: { alignItems: 'flex-end', gap: 4 },
-  ptsPill: { paddingHorizontal: 8, paddingVertical: 4, borderRadius: 999 },
+  ptsPill: { paddingHorizontal: 8, paddingVertical: 4, borderRadius: 0 },
   ptsTxt: { fontSize: 11.5, fontWeight: '900', color: '#FFFFFF' },
   ctaTxt: { fontSize: 10, fontWeight: '800', color: COLORS.accent.brand },
 

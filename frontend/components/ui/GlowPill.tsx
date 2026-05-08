@@ -62,17 +62,22 @@ export default function GlowPill({ label, tone = 'neutral', icon, pulse = false,
 
 const useStyles = makeStyles((c) => ({
   base: {
+    // R100J — Brutalist enforcement. Pill style hardened: 0-radius
+    // square with a 1.5-px ink border, replacing the soft RADIUS.full
+    // (∞-radius) that read as glassy/floaty. Keeps the same colour
+    // palette per tone for semantic legibility.
     flexDirection: 'row',
     alignItems: 'center',
     gap: 5,
     paddingHorizontal: 10,
     paddingVertical: 4,
-    borderRadius: RADIUS.full,
-    borderWidth: 1,
+    borderRadius: 0,
+    borderWidth: 1.5,
     alignSelf: 'flex-start',
   },
   dot: {
-    width: 6, height: 6, borderRadius: 3,
+    // Square indicator dot — matches surrounding brutalist grammar.
+    width: 6, height: 6, borderRadius: 0,
   },
   label: {
     fontSize: 10.5,

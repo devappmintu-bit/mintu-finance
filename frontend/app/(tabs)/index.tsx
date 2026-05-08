@@ -33,7 +33,7 @@
  * same pure engine that powers AI Coach. No forked logic.
  * ═══════════════════════════════════════════════════════════════════════
  */
-import React, { useCallback, useMemo } from 'react';
+import React, { useCallback, useMemo, useState } from 'react';
 import { StyleSheet, View, Text, ScrollView, RefreshControl, TouchableOpacity } from 'react-native';
 import { Image } from 'expo-image';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -52,9 +52,29 @@ import { HomeSkeleton } from '../../components/SkeletonLoader';
 import HeroDecision from '../../components/home/HeroDecision';
 import TodayAction from '../../components/home/TodayAction';
 import WeekStrip from '../../components/home/WeekStrip';
-import DiscoverDrawer from '../../components/home/DiscoverDrawer';
-import PremiumUpsellRow from '../../components/home/PremiumUpsellRow';
+// import DiscoverDrawer from '../../components/home/DiscoverDrawer'; // R100V — DISCOVER killed
+// R100G — PremiumUpsellRow removed per user directive: Premium card
+// moved to Profile (Plan section). Import retained removed below.
 import StarterPackCard from '../../components/home/StarterPackCard';
+import PulseMascotButton from '../../components/home/PulseMascotButton';
+import ReferralMascotCard from '../../components/home/ReferralMascotCard';
+import useShouldShowUpsells from '../../hooks/useShouldShowUpsells';
+import MissionCard from '../../components/home/MissionCard';
+// Round 100X — Duolingo-grade mascot engagement engine.
+// MascotHero: the daily face of MintU at the top of home. Hidden for
+// cold-start users via internal honest-UX gate (txnCount === 0).
+// MascotStreakHero: Duolingo-style streak surface, shown only after
+// the user has earned ≥1 streak day.
+import MascotHero from '../../components/mascot/MascotHero';
+import MascotStreakHero from '../../components/mascot/MascotStreakHero';
+import MascotCelebration from '../../components/mascot/MascotCelebration';
+import MascotShareCard from '../../components/mascot/MascotShareCard';
+import useMascotCelebration from '../../hooks/useMascotCelebration';
+// Round 100Z — Neo-Brutalism rebuild. NBHero is the new bold,
+// chunky-shadow, sticker-decorated hero that replaces the small
+// MascotHero strip on the home dashboard. Theme-aware (light + dark).
+import NBHero from '../../components/neo/NBHero';
+import { useNeoPalette } from '../../store/neoTheme';
 
 import Confetti from '../../components/Confetti';
 import { useHomeNotifications } from '../../hooks/useHomeNotifications';
@@ -82,11 +102,35 @@ function HomeScreen() {
   // ONE BRAIN — shared priority engine. Used by Hero + Today + AI Coach.
   const insight = usePriorityInsight();
 
+  // R100T — earned-the-pitch gate for monetization surfaces (Refer & Earn).
+  const showUpsells = useShouldShowUpsells();
+
   // Round 98 — pre-seeded starter deck from `/api/onboarding/seed`.
   // Only fetches when the user has no transactions yet; otherwise
   // we skip the round-trip entirely (real data already drives the hero).
   const { cards: starterCards, anchorPct, anchorCopy, seeded: starterSeeded } =
     useStarterCards(Number(txnCount ?? 0) === 0);
+
+  // Round 99E — gate the premium upsell behind real engagement.
+  // R100G — Premium upsell relocated to Profile per user directive.
+  // We keep the starter completion count so other surfaces (e.g.
+  // future onboarding milestones) can still observe progress.
+  const [starterDoneCount, setStarterDoneCount] = useState(0);
+  const userIdForStarter = useAuthStore(s => s.user?.id ?? null);
+  // (showPremiumUpsell flag removed — see Premium card in Profile.)
+  void starterDoneCount;
+
+  // Round 100X — Mascot celebration overlay. Fires only on REAL earned
+  // events (streak milestones, goal hit, first txn). Honest-UX
+  // enforced inside the hook via AsyncStorage dedupe.
+  const celebration = useMascotCelebration();
+  // Share-card visibility — toggled by celebration "SHARE" CTA.
+  const [shareOpen, setShareOpen] = useState(false);
+
+  // Round 100Z — Neo palette for theme-aware bg (sky-blue light /
+  // graphite dark). Must be called BEFORE any early-return below or
+  // we hit React error #310 (hook count mismatch between renders).
+  const neoPalette = useNeoPalette();
 
   // Header callbacks (stable refs)
   const goSearch        = useCallback(() => router.push('/search' as any), []);
@@ -94,7 +138,15 @@ function HomeScreen() {
   // Round 94 — `goCoinLedger` removed (gamification kill, /coin-ledger deleted).
   const goProfile       = useCallback(() => router.push(ROUTES.PROFILE), []);
 
-  const welcomeGreeting = useMemo(() => t('welcome_back', lang).toUpperCase(), [lang]);
+  // Round 99F — context-aware greeting. "Welcome back" on a user's
+  // first-ever visit is a trust crack — they think the app is broken
+  // or knows them too well. Detect zero-txn + zero open notifications
+  // as the new-user signal and switch to a warmer first-time copy.
+  const isFirstVisit = Number(txnCount ?? 0) === 0;
+  const welcomeGreeting = useMemo(
+    () => (isFirstVisit ? t('welcome_first', lang) : t('welcome_back', lang)).toUpperCase(),
+    [lang, isFirstVisit],
+  );
 
   // Prefetch adjacent routes.
   useAfterFirstPaint(() => {
@@ -118,9 +170,30 @@ function HomeScreen() {
   );
   const mtdSpend = Number(snapshot?.mtd_spend ?? stats?.total_expense ?? 0);
 
+  // Round 100Z — neoPalette already declared above (must run BEFORE
+  // the `if (loading)` early return to satisfy hooks rules).
+
   return (
-    <SafeAreaView style={styles.container}>
+    <SafeAreaView style={[styles.container, { backgroundColor: neoPalette.bg }]}>
       <Confetti trigger={showConfetti} onDone={onConfettiDone} />
+
+      {/* Round 100X — Mascot celebration overlay (fires on real earned events). */}
+      <MascotCelebration
+        visible={celebration.visible}
+        title={celebration.title}
+        subtitle={celebration.subtitle}
+        onDismiss={celebration.dismiss}
+        onShare={() => { celebration.dismiss(); setShareOpen(true); }}
+      />
+      {/* Share-card surface — toggled by celebration's SHARE button. */}
+      <MascotShareCard
+        visible={shareOpen}
+        title={celebration.title || 'On a roll with MintU 🔥'}
+        quote={celebration.subtitle}
+        statLabel={celebration.title.includes('streak') ? celebration.title : undefined}
+        onClose={() => setShareOpen(false)}
+        mood="celebrating"
+      />
 
       <ScrollView
         showsVerticalScrollIndicator={false}
@@ -135,34 +208,23 @@ function HomeScreen() {
       >
         {/* ── HEADER — slim, brutalist ────────────────────────────── */}
         <View style={styles.header}>
+          {/* Pulse mascot — tappable entry to the Money Signal Layer.
+              Per spec this is the LEFT-most element; handles its own
+              glow/badge states via /api/pulse. See PulseMascotButton. */}
+          <PulseMascotButton />
           <View style={{ flex: 1 }}>
             <Text style={styles.greeting}>{welcomeGreeting}</Text>
             <Text style={styles.name}>{user?.name || 'User'}</Text>
           </View>
-          <TouchableOpacity
-            onPress={goSearch}
-            style={styles.headerIconBtn}
-            accessibilityRole="button"
-            accessibilityLabel="Search"
-            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-          >
-            <Ionicons name="search" size={20} color={BR_COLORS.ink} />
-          </TouchableOpacity>
-          <TouchableOpacity
-            onPress={goNotifications}
-            style={styles.headerIconBtn}
-            accessibilityRole="button"
-            accessibilityLabel={unread > 0 ? `Notifications, ${unread} unread` : 'Notifications'}
-            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-          >
-            <Ionicons name="notifications-outline" size={20} color={BR_COLORS.ink} />
-            {unread > 0 && (
-              <View style={styles.badge}>
-                <Text style={styles.badgeTxt}>{unread > 9 ? '9+' : String(unread)}</Text>
-              </View>
-            )}
-          </TouchableOpacity>
+          {/* Search + notification-bell removed in R100F per Pulse-first
+              direction. Pulse owns "what changed today" (top-left mascot);
+              search and bell pile up clutter without earning attention.
+              The profile avatar carries account access; settings live one
+              tap away inside it. */}
           {/* Round 94 — coin chip removed (gamification kill, R92). */}
+          {/* R100I — Profile chip removed per user feedback ("looks
+              horrible — misaligned"). Reverted to plain avatar
+              TapTile; tap still routes to /profile. */}
           <TapTile onPress={goProfile} style={styles.avatarWrap} feedback="selection">
             <View style={styles.avatarRing}>
               {avatar ? (
@@ -176,6 +238,19 @@ function HomeScreen() {
           </TapTile>
         </View>
 
+        {/* ── 0. NEO-BRUTAL HERO — Round 100Z face-of-app ────────── */}
+        {/* Memphis-Group bold hero with chunky shadow, sticker chaos */}
+        {/* (zigzag/asterisk/dot decoration), big H1 typography, and  */}
+        {/* mood-aware mascot. Theme-aware (light + dark via         */}
+        {/* useNeoPalette). Replaces the older small MascotHero strip */}
+        {/* — which is now relegated to a smaller secondary surface.  */}
+        <NBHero />
+
+        {/* ── 0a. STREAK HERO — Duolingo-style streak surface ──────── */}
+        {/* Hidden until the user has earned ≥1 streak day. Shows flame */}
+        {/* tier + freeze inventory + comeback CTA when at risk.        */}
+        <MascotStreakHero />
+
         {/* ── 1. HERO — Decision Context ────────────────────────── */}
         {/* Score + risk flag + ONE insight. Taps → AI Coach. */}
         {/* For zero-txn new users we SKIP the hero (no score yet)  */}
@@ -183,13 +258,24 @@ function HomeScreen() {
         {txnCount > 0 && <HeroDecision insight={insight} />}
 
         {/* ── 1a. STARTER PACK — Round 98 first-paint deck. ──────── */}
+        {/* ── 0. MISSION — Emotional spine (R100Q Phase 1) ─────────── */}
+        {/* Card hides itself if no mission seeded; never fakes a goal. */}
+        {/* Closes SF1 from the audit: onboarding promised the user a   */}
+        {/* mission, this is where they SEE it.                          */}
+        <MissionCard />
+
         {/* Only appears for brand-new users who completed the       */}
         {/* income slider but haven't logged any transactions yet.   */}
+        {/* Round 99E: now reports completion count to gate the      */}
+        {/* premature-paywall and renders inline proof banner so the */}
+        {/* user sees confirmation without leaving Home.             */}
         {txnCount === 0 && starterSeeded && starterCards.length > 0 && (
           <StarterPackCard
             cards={starterCards}
             anchorPct={anchorPct}
             anchorCopy={anchorCopy}
+            userId={userIdForStarter}
+            onCompletedCountChange={setStarterDoneCount}
           />
         )}
 
@@ -210,12 +296,19 @@ function HomeScreen() {
           />
         )}
 
-        {/* ── 4. DISCOVER — Collapsed drawer ─────────────────────── */}
-        <DiscoverDrawer />
+        {/* ── 4. DISCOVER — KILLED in R100V audit ───────────────────
+            Was a card lumping "Money School + Rewards + Premium Hub"
+            into one ambiguous brutalist tile. Two unrelated concepts,
+            no contextual reason, dilutes Home's hierarchy. Surfaces:
+            Money School lives at /money-school (deep-linked from AI
+            Coach when relevant), Rewards lives in profile chip,
+            Premium Hub is in Profile → PLAN section. No top-level
+            DISCOVER drawer needed. */}
 
-        {/* ── 5. PREMIUM UPSELL — below Discover (spec) ──────────── */}
-        {/* Renders nothing for Pro users. */}
-        <PremiumUpsellRow />
+        {/* ── 5. REFER & EARN — Toing-style mascot card (R100G) ──── */}
+        {/* R100T — Suppressed for cold-start users (no txns/budgets/groups). */}
+        {/* No point monetizing referrals before the user has any value to refer. */}
+        {showUpsells ? <ReferralMascotCard /> : null}
 
         <View style={{ height: 140 }} />
       </ScrollView>
@@ -242,6 +335,25 @@ const useStyles = makeStyles(() => ({
     marginTop: 2,
   },
   avatarWrap: { position: 'relative' },
+  // R100G — Profile entry combo: avatar + tap-hint chip side-by-side.
+  profileEntry: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  profileChip: {
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderWidth: 1.5,
+    borderColor: BR_COLORS.ink,
+    backgroundColor: BR_COLORS.paperAlt,
+  },
+  profileChipTxt: {
+    fontSize: 9,
+    fontWeight: '900',
+    letterSpacing: 1.4,
+    color: BR_COLORS.ink,
+  },
   avatarRing: {
     width: 40, height: 40,
     borderWidth: 2, borderColor: BR_COLORS.ink,

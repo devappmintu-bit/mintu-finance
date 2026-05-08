@@ -22,6 +22,10 @@ import { router } from 'expo-router';
 import { COLORS, GLASS, shadowStyle } from '../utils/theme';
 import { makeStyles } from '../utils/makeStyles';
 import { useAIPrompt } from '../store/aiPromptStore';
+// Round 99H — read txnCount from the financial context to route the
+// new user to data-aware prompts. Avoids the cold "I don't have
+// data yet" first AI experience for zero-txn users.
+import { useFinContext } from '../store/financialContext';
 
 interface Prompt {
   icon: keyof typeof Ionicons.glyphMap;
@@ -31,12 +35,31 @@ interface Prompt {
 
 // Curated prompts — ordered by frequency of use we expect. Tuned
 // for Indian fintech context (rupees, weekend behaviour, SIPs).
-const PROMPTS: Prompt[] = [
+//
+// Round 99H — split into two decks. The original deck assumes the
+// user has transaction history ("Where am I overspending this
+// month?"). For a brand-new zero-txn user, every one of those
+// returns "I don't have data yet" — a cold, broken-feeling first
+// AI experience. We now switch to onboarding-aware prompts when
+// txnCount === 0 so the AI's first interaction with the user
+// actually has answers.
+//
+// Also removed the fake ₹5,000 number. Indian users distrust
+// suspiciously round figures invented out of thin air.
+const PROMPTS_WITH_DATA: Prompt[] = [
   { icon: 'trending-down', emoji: '🔍', text: 'Where am I overspending this month?' },
-  { icon: 'wallet',        emoji: '💰', text: 'Can I save ₹5,000 more this month?' },
+  { icon: 'wallet',        emoji: '💰', text: 'Can I save more this month?' },
   { icon: 'calendar',      emoji: '📅', text: 'Show me my weekend spending pattern' },
   { icon: 'stats-chart',   emoji: '📊', text: 'Compare this month with last month' },
   { icon: 'bulb',          emoji: '💡', text: 'Give me one quick tip to save money' },
+];
+
+const PROMPTS_NO_DATA: Prompt[] = [
+  { icon: 'help-circle',     emoji: '👋', text: 'What can MintU do for me?' },
+  { icon: 'lock-closed',     emoji: '🔒', text: 'What happens when I import SMS?' },
+  { icon: 'flag',            emoji: '🎯', text: 'Why these starter pack numbers?' },
+  { icon: 'shield-checkmark',emoji: '🛡️', text: 'How is my data kept private?' },
+  { icon: 'rocket',          emoji: '🚀', text: 'What should I do first?' },
 ];
 
 interface Props {
@@ -48,6 +71,11 @@ export default function AIQuickSheet({ visible, onClose }: Props) {
   const s = useStyles();
   const setPending = useAIPrompt((st) => st.set);
   const [draft, setDraft] = useState('');
+  // Round 99H — pick the deck based on whether the user has data.
+  // Zero-txn users see onboarding/explainer prompts. Anyone with even
+  // one transaction sees the data-aware deck.
+  const hasData = useFinContext(s2 => Number(s2.txnCount ?? 0) > 0);
+  const PROMPTS = hasData ? PROMPTS_WITH_DATA : PROMPTS_NO_DATA;
 
   const fire = (text: string) => {
     if (!text.trim()) return;
@@ -83,7 +111,13 @@ export default function AIQuickSheet({ visible, onClose }: Props) {
               </View>
               <Text style={s.title}>Ask MintU</Text>
             </View>
-            <Text style={s.subtitle}>Tap a prompt or type your own</Text>
+            <Text style={s.subtitle}>
+              {/* Round 99H — context-aware subtitle. Avoids implying
+                  "your data is being analyzed" to a zero-data user. */}
+              {hasData
+                ? 'Tap a prompt or type your own'
+                : 'Start with a question — or tap one below.'}
+            </Text>
           </View>
 
           {/* Quick prompts grid */}
@@ -168,7 +202,7 @@ const useStyles = makeStyles((c) => ({
   inputRow: {
     flexDirection: 'row', alignItems: 'center', gap: 8,
     backgroundColor: c.bg.elevated,
-    borderRadius: 999, paddingLeft: 16, paddingRight: 6, paddingVertical: 4,
+    borderRadius: 0, paddingLeft: 16, paddingRight: 6, paddingVertical: 4,
     borderWidth: 1, borderColor: c.border.card,
   },
   input: {

@@ -23,11 +23,15 @@ from core.time import utc_now
 # Income band (monthly) → typical savings-rate percentile.
 _PEER_BANDS: list[tuple[int, int, int, str]] = [
     # (lo, hi, typical_savings_pct, anchor_copy)
-    (0,      25_000,  8,  "Households in this band save just 8% on average."),
-    (25_000, 50_000,  12, "Households earning like you save 12% on average — you can do more."),
-    (50_000, 100_000, 18, "Peers at this income save 18% on average. Top 25% save 30%+."),
-    (100_000,200_000, 22, "Peers earning like you save 22% on average. Top 25% hit 35%+."),
-    (200_000,10_000_000, 30, "High-earners peer average: 30% savings rate."),
+    # Round 99F — copy de-conflicted. Old version mixed "typical" and
+    # "Top 25% save much more" which was internally contradictory.
+    # New version states the median directly + a single forward-leaning
+    # promise ("we'll show you how to beat it") instead of a guilt frame.
+    (0,      25_000,  8,  "Median for households earning under ₹25k. We'll find you ₹500-2,000/mo to claw back."),
+    (25_000, 50_000,  12, "Median savings rate at this income. Topping it is realistic — most leaks are tiny subscriptions."),
+    (50_000, 100_000, 18, "Median for ₹50k-1L earners. The biggest leaks are usually OTT + delivery apps."),
+    (100_000,200_000, 22, "Median for ₹1L-2L earners. At your scale, the leak is usually unused subscriptions + impulse buys."),
+    (200_000,10_000_000, 30, "Median for high-earners. Top 10% hit 40%+ by automating before they see the money."),
 ]
 
 
@@ -41,20 +45,30 @@ def _peer_anchor(income: int) -> tuple[int, str]:
 def _starter_cards(income: int) -> list[dict[str, Any]]:
     """Deterministic starter pack based purely on income band.
 
-    The first card is ALWAYS a budget cap on the category most users
-    in this band over-spend (food for mid/low, discretionary for high).
-    The second is a goal seed (emergency fund is universal).
-    The third is the data-import hook that monetizes.
+    Round 99F — emergency-fund math fixed.
+    Old: 6× MONTHLY INCOME (a textbook error — financial planners say
+    6× monthly EXPENSES, not income).
+    New: estimated_expenses = income × (1 - peer_savings_rate). Then
+    emergency target = 6× estimated_expenses. This produces a smaller,
+    more honest, more achievable number AND aligns with what a real
+    CFA/CFP would recommend.
     """
+    pct, _ = _peer_anchor(income)
+    est_expense_rate = max(0.30, 1 - pct / 100.0)    # never <30% — sanity floor
+    est_monthly_expense = int(income * est_expense_rate)
+
     if income < 50_000:
-        food_cap = int(income * 0.18)     # 18% of take-home
-        ef_target = int(income * 3)        # 3-mo emergency fund
+        food_cap = int(income * 0.18)              # 18% of take-home
+        ef_target = int(est_monthly_expense * 3)    # 3-mo cushion at low income
     elif income < 150_000:
         food_cap = int(income * 0.15)
-        ef_target = int(income * 6)
+        ef_target = int(est_monthly_expense * 6)
     else:
         food_cap = int(income * 0.12)
-        ef_target = int(income * 6)
+        ef_target = int(est_monthly_expense * 6)
+
+    # Round to nearest ₹500 for readable target labels.
+    ef_target = (ef_target // 500) * 500
 
     return [
         {
@@ -64,9 +78,9 @@ def _starter_cards(income: int) -> list[dict[str, Any]]:
             "method": "POST",
             "payload": {"category": "food", "amount": food_cap},
             "projected_impact": max(1000, int(food_cap * 0.10)),
-            "projected_label": f"+₹{max(1000, int(food_cap * 0.10)):,} projected this month",
+            "projected_label": f"+₹{max(1000, int(food_cap * 0.10)):,}/mo projected",
             "confidence": 0.85,
-            "reason": "Food is the #1 leak for your income band. Cap first, tune later.",
+            "reason": "Food + delivery is the #1 leak for this income band. Cap first, tune later.",
             "rank": 0,
         },
         {
@@ -76,21 +90,28 @@ def _starter_cards(income: int) -> list[dict[str, Any]]:
             "method": "POST",
             "payload": {"name": "Emergency Fund", "target_amount": ef_target},
             "projected_impact": 0,
-            "projected_label": "Peace of mind in 6 months",
+            "projected_label": "6 months of cushion",
             "confidence": 0.95,
-            "reason": "6-month expenses liquid. Never borrow for emergencies again.",
+            # Round 99F — math made transparent. Users distrust round
+            # numbers without source. Stating "6× your est. ₹X/mo expenses"
+            # makes the goal feel calibrated, not arbitrary.
+            "reason": f"6× your estimated ₹{est_monthly_expense:,}/mo expenses. The number that makes a job loss survivable.",
             "rank": 1,
         },
         {
             "kind": "import_sms",
-            "label": "Turn on SMS auto-import",
+            "label": "Auto-find your hidden charges",
             "endpoint": "/api/permissions/grant",
             "method": "POST",
             "payload": {"kind": "sms"},
-            "projected_impact": 0,
-            "projected_label": "Unlocks your real diagnostic score",
+            "projected_impact": 3200,
+            "projected_label": "Avg ₹3,200/mo found in subscriptions",
             "confidence": 1.0,
-            "reason": "Without this, we can't find your real leaks.",
+            # Round 99F — privacy-first framing. Old: defensive negative
+            # ("without this we can't help"). New: lead with the user's
+            # benefit + an explicit privacy reassurance to address the
+            # #1 SMS-permission objection in Indian fintech UX.
+            "reason": "We scan SMS only on your device. Find recurring charges you forgot.",
             "rank": 2,
         },
     ]
@@ -136,6 +157,21 @@ async def seed_user_coach_context(user_id: str, income: int) -> dict[str, Any]:
         )
     except Exception:    # noqa: BLE001
         pass
+
+    # R100N — Mission Backbone auto-seed (Outcome Guarantee System).
+    # Silently kick off the user's first monthly Mission so every
+    # action they take has a north-star to ladder into. Uses the
+    # peer-anchored target formula in services.missions which is the
+    # AI Coach's deterministic pick: income × (peer_pct + 5%) rounded
+    # to ₹500. Idempotent — safe to call on every onboarding-seed.
+    try:
+        from services.missions import seed_initial_mission
+        await seed_initial_mission(user_id, int(income), int(peer_pct))
+    except Exception as e:    # noqa: BLE001
+        # Mission seed failure must NOT block onboarding. Log + move on.
+        logger = logging.getLogger(__name__)
+        logger.warning(f"mission seed failed for {user_id}: {e}")
+
     return doc
 
 

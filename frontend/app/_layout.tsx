@@ -11,6 +11,7 @@ import ThemeTransitionOverlay from '../components/ui/ThemeTransitionOverlay';
 import { usePushNotifications } from '../hooks/usePushNotifications';
 import { useAppLock } from '../hooks/useAppLock';
 import { useDailyCheckIn } from '../hooks/useDailyCheckIn';
+import { useHydrateNeoTheme } from '../store/neoTheme';
 import {
   useFonts,
   Inter_400Regular,
@@ -103,7 +104,11 @@ export default function RootLayout() {
   // Daily streak check-in — fires exactly once per cold-start when a valid
   // JWT is present. Backend is idempotent per UTC day so this is safe to
   // call eagerly. See hooks/useDailyCheckIn.ts for full spec.
+  // Round 100Z — Hydrate Neo-Brutalism theme preference (light/dark/
+  // system) from AsyncStorage so the user's last choice is honored on
+  // cold-start. Non-blocking; falls back to 'system' default.
   useDailyCheckIn();
+  useHydrateNeoTheme();
 
   useEffect(() => {
     loadFromStorage();

@@ -275,9 +275,65 @@ export const cachedGet = async (url: string, ttl = 5000) => {
   return res;
 };
 
+// R100Q-perf — SWR (stale-while-revalidate) GET.
+//
+// Returns cached data IMMEDIATELY (even if stale) so the screen
+// renders sub-100ms on revisit, and triggers a silent background
+// revalidation whose result is delivered to the optional onFresh
+// callback. Falls back to network when no cache exists.
+//
+// Hot endpoints to wire this on: /missions/current, /split/groups,
+// /budgets/current, /transactions (latest page) — anywhere a stale
+// view for ~30s is acceptable in exchange for instant render.
+const swrSubscribers: Record<string, Set<(data: any) => void>> = {};
+export const swrGet = (
+  url: string,
+  opts: { onFresh?: (data: any) => void; staleAfter?: number } = {},
+): { cached: any | undefined; promise: Promise<any> } => {
+  const now = Date.now();
+  const staleAfter = opts.staleAfter ?? 30_000;
+  const entry = cache[url];
+  const cached = entry?.data;
+  const isStale = !entry || (now - entry.ts) > staleAfter;
+  // Always fire a network call when stale; piggy-back when fresh
+  // pending refresh is already in-flight (dedupe via inflight map).
+  const promise = (async () => {
+    if (!isStale) return entry!.data;
+    try {
+      const res = await api.get(url);
+      cache[url] = { data: res, ts: Date.now() };
+      // Notify any subscribers waiting for this URL.
+      const subs = swrSubscribers[url];
+      if (subs) subs.forEach((fn) => { try { fn(res); } catch {} });
+      if (opts.onFresh) {
+        try { opts.onFresh(res); } catch {}
+      }
+      return res;
+    } catch (e) {
+      throw e;
+    }
+  })();
+  return { cached, promise };
+};
+
 export const clearCache = (url?: string) => {
   if (url) delete cache[url];
   else Object.keys(cache).forEach(k => delete cache[k]);
+};
+
+// R100Q-perf — Pre-cache critical screens during splash. Fires the
+// hot-path GETs in parallel without blocking; their responses land
+// in the SWR cache so first navigation to Home / Split renders from
+// memory. Safe to call multiple times — failures are swallowed.
+export const warmCriticalCaches = async (): Promise<void> => {
+  const urls = ['/missions/current', '/split/groups', '/budgets/current'];
+  await Promise.allSettled(
+    urls.map((u) =>
+      api.get(u).then((res) => {
+        cache[u] = { data: res, ts: Date.now() };
+      }).catch(() => { /* ignore */ })
+    )
+  );
 };
 
 // Round 51d — slow-path axios instance for AI & lesson generation.

@@ -15,6 +15,8 @@
  * graph at render time. This keeps the root layout SSR-safe.
  */
 import React, { useState, useCallback, useEffect, useRef, lazy, Suspense } from 'react';
+import { Platform } from 'react-native';
+import * as Haptics from 'expo-haptics';
 import Toast from 'react-native-toast-message';
 
 import { useSmartEntry } from '../../store/smartEntry';
@@ -60,13 +62,37 @@ export default function SmartEntryHost() {
           onSubmit={async (payload) => {
             setSubmitting(true);
             try {
+              // R100W — Capture pre-add count so we can detect the
+              // "first ever expense" milestone and celebrate it.
+              const ctxBefore = useFinContext.getState();
+              const wasFirst = (Number(ctxBefore?.transactions?.count ?? 0) === 0) && payload.type !== 'credit';
+
               await addTransaction({
                 amount: payload.amount,
                 category: payload.category,
                 description: payload.description,
                 type: payload.type,
               });
-              Toast.show({ type: 'success', text1: 'Transaction saved' });
+
+              if (wasFirst) {
+                // First-expense payoff moment. Brutalist toast + heavier
+                // haptic for the celebration. Sets up the pattern the
+                // AI Coach promised: log → reward → progress.
+                if (Platform.OS !== 'web') {
+                  try { Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success); } catch {}
+                }
+                Toast.show({
+                  type: 'success',
+                  text1: '🎯 FIRST ENTRY LOGGED',
+                  text2: '2 more and your AI Coach unlocks real patterns.',
+                  visibilityTime: 4500,
+                });
+              } else {
+                if (Platform.OS !== 'web') {
+                  try { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); } catch {}
+                }
+                Toast.show({ type: 'success', text1: 'Transaction saved' });
+              }
               await bumpBrain();
               close();
             } catch (e: any) {

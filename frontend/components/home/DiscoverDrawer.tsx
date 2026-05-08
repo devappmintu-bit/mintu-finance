@@ -32,27 +32,20 @@ type Row = {
 
 // Only routes that DEFINITELY resolve. If you add a row, verify
 // /app/frontend/app/<route>.tsx exists first — dead-clicks = lost trust.
+// R100G — Premium Hub row removed: Premium card moved to Profile per
+// user directive. Discover now houses School + Rewards only.
 const ROWS: Row[] = [
   { icon: 'school-outline',    label: 'Money School', sub: '60-second daily lessons',    route: ROUTES.MONEY_SCHOOL },
-  { icon: 'sparkles-outline',  label: 'Premium Hub',  sub: 'Tax, Invest, Reports',       route: '/premium-hub' },
-  { icon: 'trophy-outline',    label: 'Rewards',      sub: 'Coins, streaks, leaderboard', route: ROUTES.REWARDS },
+  { icon: 'trophy-outline',    label: 'Rewards',      sub: 'Streaks, badges, history',   route: ROUTES.REWARDS },
 ];
 
 export default function DiscoverDrawer() {
   const [open, setOpen] = useState(false);
-  // Only fetch news when user expands — preserves the "news never blocks
-  // Home" contract. The collapsed preview line uses the cached-sync
-  // accessor so it renders instantly if cache exists.
-  const { items: news, loading: newsLoading } = useNewsLite(open);
-  const cachedTop = getCachedNewsTop();
-
-  const openNewsItem = (item: NewsItem) => {
-    // Round 89c — route into in-app reader instead of kicking to Safari.
-    // setSelectedNews hands off the item via a module-level slot so
-    // the reader can render instantly without URL payload bloat.
-    setSelectedNews(item);
-    try { router.push('/news-view' as any); } catch { /* noop */ }
-  };
+  // R100F — DISCOVER no longer fetches India-finance news. That's
+  // Pulse's job (top-left mascot in Home). Keeping news here was
+  // duplicate signal and pulled the user out of the Pulse habit loop.
+  // The drawer is now a slim navigation shelf for school / premium /
+  // streaks etc., reachable but never demanding attention.
 
   return (
     <View style={styles.wrap}>
@@ -66,11 +59,9 @@ export default function DiscoverDrawer() {
       >
         <View style={{ flex: 1 }}>
           <Text style={styles.kicker}>DISCOVER</Text>
-          {/* Instant cached preview — only renders when we have news in the
-              session cache. Never blocks the collapsed header. */}
-          {!open && cachedTop && (
-            <Text style={styles.newsPreview} numberOfLines={1}>
-              📰 {cachedTop.title}
+          {!open && (
+            <Text style={styles.newsHint} numberOfLines={1}>
+              Money School · Rewards
             </Text>
           )}
         </View>
@@ -81,43 +72,6 @@ export default function DiscoverDrawer() {
 
       {open && (
         <View style={styles.list}>
-          {/* ── NEWS SECTION — always rendered when drawer is open so
-                the user SEES the section. Shows loading placeholder
-                until the cached/fresh list arrives. Never hides
-                silently — that was the "dead on expand" bug. */}
-          <View style={styles.newsSection}>
-            <Text style={styles.sectionLabel}>INDIA FINANCE · TODAY</Text>
-            {news.length === 0 && (
-              <View style={[styles.newsRow, { borderTopWidth: 0 }]}>
-                <Text style={styles.newsLoading}>
-                  {newsLoading ? 'Fetching the latest…' : 'Nothing new right now — check back later.'}
-                </Text>
-              </View>
-            )}
-            {news.slice(0, 5).map((n, i) => (
-              <Pressable
-                key={`news-${i}`}
-                onPress={() => openNewsItem(n)}
-                accessibilityRole="button"
-                accessibilityLabel={`${n.title}. Source: ${n.source || 'unknown'}.`}
-                style={({ pressed }) => [styles.newsRow, i > 0 && styles.rowDivider, pressed && styles.rowPressed]}
-              >
-                <Text style={styles.newsEmoji}>{n.emoji || '📰'}</Text>
-                <View style={{ flex: 1 }}>
-                  <Text style={styles.newsTitle} numberOfLines={2}>{n.title}</Text>
-                  {(n.source || n.category) && (
-                    <Text style={styles.newsMeta} numberOfLines={1}>
-                      {n.source || ''}{n.source && n.category ? ' · ' : ''}{n.category || ''}
-                    </Text>
-                  )}
-                </View>
-                {(n.source_url || n.url) && (
-                  <Ionicons name="open-outline" size={14} color={BR_COLORS.muted} />
-                )}
-              </Pressable>
-            ))}
-          </View>
-
           {/* ── NAV ROWS — always render instantly, no data gating. ── */}
           <View style={styles.navSection}>
             {ROWS.map((r, i) => (
@@ -185,6 +139,15 @@ const styles = StyleSheet.create({
     color: BR_COLORS.muted,
     marginTop: 2,
     fontSize: 11,
+  },
+  // Round 99G — fallback hint when news cache is empty so the
+  // collapsed accordion never reads as a dead label.
+  newsHint: {
+    ...BR_TYPE.meta,
+    color: BR_COLORS.muted,
+    marginTop: 2,
+    fontSize: 11,
+    fontStyle: 'italic',
   },
   sectionLabel: {
     ...BR_TYPE.labelSm,

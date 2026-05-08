@@ -411,7 +411,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 5,
     paddingHorizontal: 10, paddingVertical: 5,
-    borderRadius: 999,
+    borderRadius: 0,
     backgroundColor: 'rgba(16,185,129,0.10)',
   },
   trustTxt: { fontSize: 11, fontWeight: '700', color: '#0E8B5E', letterSpacing: 0.2 },

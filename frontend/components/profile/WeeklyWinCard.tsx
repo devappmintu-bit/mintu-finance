@@ -155,7 +155,7 @@ const s = StyleSheet.create({
   logoWrap: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   logo: { width: 24, height: 24, borderRadius: 0 },
   brand: { fontSize: 16, fontWeight: '900', color: '#FFFFFF', letterSpacing: -0.3 },
-  tierPill: { backgroundColor: 'rgba(0,0,0,0.22)', paddingHorizontal: 10, paddingVertical: 5, borderRadius: 999 },
+  tierPill: { backgroundColor: 'rgba(0,0,0,0.22)', paddingHorizontal: 10, paddingVertical: 5, borderRadius: 0 },
   tierTxt: { fontSize: 10.5, fontWeight: '900', color: '#FFFFFF', letterSpacing: 0.4 },
 
   hero: { marginTop: 18 },
@@ -179,7 +179,7 @@ const s = StyleSheet.create({
   },
   footerHint: { fontSize: 11, fontWeight: '800', color: '#FFFFFF', letterSpacing: 0.2 },
   footerSmall: { fontSize: 10, fontWeight: '600', color: 'rgba(255,255,255,0.75)', marginTop: 1 },
-  ctaPill: { flexDirection: 'row', alignItems: 'center', gap: 5, backgroundColor: '#FFFFFF', paddingHorizontal: 11, paddingVertical: 7, borderRadius: 999 },
+  ctaPill: { flexDirection: 'row', alignItems: 'center', gap: 5, backgroundColor: '#FFFFFF', paddingHorizontal: 11, paddingVertical: 7, borderRadius: 0 },
   ctaTxt: { fontSize: 11, fontWeight: '900', color: COLORS.accent.brandDark, letterSpacing: -0.1 },
 });
 

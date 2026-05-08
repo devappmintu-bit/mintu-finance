@@ -59,6 +59,11 @@ type ChatMsg = {
   isFallback?: boolean;
   // Round 90 — Coach v2 fields.
   confidenceLabel?: string;
+  // R100R — Italic source-citation accent under AI replies. Backend
+  // grounds every reply with a one-liner ("Based on your last 30 days
+  // of UPI spends · 47 transactions"). Empty string → no claim → UI
+  // suppresses the line entirely (no provenance hallucination).
+  source?: string;
   action?: CoachActionCard;
   actionState?: 'idle' | 'busy' | 'done';
 };
@@ -148,6 +153,19 @@ const TypingDots = () => {
   const dot1 = useRef(new Animated.Value(0.3)).current;
   const dot2 = useRef(new Animated.Value(0.3)).current;
   const dot3 = useRef(new Animated.Value(0.3)).current;
+  // R100G — staged progress copy. Before this the user saw a single
+  // "MintU is thinking" line for the entire 15-25s LLM round-trip;
+  // most thought the app had hung. Now the copy ticks through three
+  // beats so progress feels real:
+  //   0–3s    "MintU is thinking"
+  //   3–9s    "Reading your money story…"
+  //   9s+     "Almost there — drafting your reply"
+  const [stage, setStage] = useState<0 | 1 | 2>(0);
+  useEffect(() => {
+    const t1 = setTimeout(() => setStage(1), 3000);
+    const t2 = setTimeout(() => setStage(2), 9000);
+    return () => { clearTimeout(t1); clearTimeout(t2); };
+  }, []);
   useEffect(() => {
     const anim = (dot: Animated.Value, delay: number) =>
       Animated.loop(Animated.sequence([
@@ -157,9 +175,14 @@ const TypingDots = () => {
       ]));
     anim(dot1, 0).start(); anim(dot2, 150).start(); anim(dot3, 300).start();
   }, []);
+  const hint = stage === 0
+    ? 'MintU is thinking'
+    : stage === 1
+      ? 'Reading your money story'
+      : 'Almost there — drafting reply';
   return (
     <View style={s.typingWrap}>
-      <Text style={s.typingHint}>MintU is thinking</Text>
+      <Text style={s.typingHint}>{hint}</Text>
       <View style={{ flexDirection: 'row', gap: 3, alignItems: 'center' }}>
         {[dot1, dot2, dot3].map((d, i) => (
           <Animated.View key={i} style={{ width: 6, height: 6, borderRadius: 3, backgroundColor: COLORS.accent.primary, opacity: d }} />
@@ -300,19 +323,51 @@ export default function AICoachChat({ onClose }: { onClose?: () => void }) {
   //   • First-time user + some transactions     →  ONE line reflecting
   //     state: "I see {N} expenses so far — ask me anything about them."
   //
+  //   • R100G — Pulse handoff override: when the user arrives from a
+  //     Pulse card (`pending` is set with kind='pulse'), we SKIP the
+  //     generic welcome entirely. The PulseContextPill + auto-fired
+  //     prompt + reply already fill the screen with relevant content;
+  //     showing "you haven't added any expenses yet" on top of that
+  //     was a Day-0 trust crack the user explicitly flagged.
+  //
   // Flag is persisted so the welcome never fires twice for the same user.
   useEffect(() => {
     let alive = true;
     (async () => {
       try {
+        // R100G — short-circuit when arriving from Pulse. Read the
+        // store synchronously here (no subscription) so we don't
+        // re-render on context changes after the welcome fires.
+        const pendingNow = useAIPrompt.getState().pending;
+        if (pendingNow?.context?.kind === 'pulse') {
+          // Mark welcomed so future visits don't double-show the
+          // generic welcome; the Pulse handoff is the welcome.
+          await AsyncStorage.setItem('mintu_coach_welcomed_v2', 'true');
+          return;
+        }
         const seen = await AsyncStorage.getItem('mintu_coach_welcomed_v2');
         if (seen === 'true' || !alive) return;
-        const txnCount = Number(finTxns?.length ?? 0);
+        // R100W — bug fix: was `finTxns?.length` (undefined → 0). The
+        // FinContext exposes `transactions: { count, monthlySpend, … }`
+        // not an array. So users with real transactions saw the
+        // "haven't added any expenses yet" welcome — exactly the
+        // hallucination the audit flagged. Now we read .count and
+        // ALSO fall back to monthlySpend>0 as a positive signal in
+        // case the count field is stale on cold-tab open.
+        const txnCount = Number(
+          (finTxns as any)?.count ??
+          (finTxns as any)?.length ??
+          0
+        );
+        const hasMonthlySpend = Number((finTxns as any)?.monthlySpend ?? 0) > 0;
         let text = '';
-        if (txnCount === 0) {
+        if (txnCount === 0 && !hasMonthlySpend) {
           text = "You haven't added any expenses yet. Start with your first one — I'll take it from there.";
-        } else {
+        } else if (txnCount > 0) {
           text = `I see ${txnCount} ${txnCount === 1 ? 'expense' : 'expenses'} tracked. Ask me anything about them.`;
+        } else {
+          // monthlySpend > 0 but count missing — generic, non-claiming.
+          text = "Ask me anything about your money — I have your recent activity loaded.";
         }
         setMessages([{
           role: 'ai', text,
@@ -373,6 +428,7 @@ export default function AICoachChat({ onClose }: { onClose?: () => void }) {
           agentEmoji: '🤖',
           ts: Date.now(),
           confidenceLabel: typeof data.confidence_label === 'string' ? data.confidence_label : '',
+          source: typeof data.source === 'string' ? data.source : '',
           action: incomingAction,
           actionState: incomingAction ? 'idle' : undefined,
         },
@@ -443,6 +499,18 @@ export default function AICoachChat({ onClose }: { onClose?: () => void }) {
           <View style={[s.bubble, isUser ? s.bubbleUser : s.bubbleAi]}>
             {item.loading ? <TypingDots /> : formatAIText(item.text, isUser)}
           </View>
+          {/* R100R — Source citation accent. Italic provenance line
+              shown below every grounded AI reply ("Based on your last
+              30 days of UPI spends · 47 transactions"). Suppressed for
+              fallback / cold-start so we never claim provenance we
+              don't have. Goes ABOVE the confidence trailer because
+              "where it came from" must be visible before "how sure". */}
+          {!isUser && !item.loading && !item.isFallback && !!item.source && (
+            <View style={s.sourceRow} testID="coach-source-citation">
+              <Ionicons name="document-text-outline" size={11} color="#8A8A8A" />
+              <Text style={s.sourceTxt}>{item.source}</Text>
+            </View>
+          )}
           {/* Round 90 — Confidence trailer (medium / low only). */}
           {!isUser && !item.loading && !!item.confidenceLabel && (
             <Text style={s.confidenceTxt}>{item.confidenceLabel}</Text>
@@ -509,6 +577,11 @@ export default function AICoachChat({ onClose }: { onClose?: () => void }) {
       </View>
 
       <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={{ flex: 1 }} keyboardVerticalOffset={10}>
+        {/* R100E — "📌 From Pulse" context pill. Renders only when the
+            user arrived from a Pulse card. Sits above the chat list so
+            the user always knows the AI's reply is grounded in that
+            specific news item. */}
+        <PulseContextPill />
         <FlashList
           ref={flatRef}
           data={messages}
@@ -614,7 +687,12 @@ const useStyles = makeStyles((c) => ({
   aiAv: { width: 28, height: 28, borderRadius: 0, backgroundColor: c.accent.primary + '12', justifyContent: 'center', alignItems: 'center', marginRight: 8, marginTop: 18 },
   agentLabelRow: { flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 3, marginLeft: 4 },
   agentLabel: { fontSize: 10, fontWeight: '700', color: c.accent.primary },
-  offlinePill: { fontSize: 8, fontWeight: '800', color: '#fff', backgroundColor: COLORS.text.muted, paddingHorizontal: 6, paddingVertical: 1, borderRadius: 999, letterSpacing: 0.5 },
+  // R100J — Brutalist enforcement: chip pills hardened from
+  // borderRadius:999 (round) to 0 (square) with 2-px ink borders.
+  // Replaces the soft pill aesthetic that broke the brutalist
+  // language elsewhere in the app. Same applies below to
+  // premiumBadge, offlinePill, and lockedCTA.
+  offlinePill: { fontSize: 8, fontWeight: '900', letterSpacing: 0.6, color: '#fff', backgroundColor: c.text.muted, paddingHorizontal: 6, paddingVertical: 2, borderRadius: 0, borderWidth: 1, borderColor: c.text.primary },
   bubble: { borderRadius: 0, paddingHorizontal: 14, paddingVertical: 10 },
   bubbleUser: { backgroundColor: c.accent.primary, borderBottomRightRadius: 4 },
   bubbleAi: { backgroundColor: c.bg.card, borderBottomLeftRadius: 4, borderWidth: 1, borderColor: c.border.card },
@@ -626,28 +704,42 @@ const useStyles = makeStyles((c) => ({
   chipsWrap: { flexDirection: 'row', flexWrap: 'wrap', paddingHorizontal: 16, paddingBottom: 8, gap: 7 },
   chipSection: { fontSize: 10, fontWeight: '800', letterSpacing: 1, color: c.text.muted, paddingHorizontal: 16, paddingTop: 10, paddingBottom: 6 },
   schoolHeaderRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingRight: 16 },
-  premiumBadge: { flexDirection: 'row', alignItems: 'center', gap: 3, backgroundColor: c.accent.primary + '1E', paddingHorizontal: 7, paddingVertical: 3, borderRadius: 999, borderWidth: 1, borderColor: c.accent.primary + '44' },
+  premiumBadge: { flexDirection: 'row', alignItems: 'center', gap: 3, backgroundColor: c.accent.primary + '1E', paddingHorizontal: 7, paddingVertical: 3, borderRadius: 0, borderWidth: 1, borderColor: c.accent.primary },
   premiumBadgeT: { fontSize: 9, fontWeight: '900', color: c.accent.primary, letterSpacing: 0.6 },
   lockedSchoolCard: { marginHorizontal: 16, marginBottom: 10, borderRadius: 0, overflow: 'hidden', borderWidth: 1, borderColor: c.accent.primary + '33' },
   lockedSchoolInner: { flexDirection: 'row', alignItems: 'center', gap: 12, padding: 12 },
   lockedSchoolIcon: { width: 40, height: 40, borderRadius: 0, backgroundColor: '#fff', alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: c.accent.primary + '33' },
   lockedSchoolTitle: { fontSize: 13.5, fontWeight: '900', color: c.text.primary },
   lockedSchoolSub: { fontSize: 11, color: c.text.secondary, marginTop: 3, lineHeight: 15 },
-  lockedCTA: { flexDirection: 'row', alignItems: 'center', gap: 3, paddingHorizontal: 10, paddingVertical: 7, backgroundColor: '#fff', borderRadius: 999 },
+  lockedCTA: { flexDirection: 'row', alignItems: 'center', gap: 3, paddingHorizontal: 10, paddingVertical: 7, backgroundColor: '#fff', borderRadius: 0, borderWidth: 1.5, borderColor: c.text.primary },
   lockedCTAT: { fontSize: 11.5, fontWeight: '900', color: c.accent.primary, letterSpacing: 0.2 },
-  chip: { flexDirection: 'row', alignItems: 'center', gap: 5, backgroundColor: c.bg.card, paddingHorizontal: 12, paddingVertical: 9, borderRadius: 999, borderWidth: 1, borderColor: c.border.card },
+  chip: { flexDirection: 'row', alignItems: 'center', gap: 5, backgroundColor: c.bg.card, paddingHorizontal: 12, paddingVertical: 9, borderRadius: 0, borderWidth: 1.5, borderColor: c.text.primary },
   chipSchool: { backgroundColor: c.accent.primary + '12', borderColor: c.accent.primary + '30' },
   chipEmoji: { fontSize: 13 },
   chipText: { fontSize: 12, fontWeight: '500', color: c.text.secondary },
 
-  stickyStrip: { paddingHorizontal: 12, paddingVertical: 6, gap: 8 },
-  stickyChip: {
-    flexDirection: 'row', alignItems: 'center', gap: 6,
-    backgroundColor: '#F3F2ED',
-    paddingHorizontal: 12, paddingVertical: 6,
-    borderWidth: 1.5, borderColor: '#0A0A0A',
+  stickyStrip: {
+    paddingHorizontal: 14,
+    paddingTop: 6,
+    paddingBottom: 8,
+    gap: 8,
   },
-  chipTextSticky: { fontSize: 12, fontWeight: '700', color: '#0A0A0A', letterSpacing: 0.1 },
+  stickyChip: {
+    // R100G — proportions revisit. Previous geometry (px:9, py:5,
+    // fs:11, br:1.25) read as "stickers" stuck below the chat — too
+    // small relative to the chat bubble + send button (44 px tall).
+    // Bumped to a clean 36 px tap target with 2 px Brutalist border
+    // and accent-on-press behaviour. Chip text scaled to 12 / 700 for
+    // legibility at arm's length without becoming billboard-y.
+    flexDirection: 'row', alignItems: 'center', gap: 6,
+    backgroundColor: '#FAFAF7',
+    paddingHorizontal: 12, paddingVertical: 8,
+    minHeight: 36,
+    borderWidth: 2, borderColor: '#0A0A0A',
+  },
+  chipTextSticky: {
+    fontSize: 12, fontWeight: '700', color: '#0A0A0A', letterSpacing: 0.2,
+  },
 
   // Round 89 — chat input = primary zone (not footer).
   // High-contrast send button (solid ink, accent-on-ink arrow) +
@@ -682,6 +774,22 @@ const useStyles = makeStyles((c) => ({
     marginTop: 4,
     paddingHorizontal: 4,
     lineHeight: 14,
+  },
+  // R100R — Source-citation accent. Italic provenance line under
+  // every grounded AI reply. Subtle / muted on purpose — not a CTA.
+  sourceRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    marginTop: 6,
+    paddingHorizontal: 4,
+  },
+  sourceTxt: {
+    fontSize: 11,
+    color: '#8A8A8A',
+    fontStyle: 'italic',
+    lineHeight: 14,
+    flex: 1,
   },
   actionCard: {
     flexDirection: 'row',
@@ -718,3 +826,96 @@ const useStyles = makeStyles((c) => ({
     color: '#FFFFFF',
   },
 }));
+
+
+/**
+ * PulseContextPill — R100E.
+ *
+ * Renders the "📌 From Pulse" header above the chat when the user
+ * arrived via the Money Signal Layer. Subscribes reactively to
+ * `useAIPrompt.activeContext` so it appears the instant the Pulse
+ * modal pushes context (before the auto-fire even completes).
+ *
+ * Why a separate component: keeps the main chat render tight, lets
+ * the subscription be a single shallow selector, and isolates a
+ * future "tap to dismiss" affordance if needed.
+ */
+function PulseContextPill() {
+  const ctx = useAIPrompt((s) => s.activeContext);
+  if (!ctx || ctx.kind !== 'pulse') return null;
+  return (
+    <View style={pillSt.wrap}>
+      <View style={pillSt.head}>
+        <Text style={pillSt.kicker}>📌 FROM PULSE</Text>
+        {ctx.source ? (
+          <Text style={pillSt.source} numberOfLines={1}>
+            {ctx.source}
+          </Text>
+        ) : null}
+      </View>
+      <Text style={pillSt.headline} numberOfLines={2}>
+        {ctx.headline}
+      </Text>
+      {ctx.impacts && ctx.impacts.length > 0 ? (
+        <View style={pillSt.impactList}>
+          {ctx.impacts.slice(0, 3).map((imp, idx) => (
+            <Text key={idx} style={pillSt.impactRow} numberOfLines={1}>
+              → {imp.text}
+            </Text>
+          ))}
+        </View>
+      ) : null}
+    </View>
+  );
+}
+
+const pillSt = StyleSheet.create({
+  wrap: {
+    marginHorizontal: 12,
+    marginTop: 8,
+    marginBottom: 4,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+    borderWidth: 2,
+    borderColor: '#0A0A0A',
+    backgroundColor: '#FFF7E8',
+  },
+  head: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 6,
+  },
+  kicker: {
+    fontSize: 10,
+    fontWeight: '900',
+    letterSpacing: 2,
+    color: '#0A0A0A',
+  },
+  source: {
+    fontSize: 10,
+    color: '#6B6B6B',
+    fontWeight: '700',
+    maxWidth: 160,
+    letterSpacing: 0.5,
+  },
+  headline: {
+    fontSize: 14,
+    fontWeight: '900',
+    color: '#0A0A0A',
+    lineHeight: 18,
+    letterSpacing: -0.2,
+    marginBottom: 6,
+  },
+  impactList: {
+    borderTopWidth: 1,
+    borderTopColor: '#0A0A0A',
+    paddingTop: 6,
+  },
+  impactRow: {
+    fontSize: 12,
+    color: '#0A0A0A',
+    lineHeight: 18,
+    fontWeight: '600',
+  },
+});

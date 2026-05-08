@@ -149,7 +149,7 @@ const useStyles = makeStyles((c) => ({
   emptyCard: { alignItems: 'center', padding: 24, gap: 8, backgroundColor: c.bg.secondary, borderRadius: 0, borderWidth: 1, borderColor: c.border.subtle },
   emptyT: { fontSize: 14, fontWeight: '800', color: c.text.primary },
   emptyS: { fontSize: 12, color: c.text.secondary, textAlign: 'center', fontWeight: '500' },
-  emptyCTA: { marginTop: 6, paddingVertical: 10, paddingHorizontal: 20, borderRadius: 999, backgroundColor: c.accent.primary },
+  emptyCTA: { marginTop: 6, paddingVertical: 10, paddingHorizontal: 20, borderRadius: 0, backgroundColor: c.accent.primary },
   emptyCTATxt: { fontSize: 13, fontWeight: '800', color: '#fff' },
 
   contactRow: { flexDirection: 'row', gap: 8, flexWrap: 'wrap' },

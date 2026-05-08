@@ -80,6 +80,6 @@ const useStyles = makeStyles((c) => ({
   actionDivider: { borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: c.border.subtle },
   actionTitle: { fontSize: 13, fontWeight: '700', color: c.text.primary, lineHeight: 17 },
   actionSaves: { fontSize: 10.5, fontWeight: '700', color: c.state.success, marginTop: 2 },
-  oneTap: { flexDirection: 'row', alignItems: 'center', gap: 3, paddingHorizontal: 8, paddingVertical: 5, borderRadius: 999, backgroundColor: '#7C3AED14' },
+  oneTap: { flexDirection: 'row', alignItems: 'center', gap: 3, paddingHorizontal: 8, paddingVertical: 5, borderRadius: 0, backgroundColor: '#7C3AED14' },
   oneTapTxt: { fontSize: 10.5, fontWeight: '800', color: c.accent.tertiary },
 }));

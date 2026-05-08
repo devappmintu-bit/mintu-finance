@@ -21,6 +21,7 @@ import { LANGUAGES } from '../../utils/i18n';
 // Shared hooks (unchanged)
 import { useProfileData } from '../../hooks/useProfileData';
 import { useBiometricSettings } from '../../hooks/useBiometricSettings';
+import useShouldShowUpsells from '../../hooks/useShouldShowUpsells';
 import { sendTestPush } from '../../hooks/usePushNotifications';
 
 // Modals / sheets
@@ -44,6 +45,10 @@ import TrustedDevicesSheet from '../../components/brutalist/TrustedDevicesSheet'
 function ProfileScreen() {
   const { user, logout, avatar } = useAuthStore();
   const { lang } = useLangStore();
+
+  // R100T — earned-the-pitch gate. Suppresses Premium upsell card on
+  // cold-start so the Profile reads as a Control Center, not a paywall.
+  const showUpsells = useShouldShowUpsells();
 
   const {
     gmailStatus,
@@ -97,6 +102,9 @@ function ProfileScreen() {
   const goGoals = useCallback(() => { try { router.push('/goals' as any); } catch {} }, []);
   const goRewards = useCallback(() => { try { router.push('/(tabs)/rewards' as any); } catch {} }, []);
   const goSubscriptions = useCallback(() => { try { router.push('/subscriptions' as any); } catch {} }, []);
+  // R100G — Premium screen entry point. Premium card was moved out of
+  // Home and into the Profile Plan section (user directive).
+  const goPremium = useCallback(() => { try { router.push('/premium' as any); } catch {} }, []);
   const openPaymentMethods = useCallback(() => setPaymentMethodsVisible(true), []);
   const openPreferences = useCallback(() => setPreferencesVisible(true), []);
   const openNotifs = useCallback(() => setNotifsVisible(true), []);
@@ -141,6 +149,8 @@ function ProfileScreen() {
         onGoGoals={goGoals}
         onGoRewards={goRewards}
         onGoSubscriptions={goSubscriptions}
+        onGoPremium={goPremium}
+        showUpsells={showUpsells}
         onOpenTrustedDevices={openTrustedDevices}
         onToggleBio={bioHwAvail ? onToggleBio : undefined}
         onChangePin={onChangePin}

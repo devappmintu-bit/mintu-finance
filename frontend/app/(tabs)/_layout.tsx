@@ -32,6 +32,13 @@ import { COLORS, FONT_FAMILY, GLOW, useAppColors, getActiveMode } from '../../ut
 import { makeStyles } from '../../utils/makeStyles';
 import { useLangStore } from '../../store/langStore';
 import { t } from '../../utils/i18n';
+// Round 100AA — Neo-Brutalism theme palette for the tab bar.
+// Replaces the hardcoded #FAFAF7 / #0A0A0A with the active palette
+// so the tab chrome (visible on every screen) auto-adapts when the
+// user toggles light → dark in Profile > Preferences. Also injects
+// the neo accent (lime in light, neon-yellow in dark) on the active
+// tab background — much louder than the previous mono ink fill.
+import { useNeoPalette } from '../../store/neoTheme';
 
 const TAB_META: Record<string, { out: string; fill: string; key: string }> = {
   index:        { out: 'home-outline',       fill: 'home',       key: 'home' },
@@ -43,7 +50,11 @@ const TAB_META: Record<string, { out: string; fill: string; key: string }> = {
 function labelOf(name: string, lang: any): string {
   const k = TAB_META[name]?.key || name;
   const raw = t(k, lang);
-  const fallback: Record<string, string> = { home: 'Home', transactions: 'Transactions', budgets: 'Budgets', split: 'Split' };
+  // R100V — Tab label normalization. Was a mix of singular/plural/branded
+  // ("Home" / "Transactions" / "MintU-AI" / "Budgets" / "Split"). All
+  // singular nouns now; "Transactions" → "Spend" matches what users
+  // come there to see, "Budgets" → "Budget" for consistency.
+  const fallback: Record<string, string> = { home: 'Home', transactions: 'Spend', budgets: 'Budget', split: 'Split' };
   if (raw === k || !raw) return fallback[k] || name;
   return raw.charAt(0).toUpperCase() + raw.slice(1);
 }
@@ -158,18 +169,15 @@ function MintUTabBar({ state, navigation }: BottomTabBarProps) {
   const c = useAppColors();
   const { lang } = useLangStore();
   const screenW = Dimensions.get('window').width;
+  // Round 100AA — Neo-Brutal theme awareness. Tab bar now reflects
+  // the active palette (light/dark) instead of hard-coded paper/ink.
+  const palette = useNeoPalette();
   // Round 89 Strike 2 refine — BRUTALIST tab bar.
-  //
-  // Was: translucent glass pill (BlurView + rgba(255,255,255,0.70)),
-  //      orange halo pulse, drop-shadow lift, orange glow on active
-  //      chip. Felt iOS-style glassy — inconsistent with the rest of
-  //      the app's brutalist blocks, hard 2px borders, and flat 4px
-  //      stamp shadow.
-  // Now:  solid paper fill, hard 2px ink top border, flat offset stamp,
-  //       square corners. Active tab = solid ink fill (no glow). No
-  //       blur anywhere. One system, one language.
-  const pillBg = '#FAFAF7';
-  const pillBorder = '#0A0A0A';
+  // R100AA: surface + border now derive from neo palette so dark mode
+  // shows charcoal bar with white border + neon accents instead of
+  // forcing light cream chrome on a dark app.
+  const pillBg = palette.surface;
+  const pillBorder = palette.ink;
 
   // Round 59 — AI Quick Prompt sheet visibility (mascot short-tap).
   // Must stay declared at component scope — referenced by the
@@ -270,7 +278,7 @@ function MintUTabBar({ state, navigation }: BottomTabBarProps) {
             <Mascot size={PUCK_INNER} variant="auto" />
           </View>
         </View>
-        <Text style={st.raisedLabel}>MintU-AI</Text>
+        <Text style={st.raisedLabel}>MintU</Text>
       </TouchableOpacity>
       {/* Round 59 — AI Quick Prompt sheet. Mounted at the tab-bar level
           so it's accessible from every screen. */}

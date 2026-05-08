@@ -582,7 +582,7 @@ const useStyles = makeStyles((c) => ({
 
   // Quick chips
   quickRow: { flexDirection: 'row', justifyContent: 'center', gap: 8, marginTop: 18, flexWrap: 'wrap' },
-  quickChip: { paddingHorizontal: 14, paddingVertical: 8, borderRadius: 999, backgroundColor: c.bg.elevated, borderWidth: 1, borderColor: c.gray[200] },
+  quickChip: { paddingHorizontal: 14, paddingVertical: 8, borderRadius: 0, backgroundColor: c.bg.elevated, borderWidth: 1, borderColor: c.gray[200] },
   quickTxt: { fontSize: 13, fontWeight: '700', color: c.text.primary },
 
   // AI pill
@@ -596,7 +596,7 @@ const useStyles = makeStyles((c) => ({
     borderColor: c.gray[100],
   },
   aiPillTxt: { flex: 1, fontSize: 12.5, color: c.text.muted, fontWeight: '600' },
-  aiPillCta: { paddingHorizontal: 10, paddingVertical: 5, backgroundColor: c.text.primary, borderRadius: 999 },
+  aiPillCta: { paddingHorizontal: 10, paddingVertical: 5, backgroundColor: c.text.primary, borderRadius: 0 },
   aiPillCtaTxt: { fontSize: 11, fontWeight: '900', color: '#FFFFFF', letterSpacing: 0.3 },
 
   // Section labels (inside ExpandableSection)
@@ -620,7 +620,7 @@ const useStyles = makeStyles((c) => ({
   descInput: { minHeight: 44, fontSize: 13.5, color: c.text.primary, paddingHorizontal: 12, paddingVertical: 10, backgroundColor: c.gray[50], borderRadius: 0 },
 
   // Goals chips
-  goalChip: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 12, paddingVertical: 7, borderRadius: 999, backgroundColor: c.gray[50], borderWidth: 1, borderColor: c.gray[100] },
+  goalChip: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 12, paddingVertical: 7, borderRadius: 0, backgroundColor: c.gray[50], borderWidth: 1, borderColor: c.gray[100] },
   goalChipOn: { backgroundColor: c.gray[100], borderColor: c.text.primary },
   goalTxt: { fontSize: 12, color: c.text.muted, fontWeight: '700' },
 

@@ -194,7 +194,7 @@ const useStyles = makeStyles((c) => ({
   errorRetry: {
     flexDirection: 'row', alignItems: 'center', gap: 6,
     backgroundColor: c.accent.primary, paddingHorizontal: 16, paddingVertical: 10,
-    borderRadius: 999, marginTop: 4,
+    borderRadius: 0, marginTop: 4,
   },
   errorRetryTxt: { color: '#FFFFFF', fontWeight: '800', fontSize: 13 },
 }));

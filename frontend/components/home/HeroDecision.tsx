@@ -16,6 +16,13 @@ import { View, Text, Pressable, StyleSheet, Platform } from 'react-native';
 import { router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { BR_COLORS, BR_TYPE, BR_SPACE, BR_BORDER, BR_STAMP } from '../../utils/brutalist';
+// Round 100Z-HOTFIX2 — Missing import that was causing entire home
+// screen to crash with "BrutalistPressable is not defined". The
+// component was added to JSX in a previous fork but the import line
+// never landed. Caught only when a real authenticated session
+// reached the home tab (Round 100Z mocked-auth screenshot didn't
+// trigger this code path because the loading state masked the crash).
+import BrutalistPressable from '../brutalist/BrutalistPressable';
 import { ROUTES } from '../../constants/routes';
 import { useAIPrompt } from '../../store/aiPromptStore';
 import type { PriorityInsight, RiskLevel } from '../../hooks/usePriorityInsight';
@@ -53,16 +60,81 @@ export default function HeroDecision({ insight }: Props) {
   const headline = diag?.headline;
   const weakestCat = diag?.weakest_category;
 
+  // R100S — Honest cold-start gate. The hero card was previously
+  // rendering a confident "80/100, ▲ +28 vs last wk, All categories on
+  // baseline" composite for users who had logged 0-3 weeks of data —
+  // i.e. the score was being printed BEFORE there was anything to
+  // score. UX audit (R100S) flagged this as the single biggest trust
+  // violation in the app: a finance app cannot show fabricated metrics.
+  //
+  // Rule: until we have at least 4 calendar weeks of data ( the same
+  // bar percentile_basis === 'own_history' uses ), we render an
+  // EMPTY-STATE card explaining what's still being learned and what
+  // the user should do next. Single CTA, no fake delta, no fake
+  // percentile, no fake "categories on baseline" line.
+  const historyCount = diag?.history_count ?? 0;
+  const hasEnoughHistory =
+    diag?.percentile_basis === 'own_history' && historyCount >= 4;
+  const isColdStart = !hasEnoughHistory;
+
   const handlePress = () => {
     try {
-      // Prefer asking about the weakest category — it's the actionable hook.
-      const weakestPrompt = weakestCat
-        ? `My ${weakestCat.category} spend is up ${weakestCat.overshoot_pct}% vs my typical. Suggest a fix.`
-        : insight.coachPrompt;
-      useAIPrompt.getState().set(weakestPrompt, 'daily_brief', 'home_hero');
+      // Cold-start tap → ask the AI Coach what to log first instead of
+      // sending a fabricated "fix my weakest category" prompt.
+      const prompt = isColdStart
+        ? "I'm new here. What should I log first to start getting useful insights?"
+        : weakestCat
+          ? `My ${weakestCat.category} spend is up ${weakestCat.overshoot_pct}% vs my typical. Suggest a fix.`
+          : insight.coachPrompt;
+      useAIPrompt.getState().set(prompt, 'daily_brief', 'home_hero');
       router.push(ROUTES.AI_COACH);
     } catch { /* noop */ }
   };
+
+  // ─────────────────────────────────────────────────────────
+  // COLD-START render — no fake numbers, no fake provenance.
+  // ─────────────────────────────────────────────────────────
+  if (isColdStart) {
+    const weeksToGo = Math.max(0, 4 - historyCount);
+    return (
+      <BrutalistPressable
+        onPress={handlePress}
+        stamp="md"
+        accessibilityLabel="Money score not ready yet. Tap to ask Mintu what to log."
+        style={styles.card}
+      >
+        <View style={styles.top}>
+          <Text style={styles.kicker}>YOUR MONEY SCORE</Text>
+          <View style={[styles.pill, { backgroundColor: BR_COLORS.muted }]}>
+            <Text style={[styles.pillTxt, { color: BR_COLORS.accentInk }]}>BUILDING</Text>
+          </View>
+        </View>
+
+        <View style={styles.scoreRow}>
+          <Text style={[styles.scoreNum, { color: BR_COLORS.muted }]}>—</Text>
+          <Text style={styles.scoreOf}>/100</Text>
+        </View>
+
+        <View style={styles.lineWrap}>
+          <Text style={styles.kicker}>BUILDING YOUR PATTERN</Text>
+          <Text style={styles.lineTxt} numberOfLines={3}>
+            {historyCount === 0
+              ? 'A score needs ~4 weeks of your real spending. Log a few expenses and I\'ll start learning your pattern.'
+              : `Learning your pattern · ${historyCount} of 4 weeks logged. ${weeksToGo} to go before your score unlocks.`}
+          </Text>
+        </View>
+
+        <View style={styles.footer}>
+          <Text style={styles.foot}>GET A SUGGESTION</Text>
+          <Ionicons name="arrow-forward" size={14} color={BR_COLORS.ink} />
+        </View>
+      </BrutalistPressable>
+    );
+  }
+
+  // ─────────────────────────────────────────────────────────
+  // FULL render — only when we have ≥4 weeks of own history.
+  // ─────────────────────────────────────────────────────────
 
   return (
     <Pressable

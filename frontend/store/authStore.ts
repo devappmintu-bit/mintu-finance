@@ -59,6 +59,14 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   setToken: async (token) => {
     await AsyncStorage.setItem(ASYNC_TOKEN_KEY, token);
     set({ token });
+    // R100Q-perf — warm critical caches the moment auth lands so the
+    // first navigation after login renders from memory, not network.
+    // Fire-and-forget; failures are silently swallowed inside the
+    // helper. Parallel /missions/current + /split/groups + /budgets/current.
+    try {
+      const { warmCriticalCaches } = await import('../utils/api');
+      warmCriticalCaches();
+    } catch { /* noop */ }
   },
   setAvatar: async (avatar: string) => {
     set({ avatar });

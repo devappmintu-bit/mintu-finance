@@ -65,6 +65,11 @@ def render_system_block(ctx: dict) -> str:
 
     Kept short — token-budget matters. Empty fields render as a single
     line ("None yet") rather than empty bullets.
+
+    R100Q — Honest cold-start. We now compute a data-availability
+    snapshot and inject explicit "if data is thin, admit it" guidance.
+    The LLM stops hallucinating peer comparisons and budget verdicts
+    when it has nothing to base them on.
     """
     summary = (ctx.get("last_session_summary") or "").strip() or "First session."
     patterns = ctx.get("known_patterns") or []
@@ -82,6 +87,40 @@ def render_system_block(ctx: dict) -> str:
     )
     last_action = (actions[-1].get("label") if actions else "") or "None"
 
+    # Capability snapshot — how much data do we actually have? Derived
+    # from the same context doc (no extra DB roundtrips).
+    txn_days = int(ctx.get("txn_days_count") or 0)
+    has_income = bool(ctx.get("income_monthly"))
+    has_patterns = len(patterns) > 0
+    has_goals = len(goals) > 0
+
+    if txn_days < 3 and not has_income:
+        cold_start = "VERY_COLD"   # day 0-1, nothing to reason from
+    elif txn_days < 7 or not has_patterns:
+        cold_start = "WARMING"      # has some signals but thin
+    else:
+        cold_start = "WARM"         # full reasoning OK
+
+    honesty_rules = {
+        "VERY_COLD": (
+            "DATA STATUS: cold start. You have very little real data on this user. "
+            "DO NOT make peer comparisons, claim spending patterns, or quote percentages. "
+            "DO admit you're new to their finances. Suggest 1-2 practical next steps "
+            "(connect bank, log first expense). Be brief — under 80 words."
+        ),
+        "WARMING": (
+            "DATA STATUS: warming up. Some signals but limited history. "
+            "When making any claim with a number, append a quiet hedge "
+            "(e.g. 'based on your last few days') so the user knows the basis. "
+            "Avoid ranking against peers until 14+ days of data."
+        ),
+        "WARM": (
+            "DATA STATUS: warm. Reasonable history available. "
+            "Cite the basis for any number you give "
+            "(e.g. 'based on your last 30 days of UPI'). Keep citations short and human."
+        ),
+    }
+
     return (
         "Context from previous sessions: "
         + summary
@@ -91,6 +130,9 @@ def render_system_block(ctx: dict) -> str:
         + goal_str
         + "\nLast action you helped with: "
         + last_action
+        + f"\nDATA AVAILABILITY: txn_days={txn_days} income={'yes' if has_income else 'no'} "
+        + f"patterns={'yes' if has_patterns else 'no'} goals={'yes' if has_goals else 'no'}"
+        + "\n" + honesty_rules[cold_start]
     )
 
 

@@ -66,13 +66,21 @@ export function useDailyCheckIn() {
           const freezeUsed = !!data.freeze_used;
 
           // Freeze saved the streak — dedicated celebration.
+          // R100S — Suppress for users who haven't actually engaged yet.
+          // The toast was firing on cold-start "first session" users with
+          // an "8-day streak is safe" message that they had never built.
+          // We only show streak-freeze celebrations to users with a
+          // meaningful streak (≥3) so the gamification never appears
+          // before the user has done anything to earn it.
           if (freezeUsed) {
-            Toast.show({
-              type: 'success',
-              text1: '❄️ Streak Freeze used!',
-              text2: `Your ${streak}-day streak is safe · +${coins} coins`,
-              visibilityTime: 4500,
-            });
+            if (streak >= 3) {
+              Toast.show({
+                type: 'success',
+                text1: '❄️ Streak Freeze used!',
+                text2: `Your ${streak}-day streak is safe · +${coins} coins`,
+                visibilityTime: 4500,
+              });
+            }
             return;
           }
 
@@ -94,19 +102,22 @@ export function useDailyCheckIn() {
             });
           } else if (isMilestone && !already) {
             await AsyncStorage.setItem(seenKey, '1').catch(() => {});
+            // Round 99E — milestone toasts now reframe coins as projected
+            // savings. The streak coin economy still exists in the ledger
+            // (separate retirement project) but we stop SHOWING coin numbers
+            // to the user. The streak itself stays — it's the habit, the
+            // coin number isn't.
             Toast.show({
               type: 'success',
-              text1: `🔥 ${streak}-day streak!`,
-              text2: `+${coins} coins · You're on a roll`,
+              text1: `🔥 ${streak}-day streak`,
+              text2: `Keep this up — you're building a real habit.`,
               visibilityTime: 4000,
             });
           } else if (coins > 0) {
-            Toast.show({
-              type: 'success',
-              text1: `🔥 Day ${streak}`,
-              text2: `+${coins} coins earned`,
-              visibilityTime: 2500,
-            });
+            // Round 99E — silenced. The "+N coins earned" toast was
+            // contradicting the product narrative ("we killed gamification")
+            // on the very first home open. We keep the streak silently
+            // accruing in the ledger but stop the per-day chyron.
           }
         }
       } catch {

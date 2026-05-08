@@ -75,6 +75,18 @@ function BudgetHealthRingImpl({
   const over = totalSpent > totalBudget && totalBudget > 0;
   const percent = totalBudget > 0 ? Math.round((totalSpent / totalBudget) * 100) : 0;
 
+  // R100I — compact ledger formatting. Long Indian numerals
+  // (e.g. ₹1,75,000) overflowed both card edges on 360-px viewports
+  // when the row had no flex constraints. Format to ₹X.XK / ₹X.XL so
+  // the row stays inside the card on every screen size.
+  const fmtCompact = (n: number): string => {
+    const v = Math.round(Math.abs(n));
+    if (v >= 10000000) return `₹${(v / 10000000).toFixed(1)}Cr`;
+    if (v >= 100000) return `₹${(v / 100000).toFixed(1)}L`;
+    if (v >= 1000) return `₹${(v / 1000).toFixed(1)}K`;
+    return `₹${v.toLocaleString('en-IN')}`;
+  };
+
   return (
     <Pressable
       onPress={onPress}
@@ -115,9 +127,9 @@ function BudgetHealthRingImpl({
         </View>
       </View>
       <View style={styles.footer}>
-        <MoneyNumber value={totalSpent} prefix="₹" style={styles.spent} duration={700} />
+        <Text style={styles.spent} numberOfLines={1}>{fmtCompact(totalSpent)}</Text>
         <Text style={styles.divider}>/</Text>
-        <Text style={styles.total}>₹{totalBudget.toLocaleString('en-IN')}</Text>
+        <Text style={styles.total} numberOfLines={1}>{fmtCompact(totalBudget)}</Text>
       </View>
       {subtitle ? <Text style={styles.sub}>{subtitle}</Text> : null}
     </Pressable>
@@ -144,9 +156,9 @@ const styles = StyleSheet.create({
   centre: { position: 'absolute', alignItems: 'center', justifyContent: 'center' },
   pct: { ...TYPO.display, fontSize: 44, lineHeight: 46 },
   pctLabel: { ...TYPO.caption, color: COLORS.text.muted, marginTop: 2, textTransform: 'uppercase' },
-  footer: { flexDirection: 'row', alignItems: 'baseline', gap: 6, marginTop: SPACE.md },
-  spent: { ...TYPO.h1, color: COLORS.text.primary },
-  divider: { ...TYPO.h2, color: COLORS.text.muted },
-  total: { ...TYPO.h2, color: COLORS.text.muted },
+  footer: { flexDirection: 'row', alignItems: 'baseline', gap: 6, marginTop: SPACE.md, maxWidth: '100%', flexShrink: 1 },
+  spent: { ...TYPO.h1, color: COLORS.text.primary, flexShrink: 1 },
+  divider: { ...TYPO.h2, color: COLORS.text.muted, flexShrink: 0 },
+  total: { ...TYPO.h2, color: COLORS.text.muted, flexShrink: 1 },
   sub: { ...TYPO.bodySm, color: COLORS.text.muted, marginTop: SPACE.xs, textAlign: 'center' },
 });

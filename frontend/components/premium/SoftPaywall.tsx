@@ -168,11 +168,11 @@ const useStyles = makeStyles((c) => ({
   fakeBar: { height: 9, borderRadius: 4, backgroundColor: 'rgba(0,0,0,0.1)' },
   blurOverlay: { ...{ position: 'absolute' }, top: 0, left: 0, right: 0, bottom: 0, alignItems: 'center', justifyContent: 'center' },
   webFog: { backgroundColor: 'rgba(255,255,255,0.78)' },
-  blurInner: { flexDirection: 'row', alignItems: 'center', gap: 5, backgroundColor: 'rgba(255,255,255,0.95)', paddingHorizontal: 10, paddingVertical: 5, borderRadius: 999, borderWidth: 1, borderColor: 'rgba(193,74,6,0.2)' },
+  blurInner: { flexDirection: 'row', alignItems: 'center', gap: 5, backgroundColor: 'rgba(255,255,255,0.95)', paddingHorizontal: 10, paddingVertical: 5, borderRadius: 0, borderWidth: 1, borderColor: 'rgba(193,74,6,0.2)' },
   blurTxt: { fontSize: 11, fontWeight: '800', color: '#7A2E0A' },
 
   trustRow: { flexDirection: 'row', gap: 6 },
-  trustBadge: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 3, paddingVertical: 5, paddingHorizontal: 6, borderRadius: 999, backgroundColor: c.bg.primary, borderWidth: 1, borderColor: c.border.subtle },
+  trustBadge: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 3, paddingVertical: 5, paddingHorizontal: 6, borderRadius: 0, backgroundColor: c.bg.primary, borderWidth: 1, borderColor: c.border.subtle },
   trustTxt: { fontSize: 10, fontWeight: '800', color: c.text.secondary },
 
   ctaBtn: { borderRadius: 0, overflow: 'hidden' },

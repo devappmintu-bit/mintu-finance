@@ -37,6 +37,14 @@ export default function AuthScreen() {
   const [showLangPicker, setShowLangPicker] = useState(false);
   const [pinSetupVisible, setPinSetupVisible] = useState(false);
   const [welcomeAnim, setWelcomeAnim] = useState(false);
+  // Round 99G — perceived-perf fix. The phone→OTP transition was
+  // taking 4-6s of frozen-spinner time on Indian mobile networks
+  // because we waited for the SMS provider before unblocking the UI.
+  // Now we OPTIMISTICALLY swap to the OTP screen the instant the user
+  // taps Send OTP, render the input boxes in a disabled+pulsing state
+  // with "Sending code…" copy, and only enable them when the API
+  // confirms. Failed sends snap back to the phone step with an alert.
+  const [otpSending, setOtpSending] = useState(false);
   const { setUser, setToken, setIsNewUserFlag } = useAuthStore();
   const otpRefs = useRef<(TextInput | null)[]>([]);
 
@@ -54,14 +62,26 @@ export default function AuthScreen() {
       Alert.alert(t('error', lang), 'Indian mobile numbers start with 6, 7, 8, or 9');
       return;
     }
+    // Round 99G — switch to OTP screen IMMEDIATELY (optimistic).
+    // The user sees disabled boxes + "Sending code…" copy in <100ms
+    // instead of a 5s frozen orange button. Massive perceived-speed win.
+    setOtpSending(true);
+    setStep('otp');
+    setResendTimer(0);   // we'll set it after the API confirms
     setLoading(true);
     try {
       const res = { data: await sendOtp(cleanPhone) };
       setIsNewUser(res.data.is_new_user);
-      setStep('otp');
+      setOtpSending(false);
       setResendTimer(30);
       setTimeout(() => otpRefs.current[0]?.focus(), 300);
-    } catch (err: any) { Alert.alert(t('error', lang), err.response?.data?.detail || 'Failed to send OTP'); }
+    } catch (err: any) {
+      // Snap back to phone step on failure — never leave the user on
+      // an OTP screen that will never receive a code.
+      setStep('phone');
+      setOtpSending(false);
+      Alert.alert(t('error', lang), err.response?.data?.detail || 'Failed to send OTP');
+    }
     finally { setLoading(false); }
   };
 
@@ -190,14 +210,18 @@ export default function AuthScreen() {
       </TouchableOpacity>
 
       <View style={s.header}>
-        {/* Round 53l.2 — Login Personality Engine.
-            Replaces the static mascot with a live, contextual moment.
-            Renders the instant fallback at 0ms (offline-safe) and
-            upgrades with the LLM in the background. The engine's text
-            replaces the static "enter_phone / otp_subtitle" pair so
-            the screen feels alive on every open. */}
-        <MascotMoment mode="login" />
+        {/* R100U — Brand reconciliation. The soft 3D mascot was clashing
+            with the brutalist hard-shadow / black-on-paper aesthetic of
+            every other brutalist surface (Profile, Home Hero, Split,
+            Budget). On confidence-critical screens (auth, settings,
+            score cards) we now lead with the wordmark + a brutalist
+            ink rule, not the cuddly mascot. The mascot still owns
+            playful surfaces (rewards, onboarding interstitials, AI
+            mascot moments) where character is the point. */}
+        <View style={s.brandRule} />
         <Text style={s.logoText}>MintU</Text>
+        <Text style={s.authTagline}>Money, simplified.</Text>
+        <Text style={s.authTrust}>Bank-grade · Data stays in India</Text>
       </View>
       <View style={s.phoneRow}>
         <View style={s.countryCode}><Text style={s.countryText}>+91</Text></View>
@@ -218,22 +242,49 @@ export default function AuthScreen() {
           <Mascot size={72} variant="auto" />
         </View>
         <Text style={s.stepTitle}>{t('verify_otp', lang)}</Text>
-        <Text style={s.stepSubtitle}>{t('verify_subtitle', lang)}{'\n'}<Text style={s.phoneHighlight}>+91 {phone}</Text></Text>
+        <Text style={s.stepSubtitle}>
+          {/* Round 99G — perceived-perf copy. While the OTP is in flight
+              (otpSending=true) we say "Sending code to ...". The instant
+              the API confirms, copy flips to the steady-state "Code sent
+              to ...". This converts dead air into anticipation. */}
+          {otpSending
+            ? <>Sending code to{'\n'}<Text style={s.phoneHighlight}>+91 {phone}</Text></>
+            : <>{t('verify_subtitle', lang)}{'\n'}<Text style={s.phoneHighlight}>+91 {phone}</Text></>}
+        </Text>
       </View>
       <View style={s.otpRow}>
         {otp.map((digit, i) => (
-          <TextInput key={i} ref={(ref) => { otpRefs.current[i] = ref; }} testID={`otp-input-${i}`}
-            style={[s.otpBox, digit ? s.otpBoxFilled : null]} value={digit}
+          <TextInput
+            key={i}
+            ref={(ref) => { otpRefs.current[i] = ref; }}
+            testID={`otp-input-${i}`}
+            style={[
+              s.otpBox,
+              digit ? s.otpBoxFilled : null,
+              // Round 99G — visibly disabled while sending. Halves
+              // opacity so the user grasps "boxes are not interactive
+              // yet" without reading copy.
+              otpSending && { opacity: 0.4 },
+            ]}
+            value={digit}
             onChangeText={(text) => handleOtpChange(text, i)}
             onKeyPress={({ nativeEvent }) => handleOtpKeyPress(nativeEvent.key, i)}
-            keyboardType="number-pad" maxLength={6} selectTextOnFocus />
+            editable={!otpSending}
+            keyboardType="number-pad"
+            maxLength={6}
+            selectTextOnFocus
+          />
         ))}
       </View>
-      <TouchableOpacity testID="verify-otp-btn" style={[s.primaryBtn, loading && s.btnDisabled]} onPress={() => handleVerifyOTP()} disabled={loading}>
-        {loading ? <ActivityIndicator color={COLORS.text.inverse} /> : <Text style={s.primaryBtnText}>{t('verify_otp', lang)}</Text>}
+      <TouchableOpacity testID="verify-otp-btn" style={[s.primaryBtn, (loading || otpSending) && s.btnDisabled]} onPress={() => handleVerifyOTP()} disabled={loading || otpSending}>
+        {(loading || otpSending) ? <ActivityIndicator color={COLORS.text.inverse} /> : <Text style={s.primaryBtnText}>{t('verify_otp', lang)}</Text>}
       </TouchableOpacity>
-      <TouchableOpacity style={s.resendBtn} onPress={handleResend} disabled={resendTimer > 0}>
-        <Text style={[s.resendText, resendTimer > 0 && s.resendDisabled]}>{resendTimer > 0 ? `${t('resend_in', lang)} ${resendTimer}s` : t('resend_otp', lang)}</Text>
+      <TouchableOpacity style={s.resendBtn} onPress={handleResend} disabled={otpSending || resendTimer > 0}>
+        <Text style={[s.resendText, (otpSending || resendTimer > 0) && s.resendDisabled]}>
+          {otpSending
+            ? 'Sending code…'
+            : (resendTimer > 0 ? `${t('resend_in', lang)} ${resendTimer}s` : t('resend_otp', lang))}
+        </Text>
       </TouchableOpacity>
     </>
   );
@@ -332,7 +383,17 @@ const useStyles = makeStyles((c) => ({
   mascotWrap: { marginBottom: 16, alignItems: 'center', justifyContent: 'center' },
   mascotSmallWrap: { marginBottom: 12, alignItems: 'center', justifyContent: 'center' },
   logoSymbol: { fontSize: 34, fontWeight: '800', color: c.text.inverse },
-  logoText: { fontSize: 34, fontWeight: '900', color: c.text.primary, marginBottom: 24, letterSpacing: -1 },
+  logoText: { fontSize: 34, fontWeight: '900', color: c.text.primary, marginBottom: 4, letterSpacing: -1 },
+  // R100U — Brutalist brand mark replaces the soft mascot on auth screen.
+  brandRule: {
+    width: 56,
+    height: 6,
+    backgroundColor: c.text.primary,
+    marginBottom: 18,
+  },
+  // R100S — confident static tagline (replaces randomized MascotMoment)
+  authTagline: { fontSize: 15, fontWeight: '600', color: c.text.muted, marginBottom: 6, textAlign: 'center' },
+  authTrust: { fontSize: 11, fontWeight: '700', color: c.text.muted, letterSpacing: 1.4, marginBottom: 24, textTransform: 'uppercase' as const, textAlign: 'center' },
   otpIconWrap: { width: 80, height: 80, borderRadius: 0, backgroundColor: c.accent.moneyIn + '15', justifyContent: 'center', alignItems: 'center', marginBottom: 20, borderWidth: 2, borderColor: '#0A0A0A' },
   stepTitle: { fontSize: 26, fontWeight: '900', color: c.text.primary, marginBottom: 8, textAlign: 'center', letterSpacing: -0.8 },
   stepSubtitle: { fontSize: 15, color: c.text.secondary, textAlign: 'center', lineHeight: 24 },
