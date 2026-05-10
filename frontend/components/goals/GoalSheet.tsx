@@ -216,7 +216,7 @@ export default function GoalSheet({
     const err = validate();
     if (err) { setErrorTxt(err); return; }
     setErrorTxt(null);
-    try { if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium); } catch {}
+    try { if (Platform.OS !== 'web') h.press(); } catch {}
     await onSubmit({
       name: name.trim(),
       target_amount: target,
@@ -234,7 +234,7 @@ export default function GoalSheet({
   const canSubmit = name.trim().length > 0 && target > 0 && !submitting && isOnline;
 
   const tapPreset = (n: number) => {
-    try { Haptics.selectionAsync(); } catch {}
+    try { h.select(); } catch {}
     setTargetStr(String(n));
     if (errorTxt) setErrorTxt(null);
   };
@@ -415,4 +415,3 @@ export default function GoalSheet({
     </Modal>
   );
 }
-

@@ -412,6 +412,15 @@ async def sync_user_inbox(user_id: str, initial: bool = False) -> dict:
             "last_msg_id": last_msg_id or doc.get("last_msg_id"),
         }, "$inc": {"imported_count": imported}},
     )
+    # If Gmail import added rows, bust derivative caches (R118
+    # intelligence + analytics) so the home dashboard reflects the
+    # newly-imported transactions on its very next paint.
+    if imported > 0:
+        try:
+            from core.cache import invalidate_user_transaction_caches
+            invalidate_user_transaction_caches(user_id)
+        except Exception:
+            pass
     logger.info(f"Gmail sync user={user_id} fetched={fetched} imported={imported} skipped={skipped}")
     return {"fetched": fetched, "imported": imported, "skipped": skipped}
 

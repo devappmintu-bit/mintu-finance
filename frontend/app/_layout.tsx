@@ -1,4 +1,4 @@
-import { Stack, router } from 'expo-router';
+import { Stack, router, usePathname } from 'expo-router';
 import React, { useEffect } from 'react';
 import { StatusBar } from 'expo-status-bar';
 import { LogBox, Platform, View, TextInput, InteractionManager } from 'react-native';
@@ -7,8 +7,12 @@ import { toastConfig } from '../components/ToastConfig';
 import { useAuthStore } from '../store/authStore';
 import { useLangStore } from '../store/langStore';
 import { useThemePref } from '../store/themeStore';
+import { navIntel, maybePrewarmNext } from '../utils/navIntel';
+import { telemetry } from '../utils/routeTelemetry';
+import '../utils/navPrewarmers'; // R115 — registers cheap prewarmers for tabs/pulse
 import ThemeTransitionOverlay from '../components/ui/ThemeTransitionOverlay';
 import { usePushNotifications } from '../hooks/usePushNotifications';
+import { useSMSListener } from '../hooks/useSMSListener';
 import { useAppLock } from '../hooks/useAppLock';
 import { useDailyCheckIn } from '../hooks/useDailyCheckIn';
 import { useHydrateNeoTheme } from '../store/neoTheme';
@@ -26,9 +30,12 @@ import { PortalProvider } from '@gorhom/portal';
 import { COLORS, useAppColors } from '../utils/theme';
 import ErrorBoundary from '../components/ErrorBoundary';
 import OfflineBanner from '../components/OfflineBanner';
+import SlowNetworkHint from '../components/SlowNetworkHint';
+import { SmartBackProvider } from '../hooks/useSmartBack';
 import AppLockOverlay from '../components/AppLockOverlay';
 import SmartEntryHost from '../components/smart-entry/SmartEntryHost';
 import BrutalToastHost from '../components/brutal/BrutalToastHost';
+import CmdPalette from '../components/CmdPalette';
 import { useFinContext } from '../store/financialContext';
 import { isExpoGo } from '../utils/lockManager';
 
@@ -99,6 +106,12 @@ export default function RootLayout() {
   // Silent on web/simulators, idempotent across remounts.
   usePushNotifications();
 
+  // R120 — Native SMS listener (Android-only, no-op on web/iOS).
+  // Forwards bank/UPI SMS to /api/sms/bulk-parse for deterministic
+  // parsing. Activates only on EAS Builds with the native module
+  // bundled and READ_SMS+RECEIVE_SMS granted.
+  useSMSListener();
+
   // Re-lock the app on resume from background — reinvokes biometric/PIN every time.
   useAppLock();
 
@@ -110,6 +123,22 @@ export default function RootLayout() {
   // cold-start. Non-blocking; falls back to 'system' default.
   useDailyCheckIn();
   useHydrateNeoTheme();
+
+  // R115 Sprint-2 — pathname-driven nav intelligence + dev telemetry.
+  // Records every visit into the predictive graph, attempts a top-1
+  // prewarm of the next likely route after a 1.5 s idle (so we never
+  // race the user's actual navigation), and feeds the dev telemetry
+  // ring buffer. All side-effects are noop-safe.
+  const pathname = usePathname();
+  useEffect(() => {
+    if (!pathname) return;
+    navIntel.recordVisit(pathname);
+    if (__DEV__) telemetry.markMount(pathname);
+    const t = setTimeout(() => {
+      try { maybePrewarmNext(pathname); } catch { /* noop */ }
+    }, 1500);
+    return () => clearTimeout(t);
+  }, [pathname]);
 
   useEffect(() => {
     loadFromStorage();
@@ -251,11 +280,17 @@ export default function RootLayout() {
       <ErrorBoundary variant="full">
       <PortalProvider>
         <BottomSheetModalProvider>
+          <SmartBackProvider>
           {/* Round 40 — global offline banner. Mounted outside the Stack so
               it persists across route transitions and sits on top of every
               screen (z-index 999, pointerEvents="none" so it never swallows
               taps). */}
           <OfflineBanner />
+          {/* R114 — Slow-network hint banner. Surfaces when ANY API call
+              has been pending > 3s so the user knows the app isn't frozen.
+              Sits BELOW OfflineBanner (z-998 vs 999); auto-hides 600 ms
+              after the slow request resolves. */}
+          <SlowNetworkHint />
           {/*
             Round 30b: the previous Stack `key={resolvedTheme}` hard-remount
             is GONE. All 14 previously-legacy screens have been migrated to
@@ -267,13 +302,25 @@ export default function RootLayout() {
           {/* Round 56 — app is light-only; status bar ink is always dark. */}
           <StatusBar style="dark" />
           <Stack
-            screenOptions={{ headerShown: false, animation: 'fade', contentStyle: { backgroundColor: c.bg.primary } }}
+            screenOptions={{
+              headerShown: false,
+              // R114 Phase-5 — default cross-stack transition is now a
+              // native-feeling slide (iOS slide-back gesture supported).
+              // Auth/onboarding/index keep `fade` overrides below for
+              // smooth boot-sequence cross-fades.
+              animation: 'slide_from_right',
+              animationDuration: 240,
+              gestureEnabled: true,
+              contentStyle: { backgroundColor: c.bg.primary },
+            }}
           >
-            <Stack.Screen name="index" />
-            <Stack.Screen name="onboarding" />
-            <Stack.Screen name="auth" />
-            <Stack.Screen name="unlock" />
-            <Stack.Screen name="(tabs)" />
+            {/* Boot/auth screens cross-fade so there's no "drawer slide"
+                feel before login. */}
+            <Stack.Screen name="index" options={{ animation: 'fade', gestureEnabled: false }} />
+            <Stack.Screen name="onboarding" options={{ animation: 'fade', gestureEnabled: false }} />
+            <Stack.Screen name="auth" options={{ animation: 'fade', gestureEnabled: false }} />
+            <Stack.Screen name="unlock" options={{ animation: 'fade', gestureEnabled: false }} />
+            <Stack.Screen name="(tabs)" options={{ animation: 'fade', gestureEnabled: false }} />
             <Stack.Screen name="premium" options={{ animation: 'slide_from_right' }} />
             <Stack.Screen name="premium-reports" options={{ animation: 'slide_from_right' }} />
             <Stack.Screen name="premium-hub" options={{ animation: 'slide_from_right' }} />
@@ -311,6 +358,11 @@ export default function RootLayout() {
               and the right sheet pops globally. Mounted LAST so sheets
               render above stack but BELOW the app lock overlay. */}
           <SmartEntryHost />
+          {/* R117 — Global Cmd Palette. Trigger via Cmd/Ctrl+K on web,
+              or long-press any tab on the bottom tab bar. Self-gated;
+              renders nothing until the store flips visible=true. */}
+          <CmdPalette />
+          </SmartBackProvider>
         </BottomSheetModalProvider>
       </PortalProvider>
       </ErrorBoundary>

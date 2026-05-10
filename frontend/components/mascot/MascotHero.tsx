@@ -18,6 +18,7 @@ import React, { useCallback } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { router } from 'expo-router';
 import * as Haptics from 'expo-haptics';
+import { haptic as h } from '../../utils/haptics';
 import { Ionicons } from '@expo/vector-icons';
 import MascotPresence from './MascotPresence';
 import { useMascotMood } from '../../hooks/useMascotMood';
@@ -54,7 +55,7 @@ export default function MascotHero() {
   const score = useFinContext((s) => s.score?.value ?? 0);
 
   const onTap = useCallback(() => {
-    Haptics.selectionAsync().catch(() => {});
+    h.select();
     router.push('/(tabs)/ai-coach' as any);
   }, []);
 

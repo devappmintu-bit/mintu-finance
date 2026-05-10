@@ -63,20 +63,15 @@ async def _bump_money_score(user_id: str) -> None:
 
 
 def _invalidate_caches(user_id: str) -> None:
-    cache_clear_prefix(f"waste:{user_id}")
-    cache_clear_prefix(f"expense_report:{user_id}")
-    cache_clear_prefix(f"score_breakdown:{user_id}")
-    # Phase 5 Wave 2 — also drop alerts + analytics caches so the user
-    # sees an accurate reflection of their brand-new transaction
-    # immediately on the next home/profile paint.
-    cache_clear_prefix(f"alerts_smart:{user_id}")
-    cache_clear_prefix(f"analytics_summary:{user_id}")
-    # Phase 5 Wave 3 — home snapshot, ai/predict, coins/status are
-    # also derived from the same underlying txn collection and must
-    # reflect the new data immediately.
-    cache_clear_prefix(f"home_snapshot:{user_id}")
-    cache_clear_prefix(f"ai_predict:{user_id}")
-    cache_clear_prefix(f"coins_status:{user_id}")
+    """
+    Thin wrapper that delegates to the shared
+    `core.cache.invalidate_user_transaction_caches` helper. We keep the
+    underscored alias here because three call-sites in this file
+    (create / update / delete) used it before the helper was extracted —
+    avoids touching that already-tested code surface.
+    """
+    from core.cache import invalidate_user_transaction_caches
+    invalidate_user_transaction_caches(user_id)
 
 
 # ---- Endpoints ---------------------------------------------------------------

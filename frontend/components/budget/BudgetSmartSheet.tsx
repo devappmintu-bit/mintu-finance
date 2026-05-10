@@ -35,6 +35,7 @@ import Animated, {
 import { Ionicons } from '@expo/vector-icons';
 import { BottomSheetScrollView } from '@gorhom/bottom-sheet';
 import * as Haptics from 'expo-haptics';
+import { haptic as h } from '../../utils/haptics';
 import api from '../../utils/api';
 import { fetchGoals, createGoal, Goal } from '../../services/goals';
 import { useIsOnline } from '../../hooks/useIsOnline';
@@ -338,18 +339,18 @@ export default function BudgetSmartSheet({ editing, currentSpent, onSubmit, onCl
 
   const aiSet = () => {
     if (!recommended) return;
-    if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
+    if (Platform.OS !== 'web') h.tap();
     setAmountStr(String(recommended));
   };
 
   const tapPreset = (n: number) => {
-    try { Haptics.selectionAsync(); } catch {}
+    try { h.select(); } catch {}
     setAmountStr(String(n));
   };
 
   const handleSubmit = async () => {
     if (!canSubmit) return;
-    try { if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium); } catch {}
+    try { if (Platform.OS !== 'web') h.press(); } catch {}
     await onSubmit({
       category, amount, period, recurring,
       description: description.trim() || undefined,
@@ -422,7 +423,7 @@ export default function BudgetSmartSheet({ editing, currentSpent, onSubmit, onCl
                     color={m.color}
                     active={cc.category === category}
                     onPress={() => {
-                      try { Haptics.selectionAsync(); } catch {}
+                      try { h.select(); } catch {}
                       setCategory(cc.category);
                     }}
                   />
@@ -518,7 +519,7 @@ export default function BudgetSmartSheet({ editing, currentSpent, onSubmit, onCl
                       <TouchableOpacity
                         key={p}
                         style={[s.seg, on && s.segOn]}
-                        onPress={() => { try { Haptics.selectionAsync(); } catch {} setPeriod(p); }}
+                        onPress={() => { try { h.select(); } catch {} setPeriod(p); }}
                         testID={`period-${p}`}
                       >
                         <Text style={[s.segTxt, on && s.segTxtOn]}>{p[0].toUpperCase() + p.slice(1)}</Text>
@@ -534,7 +535,7 @@ export default function BudgetSmartSheet({ editing, currentSpent, onSubmit, onCl
                     <Text style={s.kvV}>Carry unused budget to next {period === 'monthly' ? 'month' : period === 'weekly' ? 'week' : 'day'}</Text>
                   </View>
                   <TouchableOpacity
-                    onPress={() => { try { Haptics.selectionAsync(); } catch {} setRecurring(!recurring); }}
+                    onPress={() => { try { h.select(); } catch {} setRecurring(!recurring); }}
                     style={[s.toggle, recurring && { backgroundColor: meta.color }]}
                     testID="bs-recurring"
                     accessibilityRole="switch"
@@ -556,7 +557,7 @@ export default function BudgetSmartSheet({ editing, currentSpent, onSubmit, onCl
                     return (
                       <TouchableOpacity
                         key={o.id}
-                        onPress={() => { try { Haptics.selectionAsync(); } catch {} setScope(o.id); }}
+                        onPress={() => { try { h.select(); } catch {} setScope(o.id); }}
                         style={[s.seg, on && s.segOn, { flexDirection: 'row', gap: 6 }]}
                         testID={`scope-${o.id}`}
                       >
@@ -589,7 +590,7 @@ export default function BudgetSmartSheet({ editing, currentSpent, onSubmit, onCl
                     <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8, paddingVertical: 4 }}>
                       <TouchableOpacity
                         style={[s.goalChip, !goalId && s.goalChipOn]}
-                        onPress={() => { try { Haptics.selectionAsync(); } catch {} setGoalId(null); }}
+                        onPress={() => { try { h.select(); } catch {} setGoalId(null); }}
                         testID="goal-none"
                       >
                         <Text style={[s.goalTxt, !goalId && { color: c.text.primary, fontWeight: '900' }]}>No goal</Text>
@@ -600,7 +601,7 @@ export default function BudgetSmartSheet({ editing, currentSpent, onSubmit, onCl
                           <TouchableOpacity
                             key={g.id}
                             style={[s.goalChip, on && { borderColor: g.color || meta.color, backgroundColor: (g.color || meta.color) + '14' }]}
-                            onPress={() => { try { Haptics.selectionAsync(); } catch {} setGoalId(g.id); }}
+                            onPress={() => { try { h.select(); } catch {} setGoalId(g.id); }}
                             testID={`goal-${g.id}`}
                           >
                             <Text style={{ fontSize: 14 }}>{g.emoji || '🎯'}</Text>

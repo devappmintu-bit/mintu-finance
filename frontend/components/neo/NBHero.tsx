@@ -15,6 +15,7 @@ import NBButton from './NBButton';
 import { useNeoPalette } from '../../store/neoTheme';
 import { useFinContext } from '../../store/financialContext';
 import { useMascotMood } from '../../hooks/useMascotMood';
+import { useFinStateName } from '../../store/financialStateStore';
 import {
   NB_BORDER, NB_RADIUS, NB_SPACE, NB_TYPE, roleColor,
 } from '../../utils/neoBrutalism';
@@ -79,6 +80,22 @@ export default function NBHero() {
     }
   };
 
+  // R116 Calm Mode — visible state badge. Reads from the global
+  // financial state store, which is populated by Home's
+  // useFinancialState() result. Renders a small pill above the
+  // headline so the user can SEE that the app understands their
+  // current emotional context.
+  const finStateName = useFinStateName();
+  const stateBadge = useMemo(() => {
+    switch (finStateName) {
+      case 'flourishing': return { text: 'DOING GREAT', icon: '✨', bg: '#22C55E', fg: '#0A0A0A' };
+      case 'steady':      return { text: 'ON TRACK',    icon: '🟢', bg: '#86EFAC', fg: '#0A0A0A' };
+      case 'attention':   return { text: 'ONE TO WATCH', icon: '👀', bg: '#FCD34D', fg: '#0A0A0A' };
+      case 'critical':    return { text: 'NEEDS A RESET', icon: '🔧', bg: '#FCA5A5', fg: '#0A0A0A' };
+      default:            return null;
+    }
+  }, [finStateName]);
+
   return (
     <View style={styles.outer}>
       {/* Hard ink shadow plate */}
@@ -100,6 +117,13 @@ export default function NBHero() {
 
         <View style={styles.row}>
           <View style={styles.body}>
+            {stateBadge ? (
+              <View style={[styles.statePill, { backgroundColor: stateBadge.bg, borderColor: palette.ink }]}>
+                <Text style={[styles.statePillText, { color: stateBadge.fg }]}>
+                  {stateBadge.icon}  {stateBadge.text}
+                </Text>
+              </View>
+            ) : null}
             <Text style={[NB_TYPE.h1, { color: r.ink }]}>{headline}</Text>
             <Text style={[styles.sub, { color: r.ink }]} numberOfLines={2}>{sub}</Text>
             <View style={{ marginTop: NB_SPACE.md, alignSelf: 'flex-start' }}>
@@ -150,4 +174,19 @@ const styles = StyleSheet.create({
   body: { flex: 1, gap: 4 },
   sub: { fontSize: 13, fontWeight: '600', lineHeight: 18, marginTop: 4, opacity: 0.85 },
   mascotWrap: { width: 92, alignItems: 'center', justifyContent: 'center' },
+  // R116 — Calm Mode state pill. Hard 2-px border + chunky uppercase
+  // type matches Brutal grammar; bg color carries the semantic.
+  statePill: {
+    alignSelf: 'flex-start',
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderWidth: 2,
+    borderRadius: 4,
+    marginBottom: 8,
+  },
+  statePillText: {
+    fontSize: 10,
+    fontWeight: '900',
+    letterSpacing: 1,
+  },
 });

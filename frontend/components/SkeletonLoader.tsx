@@ -2,6 +2,7 @@ import React, { useEffect, useRef } from 'react';
 import { View, Animated, StyleSheet, ViewStyle } from 'react-native';
 import { COLORS, SPACING, RADIUS } from '../utils/theme';
 import { makeStyles } from '../utils/makeStyles';
+import { DURATION, isReducedMotion } from '../utils/motion';
 
 
 
@@ -46,10 +47,18 @@ export const Skeleton = ({ width = '100%', height = 16, borderRadius = 8, style,
   const opacity = useRef(new Animated.Value(0.3)).current;
 
   useEffect(() => {
+    // R115 — shimmer cadence now reads from motion tokens. Half-cycle =
+    // shimmer/2 so a full pulse (low \u2192 high \u2192 low) lands on DURATION.shimmer.
+    // Reduced-motion users get a steady opacity (no infinite loop).
+    if (isReducedMotion()) {
+      opacity.setValue(0.6);
+      return;
+    }
+    const half = Math.round(DURATION.shimmer / 2);
     Animated.loop(
       Animated.sequence([
-        Animated.timing(opacity, { toValue: 0.85, duration: 750, useNativeDriver: true }),
-        Animated.timing(opacity, { toValue: 0.35, duration: 750, useNativeDriver: true }),
+        Animated.timing(opacity, { toValue: 0.85, duration: half, useNativeDriver: true }),
+        Animated.timing(opacity, { toValue: 0.35, duration: half, useNativeDriver: true }),
       ])
     ).start();
   }, []);

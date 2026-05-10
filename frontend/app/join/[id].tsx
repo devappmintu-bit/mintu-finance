@@ -26,6 +26,7 @@ import { useAuthStore } from '../../store/authStore';
 import { makeStyles } from '../../utils/makeStyles';
 import { COLORS, SPACING } from '../../utils/theme';
 import { showError } from '../../utils/toast';
+import { BrutalEmptyState } from '../../components/brutal';
 
 
 
@@ -158,18 +159,30 @@ export default function JoinGroupScreen() {
   }
 
   if (error) {
+    const isExpired = /no longer valid|invalid|expired|not.*found/i.test(error);
     return (
       <SafeAreaView style={s.bg}>
-        <View style={s.center}>
-          <View style={s.errIcon}>
-            <Ionicons name="alert-circle" size={32} color={COLORS.state.danger} />
-          </View>
-          <Text style={s.title}>Oops</Text>
-          <Text style={s.subtitle}>{error}</Text>
-          <TouchableOpacity style={s.primaryBtn} onPress={() => router.replace('/(tabs)' as any)} activeOpacity={0.85}>
-            <Text style={s.primaryTxt}>Go to MintU</Text>
+        <View style={s.topBar}>
+          <TouchableOpacity onPress={() => router.replace('/(tabs)' as any)} style={s.iconBtn} hitSlop={8} accessibilityLabel="Close">
+            <Ionicons name="close" size={22} color={COLORS.text.primary} />
           </TouchableOpacity>
-          <TouchableOpacity onPress={load} style={s.retryBtn} activeOpacity={0.7}>
+          <Text style={s.topBarTxt}>MintU</Text>
+          <View style={{ width: 36 }} />
+        </View>
+        <View style={{ flex: 1, padding: SPACING.lg, justifyContent: 'center' }}>
+          <BrutalEmptyState
+            emoji={isExpired ? '🔒' : '⚠️'}
+            title={isExpired ? 'Invite link expired' : "Couldn't load invite"}
+            body={
+              isExpired
+                ? 'This split-group invite link is no longer valid — it may have been revoked, expired, or the group itself was deleted.'
+                : error
+            }
+            ctaLabel="GO TO MINTU"
+            onCta={() => router.replace('/(tabs)' as any)}
+            hint={isExpired ? 'Ask the group admin to send you a fresh invite.' : undefined}
+          />
+          <TouchableOpacity onPress={load} style={[s.retryBtn, { marginTop: 12 }]} activeOpacity={0.7}>
             <Ionicons name="refresh" size={14} color={COLORS.text.muted} />
             <Text style={s.retryTxt}>Try again</Text>
           </TouchableOpacity>

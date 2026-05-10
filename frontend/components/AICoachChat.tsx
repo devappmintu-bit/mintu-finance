@@ -670,6 +670,45 @@ export default function AICoachChat({ onClose }: { onClose?: () => void }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  /** R107 — Word-by-word reveal driven off setInterval. We append
+   *  whole words at once (with their trailing whitespace) so React
+   *  re-renders are bounded (~30/s instead of ~250/s for char-mode).
+   *  ts is the bubble's identifier — we look up the message by ts so
+   *  the reveal correctly stops if the user clears the chat mid-flight.
+   *
+   *  BUG FIX (May 09 2026): MUST be declared before `sendMessage`
+   *  because that useCallback lists `revealText` in its dep array.
+   *  Referencing a `const` from above its declaration line throws
+   *  "Cannot access 'revealText' before initialization" (minified
+   *  to 'ae') in production bundles, which bubbles up through
+   *  withTabBoundary as the "That didn't go as planned…" mascot
+   *  recovery screen on the AI Coach tab.
+   */
+  const revealText = useCallback((ts: number, fullText: string) => {
+    if (!fullText) {
+      setMessages((prev) => prev.map((m) => (m.ts === ts ? { ...m, text: '', streaming: false, fullText: undefined } : m)));
+      return;
+    }
+    // Tokenize on word boundaries while preserving whitespace + line breaks.
+    const tokens = fullText.match(/\S+\s*|\s+/g) || [fullText];
+    let idx = 0;
+    let acc = '';
+    // Word-aware pacing: ~26ms/token for short replies, faster for long ones
+    // so we never make the user wait more than ~1.6s for the full reveal.
+    const stepMs = Math.max(14, Math.min(38, Math.round(1600 / Math.max(1, tokens.length))));
+    const id = setInterval(() => {
+      if (idx >= tokens.length) {
+        clearInterval(id);
+        setMessages((prev) => prev.map((m) => (m.ts === ts ? { ...m, text: fullText, streaming: false } : m)));
+        return;
+      }
+      acc += tokens[idx];
+      idx += 1;
+      const snapshot = acc;
+      setMessages((prev) => prev.map((m) => (m.ts === ts ? { ...m, text: snapshot } : m)));
+    }, stepMs);
+  }, []);
+
   const sendMessage = useCallback(async (text: string) => {
     if (!text.trim() || chatLoading) return;
     const userMsg: ChatMsg = { role: 'user', text: text.trim(), ts: Date.now() };
@@ -841,37 +880,17 @@ export default function AICoachChat({ onClose }: { onClose?: () => void }) {
     }
   }, [chatLoading, lang, ctx, revealText]);
 
-  /** R107 — Word-by-word reveal driven off setInterval. We append
-   *  whole words at once (with their trailing whitespace) so React
-   *  re-renders are bounded (~30/s instead of ~250/s for char-mode).
-   *  ts is the bubble's identifier — we look up the message by ts so
-   *  the reveal correctly stops if the user clears the chat mid-flight.
+  /** R107 — reveal-text declaration moved up the file (see line ~673)
+   *  to fix a TDZ crash that surfaced as the AI Coach mascot recovery
+   *  screen on the user's device. The original block here has been
+   *  removed; do not re-add it.
+   *
+   *  R119 — formatTime helper restored. The previous edit pass that
+   *  hoisted revealText accidentally severed the function header for
+   *  formatTime while leaving its body in place, producing a hard
+   *  syntax error in the static export bundle. Now declared cleanly
+   *  below; safe because it does not appear in any hook dep array.
    */
-  const revealText = useCallback((ts: number, fullText: string) => {
-    if (!fullText) {
-      setMessages((prev) => prev.map((m) => (m.ts === ts ? { ...m, text: '', streaming: false, fullText: undefined } : m)));
-      return;
-    }
-    // Tokenize on word boundaries while preserving whitespace + line breaks.
-    const tokens = fullText.match(/\S+\s*|\s+/g) || [fullText];
-    let idx = 0;
-    let acc = '';
-    // Word-aware pacing: ~26ms/token for short replies, faster for long ones
-    // so we never make the user wait more than ~1.6s for the full reveal.
-    const stepMs = Math.max(14, Math.min(38, Math.round(1600 / Math.max(1, tokens.length))));
-    const id = setInterval(() => {
-      if (idx >= tokens.length) {
-        clearInterval(id);
-        setMessages((prev) => prev.map((m) => (m.ts === ts ? { ...m, text: fullText, streaming: false } : m)));
-        return;
-      }
-      acc += tokens[idx];
-      idx += 1;
-      const snapshot = acc;
-      setMessages((prev) => prev.map((m) => (m.ts === ts ? { ...m, text: snapshot } : m)));
-    }, stepMs);
-  }, []);
-
   const formatTime = (ts?: number) => {
     if (!ts) return '';
     return new Date(ts).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' });

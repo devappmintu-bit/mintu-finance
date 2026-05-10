@@ -791,6 +791,13 @@ async def coach_actions_execute(req: ActionExecRequest, user_id: str = Depends(g
                 "created_at": utc_now(),
                 "source": "coach_action",
             })
+            # Bust analytics + R118 intelligence caches so the home
+            # repaints with the coach-committed transaction.
+            try:
+                from core.cache import invalidate_user_transaction_caches
+                invalidate_user_transaction_caches(user_id)
+            except Exception:
+                pass
 
         elif ep == "/api/goals" and method == "POST":
             title = (payload.get("title") or "").strip()[:80]

@@ -26,6 +26,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { router, Stack } from 'expo-router';
 import api from '../../utils/api';
 import { BR_COLORS, BR_FONT } from '../../utils/brutalist';
+import GroupIdentityPicker from '../../components/split/GroupIdentityPicker';
 
 const {
   ink:    INK,
@@ -44,6 +45,10 @@ function normalisePhone(p: string): string {
 
 export default function NewGroup() {
   const [name, setName] = useState('');
+  // R117 — group identity (emoji + banner color). The emoji becomes
+  // `custom_emoji` server-side; banner color is best-effort cosmetic
+  // metadata sent in the same payload.
+  const [identity, setIdentity] = useState({ emoji: '🎉', bannerColor: '#FFE0CC' });
   const [members, setMembers] = useState<DraftMember[]>([
     { id: 'm0', name: '', phone: '' },
   ]);
@@ -152,6 +157,10 @@ export default function NewGroup() {
     try {
       const payload = {
         name: name.trim(),
+        // R117 — group identity. Backend already supports `custom_emoji`;
+        // `banner_color` is forwarded so future server features can read it.
+        custom_emoji: identity.emoji,
+        banner_color: identity.bannerColor,
         // R101B — send entries with both phone AND name so the backend
         // can save the friendly name on pending_invites. Previously we
         // dropped the name and the UI rendered "+91 XXXXXXXXXX" instead
@@ -214,6 +223,15 @@ export default function NewGroup() {
               autoFocus
             />
           </View>
+
+          {/* R117 — Group identity. Sets visual tone immediately so
+              the group never feels like a faceless ledger. Default is
+              🎉 + peach so existing users keep a sane fallback. */}
+          <GroupIdentityPicker
+            emoji={identity.emoji}
+            bannerColor={identity.bannerColor}
+            onChange={setIdentity}
+          />
 
           <View style={st.section}>
             <View style={st.sectionHead}>

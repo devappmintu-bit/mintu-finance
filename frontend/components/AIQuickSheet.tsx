@@ -18,6 +18,7 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
+import { haptic as h } from '../utils/haptics';
 import { router } from 'expo-router';
 import { COLORS, GLASS, shadowStyle } from '../utils/theme';
 import { makeStyles } from '../utils/makeStyles';
@@ -137,7 +138,7 @@ export default function AIQuickSheet({ visible, onClose }: Props) {
 
   const fire = (text: string) => {
     if (!text.trim()) return;
-    try { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium); } catch { /* noop */ }
+    try { h.press(); } catch { /* noop */ }
     setPending(text.trim());
     setDraft('');
     onClose();

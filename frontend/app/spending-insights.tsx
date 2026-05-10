@@ -233,12 +233,16 @@ export default function SpendingInsightsScreen() {
   // tab the user has visited (Home, Profile, Control Center). We
   // prefer it over `snap` for derived numbers so the "spending story"
   // share text always matches what the user just saw on Home.
-  const finCtx = useFinContext((s: any) => ({
-    monthlySpend: s.transactions?.monthlySpend,
-    categories:   s.transactions?.categories,
-    score:        s.score?.value,
-    streak:       s.streak?.days,
-  }));
+  // R113 FIX — destructure into independent atomic selectors so Zustand's
+  // default reference-equality check is satisfied. The previous shape
+  // `useFinContext((s) => ({ ... }))` returned a NEW object each render
+  // and triggered an infinite re-render loop ("Maximum update depth
+  // exceeded") on the authenticated render path of this screen.
+  const monthlySpend = useFinContext((s: any) => s.transactions?.monthlySpend);
+  const categories   = useFinContext((s: any) => s.transactions?.categories);
+  const score        = useFinContext((s: any) => s.score?.value);
+  const streak       = useFinContext((s: any) => s.streak?.days);
+  const finCtx = { monthlySpend, categories, score, streak };
 
   const storyShareText = useMemo(() => {
     // SSoT-first values (fallback to /home/snapshot fetch if SSoT cold)
@@ -489,18 +493,17 @@ export default function SpendingInsightsScreen() {
 // ---------------------------------------------------------------
 // Header
 // ---------------------------------------------------------------
-function Header({ onBack, onShare }: { onBack: () => void; onShare: () => void }) {
-  const s = useStyles();
+function Header({ onShare }: { onBack: () => void; onShare: () => void }) {
   return (
-    <View style={s.header}>
-      <TouchableOpacity onPress={onBack} hitSlop={10} style={s.headerBtn}>
-        <Ionicons name="chevron-back" size={24} color={COLORS.text.primary} />
-      </TouchableOpacity>
-      <Text style={s.headerTitle}>Spending Insights</Text>
-      <TouchableOpacity onPress={onShare} hitSlop={10} style={s.headerBtn}>
-        <Ionicons name="share-outline" size={22} color={COLORS.text.primary} />
-      </TouchableOpacity>
-    </View>
+    <BrutalScreenHeader
+      title="SPENDING INSIGHTS"
+      subtitle="MONTHLY · CATEGORY · STORY"
+      right={
+        <TouchableOpacity onPress={onShare} hitSlop={10} style={{ width: 36, height: 36, alignItems: 'center', justifyContent: 'center', borderWidth: 2, borderColor: '#000', backgroundColor: '#FAFAFA' }}>
+          <Ionicons name="share-outline" size={18} color="#000" />
+        </TouchableOpacity>
+      }
+    />
   );
 }
 

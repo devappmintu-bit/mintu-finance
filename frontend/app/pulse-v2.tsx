@@ -43,6 +43,8 @@ import * as Haptics from 'expo-haptics';
 
 import api from '../utils/api';
 import { showBrutalToast } from '../store/brutalToastStore';
+import { useNavigationMemory } from '../hooks/useNavigationMemory';
+import CalmModeStatusPill from '../components/CalmModeStatusPill';
 import {
   BR_COLORS,
   BR_BORDER,
@@ -292,6 +294,16 @@ export default function PulseV2Screen() {
   const [briefDate, setBriefDate] = useState<string | null>(null);
   const listRef = useRef<FlatList<Article>>(null);
 
+  // R119 — restore missing scroll-memory wiring. The references to
+  // `navMemo`, `lastScrollOffset`, and `restoreSeqRef` below were
+  // emitted by an earlier refactor without the corresponding hook
+  // initialisation, throwing `ReferenceError: navMemo is not defined`
+  // and white-screening the Pulse tab. Declared here so the
+  // mode-swap scroll-restoration logic actually has its dependencies.
+  const navMemo = useNavigationMemory();
+  const lastScrollOffset = useRef<number>(0);
+  const restoreSeqRef = useRef<number>(0);
+
   // Card height — fills the screen minus header + tabs + chips + safe areas.
   const headerH = 56 + insets.top;
   const tabsH = 44;
@@ -353,9 +365,21 @@ export default function PulseV2Screen() {
   const onPickMode = useCallback((m: FeedMode) => {
     if (m === mode) return;
     Haptics.selectionAsync().catch(() => {});
+    // C8 — snapshot the current mode's offset before swap so when
+    // the user comes back to it, they land exactly where they left.
+    navMemo.setMemo(`pulse:scroll:${mode}`, lastScrollOffset.current);
     setMode(m);
-    listRef.current?.scrollToOffset({ offset: 0, animated: false });
-  }, [mode]);
+    // Restore the target mode's offset (or 0) once the new list mounts.
+    const targetOffset = navMemo.getMemo<number>(`pulse:scroll:${m}`) || 0;
+    const seq = ++restoreSeqRef.current;
+    requestAnimationFrame(() => {
+      // Two-frame delay so FlatList has had a chance to mount + measure.
+      setTimeout(() => {
+        if (seq !== restoreSeqRef.current) return;
+        try { listRef.current?.scrollToOffset({ offset: targetOffset, animated: false }); } catch {}
+      }, 80);
+    });
+  }, [mode, navMemo]);
 
   const onReact = useCallback(async (
     article: Article,
@@ -459,6 +483,14 @@ export default function PulseV2Screen() {
         })}
       </View>
 
+      {/* R117 — Calm Mode tone reflector. Subtle pill that lets the
+          user know which mood Pulse is colored for today. Pulse is
+          one of the loudest, news-heaviest screens; surfacing the
+          state here creates continuity with Home + Profile. */}
+      <View style={{ paddingHorizontal: 16, paddingTop: 4, paddingBottom: 4, alignItems: 'flex-start' }}>
+        <CalmModeStatusPill />
+      </View>
+
       {/* Category strip — only in FOR YOU mode */}
       {mode === 'feed' && (
         <View style={styles.chipsBar}>
@@ -500,6 +532,8 @@ export default function PulseV2Screen() {
           snapToInterval={cardH + 8}
           decelerationRate="fast"
           showsVerticalScrollIndicator={false}
+          onScroll={(e) => { lastScrollOffset.current = e.nativeEvent.contentOffset.y; }}
+          scrollEventThrottle={250}
           contentContainerStyle={{ paddingHorizontal: BR_SPACE['3'] }}
         />
       )}

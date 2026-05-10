@@ -38,6 +38,8 @@ import SheetHeader from '../../components/ui/SheetHeader';
 import GlassSheet, { GlassSheetHandle } from '../../components/ui/GlassSheet';
 import PremiumUnlockTeaser from '../../components/premium/PremiumUnlockTeaser';
 import useSwr from '../../hooks/useSwr';
+import { useScrollMemory } from '../../hooks/useNavigationMemory';
+import { useOfflineRefresh } from '../../hooks/useOfflineRefresh';
 import { useLangStore } from '../../store/langStore';
 import { t } from '../../utils/i18n';
 import Toast from 'react-native-toast-message';
@@ -143,6 +145,14 @@ function BudgetScreen() {
   const [suggestions, setSuggestions] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+
+  // R114 — scroll memory restoration for the budget list.
+  const { saveScroll, getScroll } = useScrollMemory('budget:list');
+  const restoredRef = useRef(false);
+  const onScrollMemo = useCallback(
+    (e: any) => { saveScroll(e?.nativeEvent?.contentOffset?.y ?? 0); },
+    [saveScroll],
+  );
   const [modalVisible, setModalVisible] = useState(false);
   const budgetSheetRef = useRef<GlassSheetHandle>(null);
   // Bridge imperative sheet API ↔ existing boolean state. Keeps every existing
@@ -193,8 +203,9 @@ function BudgetScreen() {
   }, [refetchLive, refetchSug]);
 
   useEffect(() => { fetchAll(); }, []);
-  // Budget achievements moved to Profile tab — keep onRefresh simple now
-  const onRefresh = () => { setRefreshing(true); fetchAll(); };
+  // R114 A4 — offline-aware refresh. Short-circuits with a toast hint
+  // instead of spinning forever when the device is offline.
+  const { onRefresh } = useOfflineRefresh(fetchAll);
 
   const applySmartBudgets = async () => {
     try {
@@ -391,6 +402,19 @@ function BudgetScreen() {
           group-level totals and AI reallocation banner on top.
           Falls back to EmptyState when no budgets. */}
       <ScrollView
+        ref={(r) => { (BudgetScreen as any).__scrollRef = r; }}
+        onScroll={onScrollMemo}
+        scrollEventThrottle={250}
+        onContentSizeChange={() => {
+          // R114 — restore scroll position once content is measured.
+          const offset = getScroll();
+          if (offset > 60 && !restoredRef.current) {
+            restoredRef.current = true;
+            requestAnimationFrame(() => {
+              try { (BudgetScreen as any).__scrollRef?.scrollTo({ y: offset, animated: false }); } catch {}
+            });
+          }
+        }}
         contentContainerStyle={s.list}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={COLORS.accent.primary} />}
         showsVerticalScrollIndicator={false}

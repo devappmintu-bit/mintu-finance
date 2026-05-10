@@ -17,6 +17,7 @@ import { Stack, router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useSubscriptions, type Subscription } from '../hooks/useSubscriptions';
+import { useIntelligenceSubs } from '../hooks/useIntelligence';
 import { BR_COLORS, BR_TYPE, BR_SPACE, BR_BORDER } from '../utils/brutalist';
 
 const MONO = Platform.select({ ios: 'Menlo', android: 'monospace' });
@@ -110,6 +111,12 @@ function SubRow({ sub, onDismiss }: { sub: Subscription; onDismiss: (id: string)
 export default function SubscriptionsScreen() {
   const { subs, summary, loading, scanning, error, refetch, scan, dismiss } =
     useSubscriptions();
+  // R118 SLICE A — augment the existing detector with the new
+  // /api/intelligence/subscriptions surface so users see BOTH the
+  // legacy detector list AND the smarter Intelligence Engine signal
+  // (monthly cost + annual projection) without forcing a full
+  // refactor that would risk regression on scan/dismiss flows.
+  const { data: intelData } = useIntelligenceSubs();
 
   const totalLeak = summary?.annualised_active ?? 0;
   const activeCount = summary?.active ?? 0;
@@ -154,6 +161,46 @@ export default function SubscriptionsScreen() {
           <RefreshControl refreshing={loading} onRefresh={() => refetch()} />
         }
       >
+        {/* ── R118 SLICE A — Intelligence Engine strip ────────
+            Smarter recurring detector running on top of the
+            transaction graph. Shows monthly cost + annual
+            projection. Companion-tone copy, no judgement. */}
+        {intelData && intelData.summary.count > 0 && (
+          <View style={styles.intelStrip}>
+            <View style={styles.intelHeadRow}>
+              <View style={styles.intelStamp}>
+                <Text style={styles.intelStampTxt}>AI</Text>
+              </View>
+              <Text style={styles.intelKicker}>INTELLIGENCE ENGINE</Text>
+              <View style={styles.intelLive}>
+                <View style={styles.intelLiveDot} />
+                <Text style={styles.intelLiveTxt}>LIVE</Text>
+              </View>
+            </View>
+            <View style={styles.intelGrid}>
+              <View style={styles.intelCell}>
+                <Text style={styles.intelLbl}>DETECTED</Text>
+                <Text style={styles.intelVal}>{intelData.summary.count}</Text>
+              </View>
+              <View style={[styles.intelCell, styles.intelCellMid]}>
+                <Text style={styles.intelLbl}>MONTHLY</Text>
+                <Text style={styles.intelVal}>
+                  {fmtINR(intelData.summary.monthly_total)}
+                </Text>
+              </View>
+              <View style={styles.intelCell}>
+                <Text style={styles.intelLbl}>ANNUAL</Text>
+                <Text style={styles.intelVal}>
+                  {fmtINR(intelData.summary.annual_projection)}
+                </Text>
+              </View>
+            </View>
+            {!!intelData.tone && (
+              <Text style={styles.intelTone}>{intelData.tone}</Text>
+            )}
+          </View>
+        )}
+
         {/* ── Hero leak summary ──────────────── */}
         <View style={styles.hero}>
           <Text style={styles.heroLbl}>YOU&apos;RE PAYING</Text>
@@ -249,6 +296,93 @@ const styles = StyleSheet.create({
 
   scroll:    { flex: 1 },
   scrollPad: { padding: BR_SPACE.lg, paddingTop: BR_SPACE.md },
+
+  // R118 SLICE A — Intelligence Engine strip
+  intelStrip: {
+    backgroundColor: '#FFF1D2',
+    borderWidth: BR_BORDER.bold,
+    borderColor: BR_COLORS.ink,
+    padding: BR_SPACE.md,
+    marginBottom: BR_SPACE.lg,
+  },
+  intelHeadRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginBottom: BR_SPACE.md,
+  },
+  intelStamp: {
+    width: 28, height: 28,
+    backgroundColor: BR_COLORS.ink,
+    alignItems: 'center', justifyContent: 'center',
+    transform: [{ rotate: '-6deg' }],
+  },
+  intelStampTxt: {
+    fontSize: 11,
+    fontWeight: '900',
+    color: '#FFFFFF',
+    letterSpacing: 1.0,
+  },
+  intelKicker: {
+    ...BR_TYPE.label,
+    color: BR_COLORS.ink,
+    letterSpacing: 1.6,
+    flex: 1,
+  },
+  intelLive: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderWidth: 1,
+    borderColor: BR_COLORS.positive,
+  },
+  intelLiveDot: {
+    width: 6, height: 6, borderRadius: 3,
+    backgroundColor: BR_COLORS.positive,
+  },
+  intelLiveTxt: {
+    fontSize: 9,
+    fontWeight: '900',
+    color: BR_COLORS.positive,
+    letterSpacing: 0.8,
+  },
+  intelGrid: {
+    flexDirection: 'row',
+    borderTopWidth: 1.5,
+    borderTopColor: BR_COLORS.ink,
+    paddingTop: BR_SPACE.sm,
+  },
+  intelCell: { flex: 1 },
+  intelCellMid: {
+    paddingHorizontal: BR_SPACE.md,
+    borderLeftWidth: 1.5,
+    borderRightWidth: 1.5,
+    borderColor: BR_COLORS.ink,
+  },
+  intelLbl: {
+    fontSize: 9,
+    fontWeight: '900',
+    color: BR_COLORS.muted,
+    letterSpacing: 1.4,
+  },
+  intelVal: {
+    fontSize: 18,
+    fontWeight: '900',
+    fontFamily: MONO,
+    marginTop: 2,
+    letterSpacing: -0.4,
+    color: BR_COLORS.ink,
+  },
+  intelTone: {
+    fontSize: 12,
+    fontWeight: '600',
+    fontStyle: 'italic',
+    color: BR_COLORS.ink,
+    marginTop: BR_SPACE.sm,
+    lineHeight: 16,
+  },
 
   // Hero
   hero: {

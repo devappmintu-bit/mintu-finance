@@ -124,6 +124,33 @@ export async function clearSessionState(): Promise<void> {
     safe('removeCurrentUserId', async () => {
       await AsyncStorage.removeItem(ASYNC_CURRENT_USER_ID_KEY);
     }),
+
+    // 8. R114 — wipe in-memory navigation memory (scroll positions,
+    //    filter snapshots, etc.) so the next signed-in user gets a
+    //    clean slate and never sees the previous user's last scroll.
+    safe('clearNavigationMemory', async () => {
+      const nav = await import('../hooks/useNavigationMemory');
+      nav.clearAllNavigationMemory();
+    }),
+
+    // 9. R115 Sprint-2 — wipe persisted last-visited breadcrumbs and
+    //    nav-intel graph so we never carry one user's habit graph or
+    //    last sub-tab into another user's first session.
+    safe('clearLastVisited', async () => {
+      const lv = await import('../hooks/useLastVisited');
+      await lv.clearAllLastVisited();
+    }),
+    safe('resetNavIntel', async () => {
+      const intel = await import('./navIntel');
+      intel.navIntel.reset();
+    }),
+
+    // R116 — wipe the global financial-state tone so user-A's
+    // "flourishing" mood doesn't carry into user-B's first session.
+    safe('resetFinState', async () => {
+      const fs = await import('../store/financialStateStore');
+      fs.useFinStateStore.getState().reset();
+    }),
   ]);
 }
 

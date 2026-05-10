@@ -71,6 +71,7 @@ def register_domain_routers(api_router: APIRouter) -> None:
         onboarding as onboarding_router,
         subscriptions as subscriptions_router,
         pulse as pulse_router,
+        beta_waitlist as beta_waitlist_router,
     )
     for r in (
         auth_router,
@@ -93,6 +94,7 @@ def register_domain_routers(api_router: APIRouter) -> None:
         onboarding_router,
         subscriptions_router,
         pulse_router,
+        beta_waitlist_router,
     ):
         api_router.include_router(r.router)
 

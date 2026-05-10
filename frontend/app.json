@@ -9,9 +9,13 @@
     "scheme": "mintu",
     "userInterfaceStyle": "dark",
     "newArchEnabled": true,
+    "privacy": "public",
+    "description": "MintU — your real-time SMS financial intelligence companion. Mood Score, AI Money Story, behaviour patterns, and predictive cash flow — all computed deterministically from your own activity. No language model rewrites a single number.",
+    "primaryColor": "#F56E1E",
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.mintu.finance",
+      "buildNumber": "1",
       "associatedDomains": [
         "applinks:mintu.app",
         "applinks:www.mintu.app"
@@ -21,12 +25,14 @@
         "NSContactsUsageDescription": "Pick friends to split group expenses",
         "NSCameraUsageDescription": "Take a profile photo for your MintU account",
         "NSPhotoLibraryUsageDescription": "Choose a profile photo from your library",
-        "NSFaceIDUsageDescription": "MintU uses Face ID to protect your financial data"
+        "NSFaceIDUsageDescription": "MintU uses Face ID to protect your financial data",
+        "ITSAppUsesNonExemptEncryption": false
       },
       "icon": "./assets/images/icon.png"
     },
     "android": {
       "package": "com.mintu.finance",
+      "versionCode": 1,
       "adaptiveIcon": {
         "foregroundImage": "./assets/images/adaptive-icon.png",
         "backgroundColor": "#000000"
@@ -38,7 +44,9 @@
         "CAMERA",
         "READ_MEDIA_IMAGES",
         "USE_BIOMETRIC",
-        "USE_FINGERPRINT"
+        "USE_FINGERPRINT",
+        "READ_SMS",
+        "RECEIVE_SMS"
       ],
       "intentFilters": [
         {
@@ -89,8 +97,36 @@
       ],
       "expo-secure-store",
       "expo-font",
-      "expo-web-browser"
+      "expo-web-browser",
+      [
+        "expo-notifications",
+        {
+          "icon": "./assets/images/icon.png",
+          "color": "#F56E1E",
+          "defaultChannel": "default",
+          "sounds": []
+        }
+      ]
     ],
+    "extra": {
+      "marketing": {
+        "tagline": "Money, simplified.",
+        "category": "Finance",
+        "keywords": [
+          "expense tracker",
+          "personal finance",
+          "SMS finance",
+          "subscription tracker",
+          "AI money coach",
+          "split expenses",
+          "UPI tracker",
+          "budget planner"
+        ],
+        "supportUrl": "https://mintu.app/support",
+        "marketingUrl": "https://mintu.app",
+        "privacyPolicyUrl": "https://mintu.app/legal/privacy"
+      }
+    },
     "experiments": {
       "typedRoutes": true
     }

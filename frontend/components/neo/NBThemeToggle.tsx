@@ -9,6 +9,7 @@ import React from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
+import { haptic as h } from '../../utils/haptics';
 import { useNeoTheme, useNeoPalette } from '../../store/neoTheme';
 import { NB_BORDER, NB_RADIUS, NB_SPACE } from '../../utils/neoBrutalism';
 
@@ -32,7 +33,7 @@ export default function NBThemeToggle() {
           return (
             <Pressable
               key={opt.id}
-              onPress={() => { Haptics.selectionAsync().catch(() => {}); setMode(opt.id); }}
+              onPress={() => { h.select(); setMode(opt.id); }}
               accessibilityRole="button"
               accessibilityState={{ selected: active }}
               accessibilityLabel={`${opt.label} theme`}

@@ -20,6 +20,7 @@ import React, { memo, useEffect, useState, useCallback } from 'react';
 import { View, Text, StyleSheet, Pressable } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
+import { haptic as h } from '../../utils/haptics';
 import api, { swrGet } from '../../utils/api';
 import { BR_COLORS, BR_BORDER, BR_SPACE, BR_STAMP, BR_FONT } from '../../utils/brutalist';
 
@@ -104,7 +105,7 @@ function MissionCardImpl() {
   const last = m.last_contribution;
 
   const onPress = () => {
-    try { Haptics.selectionAsync(); } catch {}
+    try { h.select(); } catch {}
     // Future: router.push('/missions') for deep view.
   };
 

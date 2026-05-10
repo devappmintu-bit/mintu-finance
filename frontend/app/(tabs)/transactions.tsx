@@ -26,6 +26,10 @@ import TapTile from '../../components/ui/TapTile';
 import GmailConnectCard from '../../components/transactions/GmailConnectCard';
 import { PassivePane, StructureCard } from '../../components/brutalist/primitives';
 import TransactionSheet from '../../components/transactions/TransactionSheet';
+import MoneyTimeline from '../../components/transactions/MoneyTimeline';
+import SmartTagRow from '../../components/transactions/SmartTagRow';
+import { buildTagContext, smartTagsFor, type TagContext } from '../../utils/transactionInsights';
+import CalmModeStatusPill from '../../components/CalmModeStatusPill';
 import {
   fetchTransactions as fetchTxnsSrv, addTransaction, updateTransaction, deleteTransaction,
 } from '../../services/transactions';
@@ -37,6 +41,7 @@ import TransactionsHero from '../../components/transactions/TransactionsHeroBrut
 import { StaggeredEntrance, SegmentedToggle, CurrencyField, CategorySelector, QuickAmountChips, InputAssistantHeader } from '../../components/primitives';
 import useSwr from '../../hooks/useSwr';
 import { useIsOnline } from '../../hooks/useIsOnline';
+import { useScrollMemory } from '../../hooks/useNavigationMemory';
 import { groupTransactionsByDate, type TxnRowItem } from '../../utils/groupTransactionsByDate';
 import { showSuccess } from '../../utils/toast';
 
@@ -178,12 +183,18 @@ const useStyles = makeStyles((c) => ({
 // Pure, memoized row — prevents re-renders on unrelated parent state changes (e.g. modals).
 // Per UX spec: Transactions get DELETE-only swipe (no edit gesture).
 // Users can still open the edit modal by tapping the row itself.
-const TxnRow = memo(function TxnRow({ item, lang, onEdit, onDelete }: { item: any; lang: LangCode; onEdit: (t: any) => void; onDelete: (id: string) => void }) {
+const TxnRow = memo(function TxnRow({ item, lang, onEdit, onDelete, tagContext }: { item: any; lang: LangCode; onEdit: (t: any) => void; onDelete: (id: string) => void; tagContext?: TagContext | null }) {
   const styles = useStyles();
   const c = useAppColors();
   const cat = CATEGORIES[item.category] || CATEGORIES.Other;
   const isCash = item.source === 'cash' || item.source === 'cash_recurring';
   const isGmail = item.source === 'gmail';
+  // R117 — Compute smart tags inline. The context is shared across all rows
+  // so this is just a tiny per-row classification step.
+  const tags = useMemo(
+    () => (tagContext ? smartTagsFor(item, tagContext) : []),
+    [item, tagContext]
+  );
   return (
     <SwipeableRow
       onDelete={() => onDelete(item.id)}
@@ -207,6 +218,7 @@ const TxnRow = memo(function TxnRow({ item, lang, onEdit, onDelete }: { item: an
             <Text style={styles.txnMeta} numberOfLines={1}>{item.category} · {format(new Date(item.date), 'MMM dd')}</Text>
             {isCash && <View style={styles.cashBadge}><Text style={styles.cashBadgeText}>{t('cash', lang)}</Text></View>}
           </View>
+          <SmartTagRow tags={tags} />
         </View>
         <Text style={[styles.txnAmount, { color: item.type === 'credit' ? COLORS.accent.moneyIn : COLORS.accent.moneyOut }]} numberOfLines={1}>
           {item.type === 'credit' ? '+' : '-'}₹{item.amount.toFixed(0)}
@@ -284,6 +296,15 @@ function TransactionsScreen() {
   // Filter state
   const [filterVisible, setFilterVisible] = useState(false);
   const [filter, setFilter] = useState<TxnFilter>(DEFAULT_FILTER);
+
+  // R114 — Persist + restore scroll position so users returning from a
+  // detail screen / quick-add sheet land back where they were instead
+  // of jumping to the top.
+  const { saveScroll, getScroll } = useScrollMemory('transactions:list');
+  const onScrollMemo = useCallback(
+    (e: any) => { saveScroll(e?.nativeEvent?.contentOffset?.y ?? 0); },
+    [saveScroll],
+  );
   // R101C — Declutter: by default we render only the 15 most recent
   // matching transactions and show a "VIEW ALL N" footer button. The
   // SmartInsightsStrip + Hero already give the user the *meaning* of
@@ -396,12 +417,27 @@ function TransactionsScreen() {
     ]);
   }, [lang, mutateTxns, refetchTxns]);
 
+  // R117 Money Timeline — build the smart-tag classification context
+  // ONCE per transactions list. Cheap O(N) and fully memoized.
+  // BUG FIX (May 09 2026): this MUST be declared BEFORE renderTxn
+  // because that useCallback closes over `tagContext` and lists it in
+  // its dependency array — referencing a `const` from above its TDZ
+  // throws "Cannot access 'tagContext' before initialization" at
+  // module-init time in minified production bundles. Moving the
+  // declaration up the file fixes the crash that was bubbling up
+  // through withTabBoundary as the "Reaching for your transactions…"
+  // mascot recovery screen.
+  const tagContext = useMemo<TagContext | null>(
+    () => (transactions.length ? buildTagContext(transactions) : null),
+    [transactions]
+  );
+
   const renderTxn = useCallback(({ item }: { item: TxnRowItem }) => {
     if (item.type === 'header') {
       return <TxnSectionHeader label={item.label} count={item.count} total={item.total} />;
     }
-    return <TxnRow item={item.data} lang={lang} onEdit={openEdit} onDelete={handleDelete} />;
-  }, [lang, openEdit, handleDelete]);
+    return <TxnRow item={item.data} lang={lang} onEdit={openEdit} onDelete={handleDelete} tagContext={tagContext} />;
+  }, [lang, openEdit, handleDelete, tagContext]);
 
   // Phase 2 fix — Memoise filter + grouping BEFORE the early loading-return
   // so we don't violate Rules of Hooks. Recomputes only when the source
@@ -483,6 +519,21 @@ function TransactionsScreen() {
       </View>
 
       <FlashList
+        ref={(ref) => { (TransactionsScreen as any).__listRef = ref; }}
+        onScroll={onScrollMemo}
+        scrollEventThrottle={250}
+        onLoad={() => {
+          // R114 — restore scroll position after the list mounts and
+          // its first frame has rendered. We defer one tick so the
+          // FlashList layout is finalised; otherwise scrollToOffset
+          // can no-op when contentSize is still 0.
+          const offset = getScroll();
+          if (offset > 60) {
+            requestAnimationFrame(() => {
+              try { (TransactionsScreen as any).__listRef?.scrollToOffset({ offset, animated: false }); } catch {}
+            });
+          }
+        }}
         data={groupedItems}
         renderItem={renderTxn}
         keyExtractor={(item: TxnRowItem) => item.key}
@@ -500,6 +551,13 @@ function TransactionsScreen() {
             <StructureCard density="compact" style={{ paddingVertical: 0, paddingHorizontal: 0, marginBottom: 12 }}>
               <SmartInsightsStrip transactions={transactions} />
             </StructureCard>
+
+            {/* R117 — Money Timeline. 30-day calendar heatmap. Sits
+                between insights and the recent list, giving users a
+                glanceable spend-density chart they can scrub. */}
+            {transactions.length > 0 ? (
+              <MoneyTimeline transactions={transactions} />
+            ) : null}
 
             {/* R101C — AI Expense Report card REMOVED from default
                 view. It duplicated SmartInsightsStrip's job, ate
@@ -553,13 +611,18 @@ function TransactionsScreen() {
               onCta={() => refetchTxns()}
             />
           ) : (
-            <EmptyState
-              mascot
-              title={t('no_transactions', lang)}
-              subtitle={t('add_first', lang)}
-              ctaLabel="Add first transaction"
-              onCta={() => setModalVisible(true)}
-            />
+            <View>
+              <View style={{ alignItems: 'center', marginTop: 12, marginBottom: -8 }}>
+                <CalmModeStatusPill />
+              </View>
+              <EmptyState
+                mascot
+                title={t('no_transactions', lang)}
+                subtitle={t('add_first', lang)}
+                ctaLabel="Add first transaction"
+                onCta={() => setModalVisible(true)}
+              />
+            </View>
           )
         }
       />
@@ -589,24 +652,62 @@ function TransactionsScreen() {
           }
           const isEdit = !!editingTxn;
           setSubmitting(true);
-          try {
-            if (isEdit && editingTxn) {
-              const patched = { ...editingTxn, amount: payload.amount, category: payload.category, description: payload.description, type: payload.type };
-              mutateTxns((prev) => (prev || []).map((tx: any) => (tx.id === editingTxn.id ? patched : tx)));
-              await updateTransaction(editingTxn.id, { amount: payload.amount, category: payload.category, description: payload.description, type: payload.type as any });
-              Toast.show({ type: 'success', text1: t('txn_updated', lang) });
-            } else {
-              await addTransaction({ amount: payload.amount, category: payload.category, description: payload.description, type: payload.type } as any);
-              Toast.show({ type: 'success', text1: t('txn_added', lang) });
-            }
+
+          // R115 Sprint-3 — adopted optimistic-UI pattern for both edit
+          // AND add paths. The add path used to await the network round
+          // trip before showing the new row, which felt sluggish on
+          // flaky 3G. Now we close the sheet + show the row instantly.
+          // On failure we roll back + toast the user with a clear retry
+          // affordance.
+          if (isEdit && editingTxn) {
+            const prevSnapshot = (txnData || []) as any[];
+            const patched = { ...editingTxn, amount: payload.amount, category: payload.category, description: payload.description, type: payload.type };
+            mutateTxns((prev) => (prev || []).map((tx: any) => (tx.id === editingTxn.id ? patched : tx)));
             setModalVisible(false);
             setEditingTxn(null);
             setPendingType(null);
+            try {
+              await updateTransaction(editingTxn.id, { amount: payload.amount, category: payload.category, description: payload.description, type: payload.type as any });
+              Toast.show({ type: 'success', text1: t('txn_updated', lang) });
+              fetchTransactions();
+            } catch (e: any) {
+              // Roll back the optimistic patch.
+              mutateTxns(prevSnapshot);
+              const detail = e?.response?.data?.detail;
+              Toast.show({ type: 'error', text1: typeof detail === 'string' ? detail : t('failed_save', lang) });
+            } finally {
+              setSubmitting(false);
+            }
+            return;
+          }
+
+          // ADD path — optimistic insert with a temp id; swap on success.
+          const tempId = `temp_${Date.now()}_${Math.floor(Math.random() * 1e6)}`;
+          const optimisticTxn = {
+            id: tempId,
+            amount: payload.amount,
+            category: payload.category,
+            description: payload.description,
+            type: payload.type,
+            date: new Date().toISOString(),
+            _optimistic: true,
+          };
+          const prevSnapshot = (txnData || []) as any[];
+          mutateTxns((prev) => [optimisticTxn, ...((prev || []) as any[])]);
+          setModalVisible(false);
+          setEditingTxn(null);
+          setPendingType(null);
+          try {
+            await addTransaction({ amount: payload.amount, category: payload.category, description: payload.description, type: payload.type } as any);
+            Toast.show({ type: 'success', text1: t('txn_added', lang) });
             fetchTransactions();
           } catch (e: any) {
+            // Roll back the optimistic insert and surface a non-blocking
+            // toast. We deliberately don't auto-reopen the sheet — the
+            // user's draft is gone but they can re-tap FAB to retry.
+            mutateTxns(prevSnapshot);
             const detail = e?.response?.data?.detail;
-            Alert.alert(t('error', lang), typeof detail === 'string' ? detail : t('failed_save', lang));
-            fetchTransactions();
+            Toast.show({ type: 'error', text1: typeof detail === 'string' ? detail : t('failed_save', lang) });
           } finally {
             setSubmitting(false);
           }

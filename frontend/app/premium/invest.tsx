@@ -17,6 +17,7 @@ import PremiumUnlockTeaser from '../../components/premium/PremiumUnlockTeaser';
 import { useActivePlan, FEATURES, canAccess } from '../../utils/premium';
 import { makeStyles } from '../../utils/makeStyles';
 import { COLORS, SPACING } from '../../utils/theme';
+import { BrutalScreenHeader } from '../../components/brutal';
 
 
 
@@ -50,15 +51,10 @@ export default function PremiumInvestScreen() {
 
   return (
     <SafeAreaView style={s.safe} edges={['top']}>
-      <View style={s.header}>
-        <TouchableOpacity onPress={() => router.back()} style={s.back} accessibilityLabel="Back">
-          <Ionicons name="chevron-back" size={22} color="#111" />
-        </TouchableOpacity>
-        <View style={{ flex: 1 }}>
-          <Text style={s.title}>Investment Planner</Text>
-          <Text style={s.sub}>SIP allocation · risk profile · fund picks</Text>
-        </View>
-      </View>
+      <BrutalScreenHeader
+        title="INVESTMENT PLANNER"
+        subtitle="SIP · RISK PROFILE · FUND PICKS"
+      />
 
       {unlocked ? (
         <InvestmentSuggester />

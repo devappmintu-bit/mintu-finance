@@ -8,6 +8,7 @@ import { Platform } from 'react-native';
 import * as Device from 'expo-device';
 import * as Notifications from 'expo-notifications';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { router } from 'expo-router';
 import api from '../utils/api';
 import { useAuthStore } from '../store/authStore';
 
@@ -24,9 +25,76 @@ Notifications.setNotificationHandler({
   }),
 });
 
+// R114 — push-tap routing map. Each notification carries a `data.kind`
+// field (set server-side by `services/notifications_v2.py`); we map it
+// to the appropriate in-app deep link when the user taps the banner or
+// system notification. Falls back to `/(tabs)` if the kind is unknown.
+function deeplinkForPushKind(data: any): string {
+  const kind = (data?.kind || '').toString();
+  const id = data?.id ? String(data.id) : null;
+  switch (kind) {
+    case 'transaction':
+    case 'salary':
+    case 'overspend':         return '/(tabs)/transactions';
+    case 'streak':
+    case 'streak_reminder':
+    case 'reward':            return '/(tabs)/rewards';
+    case 'split':
+    case 'split_reminder':    return id ? `/split/${id}` : '/(tabs)/split';
+    case 'goal':
+    case 'goal_milestone':    return '/goals';
+    case 'budget_alert':
+    case 'month_end':
+    case 'weekly_wrap':       return '/(tabs)/budget';
+    case 'pulse':
+    case 'daily_brief':       return '/pulse-v2';
+    case 'coach':
+    case 'proactive_nudge':   return '/(tabs)/ai-coach';
+    case 'notif_inbox':
+    case 'notification':      return '/notifications';
+    default:                  return '/(tabs)';
+  }
+}
+
 export function usePushNotifications() {
   const { token: authToken } = useAuthStore();
   const registered = useRef(false);
+
+  // R114 — Notification-tap response listener. Mounted ONCE per app
+  // lifecycle; routes the tap to the right screen via expo-router.
+  // Also handles the cold-start case where the user taps a notification
+  // while the app is killed (`getLastNotificationResponseAsync`).
+  useEffect(() => {
+    if (Platform.OS === 'web') return;
+    let alive = true;
+
+    // Cold-start handler — if the app was launched FROM a notification,
+    // route to the deep-link target after first paint.
+    (async () => {
+      try {
+        const last = await Notifications.getLastNotificationResponseAsync();
+        if (!alive || !last) return;
+        const route = deeplinkForPushKind(last.notification?.request?.content?.data);
+        // Wait one tick so the layout has mounted.
+        setTimeout(() => {
+          try { router.push(route as any); } catch { /* noop */ }
+        }, 350);
+      } catch { /* noop */ }
+    })();
+
+    // Foreground / background tap handler.
+    const sub = Notifications.addNotificationResponseReceivedListener((response) => {
+      try {
+        const route = deeplinkForPushKind(response.notification.request.content.data);
+        router.push(route as any);
+      } catch { /* noop */ }
+    });
+
+    return () => {
+      alive = false;
+      try { sub.remove(); } catch { /* noop */ }
+    };
+  }, []);
 
   useEffect(() => {
     if (!authToken || registered.current) return;

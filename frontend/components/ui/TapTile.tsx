@@ -14,6 +14,7 @@
 import React, { useRef } from 'react';
 import { Pressable, Animated, View, PressableProps, StyleProp, ViewStyle, Platform, StyleSheet } from 'react-native';
 import * as Haptics from 'expo-haptics';
+import { haptic as h } from '../../utils/haptics';
 
 type Feedback = 'selection' | 'light' | 'medium' | 'heavy' | 'none';
 
@@ -32,10 +33,10 @@ type Props = PressableProps & {
 const hapticFor = (f: Feedback) => {
   if (f === 'none') return;
   try {
-    if (f === 'selection') Haptics.selectionAsync();
-    else if (f === 'light')  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    else if (f === 'medium') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-    else if (f === 'heavy')  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
+    if (f === 'selection') h.select();
+    else if (f === 'light')  h.tap();
+    else if (f === 'medium') h.press();
+    else if (f === 'heavy')  h.celebrate();
   } catch { /* web: haptics unsupported */ }
 };
 

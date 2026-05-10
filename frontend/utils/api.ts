@@ -27,6 +27,16 @@ api.interceptors.request.use(async (config) => {
     const did = await getDeviceId();
     if (did) config.headers['X-Device-ID'] = did;
   } catch { /* never fail a request because of device-id resolution */ }
+  // R114 — Slow-network signaling. Tag each request with a stable id and
+  // register it with the slow-request banner. The banner only surfaces if
+  // the request is still pending after 3s, so on healthy networks this is
+  // a no-op (no UI rerender).
+  try {
+    const { beginSlowRequest } = await import('../components/SlowNetworkHint');
+    const reqId = `req_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+    (config as any).__slowReqId = reqId;
+    beginSlowRequest(reqId);
+  } catch { /* noop */ }
   return config;
 });
 
@@ -183,10 +193,28 @@ const notifyTransportError = async (err: any) => {
 };
 
 api.interceptors.response.use(
-  (response) => response,
+  (response) => {
+    // R114 — clear slow-request marker on success.
+    try {
+      const id = (response.config as any)?.__slowReqId;
+      if (id) {
+        const { endSlowRequest } = require('../components/SlowNetworkHint');
+        endSlowRequest(id);
+      }
+    } catch { /* noop */ }
+    return response;
+  },
   async (error) => {
     const config = error.config;
     const status = error.response?.status;
+    // R114 — clear slow-request marker on failure too.
+    try {
+      const id = (config as any)?.__slowReqId;
+      if (id) {
+        const { endSlowRequest } = require('../components/SlowNetworkHint');
+        endSlowRequest(id);
+      }
+    } catch { /* noop */ }
     // Round 53e — observability breadcrumb. Captures URL, status, and
     // request_id for correlation with backend Sentry events. NEVER
     // emits the request body / auth header.

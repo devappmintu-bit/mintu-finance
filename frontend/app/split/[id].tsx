@@ -46,6 +46,7 @@ import api from '../../utils/api';
 import { useAuthStore } from '../../store/authStore';
 import BrutalSheet from '../../components/brutalist/primitives/BrutalSheet';
 import { BR_COLORS, BR_FONT } from '../../utils/brutalist';
+import SmoothEnter from '../../components/SmoothEnter';
 import MintuMascot from '../../components/MintuMascot';
 import SettlementCelebration from '../../components/split/SettlementCelebration';
 import ExpenseCommentsThread from '../../components/split/ExpenseCommentsThread';
@@ -511,6 +512,7 @@ export default function GroupDetail() {
   return (
     <SafeAreaView style={st.root} edges={['top']}>
       <Stack.Screen options={{ headerShown: false }} />
+      <SmoothEnter rise={20} delay={20}>
       <View style={st.header}>
         <Pressable
           onPress={() => router.back()}
@@ -931,6 +933,7 @@ export default function GroupDetail() {
           onClose={() => setCelebrate(null)}
         />
       )}
+      </SmoothEnter>
     </SafeAreaView>
   );
 }

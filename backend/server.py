@@ -191,6 +191,9 @@ api_router.include_router(export_router)
 # R111 — Money Pulse v2 (Inshorts-for-personal-finance, real RSS pipeline).
 from routers.pulse_v2 import router as pulse_v2_router, pulse_refresher_worker  # noqa: E402
 api_router.include_router(pulse_v2_router)
+# R118 SLICE A — Intelligence (Subscriptions Vault, Money Mood, Money Story).
+from routers.intelligence import router as intelligence_router  # noqa: E402
+api_router.include_router(intelligence_router)
 
 
 # ── Validation + InvalidId handlers (extracted to core/responses.py) ────

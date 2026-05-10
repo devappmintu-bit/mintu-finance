@@ -33,6 +33,7 @@ import * as Haptics from 'expo-haptics';
 import { COLORS, CATEGORIES, CATEGORY_LIST, useAppColors } from '../../utils/theme';
 import { makeStyles } from '../../utils/makeStyles';
 import { ExpandableSection, InputMascot, SegmentedToggle } from '../primitives';
+import { useDirtyGuard, useModalDismiss } from '../../hooks/useSmartBack';
 
 
 
@@ -238,6 +239,29 @@ export default function TransactionSheet({
   }, [editing, type]);
 
   const canSubmit = amount > 0 && !submitting && isOnline && !amountError;
+
+  // R114 — Smart-back integration. Register this sheet so hardware-back
+  // and BrutalScreenHeader's smart back dismiss the sheet first instead
+  // of popping the underlying screen. Also flag dirty state so we
+  // confirm before discarding unsaved edits.
+  useModalDismiss(() => {
+    if (visible) {
+      try { onClose(); } catch {}
+      return true;
+    }
+    return false;
+  });
+  const isDirty = visible && (
+    amount > 0 ||
+    description.trim().length > 0 ||
+    (editing != null && (
+      amount !== editing.amount ||
+      category !== editing.category ||
+      description.trim() !== (editing.description || '').trim() ||
+      type !== editing.type
+    ))
+  );
+  useDirtyGuard(isDirty);
 
   const handleSubmit = async () => {
     if (!validate(amountStr)) return;

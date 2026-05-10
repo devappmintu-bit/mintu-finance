@@ -17,6 +17,7 @@ import PremiumUnlockTeaser from '../../components/premium/PremiumUnlockTeaser';
 import { useActivePlan, FEATURES, canAccess } from '../../utils/premium';
 import { makeStyles } from '../../utils/makeStyles';
 import { COLORS, SPACING } from '../../utils/theme';
+import { BrutalScreenHeader } from '../../components/brutal';
 
 
 
@@ -50,16 +51,10 @@ export default function PremiumTaxScreen() {
 
   return (
     <SafeAreaView style={s.safe} edges={['top']}>
-      {/* Header — matches Premium Hub visual language */}
-      <View style={s.header}>
-        <TouchableOpacity onPress={() => router.back()} style={s.back} accessibilityLabel="Back">
-          <Ionicons name="chevron-back" size={22} color="#111" />
-        </TouchableOpacity>
-        <View style={{ flex: 1 }}>
-          <Text style={s.title}>Tax Planner</Text>
-          <Text style={s.sub}>Old vs New regime · 80C/80D · save up to ₹1.5 L</Text>
-        </View>
-      </View>
+      <BrutalScreenHeader
+        title="TAX PLANNER"
+        subtitle="OLD VS NEW REGIME · 80C/80D · SAVE UP TO ₹1.5L"
+      />
 
       {unlocked ? (
         <TaxCalculator />

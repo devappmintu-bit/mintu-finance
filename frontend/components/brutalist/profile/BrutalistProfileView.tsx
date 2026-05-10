@@ -37,6 +37,10 @@ import MascotLevelCard from '../../mascot/MascotLevelCard';
 // Round 100Z — Light/Dark/System theme toggle for the new
 // Neo-Brutalism palette. Lives under "PREFERENCES" in the Profile.
 import NBThemeToggle from '../../neo/NBThemeToggle';
+// R117 — Calm Mode tone reflector. Surfaces the user's current
+// financial state at the top of the Profile so the global tone is
+// consistent across surfaces.
+import CalmModeStatusPill from '../../CalmModeStatusPill';
 
 // R100I — soft-route helper. New Profile rows reference screens
 // that may not exist yet (export, feedback, rate, permissions).
@@ -223,6 +227,14 @@ export default function BrutalistProfileView(p: BrutalistProfileProps) {
         </View>
 
         {/* ══════ 02 QUICK CONTROLS — compact 3-chip row ════════════ */}
+        {/* R117 — Calm Mode tone reflector. Surfaces the user's current
+            financial state on Profile so the global tone is consistent
+            across surfaces. Card variant chosen because Profile gives
+            us the room and the user is already settling into a "look
+            at me" mode. */}
+        <View style={{ marginBottom: BR_SPACE.md }}>
+          <CalmModeStatusPill variant="card" />
+        </View>
         {/* R100U — Renamed "Progress" → "Reports". "Progress" was
             ambiguous (progress on what? goals? mission? streaks?) and
             duplicated meaning with the Goals chip next to it. "Reports"

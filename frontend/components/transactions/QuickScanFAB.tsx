@@ -14,6 +14,7 @@ import Animated, {
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import { COLORS, RADIUS, SPACE, TYPO, ELEVATION } from '../../utils/theme';
+import { haptic as hapticEngine } from '../../utils/haptics';
 
 type SubAction = {
   icon: React.ComponentProps<typeof Ionicons>['name'];
@@ -29,13 +30,12 @@ export interface QuickScanFABProps {
   bottomInset?: number; // respect safe-area / tab-bar (default 80)
 }
 
+// R115 — route through the semantic haptic engine. `light` retains the
+// legacy callsite ergonomics: light=true → tap (FAB main / sub-action),
+// light=false → select (backdrop dismiss). Web/disabled cases auto-noop
+// inside the engine, so all platform branching disappears here.
 function haptic(light = true) {
-  if (Platform.OS !== 'web') {
-    try {
-      if (light) Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-      else Haptics.selectionAsync();
-    } catch { /* noop */ }
-  }
+  if (light) hapticEngine.tap(); else hapticEngine.select();
 }
 
 function SubActionBtn({

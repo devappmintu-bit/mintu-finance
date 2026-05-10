@@ -6,6 +6,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 
 from core import db, get_current_user
+from core.cache import invalidate_user_transaction_caches
 from core.ids import safe_oid
 from core.time import utc_now
 
@@ -68,6 +69,9 @@ async def quick_cash_entry(entry: QuickCashEntry, user_id: str = Depends(get_cur
         "created_at": utc_now()
     }
     result = await db.transactions.insert_one(trans_dict)
+    # Bust derivative caches (incl. R118 intelligence) so the home
+    # widgets repaint with the freshly-committed cash entry.
+    invalidate_user_transaction_caches(user_id)
 
     return {
         "id": str(result.inserted_id),
@@ -163,5 +167,10 @@ async def apply_recurring_expenses(user_id: str = Depends(get_current_user)):
             )
             added += 1
 
-    return {"applied": added, "total_recurring": len(expenses)}
+    # If we ended up creating txn rows, bust intelligence + analytics
+    # caches once per request so the home repaints with the just-added
+    # recurring expenses included.
+    if added > 0:
+        invalidate_user_transaction_caches(user_id)
 
+    return {"applied": added, "total_recurring": len(expenses)}

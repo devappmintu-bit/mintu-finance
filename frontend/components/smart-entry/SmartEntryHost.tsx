@@ -74,6 +74,35 @@ export default function SmartEntryHost() {
                 type: payload.type,
               });
 
+              // R118 SLICE C — SMS Theater Upgrade.
+              // Fire a celebratory pulse + signal all R118 hooks to
+              // refetch by bumping the intelligence-refresh tick. The
+              // hooks watch this tick and re-pull from the API. We
+              // deliberately DO NOT call /utils/api.ts `clearCache`
+              // here because the intelligence hooks don't use the SWR
+              // cache — they hold data in component state, so the only
+              // way to invalidate is via the tick store.
+              try {
+                const { showBrutalToast } = require('../../store/brutalToastStore');
+                const sign = payload.type === 'credit' ? '+' : '-';
+                const cat = payload.category || 'Other';
+                showBrutalToast(
+                  `✨ Parsed · ${sign}₹${Math.round(Number(payload.amount) || 0).toLocaleString('en-IN')} · ${cat}`,
+                  payload.type === 'credit' ? 'positive' : 'accent',
+                );
+              } catch { /* noop */ }
+              try {
+                const { bumpIntelligence } = require('../../store/intelligenceRefreshStore');
+                // Wait a short beat so the backend cache (240-300s TTL)
+                // has been bypassed by the tick — actually we just
+                // bump immediately; backend cache is per-user-key and
+                // the new transaction has already been committed
+                // synchronously above, so the next call will compute
+                // against a graph that includes it. Backend cache TTL
+                // is short enough that staleness is minimal.
+                bumpIntelligence();
+              } catch { /* noop */ }
+
               if (wasFirst) {
                 // First-expense payoff moment. Brutalist toast + heavier
                 // haptic for the celebration. Sets up the pattern the

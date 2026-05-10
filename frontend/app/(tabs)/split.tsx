@@ -17,7 +17,7 @@
  *   • One primary CTA at a time. Either '+ New group' OR 'Settle ₹X'.
  *   • Mission backbone is silent — no toasts, no badges, no banners.
  */
-import React, { memo, useCallback, useEffect, useMemo, useState } from 'react';
+import React, { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   Platform,
@@ -42,6 +42,9 @@ import {
   BR_STAMP,
 } from '../../utils/brutalist';
 import MintuMascot from '../../components/MintuMascot';
+import { useScrollMemory } from '../../hooks/useNavigationMemory';
+import { useOfflineRefresh } from '../../hooks/useOfflineRefresh';
+import SplitAIInsight from '../../components/split/SplitAIInsight';
 
 // All brand tokens routed through BR_COLORS (R100A → R100B brand-kit
 // consolidation). Local aliases preserved so the rest of this file's
@@ -96,6 +99,15 @@ export default function SplitHome() {
   const [balances, setBalances] = useState<Balances | null>(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+
+  // R114 — scroll memory restoration so users returning from a group
+  // detail screen / settle sheet land back at their prior offset.
+  const { saveScroll, getScroll } = useScrollMemory('split:home');
+  const restoredRef = useRef(false);
+  const onScrollMemo = useCallback(
+    (e: any) => { saveScroll(e?.nativeEvent?.contentOffset?.y ?? 0); },
+    [saveScroll],
+  );
 
   const load = useCallback(async (showSpinner = true) => {
     if (showSpinner) setLoading(true);
@@ -154,6 +166,12 @@ export default function SplitHome() {
     load(true);
   }, [load]);
 
+  // R114 A4 — offline-aware refresh wrapper. Toast hint when offline,
+  // dedupe rapid pulls. Replaces inline refreshing state for the
+  // RefreshControl below (local `refreshing` flag still drives the
+  // skeleton-→-data transition through `load`).
+  const { onRefresh: onPullToRefresh } = useOfflineRefresh(() => load(false));
+
   // Derive the single source of truth for the screen state.
   const mode = useMemo<'loading' | 'empty' | 'all_settled' | 'has_dues'>(() => {
     if (loading && groups.length === 0) return 'loading';
@@ -192,19 +210,32 @@ export default function SplitHome() {
         <EmptyPane />
       ) : (
         <ScrollView
+          ref={(r) => { (SplitHome as any).__scrollRef = r; }}
+          onScroll={onScrollMemo}
+          scrollEventThrottle={250}
+          onContentSizeChange={() => {
+            const offset = getScroll();
+            if (offset > 60 && !restoredRef.current) {
+              restoredRef.current = true;
+              requestAnimationFrame(() => {
+                try { (SplitHome as any).__scrollRef?.scrollTo({ y: offset, animated: false }); } catch {}
+              });
+            }
+          }}
           contentContainerStyle={st.scroll}
           refreshControl={
             <RefreshControl
               refreshing={refreshing}
               onRefresh={() => {
                 setRefreshing(true);
-                load(false);
+                onPullToRefresh();
               }}
               tintColor={INK}
             />
           }
         >
           <Hero balances={balances} mode={mode} groupCount={groups.length} />
+          <SplitAIInsight groups={sortedGroups} balances={balances} myName={myName} />
           <View style={st.listHeading}>
             <Text style={st.listHeadingText}>YOUR GROUPS</Text>
             <Text style={st.listHeadingCount}>{groups.length}</Text>

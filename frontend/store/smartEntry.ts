@@ -41,12 +41,38 @@ interface SmartEntryState {
   close: () => void;
 }
 
-export const useSmartEntry = create<SmartEntryState>((set) => ({
+// R114 B5 — Reservation lock. A second `open()` fired in the same
+// 400ms window (e.g. user double-taps the FAB or a hand-off from
+// Brain races the user) is silently coalesced so we don't end up
+// with two sheets fighting for the same surface.
+let lastOpenAt = 0;
+let lastOpenKind: SmartEntryKind | null = null;
+const OPEN_DEDUPE_MS = 400;
+
+export const useSmartEntry = create<SmartEntryState>((set, get) => ({
   kind: null,
   initial: {},
   source: 'unknown',
-  open: (kind, initial = {}, source = 'unknown') => set({ kind, initial, source }),
-  close: () => set({ kind: null, initial: {}, source: 'unknown' }),
+  open: (kind, initial = {}, source = 'unknown') => {
+    const now = Date.now();
+    const current = get().kind;
+    // Reject a duplicate within dedupe window OR while another sheet is mounted.
+    if (current && current !== kind) {
+      if (__DEV__) console.warn(`[SmartEntry] suppressed ${kind} — ${current} sheet still mounted`);
+      return;
+    }
+    if (now - lastOpenAt < OPEN_DEDUPE_MS && lastOpenKind === kind) {
+      if (__DEV__) console.warn(`[SmartEntry] suppressed duplicate ${kind} within ${OPEN_DEDUPE_MS}ms`);
+      return;
+    }
+    lastOpenAt = now;
+    lastOpenKind = kind;
+    set({ kind, initial, source });
+  },
+  close: () => {
+    lastOpenKind = null;
+    set({ kind: null, initial: {}, source: 'unknown' });
+  },
 }));
 
 // Convenience for non-React callers / tests.

@@ -11,7 +11,7 @@
 import React from 'react';
 import { View, Text, Pressable, StyleSheet } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { router } from 'expo-router';
+import useSmartBack from '../../hooks/useSmartBack';
 import {
   BR_COLORS,
   BR_BORDER,
@@ -35,14 +35,8 @@ export default function BrutalScreenHeader({
   right,
   testID,
 }: BrutalScreenHeaderProps) {
-  const handleBack = onBack ?? (() => {
-    try {
-      if (router.canGoBack()) router.back();
-      else router.replace('/(tabs)' as any);
-    } catch {
-      router.replace('/(tabs)' as any);
-    }
-  });
+  const smartBack = useSmartBack();
+  const handleBack = onBack ?? smartBack;
 
   return (
     <View style={s.header} testID={testID}>

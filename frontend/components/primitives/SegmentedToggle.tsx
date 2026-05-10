@@ -18,10 +18,11 @@
  * selection on change.
  */
 import React, { useCallback, useState } from 'react';
-import { View, Text, StyleSheet, LayoutChangeEvent, Platform, Pressable } from 'react-native';
+import { View, Text, StyleSheet, LayoutChangeEvent, Pressable } from 'react-native';
 import Animated, { useSharedValue, useAnimatedStyle, withSpring } from 'react-native-reanimated';
-import * as Haptics from 'expo-haptics';
 import { COLORS, RADIUS, SPACE, TYPO } from '../../utils/theme';
+import { haptic } from '../../utils/haptics';
+import { SPRING } from '../../utils/motion';
 
 export interface SegmentOption<T extends string = string> {
   id: T;
@@ -51,8 +52,10 @@ function SegmentedToggleImpl<T extends string = string>({
   const x = useSharedValue(0);
 
   // Animate the pill whenever the active index / segment width changes.
+  // R115 — uses motion.SPRING.snappy so segment toggle feel matches the
+  // rest of the app's snap interactions (chips, filters).
   React.useEffect(() => {
-    x.value = withSpring(activeIdx * segW, { damping: 18, stiffness: 260 });
+    x.value = withSpring(activeIdx * segW, SPRING.snappy);
   }, [activeIdx, segW, x]);
 
   const pillStyle = useAnimatedStyle(() => ({
@@ -65,9 +68,11 @@ function SegmentedToggleImpl<T extends string = string>({
   }, []);
 
   const handle = useCallback((id: T) => {
-    if (Platform.OS !== 'web') { try { Haptics.selectionAsync(); } catch {} }
+    // R115 — semantic select() on every change. Engine handles
+    // web/disabled no-op + reduced-haptics so caller stays clean.
+    if (id !== value) haptic.select();
     onChange(id);
-  }, [onChange]);
+  }, [onChange, value]);
 
   return (
     <View

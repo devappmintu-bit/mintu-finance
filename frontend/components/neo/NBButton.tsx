@@ -9,6 +9,7 @@ import React, { useMemo } from 'react';
 import { Pressable, StyleSheet, Text, View, ViewStyle, TextStyle } from 'react-native';
 import Animated, { useAnimatedStyle, useSharedValue, withSpring, withTiming } from 'react-native-reanimated';
 import * as Haptics from 'expo-haptics';
+import { haptic as h } from '../../utils/haptics';
 import { Ionicons } from '@expo/vector-icons';
 import { useNeoPalette } from '../../store/neoTheme';
 import { NB_BORDER, NB_RADIUS, NB_SPACE, NB_TYPE, nbShadow, NeoRole, roleColor } from '../../utils/neoBrutalism';
@@ -51,7 +52,7 @@ export default function NBButton({
 
   const onIn = () => {
     if (disabled) return;
-    if (haptic) Haptics.selectionAsync().catch(() => {});
+    if (haptic) h.select();
     tx.value = withSpring(offset - offsetPress, { damping: 20, stiffness: 320 });
     ty.value = withSpring(offset - offsetPress, { damping: 20, stiffness: 320 });
     sx.value = withTiming(1, { duration: 90 });

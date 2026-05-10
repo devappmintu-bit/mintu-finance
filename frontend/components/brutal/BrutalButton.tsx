@@ -32,6 +32,23 @@ import {
   TONE_FG,
   type BrutalTone,
 } from '../../theme/brutal';
+import { haptic } from '../../utils/haptics';
+
+// R115 Sprint-2 — tone-aware semantic haptics. Brand-colored CTAs map
+// to the right intent so a "danger" delete and a "success" save have
+// distinguishable physical feels under the thumb.
+const TONE_HAPTIC: Record<BrutalTone, keyof typeof haptic> = {
+  accent: 'tap',
+  positive: 'success',
+  premium: 'press',
+  cool: 'tap',
+  warm: 'tap',
+  ink: 'press',
+  paper: 'tap',
+  danger: 'warn',
+  success: 'success',
+  warning: 'warn',
+};
 
 type Size = 'sm' | 'md' | 'lg' | 'xl';
 
@@ -94,7 +111,14 @@ export default function BrutalButton({
   return (
     <Pressable
       testID={testID}
-      onPress={loading || disabled ? undefined : onPress}
+      onPress={(e) => {
+        if (loading || disabled) return;
+        // R115 — fire tone-mapped semantic haptic before the handler so
+        // physical feedback lands the same frame as the press, not after
+        // an async API roundtrip.
+        try { (haptic as any)[TONE_HAPTIC[tone] || 'tap']?.(); } catch {}
+        onPress?.(e);
+      }}
       disabled={loading || disabled}
       style={({ pressed }) => [
         styles.btn,

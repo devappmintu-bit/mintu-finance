@@ -176,7 +176,7 @@ export default function GoalsScreen() {
               : 0;
             // 100% crossing → full celebration
             if (prevPct < 100 && pct >= 100) {
-              Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
+              h.success();
               setShowConfetti(true);
               Toast.show({
                 type: 'success',
@@ -196,7 +196,7 @@ export default function GoalsScreen() {
             }
             // 50% crossing → light nudge
             if (prevPct < 50 && pct >= 50 && pct < 75) {
-              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
+              h.tap();
               Toast.show({
                 type: 'info',
                 text1: `Halfway on ${g.name} 🎯`,
@@ -247,7 +247,7 @@ export default function GoalsScreen() {
 
     // Validation failure → light warning buzz to confirm "I saw you, but…"
     const bail = (msg: string) => {
-      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning).catch(() => {});
+      h.warn();
       Toast.show({ type: 'error', text1: msg });
     };
 
@@ -470,11 +470,11 @@ export default function GoalsScreen() {
           try {
             if (editingGoal) {
               await api.patch(`/goals/${editingGoal.id}`, payload);
-              Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
+              h.success();
               showSuccess('Goal updated!');
             } else {
               await api.post('/goals', payload);
-              Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
+              h.success();
               showSuccess('Goal created 🎉');
             }
             setFormVisible(false);
@@ -482,7 +482,7 @@ export default function GoalsScreen() {
           } catch (e: any) {
             const detail = e?.response?.data?.detail;
             const msg = Array.isArray(detail) ? detail[0]?.msg : detail;
-            Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error).catch(() => {});
+            h.error();
             Toast.show({
               type: 'error',
               text1: msg ? 'Invalid goal' : 'Could not save goal',

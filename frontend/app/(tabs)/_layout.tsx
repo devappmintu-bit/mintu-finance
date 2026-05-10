@@ -39,6 +39,8 @@ import { t } from '../../utils/i18n';
 // the neo accent (lime in light, neon-yellow in dark) on the active
 // tab background — much louder than the previous mono ink fill.
 import { useNeoPalette } from '../../store/neoTheme';
+// R117 — Cmd Palette trigger on tab long-press for power users.
+import useCmdPaletteStore from '../../store/cmdPaletteStore';
 
 
 
@@ -221,8 +223,8 @@ function barPath(w: number, h: number): string {
   return `M ${r} 0 L ${w - r} 0 Q ${w} 0 ${w} ${r} L ${w} ${h - r} Q ${w} ${h} ${w - r} ${h} L ${r} ${h} Q 0 ${h} 0 ${h - r} L 0 ${r} Q 0 0 ${r} 0 Z`;
 }
 
-function SideTab({ icon, iconFilled, label, focused, onPress, testID }:
-  { icon: string; iconFilled: string; label: string; focused: boolean; onPress: () => void; testID?: string }) {
+function SideTab({ icon, iconFilled, label, focused, onPress, onLongPress, testID }:
+  { icon: string; iconFilled: string; label: string; focused: boolean; onPress: () => void; onLongPress?: () => void; testID?: string }) {
   const st = useStyles();
   // Smooth bounce+scale on focus change + halo pulse
   const scale = React.useRef(new Animated.Value(focused ? 1 : 0.92)).current;
@@ -275,7 +277,7 @@ function SideTab({ icon, iconFilled, label, focused, onPress, testID }:
   });
 
   return (
-    <TouchableOpacity testID={testID} style={st.sideTab} onPress={onPress} activeOpacity={0.7}>
+    <TouchableOpacity testID={testID} style={st.sideTab} onPress={onPress} onLongPress={onLongPress} delayLongPress={400} activeOpacity={0.7}>
       <View style={st.sideIconStack}>
         {/* Round 60 — animated pulse halo for the active tab. Renders
             ONLY when focused so unfocused tabs don't paint dead pixels. */}
@@ -346,16 +348,24 @@ function MintUTabBar({ state, navigation }: BottomTabBarProps) {
   const right = visible.slice(2, 4);
 
   const fire = (route: any, focused: boolean) => {
+    // R115 — semantic haptic on tab switch. Keeps the tab tactile but
+    // avoids vibrating when the user re-taps the active tab.
+    if (!focused) { try { require('../../utils/haptics').haptic.select(); } catch {} }
     const event = navigation.emit({ type: 'tabPress', target: route.key, canPreventDefault: true });
     if (!focused && !event.defaultPrevented) navigation.navigate(route.name as never);
   };
 
   const openAiCoach = () => navigation.navigate('ai-coach' as never);
+  // R117 — Long-press any side tab to open the global Cmd Palette.
+  const openCmdPalette = React.useCallback(() => {
+    try { require('../../utils/haptics').haptic.press(); } catch {}
+    useCmdPaletteStore.getState().open();
+  }, []);
   // Round 59 — short-tap on mascot opens the AI Quick Sheet (curated
   // prompts + free-text). Long-press still goes straight to the chat
   // for power users. Haptic medium on open for the deliberate feel.
   const onMascotPress = () => {
-    try { require('expo-haptics').impactAsync('medium'); } catch { /* noop */ }
+    try { require('../../utils/haptics').haptic.press(); } catch { /* noop */ }
     setAiSheetVisible(true);
   };
 
@@ -394,6 +404,7 @@ function MintUTabBar({ state, navigation }: BottomTabBarProps) {
                 label={labelOf(route.name, lang)}
                 focused={focused}
                 onPress={() => fire(route, focused)}
+                onLongPress={openCmdPalette}
                 testID={`tab-${route.name}`}
               />
             );
@@ -413,6 +424,7 @@ function MintUTabBar({ state, navigation }: BottomTabBarProps) {
                 label={labelOf(route.name, lang)}
                 focused={focused}
                 onPress={() => fire(route, focused)}
+                onLongPress={openCmdPalette}
                 testID={`tab-${route.name}`}
               />
             );

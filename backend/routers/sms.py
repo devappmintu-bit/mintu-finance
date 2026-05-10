@@ -268,6 +268,17 @@ async def bulk_parse_sms(data: dict, user_id: str = Depends(get_current_user)):
     new_score = await calculate_money_score(user_id)
     await db.users.update_one({"_id": ObjectId(user_id)}, {"$set": {"money_score": new_score}})
 
+    # R118 — bust the Real-Time SMS Intelligence + analytics caches so
+    # the next /api/intelligence/* call recomputes against the freshly-
+    # imported transactions. Single helper guarantees parity with all
+    # other transaction-mutating routes.
+    if parsed_count > 0:
+        try:
+            from core.cache import invalidate_user_transaction_caches
+            invalidate_user_transaction_caches(user_id)
+        except Exception:
+            pass
+
     return {
         "parsed": parsed_count,
         "failed": failed_count,

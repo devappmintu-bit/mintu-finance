@@ -161,11 +161,18 @@ export function useMascotMood(): MascotMoodResult {
     }
 
     // ── 4) PROUD — score green or goal close to done ──────────────
+    // R118 polish: dropped the "/100" suffix from the headline copy
+    // because the MoodScoreWidget already shows a /100 score above
+    // this card. Two competing /100 readouts on the same screen
+    // confused users about whether they were the same number.
+    // Now this surface celebrates the streak + diagnostic score
+    // qualitatively ("Quietly winning"), and the deterministic R118
+    // mood lives in its own widget.
     if ((s?.value || 0) >= 75) {
       return {
         mood: 'proud',
         state: 'success',
-        line: `Score ${s.value}/100. Quietly winning.`,
+        line: 'Quietly winning. Keep doing what you\'re doing.',
         intensity: 0.8,
         showStreak,
         gated: false,

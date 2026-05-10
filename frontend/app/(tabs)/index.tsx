@@ -59,9 +59,22 @@ import WeekStrip from '../../components/home/WeekStrip';
 // R100G — PremiumUpsellRow removed per user directive: Premium card
 // moved to Profile (Plan section). Import retained removed below.
 import StarterPackCard from '../../components/home/StarterPackCard';
+// R118 Slice A — Real-time SMS intelligence surfaces.
+// MoodScoreWidget renders the deterministic 0-100 composite score (no LLM)
+// and opens an explainer sheet on tap. MoneyStoryCard is the slim home
+// teaser linking to the Instagram-style /money-story player.
+import MoodScoreWidget from '../../components/intelligence/MoodScoreWidget';
+import MoneyStoryCard from '../../components/intelligence/MoneyStoryCard';
+// R118 Slice B — Behavioural patterns strip (late-night / weekend / payday
+// / stress). Each tile carries an evidence-trace explainer sheet.
+import BehaviorInsightsCard from '../../components/intelligence/BehaviorInsightsCard';
+// R118 Slice D — Predictive cash-flow card with EOM net + bill alerts.
+import CashFlowCard from '../../components/intelligence/CashFlowCard';
 import PulseMascotButton from '../../components/home/PulseMascotButton';
 import ReferralMascotCard from '../../components/home/ReferralMascotCard';
 import useShouldShowUpsells from '../../hooks/useShouldShowUpsells';
+import { useFinancialState } from '../../hooks/useFinancialState';
+import { useFinStateStore } from '../../store/financialStateStore';
 import MissionCard from '../../components/home/MissionCard';
 // Round 100X — Duolingo-grade mascot engagement engine.
 // MascotHero: the daily face of MintU at the top of home. Hidden for
@@ -198,6 +211,23 @@ function HomeScreen() {
 
   // ONE BRAIN — shared priority engine. Used by Hero + Today + AI Coach.
   const insight = usePriorityInsight();
+
+  // R116 "Calm Mode" — single emotional state powers Home density.
+  // When state is `flourishing` or `steady`, we suppress the secondary
+  // mascot hero stack (StreakHero + RetentionHero) so the user sees ONE
+  // hero, not three. Only `attention`/`critical` users get the louder
+  // engagement surfaces because that's when the noise is justified.
+  const finState = useFinancialState(snapshot, txnCount);
+  const isCalm = finState.state === 'flourishing' || finState.state === 'steady';
+
+  // R116 — push the result into a Zustand store so non-Home surfaces
+  // (toasts, banners, profile, Pulse) can read the same emotional
+  // tone without re-running the snapshot fetch. Idempotent — store
+  // dedupes by structural equality, so this is safe to run on every
+  // render.
+  React.useEffect(() => {
+    useFinStateStore.getState().setFinState(finState);
+  }, [finState]);
 
   // R100T — earned-the-pitch gate for monetization surfaces (Refer & Earn).
   const showUpsells = useShouldShowUpsells();
@@ -365,19 +395,39 @@ function HomeScreen() {
         <NBHero />
 
         {/* ── 0a. STREAK HERO — Duolingo-style streak surface ──────── */}
-        {/* Hidden until the user has earned ≥1 streak day. Shows flame */}
-        {/* tier + freeze inventory + comeback CTA when at risk.        */}
-        <MascotStreakHero />
+        {/* Hidden until the user has earned ≥1 streak day. R116 — also  */}
+        {/* suppressed when state is calm/flourishing so we don't stack  */}
+        {/* three heroes on a peaceful day. Streak still surfaces inside */}
+        {/* the Momentum panel via score; the loud mascot variant only   */}
+        {/* lives at attention/critical.                                  */}
+        {!isCalm && <MascotStreakHero />}
         {/* R110 — live retention loop above day-action band. Renders
             urgent/today/fire/idle states based on real /streak/status
-            backend snapshot. Auto-hides for never-engaged users. */}
-        <MascotRetentionHero />
+            backend snapshot. Auto-hides for never-engaged users.
+            R116 — also suppressed in calm mode (same reasoning). */}
+        {!isCalm && <MascotRetentionHero />}
 
         {/* ── 1. HERO — Decision Context ────────────────────────── */}
         {/* Score + risk flag + ONE insight. Taps → AI Coach. */}
         {/* For zero-txn new users we SKIP the hero (no score yet)  */}
         {/* and let the starter deck / TodayAction carry the surface. */}
         {txnCount > 0 && <HeroDecision insight={insight} />}
+
+        {/* ── 1b. R118 SLICE A — Money Mood + Story (highest-ROI surfaces). ─
+            Mood widget renders the deterministic 0-100 composite score
+            and opens an explainer sheet on tap. Story card teases the
+            Instagram-style swipeable monthly recap at /money-story.
+            Both honest-fail-silent for zero-txn new users (the hooks
+            return nothing renderable when the LLM-free pipeline can't
+            assemble a meaningful response). */}
+        {txnCount > 0 && <MoodScoreWidget />}
+        {txnCount > 0 && <MoneyStoryCard />}
+
+        {/* ── 1c. R118 SLICE B — Behaviour patterns + R118 SLICE D —
+            Predictive cash flow. Both fail-silent when no patterns
+            are active or the cash-flow pipeline lacks signal. */}
+        {txnCount > 0 && <BehaviorInsightsCard />}
+        {txnCount > 0 && <CashFlowCard />}
 
         {/* ── 1a. STARTER PACK — Round 98 first-paint deck. ──────── */}
         {/* ── 0. MISSION — Emotional spine (R100Q Phase 1) ─────────── */}
@@ -430,7 +480,11 @@ function HomeScreen() {
         {/* ── 5. REFER & EARN — Toing-style mascot card (R100G) ──── */}
         {/* R100T — Suppressed for cold-start users (no txns/budgets/groups). */}
         {/* No point monetizing referrals before the user has any value to refer. */}
-        {showUpsells ? <ReferralMascotCard /> : null}
+        {/* R116 — Also suppressed in `flourishing` state. A user who's   */}
+        {/* nailing their budget shouldn't be interrupted with a mone-     */}
+        {/* tization upsell — that's the moment for a calm celebration,   */}
+        {/* not a "share & earn" CTA. Surfaces back at steady/attention.  */}
+        {showUpsells && finState.state !== 'flourishing' ? <ReferralMascotCard /> : null}
 
         <View style={{ height: 140 }} />
       </ScrollView>

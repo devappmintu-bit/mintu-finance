@@ -21,6 +21,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import * as Haptics from 'expo-haptics';
+import { haptic as h } from '../utils/haptics';
 import Toast from 'react-native-toast-message';
 
 import {
@@ -80,7 +81,7 @@ export default function NotificationsScreen() {
   useEffect(() => { load(); }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   const onPressItem = useCallback(async (n: NotifItem) => {
-    if (Platform.OS !== 'web') { try { Haptics.selectionAsync(); } catch {} }
+    if (Platform.OS !== 'web') { try { h.select(); } catch {} }
     if (!n.read) {
       setItems((prev) => (prev || []).map((x) => (x.id === n.id ? { ...x, read: true } : x)));
       markRead(n.id).catch(() => {});
@@ -96,7 +97,7 @@ export default function NotificationsScreen() {
     setItems(prev.map((x) => ({ ...x, read: true })));
     try {
       const n = await markAllRead();
-      if (Platform.OS !== 'web') { try { Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success); } catch {} }
+      if (Platform.OS !== 'web') { try { h.success(); } catch {} }
       Toast.show({ type: 'success', text1: 'All caught up', text2: n ? `${n} marked as read` : 'Nothing new' });
     } catch {
       setItems(prev);

@@ -21,7 +21,8 @@ import Animated, {
   useSharedValue, useAnimatedStyle, withSpring, withTiming, Easing,
 } from 'react-native-reanimated';
 import { Ionicons } from '@expo/vector-icons';
-import * as Haptics from 'expo-haptics';
+import { haptic } from '../../utils/haptics';
+import { SPRING } from '../../utils/motion';
 import { COLORS, RADIUS, SPACE, TYPO } from '../../utils/theme';
 
 export interface ExpandableSectionProps {
@@ -39,10 +40,10 @@ function ExpandableSectionImpl({ title, subtitle, icon, startOpen = false, child
   const rot = useSharedValue(startOpen ? 1 : 0);
 
   const toggle = useCallback(() => {
-    if (Platform.OS !== 'web') { try { Haptics.selectionAsync(); } catch {} }
+    haptic.select();
     setOpen((o) => {
       const next = !o;
-      h.value = withSpring(next ? contentH : 0, { damping: 18, stiffness: 220 });
+      h.value = withSpring(next ? contentH : 0, SPRING.snappy);
       rot.value = withTiming(next ? 1 : 0, { duration: 220, easing: Easing.out(Easing.cubic) });
       return next;
     });

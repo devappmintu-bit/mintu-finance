@@ -16,11 +16,12 @@
  *  - 'card'    — 0.985 scale, selection haptic, shadow-lift
  */
 import React, { useCallback } from 'react';
-import { Pressable, Platform, StyleProp, ViewStyle, PressableProps } from 'react-native';
+import { Pressable, StyleProp, ViewStyle, PressableProps } from 'react-native';
 import Animated, {
   useSharedValue, useAnimatedStyle, withSpring, withTiming, Easing,
 } from 'react-native-reanimated';
-import * as Haptics from 'expo-haptics';
+import { haptic } from '../../utils/haptics';
+import { SPRING } from '../../utils/motion';
 
 type Variant = 'tap' | 'bouncy' | 'ghost' | 'card';
 
@@ -33,19 +34,20 @@ export interface SpringPressProps extends Omit<PressableProps, 'style'> {
   noHaptic?: boolean;
 }
 
-const CONFIGS: Record<Variant, { scale: number; lift: number; haptic: 'selection' | 'light' | 'none' }> = {
-  tap:    { scale: 0.96,  lift: 0, haptic: 'selection' },
-  bouncy: { scale: 0.92,  lift: 2, haptic: 'light' },
+const CONFIGS: Record<Variant, { scale: number; lift: number; haptic: 'select' | 'tap' | 'none' }> = {
+  tap:    { scale: 0.96,  lift: 0, haptic: 'select' },
+  bouncy: { scale: 0.92,  lift: 2, haptic: 'tap' },
   ghost:  { scale: 0.985, lift: 0, haptic: 'none' },
-  card:   { scale: 0.985, lift: 1, haptic: 'selection' },
+  card:   { scale: 0.985, lift: 1, haptic: 'select' },
 };
 
-function fireHaptic(kind: 'selection' | 'light' | 'none') {
-  if (kind === 'none' || Platform.OS === 'web') return;
-  try {
-    if (kind === 'selection') Haptics.selectionAsync();
-    else Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-  } catch { /* noop */ }
+// R115 — semantic intents replace the legacy 'selection'|'light' string
+// vocabulary. The variant table maps to engine intents directly so we
+// can later extend with `payment` / `success` etc. without code shape
+// changes at call sites.
+function fireHaptic(kind: 'select' | 'tap' | 'none') {
+  if (kind === 'none') return;
+  try { (haptic as any)[kind]?.(); } catch { /* noop */ }
 }
 
 function SpringPressImpl({
@@ -68,14 +70,16 @@ function SpringPressImpl({
   }));
 
   const handleIn = useCallback((e: any) => {
-    scale.value = withSpring(cfg.scale, { damping: 14, stiffness: 320 });
+    // R115 — uses motion.SPRING.press for press-in (snappy, fast),
+    // SPRING.snappy for press-out (calm). Matches PressableScale.
+    scale.value = withSpring(cfg.scale, SPRING.press);
     if (cfg.lift > 0) lift.value = withTiming(cfg.lift, { duration: 120, easing: Easing.out(Easing.quad) });
     if (!noHaptic) fireHaptic(cfg.haptic);
     onPressIn?.(e);
   }, [scale, lift, cfg, noHaptic, onPressIn]);
 
   const handleOut = useCallback((e: any) => {
-    scale.value = withSpring(1, { damping: 18, stiffness: 260 });
+    scale.value = withSpring(1, SPRING.snappy);
     if (cfg.lift > 0) lift.value = withTiming(0, { duration: 140 });
     onPressOut?.(e);
   }, [scale, lift, cfg, onPressOut]);

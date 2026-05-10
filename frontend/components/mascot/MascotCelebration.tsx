@@ -16,6 +16,7 @@
 import React, { useEffect } from 'react';
 import { Modal, Pressable, StyleSheet, Text, View } from 'react-native';
 import * as Haptics from 'expo-haptics';
+import { haptic as h } from '../../utils/haptics';
 import Animated, {
   Easing,
   useAnimatedStyle,
@@ -45,7 +46,7 @@ export default function MascotCelebration({
 
   useEffect(() => {
     if (visible) {
-      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
+      h.celebrate();
       opacity.value = withTiming(1, { duration: 180 });
       scale.value = withSequence(
         withSpring(1.08, { damping: 8, stiffness: 140 }),
